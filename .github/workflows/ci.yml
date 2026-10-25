@@ -1,0 +1,121 @@
+name: ci
+
+# Every push and every pull request: typecheck, lint, tests.
+#
+# The dashboard is not a repository on its own. tsconfig.json resolves
+# `@/lib/*` to ../foldrun-core/src, `@/platform/*` to ../foldrun-platform/src
+# and `@/docs-index` to ../foldrun-docs/index.ts, so the siblings are checked
+# out beside this one at the paths the aliases expect, and core and the
+# platform get their own `npm ci` because their sources import their own
+# node_modules (drizzle, ioredis, the agent SDK). The docs index needs only
+# node builtins.
+#
+# core, platform, docs and the CLI are public and need no token. infra and
+# site are private: the checks that read them run on trusted runs only (see
+# the App step below). The box deploy also runs this repository's tests, with
+# foldrun-admin laid over it, before every rollout.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# One run per ref; a newer push/PR update cancels the older one (FOL-62, box runner).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # GitHub's hosted runner: this repository is public (25 Oct 2026), and a
+    # public repository never runs on our own machines — a pull request from
+    # a fork would run its code there. Hosted minutes are free for public repos.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # foldrun-infra and foldrun-site stay private; the consistency checks
+      # that read them run only on a trusted run (a push here, or a pull
+      # request from a branch of this repository), with a read token the
+      # foldrun-bot App mints for those two alone. A pull request from a fork
+      # gets no secrets: it runs every other check and skips those.
+      - name: a read token for the private siblings, from the App
+        id: app
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.FOLDRUN_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.FOLDRUN_BOT_PRIVATE_KEY }}
+          owner: foldrun-io
+          repositories: foldrun-infra,foldrun-site
+          permission-contents: read
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: foldrun-web
+          fetch-depth: 0
+      # The public siblings this dashboard compiles from, and the CLI the
+      # surface-coverage check reads.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: foldrun-io/foldrun-core
+          path: foldrun-core
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: foldrun-io/foldrun-platform
+          path: foldrun-platform
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: foldrun-io/foldrun-docs
+          path: foldrun-docs
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: foldrun-io/foldrun-cli
+          path: foldrun-cli
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.app.outputs.token != ''
+        with:
+          repository: foldrun-io/foldrun-infra
+          path: foldrun-infra
+          token: ${{ steps.app.outputs.token }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.app.outputs.token != ''
+        with:
+          repository: foldrun-io/foldrun-site
+          path: foldrun-site
+          token: ${{ steps.app.outputs.token }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: |
+            foldrun-web/package-lock.json
+            foldrun-core/package-lock.json
+            foldrun-platform/package-lock.json
+      - run: npm ci
+        working-directory: foldrun-core
+      - run: npm ci
+        working-directory: foldrun-platform
+      - run: npm ci
+        working-directory: foldrun-web
+      - run: npx tsc --noEmit
+        working-directory: foldrun-web
+      - run: npm run lint
+        working-directory: foldrun-web
+      # Billing (foldrun-admin) is never committed here.
+      - name: billing stays out
+        run: node scripts/billing-guard.mjs HEAD
+        working-directory: foldrun-web
+      - name: API guard — no unversioned breaking change
+        run: node scripts/api-guard.mjs
+        working-directory: foldrun-web
+        env:
+          API_GUARD_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+      - run: npm test
+        working-directory: foldrun-web
+        env:
+          # On a trusted run every sibling is checked out above, so a check
+          # that reads one must fail when it is missing, not skip. On a fork's
+          # pull request the private two are not here and their checks skip.
+          FOLDRUN_REQUIRE_SIBLINGS: ${{ steps.app.outputs.token != '' && '1' || '' }}

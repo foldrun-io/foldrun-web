@@ -1,0 +1,16 @@
+# What the build may read, from the folder holding the sibling checkouts.
+**/.git
+**/node_modules
+**/.next
+**/dist
+**/data
+**/*.tsbuildinfo
+**/.ts-test-*
+**/.env
+**/.env.*
+foldrun-*/tests
+foldrun-cli
+foldrun-infra
+foldrun-site
+foldrun-admin
+.foldrun-admin-laid

@@ -1,0 +1,56 @@
+// One teammate: change their role, or remove them. Scoped to the caller's own
+// account by the same funnel as everything else — the id alone reaches
+// nothing outside it. The rules for who may do what to whom live in
+// core/src/permissions.ts, where they are unit-tested.
+
+import { NextRequest, NextResponse } from "next/server";
+import { requirePerson, errorResponse, ApiError } from "@/server/api";
+import { removeMember, setMemberRole, setMemberScope, listMembers } from "@/server/users";
+import { audit } from "@/server/audit";
+import { isRole } from "@/platform/permissions";
+
+export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  try {
+    const { tenant, actor } = await requirePerson(req, "team:manage");
+    const { id } = await ctx.params;
+    const body = (await req.json().catch(() => ({}))) as { role?: unknown; workspaces?: unknown };
+    const before = (await listMembers(tenant)).find((m) => m.id === id);
+    if (body.role !== undefined) {
+      if (!isRole(body.role)) throw new ApiError("expected { role: viewer | editor | admin }", 400);
+      // There is exactly one owner and it is transferred, not assigned:
+      // POST /api/team/transfer, by the owner. Refused here, before the
+      // permission table gets to reason about it.
+      if (body.role === "owner") throw new ApiError("owner is not a role you can set — transfer ownership instead (POST /api/team/transfer)", 400);
+      await setMemberRole(tenant, id, body.role, actor.id); // throws with a status
+      await audit("member.role_changed", { actor: actor.name, tenant, subject: before?.email ?? id, detail: { from: before?.role ?? null, to: body.role } });
+    }
+    if (body.workspaces !== undefined) {
+      const scope = body.workspaces === null ? null : Array.isArray(body.workspaces) ? body.workspaces.filter((w): w is string => typeof w === "string") : undefined;
+      if (scope === undefined) throw new ApiError("expected { workspaces: [names] | null }", 400);
+      if (actor.workspaces && (scope === null || scope.some((w) => !actor.workspaces!.includes(w)))) throw new ApiError("you can only share workspaces you can open", 403);
+      await setMemberScope(tenant, id, scope, actor.id); // throws with a status
+      await audit("member.scope_changed", { actor: actor.name, tenant, subject: before?.email ?? id, detail: { from: before?.workspaces ?? null, to: scope } });
+    }
+    if (body.role === undefined && body.workspaces === undefined) throw new ApiError("nothing to change — send role and/or workspaces", 400);
+    const after = (await listMembers(tenant)).find((m) => m.id === id);
+    return NextResponse.json({ ok: true, role: after?.role, workspaces: after?.workspaces ?? null });
+  } catch (err) {
+    return errorResponse(err);
+  }
+}
+
+export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  try {
+    // A signed-in person with team:manage; the core rule then decides whether
+    // THIS person may remove THIS member — an admin may not remove an admin.
+    const { tenant, actor } = await requirePerson(req, "team:manage");
+    const { id } = await ctx.params;
+    const target = (await listMembers(tenant)).find((m) => m.id === id);
+    const removed = await removeMember(tenant, id, actor.id);
+    if (!removed) return NextResponse.json({ error: "no such member" }, { status: 404 });
+    await audit("member.removed", { actor: actor.name, tenant, subject: target?.email ?? id, detail: { role: target?.role } });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return errorResponse(err);
+  }
+}

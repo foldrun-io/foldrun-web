@@ -1,0 +1,78 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# the deploy's release record (foldrun-infra/dev/ci/changelog.mjs) — written at build, never committed
+/release.json
+/release.json.tmp
+
+# the assistant's docs, written before `next build` in the image (scripts/assistant-docs.mjs) — never committed
+/assistant-docs.json
+
+# foldrun-admin (private: billing, the operator console, Stripe) is laid over
+# this checkout by its overlay.sh for a hosted build. Never commit its files:
+# scripts/billing-guard.mjs refuses them in pre-commit, pre-push and CI.
+/app/admin/
+/app/api/admin/
+/app/api/billing/
+/app/dashboard/billing/
+/app/dashboard/wallet/
+/server/admin/
+/server/stripe.ts
+/server/stripe-webhook.ts
+/components/billing-details-form.tsx
+/components/admin-act.ts
+/components/low-balance-banner.tsx
+/components/balance-pill.tsx
+/components/dunning-banner.tsx
+/components/manage-in-stripe.tsx
+/tests/admin-export.test.ts
+/tests/admin-idempotency-billing.test.ts
+/tests/admin-idempotency.test.ts
+/tests/billing-admin.test.ts
+/tests/billing-checkout.test.ts
+/tests/billing-notices-billing.test.ts
+/tests/consistency-billing.test.ts
+/tests/flags-routes.test.ts
+/tests/status-routes.test.ts
+/tests/stripe.test.ts
+/tests/support-view.test.ts
+/.foldrun-admin-laid
