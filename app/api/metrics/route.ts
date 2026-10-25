@@ -1,0 +1,85 @@
+// Operational numbers, Prometheus text format — the evidence that says when
+// the single-host queue has actually hit its ceiling, instead of a guess.
+// Authenticated: queue depth and per-tenant counts are operational intel.
+//
+// One way in: the scraper's bearer token, FOLDRUN_METRICS_TOKEN. A scraper is
+// a process on a timer with no login, and no session or account key is
+// accepted — the numbers are every account's, not one account's.
+
+import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
+import { errorResponse, ApiError } from "@/server/api";
+import { queueStats } from "@/platform/queue";
+import { billingMetricsText } from "@/platform/billing-metrics";
+import { listTenants, listWorkspaces, listRunSummaries } from "@/lib/store";
+
+export const dynamic = "force-dynamic";
+
+/**
+ * The scrape credential, compared without leaking its length or content
+ * through timing. Unset means the token path is closed entirely — a scraper
+ * cannot get in by presenting an empty string, which is what a plain equality
+ * check against an unset variable would have allowed.
+ */
+function scraperAuthorized(req: NextRequest): boolean {
+  const expected = process.env.FOLDRUN_METRICS_TOKEN;
+  if (!expected) return false;
+  const offered = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+  const a = Buffer.from(offered);
+  const b = Buffer.from(expected);
+  // timingSafeEqual throws on a length mismatch, which would itself leak the
+  // length; compare a fixed-size digest-shaped pair instead by padding to the
+  // longer of the two and requiring the lengths to match as a separate boolean.
+  if (a.length !== b.length) {
+    timingSafeEqual(b, b); // keep the work constant either way
+    return false;
+  }
+  return timingSafeEqual(a, b);
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    // The scraper's token, and nothing else. The numbers are account-blind
+    // — queue depth, every account's spend — so an account's key or session
+    // must not read them; until 2026-09-25 any tenant could. Without a
+    // token configured the route is closed, as scraperAuthorized says.
+    if (!scraperAuthorized(req)) throw new ApiError("not found", 404);
+    const q = await queueStats();
+    let running = 0;
+    let awaiting = 0;
+    for (const tenant of listTenants()) {
+      for (const ws of listWorkspaces(tenant)) {
+        for (const r of listRunSummaries(tenant, ws.name)) {
+          if (r.status === "running") running += 1;
+          else if (r.status === "awaiting-approval") awaiting += 1;
+        }
+      }
+    }
+    const lines = [
+      "# HELP foldrun_queue_pending Jobs ready for a worker slot.",
+      "# TYPE foldrun_queue_pending gauge",
+      `foldrun_queue_pending ${q.pending}`,
+      "# HELP foldrun_queue_scheduled Jobs held by their own wait: deadline.",
+      "# TYPE foldrun_queue_scheduled gauge",
+      `foldrun_queue_scheduled ${q.scheduledAhead}`,
+      "# HELP foldrun_queue_claimed Jobs a driver is (or died) on.",
+      "# TYPE foldrun_queue_claimed gauge",
+      `foldrun_queue_claimed ${q.claimed}`,
+      "# HELP foldrun_queue_oldest_pending_seconds Age of the longest-waiting ready job.",
+      "# TYPE foldrun_queue_oldest_pending_seconds gauge",
+      `foldrun_queue_oldest_pending_seconds ${q.oldestPendingSecs ?? 0}`,
+      "# HELP foldrun_runs_running Runs executing now.",
+      "# TYPE foldrun_runs_running gauge",
+      `foldrun_runs_running ${running}`,
+      "# HELP foldrun_runs_awaiting_approval Runs parked on a human.",
+      "# TYPE foldrun_runs_awaiting_approval gauge",
+      `foldrun_runs_awaiting_approval ${awaiting}`,
+      ...(await billingMetricsText()),
+    ];
+    return new NextResponse(lines.join("\n") + "\n", {
+      headers: { "content-type": "text/plain; version=0.0.4" },
+    });
+  } catch (err) {
+    return errorResponse(err);
+  }
+}

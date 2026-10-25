@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="7" fill="#09090b"/>
+  <g transform="translate(4 4)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>
+    <path d="M3 11h18"/>
+  </g>
+  <!-- the run light: it says the folder is doing something, and a dot is the
+       one detail that survives at 16px. The ring is the tile, knocked out of
+       the folder outline so the two never touch. -->
+  <circle cx="24.5" cy="23.5" r="3.6" fill="#09090b"/>
+  <circle cx="24.5" cy="23.5" r="2.3" fill="#10b981"/>
+</svg>

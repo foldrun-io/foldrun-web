@@ -1,0 +1,120 @@
+# foldrun on one machine, for yourself or your own organisation.
+#
+# The platform container is the always-on part: the dashboard, the API, the
+# scheduler and the queue. Every agent step runs in a hardened throwaway
+# container beside it, started through the Docker socket, so compute is only
+# spent while a step runs.
+#
+#   # beside each other: foldrun-core foldrun-platform foldrun-web foldrun-docs
+#   cd foldrun-web/self-hosting
+#   echo "FOLDRUN_SECRET_KEY=$(openssl rand -hex 32)" > .env
+#   echo "FOLDRUN_PUBLIC_URL=http://<host>:3900" >> .env   # the address people use
+#   docker compose up -d --build
+#
+# Then open http://<host>:3900/signup — the first account needs no flag —
+# sign the CLI in (`foldrun login --url http://<host>:3900`) and
+# `foldrun deploy` your account folder. Use is under the licence in ../LICENSE
+# (FSL-1.1-ALv2; see ../LICENSING.md): free for your own and your
+# organisation's use, not for offering foldrun to others as a service.
+
+services:
+  # The image every agent step runs in (node, python, git and three browsers),
+  # built once before the platform starts — a few minutes and ~600 MB the
+  # first time, seconds after. Built in its own one-shot container because the
+  # build is synchronous: done by the platform on its first step, it would
+  # hold the dashboard still until the build finished.
+  runner-image:
+    image: foldrun-self-hosted:local
+    pull_policy: never
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /app/foldrun-core
+    command:
+      - node
+      - --experimental-strip-types
+      - --no-warnings
+      - -e
+      - 'import("/app/foldrun-core/src/run-container.ts").then((m) => { const r = m.ensureRunnerImage(); r.log.forEach((l) => console.log(l)); console.log("runner image: " + r.tag); })'
+    environment:
+      FOLDRUN_RUNNER_IMAGE: ${FOLDRUN_RUNNER_IMAGE-}
+    restart: "no"
+    depends_on:
+      platform-image:
+        condition: service_completed_successfully
+
+  # Builds foldrun-self-hosted:local (the platform's image) from the folder
+  # holding the four checkouts, for the two services that run it; exits at once.
+  platform-image:
+    build:
+      context: ../..
+      dockerfile: foldrun-web/self-hosting/Dockerfile
+    image: foldrun-self-hosted:local
+    command: ["true"]
+    restart: "no"
+
+  platform:
+    depends_on:
+      runner-image:
+        condition: service_completed_successfully
+    image: foldrun-self-hosted:local
+    pull_policy: never
+    restart: unless-stopped
+    ports:
+      - "3900:3900"
+      # The egress proxy: a step sends its API and model requests here with
+      # ${NAME} placeholders and the platform fills them on the way out, so a
+      # credential never enters a step's container. Steps reach it as
+      # host.docker.internal. On a machine that faces a network, bind it to
+      # the Docker bridge address (FOLDRUN_EGRESS_BIND=172.17.0.1) — the
+      # per-step lease token is the only gate otherwise.
+      - "${FOLDRUN_EGRESS_BIND:-0.0.0.0}:8090:8090"
+    volumes:
+      # Everything this install is: workspaces, runs, the vault, users. Back
+      # this up and you have backed foldrun up. A named volume by default; set
+      # FOLDRUN_DATA_DIR to a host path to keep the files where you can see them.
+      - ${FOLDRUN_DATA_DIR:-foldrun-data}:/data
+      # How steps become sibling containers. The socket makes the platform
+      # root-equivalent on this host — the deal on one machine — and the step
+      # container's own hardening (non-root, capabilities dropped, no new
+      # privileges, optional gVisor) is what stands between agents and the daemon.
+      - /var/run/docker.sock:/var/run/docker.sock
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      FOLDRUN_DATA: /data
+      FOLDRUN_RUN_ISOLATION: container
+      # The key every derived credential hangs off (sessions, webhooks, the
+      # vault). Generate once: openssl rand -hex 32. Losing it signs everyone
+      # out and voids every webhook URL; leaking it is the root password leaking.
+      FOLDRUN_SECRET_KEY: ${FOLDRUN_SECRET_KEY:?set FOLDRUN_SECRET_KEY in .env (openssl rand -hex 32)}
+      # Where people reach this install: sign-in from the CLI, approve links,
+      # password resets and shares are made with it. http://localhost:3900 on
+      # a machine only you use; the server's own address otherwise.
+      FOLDRUN_PUBLIC_URL: ${FOLDRUN_PUBLIC_URL:?set FOLDRUN_PUBLIC_URL in .env (the address people open, e.g. http://192.168.1.20:3900)}
+      # The image every step runs in (node, python, git, browsers). Empty:
+      # built here on first use, a few minutes and ~600 MB once.
+      FOLDRUN_RUNNER_IMAGE: ${FOLDRUN_RUNNER_IMAGE-}
+      # gVisor, if installed on this host (runsc in /etc/docker/daemon.json):
+      # FOLDRUN_RUNNER_RUNTIME: runsc
+      # Let strangers sign up? Off by default, on purpose.
+      FOLDRUN_OPEN_SIGNUP: ${FOLDRUN_OPEN_SIGNUP:-}
+      FOLDRUN_CONCURRENCY: ${FOLDRUN_CONCURRENCY:-2}
+      FOLDRUN_EGRESS_URL: ${FOLDRUN_EGRESS_URL-http://host.docker.internal:8090}
+      FOLDRUN_EGRESS_PORT: "8090"
+      # The install's model credential, which runs borrow when their agent
+      # names no provider: of its own. Or set none and give each account its
+      # own key in Settings → Models.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
+      # Point that credential at any Anthropic-compatible endpoint instead,
+      # with the model ids it expects.
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
+      ANTHROPIC_AUTH_TOKEN: ${ANTHROPIC_AUTH_TOKEN:-}
+      ANTHROPIC_DEFAULT_HAIKU_MODEL: ${ANTHROPIC_DEFAULT_HAIKU_MODEL:-}
+      ANTHROPIC_DEFAULT_SONNET_MODEL: ${ANTHROPIC_DEFAULT_SONNET_MODEL:-}
+      ANTHROPIC_DEFAULT_OPUS_MODEL: ${ANTHROPIC_DEFAULT_OPUS_MODEL:-}
+      # Finished runs older than this many days are pruned. Unset: kept.
+      FOLDRUN_RETENTION_DAYS: ${FOLDRUN_RETENTION_DAYS:-}
+
+volumes:
+  foldrun-data:
