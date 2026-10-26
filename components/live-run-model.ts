@@ -18,13 +18,15 @@ export function isRunTerminal(status: RunStatus): boolean {
 /** Whether step `i` opens by default — with nobody having clicked it.
  *
  *  While the run is live only the active step is open: the one running,
- *  or the one waiting at a gate. Several may be active at once (a group
+ *  the one waiting at a gate, or one waiting for room to start. Several may be active at once (a group
  *  runs in parallel); all of them open. On a finished run the step that
  *  failed stays open, or else the last one that did anything. */
 export function defaultUnfolded(run: Pick<RunRecord, "status" | "steps">, i: number): boolean {
   const step = run.steps[i];
   if (!step) return false;
   if (step.status === "running" || step.status === "awaiting-approval") return true;
+  // Waiting for room: open, so why and since when read without a click.
+  if (step.status === "pending" && step.roomWait) return true;
   if (!isRunTerminal(run.status)) return false;
   const failedAt = run.steps.findIndex((s) => s.status === "failed");
   if (failedAt >= 0) return i === failedAt;

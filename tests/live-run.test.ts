@@ -45,6 +45,12 @@ test("while live, only the active step is open", () => {
   assert.deepEqual([0, 1, 2].map((i) => defaultUnfolded(r, i)), [false, true, false]);
 });
 
+test("a step waiting for room opens, its run in the queue or not", () => {
+  const waiting = { ...step("pending"), roomWait: { since: "2026-10-27T00:00:00Z", why: "full", cpus: 1, memGiB: 1 } };
+  const r = run("queued", [step("completed"), waiting, step("pending")]);
+  assert.deepEqual([0, 1, 2].map((i) => defaultUnfolded(r, i)), [false, true, false]);
+});
+
 test("a parallel group opens every step that is moving", () => {
   const r = run("running", [step("completed"), step("running"), step("running"), step("pending")]);
   assert.deepEqual([0, 1, 2, 3].map((i) => defaultUnfolded(r, i)), [false, true, true, false]);

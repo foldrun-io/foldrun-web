@@ -151,32 +151,42 @@ export function ConcurrencyCard({ endpoint, tenant, initial, plan }: { endpoint:
   );
 }
 
+/** A step waiting for room to start (GET /api/usage/compute `waiting`). */
+export type RoomWaitRow = { workspace: string; runId: string; flow: string; step: number; agent: string; since: string; why: string; cpus: number; memGiB: number };
+
 /** The account's compute: what its running steps may hold together and in
  *  one step (the plan's, the install's, or its own lower `compute:`), what
- *  they hold now, and the account's own cap to lower it. */
+ *  they hold now, the steps waiting for room, and the account's own cap to
+ *  lower it. */
 export function ComputeCard({
   endpoint,
   tenant,
   initial,
   pool,
   inUse,
+  waiting = [],
 }: {
   endpoint: string;
   tenant: string;
   initial: Defaults["compute"];
   pool: { vcpu: number | null; memGiB: number | null; stepVcpu: number | null; stepMemGiB: number | null; source: string | null };
   inUse: { vcpu: number; memGiB: number; steps: number };
+  waiting?: RoomWaitRow[];
 }) {
   const str = (n: number | null | undefined) => (n === null || n === undefined ? "" : String(n));
   // The pool and what is held, as the server last said: refetched after a
   // save, so a lowered cap shows as the figure now enforced.
-  const [live, setLive] = useState({ pool, inUse });
+  const [live, setLive] = useState({ pool, inUse, waiting });
+  // "waiting 3 min" is read off the browser's clock after hydration, never
+  // rendered on the server — the two would disagree (Codex review).
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => setNow(Date.now()), [live.waiting]);
   const form = useSettingsForm({ vcpu: str(initial?.vcpu), memGiB: str(initial?.memGiB) }, async (v) => {
     const blank = v.vcpu.trim() === "" && v.memGiB.trim() === "";
     const d = await patch(endpoint, tenant, { compute: blank ? null : { vcpu: v.vcpu.trim() || null, memGiB: v.memGiB.trim() || null } });
     const res = await fetch("/api/usage/compute", { headers: { "x-foldrun-tenant": tenant } }).catch(() => null);
-    const fresh = res && res.ok ? ((await res.json().catch(() => null)) as { compute?: typeof pool; inUse?: typeof inUse } | null) : null;
-    if (fresh?.compute && fresh.inUse) setLive({ pool: fresh.compute, inUse: fresh.inUse });
+    const fresh = res && res.ok ? ((await res.json().catch(() => null)) as { compute?: typeof pool; inUse?: typeof inUse; waiting?: RoomWaitRow[] } | null) : null;
+    if (fresh?.compute && fresh.inUse) setLive({ pool: fresh.compute, inUse: fresh.inUse, waiting: fresh.waiting ?? [] });
     return { vcpu: str(d.compute?.vcpu), memGiB: str(d.compute?.memGiB) };
   });
   const of = (used: number, cap: number | null, unit: string) => (cap === null ? `${used} ${unit}, no cap` : `${used} of ${cap} ${unit}`);
@@ -194,10 +204,31 @@ export function ComputeCard({
             One step may hold up to {live.pool.stepVcpu ?? "any"} vCPU · {live.pool.stepMemGiB ?? "any"} GiB.
           </span>
         )}
+        {live.waiting.length > 0 && (
+          <div className="grid gap-0.5">
+            <span>
+              {live.waiting.length} step{live.waiting.length === 1 ? "" : "s"} waiting for room — each starts in turn, oldest first, and is not charged while it waits.
+            </span>
+            <ul className="grid gap-0.5 text-xs text-fg-subtle">
+              {live.waiting.slice(0, 5).map((w) => (
+                <li key={`${w.runId}-${w.step}`} className="truncate">
+                  <a href={`/dashboard/${encodeURIComponent(w.workspace)}/runs/${encodeURIComponent(w.runId)}${tenant !== "default" ? `?tenant=${encodeURIComponent(tenant)}` : ""}`} className="text-fg-muted hover:text-fg hover:underline">
+                    {w.flow} · {w.agent}
+                  </a>{" "}
+                  <span className="tabular-nums">
+                    {w.cpus} vCPU · {w.memGiB} GiB{now !== null ? `, ${waitedFor(w.since, now)}` : ""}
+                  </span>{" "}
+                  — {w.why}
+                </li>
+              ))}
+              {live.waiting.length > 5 && <li>and {live.waiting.length - 5} more</li>}
+            </ul>
+          </div>
+        )}
       </div>
       <Field
         label="Your own cap"
-        help="Cores and GiB all your running steps may hold together, lower than the plan's. A step that would pass it waits for another to finish; one bigger than the whole cap fails with a message. Empty is the plan's."
+        help="Cores and GiB all your running steps may hold together, lower than the plan's. A step that would pass it waits for another to finish — as long as it takes, in turn — and you hear of it after an hour; one bigger than the whole cap fails with a message. Empty is the plan's."
       >
         <div className="flex gap-2">
           <input type="number" min={0.5} step={0.5} value={form.value.vcpu} onChange={(e) => form.setValue({ ...form.value, vcpu: e.target.value })} placeholder="vCPU" aria-label="vCPU" className={inputClass("max-w-[7rem]")} />
@@ -206,6 +237,12 @@ export function ComputeCard({
       </Field>
     </SettingsForm>
   );
+}
+
+/** How long ago a wait began, in words: "waiting 3 min", "waiting 2 h". */
+function waitedFor(since: string, now: number): string {
+  const m = Math.max(0, Math.round((now - Date.parse(since)) / 60_000));
+  return m < 1 ? "waiting under a minute" : m < 120 ? `waiting ${m} min` : `waiting ${Math.round(m / 60)} h`;
 }
 
 /** owner: — governance. Who answers for every agent and flow here that names none. */

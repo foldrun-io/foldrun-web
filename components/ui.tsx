@@ -142,6 +142,8 @@ const STATUS_VARIANT: Record<string, BadgeVariant> = {
   queued: "default",
   pending: "default",
   skipped: "default",
+  // A step waiting for room to start (27 Oct 2026): not a problem, news.
+  "waiting for room": "info",
 };
 
 export function StatusBadge({ status }: { status: string }) {

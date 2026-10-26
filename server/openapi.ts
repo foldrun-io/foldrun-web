@@ -280,6 +280,21 @@ const SHAPES: Record<string, { body?: Schema; response?: Schema; query?: { name:
         source: { type: ["string", "null"], description: "plan | account | install, or null with no pool" },
       }),
       inUse: obj({ vcpu: { type: "number" }, memGiB: { type: "number" }, steps: { type: "integer" } }),
+      waiting: {
+        type: "array",
+        description: "steps waiting for room to start, oldest first — in a driver or with their run in the queue; a wait never fails a step",
+        items: obj({
+          workspace: { type: "string" },
+          runId: { type: "string" },
+          flow: { type: "string" },
+          step: { type: "integer", description: "its index in the run's steps" },
+          agent: { type: "string" },
+          since: { type: "string", description: "when it first found no room — its place in line" },
+          why: { type: "string" },
+          cpus: { type: "number" },
+          memGiB: { type: "number" },
+        }),
+      },
     }),
   },
   "GET /api/usage": {

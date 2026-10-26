@@ -36,6 +36,7 @@ import { RunTree } from "@/components/run-tree";
 import { RunCompare } from "@/components/run-compare";
 import { TraceView } from "@/components/trace-view";
 import { EventWaitBox } from "@/components/event-wait-box";
+import { LocalTime } from "@/components/local-time";
 // Mirrored from store.ts#runVerdict, for the same reason.
 const runVerdict = (r: Pick<RunRecord, "verdict" | "summary">) => {
   if (r.verdict !== undefined) return r.verdict;
@@ -725,7 +726,7 @@ export function LiveRun({
                 </button>
               )}
               <StatusBadge
-                status={step.skipReason === "run stopped" ? "stopped" : step.status}
+                status={step.skipReason === "run stopped" ? "stopped" : (step.status === "pending" || step.status === "running") && step.roomWait ? "waiting for room" : step.status}
               />
             </span>
           </div>
@@ -788,6 +789,18 @@ export function LiveRun({
               </p>
             );
           })()}
+          {/* Waiting for room to start (27 Oct 2026): no time limit, its
+              place in line kept, nothing charged meanwhile. */}
+          {(step.status === "pending" || step.status === "running") && step.roomWait && (
+            <div className="mb-3 rounded-lg border border-info-line bg-info-soft px-3 py-2 text-xs text-fg-secondary">
+              <span className="block font-medium text-info">
+                Waiting for room to start{run.status === "queued" ? " — the run waits in the queue" : ""}, since <LocalTime iso={step.roomWait.since} />
+              </span>
+              <span className="block">
+                {step.roomWait.why}. It needs {step.roomWait.cpus} vCPU · {step.roomWait.memGiB} GiB, starts in turn when there is room, and is not charged while it waits.
+              </span>
+            </div>
+          )}
           {/* A `wait: event` step waits on the outside world, not a person:
               its own box, with the URL that releases it and a payload. */}
           {step.status === "awaiting-approval" && step.waitFor === "event" && (
