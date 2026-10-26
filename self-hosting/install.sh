@@ -58,6 +58,14 @@ have() { command -v "$1" >/dev/null 2>&1; }
 # docker compose with only .env speaking: nothing in the caller's shell
 # overrides a value the file holds (Compose lets the shell win otherwise).
 dc() {
+  # The files named, always: the one this script downloaded and checked,
+  # and the documented override. Without -f, Compose would prefer a
+  # compose.yaml in the folder, or a COMPOSE_FILE in .env, over it.
+  if [ -f docker-compose.override.yml ]; then
+    set -- -f docker-compose.yml -f docker-compose.override.yml "$@"
+  else
+    set -- -f docker-compose.yml "$@"
+  fi
   # Through sudo (a user just given the docker group, this run only), plain:
   # sudo's own safe PATH and root's home, never this user's PATH, HOME or
   # Compose plugins — those would run as root. sudo clears the environment
@@ -81,6 +89,7 @@ get_env() { [ -f .env ] && sed -n "s/^$1=//p" .env | tail -n 1 || true; }
 # half written. Values are checked before they get here and never sourced.
 set_env() {
   tmp=$(mktemp ".env.XXXXXX")
+  chmod 600 "$tmp"
   if [ -f .env ]; then grep -v "^$1=" .env > "$tmp" || true; fi
   printf '%s=%s\n' "$1" "$2" >> "$tmp"
   mv "$tmp" .env
@@ -104,6 +113,38 @@ valid_key() { case $1 in ''|*[!A-Za-z0-9_-]*) return 1 ;; esac; }
 valid_path() { case $1 in /*) ;; *) return 1 ;; esac; case $1 in *[!A-Za-z0-9._/-]*) return 1 ;; esac; }
 
 fingerprint() { cksum < "$1" | awk '{ print $1 "-" $2 }'; }
+
+# An ACL on the current folder. Asked for directly where the system can say:
+# macOS's `ls -le` lists the entries (its `ls -l` shows `@` instead of `+`
+# when the folder also has extended attributes), Linux's getfacl -s prints
+# only extended ACLs. Elsewhere, the `+` that GNU ls shows. ($1: the mode.)
+has_acl() {
+  # $1: the path, $2: its mode string. An inspection that fails is not a
+  # clean bill: the install stops instead of assuming there is none.
+  if [ "$(os_name)" = Darwin ]; then
+    out=$(ls -lde "$1" 2>/dev/null) || die "could not read the access control list of $1 (ls -le)"
+    [ -n "$(printf '%s\n' "$out" | sed -n '2p')" ]
+  elif have getfacl; then
+    out=$(getfacl -s -c "$1" 2>/dev/null) || die "could not read the access control list of $1 (getfacl)"
+    [ -n "$out" ]
+  else
+    # GNU ls marks an ACL `+`, and `?` when it could not tell: both refused.
+    case $2 in ??????????[+?]*) return 0 ;; esac
+    return 1
+  fi
+}
+
+# A path Compose reads (the folder, .env, an override) is this user's alone:
+# owned by them, writable by nobody else, no ACL, and — for a file — not a
+# symlink to somewhere else. Docker runs what these say, with root's reach.
+trusted() {
+  [ ! -L "$1" ] || die "$dir/$1 is a symlink — Compose would read whatever it points at; replace it with a file of your own"
+  line=$(ls -ldn "$1") || die "could not read the owner and mode of $dir/$1"
+  perms=$(printf '%s\n' "$line" | awk '{ print $1, $3 }')
+  [ "${perms#* }" = "$(id -u)" ] || die "$dir/$1 is not owned by you — use a folder and files of your own (FOLDRUN_DIR)"
+  case ${perms%% *} in ?????w*|????????w*) die "$dir/$1 can be written by other users — run: chmod go-w $dir/$1, then this again" ;; esac
+  ! has_acl "$1" "${perms%% *}" || die "$dir/$1 has an access control list, which can let other users write to it — remove it (macOS: chmod -N; Linux: setfacl -b), then run this again"
+}
 
 # ---------------------------------------------------------------- Docker
 #
@@ -328,6 +369,18 @@ main() {
   cd "$dir"
   # Absolute from here: the cleanup below runs from inside it.
   dir=$(pwd)
+  # Yours alone. Compose runs what this folder holds with Docker's reach
+  # (root's, in effect), so a folder another user owns or can write to
+  # could have a file or a symlink planted in it before this run.
+  # The folder and every file Compose reads from it: owned by this user
+  # (`id -u`, nothing the folder can influence), writable by nobody else,
+  # no ACL (it can grant write the mode bits do not show), no symlinks.
+  trusted .
+  # …and every file it writes: none may be a symlink planted to make this
+  # run write through it to somewhere else.
+  for f in .env docker-compose.override.yml docker-compose.yml .compose.installed; do
+    if [ -e "$f" ] || [ -L "$f" ]; then trusted "$f"; fi
+  done
   mkdir .install.lock 2>/dev/null || die "another install is running in $dir (if not, remove $dir/.install.lock)"
   trap 'rm -f "$dir"/.env.?????? "$dir"/.compose.new; rmdir "$dir/.install.lock" 2>/dev/null || true' EXIT
   trap 'exit 130' INT TERM
@@ -336,11 +389,16 @@ main() {
   # kept aside when someone edited it (their changes belong in
   # docker-compose.override.yml, which Compose reads too).
   say "foldrun: fetching docker-compose.yml"
+  rm -f .compose.new # never written through: a leftover (or a planted symlink) goes first
   curl -fsSL --retry 3 "$FOLDRUN_RAW/docker-compose.yml" -o .compose.new || die "could not download $FOLDRUN_RAW/docker-compose.yml"
+  chmod 600 .compose.new # caps any permission an inherited ACL would add
   grep -q "$IMAGES/platform" .compose.new || die "the downloaded docker-compose.yml is not foldrun's"
   if [ -f docker-compose.yml ] && ! cmp -s docker-compose.yml .compose.new; then
     if [ "$(fingerprint docker-compose.yml)" != "$(cat .compose.installed 2>/dev/null || true)" ]; then
       keep="docker-compose.yml.$(date +%Y%m%d%H%M%S).bak"
+      # A name nothing occupies: a planted file or symlink there would make
+      # this copy write through it.
+      if [ -e "$keep" ] || [ -L "$keep" ]; then die "$dir/$keep already exists — move it aside and run this again"; fi
       cp docker-compose.yml "$keep"
       say "foldrun: docker-compose.yml had your own changes — kept as $keep (put changes in docker-compose.override.yml)"
     fi
@@ -424,6 +482,14 @@ main() {
   sock=$(get_env FOLDRUN_DOCKER_SOCK)
   dc exec -T platform docker version --format '{{.Server.Version}}' >/dev/null 2>&1 \
     || die "the platform cannot reach Docker through ${sock:-/var/run/docker.sock} — set FOLDRUN_DOCKER_SOCK in $dir/.env to this machine's Docker socket and run this again"
+  # The same Docker, not just a Docker: the platform starts every step
+  # through the socket it was given, and one that reaches another daemon
+  # (a rootless socket under a rootful install) would run steps elsewhere.
+  here=$(dk info --format '{{.ID}}' 2>/dev/null || true)
+  there=$(dc exec -T platform docker info --format '{{.ID}}' 2>/dev/null | tr -d '\r' || true)
+  [ -n "$here" ] || die "could not read this Docker's identity (docker info) to check the platform reaches the same one — run this again"
+  [ "$here" = "$there" ] \
+    || die "the platform reaches a different Docker through ${sock:-/var/run/docker.sock} from the one foldrun was installed into — set FOLDRUN_DOCKER_SOCK in $dir/.env to this Docker's own socket, and run this again"
 
   say ""
   say "foldrun $version is running."

@@ -44,6 +44,13 @@ function box(): Box {
   fs.writeFileSync(
     path.join(bin, "docker"),
     `#!/bin/sh
+# compose's -f files are noted on a line of their own, so the calls read as before.
+if [ "$1" = compose ] && [ "$2" = -f ]; then
+  files=""; shift
+  while [ "$1" = -f ]; do files="$files $2"; shift 2; done
+  printf 'FILES%s\\n' "$files" >> "${log}"
+  set -- compose "$@"
+fi
 printf '%s\\n' "$*" >> "${log}"
 case "$1" in
   compose)
@@ -52,9 +59,9 @@ case "$1" in
       leak=$(env | grep -E '^(FOLDRUN_|ANTHROPIC_)' | cut -d= -f1 | tr '\\n' ' ')
       [ -z "$leak" ] || printf 'LEAK %s\\n' "$leak" >> "${log}"
     fi
-    case "$2" in exec) echo 29.5.2 ;; esac
+    case "$*" in *"info --format"*) cat "${root}/platform-id" 2>/dev/null || echo daemon-1 ;; *exec*) echo 29.5.2 ;; esac
     exit 0 ;;
-  info) case "$*" in *SecurityOptions*) echo '["name=seccomp"]' ;; esac; exit 0 ;;
+  info) case "$*" in *SecurityOptions*) echo '["name=seccomp"]' ;; *ID*) echo daemon-1 ;; esac; exit 0 ;;
   pull) exit 0 ;;
   image) cat "${stable}"; exit 0 ;;
 esac
@@ -300,21 +307,25 @@ function machine(o: { os: "Darwin" | "Linux"; uid?: number; docker?: boolean; ru
   flag("reachable", o.reachable ?? true);
   const sh = (name: string, body: string, where = bin) => fs.writeFileSync(path.join(where, name), `#!/bin/sh\n${body}\n`, { mode: 0o755 });
   // docker: needs a running daemon, and this user's reach (or sudo's).
-  sh("docker", `printf 'docker %s\\n' "$*" >> "${log}"
-# -H names the daemon; the stand-in has one, so the flag is noted and passed over.
-if [ "$1" = -H ]; then shift 2; fi
+  sh("docker", `h=""; if [ "$1" = -H ]; then h="-H $2 "; shift 2; fi
+# compose's -f files are passed over, so the calls read as before.
+if [ "$1" = compose ] && [ "$2" = -f ]; then shift; while [ "$1" = -f ]; do shift 2; done; set -- compose "$@"; fi
+printf 'docker %s%s\\n' "$h" "$*" >> "${log}"
 case "$1" in --version) exit 0 ;; context) echo "\${FAKE_CONTEXT:-default}"; exit 0 ;; esac
 [ -f "${st}/running" ] || { echo "Cannot connect to the Docker daemon" >&2; exit 1; }
 [ -f "${st}/reachable" ] || [ -n "$FAKE_SUDO" ] || { echo "permission denied" >&2; exit 1; }
 case "$1" in
-  compose) case "$2" in exec) echo 29.5.2 ;; esac; exit 0 ;;
-  info) case "$*" in *SecurityOptions*) echo '["name=seccomp"]' ;; esac; exit 0 ;;
+  compose) case "$*" in *"info --format"*) echo daemon-1 ;; *exec*) echo 29.5.2 ;; esac; exit 0 ;;
+  info) case "$*" in *SecurityOptions*) echo '["name=seccomp"]' ;; *ID*) echo daemon-1 ;; esac; exit 0 ;;
   image) echo v2026.10.25.16; exit 0 ;;
 esac
 exit 0`, stash);
   if (o.docker ?? true) fs.copyFileSync(path.join(stash, "docker"), path.join(bin, "docker"));
   sh("uname", `echo ${o.os}`);
   sh("id", `case "$1" in -u) echo ${o.uid ?? 1000} ;; -un) echo ana ;; *) echo "uid=${o.uid ?? 1000}(ana)" ;; esac`);
+  // The folder is this pretend user's: \`ls -ldn\` reports the stand-in uid as its owner.
+  const realLs = spawnSync("sh", ["-c", "command -v ls"], { encoding: "utf8" }).stdout.trim();
+  sh("ls", `if [ "$1" = -ldn ]; then "${realLs}" "$@" | awk -v u=${o.uid ?? 1000} '{ $3 = u; print }'; else exec "${realLs}" "$@"; fi`);
   // Root survives \`env -i\` under real sudo; the stand-in's mark must too.
   sh("sudo", `printf 'sudo %s\\n' "$*" >> "${log}"; FAKE_SUDO=1; export FAKE_SUDO
 if [ "$1" = env ] && [ "$2" = -i ]; then shift 2; exec env -i FAKE_SUDO=1 "$@"; fi
@@ -398,7 +409,7 @@ test("Linux, not root: Docker's script runs through sudo, and this user is offer
   // Through sudo, every call pinned to the socket that was verified, not root's own context.
   const sock = calls.find((c) => c.startsWith("sudo docker -H unix://"))?.split(" ")[3];
   assert.ok(sock && sock.endsWith("docker.sock"), calls.join("\n"));
-  assert.ok(calls.includes(`sudo docker -H ${sock} pull -q ghcr.io/foldrun-io/platform:stable`) && calls.includes(`sudo docker -H ${sock} compose up -d`), "this run reaches Docker through sudo, at the verified socket");
+  assert.ok(calls.includes(`sudo docker -H ${sock} pull -q ghcr.io/foldrun-io/platform:stable`) && calls.includes(`sudo docker -H ${sock} compose -f docker-compose.yml up -d`), "this run reaches Docker through sudo, at the verified socket");
   assert.ok(!calls.some((c) => /^sudo docker (?!-H )/.test(c)), "no sudo docker call without the socket");
   // Under sudo, Compose never gets this user's PATH or HOME (their plugins would run as root).
   assert.ok(!calls.some((c) => c.startsWith("sudo env -i")), calls.join("\n"));
@@ -410,7 +421,8 @@ test("Linux, not root: Docker's script runs through sudo, and this user is offer
 
 test("Linux, Docker stopped: started with systemctl after a yes; refused without one", () => {
   const yes = machine({ os: "Linux", uid: 0, running: false });
-  assert.equal(yes.run({ FOLDRUN_INSTALL_DOCKER: "yes" }).status, 0);
+  const ran = yes.run({ FOLDRUN_INSTALL_DOCKER: "yes" });
+  assert.equal(ran.status, 0, ran.out);
   assert.ok(yes.calls().includes("systemctl start docker"));
   const no = machine({ os: "Linux", uid: 0, running: false });
   const r = no.run({ FOLDRUN_INSTALL_DOCKER: "no" });
@@ -490,4 +502,100 @@ test("Mac, the Compose plugin is linked where DOCKER_CONFIG says", () => {
   const cfg = path.join(m.home, "dockercfg");
   assert.equal(m.run({ FOLDRUN_INSTALL_DOCKER: "yes", DOCKER_CONFIG: cfg }).status, 0);
   assert.ok(fs.existsSync(path.join(cfg, "cli-plugins/docker-compose")) || fs.lstatSync(path.join(cfg, "cli-plugins/docker-compose")).isSymbolicLink());
+});
+
+test("a folder another user can write to is refused before anything is written or run", () => {
+  const b = box();
+  fs.mkdirSync(b.dir, { recursive: true });
+  fs.chmodSync(b.dir, 0o777);
+  const r = b.run();
+  assert.notEqual(r.status, 0);
+  assert.match(r.out, /can be written by other users — run: chmod go-w/);
+  assert.ok(!fs.existsSync(path.join(b.dir, ".env")), "nothing written");
+  assert.ok(!b.calls().some((c) => /^compose (pull|up)/.test(c)), "nothing pulled or started");
+});
+
+test("a planted .compose.new symlink is removed, never written through", () => {
+  const b = box();
+  fs.mkdirSync(b.dir, { recursive: true, mode: 0o700 });
+  const victim = path.join(b.root, "victim.txt");
+  fs.writeFileSync(victim, "keep me");
+  fs.symlinkSync(victim, path.join(b.dir, ".compose.new"));
+  assert.equal(b.run().status, 0);
+  assert.equal(fs.readFileSync(victim, "utf8"), "keep me");
+});
+
+test("Compose is always given the downloaded file (and the override), never a compose.yaml or COMPOSE_FILE beside it", () => {
+  const b = box();
+  assert.equal(b.run().status, 0);
+  const files = b.calls().filter((c) => c.startsWith("FILES"));
+  assert.ok(files.length > 0 && files.every((f) => f === "FILES docker-compose.yml"), files.join("\n"));
+  fs.writeFileSync(path.join(b.dir, "docker-compose.override.yml"), "services: {}\n");
+  fs.writeFileSync(path.join(b.dir, "compose.yaml"), "services: {evil: {image: x}}\n");
+  assert.equal(b.run().status, 0);
+  const after = b.calls().filter((c) => c.startsWith("FILES")).slice(files.length);
+  assert.ok(after.length > 0 && after.every((f) => f === "FILES docker-compose.yml docker-compose.override.yml"), after.join("\n"));
+});
+
+test("a platform that reaches a different Docker from the one it was installed into is refused", () => {
+  const b = box();
+  fs.writeFileSync(path.join(b.root, "platform-id"), "daemon-2"); // the Compose environment is cleared; a file reaches the stand-in
+  const r = b.run();
+  assert.notEqual(r.status, 0);
+  assert.match(r.out, /reaches a different Docker/);
+});
+
+test("the folder check: owned by this user, no group/other write, no ACL", () => {
+  // Not this user's: the stand-in uid is not the folder's owner.
+  const m = machine({ os: "Linux", uid: 0 });
+  const realLs = spawnSync("sh", ["-c", "command -v ls"], { encoding: "utf8" }).stdout.trim();
+  fs.writeFileSync(path.join(path.dirname(m.dir), "..", "bin", "ls"), `#!/bin/sh\nif [ "$1" = -ldn ]; then "${realLs}" "$@" | awk '{ $3 = 4242; print }'; else exec "${realLs}" "$@"; fi\n`, { mode: 0o755 });
+  const r = m.run();
+  assert.notEqual(r.status, 0);
+  assert.match(r.out, /is not owned by you/);
+});
+
+test("an override or .env that others can write, or a symlinked one, is refused — Compose runs what they say", () => {
+  for (const [file, how, says] of [
+    ["docker-compose.override.yml", "mode", /docker-compose\.override\.yml can be written by other users/],
+    [".env", "mode", /\.env can be written by other users/],
+    ["docker-compose.override.yml", "link", /docker-compose\.override\.yml is a symlink/],
+    [".compose.installed", "link", /\.compose\.installed is a symlink/],
+    ["docker-compose.yml", "link", /docker-compose\.yml is a symlink/],
+  ] as const) {
+    const b = box();
+    assert.equal(b.run().status, 0);
+    const at = path.join(b.dir, file);
+    if (how === "mode") {
+      if (!fs.existsSync(at)) fs.writeFileSync(at, "services: {}\n");
+      fs.chmodSync(at, 0o666);
+    } else {
+      fs.writeFileSync(path.join(b.root, "elsewhere.yml"), "services: {}\n");
+      fs.rmSync(at, { force: true });
+      fs.symlinkSync(path.join(b.root, "elsewhere.yml"), at);
+    }
+    const r = b.run();
+    assert.notEqual(r.status, 0, file);
+    assert.match(r.out, says);
+  }
+});
+
+test("the platform's Docker identity is required, not optional: an unreadable one stops the install", () => {
+  const b = box();
+  fs.writeFileSync(path.join(b.root, "platform-id"), "");
+  const r = b.run();
+  assert.notEqual(r.status, 0);
+  assert.match(r.out, /reaches a different Docker/);
+});
+
+test("an ACL on the folder is refused — read from ls -le on a Mac, where -l shows @ and hides it", { skip: process.platform !== "darwin" && "macOS ACLs" }, () => {
+  const b = box();
+  fs.mkdirSync(b.dir, { recursive: true, mode: 0o700 });
+  spawnSync("xattr", ["-w", "com.example.probe", "1", b.dir]);
+  spawnSync("chmod", ["+a", "everyone allow add_file,delete_child", b.dir]);
+  const r = b.run();
+  assert.notEqual(r.status, 0);
+  assert.match(r.out, /has an access control list/);
+  spawnSync("chmod", ["-N", b.dir]);
+  assert.equal(b.run().status, 0, "cleared, it installs");
 });
