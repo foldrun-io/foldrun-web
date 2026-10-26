@@ -96,6 +96,9 @@ services:
       # FOLDRUN_RUNNER_RUNTIME: runsc
       # Let strangers sign up? Off by default, on purpose.
       FOLDRUN_OPEN_SIGNUP: ${FOLDRUN_OPEN_SIGNUP:-}
+      # The first account needs this (the installer writes it and prints the
+      # signup link with it); unset, the first signup is free.
+      FOLDRUN_SETUP_TOKEN: ${FOLDRUN_SETUP_TOKEN:-}
       FOLDRUN_CONCURRENCY: ${FOLDRUN_CONCURRENCY:-2}
       # What one step's sandbox may use, per size: class — cores and memory,
       # each a hard limit and what the step's seconds are billed at. Unset:

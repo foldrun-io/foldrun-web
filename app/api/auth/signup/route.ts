@@ -9,7 +9,7 @@ import { verifyLink, publicOrigin } from "@/server/auth-flows";
 import { errorResponse } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
 import { clientIp } from "@/server/limits";
-import { createUser, mintSession, verifyInvite, sessionCookieOptions, SESSION_COOKIE } from "@/server/users";
+import { createUser, mintSession, verifyInvite, sessionCookieOptions, SESSION_COOKIE, setupTokenRequired, setupTokenMatches } from "@/server/users";
 import { audit } from "@/server/audit";
 import { listWorkspaces, saveWorkspace, templateFiles } from "@/lib/store";
 import { rateLimit } from "@/platform/cache";
@@ -38,6 +38,8 @@ export async function POST(req: NextRequest) {
       password?: string;
       account?: string;
       invite?: string;
+      /** The install's setup token, for its first account (FOLDRUN_SETUP_TOKEN). */
+      setup?: string;
     };
     // Limited before anything is created, and before scrypt runs: hashing a
     // password is deliberately expensive, so an unlimited signup endpoint is
@@ -58,6 +60,14 @@ export async function POST(req: NextRequest) {
     // member chose to let this person in. The token itself is the proof;
     // whatever `account` the body claims is ignored.
     const invited = body.invite ? verifyInvite(body.invite) : null;
+    // The first account of an install that set a setup token: only with it.
+    // Checked before anything about the address, like the open-signup gate.
+    if (!invited && (await setupTokenRequired()) && !setupTokenMatches(body.setup)) {
+      return NextResponse.json(
+        { error: "this install's first account needs its setup link — open the one the installer printed (…/signup?setup=…), or read FOLDRUN_SETUP_TOKEN in the install's .env" },
+        { status: 403 },
+      );
+    }
     if (body.invite && !invited) {
       return NextResponse.json({ error: "that invite is invalid or expired" }, { status: 400 });
     }

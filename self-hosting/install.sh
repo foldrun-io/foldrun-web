@@ -49,6 +49,9 @@
 set -eu
 
 FOLDRUN_RAW=${FOLDRUN_RAW:-https://raw.githubusercontent.com/foldrun-io/foldrun-web/main/self-hosting}
+# Where the compose file comes from: https, or a local file:// folder (a
+# mirror, the tests). Never plain http — the file decides what Docker runs.
+case $FOLDRUN_RAW in https://?*|file:///?*) ;; *) printf '\nfoldrun install: FOLDRUN_RAW must be an https:// address or a file:/// folder, not %s\n' "$FOLDRUN_RAW" >&2; exit 1 ;; esac
 IMAGES=ghcr.io/foldrun-io
 
 say() { printf '%s\n' "$*"; }
@@ -114,24 +117,104 @@ valid_path() { case $1 in /*) ;; *) return 1 ;; esac; case $1 in *[!A-Za-z0-9._/
 
 fingerprint() { cksum < "$1" | awk '{ print $1 "-" $2 }'; }
 
-# An ACL on the current folder. Asked for directly where the system can say:
-# macOS's `ls -le` lists the entries (its `ls -l` shows `@` instead of `+`
-# when the folder also has extended attributes), Linux's getfacl -s prints
-# only extended ACLs. Elsewhere, the `+` that GNU ls shows. ($1: the mode.)
-has_acl() {
-  # $1: the path, $2: its mode string. An inspection that fails is not a
-  # clean bill: the install stops instead of assuming there is none.
+# An ACL that GRANTS someone write to $1 — not merely any ACL: a Mac home
+# folder carries `group:everyone deny delete`, which takes access away.
+# Asked for directly where the system can say: macOS's `ls -le` lists the
+# entries (its `ls -l` shows `@` instead of `+` when the path also has
+# extended attributes); Linux's getfacl -s lists only extended entries. With
+# neither, GNU ls's `+` (an ACL) or `?` (could not tell) counts as a grant.
+# An inspection that fails is not a clean bill. ($2: the mode string.)
+# Any ACL entry that GRANTS (allow, or a named Linux user/group entry) on
+# $1 — for the install folder and its files, where even read would expose
+# .env (the secret key, a model key, the setup token) whatever the mode
+# bits say. Deny-only entries take access away and pass. ($2: the mode.)
+has_grant_acl() {
   if [ "$(os_name)" = Darwin ]; then
     out=$(ls -lde "$1" 2>/dev/null) || die "could not read the access control list of $1 (ls -le)"
-    [ -n "$(printf '%s\n' "$out" | sed -n '2p')" ]
+    printf '%s\n' "$out" | sed -n '2,$p' | grep -q ' allow '
   elif have getfacl; then
     out=$(getfacl -s -c "$1" 2>/dev/null) || die "could not read the access control list of $1 (getfacl)"
-    [ -n "$out" ]
+    printf '%s\n' "$out" | grep -Eq '^(default:)?(user|group):[^:]+:'
   else
-    # GNU ls marks an ACL `+`, and `?` when it could not tell: both refused.
     case $2 in ??????????[+?]*) return 0 ;; esac
     return 1
   fi
+}
+
+has_acl() {
+  if [ "$(os_name)" = Darwin ]; then
+    out=$(ls -lde "$1" 2>/dev/null) || die "could not read the access control list of $1 (ls -le)"
+    printf '%s\n' "$out" | sed -n '2,$p' | grep ' allow ' \
+      | grep -Eq 'write|append|add_file|add_subdirectory|delete_child|delete|chown'
+  elif have getfacl; then
+    out=$(getfacl -s -c "$1" 2>/dev/null) || die "could not read the access control list of $1 (getfacl)"
+    # A named user or group with w (default: entries included); the bare
+    # user::/group::/other:: and mask:: lines grant nothing of their own.
+    printf '%s\n' "$out" | grep -Eq '^(default:)?(user|group):[^:]+:[^:]*w'
+  else
+    case $2 in ??????????[+?]*) return 0 ;; esac
+    return 1
+  fi
+}
+
+# Every folder from $1 up to /: owned by this user or root, and writable by
+# nobody else (a sticky /tmp-style folder excepted) — anyone who could rename
+# an entry in one of them could swap the path for their own between a check
+# and its use. $2: what is at stake, for the message.
+safe_ancestry() {
+  p=$1
+  while :; do
+    line=$(ls -ldn "$p") || die "could not read the owner and mode of $p"
+    m=$(printf '%s\n' "$line" | awk '{ print $1 }'); o=$(printf '%s\n' "$line" | awk '{ print $3 }')
+    { [ "$o" = 0 ] || [ "$o" = "$(id -u)" ]; } || die "$p belongs to another user, so $2"
+    # Group or other write lets someone rename entries — unless the folder
+    # is sticky (t/T), like /tmp, where only an entry's owner may.
+    case $m in ?????????[tT]*) ;; ?????w*|????????w*) die "$p can be written by other users, so $2" ;; esac
+    ! has_acl "$p" "$m" || die "$p has an access control list that lets another user write to it, so $2"
+    [ "$p" = / ] && break
+    p=$(dirname "$p")
+  done
+}
+
+# The host data folder (FOLDRUN_DATA_DIR): accounts, their password hashes
+# and the vault live there, so it is private by construction. Made here,
+# owner-only, when it does not exist; when it does, owned by this user or
+# root with no group or other access at all, no ACL granting any, and safe
+# parents. Its real path (symlinks resolved) is what .env keeps, so the
+# folder checked is the folder Docker mounts. Echoes that path.
+data_folder() {
+  d=$1
+  if [ ! -e "$d" ] && [ ! -L "$d" ]; then
+    p=$(dirname "$d")
+    while [ ! -e "$p" ]; do p=$(dirname "$p"); done
+    p=$(cd "$p" && pwd -P) || die "could not open $p"
+    safe_ancestry "$p" "$2"
+    # Made private here; if someone else made it first, the owner check below says so.
+    (umask 077 && mkdir -p "$d") || die "could not make $d"
+  fi
+  real=$(cd "$d" 2>/dev/null && pwd -P) || die "$d is not a folder foldrun can open"
+  line=$(ls -ldn "$real") || die "could not read the owner and mode of $real"
+  m=$(printf '%s\n' "$line" | awk '{ print $1 }'); o=$(printf '%s\n' "$line" | awk '{ print $3 }')
+  { [ "$o" = 0 ] || [ "$o" = "$(id -u)" ]; } || die "$real belongs to another user — $2"
+  case $m in d???------*) ;; *) die "$real is open to other users (mode ${m%%[+@.]*}) — run: chmod 700 $real, then this again; $2" ;; esac
+  ! has_grant_acl "$real" "$m" || die "$real has an access control list that gives another user access — $2"
+  safe_ancestry "$(dirname "$real")" "$2"
+  printf '%s\n' "$real"
+}
+
+# Whether the Docker in use is on this machine (a unix socket). A host data
+# folder is checked here and mounted by the daemon: a remote one would mount
+# a folder of the same name on another machine, unchecked.
+docker_is_local() {
+  # Docker's own order: DOCKER_CONTEXT, then DOCKER_HOST, then the current context.
+  if [ -n "${DOCKER_CONTEXT:-}" ]; then
+    ep=$(dk context inspect "$DOCKER_CONTEXT" --format '{{.Endpoints.docker.Host}}' 2>/dev/null) || return 1
+  elif [ -n "${DOCKER_HOST:-}" ]; then
+    ep=$DOCKER_HOST
+  else
+    ep=$(dk context inspect --format '{{.Endpoints.docker.Host}}' 2>/dev/null || true)
+  fi
+  case $ep in ''|unix://*) return 0 ;; *) return 1 ;; esac
 }
 
 # A path Compose reads (the folder, .env, an override) is this user's alone:
@@ -143,7 +226,7 @@ trusted() {
   perms=$(printf '%s\n' "$line" | awk '{ print $1, $3 }')
   [ "${perms#* }" = "$(id -u)" ] || die "$dir/$1 is not owned by you — use a folder and files of your own (FOLDRUN_DIR)"
   case ${perms%% *} in ?????w*|????????w*) die "$dir/$1 can be written by other users — run: chmod go-w $dir/$1, then this again" ;; esac
-  ! has_acl "$1" "${perms%% *}" || die "$dir/$1 has an access control list, which can let other users write to it — remove it (macOS: chmod -N; Linux: setfacl -b), then run this again"
+  ! has_grant_acl "$1" "${perms%% *}" || die "$dir/$1 has an access control list that gives another user access — remove it (macOS: chmod -N; Linux: setfacl -b), then run this again"
 }
 
 # ---------------------------------------------------------------- Docker
@@ -205,9 +288,23 @@ colima_size() {
 }
 
 # Docker's Compose plugin from Homebrew, where `docker compose` finds it.
+# This user's Docker CLI plugin folder, when it exists: `docker compose` runs
+# what it holds, so it and every folder above it (physically, no symlinks)
+# must be this user's or root's to change — checked before any Compose call.
+check_plugin_dir() {
+  plugins="${DOCKER_CONFIG:-$HOME/.docker}/cli-plugins"
+  [ -d "$plugins" ] || return 0
+  plugins=$(cd "$plugins" && pwd -P) || die "could not open $plugins"
+  safe_ancestry "$plugins" "Docker's CLI plugins there are not safe to run — fix that folder's permissions, then run this again"
+}
+
 link_compose_plugin() {
   plugins="${DOCKER_CONFIG:-$HOME/.docker}/cli-plugins"
   mkdir -p "$plugins"
+  plugins=$(cd "$plugins" && pwd -P) || die "could not open $plugins"
+  # `docker compose` runs what this folder holds: it, and every folder above
+  # it, must be this user's (or root's) to change.
+  safe_ancestry "$plugins" "the Compose plugin cannot be linked there safely — fix that folder's permissions, then run this again"
   ln -sfn "$(brew --prefix)/opt/docker-compose/bin/docker-compose" "$plugins/docker-compose"
 }
 
@@ -288,6 +385,9 @@ linux_docker() {
     # Staged in a private folder in this user's home, not $TMPDIR: root runs
     # it, and a shared TMPDIR without the sticky bit would let another user
     # swap the file while sudo waits for a password.
+    # …and $HOME and its parent writable by nobody else: someone who can
+    # rename entries in either could swap the folder while sudo waits.
+    safe_ancestry "$HOME" "Docker's install script cannot be staged safely under $HOME — install Docker yourself (https://docs.docker.com/engine/install/), then run this again"
     stage=$(mktemp -d "$HOME/.foldrun-get-docker.XXXXXX") || die "could not make a folder in $HOME"
     chmod 700 "$stage"
     curl -fsSL --retry 3 https://get.docker.com -o "$stage/get-docker.sh" || { rm -rf "$stage"; die "could not download https://get.docker.com"; }
@@ -330,6 +430,7 @@ linux_docker() {
 }
 
 ensure_docker() {
+  check_plugin_dir
   case $(os_name) in
     Darwin) mac_docker ;;
     Linux) linux_docker ;;
@@ -367,8 +468,11 @@ main() {
   umask 077
   mkdir -p "$dir"
   cd "$dir"
-  # Absolute from here: the cleanup below runs from inside it.
-  dir=$(pwd)
+  # Absolute and physical from here (pwd -P: no symlink in the path), so
+  # what is checked below is what Compose later opens; the cleanup runs
+  # from inside it.
+  dir=$(pwd -P)
+  cd "$dir"
   # Yours alone. Compose runs what this folder holds with Docker's reach
   # (root's, in effect), so a folder another user owns or can write to
   # could have a file or a symlink planted in it before this run.
@@ -376,11 +480,29 @@ main() {
   # (`id -u`, nothing the folder can influence), writable by nobody else,
   # no ACL (it can grant write the mode bits do not show), no symlinks.
   trusted .
+  safe_ancestry "$(dirname "$dir")" "Docker could be pointed at files other than this install's — install into a folder whose parents only you and root can change (FOLDRUN_DIR), then run this again"
   # …and every file it writes: none may be a symlink planted to make this
   # run write through it to somewhere else.
   for f in .env docker-compose.override.yml docker-compose.yml .compose.installed; do
     if [ -e "$f" ] || [ -L "$f" ]; then trusted "$f"; fi
   done
+  # The override must stand alone: an `include:` or `extends:` key — block
+  # or flow style, quoted or not — would bring in Compose files these checks
+  # never looked at. The words elsewhere (a comment, a path) are fine. Data
+  # it names — a secret's or an env file — is this user's own configuration.
+  if [ -f docker-compose.override.yml ] && grep -Eq '(^|[{,])[[:space:]]*["'"'"']?(include|extends)["'"'"']?[[:space:]]*:' docker-compose.override.yml; then
+    die "$dir/docker-compose.override.yml brings in other files (include: or extends: file:) — put those settings in the override itself, or run docker compose by hand"
+  fi
+  # (These match Compose's keys as people write them. Only this file's
+  # owner can write it, so a key spelled to slip past — a YAML escape, an
+  # explicit `? key` — is that person's own choice of what to load.)
+  # Env files are refused there: their contents reach the platform's
+  # environment (NODE_OPTIONS can run code), and every YAML form of naming
+  # one cannot be checked safely here. Settings go in .env, or in the
+  # override's own environment:, both of which the checks above cover.
+  if [ -f docker-compose.override.yml ] && grep -Eq '(^|[{,])[[:space:]]*["'"'"']?env_file["'"'"']?[[:space:]]*:' docker-compose.override.yml; then
+    die "$dir/docker-compose.override.yml uses env_file — put those settings in $dir/.env or in the override's own environment:, then run this again"
+  fi
   mkdir .install.lock 2>/dev/null || die "another install is running in $dir (if not, remove $dir/.install.lock)"
   trap 'rm -f "$dir"/.env.?????? "$dir"/.compose.new; rmdir "$dir/.install.lock" 2>/dev/null || true' EXIT
   trap 'exit 130' INT TERM
@@ -427,9 +549,24 @@ main() {
     [ -z "$want_url" ] || set_env FOLDRUN_PUBLIC_URL "$want_url"
     [ -z "$want_bind" ] || set_env FOLDRUN_BIND "$want_bind"
   fi
+  # The first account becomes the owner, and every local user can reach
+  # localhost: the setup token ties that first signup to whoever ran this.
+  # Written once (an install from before it gets one), printed in the link.
+  if [ -z "$(get_env FOLDRUN_SETUP_TOKEN)" ]; then
+    if have openssl; then setup=$(openssl rand -hex 16); else setup=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n'); fi
+    case $setup in ????????????????????????????????) ;; *) die "could not make a setup token" ;; esac
+    set_env FOLDRUN_SETUP_TOKEN "$setup"
+  fi
   [ -z "$want_key" ] || set_env ANTHROPIC_API_KEY "$want_key"
   [ -z "$want_egress" ] || set_env FOLDRUN_EGRESS_BIND "$want_egress"
   [ -z "$want_data" ] || set_env FOLDRUN_DATA_DIR "$want_data"
+  # The data folder in effect (given now, or kept in .env from before).
+  data_dir=$(get_env FOLDRUN_DATA_DIR)
+  if [ -n "$data_dir" ]; then
+    docker_is_local || die "FOLDRUN_DATA_DIR is a folder on this machine, but Docker here is remote (DOCKER_HOST or a docker context) — it would mount a folder of that name on the other machine, unchecked. Use the default data volume, or run the installer on the Docker host"
+    real_data=$(data_folder "$data_dir" "foldrun's data (accounts, the vault) would be open to another user; use a folder of your own (FOLDRUN_DATA_DIR)") || exit 1
+    [ "$real_data" = "$data_dir" ] || set_env FOLDRUN_DATA_DIR "$real_data"
+  fi
   [ -z "$want_sock" ] || set_env FOLDRUN_DOCKER_SOCK "$want_sock"
   [ -n "$(get_env FOLDRUN_SECRET_KEY)" ] || die "$dir/.env has no FOLDRUN_SECRET_KEY — restore it from your backup (a new one would sign everyone out and void every webhook)"
 
@@ -465,6 +602,14 @@ main() {
     done
   done
   say "foldrun: starting"
+  # The Docker the platform will be given must be this one — checked
+  # before it starts (a one-off container with the platform's own mounts),
+  # so a wrong socket never gets to run anything.
+  here=$(dk info --format '{{.ID}}' 2>/dev/null || true)
+  [ -n "$here" ] || die "could not read this Docker's identity (docker info) to check the platform reaches the same one — run this again"
+  there=$(dc run --rm --no-deps -T --entrypoint docker platform info --format '{{.ID}}' 2>/dev/null | tr -d '\r' || true)
+  [ "$here" = "$there" ] \
+    || die "the platform would reach a different Docker through ${sock:-/var/run/docker.sock} from the one foldrun is installed into — set FOLDRUN_DOCKER_SOCK in $dir/.env to this Docker's own socket, and run this again"
   dc up -d || die "docker compose up failed — see: cd $dir && docker compose logs"
 
   bind=$(get_env FOLDRUN_BIND); bind=${bind:-0.0.0.0}
@@ -485,16 +630,33 @@ main() {
   # The same Docker, not just a Docker: the platform starts every step
   # through the socket it was given, and one that reaches another daemon
   # (a rootless socket under a rootful install) would run steps elsewhere.
-  here=$(dk info --format '{{.ID}}' 2>/dev/null || true)
   there=$(dc exec -T platform docker info --format '{{.ID}}' 2>/dev/null | tr -d '\r' || true)
-  [ -n "$here" ] || die "could not read this Docker's identity (docker info) to check the platform reaches the same one — run this again"
   [ "$here" = "$there" ] \
-    || die "the platform reaches a different Docker through ${sock:-/var/run/docker.sock} from the one foldrun was installed into — set FOLDRUN_DOCKER_SOCK in $dir/.env to this Docker's own socket, and run this again"
+    || { dc stop platform >/dev/null 2>&1 || true; die "the platform reaches a different Docker through ${sock:-/var/run/docker.sock} from the one foldrun was installed into, so it was stopped — set FOLDRUN_DOCKER_SOCK in $dir/.env to this Docker's own socket, and run this again"; }
 
   say ""
   say "foldrun $version is running."
   say ""
-  say "  Open        $url/signup   — the first account to sign up becomes the owner"
+  # The setup token travels in the link: over https, or on this machine
+  # (localhost) — never across a network in plain http, where anyone on the
+  # path could read it and create the owner account first.
+  # Bound to one address (not loopback, not all): the port is only there,
+  # so the tunnel goes to it.
+  case $bind in 127.0.0.1|0.0.0.0) here_addr=localhost ;; *) here_addr=$bind ;; esac
+  case $url in
+    https://*) setup_url="$url/signup?setup=$(get_env FOLDRUN_SETUP_TOKEN)" ;;
+    *) setup_url="http://localhost:3900/signup?setup=$(get_env FOLDRUN_SETUP_TOKEN)" ;;
+  esac
+  say "  Open        $setup_url"
+  case $url in
+    https://*|http://localhost*|http://127.0.0.1*) ;;
+    *) if [ "$here_addr" = localhost ]; then
+         say "              (on this machine, or from yours through: ssh -L 3900:localhost:3900 <this server> — not over plain http)"
+       else
+         say "              (from your machine through: ssh -L 3900:$here_addr:3900 <this server>, then open it there — not over plain http)"
+       fi ;;
+  esac
+  say "              — the first account to sign up becomes the owner, and only this link can create it"
   if [ "$bind" = 127.0.0.1 ]; then
     say "              (this machine only; to open it to the network run the installer again with FOLDRUN_BIND=0.0.0.0)"
   fi

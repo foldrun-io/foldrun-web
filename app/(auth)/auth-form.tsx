@@ -11,7 +11,7 @@ import { inputClass, buttonClass } from "@/components/ui";
 
 const FIELD = inputClass();
 
-export function AuthForm({ mode, invite }: { mode: "login" | "signup"; invite?: string }) {
+export function AuthForm({ mode, invite, setup }: { mode: "login" | "signup"; invite?: string; setup?: string }) {
   const next = useSearchParams().get("next") ?? "/dashboard";
   const [error, setError] = useState<string | null>(null);
   // The second step: the password bought a challenge, not a session.
@@ -33,6 +33,7 @@ export function AuthForm({ mode, invite }: { mode: "login" | "signup"; invite?: 
     }
     if (mode === "signup" && invite) body.invite = invite;
     else if (mode === "signup") body.account = String(data.get("account") ?? "");
+    if (mode === "signup" && setup) body.setup = setup;
     // The try/catch matters: a fetch that fails at the network level throws,
     // and an unhandled throw here left the button stuck on "…" forever with
     // no message — indistinguishable from a hang.

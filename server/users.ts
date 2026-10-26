@@ -184,6 +184,29 @@ export async function signupOpen(): Promise<boolean> {
   return !await hasUsers() || process.env.FOLDRUN_OPEN_SIGNUP === "1";
 }
 
+/**
+ * Whether the first account needs the install's setup token. The first
+ * person to sign up becomes the owner, and on a shared machine every local
+ * user can reach `localhost`; FOLDRUN_SETUP_TOKEN (the self-hosting
+ * installer writes it to .env and prints the signup link with it) ties that
+ * first signup to whoever ran the installer. Unset — the hosted platform, a
+ * one-person laptop — the first signup is free, as it always was. Once any
+ * account exists the token does nothing.
+ */
+export async function setupTokenRequired(): Promise<boolean> {
+  return Boolean(process.env.FOLDRUN_SETUP_TOKEN) && !await hasUsers();
+}
+
+/** The given token is the install's, compared in constant time. */
+export function setupTokenMatches(given: unknown): boolean {
+  const want = Buffer.from(process.env.FOLDRUN_SETUP_TOKEN ?? "");
+  if (!want.length || typeof given !== "string") return false;
+  // Bytes, not characters: equal string lengths can differ in UTF-8, and
+  // timingSafeEqual throws on unequal lengths (a 500 instead of a refusal).
+  const got = Buffer.from(given);
+  return got.length === want.length && crypto.timingSafeEqual(got, want);
+}
+
 export async function findUser(email: string): Promise<UserRecord | null> {
   const needle = email.trim().toLowerCase();
   return (await readUsers()).find((u) => u.email === needle) ?? null;

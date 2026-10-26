@@ -138,6 +138,8 @@ before(async () => {
       FOLDRUN_DISABLE_SCHEDULER: "1",
       // Explicitly NOT set: the point is to test the server refusing.
       FOLDRUN_DEV_NO_AUTH: "",
+      // The install's first account needs this (self-hosting installer).
+      FOLDRUN_SETUP_TOKEN: "e2e-setup-token-0123456789abcdef",
       // A webhook secret we hold, so the Stripe test below can sign a
       // payment event the way Stripe would and watch it credit the ledger.
       STRIPE_WEBHOOK_SECRET: "whsec_e2e_testing",
@@ -371,11 +373,22 @@ test("a bad workspace name is refused rather than reaching the filesystem", opts
 // signup mints it, everything after uses it.
 let cookie = "";
 
-test("the first signup is free, and signs you in", opts, async () => {
+test("the first signup needs the install's setup token, and signs you in", opts, async () => {
+  for (const setup of [undefined, "wrong-token-0123456789abcdefgh"]) {
+    const refused = await fetch(`${base}/api/auth/signup`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "intruder@example.test", password: "correct horse battery", account: "intruder-e2e", ...(setup ? { setup } : {}) }),
+    });
+    assert.equal(refused.status, 403, "another local user cannot claim the install first");
+    assert.match(((await refused.json()) as { error: string }).error, /setup link/);
+  }
+  const page = await (await fetch(`${base}/signup`)).text();
+  assert.match(page, /Open your setup link/);
   const res = await fetch(`${base}/api/auth/signup`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: "founder@example.test", password: "correct horse battery", account: "acme-e2e" }),
+    body: JSON.stringify({ email: "founder@example.test", password: "correct horse battery", account: "acme-e2e", setup: "e2e-setup-token-0123456789abcdef" }),
   });
   assert.equal(res.status, 200, await res.text());
   const set = res.headers.getSetCookie().find((c) => c.startsWith("foldrun_session="));

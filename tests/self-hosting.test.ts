@@ -62,6 +62,7 @@ case "$1" in
     case "$*" in *"info --format"*) cat "${root}/platform-id" 2>/dev/null || echo daemon-1 ;; *exec*) echo 29.5.2 ;; esac
     exit 0 ;;
   info) case "$*" in *SecurityOptions*) echo '["name=seccomp"]' ;; *ID*) echo daemon-1 ;; esac; exit 0 ;;
+  context) case "$*" in *remote*) echo ssh://build-server ;; *) echo unix:///var/run/docker.sock ;; esac; exit 0 ;;
   pull) exit 0 ;;
   image) cat "${stable}"; exit 0 ;;
 esac
@@ -121,6 +122,9 @@ test("a fresh install: a new secret, this machine only, the stable version by na
   assert.equal(r.status, 0, r.out);
   const env = b.env();
   assert.match(env.FOLDRUN_SECRET_KEY, /^[0-9a-f]{64}$/);
+  // The first account is tied to whoever ran this: a token in .env, and the link that carries it.
+  assert.match(env.FOLDRUN_SETUP_TOKEN, /^[0-9a-f]{32}$/);
+  assert.ok(r.out.includes(`/signup?setup=${env.FOLDRUN_SETUP_TOKEN}`), r.out);
   assert.equal(env.COMPOSE_PROJECT_NAME, "foldrun");
   assert.equal(env.FOLDRUN_PUBLIC_URL, "http://localhost:3900");
   assert.equal(env.FOLDRUN_BIND, "127.0.0.1");
@@ -258,10 +262,12 @@ test("a relative FOLDRUN_DIR works and leaves no lock behind, so the next run is
 
 test("the Compose settings given to the installer reach .env too: egress bind, data folder, socket", () => {
   const b = box();
-  const r = b.run({ FOLDRUN_EGRESS_BIND: "172.17.0.1", FOLDRUN_DATA_DIR: "/srv/foldrun-data", FOLDRUN_DOCKER_SOCK: "/run/user/1000/docker.sock" });
+  const dataDir = path.join(fs.realpathSync(b.root), "foldrun-data");
+  const r = b.run({ FOLDRUN_EGRESS_BIND: "172.17.0.1", FOLDRUN_DATA_DIR: dataDir, FOLDRUN_DOCKER_SOCK: "/run/user/1000/docker.sock" });
   assert.equal(r.status, 0, r.out);
   assert.equal(b.env().FOLDRUN_EGRESS_BIND, "172.17.0.1");
-  assert.equal(b.env().FOLDRUN_DATA_DIR, "/srv/foldrun-data");
+  assert.equal(b.env().FOLDRUN_DATA_DIR, dataDir);
+  assert.equal(fs.statSync(dataDir).mode & 0o777, 0o700, "made private by the installer");
   assert.equal(b.env().FOLDRUN_DOCKER_SOCK, "/run/user/1000/docker.sock");
   for (const [env, says] of [
     [{ FOLDRUN_DATA_DIR: "data" }, /FOLDRUN_DATA_DIR must be an absolute path/],
@@ -311,7 +317,7 @@ function machine(o: { os: "Darwin" | "Linux"; uid?: number; docker?: boolean; ru
 # compose's -f files are passed over, so the calls read as before.
 if [ "$1" = compose ] && [ "$2" = -f ]; then shift; while [ "$1" = -f ]; do shift 2; done; set -- compose "$@"; fi
 printf 'docker %s%s\\n' "$h" "$*" >> "${log}"
-case "$1" in --version) exit 0 ;; context) echo "\${FAKE_CONTEXT:-default}"; exit 0 ;; esac
+case "$1" in --version) exit 0 ;; context) case "$2" in inspect) echo unix:///var/run/docker.sock ;; *) echo "\${FAKE_CONTEXT:-default}" ;; esac; exit 0 ;; esac
 [ -f "${st}/running" ] || { echo "Cannot connect to the Docker daemon" >&2; exit 1; }
 [ -f "${st}/reachable" ] || [ -n "$FAKE_SUDO" ] || { echo "permission denied" >&2; exit 1; }
 case "$1" in
@@ -325,7 +331,12 @@ exit 0`, stash);
   sh("id", `case "$1" in -u) echo ${o.uid ?? 1000} ;; -un) echo ana ;; *) echo "uid=${o.uid ?? 1000}(ana)" ;; esac`);
   // The folder is this pretend user's: \`ls -ldn\` reports the stand-in uid as its owner.
   const realLs = spawnSync("sh", ["-c", "command -v ls"], { encoding: "utf8" }).stdout.trim();
-  sh("ls", `if [ "$1" = -ldn ]; then "${realLs}" "$@" | awk -v u=${o.uid ?? 1000} '{ $3 = u; print }'; else exec "${realLs}" "$@"; fi`);
+  // \`ls -lde\` (macOS's ACL listing) answers "no ACL" on any host: GNU ls has no -e.
+  sh("ls", `case "$1" in
+  -ldn) "${realLs}" "$@" | awk -v u=${o.uid ?? 1000} '{ $3 = u; print }' ;;
+  -lde) "${realLs}" -ld "$2" ;;
+  *) exec "${realLs}" "$@" ;;
+esac`);
   // Root survives \`env -i\` under real sudo; the stand-in's mark must too.
   sh("sudo", `printf 'sudo %s\\n' "$*" >> "${log}"; FAKE_SUDO=1; export FAKE_SUDO
 if [ "$1" = env ] && [ "$2" = -i ]; then shift 2; exec env -i FAKE_SUDO=1 "$@"; fi
@@ -399,7 +410,11 @@ test("Linux, no Docker, a yes: Docker's own script runs as root, then foldrun in
   assert.match(r.out, /Install it with Docker's official script .* — yes \(FOLDRUN_INSTALL_DOCKER=yes\)/);
 });
 
-test("Linux, not root: Docker's script runs through sudo, and this user is offered the docker group", () => {
+// Root can write any socket, so "a socket this user cannot write" cannot be
+// staged when the tests themselves run as root (a container, some CI).
+const asRoot = typeof process.getuid === "function" && process.getuid() === 0;
+
+test("Linux, not root: Docker's script runs through sudo, and this user is offered the docker group", { skip: asRoot && "tests running as root: no socket is out of reach" }, () => {
   const m = machine({ os: "Linux", docker: false, running: false, reachable: false });
   const r = m.run({ FOLDRUN_INSTALL_DOCKER: "yes" });
   assert.equal(r.status, 0, r.out);
@@ -542,7 +557,7 @@ test("a platform that reaches a different Docker from the one it was installed i
   fs.writeFileSync(path.join(b.root, "platform-id"), "daemon-2"); // the Compose environment is cleared; a file reaches the stand-in
   const r = b.run();
   assert.notEqual(r.status, 0);
-  assert.match(r.out, /reaches a different Docker/);
+  assert.match(r.out, /(would reach|reaches) a different Docker/);
 });
 
 test("the folder check: owned by this user, no group/other write, no ACL", () => {
@@ -585,7 +600,7 @@ test("the platform's Docker identity is required, not optional: an unreadable on
   fs.writeFileSync(path.join(b.root, "platform-id"), "");
   const r = b.run();
   assert.notEqual(r.status, 0);
-  assert.match(r.out, /reaches a different Docker/);
+  assert.match(r.out, /(would reach|reaches) a different Docker/);
 });
 
 test("an ACL on the folder is refused — read from ls -le on a Mac, where -l shows @ and hides it", { skip: process.platform !== "darwin" && "macOS ACLs" }, () => {
@@ -598,4 +613,179 @@ test("an ACL on the folder is refused — read from ls -le on a Mac, where -l sh
   assert.match(r.out, /has an access control list/);
   spawnSync("chmod", ["-N", b.dir]);
   assert.equal(b.run().status, 0, "cleared, it installs");
+});
+
+test("FOLDRUN_RAW must be https or a local folder: plain http could swap the file that decides what Docker runs", () => {
+  const b = box();
+  const r = b.run({ FOLDRUN_RAW: "http://mirror.example/self-hosting" });
+  assert.notEqual(r.status, 0);
+  assert.match(r.out, /FOLDRUN_RAW must be an https:\/\/ address/);
+});
+
+test("an override that brings in other files (include:, extends: file:) is refused", () => {
+  for (const yml of [
+    "include:\n  - /srv/shared.yml\n",
+    "services:\n  platform:\n    extends:\n      file: /srv/shared.yml\n      service: x\n",
+    '"include": [../shared/compose.yml]\n',
+    "services: {platform: {extends: {file: ../shared/platform.yml, service: platform}}}\n",
+  ]) {
+    const b = box();
+    assert.equal(b.run().status, 0);
+    fs.writeFileSync(path.join(b.dir, "docker-compose.override.yml"), yml, { mode: 0o600 });
+    const r = b.run();
+    assert.notEqual(r.status, 0);
+    assert.match(r.out, /brings in other files/);
+  }
+});
+
+test("a wrong Docker is caught before the platform starts", () => {
+  const b = box();
+  fs.writeFileSync(path.join(b.root, "platform-id"), "daemon-2");
+  const r = b.run();
+  assert.notEqual(r.status, 0);
+  assert.match(r.out, /would reach a different Docker/);
+  assert.ok(!b.calls().some((c) => c.startsWith("compose up")), "never started");
+});
+
+test("an install folder whose parent another user could rename entries in is refused", () => {
+  const b = box();
+  const shared = path.join(b.root, "shared");
+  fs.mkdirSync(shared, { mode: 0o777 });
+  fs.chmodSync(shared, 0o777); // world-writable, not sticky: anyone could swap foldrun/ for their own
+  const r = b.run({ FOLDRUN_DIR: path.join(shared, "foldrun") });
+  assert.notEqual(r.status, 0);
+  assert.match(r.out, /can be written by other users, so Docker could be pointed at files other than this install's/);
+  assert.ok(!b.calls().some((c) => /^compose (pull|up)/.test(c)), "nothing pulled or started");
+});
+
+test("a deny-only ACL (a Mac home has one) is not a grant: the install goes ahead", { skip: process.platform !== "darwin" && "macOS ACLs" }, () => {
+  const b = box();
+  fs.mkdirSync(b.dir, { recursive: true, mode: 0o700 });
+  spawnSync("chmod", ["+a", "group:everyone deny delete", b.dir]);
+  const r = b.run();
+  assert.equal(r.status, 0, r.out);
+});
+
+test("a sticky parent that group and others can write (/tmp's 1777) is accepted: only an entry's owner may rename it", () => {
+  const b = box();
+  const tmpLike = path.join(b.root, "tmp-like");
+  fs.mkdirSync(tmpLike);
+  fs.chmodSync(tmpLike, 0o1777);
+  const r = b.run({ FOLDRUN_DIR: path.join(tmpLike, "foldrun") });
+  assert.equal(r.status, 0, r.out);
+});
+
+test("with a plain-http network address the setup link is for localhost, never sent across the network", () => {
+  const b = box();
+  const r = b.run({ FOLDRUN_BIND: "0.0.0.0", FOLDRUN_PUBLIC_URL: "http://192.168.1.20:3900" });
+  assert.equal(r.status, 0, r.out);
+  const token = b.env().FOLDRUN_SETUP_TOKEN;
+  assert.ok(r.out.includes(`http://localhost:3900/signup?setup=${token}`), r.out);
+  assert.ok(!r.out.includes(`http://192.168.1.20:3900/signup?setup=`), "the token is never in a plain-http network link");
+  assert.match(r.out, /ssh -L 3900:localhost:3900/);
+});
+
+test("bound to one network address, the setup link goes through a tunnel to that address", () => {
+  const b = box();
+  const r = b.run({ FOLDRUN_BIND: "192.168.1.20", FOLDRUN_PUBLIC_URL: "http://192.168.1.20:3900" });
+  assert.equal(r.status, 0, r.out);
+  assert.match(r.out, /ssh -L 3900:192\.168\.1\.20:3900/);
+  assert.ok(!r.out.includes("http://192.168.1.20:3900/signup?setup="));
+});
+
+test("a read-granting ACL on the install folder is refused: .env holds the keys", { skip: process.platform !== "darwin" && "macOS ACLs" }, () => {
+  const b = box();
+  fs.mkdirSync(b.dir, { recursive: true, mode: 0o700 });
+  spawnSync("chmod", ["+a", "everyone allow read,list,file_inherit", b.dir]);
+  const r = b.run();
+  assert.notEqual(r.status, 0);
+  assert.match(r.out, /access control list that gives another user access/);
+  assert.ok(!fs.existsSync(path.join(b.dir, ".env")), "no secret written");
+});
+
+test("an install folder reached through a symlink is checked, and used, by its real path", () => {
+  const b = box();
+  const real = path.join(b.root, "real-place");
+  fs.mkdirSync(real, { mode: 0o700 });
+  const link = path.join(b.root, "via-link");
+  fs.symlinkSync(real, link);
+  const r = b.run({ FOLDRUN_DIR: link });
+  assert.equal(r.status, 0, r.out);
+  assert.ok(r.out.includes(fs.realpathSync(real)), "messages name the real path");
+  assert.ok(fs.existsSync(path.join(real, ".env")));
+});
+
+test("an override that only mentions the words (a comment, a path) is fine", () => {
+  const b = box();
+  assert.equal(b.run().status, 0);
+  fs.writeFileSync(path.join(b.dir, "docker-compose.override.yml"), "# no include here, nothing extends\nservices:\n  platform:\n    volumes:\n      - /srv/includes:/data/includes:ro\n", { mode: 0o600 });
+  const r = b.run();
+  assert.equal(r.status, 0, r.out);
+});
+
+test("FOLDRUN_DATA_DIR: a folder of your own is used; one others can write is refused before anything starts", () => {
+  const ok = box();
+  const mine = path.join(ok.root, "data-mine");
+  fs.mkdirSync(mine, { mode: 0o700 });
+  assert.equal(ok.run({ FOLDRUN_DATA_DIR: mine }).status, 0);
+  const bad = box();
+  const shared = path.join(bad.root, "data-shared");
+  fs.mkdirSync(shared);
+  fs.chmodSync(shared, 0o777);
+  const r = bad.run({ FOLDRUN_DATA_DIR: shared });
+  assert.notEqual(r.status, 0);
+  assert.match(r.out, /is open to other users \(mode drwxrwxrwx\)/);
+  assert.ok(!bad.calls().some((c) => /^compose (pull|up)/.test(c)), "nothing started");
+});
+
+test("an override that names env files is refused, in every form: settings go in .env or environment:", () => {
+  for (const yml of [
+    "services:\n  platform:\n    env_file: /srv/shared/platform.env\n",
+    "services:\n  platform:\n    env_file: [app.env]\n",
+    "services:\n  platform:\n    env_file:\n      - path: safe.env\n        required: true\n      - path: shared/other.env\n",
+    "services: {platform: {env_file: app.env}}\n",
+  ]) {
+    const b = box();
+    assert.equal(b.run().status, 0);
+    fs.writeFileSync(path.join(b.dir, "docker-compose.override.yml"), yml, { mode: 0o600 });
+    const r = b.run();
+    assert.notEqual(r.status, 0, yml);
+    assert.match(r.out, /uses env_file — put those settings in/);
+  }
+});
+
+test("FOLDRUN_DATA_DIR: a missing folder is made private; a symlinked one is kept by its real path; a remote Docker is refused", () => {
+  const b = box();
+  const made = path.join(fs.realpathSync(b.root), "new", "data");
+  assert.equal(b.run({ FOLDRUN_DATA_DIR: made }).status, 0);
+  assert.equal(fs.statSync(made).mode & 0o777, 0o700);
+  const c = box();
+  const real = path.join(fs.realpathSync(c.root), "real-data");
+  fs.mkdirSync(real, { mode: 0o700 });
+  const link = path.join(fs.realpathSync(c.root), "data-link");
+  fs.symlinkSync(real, link);
+  assert.equal(c.run({ FOLDRUN_DATA_DIR: link }).status, 0);
+  assert.equal(c.env().FOLDRUN_DATA_DIR, real, "the folder checked is the folder mounted");
+  const d = box();
+  const r = d.run({ FOLDRUN_DATA_DIR: path.join(fs.realpathSync(d.root), "data"), DOCKER_HOST: "ssh://build-server" });
+  assert.notEqual(r.status, 0);
+  assert.match(r.out, /Docker here is remote/);
+});
+
+test("a remote DOCKER_CONTEXT wins over a local DOCKER_HOST, as in Docker: a host data folder is refused", () => {
+  const b = box();
+  const r = b.run({ FOLDRUN_DATA_DIR: path.join(fs.realpathSync(b.root), "data"), DOCKER_HOST: "unix:///var/run/docker.sock", DOCKER_CONTEXT: "remote" });
+  assert.notEqual(r.status, 0);
+  assert.match(r.out, /Docker here is remote/);
+});
+
+test("a new data folder under a symlinked parent is checked by the parent's real path", () => {
+  const b = box();
+  const realParent = path.join(fs.realpathSync(b.root), "real-parent");
+  fs.mkdirSync(realParent, { mode: 0o700 });
+  const linkParent = path.join(fs.realpathSync(b.root), "link-parent");
+  fs.symlinkSync(realParent, linkParent);
+  const r = b.run({ FOLDRUN_DATA_DIR: path.join(linkParent, "data") });
+  assert.equal(r.status, 0, r.out);
+  assert.equal(b.env().FOLDRUN_DATA_DIR, path.join(realParent, "data"));
 });

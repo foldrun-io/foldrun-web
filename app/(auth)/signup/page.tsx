@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { signupOpen, verifyInvite } from "@/server/users";
+import { signupOpen, verifyInvite, setupTokenRequired } from "@/server/users";
 import { AuthForm } from "../auth-form";
 import { Brand } from "../brand";
 
@@ -10,9 +10,9 @@ export const dynamic = "force-dynamic";
 export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ invite?: string }>;
+  searchParams: Promise<{ invite?: string; setup?: string }>;
 }) {
-  const { invite } = await searchParams;
+  const { invite, setup } = await searchParams;
   const invited = invite ? verifyInvite(invite) : null;
 
   // A valid invite is its own permission: someone on the team sent it, so
@@ -45,6 +45,25 @@ export default async function SignupPage({
     );
   }
 
+  // The install's first account, where a setup token was set: the link the
+  // installer printed carries it. Without it, say where to find it — never
+  // whether a given token was close.
+  if (!invited && (await setupTokenRequired()) && !setup) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-paper px-4">
+        <div className="w-full max-w-sm text-center">
+          <h1 className="mb-2 text-xl font-semibold text-fg">Open your setup link</h1>
+          <p className="text-sm text-fg-muted">
+            This install&apos;s first account is created from the link the installer printed
+            (<code className="rounded bg-muted px-1">/signup?setup=…</code>). It is also in the
+            install&apos;s <code className="rounded bg-muted px-1">.env</code> as
+            {" "}<code className="rounded bg-muted px-1">FOLDRUN_SETUP_TOKEN</code>.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   if (!await signupOpen()) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-paper px-4">
@@ -72,7 +91,7 @@ export default async function SignupPage({
           A folder of markdown, running on a schedule, by tonight.
         </p>
         <Suspense>
-          <AuthForm mode="signup" />
+          <AuthForm mode="signup" setup={setup} />
         </Suspense>
         <p className="mt-6 text-center text-sm text-fg-muted">
           Already have one?{" "}
