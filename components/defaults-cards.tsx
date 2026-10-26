@@ -151,6 +151,63 @@ export function ConcurrencyCard({ endpoint, tenant, initial, plan }: { endpoint:
   );
 }
 
+/** The account's compute: what its running steps may hold together and in
+ *  one step (the plan's, the install's, or its own lower `compute:`), what
+ *  they hold now, and the account's own cap to lower it. */
+export function ComputeCard({
+  endpoint,
+  tenant,
+  initial,
+  pool,
+  inUse,
+}: {
+  endpoint: string;
+  tenant: string;
+  initial: Defaults["compute"];
+  pool: { vcpu: number | null; memGiB: number | null; stepVcpu: number | null; stepMemGiB: number | null; source: string | null };
+  inUse: { vcpu: number; memGiB: number; steps: number };
+}) {
+  const str = (n: number | null | undefined) => (n === null || n === undefined ? "" : String(n));
+  // The pool and what is held, as the server last said: refetched after a
+  // save, so a lowered cap shows as the figure now enforced.
+  const [live, setLive] = useState({ pool, inUse });
+  const form = useSettingsForm({ vcpu: str(initial?.vcpu), memGiB: str(initial?.memGiB) }, async (v) => {
+    const blank = v.vcpu.trim() === "" && v.memGiB.trim() === "";
+    const d = await patch(endpoint, tenant, { compute: blank ? null : { vcpu: v.vcpu.trim() || null, memGiB: v.memGiB.trim() || null } });
+    const res = await fetch("/api/usage/compute", { headers: { "x-foldrun-tenant": tenant } }).catch(() => null);
+    const fresh = res && res.ok ? ((await res.json().catch(() => null)) as { compute?: typeof pool; inUse?: typeof inUse } | null) : null;
+    if (fresh?.compute && fresh.inUse) setLive({ pool: fresh.compute, inUse: fresh.inUse });
+    return { vcpu: str(d.compute?.vcpu), memGiB: str(d.compute?.memGiB) };
+  });
+  const of = (used: number, cap: number | null, unit: string) => (cap === null ? `${used} ${unit}, no cap` : `${used} of ${cap} ${unit}`);
+  const from = live.pool.source === "plan" ? "the plan's" : live.pool.source === "account" ? "your own, below" : live.pool.source === "install" ? "this install's" : null;
+  return (
+    <SettingsForm form={form} hint="compute: in AGENTS.md">
+      <div className="grid gap-1 text-sm text-fg-secondary">
+        <span>
+          Held by {live.inUse.steps} running step{live.inUse.steps === 1 ? "" : "s"}: <span className="tabular-nums text-fg">{of(live.inUse.vcpu, live.pool.vcpu, "vCPU")}</span> ·{" "}
+          <span className="tabular-nums text-fg">{of(live.inUse.memGiB, live.pool.memGiB, "GiB")}</span>
+          {from ? <span className="text-fg-subtle"> — {from}</span> : null}
+        </span>
+        {(live.pool.stepVcpu !== null || live.pool.stepMemGiB !== null) && (
+          <span className="text-fg-subtle">
+            One step may hold up to {live.pool.stepVcpu ?? "any"} vCPU · {live.pool.stepMemGiB ?? "any"} GiB.
+          </span>
+        )}
+      </div>
+      <Field
+        label="Your own cap"
+        help="Cores and GiB all your running steps may hold together, lower than the plan's. A step that would pass it waits for another to finish; one bigger than the whole cap fails with a message. Empty is the plan's."
+      >
+        <div className="flex gap-2">
+          <input type="number" min={0.5} step={0.5} value={form.value.vcpu} onChange={(e) => form.setValue({ ...form.value, vcpu: e.target.value })} placeholder="vCPU" aria-label="vCPU" className={inputClass("max-w-[7rem]")} />
+          <input type="number" min={0.25} step={0.25} value={form.value.memGiB} onChange={(e) => form.setValue({ ...form.value, memGiB: e.target.value })} placeholder="GiB" aria-label="GiB" className={inputClass("max-w-[7rem]")} />
+        </div>
+      </Field>
+    </SettingsForm>
+  );
+}
+
 /** owner: — governance. Who answers for every agent and flow here that names none. */
 export function OwnerCard({ endpoint, tenant, initial, inherited }: { endpoint: string; tenant: string; initial: string | null; inherited?: string | null }) {
   const form = useSettingsForm(initial ?? "", async (v) => {

@@ -16,14 +16,23 @@ test("defaults read out of frontmatter, with the notify events defaulted", () =>
     owner: null,
     alerts: null,
     judge: null,
+    compute: null,
   });
-  assert.deepEqual(defaultsOf({}), { timezone: null, budget: null, concurrency: null, notify: null, deployBlock: null, networkEnforce: false, telemetry: null, owner: null, alerts: null, judge: null });
+  assert.deepEqual(defaultsOf({}), { timezone: null, budget: null, concurrency: null, notify: null, deployBlock: null, networkEnforce: false, telemetry: null, owner: null, alerts: null, judge: null, compute: null });
   assert.equal(defaultsOf({ concurrency: "2.5" }).concurrency, null, "runs are whole");
   assert.equal(defaultsOf({ concurrency: 0 }).concurrency, null);
 });
 
 test("a patch touches only the keys sent, and refuses bad values whole", () => {
   assert.deepEqual(defaultsPatch({ budget: "12.5" }), { keys: { budget: 12.5 } }, "a month is the bare number, as the file has always read");
+  // compute: the account's own cap, written the way the file reads it.
+  assert.deepEqual(defaultsPatch({ compute: { vcpu: 4, memGiB: 8 } }), { keys: { compute: { vcpu: 4, memory: "8Gi" } } });
+  assert.deepEqual(defaultsPatch({ compute: { vcpu: "", memGiB: 1.5 } }), { keys: { compute: { memory: "1536Mi" } } });
+  assert.deepEqual(defaultsPatch({ compute: null }), { keys: { compute: null } });
+  assert.deepEqual(defaultsPatch({ compute: { vcpu: null, memGiB: null } }), { keys: { compute: null } }, "nothing left is no cap");
+  assert.match((defaultsPatch({ compute: { vcpu: 0.2 } }) as { error: string }).error, /0.5 or more in halves/);
+  assert.match((defaultsPatch({ compute: "lots" }) as { error: string }).error, /compute must be/);
+  assert.deepEqual(defaultsOf({ compute: { vcpu: 2, memory: "4Gi" } }).compute, { vcpu: 2, memGiB: 4 });
   assert.deepEqual(defaultsPatch({ budget: "12.5/day" }), { keys: { budget: "12.5/day" } });
   assert.deepEqual(defaultsPatch({ budget: { usd: 60, period: "week" } }), { keys: { budget: "60/week" } });
   assert.deepEqual(defaultsPatch({ budget: "" }), { keys: { budget: null } });

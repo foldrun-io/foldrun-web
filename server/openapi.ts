@@ -270,6 +270,18 @@ const SHAPES: Record<string, { body?: Schema; response?: Schema; query?: { name:
     response: obj({ ok: bool, key: str("shown once"), id: str(), prefix: str(), role: str(), workspaces: { type: ["array", "null"], items: str() } }),
   },
   "DELETE /api/keys": { body: obj({ id: str() }, ["id"]) },
+  "GET /api/usage/compute": {
+    response: obj({
+      compute: obj({
+        vcpu: { type: ["number", "null"], description: "cores all running steps may hold together; null is no cap" },
+        memGiB: { type: ["number", "null"], description: "GiB all running steps may hold together; null is no cap" },
+        stepVcpu: { type: ["number", "null"], description: "the most one step may hold, in cores" },
+        stepMemGiB: { type: ["number", "null"], description: "the most one step may hold, in GiB" },
+        source: { type: ["string", "null"], description: "plan | account | install, or null with no pool" },
+      }),
+      inUse: obj({ vcpu: { type: "number" }, memGiB: { type: "number" }, steps: { type: "integer" } }),
+    }),
+  },
   "GET /api/usage": {
     response: obj({
       tenant: { type: "string" },

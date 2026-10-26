@@ -7,6 +7,7 @@ import { parseBudget, budgetProblem, formatBudget, type Budget } from "../../fol
 import { parseTelemetry, type TelemetryConfig } from "../../foldrun-core/src/otel-config.ts";
 import { parseAlerts } from "../../foldrun-core/src/alerts.ts";
 import { parseJudge } from "../../foldrun-core/src/judge-verdict.ts";
+import { readCompute, quantityMi } from "../../foldrun-core/src/resources.ts";
 
 /** `alerts:` as written — the form shows and saves the words a person typed
  *  (`30%`), not the parsed fraction. */
@@ -51,12 +52,15 @@ export interface Defaults {
   alerts: Alerts | null;
   /** judge: — the model every grader here uses. */
   judge: Judge | null;
+  /** Account only: compute: — the cores and GiB its running steps may hold
+   *  together, by its own choice. Lowers the plan's, never raises it. */
+  compute: { vcpu: number | null; memGiB: number | null } | null;
 }
 
 /** The AGENTS.md keys each scope's settings PATCH writes (`defaultsPatch`
  *  reads them all; a workspace's route takes this subset). The rest are
  *  written in the file itself. */
-export const ACCOUNT_PATCHABLE = ["timezone", "budget", "concurrency", "notify", "deploy_block", "network_enforce", "telemetry", "owner", "alerts", "judge"] as const;
+export const ACCOUNT_PATCHABLE = ["timezone", "budget", "concurrency", "compute", "notify", "deploy_block", "network_enforce", "telemetry", "owner", "alerts", "judge"] as const;
 export const WORKSPACE_PATCHABLE = ["timezone", "budget", "notify", "network_enforce", "owner", "alerts", "judge"] as const;
 
 export const DEPLOY_BLOCKS = ["none", "secrets", "security"] as const;
@@ -70,6 +74,7 @@ export function defaultsOf(fm: Record<string, unknown>): Defaults {
     timezone: typeof fm.timezone === "string" ? fm.timezone : null,
     budget: timedBudget(fm.budget),
     concurrency: Number.isInteger(Number(fm.concurrency)) && Number(fm.concurrency) > 0 ? Number(fm.concurrency) : null,
+    compute: computeOf(fm.compute),
     notify: n
       ? {
           ...(typeof n.url === "string" && n.url ? { url: n.url } : {}),
@@ -84,6 +89,11 @@ export function defaultsOf(fm: Record<string, unknown>): Defaults {
     alerts: alertsOf(fm.alerts),
     judge: judgeOf(fm.judge),
   };
+}
+
+function computeOf(raw: unknown): Defaults["compute"] {
+  const { value } = readCompute(raw);
+  return value.vcpu === undefined && value.memGiB === undefined ? null : { vcpu: value.vcpu ?? null, memGiB: value.memGiB ?? null };
 }
 
 /** `alerts:` as written. `{}` is kept as `{}`: at a workspace it means "no
@@ -163,6 +173,27 @@ export function defaultsPatch(body: Record<string, unknown>): { keys: Record<str
       keys.concurrency = n;
     }
   }
+  if ("compute" in body) {
+    // { vcpu?, memGiB? } (numbers, null or empty to drop one), or null for
+    // none. Written as the file reads it: {vcpu: 4, memory: 8Gi}.
+    const c = body.compute;
+    if (c === null || c === "") keys.compute = null;
+    else if (typeof c !== "object" || Array.isArray(c)) return { error: "compute must be { vcpu?, memGiB? } or null" };
+    else {
+      const o = c as Record<string, unknown>;
+      const blank = (v: unknown) => v === null || v === undefined || v === "";
+      const out: Record<string, unknown> = {};
+      if (!blank(o.vcpu)) out.vcpu = Number(o.vcpu);
+      if (!blank(o.memGiB)) {
+        const g = Number(o.memGiB);
+        out.memory = Number.isFinite(g) && g > 0 ? (Number.isInteger(g) ? `${g}Gi` : `${Math.round(g * 1024)}Mi`) : String(o.memGiB);
+      }
+      const { problems } = readCompute(out);
+      if (problems.length) return { error: `compute: ${problems.join("; ")}` };
+      if (out.memory !== undefined && !Number.isFinite(quantityMi(out.memory))) return { error: "compute: memGiB must be a number of GiB" };
+      keys.compute = Object.keys(out).length ? out : null;
+    }
+  }
   if ("notify" in body) {
     const n = body.notify;
     if (n === null) keys.notify = null;
@@ -234,6 +265,6 @@ export function defaultsPatch(body: Record<string, unknown>): { keys: Record<str
       keys.judge = read.model || read.effort ? { ...(read.model ? { model: read.model } : {}), ...(read.effort ? { effort: read.effort } : {}) } : null;
     }
   }
-  if (Object.keys(keys).length === 0) return { error: "nothing to change — send timezone, budget, concurrency, notify, deploy_block, network_enforce, telemetry, owner, alerts or judge" };
+  if (Object.keys(keys).length === 0) return { error: "nothing to change — send timezone, budget, concurrency, compute, notify, deploy_block, network_enforce, telemetry, owner, alerts or judge" };
   return { keys };
 }

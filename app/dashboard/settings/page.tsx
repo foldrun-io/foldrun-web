@@ -13,7 +13,9 @@ import { TeamManager } from "./team";
 import { accountDir, parseProvider } from "@/lib/store";
 import { readAgentsMdKeys } from "@/lib/agents-md";
 import { defaultsOf } from "@/components/defaults-model";
-import { TimezoneCard, NotifyCard, ConcurrencyCard, DeployBlockCard, NetworkEnforceCard, OwnerCard, AlertsCard, JudgeCard } from "@/components/defaults-cards";
+import { TimezoneCard, NotifyCard, ConcurrencyCard, ComputeCard, DeployBlockCard, NetworkEnforceCard, OwnerCard, AlertsCard, JudgeCard } from "@/components/defaults-cards";
+import { accountCompute, computeInUse } from "@/platform/limits";
+import { billing } from "@/platform/billing";
 import { AvatarEditor } from "@/components/avatar";
 import { avatarUrl } from "@/platform/avatars";
 import { listWorkspaces, listFlows } from "@/lib/store";
@@ -216,7 +218,9 @@ export default async function SettingsPage({
         <SettingsSection id="governance" title="Governance" description="Who answers for the agents, what they may spend and run at once, what a deploy refuses, and the switch that stops them. In AGENTS.md: governance: (or the same keys at the top).">
           <div className="grid gap-3">
             <OwnerCard endpoint="/api/account" tenant={tenant} initial={defaults.owner} />
-            <ConcurrencyCard endpoint="/api/account" tenant={tenant} initial={defaults.concurrency} plan={Number(process.env.FOLDRUN_PLAN_CONCURRENCY) > 0 ? Number(process.env.FOLDRUN_PLAN_CONCURRENCY) : null} />
+            {/* The plan's number, not the install's alone: until 26 Oct 2026 this read only FOLDRUN_PLAN_CONCURRENCY, so a customer on a plan saw the wrong figure. */}
+            <ConcurrencyCard endpoint="/api/account" tenant={tenant} initial={defaults.concurrency} plan={(await billing().plan(tenant))?.concurrency ?? (Number(process.env.FOLDRUN_PLAN_CONCURRENCY) > 0 ? Number(process.env.FOLDRUN_PLAN_CONCURRENCY) : null)} />
+            <ComputeCard endpoint="/api/account" tenant={tenant} initial={defaults.compute} pool={await accountCompute(tenant)} inUse={computeInUse(tenant, scope)} />
             <DeployBlockCard endpoint="/api/account" tenant={tenant} initial={defaults.deployBlock} />
           <PauseCard
             tenant={tenant}
