@@ -301,6 +301,8 @@ function machine(o: { os: "Darwin" | "Linux"; uid?: number; docker?: boolean; ru
   const sh = (name: string, body: string, where = bin) => fs.writeFileSync(path.join(where, name), `#!/bin/sh\n${body}\n`, { mode: 0o755 });
   // docker: needs a running daemon, and this user's reach (or sudo's).
   sh("docker", `printf 'docker %s\\n' "$*" >> "${log}"
+# -H names the daemon; the stand-in has one, so the flag is noted and passed over.
+if [ "$1" = -H ]; then shift 2; fi
 case "$1" in --version) exit 0 ;; context) echo "\${FAKE_CONTEXT:-default}"; exit 0 ;; esac
 [ -f "${st}/running" ] || { echo "Cannot connect to the Docker daemon" >&2; exit 1; }
 [ -f "${st}/reachable" ] || [ -n "$FAKE_SUDO" ] || { echo "permission denied" >&2; exit 1; }
@@ -393,7 +395,11 @@ test("Linux, not root: Docker's script runs through sudo, and this user is offer
   const calls = m.calls();
   assert.ok(calls.some((c) => /^get-docker uid=1000 sudo=1$/.test(c)), "through sudo");
   assert.ok(calls.includes("usermod -aG docker ana"), "the group, asked first");
-  assert.ok(calls.includes("sudo docker pull -q ghcr.io/foldrun-io/platform:stable") && calls.includes("sudo docker compose up -d"), "this run reaches Docker through sudo");
+  // Through sudo, every call pinned to the socket that was verified, not root's own context.
+  const sock = calls.find((c) => c.startsWith("sudo docker -H unix://"))?.split(" ")[3];
+  assert.ok(sock && sock.endsWith("docker.sock"), calls.join("\n"));
+  assert.ok(calls.includes(`sudo docker -H ${sock} pull -q ghcr.io/foldrun-io/platform:stable`) && calls.includes(`sudo docker -H ${sock} compose up -d`), "this run reaches Docker through sudo, at the verified socket");
+  assert.ok(!calls.some((c) => /^sudo docker (?!-H )/.test(c)), "no sudo docker call without the socket");
   // Under sudo, Compose never gets this user's PATH or HOME (their plugins would run as root).
   assert.ok(!calls.some((c) => c.startsWith("sudo env -i")), calls.join("\n"));
   // Docker's script was staged in a private folder in the home, then removed.

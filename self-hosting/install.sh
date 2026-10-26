@@ -62,7 +62,7 @@ dc() {
   # sudo's own safe PATH and root's home, never this user's PATH, HOME or
   # Compose plugins — those would run as root. sudo clears the environment
   # itself, so .env still speaks alone.
-  if [ -n "$SUDO" ]; then sudo docker compose "$@"; return; fi
+  if [ -n "$SUDO" ]; then sudo docker -H "unix://$ROOTFUL_SOCK" compose "$@"; return; fi
   env -i PATH="$PATH" HOME="$HOME" \
     ${DOCKER_HOST:+DOCKER_HOST="$DOCKER_HOST"} \
     ${DOCKER_CONTEXT:+DOCKER_CONTEXT="$DOCKER_CONTEXT"} \
@@ -117,7 +117,11 @@ fingerprint() { cksum < "$1" | awk '{ print $1 "-" $2 }'; }
 # `sudo` when this run must reach Docker through it (a user just added to
 # the docker group has the group only from their next login).
 SUDO=
-dk() { $SUDO docker "$@"; }
+# The socket a sudo run was verified against (local_rootful_socket): every
+# sudo Docker call names it, so root's own Docker configuration (a context
+# of its own) cannot point this run at a different daemon.
+ROOTFUL_SOCK=
+dk() { if [ -n "$SUDO" ]; then sudo docker -H "unix://$ROOTFUL_SOCK" "$@"; else docker "$@"; fi; }
 
 os_name() { if have uname; then uname -s; else echo unknown; fi; }
 
@@ -278,6 +282,7 @@ linux_docker() {
         || die "Docker is not reachable by this user. Run this as a user in the docker group (https://docs.docker.com/engine/install/linux-postinstall/ — that group is root-equivalent), as root, or with rootless Docker."
       sudo usermod -aG docker "$me" || die "could not add $me to the docker group"
       SUDO=sudo
+      ROOTFUL_SOCK=${_FOLDRUN_ROOTFUL_SOCK:-/var/run/docker.sock}
     fi
     wait_for_docker || die "Docker is not answering — see: systemctl status docker"
   fi
