@@ -97,6 +97,16 @@ services:
       # Let strangers sign up? Off by default, on purpose.
       FOLDRUN_OPEN_SIGNUP: ${FOLDRUN_OPEN_SIGNUP:-}
       FOLDRUN_CONCURRENCY: ${FOLDRUN_CONCURRENCY:-2}
+      # What one step's sandbox may use, per size: class — cores and memory,
+      # each a hard limit and what the step's seconds are billed at. Unset:
+      # small 1 core / 1Gi, large 2 / 2Gi, heavy 4 / 8Gi; --cpus is lowered to
+      # this machine's cores. (An account's compute pool, FOLDRUN_ACCOUNT_VCPU
+      # and _MEMORY_GIB, is enforced by the k8s room gate, not on this
+      # Docker install.)
+      # FOLDRUN_RUNNER_CPUS: "2"
+      # FOLDRUN_RUNNER_MEMORY: 2Gi
+      # FOLDRUN_RUNNER_CPUS_HEAVY: "4"
+      # FOLDRUN_RUNNER_MEMORY_HEAVY: 8Gi
       FOLDRUN_EGRESS_URL: ${FOLDRUN_EGRESS_URL-http://host.docker.internal:8090}
       FOLDRUN_EGRESS_PORT: "8090"
       # The install's model credential, which runs borrow when their agent
