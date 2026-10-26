@@ -1,88 +1,89 @@
 # foldrun on one machine, for yourself or your own organisation.
 #
+# One command installs it from the ready-made images (Linux or macOS with
+# Docker, amd64 or arm64; Windows inside WSL2):
+#
+#   curl -fsSL https://foldrun.io/install.sh | sh
+#
+# It downloads this file into ~/foldrun, writes .env (a fresh secret key, the
+# address, the version) and starts it. By hand, the same thing:
+#
+#   mkdir ~/foldrun && cd ~/foldrun
+#   curl -fsSLO https://raw.githubusercontent.com/foldrun-io/foldrun-web/main/self-hosting/docker-compose.yml
+#   echo "FOLDRUN_SECRET_KEY=$(openssl rand -hex 32)" > .env
+#   echo "FOLDRUN_PUBLIC_URL=http://localhost:3900" >> .env
+#   echo "FOLDRUN_BIND=127.0.0.1" >> .env   # this machine only, as the installer does
+#   docker compose up -d
+#
+# Then open http://localhost:3900/signup — the first account becomes the
+# owner — sign the CLI in (`foldrun login --url http://localhost:3900`) and
+# `foldrun deploy` your account folder. From source instead of images, with
+# foldrun-core, foldrun-platform, foldrun-web and foldrun-docs cloned side by
+# side: docker-compose.build.yml. Use is under the licence in ../LICENSE
+# (FSL-1.1-ALv2; see ../LICENSING.md): free for your own and your
+# organisation's use, not for offering foldrun to others as a service.
+#
 # The platform container is the always-on part: the dashboard, the API, the
 # scheduler and the queue. Every agent step runs in a hardened throwaway
 # container beside it, started through the Docker socket, so compute is only
 # spent while a step runs.
 #
-#   # beside each other: foldrun-core foldrun-platform foldrun-web foldrun-docs
-#   cd foldrun-web/self-hosting
-#   echo "FOLDRUN_SECRET_KEY=$(openssl rand -hex 32)" > .env
-#   echo "FOLDRUN_PUBLIC_URL=http://<host>:3900" >> .env   # the address people use
-#   docker compose up -d --build
-#
-# Then open http://<host>:3900/signup — the first account needs no flag —
-# sign the CLI in (`foldrun login --url http://<host>:3900`) and
-# `foldrun deploy` your account folder. Use is under the licence in ../LICENSE
-# (FSL-1.1-ALv2; see ../LICENSING.md): free for your own and your
-# organisation's use, not for offering foldrun to others as a service.
+# Versions: FOLDRUN_VERSION in .env picks one (vYYYY.MM.DD.N); unset, `stable`
+# — the newest version built for both amd64 and arm64. Change it and run
+# `docker compose up -d` to move; the data volume is kept either way. Leave
+# this file as it is and put your own changes in docker-compose.override.yml,
+# which Compose reads beside it, so an update can replace this one.
 
 services:
-  # The image every agent step runs in (node, python, git and three browsers),
-  # built once before the platform starts — a few minutes and ~600 MB the
-  # first time, seconds after. Built in its own one-shot container because the
-  # build is synchronous: done by the platform on its first step, it would
-  # hold the dashboard still until the build finished.
+  # The image every agent step runs in (node, python, git and browsers),
+  # pulled before the platform starts so the first step does not wait on
+  # several gigabytes. It only needs to exist: the container exits at once.
+  # (The image's own entrypoint starts a step's driver; this replaces it.)
   runner-image:
-    image: foldrun-self-hosted:local
-    pull_policy: never
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    working_dir: /app/foldrun-core
-    command:
-      - node
-      - --experimental-strip-types
-      - --no-warnings
-      - -e
-      - 'import("/app/foldrun-core/src/run-container.ts").then((m) => { const r = m.ensureRunnerImage(); r.log.forEach((l) => console.log(l)); console.log("runner image: " + r.tag); })'
-    environment:
-      FOLDRUN_RUNNER_IMAGE: ${FOLDRUN_RUNNER_IMAGE-}
-    restart: "no"
-    depends_on:
-      platform-image:
-        condition: service_completed_successfully
-
-  # Builds foldrun-self-hosted:local (the platform's image) from the folder
-  # holding the four checkouts, for the two services that run it; exits at once.
-  platform-image:
-    build:
-      context: ../..
-      dockerfile: foldrun-web/self-hosting/Dockerfile
-    image: foldrun-self-hosted:local
-    command: ["true"]
+    image: ghcr.io/foldrun-io/runner:${FOLDRUN_VERSION:-stable}
+    entrypoint: ["/bin/true"]
+    command: []
     restart: "no"
 
   platform:
+    image: ghcr.io/foldrun-io/platform:${FOLDRUN_VERSION:-stable}
     depends_on:
       runner-image:
         condition: service_completed_successfully
-    image: foldrun-self-hosted:local
-    pull_policy: never
     restart: unless-stopped
     ports:
-      - "3900:3900"
+      # The dashboard and API. FOLDRUN_BIND=127.0.0.1 keeps them to this
+      # machine (the installer's default: reach it over an SSH tunnel or put a
+      # reverse proxy in front). Open to the network, sign up at once — the
+      # first account to sign up becomes the owner.
+      - "${FOLDRUN_BIND:-0.0.0.0}:3900:3900"
       # The egress proxy: a step sends its API and model requests here with
       # ${NAME} placeholders and the platform fills them on the way out, so a
       # credential never enters a step's container. Steps reach it as
       # host.docker.internal. On a machine that faces a network, bind it to
       # the Docker bridge address (FOLDRUN_EGRESS_BIND=172.17.0.1) — the
-      # per-step lease token is the only gate otherwise.
+      # per-step lease token is the only gate otherwise. Docker-published
+      # ports skip host firewalls such as ufw.
       - "${FOLDRUN_EGRESS_BIND:-0.0.0.0}:8090:8090"
     volumes:
       # Everything this install is: workspaces, runs, the vault, users. Back
-      # this up and you have backed foldrun up. A named volume by default; set
-      # FOLDRUN_DATA_DIR to a host path to keep the files where you can see them.
+      # this up (and .env, which holds the key) and you have backed foldrun
+      # up. A named volume by default; set FOLDRUN_DATA_DIR to a host path to
+      # keep the files where you can see them.
       - ${FOLDRUN_DATA_DIR:-foldrun-data}:/data
       # How steps become sibling containers. The socket makes the platform
       # root-equivalent on this host — the deal on one machine — and the step
       # container's own hardening (non-root, capabilities dropped, no new
-      # privileges, optional gVisor) is what stands between agents and the daemon.
-      - /var/run/docker.sock:/var/run/docker.sock
+      # privileges, optional gVisor) is what stands between agents and the
+      # daemon. Rootless Docker: FOLDRUN_DOCKER_SOCK=$XDG_RUNTIME_DIR/docker.sock.
+      - ${FOLDRUN_DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
       FOLDRUN_DATA: /data
       FOLDRUN_RUN_ISOLATION: container
+      # The image steps run in: the one pulled above, at the same version.
+      FOLDRUN_RUNNER_IMAGE: ghcr.io/foldrun-io/runner:${FOLDRUN_VERSION:-stable}
       # The key every derived credential hangs off (sessions, webhooks, the
       # vault). Generate once: openssl rand -hex 32. Losing it signs everyone
       # out and voids every webhook URL; leaking it is the root password leaking.
@@ -91,9 +92,6 @@ services:
       # password resets and shares are made with it. http://localhost:3900 on
       # a machine only you use; the server's own address otherwise.
       FOLDRUN_PUBLIC_URL: ${FOLDRUN_PUBLIC_URL:?set FOLDRUN_PUBLIC_URL in .env (the address people open, e.g. http://192.168.1.20:3900)}
-      # The image every step runs in (node, python, git, browsers). Empty:
-      # built here on first use, a few minutes and ~600 MB once.
-      FOLDRUN_RUNNER_IMAGE: ${FOLDRUN_RUNNER_IMAGE-}
       # gVisor, if installed on this host (runsc in /etc/docker/daemon.json):
       # FOLDRUN_RUNNER_RUNTIME: runsc
       # Let strangers sign up? Off by default, on purpose.
@@ -103,7 +101,7 @@ services:
       FOLDRUN_EGRESS_PORT: "8090"
       # The install's model credential, which runs borrow when their agent
       # names no provider: of its own. Or set none and give each account its
-      # own key in Settings → Models.
+      # own key in Settings → Model.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
       # Point that credential at any Anthropic-compatible endpoint instead,

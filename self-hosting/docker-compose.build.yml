@@ -1,0 +1,54 @@
+# foldrun from source, instead of the ready-made images: the platform image
+# and the step image are built here from the four checkouts beside each other
+# (foldrun-core, foldrun-platform, foldrun-web, foldrun-docs). A few minutes
+# and some gigabytes the first time.
+#
+#   cd foldrun-web/self-hosting
+#   echo "FOLDRUN_SECRET_KEY=$(openssl rand -hex 32)" > .env
+#   echo "FOLDRUN_PUBLIC_URL=http://localhost:3900" >> .env
+#   echo "FOLDRUN_BIND=127.0.0.1" >> .env
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+#
+# Laid over docker-compose.yml: every setting there still applies; this only
+# swaps where the two images come from.
+
+services:
+  # Builds foldrun-self-hosted:local (the platform's image) from the folder
+  # holding the four checkouts, for the two services that run it; exits at once.
+  platform-image:
+    build:
+      context: ../..
+      dockerfile: foldrun-web/self-hosting/Dockerfile
+    image: foldrun-self-hosted:local
+    command: ["true"]
+    restart: "no"
+
+  # The image every agent step runs in, built by core itself once before the
+  # platform starts — a few minutes and ~600 MB the first time, seconds after.
+  # Built in its own one-shot container because the build is synchronous:
+  # done by the platform on its first step, it would hold the dashboard still.
+  runner-image:
+    image: foldrun-self-hosted:local
+    pull_policy: never
+    entrypoint: ["docker-entrypoint.sh"]
+    volumes:
+      - ${FOLDRUN_DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock
+    working_dir: /app/foldrun-core
+    command:
+      - node
+      - --experimental-strip-types
+      - --no-warnings
+      - -e
+      - 'import("/app/foldrun-core/src/run-container.ts").then((m) => { const r = m.ensureRunnerImage(); r.log.forEach((l) => console.log(l)); console.log("runner image: " + r.tag); })'
+    environment:
+      FOLDRUN_RUNNER_IMAGE: ${FOLDRUN_RUNNER_IMAGE-}
+    depends_on:
+      platform-image:
+        condition: service_completed_successfully
+
+  platform:
+    image: foldrun-self-hosted:local
+    pull_policy: never
+    environment:
+      # Empty: the step image core built above (or your own, if set).
+      FOLDRUN_RUNNER_IMAGE: ${FOLDRUN_RUNNER_IMAGE-}
