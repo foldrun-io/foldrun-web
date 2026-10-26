@@ -675,7 +675,7 @@ test("a sticky parent that group and others can write (/tmp's 1777) is accepted:
   assert.equal(r.status, 0, r.out);
 });
 
-test("with a plain-http network address the setup link is for localhost, never sent across the network", () => {
+test("with a plain-http network address the setup link is for 127.0.0.1, never sent across the network", () => {
   const b = box();
   const r = b.run({ FOLDRUN_BIND: "0.0.0.0", FOLDRUN_PUBLIC_URL: "http://192.168.1.20:3900" });
   assert.equal(r.status, 0, r.out);
@@ -739,6 +739,24 @@ test("FOLDRUN_DATA_DIR: a folder of your own is used; one others can write is re
   assert.notEqual(r.status, 0);
   assert.match(r.out, /is open to other users \(mode drwxrwxrwx\)/);
   assert.ok(!bad.calls().some((c) => /^compose (pull|up)/.test(c)), "nothing started");
+});
+
+test("FOLDRUN_DATA_DIR: a sticky shared folder (/tmp's 1777) is refused as the data folder; a private one inside it is used", () => {
+  const bad = box();
+  const tmpLike = path.join(bad.root, "tmp-like");
+  fs.mkdirSync(tmpLike);
+  fs.chmodSync(tmpLike, 0o1777);
+  const r = bad.run({ FOLDRUN_DATA_DIR: tmpLike });
+  assert.notEqual(r.status, 0, r.out);
+  assert.match(r.out, /is open to other users \(mode drwxrwxrwt\)/);
+  assert.ok(!bad.calls().some((c) => /^compose (pull|up)/.test(c)), "nothing started");
+  const ok = box();
+  const sticky = path.join(ok.root, "tmp-like");
+  fs.mkdirSync(sticky);
+  fs.chmodSync(sticky, 0o1777);
+  const inside = path.join(sticky, "foldrun-data");
+  assert.equal(ok.run({ FOLDRUN_DATA_DIR: inside }).status, 0);
+  assert.equal(fs.statSync(inside).mode & 0o777, 0o700, "made owner-only");
 });
 
 test("an override that names env files is refused, in every form: settings go in .env or environment:", () => {
