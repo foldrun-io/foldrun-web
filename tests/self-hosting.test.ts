@@ -680,16 +680,17 @@ test("with a plain-http network address the setup link is for localhost, never s
   const r = b.run({ FOLDRUN_BIND: "0.0.0.0", FOLDRUN_PUBLIC_URL: "http://192.168.1.20:3900" });
   assert.equal(r.status, 0, r.out);
   const token = b.env().FOLDRUN_SETUP_TOKEN;
-  assert.ok(r.out.includes(`http://localhost:3900/signup?setup=${token}`), r.out);
+  assert.ok(r.out.includes(`http://127.0.0.1:3900/signup?setup=${token}`), r.out);
   assert.ok(!r.out.includes(`http://192.168.1.20:3900/signup?setup=`), "the token is never in a plain-http network link");
-  assert.match(r.out, /ssh -L 3900:localhost:3900/);
+  assert.ok(!r.out.includes("localhost:3900/signup"), "never 'localhost', which may resolve to IPv6");
+  assert.match(r.out, /ssh -L 127\.0\.0\.1:3900:127\.0\.0\.1:3900/);
 });
 
 test("bound to one network address, the setup link goes through a tunnel to that address", () => {
   const b = box();
   const r = b.run({ FOLDRUN_BIND: "192.168.1.20", FOLDRUN_PUBLIC_URL: "http://192.168.1.20:3900" });
   assert.equal(r.status, 0, r.out);
-  assert.match(r.out, /ssh -L 3900:192\.168\.1\.20:3900/);
+  assert.match(r.out, /ssh -L 127\.0\.0\.1:3900:192\.168\.1\.20:3900/);
   assert.ok(!r.out.includes("http://192.168.1.20:3900/signup?setup="));
 });
 

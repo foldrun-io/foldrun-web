@@ -642,19 +642,18 @@ main() {
   # path could read it and create the owner account first.
   # Bound to one address (not loopback, not all): the port is only there,
   # so the tunnel goes to it.
-  case $bind in 127.0.0.1|0.0.0.0) here_addr=localhost ;; *) here_addr=$bind ;; esac
+  # 127.0.0.1, never "localhost": the port is published on IPv4 only, and a
+  # browser that tries IPv6 (::1) first could reach another user's listener
+  # there — and hand it the token.
+  case $bind in 127.0.0.1|0.0.0.0) here_addr=127.0.0.1 ;; *) here_addr=$bind ;; esac
   case $url in
     https://*) setup_url="$url/signup?setup=$(get_env FOLDRUN_SETUP_TOKEN)" ;;
-    *) setup_url="http://localhost:3900/signup?setup=$(get_env FOLDRUN_SETUP_TOKEN)" ;;
+    *) setup_url="http://127.0.0.1:3900/signup?setup=$(get_env FOLDRUN_SETUP_TOKEN)" ;;
   esac
   say "  Open        $setup_url"
   case $url in
     https://*|http://localhost*|http://127.0.0.1*) ;;
-    *) if [ "$here_addr" = localhost ]; then
-         say "              (on this machine, or from yours through: ssh -L 3900:localhost:3900 <this server> — not over plain http)"
-       else
-         say "              (from your machine through: ssh -L 3900:$here_addr:3900 <this server>, then open it there — not over plain http)"
-       fi ;;
+    *) say "              (on this machine, or from yours through: ssh -L 127.0.0.1:3900:$here_addr:3900 <this server>, then open it there — not over plain http)" ;;
   esac
   say "              — the first account to sign up becomes the owner, and only this link can create it"
   if [ "$bind" = 127.0.0.1 ]; then
