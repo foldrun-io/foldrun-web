@@ -31,7 +31,7 @@ import { stepInputs, stepOutputs, fmtTokens, fmtBytes, fmtCached, fmtTokenDetail
 import { isRunTerminal, defaultUnfolded, activeStep, newer, tabTitle } from "@/components/live-run-model";
 import type { RunOutputFile } from "@/lib/store";
 import { BrowserTheater } from "@/components/run-browser";
-import { stepImage, stepCredential, stepStartup, browserPodPanel } from "@/components/step-image-model";
+import { stepImage, stepHeld, stepCredential, stepStartup, browserPodPanel } from "@/components/step-image-model";
 import { RunTree } from "@/components/run-tree";
 import { RunCompare } from "@/components/run-compare";
 import { TraceView } from "@/components/trace-view";
@@ -645,6 +645,14 @@ export function LiveRun({
                   return im ? (
                     <span className="ml-1.5 rounded bg-sunken px-1.5 py-0.5 text-[11px] text-fg-subtle" title={im.title}>
                       {im.label}
+                    </span>
+                  ) : null;
+                })()}
+                {(() => {
+                  const held = stepHeld(step);
+                  return held ? (
+                    <span className="ml-1.5 rounded bg-sunken px-1.5 py-0.5 text-[11px] tabular-nums text-fg-subtle" title={held.title}>
+                      {held.label}
                     </span>
                   ) : null;
                 })()}

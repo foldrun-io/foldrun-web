@@ -35,6 +35,27 @@ export function stepImage(step: Pick<StepRecord, "image">): StepImageView | null
   return { label, title };
 }
 
+/** What the step's sandbox held, as numbers: "2 vCPU · 4 GiB" — the bill's
+ *  figures (core-seconds, GiB-seconds), not the class name, so nobody has to
+ *  remember what `large` means. The tooltip says the class, the agent's
+ *  `resources:` when it set any, and how long the CPU cap held the step back. */
+export function stepHeld(step: Pick<StepRecord, "reserved" | "size" | "resources" | "actual">): StepImageView | null {
+  const r = step.reserved;
+  if (!r) return null;
+  const n = (x: number) => (Number.isInteger(x) ? String(x) : x.toFixed(1));
+  const label = `${n(r.cpus)} vCPU · ${n(r.memGiB)} GiB`;
+  const asked = step.resources
+    ? Object.entries(step.resources).map(([k, v]) => `${k}: ${v}`).join(", ")
+    : null;
+  const throttled = step.actual?.throttledSecs;
+  const title = [
+    `held ${label}${step.size ? ` — size: ${step.size}` : ""}`,
+    asked ? `resources: ${asked}` : null,
+    typeof throttled === "number" && throttled > 0 ? `the CPU cap held it back ${throttled.toFixed(1)}s` : null,
+  ].filter(Boolean).join("\n");
+  return { label, title };
+}
+
 /** The order a step's start-up happens in — core run-container.ts
  *  #STARTUP_PHASES, repeated here as words because the dashboard imports
  *  only what a page needs. */

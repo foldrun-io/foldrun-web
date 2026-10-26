@@ -57,6 +57,18 @@ function limitsTitle(v: unknown): string | null {
  * The frontmatter, as chips a reader can take in without parsing YAML:
  * `http · POST · api.resend.com` for a tool, `sonnet · 3 tools` for an agent.
  */
+/** `resources:` as a chip: "1 cpu · 3Gi · 12Gi disk", or null when it sets none. */
+export function resourcesLabel(r: unknown): string | null {
+  if (!r || typeof r !== "object" || Array.isArray(r)) return null;
+  const o = r as Record<string, unknown>;
+  const parts = [
+    o.cpu !== undefined ? `${String(o.cpu)} cpu` : null,
+    o.memory !== undefined ? String(o.memory) : null,
+    o.disk !== undefined ? `${String(o.disk)} disk` : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : null;
+}
+
 export function chipsFor(kind: FileKind, fm: Record<string, unknown>): Chip[] {
   const chips: Chip[] = [];
   const s = (k: string) => (typeof fm[k] === "string" ? (fm[k] as string) : null);
@@ -78,6 +90,7 @@ export function chipsFor(kind: FileKind, fm: Record<string, unknown>): Chip[] {
       if (fm.tools) chips.push({ label: plural(count(fm.tools), "tool"), title: Array.isArray(fm.tools) ? fm.tools.join(", ") : undefined });
       if (fm.agents) chips.push({ label: `asks ${count(fm.agents)}`, title: "agents it may consult" });
       if (s("size")) chips.push({ label: s("size")!, title: "sandbox size" });
+      if (resourcesLabel(fm.resources)) chips.push({ label: resourcesLabel(fm.resources)!, title: "resources: over the size class's figures" });
       if (fm.budget) chips.push({ label: `budget $${fm.budget}`, title: "the most this agent may spend in one run" });
       if (limitsTitle(fm.limits)) chips.push({ label: plural(count(fm.limits), "limit"), title: limitsTitle(fm.limits)! });
       break;

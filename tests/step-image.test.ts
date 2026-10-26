@@ -3,7 +3,8 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { stepImage, browserPodNote, podTries, browserPodPanel, stepCredential, stepStartup } from "../components/step-image-model.ts";
+import { stepImage, stepHeld, browserPodNote, podTries, browserPodPanel, stepCredential, stepStartup } from "../components/step-image-model.ts";
+import { resourcesLabel } from "../components/editor-context-model.ts";
 
 test("the chip: slim through the pod, slim, full, or nothing on a record from before", () => {
   assert.deepEqual(stepImage({ image: { variant: "slim", why: "browses through the account's browser pod", pod: true } }), {
@@ -84,4 +85,27 @@ test("the start-up chip runs to the model's first word and gives each phase its 
   // steps from before the marks, and in-process ones, show nothing
   assert.equal(stepStartup({}), null);
   assert.equal(stepStartup({ startup: null }), null);
+});
+
+test("what a step held reads as numbers, with the class and the agent's resources: behind it", () => {
+  assert.equal(stepHeld({}), null, "a record from before sizes");
+  const plain = stepHeld({ size: "large", reserved: { cpus: 3, memGiB: 6 } })!;
+  assert.equal(plain.label, "3 vCPU · 6 GiB");
+  assert.equal(plain.title, "held 3 vCPU · 6 GiB — size: large");
+  const own = stepHeld({
+    size: "large",
+    reserved: { cpus: 1, memGiB: 1.5 },
+    resources: { cpu: 1, memory: "1536Mi" },
+    actual: { busyCpuSecs: 40, peakMemBytes: null, rxBytes: null, txBytes: null, throttledSecs: 12.25 },
+  })!;
+  assert.equal(own.label, "1 vCPU · 1.5 GiB");
+  assert.match(own.title, /resources: cpu: 1, memory: 1536Mi/);
+  assert.match(own.title, /the CPU cap held it back 12\.3s/);
+});
+
+test("the editor's resources: chip", () => {
+  assert.equal(resourcesLabel({ cpu: 1, memory: "3Gi", disk: "12Gi" }), "1 cpu · 3Gi · 12Gi disk");
+  assert.equal(resourcesLabel({ memory: "4Gi" }), "4Gi");
+  assert.equal(resourcesLabel({}), null);
+  assert.equal(resourcesLabel("big"), null);
 });
