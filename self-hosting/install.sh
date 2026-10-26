@@ -441,6 +441,10 @@ ensure_docker() {
   have docker || die "Docker is not installed. Install it (https://docs.docker.com/get-docker/), then run this again."
   dk info >/dev/null 2>&1 || die "Docker is installed but not reachable by this user. Start Docker, then run this again."
   dk compose version >/dev/null 2>&1 || die "The Docker Compose plugin is missing (the 'docker compose' command). Install it: https://docs.docker.com/compose/install/"
+  # foldrun goes on THIS machine: the health check, the setup link and any
+  # host folder are all here. A remote Docker would run it elsewhere while
+  # this machine's port — anyone's, here — answered for it.
+  docker_is_local || die "Docker here is remote (DOCKER_HOST or a docker context on another machine) — this installer sets foldrun up on the machine it runs on: run it on the Docker host"
 }
 
 main() {
@@ -563,7 +567,6 @@ main() {
   # The data folder in effect (given now, or kept in .env from before).
   data_dir=$(get_env FOLDRUN_DATA_DIR)
   if [ -n "$data_dir" ]; then
-    docker_is_local || die "FOLDRUN_DATA_DIR is a folder on this machine, but Docker here is remote (DOCKER_HOST or a docker context) — it would mount a folder of that name on the other machine, unchecked. Use the default data volume, or run the installer on the Docker host"
     real_data=$(data_folder "$data_dir" "foldrun's data (accounts, the vault) would be open to another user; use a folder of your own (FOLDRUN_DATA_DIR)") || exit 1
     [ "$real_data" = "$data_dir" ] || set_env FOLDRUN_DATA_DIR "$real_data"
   fi

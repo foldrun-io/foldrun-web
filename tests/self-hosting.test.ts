@@ -772,14 +772,14 @@ test("FOLDRUN_DATA_DIR: a missing folder is made private; a symlinked one is kep
   const d = box();
   const r = d.run({ FOLDRUN_DATA_DIR: path.join(fs.realpathSync(d.root), "data"), DOCKER_HOST: "ssh://build-server" });
   assert.notEqual(r.status, 0);
-  assert.match(r.out, /Docker here is remote/);
+  assert.match(r.out, /Docker here is remote .* run it on the Docker host/);
 });
 
 test("a remote DOCKER_CONTEXT wins over a local DOCKER_HOST, as in Docker: a host data folder is refused", () => {
   const b = box();
   const r = b.run({ FOLDRUN_DATA_DIR: path.join(fs.realpathSync(b.root), "data"), DOCKER_HOST: "unix:///var/run/docker.sock", DOCKER_CONTEXT: "remote" });
   assert.notEqual(r.status, 0);
-  assert.match(r.out, /Docker here is remote/);
+  assert.match(r.out, /Docker here is remote .* run it on the Docker host/);
 });
 
 test("a new data folder under a symlinked parent is checked by the parent's real path", () => {
@@ -791,4 +791,12 @@ test("a new data folder under a symlinked parent is checked by the parent's real
   const r = b.run({ FOLDRUN_DATA_DIR: path.join(linkParent, "data") });
   assert.equal(r.status, 0, r.out);
   assert.equal(b.env().FOLDRUN_DATA_DIR, path.join(realParent, "data"));
+});
+
+test("a remote Docker is refused before anything is written: foldrun goes on this machine", () => {
+  const b = box();
+  const r = b.run({ DOCKER_HOST: "ssh://user@server" });
+  assert.notEqual(r.status, 0);
+  assert.match(r.out, /Docker here is remote/);
+  assert.ok(!fs.existsSync(path.join(b.dir, ".env")), "nothing written");
 });
