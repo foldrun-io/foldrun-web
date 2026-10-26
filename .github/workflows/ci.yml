@@ -99,7 +99,7 @@ jobs:
         working-directory: foldrun-platform
       - run: npm ci
         working-directory: foldrun-web
-      - run: npx tsc --noEmit
+      - run: npm run typecheck
         working-directory: foldrun-web
       - run: npm run lint
         working-directory: foldrun-web

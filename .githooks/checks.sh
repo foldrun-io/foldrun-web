@@ -9,7 +9,9 @@ repo_checks() {
   # No change an API caller would break on, since the deployed web (the
   # newest box version tag in ../foldrun-infra), unless it is versioned.
   step "API guard (scripts/api-guard.mjs)" node scripts/api-guard.mjs
-  step "typecheck (npx tsc --noEmit -p tsconfig.json)" npx --no-install tsc --noEmit -p tsconfig.json
+  # TypeScript 7 checks the types; `typescript` stays 6 for eslint and next,
+  # which need the compiler API TypeScript 7 does not have yet.
+  step "typecheck (npm run typecheck, TypeScript 7)" npm run --silent typecheck
   step "lint (npm run lint)" npm run lint
   step "tests (npm test, incl. OpenAPI completeness)" npm test
 }

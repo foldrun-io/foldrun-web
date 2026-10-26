@@ -33,7 +33,7 @@ echo "== foldrun-platform: tests"
 (cd "$out/foldrun-platform" && FOLDRUN_DATA="$(mktemp -d)" node --test --test-timeout=180000 $(ls tests/*.test.ts | grep -v e2e))
 
 echo "== $web: typecheck"
-(cd "$out/$web" && npx tsc --noEmit -p tsconfig.json)
+(cd "$out/$web" && npm run --silent typecheck)
 echo "== $web: tests"
 (cd "$out/$web" && FOLDRUN_DATA="$(mktemp -d)" node --import ./tests/register.mjs --test $(ls tests/*.test.ts | grep -v e2e))
 echo "== $web: next build"

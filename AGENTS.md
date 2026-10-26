@@ -18,7 +18,7 @@ versioned here and `npm install` (its `prepare` runs `sh .githooks/install.sh`) 
   `bash -n` + `shellcheck -S error` on `.sh`, YAML parse, eslint.
 - **pre-push** (what CI and the deploy gate run): gitleaks over the commits being
   pushed and the pushed tree, the API guard (`scripts/api-guard.mjs`: no change
-  an API caller would break on unless it is versioned), then `npx tsc --noEmit`, `npm run lint` and `npm test` (OpenAPI completeness included; the e2e build is not).
+  an API caller would break on unless it is versioned), then `npm run typecheck` (TypeScript 7), `npm run lint` and `npm test` (OpenAPI completeness included; the e2e build is not).
 
 Hooks only read; they never format, stash or reset. Emergency bypass:
 `SKIP_HOOKS=1 git push` (or `--no-verify`) — and say why in the commit or PR.
@@ -32,3 +32,11 @@ did, and React's hydration then threw #418 on every page with one. `<Email>`
 never sends an address as one string, so no proxy setting matters. Dialog
 text, `title`/`value` attributes and form fields are not page HTML and need
 nothing.
+
+## TypeScript: 7 checks, 6 stays for the tools
+
+`npm run typecheck` runs TypeScript 7 (`typescript-7`, an npm alias of
+`typescript@7`). The `typescript` package itself stays on 6: typescript-eslint
+(through eslint-config-next) and `next build` load TypeScript's JavaScript
+API, which TypeScript 7 does not ship yet. When typescript-eslint supports
+TypeScript 7, move `typescript` to 7 and drop the alias.
