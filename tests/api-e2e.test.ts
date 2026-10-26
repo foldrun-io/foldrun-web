@@ -827,8 +827,8 @@ test("a plan granted by hand: the bundle lands, the levers are the tier's, once 
   assert.equal(plans.plans.length, 4);
   assert.equal(plans.current?.plan, "creator");
   assert.equal(plans.current?.cycleCredits, 8800);
-  const state = (await (await fetch(`${base}/api/admin/accounts/default`, { headers: { cookie } })).json()) as { state: { plan?: { name?: string; concurrency?: number; priority?: string; workspaces?: number } } };
-  assert.deepEqual(state.state.plan, { name: "creator", priority: "normal", concurrency: 2, workspaces: 10 });
+  const state = (await (await fetch(`${base}/api/admin/accounts/default`, { headers: { cookie } })).json()) as { state: { plan?: { name?: string; concurrency?: number; priority?: string; workspaces?: number; vcpu?: number; memGiB?: number; stepVcpu?: number; stepMemGiB?: number } } };
+  assert.deepEqual(state.state.plan, { name: "creator", priority: "normal", concurrency: 2, workspaces: 10, vcpu: 8, memGiB: 16, stepVcpu: 4, stepMemGiB: 8 });
   // The same day again writes nothing.
   const twice = await fetch(`${base}/api/admin/accounts/default`, {
     method: "POST", headers: { cookie, "content-type": "application/json" },
