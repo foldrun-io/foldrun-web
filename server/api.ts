@@ -195,8 +195,31 @@ export async function actorOf(req: NextRequest): Promise<string> {
  * an operator reads it. ENOENT alone is a 404: a file that is not there is
  * a thing the caller can act on, the path is not.
  */
+/**
+ * A database failure, as far as the caller is concerned: drizzle's
+ * DrizzleQueryError ("Failed query: <SQL>\nparams: <values>") or the
+ * driver's own error carrying a Postgres SQLSTATE and severity. Its message
+ * is the query and its parameters — emails, hashes, sealed grants — so it is
+ * never an answer (FOL-94). Null when `err` is not one.
+ */
+export function databaseFault(err: unknown): { code: string | null; query: string | null } | null {
+  let query: string | null = null;
+  let drizzle = false;
+  for (let e = err, depth = 0; e && typeof e === "object" && depth < 4; e = (e as { cause?: unknown }).cause, depth++) {
+    const o = e as { name?: unknown; code?: unknown; severity?: unknown; query?: unknown; params?: unknown };
+    // drizzle does not set `name`; the class, or its shape, says what it is.
+    const isDrizzle = o.name === "DrizzleQueryError" || o.constructor?.name === "DrizzleQueryError" || (typeof o.query === "string" && Array.isArray(o.params));
+    if (isDrizzle) drizzle = true;
+    // The query text, never its parameters: the text is code we wrote.
+    if (query === null && typeof o.query === "string") query = o.query;
+    if (typeof o.code === "string" && /^[0-9A-Z]{5}$/.test(o.code) && typeof o.severity === "string") return { code: o.code, query };
+  }
+  return drizzle ? { code: null, query } : null;
+}
+
 export function errorStatus(err: unknown): { status: number; message: string; internal: boolean } {
   if (err instanceof ApiError) return { status: err.status, message: err.message, internal: false };
+  if (databaseFault(err)) return { status: 500, message: "something went wrong on our side", internal: true };
   // Core modules can't import ApiError (they know nothing of HTTP), but a
   // few of their errors carry a `status` for exactly this moment — the
   // ledger's out-of-credits refusal is a 402, not a generic 400.
@@ -223,6 +246,14 @@ export function errorStatus(err: unknown): { status: number; message: string; in
 export function reportError(err: unknown): { status: number; message: string; internal: boolean } {
   const parts = errorStatus(err);
   if (parts.internal) {
+    const db = databaseFault(err);
+    if (db) {
+      // Not the message, not the stack: both carry the parameters. The
+      // query text and the SQLSTATE say what failed; the values stay out
+      // of the log as they stay out of the answer.
+      console.error(`[foldrun] api ${parts.status}: database error ${db.code ?? "(no code)"}${db.query ? ` in: ${db.query}` : ""}`);
+      return parts;
+    }
     // The detail the caller does not get. Stack when there is one: a 500
     // with no stack is a bug report with no bug in it.
     console.error(`[foldrun] api ${parts.status}: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`);
