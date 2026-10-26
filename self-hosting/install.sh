@@ -645,15 +645,21 @@ main() {
   # 127.0.0.1, never "localhost": the port is published on IPv4 only, and a
   # browser that tries IPv6 (::1) first could reach another user's listener
   # there — and hand it the token.
+  # Bound to one address, the service is only there: the link on this
+  # machine goes to it (traffic to a machine's own address stays inside it).
+  # From another machine: a tunnel that fails closed (ExitOnForwardFailure),
+  # so it can never quietly hand the link to whoever holds that local port.
   case $bind in 127.0.0.1|0.0.0.0) here_addr=127.0.0.1 ;; *) here_addr=$bind ;; esac
+  token=$(get_env FOLDRUN_SETUP_TOKEN)
   case $url in
-    https://*) setup_url="$url/signup?setup=$(get_env FOLDRUN_SETUP_TOKEN)" ;;
-    *) setup_url="http://127.0.0.1:3900/signup?setup=$(get_env FOLDRUN_SETUP_TOKEN)" ;;
-  esac
-  say "  Open        $setup_url"
-  case $url in
-    https://*|http://localhost*|http://127.0.0.1*) ;;
-    *) say "              (on this machine, or from yours through: ssh -L 127.0.0.1:3900:$here_addr:3900 <this server>, then open it there — not over plain http)" ;;
+    https://*) say "  Open        $url/signup?setup=$token" ;;
+    *)
+      say "  Open        http://$here_addr:3900/signup?setup=$token   (on this machine)"
+      case $url in
+        http://localhost*|http://127.0.0.1*) ;;
+        *) say "              from yours: ssh -o ExitOnForwardFailure=yes -L 127.0.0.1:3900:$here_addr:3900 <this server>,"
+           say "              then open http://127.0.0.1:3900/signup?setup=$token there — never over plain http" ;;
+      esac ;;
   esac
   say "              — the first account to sign up becomes the owner, and only this link can create it"
   if [ "$bind" = 127.0.0.1 ]; then
