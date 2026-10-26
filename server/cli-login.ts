@@ -29,9 +29,11 @@ import {
   insertCliLoginDb,
   findCliLoginByCodeDb,
   decideCliLoginDb,
+  claimCliLoginDb,
+  unclaimCliLoginDb,
   pollCliLoginDb,
 } from "@/platform/short-lived-db.ts";
-import { createApiKey } from "./auth.ts";
+import { createApiKey, revokeApiKey } from "./auth.ts";
 import type { Role } from "@/platform/permissions.ts";
 
 const file = () => path.join(dataRoot(), "cli-logins.json");
@@ -50,7 +52,8 @@ export interface CliLogin {
   hostname: string;
   createdAt: string;
   expiresAt: string;
-  status: "pending" | "approved" | "denied";
+  /** `approving`: won by a person, its key being minted — still pending to the CLI. */
+  status: "pending" | "approving" | "approved" | "denied";
   /** Set on approval, delivered to the CLI exactly once, then the row goes.
    *  Its `key` is encrypted in the store and opened only on delivery. */
   grant?: SealedGrant;
@@ -163,11 +166,24 @@ export async function decideCliLogin(
     const row = await findCliLoginByCodeDb(c);
     if (!row || row.status !== "pending") return "not-found";
     if (decision === "deny") return (await decideCliLoginDb(c, "denied", null)) ? "denied" : "not-found";
+    // Win the request first, then mint: two approvals at once used to mint
+    // two keys, and the loser's lived on, delivered to nobody (FOL-94).
+    if (!(await claimCliLoginDb(c))) return "not-found";
     const role: Role = person.role === "owner" ? "admin" : person.role;
-    const { key, record } = await createApiKey(person.tenant, `cli · ${row.hostname}`, person.email, undefined, role, person.workspaces ?? null);
+    let minted: Awaited<ReturnType<typeof createApiKey>>;
+    try {
+      minted = await createApiKey(person.tenant, `cli · ${row.hostname}`, person.email, undefined, role, person.workspaces ?? null);
+    } catch (err) {
+      await unclaimCliLoginDb(c).catch(() => {});
+      throw err;
+    }
+    const { key, record } = minted;
     await audit("apikey.created", { actor: person.email, tenant: person.tenant, subject: record.id, detail: { label: record.label, prefix: record.prefix, role, via: "foldrun login" } });
     const grant = seal({ key, tenant: person.tenant, email: person.email, role });
-    return (await decideCliLoginDb(c, "approved", grant as unknown as Record<string, unknown>)) ? "approved" : "not-found";
+    if (await decideCliLoginDb(c, "approved", grant as unknown as Record<string, unknown>)) return "approved";
+    // It expired between the claim and now: the key would reach no one.
+    await revokeApiKey(person.tenant, record.id).catch(() => {});
+    return "not-found";
   }
   const rows = read();
   const row = rows.find((r) => r.code === normaliseCode(code) && live(r) && r.status === "pending");
@@ -178,9 +194,20 @@ export async function decideCliLogin(
     return "denied";
   }
   const role: Role = person.role === "owner" ? "admin" : person.role;
+  // Claimed before the key exists, as on the database path.
+  row.status = "approving";
+  write(rows);
   // The person's own scope rides along: a member given two workspaces
   // gets a CLI that opens those two.
-  const { key, record } = await createApiKey(person.tenant, `cli · ${row.hostname}`, person.email, undefined, role, person.workspaces ?? null);
+  let minted: Awaited<ReturnType<typeof createApiKey>>;
+  try {
+    minted = await createApiKey(person.tenant, `cli · ${row.hostname}`, person.email, undefined, role, person.workspaces ?? null);
+  } catch (err) {
+    row.status = "pending";
+    write(rows);
+    throw err;
+  }
+  const { key, record } = minted;
   await audit("apikey.created", { actor: person.email, tenant: person.tenant, subject: record.id, detail: { label: record.label, prefix: record.prefix, role, via: "foldrun login" } });
   row.status = "approved";
   row.grant = seal({ key, tenant: person.tenant, email: person.email, role });
@@ -213,7 +240,7 @@ export async function pollCliLogin(id: string): Promise<
     write(rows.filter((r) => r !== row));
     return { status: "expired" };
   }
-  if (row.status === "pending") return { status: "pending" };
+  if (row.status === "pending" || row.status === "approving") return { status: "pending" };
   write(rows.filter((r) => r !== row));
   const grant = row.grant ? open(row.grant) : null;
   if (row.status === "denied" || !grant) return { status: "denied" };
