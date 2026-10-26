@@ -266,3 +266,222 @@ test("the Compose settings given to the installer reach .env too: egress bind, d
     assert.match(bad.out, says);
   }
 });
+
+// ---------- getting Docker: asked first, on a Mac and on Linux ----------
+//
+// A machine whose OS, user, Docker state and package managers are stand-ins.
+// Docker's state is three flag files: installed (the stub is on PATH),
+// running, and reachable by this user (or through sudo). Installing — by
+// get.docker.com or Homebrew — puts the stub on PATH; starting sets running.
+// The installer's terminal is /dev/null (_FOLDRUN_TTY), so a question reads
+// as "no" unless FOLDRUN_INSTALL_DOCKER answered it, and a test run from a
+// real terminal can never sit waiting at a prompt.
+
+interface Machine {
+  run(env?: Record<string, string>): { status: number | null; out: string };
+  calls(): string[];
+  dir: string;
+  home: string;
+}
+
+function machine(o: { os: "Darwin" | "Linux"; uid?: number; docker?: boolean; running?: boolean; reachable?: boolean; brew?: boolean; colima?: boolean; systemctl?: boolean; desktop?: boolean }): Machine {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-getdocker-"));
+  const bin = path.join(root, "bin");
+  const stash = path.join(root, "stash");
+  const st = path.join(root, "state");
+  const home = path.join(root, "home");
+  const raw = path.join(root, "raw");
+  for (const d of [bin, stash, st, home, raw]) fs.mkdirSync(d);
+  if (o.desktop) fs.mkdirSync(path.join(root, "Docker.app"));
+  fs.copyFileSync(path.join(HERE, "docker-compose.yml"), path.join(raw, "docker-compose.yml"));
+  const log = path.join(root, "calls.log");
+  const flag = (n: string, on: boolean | undefined) => on && fs.writeFileSync(path.join(st, n), "");
+  flag("running", o.running ?? true);
+  flag("reachable", o.reachable ?? true);
+  const sh = (name: string, body: string, where = bin) => fs.writeFileSync(path.join(where, name), `#!/bin/sh\n${body}\n`, { mode: 0o755 });
+  // docker: needs a running daemon, and this user's reach (or sudo's).
+  sh("docker", `printf 'docker %s\\n' "$*" >> "${log}"
+case "$1" in --version) exit 0 ;; context) echo "\${FAKE_CONTEXT:-default}"; exit 0 ;; esac
+[ -f "${st}/running" ] || { echo "Cannot connect to the Docker daemon" >&2; exit 1; }
+[ -f "${st}/reachable" ] || [ -n "$FAKE_SUDO" ] || { echo "permission denied" >&2; exit 1; }
+case "$1" in
+  compose) case "$2" in exec) echo 29.5.2 ;; esac; exit 0 ;;
+  info) case "$*" in *SecurityOptions*) echo '["name=seccomp"]' ;; esac; exit 0 ;;
+  image) echo v2026.10.25.16; exit 0 ;;
+esac
+exit 0`, stash);
+  if (o.docker ?? true) fs.copyFileSync(path.join(stash, "docker"), path.join(bin, "docker"));
+  sh("uname", `echo ${o.os}`);
+  sh("id", `case "$1" in -u) echo ${o.uid ?? 1000} ;; -un) echo ana ;; *) echo "uid=${o.uid ?? 1000}(ana)" ;; esac`);
+  // Root survives \`env -i\` under real sudo; the stand-in's mark must too.
+  sh("sudo", `printf 'sudo %s\\n' "$*" >> "${log}"; FAKE_SUDO=1; export FAKE_SUDO
+if [ "$1" = env ] && [ "$2" = -i ]; then shift 2; exec env -i FAKE_SUDO=1 "$@"; fi
+exec "$@"`);
+  sh("usermod", `printf 'usermod %s\\n' "$*" >> "${log}"`);
+  sh("open", `printf 'open %s\\n' "$*" >> "${log}"; touch "${st}/running"`);
+  sh("sysctl", `case "$2" in hw.ncpu) echo 10 ;; hw.memsize) echo 34359738368 ;; esac`);
+  if (o.systemctl ?? true) sh("systemctl", `printf 'systemctl %s\\n' "$*" >> "${log}"
+case "$1" in is-active) [ -f "${st}/running" ] ;; start|enable) touch "${st}/running" ;; esac`);
+  if (o.brew) sh("brew", `printf 'brew %s\\n' "$*" >> "${log}"
+case "$1" in --prefix) echo /opt/homebrew ;; install) case "$*" in *" docker "*|*" docker") cp "${stash}/docker" "${bin}/docker" ;; esac
+  case "$*" in *colima*) cp "${stash}/colima" "${bin}/colima" ;; esac ;; esac`);
+  sh("colima", `printf 'colima %s\\n' "$*" >> "${log}"; case "$1" in start) touch "${st}/running" ;; esac`, stash);
+  if (o.colima) fs.copyFileSync(path.join(stash, "colima"), path.join(bin, "colima"));
+  // curl: get.docker.com is a script that installs docker (as root); the
+  // health probe answers; the rest goes to the real curl.
+  const realCurl = spawnSync("sh", ["-c", "command -v curl"], { encoding: "utf8" }).stdout.trim();
+  // Only the tools the installer uses, linked one by one: a PATH with
+  // /usr/bin would find this machine's real docker (CI runners have one),
+  // and a "no Docker" machine would then be neither.
+  const tools = path.join(root, "tools");
+  fs.mkdirSync(tools);
+  for (const t of ["sh", "env", "sed", "awk", "grep", "tr", "cut", "wc", "cat", "cp", "mv", "rm", "mkdir", "rmdir", "chmod", "ln", "mktemp", "cksum", "cmp", "date", "sleep", "head", "tail", "od", "openssl", "touch", "printf", "dd", "basename", "dirname", "readlink", "stat", "tee", "sort", "uniq", "xargs", "find", "ls"]) {
+    const at = spawnSync("sh", ["-c", `command -v ${t}`], { encoding: "utf8" }).stdout.trim();
+    if (at.startsWith("/")) fs.symlinkSync(at, path.join(tools, t));
+  }
+  fs.writeFileSync(path.join(stash, "get-docker.sh"), `printf 'get-docker uid=%s sudo=%s\\n' "$(id -u)" "\${FAKE_SUDO:-}" >> "${log}"\ncp "${stash}/docker" "${bin}/docker"\n`);
+  sh("curl", `case "$*" in
+  *get.docker.com*) printf 'curl get.docker.com\\n' >> "${log}"; for a; do [ "$prev" = -o ] && cp "${stash}/get-docker.sh" "$a"; prev=$a; done; exit 0 ;;
+  *api/healthz*) echo '{"ok":true,"version":"v","role":"all","workerAlive":true}'; exit 0 ;;
+esac
+exec "${realCurl}" "$@"`);
+  // The machine's rootful socket: there, and not writable by this user.
+  const rootful = path.join(root, "docker.sock");
+  spawnSync("python3", ["-c", `import socket; s=socket.socket(socket.AF_UNIX); s.bind(${JSON.stringify(rootful)})`]);
+  if (fs.existsSync(rootful)) fs.chmodSync(rootful, 0o444);
+  return {
+    dir: path.join(home, "foldrun"),
+    home,
+    run(env = {}) {
+      const r = spawnSync("/bin/sh", [INSTALL], {
+        encoding: "utf8",
+        cwd: root,
+        env: { NODE_ENV: "test", PATH: `${bin}:${tools}`, HOME: home, FOLDRUN_RAW: `file://${raw}`, _FOLDRUN_ROOTFUL_SOCK: rootful, _FOLDRUN_TTY: "/dev/null", _FOLDRUN_DESKTOP_APP: path.join(root, o.desktop ? "Docker.app" : "no-Docker.app"), ...env },
+      });
+      return { status: r.status, out: r.stdout + r.stderr };
+    },
+    calls: () => (fs.existsSync(log) ? fs.readFileSync(log, "utf8").trim().split("\n") : []),
+  };
+}
+
+test("Linux, no Docker: nothing is installed without a yes — no terminal, or FOLDRUN_INSTALL_DOCKER=no", () => {
+  for (const env of [{}, { FOLDRUN_INSTALL_DOCKER: "no" }] as Record<string, string>[]) {
+    const m = machine({ os: "Linux", docker: false });
+    const r = m.run(env);
+    assert.notEqual(r.status, 0);
+    assert.match(r.out, /Docker is not installed\. Install it \(https:\/\/docs\.docker\.com\/engine\/install\/\)/);
+    assert.ok(!m.calls().some((c) => c.includes("get.docker.com")), "never fetched");
+  }
+});
+
+test("Linux, no Docker, a yes: Docker's own script runs as root, then foldrun installs", () => {
+  const m = machine({ os: "Linux", uid: 0, docker: false, running: false });
+  const r = m.run({ FOLDRUN_INSTALL_DOCKER: "yes" });
+  assert.equal(r.status, 0, r.out);
+  const calls = m.calls();
+  assert.ok(calls.includes("curl get.docker.com"), calls.join("\n"));
+  assert.ok(calls.some((c) => c.startsWith("get-docker uid=0")), "ran as root");
+  assert.ok(calls.includes("systemctl enable --now docker"));
+  assert.ok(calls.includes("docker compose up -d"), calls.join("\n"));
+  assert.match(r.out, /Install it with Docker's official script .* — yes \(FOLDRUN_INSTALL_DOCKER=yes\)/);
+});
+
+test("Linux, not root: Docker's script runs through sudo, and this user is offered the docker group", () => {
+  const m = machine({ os: "Linux", docker: false, running: false, reachable: false });
+  const r = m.run({ FOLDRUN_INSTALL_DOCKER: "yes" });
+  assert.equal(r.status, 0, r.out);
+  const calls = m.calls();
+  assert.ok(calls.some((c) => /^get-docker uid=1000 sudo=1$/.test(c)), "through sudo");
+  assert.ok(calls.includes("usermod -aG docker ana"), "the group, asked first");
+  assert.ok(calls.includes("sudo docker pull -q ghcr.io/foldrun-io/platform:stable") && calls.includes("sudo docker compose up -d"), "this run reaches Docker through sudo");
+  // Under sudo, Compose never gets this user's PATH or HOME (their plugins would run as root).
+  assert.ok(!calls.some((c) => c.startsWith("sudo env -i")), calls.join("\n"));
+  // Docker's script was staged in a private folder in the home, then removed.
+  assert.ok(calls.some((c) => /^sudo sh .*\/home\/\.foldrun-get-docker\.[^/]+\/get-docker\.sh$/.test(c)), calls.join("\n"));
+  assert.ok(!fs.readdirSync(m.home).some((f) => f.startsWith(".foldrun-get-docker.")), "the staging folder is gone");
+  assert.match(r.out, /root-equivalent/);
+});
+
+test("Linux, Docker stopped: started with systemctl after a yes; refused without one", () => {
+  const yes = machine({ os: "Linux", uid: 0, running: false });
+  assert.equal(yes.run({ FOLDRUN_INSTALL_DOCKER: "yes" }).status, 0);
+  assert.ok(yes.calls().includes("systemctl start docker"));
+  const no = machine({ os: "Linux", uid: 0, running: false });
+  const r = no.run({ FOLDRUN_INSTALL_DOCKER: "no" });
+  assert.notEqual(r.status, 0);
+  assert.match(r.out, /Docker is not running\. Start it/);
+  assert.ok(!no.calls().includes("systemctl start docker"));
+});
+
+test("Mac, no Docker, Homebrew, a yes: colima + docker + docker-compose, the plugin linked, a VM sized for heavy", () => {
+  const m = machine({ os: "Darwin", docker: false, running: false, brew: true });
+  const r = m.run({ FOLDRUN_INSTALL_DOCKER: "yes" });
+  assert.equal(r.status, 0, r.out);
+  const calls = m.calls();
+  assert.ok(calls.includes("brew install colima docker docker-compose"), calls.join("\n"));
+  // 10 cores and 32 GiB here: 4 cores, 8 GiB — a heavy step's, not more.
+  assert.ok(calls.includes("colima start --cpu 4 --memory 8"), calls.join("\n"));
+  assert.equal(fs.readlinkSync(path.join(m.home, ".docker/cli-plugins/docker-compose")), "/opt/homebrew/opt/docker-compose/bin/docker-compose");
+  assert.ok(calls.includes("docker compose up -d"));
+});
+
+test("Mac, no Docker, no Homebrew: says how, installs nothing", () => {
+  const m = machine({ os: "Darwin", docker: false });
+  const r = m.run({ FOLDRUN_INSTALL_DOCKER: "yes" });
+  assert.notEqual(r.status, 0);
+  assert.match(r.out, /install Homebrew \(https:\/\/brew\.sh\)/);
+  assert.match(r.out, /Docker Desktop/);
+});
+
+test("Mac, a stopped Docker Desktop context is never swapped for Colima", () => {
+  const m = machine({ os: "Darwin", running: false, colima: true });
+  const r = m.run({ FOLDRUN_INSTALL_DOCKER: "yes", FAKE_CONTEXT: "desktop-linux" });
+  assert.notEqual(r.status, 0);
+  assert.match(r.out, /not answering at the endpoint this user has chosen/);
+  assert.ok(!m.calls().some((c) => c.startsWith("colima start")), m.calls().join("\n"));
+});
+
+test("Mac, a stopped Colima profile is started as that profile", () => {
+  const m = machine({ os: "Darwin", running: false, colima: true });
+  const r = m.run({ FOLDRUN_INSTALL_DOCKER: "yes", FAKE_CONTEXT: "colima-work" });
+  assert.equal(r.status, 0, r.out);
+  assert.ok(m.calls().includes("colima start --profile work --cpu 4 --memory 8"), m.calls().join("\n"));
+});
+
+test("Mac, Colima installed but stopped: started after a yes", () => {
+  const m = machine({ os: "Darwin", running: false, colima: true });
+  const r = m.run({ FOLDRUN_INSTALL_DOCKER: "yes" });
+  assert.equal(r.status, 0, r.out);
+  assert.ok(m.calls().includes("colima start --cpu 4 --memory 8"), m.calls().join("\n"));
+});
+
+test("Linux, a chosen Docker that is down (DOCKER_HOST, a context, rootless): no group, no sudo, no system service, a clear error", () => {
+  for (const [env, running] of [
+    [{ DOCKER_HOST: "ssh://build-server" }, true], [{ DOCKER_CONTEXT: "rootless" }, true], [{ _FOLDRUN_ROOTFUL_SOCK: "/nonexistent.sock" }, true],
+    // the system service stopped too: still not started for someone else's Docker
+    [{ DOCKER_HOST: "unix:///run/user/1000/docker.sock" }, false], [{ FAKE_CONTEXT: "rootless" }, false],
+  ] as const) {
+    const m = machine({ os: "Linux", reachable: false, running });
+    const r = m.run({ FOLDRUN_INSTALL_DOCKER: "yes", ...env });
+    assert.notEqual(r.status, 0, r.out);
+    assert.match(r.out, /not answering at the endpoint this user has chosen/);
+    assert.ok(!m.calls().some((c) => c.startsWith("usermod") || c.startsWith("sudo") || c === "systemctl start docker"), m.calls().join("\n"));
+  }
+});
+
+test("Mac, Docker Desktop installed and stopped: opened after a yes (default or desktop-linux context)", () => {
+  for (const ctx of ["default", "desktop-linux"]) {
+    const m = machine({ os: "Darwin", running: false, colima: true, desktop: true });
+    const r = m.run({ FOLDRUN_INSTALL_DOCKER: "yes", FAKE_CONTEXT: ctx });
+    assert.equal(r.status, 0, r.out);
+    assert.ok(m.calls().includes("open -a Docker"), m.calls().join("\n"));
+    assert.ok(!m.calls().some((c) => c.startsWith("colima start")), "Desktop's, not Colima");
+  }
+});
+
+test("Mac, the Compose plugin is linked where DOCKER_CONFIG says", () => {
+  const m = machine({ os: "Darwin", docker: false, running: false, brew: true });
+  const cfg = path.join(m.home, "dockercfg");
+  assert.equal(m.run({ FOLDRUN_INSTALL_DOCKER: "yes", DOCKER_CONFIG: cfg }).status, 0);
+  assert.ok(fs.existsSync(path.join(cfg, "cli-plugins/docker-compose")) || fs.lstatSync(path.join(cfg, "cli-plugins/docker-compose")).isSymbolicLink());
+});

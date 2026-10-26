@@ -8,7 +8,9 @@
 #   curl -fsSL https://foldrun.io/install.sh -o install.sh
 #   less install.sh && sh install.sh
 #
-# What it does: checks Docker, puts docker-compose.yml in ~/foldrun, writes
+# What it does: checks Docker — and, asked first, installs or starts it
+# (Colima with Homebrew on a Mac, get.docker.com on Linux) — puts
+# docker-compose.yml in ~/foldrun, writes
 # .env there once (a fresh secret key, the address, the version), pulls the
 # ready-made images (amd64 or arm64) and starts foldrun. Run it again to
 # update: .env is kept, the version moves to the newest stable unless you
@@ -30,6 +32,8 @@
 #   FOLDRUN_DATA_DIR     a host folder for the data      (default: a Docker volume)
 #   FOLDRUN_DOCKER_SOCK  the Docker socket               (default /var/run/docker.sock;
 #                        rootless Docker is found)
+#   FOLDRUN_INSTALL_DOCKER  yes: install or start Docker without asking (for
+#                        a script with no terminal); no: never offer to
 #
 # Each one given is written to .env, on a first install or an update.
 #
@@ -54,6 +58,11 @@ have() { command -v "$1" >/dev/null 2>&1; }
 # docker compose with only .env speaking: nothing in the caller's shell
 # overrides a value the file holds (Compose lets the shell win otherwise).
 dc() {
+  # Through sudo (a user just given the docker group, this run only), plain:
+  # sudo's own safe PATH and root's home, never this user's PATH, HOME or
+  # Compose plugins — those would run as root. sudo clears the environment
+  # itself, so .env still speaks alone.
+  if [ -n "$SUDO" ]; then sudo docker compose "$@"; return; fi
   env -i PATH="$PATH" HOME="$HOME" \
     ${DOCKER_HOST:+DOCKER_HOST="$DOCKER_HOST"} \
     ${DOCKER_CONTEXT:+DOCKER_CONTEXT="$DOCKER_CONTEXT"} \
@@ -96,6 +105,197 @@ valid_path() { case $1 in /*) ;; *) return 1 ;; esac; case $1 in *[!A-Za-z0-9._/
 
 fingerprint() { cksum < "$1" | awk '{ print $1 "-" $2 }'; }
 
+# ---------------------------------------------------------------- Docker
+#
+# Docker missing, stopped, or out of this user's reach: say what is needed
+# and, asked first, do it — Colima through Homebrew on a Mac, Docker's own
+# get.docker.com script on Linux. The answer is read from the terminal
+# (`curl … | sh` gives this script's stdin to the download), and with no
+# terminal nothing is installed unless FOLDRUN_INSTALL_DOCKER=yes said so in
+# advance; FOLDRUN_INSTALL_DOCKER=no never asks.
+
+# `sudo` when this run must reach Docker through it (a user just added to
+# the docker group has the group only from their next login).
+SUDO=
+dk() { $SUDO docker "$@"; }
+
+os_name() { if have uname; then uname -s; else echo unknown; fi; }
+
+# A question with a yes/no answer from the person at the terminal.
+confirm() {
+  case ${FOLDRUN_INSTALL_DOCKER:-} in
+    yes) say "$1 — yes (FOLDRUN_INSTALL_DOCKER=yes)"; return 0 ;;
+    no) return 1 ;;
+  esac
+  tty=${_FOLDRUN_TTY:-/dev/tty} # the tests point this at /dev/null: no terminal, no answer
+  (: <"$tty") 2>/dev/null || return 1
+  printf '%s [y/N] ' "$1" > "$tty"
+  read -r answer < "$tty" || return 1
+  case $answer in y|Y|yes|Yes|YES) return 0 ;; *) return 1 ;; esac
+}
+
+# Root runs it as is; anyone else through sudo, which asks its own password.
+as_root() {
+  if [ "$(id -u)" = 0 ]; then "$@"
+  elif have sudo; then sudo "$@"
+  else die "this needs root: run it as root, or install sudo"; fi
+}
+
+# Up to a minute for a daemon that was just started to answer.
+wait_for_docker() {
+  n=0
+  until dk info >/dev/null 2>&1; do
+    n=$((n + 1)); [ "$n" -lt 30 ] || return 1; sleep 2
+  done
+}
+
+# The cores and memory a Mac's Colima VM gets: enough for a heavy step
+# (4 cores, 8 GiB) where the Mac has it, never more than half its memory.
+colima_size() {
+  cpus=$(sysctl -n hw.ncpu 2>/dev/null || echo 2)
+  mem=$(( $(sysctl -n hw.memsize 2>/dev/null || echo 4294967296) / 1073741824 / 2 ))
+  [ "$cpus" -le 4 ] || cpus=4
+  [ "$mem" -ge 2 ] || mem=2
+  [ "$mem" -le 8 ] || mem=8
+}
+
+# Docker's Compose plugin from Homebrew, where `docker compose` finds it.
+link_compose_plugin() {
+  plugins="${DOCKER_CONFIG:-$HOME/.docker}/cli-plugins"
+  mkdir -p "$plugins"
+  ln -sfn "$(brew --prefix)/opt/docker-compose/bin/docker-compose" "$plugins/docker-compose"
+}
+
+mac_docker() {
+  if ! have docker; then
+    have brew || die "Docker is not installed. On a Mac, install Homebrew (https://brew.sh) and run this again, which offers Colima — or install Docker Desktop (https://docs.docker.com/desktop/setup/install/mac-install/)."
+    colima_size
+    confirm "Docker is not installed. Install it with Homebrew — colima (a small Linux VM, $cpus CPUs, ${mem} GiB), docker and docker-compose — and start it?" \
+      || die "Docker is not installed. Install it (brew install colima docker docker-compose && colima start, or Docker Desktop), then run this again."
+    brew install colima docker docker-compose || die "brew install colima docker docker-compose failed"
+    link_compose_plugin
+    colima start --cpu "$cpus" --memory "$mem" || die "colima start failed — see: colima status"
+  fi
+  if ! dk info >/dev/null 2>&1; then
+    # Start only the Docker this user has chosen: its context says which.
+    [ -z "${DOCKER_HOST:-}" ] || die "$CHOSEN_DOWN"
+    ctx=$(docker_context)
+    desktop=; [ -d "${_FOLDRUN_DESKTOP_APP:-/Applications/Docker.app}" ] && desktop=yes # the tests point this elsewhere
+    case $ctx in
+      colima|colima-*)
+        have colima || die "$CHOSEN_DOWN"
+        profile=${ctx#colima}; profile=${profile#-}
+        colima_size
+        confirm "Docker is installed but not running. Start Colima${profile:+ (profile $profile)} ($cpus CPUs, ${mem} GiB)?" || die "Docker is not running. Start it (colima start${profile:+ --profile $profile}), then run this again."
+        colima start ${profile:+--profile "$profile"} --cpu "$cpus" --memory "$mem" || die "colima start failed — see: colima status" ;;
+      desktop-linux)
+        [ -n "$desktop" ] || die "$CHOSEN_DOWN"
+        confirm "Docker Desktop is installed but not running. Open it?" || die "Docker is not running. Open Docker Desktop, then run this again."
+        open -a Docker || die "could not open Docker Desktop" ;;
+      default)
+        # The default socket is Docker Desktop's when it is installed;
+        # without it nothing serves that socket, so no install lives there
+        # and Colima may take over.
+        if [ -n "$desktop" ]; then
+          confirm "Docker Desktop is installed but not running. Open it?" || die "Docker is not running. Open Docker Desktop, then run this again."
+          open -a Docker || die "could not open Docker Desktop"
+        elif have colima; then
+          colima_size
+          confirm "Docker is installed but not running. Start Colima ($cpus CPUs, ${mem} GiB)?" || die "Docker is not running. Start it (colima start), then run this again."
+          colima start --cpu "$cpus" --memory "$mem" || die "colima start failed — see: colima status"
+        fi ;;
+      *) die "$CHOSEN_DOWN" ;;
+    esac
+    wait_for_docker || die "Docker is installed but not answering. Start Docker (colima start, or open Docker Desktop), then run this again."
+  fi
+  if ! dk compose version >/dev/null 2>&1 && have brew; then
+    confirm "The Docker Compose plugin is missing. Install it with Homebrew (docker-compose)?" || die "The Docker Compose plugin is missing. Install it (brew install docker-compose), then run this again."
+    brew install docker-compose || die "brew install docker-compose failed"
+    link_compose_plugin
+  fi
+}
+
+# The Docker context this user has chosen: DOCKER_CONTEXT, else the CLI's
+# current one. An installation lives in one daemon, and starting another
+# (Colima's, the system's) would put an update into a second, empty one.
+docker_context() {
+  if [ -n "${DOCKER_CONTEXT:-}" ]; then echo "$DOCKER_CONTEXT"; return; fi
+  ctx=$(docker context show 2>/dev/null) || ctx=default
+  echo "${ctx:-default}"
+}
+CHOSEN_DOWN="Docker is not answering at the endpoint this user has chosen (DOCKER_HOST, a docker context, or FOLDRUN_DOCKER_SOCK). Start that Docker, then run this again."
+
+# This user's Docker is the machine's own rootful daemon, refused for want
+# of the docker group: no DOCKER_HOST, the default context, no socket of
+# their own, and /var/run/docker.sock there but not writable by them.
+local_rootful_socket() {
+  [ -z "${DOCKER_HOST:-}" ] && [ -z "${FOLDRUN_DOCKER_SOCK:-}" ] || return 1
+  case ${DOCKER_CONTEXT:-default} in default) ;; *) return 1 ;; esac
+  [ "$(docker_context)" = default ] || return 1
+  sock=${_FOLDRUN_ROOTFUL_SOCK:-/var/run/docker.sock} # the tests point this elsewhere
+  [ -S "$sock" ] && [ ! -w "$sock" ]
+}
+
+linux_docker() {
+  if ! have docker; then
+    confirm "Docker is not installed. Install it with Docker's official script (https://get.docker.com: the engine and the Compose plugin; it runs as root)?" \
+      || die "Docker is not installed. Install it (https://docs.docker.com/engine/install/), then run this again."
+    # Staged in a private folder in this user's home, not $TMPDIR: root runs
+    # it, and a shared TMPDIR without the sticky bit would let another user
+    # swap the file while sudo waits for a password.
+    stage=$(mktemp -d "$HOME/.foldrun-get-docker.XXXXXX") || die "could not make a folder in $HOME"
+    chmod 700 "$stage"
+    curl -fsSL --retry 3 https://get.docker.com -o "$stage/get-docker.sh" || { rm -rf "$stage"; die "could not download https://get.docker.com"; }
+    # Its input closed: apt and its restart check read the terminal, and
+    # would take the answer meant for the next question (found on Ubuntu 24.04).
+    as_root sh "$stage/get-docker.sh" </dev/null || { rm -rf "$stage"; die "Docker's install script failed — see its output above"; }
+    rm -rf "$stage"
+    if have systemctl; then as_root systemctl enable --now docker >/dev/null 2>&1 || true; fi
+  fi
+  if ! docker info >/dev/null 2>&1; then
+    # A Docker of the user's own choosing (remote, rootless, another
+    # context) is theirs to start; the system service is not it.
+    { [ -z "${DOCKER_HOST:-}" ] && [ -z "${FOLDRUN_DOCKER_SOCK:-}" ] && [ "$(docker_context)" = default ]; } || die "$CHOSEN_DOWN"
+    # Not running: offer to start it (no root needed to ask systemd).
+    if have systemctl && ! systemctl is-active --quiet docker 2>/dev/null; then
+      confirm "Docker is installed but not running. Start it (systemctl start docker)?" \
+        || die "Docker is not running. Start it (sudo systemctl start docker), then run this again."
+      as_root systemctl start docker || die "systemctl start docker failed — see: systemctl status docker"
+      sleep 2
+    fi
+    # Running, but not for this user: offer the docker group — only when
+    # the Docker this user points at IS the machine's rootful daemon. A
+    # rootless, remote or other-context daemon that is down is not a
+    # permission problem, and switching to sudo would install into a
+    # different Docker (a second, empty foldrun) instead of this one.
+    if ! docker info >/dev/null 2>&1; then
+      local_rootful_socket \
+        || die "$CHOSEN_DOWN"
+      { [ "$(id -u)" != 0 ] && have sudo; } \
+        || die "Docker is installed but not reachable by this user. Start Docker. On Linux either run this as a user in the docker group (https://docs.docker.com/engine/install/linux-postinstall/ — that group is root-equivalent) or use rootless Docker."
+      me=$(id -un)
+      confirm "Docker runs, but $me cannot reach it. Add $me to the docker group? (That group is root-equivalent; it takes effect at your next login, and this run uses sudo until then.)" \
+        || die "Docker is not reachable by this user. Run this as a user in the docker group (https://docs.docker.com/engine/install/linux-postinstall/ — that group is root-equivalent), as root, or with rootless Docker."
+      sudo usermod -aG docker "$me" || die "could not add $me to the docker group"
+      SUDO=sudo
+    fi
+    wait_for_docker || die "Docker is not answering — see: systemctl status docker"
+  fi
+}
+
+ensure_docker() {
+  case $(os_name) in
+    Darwin) mac_docker ;;
+    Linux) linux_docker ;;
+    *)
+      have docker || die "Docker is not installed. Install it (https://docs.docker.com/get-docker/), then run this again."
+      docker info >/dev/null 2>&1 || die "Docker is installed but not reachable by this user. Start Docker, then run this again." ;;
+  esac
+  have docker || die "Docker is not installed. Install it (https://docs.docker.com/get-docker/), then run this again."
+  dk info >/dev/null 2>&1 || die "Docker is installed but not reachable by this user. Start Docker, then run this again."
+  dk compose version >/dev/null 2>&1 || die "The Docker Compose plugin is missing (the 'docker compose' command). Install it: https://docs.docker.com/compose/install/"
+}
+
 main() {
   # What the caller asked for, read once; .env is the record from here on.
   dir=${FOLDRUN_DIR:-$HOME/foldrun}
@@ -116,9 +316,7 @@ main() {
 
   say "foldrun: checking Docker"
   have curl || die "curl is needed."
-  have docker || die "Docker is not installed. Install it (https://docs.docker.com/get-docker/), then run this again."
-  docker info >/dev/null 2>&1 || die "Docker is installed but not reachable by this user. Start Docker. On Linux either run this as a user in the docker group (https://docs.docker.com/engine/install/linux-postinstall/ — that group is root-equivalent) or use rootless Docker."
-  docker compose version >/dev/null 2>&1 || die "The Docker Compose plugin is missing (the 'docker compose' command). Install it: https://docs.docker.com/compose/install/"
+  ensure_docker
 
   umask 077
   mkdir -p "$dir"
@@ -155,7 +353,7 @@ main() {
     set_env FOLDRUN_PUBLIC_URL "${want_url:-http://localhost:3900}"
     set_env FOLDRUN_BIND "${want_bind:-127.0.0.1}"
     # Rootless Docker keeps its socket under the user's runtime directory.
-    if [ -z "$want_sock" ] && docker info --format '{{json .SecurityOptions}}' 2>/dev/null | grep -q rootless; then
+    if [ -z "$want_sock" ] && dk info --format '{{json .SecurityOptions}}' 2>/dev/null | grep -q rootless; then
       sock="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/docker.sock"
       [ -S "$sock" ] || die "rootless Docker, but no socket at $sock — set FOLDRUN_DOCKER_SOCK in $dir/.env and run this again"
       set_env FOLDRUN_DOCKER_SOCK "$sock"
@@ -182,8 +380,8 @@ main() {
     version=$old
   else
     say "foldrun: finding the current stable version"
-    docker pull -q "$IMAGES/platform:stable" >/dev/null || die "could not pull $IMAGES/platform:stable"
-    version=$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' "$IMAGES/platform:stable")
+    dk pull -q "$IMAGES/platform:stable" >/dev/null || die "could not pull $IMAGES/platform:stable"
+    version=$(dk image inspect --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' "$IMAGES/platform:stable")
     valid_version "$version" && [ "$version" != stable ] || die "the stable image carries no version ($version)"
     set_env FOLDRUN_PINNED no
   fi
