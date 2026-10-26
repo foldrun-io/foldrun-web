@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { peekWorkerLease } from "@/platform/queue";
 import { databaseEnabled, databaseReady } from "@/platform/db";
 import { cacheEnabled, cacheReady } from "@/platform/cache";
+import { versionInfo } from "@/server/release";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,10 @@ export async function GET() {
   ]);
   return NextResponse.json({
     ok: true,
-    version: process.env.FOLDRUN_VERSION ?? "dev",
+    // The same answer as /api/version: the rollout's FOLDRUN_VERSION, else the
+    // version baked into the image (release.json). Staging sets no
+    // FOLDRUN_VERSION and said "dev" here while running v2026.10.25.21.
+    version: versionInfo().version,
     role: process.env.FOLDRUN_ROLE ?? "all",
     // Read-only peek: a probe must never TAKE the lease from the worker.
     //

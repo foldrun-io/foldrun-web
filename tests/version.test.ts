@@ -191,3 +191,21 @@ test("browser_versions: the dotted versions the deploy carried beside the names"
   assert.deepEqual(release.runnerEngines("chrome=<b>1</b>,webkit"), ["webkit"], "a part that is not name=version is dropped whole");
   assert.equal(release.runnerEngineVersions("chromium,chrome"), null);
 });
+
+test("healthz reports the same version as /api/version: the file's, when the rollout set none", async () => {
+  // Staging sets no FOLDRUN_VERSION; healthz said "dev" there while
+  // /api/version said v2026.10.25.21 (26 Oct 2026).
+  const { GET: healthzGET } = await import("../app/api/healthz/route.ts");
+  delete process.env.FOLDRUN_VERSION;
+  write(record);
+  const health = (await (await healthzGET()).json()) as { version: string };
+  const version = (await (await versionGET()).json()) as { version: string };
+  assert.equal(health.version, "v2026.10.01.3");
+  assert.equal(health.version, version.version);
+  process.env.FOLDRUN_VERSION = "v2026.10.01.9";
+  try {
+    assert.equal(((await (await healthzGET()).json()) as { version: string }).version, "v2026.10.01.9", "the rollout's name still wins");
+  } finally {
+    delete process.env.FOLDRUN_VERSION;
+  }
+});
