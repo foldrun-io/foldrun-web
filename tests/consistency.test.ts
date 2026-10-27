@@ -974,10 +974,13 @@ test("the scripts restart deployments that exist", { skip: needsInfra }, () => {
   // Every manifest, not just platform.yaml: the datastores are Deployments
   // too, and token-refresh.sh reaches deploy/foldrun-postgres to ask the
   // queue whether a run is in flight before it restarts the worker.
-  const docs = [
-    "../foldrun-infra/manifests/base/platform.yaml",
-    "../foldrun-infra/manifests/base/datastores.yaml",
-  ].flatMap((f) => yaml.loadAll(read(f)) as any[]);
+  // Every YAML under manifests/ (27 Oct 2026: a component's Deployment, the
+  // console's, was missed when this read two named files).
+  const manifestFiles = (dir: string): string[] =>
+    fs.readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory() ? manifestFiles(path.join(dir, e.name)) : /\.ya?ml$/.test(e.name) && e.name !== "kustomization.yaml" ? [path.join(dir, e.name)] : [],
+    );
+  const docs = manifestFiles("../foldrun-infra/manifests").flatMap((f) => (yaml.loadAll(read(f)) as any[]).filter((d) => d && typeof d === "object"));
   const deployments = new Set(
     docs.filter((d) => d?.kind === "Deployment").map((d) => d.metadata.name as string),
   );
