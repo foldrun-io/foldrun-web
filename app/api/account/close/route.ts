@@ -18,6 +18,7 @@ import { adminState, updateAdminState, platformAccount } from "@/platform/admin"
 import { findUserById, ownerOf } from "@/server/users";
 import { sendCloseRequestNotice } from "@/server/email";
 import { audit } from "@/server/audit";
+import { billing } from "@/platform/billing";
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,11 +44,17 @@ export async function POST(req: NextRequest) {
       "close-request",
       { reason },
     );
-    await audit("account.close_requested", { actor: by, tenant, detail: { reason } });
+    // Nothing renews after this (28 Oct 2026): a plan stops at the end of
+    // what was paid for. If that cannot be done now the close still stands
+    // and the super admin's mail says so — they settle what is left anyway.
+    const billed = await billing()
+      .accountClosing(tenant, by)
+      .catch((err: unknown) => ({ outcome: `the subscription could not be stopped: ${err instanceof Error ? err.message : String(err)}`, failed: true as const }));
+    await audit("account.close_requested", { actor: by, tenant, detail: { reason, billing: billed.outcome } });
     const admin = await ownerOf(platformAccount());
-    const mail = admin?.email ? await sendCloseRequestNotice(platformAccount(), admin.email, tenant, by, reason) : { ok: false as const, error: "no super admin to tell" };
+    const mail = admin?.email ? await sendCloseRequestNotice(platformAccount(), admin.email, tenant, by, reason ? `${reason}\n\nBilling: ${billed.outcome}` : `Billing: ${billed.outcome}`) : { ok: false as const, error: "no super admin to tell" };
     if (!mail.ok) console.error(`[foldrun] close request for ${tenant}: super admin not mailed — ${mail.error}`);
-    return NextResponse.json({ ok: true, suspended: true, notified: mail.ok });
+    return NextResponse.json({ ok: true, suspended: true, notified: mail.ok, billing: billed.outcome });
   } catch (err) {
     return errorResponse(err);
   }
