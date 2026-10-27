@@ -114,7 +114,6 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   "GET /api/auth/verify": CALLBACK + "the link in a confirmation email",
   "GET /api/avatars/[kind]/[id]": SEEN("avatarUrl() as an <img> src"),
   "GET /api/billing": SERVER("billing pages → walletSummary, readLedger"),
-  "GET /api/billing/confirm": CALLBACK + "Stripe Checkout's return",
   "GET /api/billing/details": SERVER("billing/details/page.tsx → billingDetails"),
   "GET /api/billing/plans": SERVER("billing/plans/page.tsx → PLANS"),
   "POST /api/billing/stripe": CALLBACK + "Stripe's signed webhook",
