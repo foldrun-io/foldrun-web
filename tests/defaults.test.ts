@@ -32,7 +32,14 @@ test("a patch touches only the keys sent, and refuses bad values whole", () => {
   assert.deepEqual(defaultsPatch({ compute: { vcpu: null, memGiB: null } }), { keys: { compute: null } }, "nothing left is no cap");
   assert.match((defaultsPatch({ compute: { vcpu: 0.2 } }) as { error: string }).error, /0.5 or more in halves/);
   assert.match((defaultsPatch({ compute: "lots" }) as { error: string }).error, /compute must be/);
-  assert.deepEqual(defaultsOf({ compute: { vcpu: 2, memory: "4Gi" } }).compute, { vcpu: 2, memGiB: 4 });
+  assert.deepEqual(defaultsOf({ compute: { vcpu: 2, memory: "4Gi" } }).compute, { vcpu: 2, memGiB: 4, diskGiB: null });
+  // 27 Oct 2026: disk, and a patch merges over what the file says — a
+  // client that knows only vcpu and memGiB never erases a disk figure.
+  assert.deepEqual(defaultsPatch({ compute: { diskGiB: 40 } }), { keys: { compute: { disk: "40Gi" } } });
+  assert.deepEqual(defaultsPatch({ compute: { vcpu: 4, memGiB: 8 } }, { compute: { vcpu: 2, memory: "4Gi", disk: "40Gi" } }), { keys: { compute: { vcpu: 4, memory: "8Gi", disk: "40Gi" } } });
+  assert.deepEqual(defaultsPatch({ compute: { diskGiB: null } }, { compute: { vcpu: 2, disk: "40Gi" } }), { keys: { compute: { vcpu: 2 } } }, "null drops one");
+  assert.match((defaultsPatch({ compute: { diskGiB: 0.5 } }) as { error: string }).error, /1Gi or more/);
+  assert.deepEqual(defaultsOf({ compute: { disk: "20Gi" } }).compute, { vcpu: null, memGiB: null, diskGiB: 20 });
   assert.deepEqual(defaultsPatch({ budget: "12.5/day" }), { keys: { budget: "12.5/day" } });
   assert.deepEqual(defaultsPatch({ budget: { usd: 60, period: "week" } }), { keys: { budget: "60/week" } });
   assert.deepEqual(defaultsPatch({ budget: "" }), { keys: { budget: null } });

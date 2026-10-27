@@ -30,6 +30,8 @@ import { FlowAiDraft } from "@/components/flow-ai-draft";
 import { AskAiButton } from "@/components/assistant";
 import { liteRun, type AgentTeam } from "@/components/flow-canvas-model";
 import { TriggerEditor } from "./trigger-editor";
+import { ComputeCard } from "@/components/defaults-cards";
+import { computeHeld } from "@/platform/limits";
 import { ListSearch } from "@/components/list-search";
 import { humanSchedule } from "@/components/schedule-human";
 
@@ -47,6 +49,7 @@ export default async function FlowsPage({
   if (!fs.existsSync(workspaceDir(tenant, workspace))) notFound();
 
   const flows = listFlows(tenant, workspace);
+  const held = computeHeld(tenant, [workspace]);
   // One read serves every card: the strip of recent runs under each flow, and
   // the "what will this cost me" estimate next to its Run button.
   const allRuns = listRuns(tenant, workspace);
@@ -235,6 +238,11 @@ export default async function FlowsPage({
                       timezone={f.timezone}
                     />
                     {f.model && <Badge variant="info">model: {f.model}</Badge>}
+                    {f.compute && (
+                      <Badge title="compute: — what one run's steps may hold together at once">
+                        each run: {[f.compute.vcpu !== undefined ? `${f.compute.vcpu} vCPU` : null, f.compute.memGiB !== undefined ? `${f.compute.memGiB} GiB` : null, f.compute.diskGiB !== undefined ? `${f.compute.diskGiB} GiB disk` : null].filter(Boolean).join(" · ")}
+                      </Badge>
+                    )}
                     <Badge>
                       {f.steps.length} step{f.steps.length === 1 ? "" : "s"}
                     </Badge>
@@ -364,6 +372,19 @@ export default async function FlowsPage({
                   ))}
                 </ul>
               )}
+
+              {/* Each run's own pool (27 Oct 2026): what one run of this flow may hold at once. */}
+              <div className="mb-3">
+                <ComputeCard
+                  endpoint={`/api/workspaces/${encodeURIComponent(workspace)}/flows/${encodeURIComponent(f.name)}`}
+                  tenant={tenant}
+                  level="flow"
+                  initial={f.compute ? { vcpu: f.compute.vcpu ?? null, memGiB: f.compute.memGiB ?? null, diskGiB: f.compute.diskGiB ?? null } : null}
+                  pool={{ vcpu: f.compute?.vcpu ?? null, memGiB: f.compute?.memGiB ?? null, diskGiB: f.compute?.diskGiB ?? null }}
+                  // The cap is each run's: shown against its busiest live run, never a sum of several.
+                  inUse={held.runs.filter((r) => r.flow === f.name).map((r) => r.inUse).reduce((a, r) => (r.vcpu + r.memGiB + r.diskGiB > a.vcpu + a.memGiB + a.diskGiB ? r : a), { vcpu: 0, memGiB: 0, diskGiB: 0, steps: 0 })}
+                />
+              </div>
 
               <FlowView
                 toolbar={

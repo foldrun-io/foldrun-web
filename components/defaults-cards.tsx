@@ -152,12 +152,23 @@ export function ConcurrencyCard({ endpoint, tenant, initial, plan }: { endpoint:
 }
 
 /** A step waiting for room to start (GET /api/usage/compute `waiting`). */
-export type RoomWaitRow = { workspace: string; runId: string; flow: string; step: number; agent: string; since: string; why: string; cpus: number; memGiB: number };
+export type RoomWaitRow = { workspace: string; runId: string; flow: string; step: number; agent: string; since: string; why: string; cpus: number; memGiB: number; diskGiB?: number; level?: string };
 
-/** The account's compute: what its running steps may hold together and in
- *  one step (the plan's, the install's, or its own lower `compute:`), what
- *  they hold now, the steps waiting for room, and the account's own cap to
- *  lower it. */
+/** What a level's running steps hold (GET /api/usage/compute). */
+export type HeldRow = { vcpu: number; memGiB: number; diskGiB?: number; steps: number };
+/** The figures a level allows; null is no cap at that level. */
+export type PoolRow = { vcpu: number | null; memGiB: number | null; diskGiB?: number | null; stepVcpu?: number | null; stepMemGiB?: number | null; stepDiskGiB?: number | null; source?: string | null };
+
+const LEVEL_WORDS = {
+  account: { own: "Your own cap", help: "Cores, GiB and disk all your running steps may hold together, lower than the plan's. A step that would pass it waits for another to finish — as long as it takes, in turn — and you hear of it after an hour; one bigger than the whole cap fails with a message. Empty is the plan's." },
+  workspace: { own: "This workspace's cap", help: "Cores, GiB and disk the steps running in this workspace may hold together. It only narrows the account's: every step must fit both. A step that would pass it waits, in turn; one bigger than it fails with a message. Empty is no cap of its own." },
+  flow: { own: "Each run's cap", help: "Cores, GiB and disk one run of this flow may hold at once across its parallel steps. It only narrows the workspace's and the account's. A step that would pass it waits for one of its run's steps to finish; one bigger than it fails with a message. Empty is no cap of its own." },
+} as const;
+
+/** compute: at one level (27 Oct 2026) — the account's pool (the plan's,
+ *  the install's, or its own lower `compute:`), a workspace's, or each
+ *  run's of a flow: what its running steps hold now against it, the steps
+ *  waiting for room, and its own cap to set. Cores, memory and disk. */
 export function ComputeCard({
   endpoint,
   tenant,
@@ -165,13 +176,19 @@ export function ComputeCard({
   pool,
   inUse,
   waiting = [],
+  level = "account",
+  outer,
 }: {
   endpoint: string;
   tenant: string;
   initial: Defaults["compute"];
-  pool: { vcpu: number | null; memGiB: number | null; stepVcpu: number | null; stepMemGiB: number | null; source: string | null };
-  inUse: { vcpu: number; memGiB: number; steps: number };
+  pool: PoolRow;
+  inUse: HeldRow;
   waiting?: RoomWaitRow[];
+  /** Which level this card sets. */
+  level?: "account" | "workspace" | "flow";
+  /** The account's pool, shown beside a narrower level's own. */
+  outer?: PoolRow;
 }) {
   const str = (n: number | null | undefined) => (n === null || n === undefined ? "" : String(n));
   // The pool and what is held, as the server last said: refetched after a
@@ -181,27 +198,45 @@ export function ComputeCard({
   // rendered on the server — the two would disagree (Codex review).
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => setNow(Date.now()), [live.waiting]);
-  const form = useSettingsForm({ vcpu: str(initial?.vcpu), memGiB: str(initial?.memGiB) }, async (v) => {
-    const blank = v.vcpu.trim() === "" && v.memGiB.trim() === "";
-    const d = await patch(endpoint, tenant, { compute: blank ? null : { vcpu: v.vcpu.trim() || null, memGiB: v.memGiB.trim() || null } });
-    const res = await fetch("/api/usage/compute", { headers: { "x-foldrun-tenant": tenant } }).catch(() => null);
-    const fresh = res && res.ok ? ((await res.json().catch(() => null)) as { compute?: typeof pool; inUse?: typeof inUse; waiting?: RoomWaitRow[] } | null) : null;
-    if (fresh?.compute && fresh.inUse) setLive({ pool: fresh.compute, inUse: fresh.inUse, waiting: fresh.waiting ?? [] });
-    return { vcpu: str(d.compute?.vcpu), memGiB: str(d.compute?.memGiB) };
+  const form = useSettingsForm({ vcpu: str(initial?.vcpu), memGiB: str(initial?.memGiB), diskGiB: str(initial?.diskGiB) }, async (v) => {
+    const blank = v.vcpu.trim() === "" && v.memGiB.trim() === "" && v.diskGiB.trim() === "";
+    const res0 = await fetch(endpoint, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
+      body: JSON.stringify({ compute: blank ? null : { vcpu: v.vcpu.trim() || null, memGiB: v.memGiB.trim() || null, diskGiB: v.diskGiB.trim() || null } }),
+    });
+    const d = (await res0.json().catch(() => ({}))) as { error?: string; defaults?: Defaults; flow?: { compute?: Defaults["compute"] } };
+    if (!res0.ok) throw new Error(d.error ?? `${res0.status}`);
+    if (level === "account") {
+      const res = await fetch("/api/usage/compute", { headers: { "x-foldrun-tenant": tenant } }).catch(() => null);
+      const fresh = res && res.ok ? ((await res.json().catch(() => null)) as { compute?: PoolRow; inUse?: HeldRow; waiting?: RoomWaitRow[] } | null) : null;
+      if (fresh?.compute && fresh.inUse) setLive({ pool: fresh.compute, inUse: fresh.inUse, waiting: fresh.waiting ?? [] });
+    }
+    // The flow route answers the flow; the settings routes, the defaults.
+    const c = (d.defaults?.compute ?? d.flow?.compute ?? null) as Defaults["compute"] | null;
+    if (level !== "account") setLive((l) => ({ ...l, pool: { vcpu: c?.vcpu ?? null, memGiB: c?.memGiB ?? null, diskGiB: c?.diskGiB ?? null } }));
+    return { vcpu: str(c?.vcpu), memGiB: str(c?.memGiB), diskGiB: str(c?.diskGiB) };
   });
-  const of = (used: number, cap: number | null, unit: string) => (cap === null ? `${used} ${unit}, no cap` : `${used} of ${cap} ${unit}`);
+  const of = (used: number, cap: number | null | undefined, unit: string) => (cap === null || cap === undefined ? `${used} ${unit}, no cap` : `${used} of ${cap} ${unit}`);
   const from = live.pool.source === "plan" ? "the plan's" : live.pool.source === "account" ? "your own, below" : live.pool.source === "install" ? "this install's" : null;
+  const words = LEVEL_WORDS[level];
   return (
-    <SettingsForm form={form} hint="compute: in AGENTS.md">
+    <SettingsForm form={form} hint={level === "flow" ? "compute: in the flow" : "compute: in AGENTS.md"}>
       <div className="grid gap-1 text-sm text-fg-secondary">
         <span>
           Held by {live.inUse.steps} running step{live.inUse.steps === 1 ? "" : "s"}: <span className="tabular-nums text-fg">{of(live.inUse.vcpu, live.pool.vcpu, "vCPU")}</span> ·{" "}
-          <span className="tabular-nums text-fg">{of(live.inUse.memGiB, live.pool.memGiB, "GiB")}</span>
+          <span className="tabular-nums text-fg">{of(live.inUse.memGiB, live.pool.memGiB, "GiB")}</span> ·{" "}
+          <span className="tabular-nums text-fg">{of(live.inUse.diskGiB ?? 0, live.pool.diskGiB, "GiB disk")}</span>
           {from ? <span className="text-fg-subtle"> — {from}</span> : null}
         </span>
-        {(live.pool.stepVcpu !== null || live.pool.stepMemGiB !== null) && (
+        {outer && (
           <span className="text-fg-subtle">
-            One step may hold up to {live.pool.stepVcpu ?? "any"} vCPU · {live.pool.stepMemGiB ?? "any"} GiB.
+            The account allows {outer.vcpu ?? "any"} vCPU · {outer.memGiB ?? "any"} GiB · {outer.diskGiB ?? "any"} GiB disk; every step must fit both.
+          </span>
+        )}
+        {(live.pool.stepVcpu || live.pool.stepMemGiB || live.pool.stepDiskGiB) && (
+          <span className="text-fg-subtle">
+            One step may hold up to {live.pool.stepVcpu ?? "any"} vCPU · {live.pool.stepMemGiB ?? "any"} GiB · {live.pool.stepDiskGiB ?? "any"} GiB disk.
           </span>
         )}
         {live.waiting.length > 0 && (
@@ -216,7 +251,7 @@ export function ComputeCard({
                     {w.flow} · {w.agent}
                   </a>{" "}
                   <span className="tabular-nums">
-                    {w.cpus} vCPU · {w.memGiB} GiB{now !== null ? `, ${waitedFor(w.since, now)}` : ""}
+                    {w.cpus} vCPU · {w.memGiB} GiB{w.diskGiB ? ` · ${w.diskGiB} GiB disk` : ""}{now !== null ? `, ${waitedFor(w.since, now)}` : ""}
                   </span>{" "}
                   — {w.why}
                 </li>
@@ -226,13 +261,11 @@ export function ComputeCard({
           </div>
         )}
       </div>
-      <Field
-        label="Your own cap"
-        help="Cores and GiB all your running steps may hold together, lower than the plan's. A step that would pass it waits for another to finish — as long as it takes, in turn — and you hear of it after an hour; one bigger than the whole cap fails with a message. Empty is the plan's."
-      >
-        <div className="flex gap-2">
+      <Field label={words.own} help={words.help}>
+        <div className="flex flex-wrap gap-2">
           <input type="number" min={0.5} step={0.5} value={form.value.vcpu} onChange={(e) => form.setValue({ ...form.value, vcpu: e.target.value })} placeholder="vCPU" aria-label="vCPU" className={inputClass("max-w-[7rem]")} />
           <input type="number" min={0.25} step={0.25} value={form.value.memGiB} onChange={(e) => form.setValue({ ...form.value, memGiB: e.target.value })} placeholder="GiB" aria-label="GiB" className={inputClass("max-w-[7rem]")} />
+          <input type="number" min={1} step={1} value={form.value.diskGiB} onChange={(e) => form.setValue({ ...form.value, diskGiB: e.target.value })} placeholder="GiB disk" aria-label="GiB disk" className={inputClass("max-w-[7rem]")} />
         </div>
       </Field>
     </SettingsForm>

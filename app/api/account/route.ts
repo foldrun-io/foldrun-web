@@ -30,7 +30,7 @@ export async function PATCH(req: NextRequest) {
     if ("telemetry" in body && actor.workspaces !== null) {
       return NextResponse.json({ error: "the account's telemetry needs access to every workspace — set telemetry: in a workspace's own AGENTS.md instead" }, { status: 403 });
     }
-    const patch = defaultsPatch(body);
+    const patch = defaultsPatch(body, readAgentsMdKeys(accountDir(tenant)));
     if ("error" in patch) return NextResponse.json({ error: patch.error }, { status: 400 });
     setAgentsMdKeys(accountDir(tenant), patch.keys);
     return NextResponse.json({ ok: true, defaults: defaultsOf(readAgentsMdKeys(accountDir(tenant))) });

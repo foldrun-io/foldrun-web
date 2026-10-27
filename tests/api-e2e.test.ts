@@ -264,6 +264,40 @@ test("a good deploy lands, and the workspace is really there", opts, async () =>
   assert.ok((await flows.json()).flows.some((f: { name: string }) => f.name === "note"));
 });
 
+// 27 Oct 2026: compute at four levels over HTTP — the account's, a
+// workspace's and a flow's run pool are each set with a PATCH that merges,
+// and GET /api/usage/compute reads them all back.
+test("compute: account, workspace and flow each take a merging PATCH, and usage reads every level", opts, async () => {
+  const acct = await api("/api/account", { method: "PATCH", body: JSON.stringify({ compute: { vcpu: 6, diskGiB: 60 } }) });
+  assert.equal(acct.status, 200, await acct.clone().text());
+  const merged = await api("/api/account", { method: "PATCH", body: JSON.stringify({ compute: { memGiB: 12 } }) });
+  assert.deepEqual((await merged.json()).defaults.compute, { vcpu: 6, memGiB: 12, diskGiB: 60 }, "memGiB alone keeps vcpu and disk");
+
+  const ws = await api("/api/workspaces/hello", { method: "PATCH", body: JSON.stringify({ compute: { vcpu: 2, diskGiB: 20 }, concurrency: 99 }) });
+  assert.equal(ws.status, 200, await ws.clone().text());
+  const wsFile = fs.readFileSync(path.join(data, "store/default/workspaces/hello/AGENTS.md"), "utf8");
+  assert.match(wsFile, /compute:/);
+  assert.doesNotMatch(wsFile, /concurrency/, "an account-only key sent to a workspace is not written there");
+
+  const flow = await api("/api/workspaces/hello/flows/note", { method: "PATCH", body: JSON.stringify({ compute: { vcpu: 1, memGiB: 2 } }) });
+  assert.equal(flow.status, 200, await flow.clone().text());
+  assert.deepEqual((await flow.json()).flow.compute, { vcpu: 1, memGiB: 2 });
+  const bad = await api("/api/workspaces/hello/flows/note", { method: "PATCH", body: JSON.stringify({ compute: { diskGiB: 0.5 } }) });
+  assert.equal(bad.status, 400);
+
+  const usage = await (await api("/api/usage/compute")).json();
+  assert.equal(usage.compute.vcpu, 6);
+  assert.equal(usage.compute.diskGiB, 60);
+  const hello = usage.workspaces.find((w: { workspace: string }) => w.workspace === "hello");
+  assert.deepEqual(hello.pool, { vcpu: 2, memGiB: null, diskGiB: 20 });
+  assert.ok(Array.isArray(usage.runs) && Array.isArray(usage.waiting));
+
+  // Leave the account as it was for the tests after this one.
+  await api("/api/account", { method: "PATCH", body: JSON.stringify({ compute: null }) });
+  await api("/api/workspaces/hello", { method: "PATCH", body: JSON.stringify({ compute: null }) });
+  await api("/api/workspaces/hello/flows/note", { method: "PATCH", body: JSON.stringify({ compute: null }) });
+});
+
 // The CLI is the CI form, and CI only notices an exit code.
 test("a refused deploy exits non-zero", opts, () => {
   const broken = path.join(data, "broken");
@@ -841,7 +875,7 @@ test("a plan granted by hand: the bundle lands, the levers are the tier's, once 
   assert.equal(plans.current?.plan, "creator");
   assert.equal(plans.current?.cycleCredits, 8800);
   const state = (await (await fetch(`${base}/api/admin/accounts/default`, { headers: { cookie } })).json()) as { state: { plan?: { name?: string; concurrency?: number; priority?: string; workspaces?: number; vcpu?: number; memGiB?: number; stepVcpu?: number; stepMemGiB?: number } } };
-  assert.deepEqual(state.state.plan, { name: "creator", priority: "normal", concurrency: 2, workspaces: 10, vcpu: 8, memGiB: 16, stepVcpu: 4, stepMemGiB: 8 });
+  assert.deepEqual(state.state.plan, { name: "creator", priority: "normal", concurrency: 2, workspaces: 10, vcpu: 8, memGiB: 16, diskGiB: 80, stepVcpu: 4, stepMemGiB: 8, stepDiskGiB: 20 });
   // The same day again writes nothing.
   const twice = await fetch(`${base}/api/admin/accounts/default`, {
     method: "POST", headers: { cookie, "content-type": "application/json" },

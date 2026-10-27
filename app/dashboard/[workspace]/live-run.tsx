@@ -45,6 +45,17 @@ const runVerdict = (r: Pick<RunRecord, "verdict" | "summary">) => {
 };
 
 
+/** A time the run's own record fixes — its latest event, else its start:
+ *  what clock-drawn figures use until the page is hydrated. */
+function runClock(run: RunRecord): number {
+  let t = new Date(run.startedAt).getTime();
+  for (const st of run.steps) for (const e of st.events) {
+    const x = Date.parse(e.t);
+    if (x > t) t = x;
+  }
+  return t;
+}
+
 function elapsed(run: RunRecord, now: number) {
   const end = run.finishedAt ? new Date(run.finishedAt).getTime() : now;
   return (end - new Date(run.startedAt).getTime()) / 1000;
@@ -72,6 +83,15 @@ export function LiveRun({
   const [confirm, confirmDialog] = useConfirm();
   const [run, setRun] = useState<RunRecord>(initial);
   const [now, setNow] = useState(() => Date.now());
+  // A live figure read off the clock is shown once hydrated: the server's
+  // clock and the browser's differ by the time the page took, and the text
+  // must match (a run waiting for room is live for a long time — 27 Oct 2026).
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+  // Until then, every figure drawn from the clock (the timeline, the trace
+  // tree, a live step's span) is drawn at a time the run itself fixes — its
+  // last event — so the server and the browser draw the same thing.
+  const clock = hydrated || run.finishedAt ? now : runClock(run);
   const [busy, setBusy] = useState(false);
   // What the approver wants to say on the way through — guidance on approve,
   // reason on reject. Keyed by step so parallel gates don't share a box.
@@ -451,7 +471,7 @@ export function LiveRun({
             <span className="text-fg-subtle">{link === "live" ? "live" : link === "reconnecting" ? "reconnecting" : link === "connecting" ? "connecting" : "closed"}</span>
           </button>
         )}
-        {(!compactHeader || live) && <span className="tabular-nums">{elapsed(run, now).toFixed(1)}s</span>}
+        {(!compactHeader || live) && <span className="tabular-nums">{run.finishedAt || hydrated ? `${elapsed(run, clock).toFixed(1)}s` : "…"}</span>}
         {!compactHeader && totalCost > 0 && <span className="tabular-nums">${totalCost.toFixed(4)}</span>}
         <a
           href={`/api/workspaces/${encodeURIComponent(workspace)}/runs/${run.id}`}
@@ -572,9 +592,9 @@ export function LiveRun({
         </p>
       )}
 
-      {run.steps.length > 0 && <RunTimeline run={run} now={now} onSelect={showStep} />}
+      {run.steps.length > 0 && <RunTimeline run={run} now={clock} onSelect={showStep} />}
 
-      {run.steps.length > 0 && <RunTree run={run} workspace={workspace} tenant={tenant} now={now} />}
+      {run.steps.length > 0 && <RunTree run={run} workspace={workspace} tenant={tenant} now={clock} />}
       {finished && run.steps.length > 0 && <RunCompare workspace={workspace} runId={run.id} tenant={tenant} />}
 
       {run.steps.length > 1 && (
@@ -597,7 +617,7 @@ export function LiveRun({
       {run.steps.map((step, i) => {
         const unfolded = isUnfolded(i);
         const foldedHeadline = unfolded ? null : stepOutputs(step).headline ?? null;
-        const span = stepSpan(step, now);
+        const span = stepSpan(step, clock);
         const tokens = step.tokens ? step.tokens.input + step.tokens.output : 0;
         return (
         <div key={i} id={`step-${run.id}-${i}`} className="scroll-mt-4 rounded-xl border border-line bg-surface p-4">
@@ -684,7 +704,7 @@ export function LiveRun({
                   time and the money go" without opening a card. */}
               {span && (
                 <span className="tabular-nums text-xs text-fg-subtle" title={span.live ? "running for" : "took"}>
-                  {fmtDur(span.end - span.start)}
+                  {span.live && !hydrated ? "…" : fmtDur(span.end - span.start)}
                 </span>
               )}
               {tokens > 0 && (
@@ -797,7 +817,7 @@ export function LiveRun({
                 Waiting for room to start{run.status === "queued" ? " — the run waits in the queue" : ""}, since <LocalTime iso={step.roomWait.since} />
               </span>
               <span className="block">
-                {step.roomWait.why}. It needs {step.roomWait.cpus} vCPU · {step.roomWait.memGiB} GiB, starts in turn when there is room, and is not charged while it waits.
+                {step.roomWait.why}. It needs {step.roomWait.cpus} vCPU · {step.roomWait.memGiB} GiB{step.roomWait.diskGiB ? ` · ${step.roomWait.diskGiB} GiB disk` : ""}, starts in turn when there is room, and is not charged while it waits.
               </span>
             </div>
           )}
@@ -944,7 +964,7 @@ export function LiveRun({
             const io = stepInputs(run.steps, i);
             const out = stepOutputs(step);
             const files = outputs.filter((f) => f.agent === step.agent);
-            const span = stepSpan(step, now);
+            const span = stepSpan(step, clock);
             const durationMs = span ? span.end - span.start : null;
             const stepLive = step.status === "running";
             const notYet = step.status === "pending" || step.status === "awaiting-approval";

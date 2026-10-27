@@ -24,6 +24,9 @@ import {
 } from "@/lib/store";
 import { applyPatternEdit, removeStep, type PatternEdit } from "@/lib/flow-patterns";
 import { idempotent } from "@/server/idempotency";
+import { configMatter } from "@/lib/matter";
+import { patchFrontmatter } from "@/lib/agents-md";
+import { computePatch } from "@/components/defaults-model";
 
 /** Write a flow file the way /source does: through writeWorkspaceFile, so
  *  the change is on the workspace's revision log with who made it. A
@@ -140,6 +143,7 @@ export async function PATCH(
       edits?: PatternEdit[];
       restore?: string;
       expect?: string;
+      compute?: Record<string, unknown> | null;
     };
 
     const file = flowFile(tenant, workspace, flow);
@@ -171,6 +175,23 @@ export async function PATCH(
     if (body.edit && typeof body.edit === "object") {
       const rewritten = applyPatternEdit(before, body.edit);
       await saveFlow(req, tenant, workspace, file, rewritten, "flow edited on the canvas");
+      return wrote(rewritten);
+    }
+
+    // { compute } — the run's pool (27 Oct 2026): what one run's steps may
+    // hold together, merged over what the flow says (computePatch), so a
+    // client that sends only vcpu keeps memory and disk.
+    if ("compute" in body) {
+      let current: unknown;
+      try {
+        current = (configMatter(before).data ?? {}).compute;
+      } catch {
+        current = undefined;
+      }
+      const c = computePatch(body.compute, current);
+      if ("error" in c) return NextResponse.json({ error: c.error }, { status: 400 });
+      const rewritten = patchFrontmatter(before, { compute: c.value });
+      await saveFlow(req, tenant, workspace, file, rewritten, "flow compute: set");
       return wrote(rewritten);
     }
 

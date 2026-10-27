@@ -52,16 +52,17 @@ export interface Defaults {
   alerts: Alerts | null;
   /** judge: — the model every grader here uses. */
   judge: Judge | null;
-  /** Account only: compute: — the cores and GiB its running steps may hold
-   *  together, by its own choice. Lowers the plan's, never raises it. */
-  compute: { vcpu: number | null; memGiB: number | null } | null;
+  /** compute: — the cores, GiB and disk the running steps here may hold
+   *  together, by its own choice: the account's pool (lowers the plan's,
+   *  never raises it) or a workspace's (only narrows the account's). */
+  compute: { vcpu: number | null; memGiB: number | null; diskGiB: number | null } | null;
 }
 
 /** The AGENTS.md keys each scope's settings PATCH writes (`defaultsPatch`
  *  reads them all; a workspace's route takes this subset). The rest are
  *  written in the file itself. */
 export const ACCOUNT_PATCHABLE = ["timezone", "budget", "concurrency", "compute", "notify", "deploy_block", "network_enforce", "telemetry", "owner", "alerts", "judge"] as const;
-export const WORKSPACE_PATCHABLE = ["timezone", "budget", "notify", "network_enforce", "owner", "alerts", "judge"] as const;
+export const WORKSPACE_PATCHABLE = ["timezone", "budget", "compute", "notify", "network_enforce", "owner", "alerts", "judge"] as const;
 
 export const DEPLOY_BLOCKS = ["none", "secrets", "security"] as const;
 export type DeployBlock = (typeof DEPLOY_BLOCKS)[number];
@@ -93,7 +94,42 @@ export function defaultsOf(fm: Record<string, unknown>): Defaults {
 
 function computeOf(raw: unknown): Defaults["compute"] {
   const { value } = readCompute(raw);
-  return value.vcpu === undefined && value.memGiB === undefined ? null : { vcpu: value.vcpu ?? null, memGiB: value.memGiB ?? null };
+  return value.vcpu === undefined && value.memGiB === undefined && value.diskGiB === undefined
+    ? null
+    : { vcpu: value.vcpu ?? null, memGiB: value.memGiB ?? null, diskGiB: value.diskGiB ?? null };
+}
+
+/** A GiB figure as the file reads it: 8 → 8Gi, 1.5 → 1536Mi. */
+const gib = (v: unknown) => {
+  const g = Number(v);
+  return Number.isFinite(g) && g > 0 ? (Number.isInteger(g) ? `${g}Gi` : `${Math.round(g * 1024)}Mi`) : String(v);
+};
+
+/**
+ * `compute` from a settings PATCH — { vcpu?, memGiB?, diskGiB? } (numbers;
+ * null or empty drops one), or null for none — merged over what the file
+ * says (`current`): a key the caller did not send is kept, so a client that
+ * knows only vcpu and memGiB never erases a disk figure (27 Oct 2026, Codex
+ * review). Written as the file reads it: {vcpu: 4, memory: 8Gi, disk: 40Gi}.
+ * Also the flow PATCH's, for a run's pool.
+ */
+export function computePatch(c: unknown, current: unknown): { value: Record<string, unknown> | null } | { error: string } {
+  if (c === null || c === "") return { value: null };
+  if (typeof c !== "object" || Array.isArray(c)) return { error: "compute must be { vcpu?, memGiB?, diskGiB? } or null" };
+  const o = c as Record<string, unknown>;
+  const blank = (v: unknown) => v === null || v === "";
+  const out: Record<string, unknown> = current && typeof current === "object" && !Array.isArray(current) ? { ...(current as Record<string, unknown>) } : {};
+  for (const [from, to] of [["vcpu", "vcpu"], ["memGiB", "memory"], ["diskGiB", "disk"]] as const) {
+    if (!(from in o)) continue;
+    if (blank(o[from])) delete out[to];
+    else out[to] = from === "vcpu" ? Number(o[from]) : gib(o[from]);
+  }
+  const { problems } = readCompute(out);
+  if (problems.length) return { error: `compute: ${problems.join("; ")}` };
+  for (const k of ["memory", "disk"] as const) {
+    if (out[k] !== undefined && !Number.isFinite(quantityMi(out[k]))) return { error: `compute: ${k === "memory" ? "memGiB" : "diskGiB"} must be a number of GiB` };
+  }
+  return { value: Object.keys(out).length ? out : null };
 }
 
 /** `alerts:` as written. `{}` is kept as `{}`: at a workspace it means "no
@@ -138,7 +174,9 @@ function validZone(tz: string): boolean {
  * null clears one. Returns the first thing wrong rather than a partial
  * write — a budget of "abc" must not clear the budget.
  */
-export function defaultsPatch(body: Record<string, unknown>): { keys: Record<string, unknown | null> } | { error: string } {
+/** `current`: the file's frontmatter now, which a nested key (compute) is
+ *  merged over. */
+export function defaultsPatch(body: Record<string, unknown>, current?: Record<string, unknown>): { keys: Record<string, unknown | null> } | { error: string } {
   const keys: Record<string, unknown | null> = {};
   if ("timezone" in body) {
     const tz = body.timezone;
@@ -174,25 +212,9 @@ export function defaultsPatch(body: Record<string, unknown>): { keys: Record<str
     }
   }
   if ("compute" in body) {
-    // { vcpu?, memGiB? } (numbers, null or empty to drop one), or null for
-    // none. Written as the file reads it: {vcpu: 4, memory: 8Gi}.
-    const c = body.compute;
-    if (c === null || c === "") keys.compute = null;
-    else if (typeof c !== "object" || Array.isArray(c)) return { error: "compute must be { vcpu?, memGiB? } or null" };
-    else {
-      const o = c as Record<string, unknown>;
-      const blank = (v: unknown) => v === null || v === undefined || v === "";
-      const out: Record<string, unknown> = {};
-      if (!blank(o.vcpu)) out.vcpu = Number(o.vcpu);
-      if (!blank(o.memGiB)) {
-        const g = Number(o.memGiB);
-        out.memory = Number.isFinite(g) && g > 0 ? (Number.isInteger(g) ? `${g}Gi` : `${Math.round(g * 1024)}Mi`) : String(o.memGiB);
-      }
-      const { problems } = readCompute(out);
-      if (problems.length) return { error: `compute: ${problems.join("; ")}` };
-      if (out.memory !== undefined && !Number.isFinite(quantityMi(out.memory))) return { error: "compute: memGiB must be a number of GiB" };
-      keys.compute = Object.keys(out).length ? out : null;
-    }
+    const c = computePatch(body.compute, current?.compute);
+    if ("error" in c) return c;
+    keys.compute = c.value;
   }
   if ("notify" in body) {
     const n = body.notify;

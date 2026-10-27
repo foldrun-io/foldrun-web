@@ -15,6 +15,7 @@ import {
 import { readWorkspaceFile, writeWorkspaceFile } from "@/lib/store";
 import { patchFrontmatter, readAgentsMdKeys } from "@/lib/agents-md";
 import { defaultsPatch, defaultsOf, WORKSPACE_PATCHABLE } from "@/components/defaults-model";
+import { configMatter } from "@/lib/matter";
 import { adminState, workspacePause } from "@/platform/admin";
 
 async function tenantOf(req: NextRequest) {
@@ -76,14 +77,24 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
     // The defaults — timezone, budget, notify, network_enforce — edited as
     // frontmatter keys in place, through the writer that records a revision.
     if (WORKSPACE_PATCHABLE.some((k) => k in body)) {
-      const patch = defaultsPatch(body as Record<string, unknown>);
-      if ("error" in patch) return NextResponse.json({ error: patch.error }, { status: 400 });
       let before = "";
       try {
         before = readWorkspaceFile(tenant, workspace, "AGENTS.md");
       } catch {
         before = "";
       }
+      // Only the keys a workspace's settings may write: a body that also
+      // carried an account-only key (concurrency, telemetry, deploy_block)
+      // used to pass it through to the workspace's file (Codex review).
+      const scoped = Object.fromEntries(Object.entries(body as Record<string, unknown>).filter(([k]) => (WORKSPACE_PATCHABLE as readonly string[]).includes(k)));
+      let current: Record<string, unknown> = {};
+      try {
+        current = (configMatter(before).data ?? {}) as Record<string, unknown>;
+      } catch {
+        // unreadable frontmatter: nothing to merge over; the write says so
+      }
+      const patch = defaultsPatch(scoped, current);
+      if ("error" in patch) return NextResponse.json({ error: patch.error }, { status: 400 });
       writeWorkspaceFile(tenant, workspace, "AGENTS.md", patchFrontmatter(before, patch.keys), { message: `settings: ${Object.keys(patch.keys).join(", ")}` });
     }
 

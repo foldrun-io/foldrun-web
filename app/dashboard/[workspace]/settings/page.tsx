@@ -17,10 +17,10 @@ import { webhookPath, publicUrl } from "@/lib/webhook";
 import { CopyField } from "@/components/copy-field";
 import { viewerRole } from "@/server/users";
 import { can } from "@/platform/permissions";
-import { workspaceBudgetStanding } from "@/platform/limits";
+import { workspaceBudgetStanding, accountCompute, computeHeld, roomWaiting, workspaceCompute } from "@/platform/limits";
 import { readAgentsMdKeys } from "@/lib/agents-md";
 import { defaultsOf } from "@/components/defaults-model";
-import { BudgetCard, TimezoneCard, NotifyCard, NetworkEnforceCard, OwnerCard, AlertsCard, JudgeCard } from "@/components/defaults-cards";
+import { BudgetCard, TimezoneCard, NotifyCard, NetworkEnforceCard, OwnerCard, AlertsCard, JudgeCard, ComputeCard } from "@/components/defaults-cards";
 
 import { Badge, Card } from "@/components/ui";
 import { WorkspaceIdentity } from "@/components/workspace-identity";
@@ -121,6 +121,17 @@ export default async function WorkspaceSettingsPage({
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <OwnerCard endpoint={endpoint} tenant={tenant} initial={own.owner} inherited={inherited.owner} />
             <BudgetCard endpoint={endpoint} tenant={tenant} initial={budget} spent={spent} />
+            {/* This workspace's own pool (27 Oct 2026): what its running steps may hold together, inside the account's. */}
+            <ComputeCard
+              endpoint={endpoint}
+              tenant={tenant}
+              level="workspace"
+              initial={own.compute}
+              pool={workspaceCompute(tenant, workspace)}
+              outer={await accountCompute(tenant)}
+              inUse={computeHeld(tenant, [workspace]).workspaces[workspace] ?? { vcpu: 0, memGiB: 0, diskGiB: 0, steps: 0 }}
+              waiting={roomWaiting(tenant, [workspace])}
+            />
           </div>
           <div className="mt-3">
           <PauseCard
