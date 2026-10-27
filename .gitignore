@@ -53,8 +53,10 @@ next-env.d.ts
 /app/admin/
 /app/api/admin/
 /app/api/billing/
+/app/api/support/
 /app/dashboard/billing/
 /app/dashboard/wallet/
+/app/support/
 /server/admin/
 /server/stripe.ts
 /server/stripe-webhook.ts
@@ -71,6 +73,7 @@ next-env.d.ts
 /tests/billing-checkout.test.ts
 /tests/stripe-e2e.test.ts
 /tests/console-guard.test.ts
+/tests/console-e2e.test.ts
 /tests/billing-notices-billing.test.ts
 /tests/consistency-billing.test.ts
 /tests/flags-routes.test.ts

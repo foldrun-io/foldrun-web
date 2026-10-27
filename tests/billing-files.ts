@@ -12,8 +12,10 @@ export const BILLING_FILES = [
   "app/admin/",
   "app/api/admin/",
   "app/api/billing/",
+  "app/api/support/",
   "app/dashboard/billing/",
   "app/dashboard/wallet/",
+  "app/support/",
   "server/admin/",
   "server/stripe.ts",
   "server/stripe-webhook.ts",
@@ -82,6 +84,7 @@ export const BILLING_TESTS = [
   "billing-checkout.test.ts",
   "stripe-e2e.test.ts",
   "console-guard.test.ts",
+  "console-e2e.test.ts",
   "billing-notices-billing.test.ts",
   "consistency-billing.test.ts",
   "flags-routes.test.ts",
@@ -98,4 +101,4 @@ export const billingPresent: boolean = BILLING_FILES.every((p) => fs.existsSync(
 
 /** An API operation ("GET /api/billing/plans") or path that is billing's:
  *  the customer billing routes and the operator console's. */
-export const isBillingRoute = (op: string): boolean => /(^|\s)\/api\/(billing|admin)(\/|$|\s)/.test(op);
+export const isBillingRoute = (op: string): boolean => /(^|\s)\/api\/(billing|admin|support)(\/|$|\s)/.test(op);

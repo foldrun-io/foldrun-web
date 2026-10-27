@@ -12,7 +12,7 @@
 import crypto from "node:crypto";
 import { installKey } from "../../foldrun-core/src/webhook.ts";
 
-type Kind = "reset" | "verify" | "mfa-challenge" | "mfa-enrol";
+type Kind = "reset" | "verify" | "mfa-challenge" | "mfa-enrol" | "support-handoff";
 
 const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64url");
 const unb64 = (s: string) => Buffer.from(s, "base64url").toString("utf8");
@@ -47,3 +47,6 @@ export const RESET_TTL_MS = 30 * 60 * 1000;
 export const VERIFY_TTL_MS = 24 * 60 * 60 * 1000;
 export const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 export const ENROL_TTL_MS = 10 * 60 * 1000;
+/** A support view handed from the operator console to the customer app
+ *  (27 Oct 2026): a minute to arrive, and good once. */
+export const HANDOFF_TTL_MS = 60 * 1000;

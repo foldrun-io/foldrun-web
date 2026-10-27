@@ -19,13 +19,13 @@ export function UserMenu() {
   const qs = tenantParam !== "default" ? `?tenant=${tenantParam}` : "";
 
   const [open, setOpen] = useState(false);
-  const [who, setWho] = useState<{ email?: string; tenant?: string; avatar?: string | null; superAdmin?: boolean }>({});
+  const [who, setWho] = useState<{ email?: string; tenant?: string; avatar?: string | null; superAdmin?: boolean; adminUrl?: string }>({});
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch("/api/auth/session")
       .then((r) => (r.ok ? r.json() : {}))
-      .then((d: { user?: { email?: string; tenant?: string; avatar?: string | null; superAdmin?: boolean } }) => setWho(d.user ?? {}))
+      .then((d: { user?: { email?: string; tenant?: string; avatar?: string | null; superAdmin?: boolean; adminUrl?: string } }) => setWho(d.user ?? {}))
       .catch(() => {});
   }, []);
 
@@ -68,7 +68,7 @@ export function UserMenu() {
     // The way into the super admin console, for the one person it
     // exists for. Last, and separated below, because it is not part of
     // this account — it is the platform looking at every account.
-    ...(who.superAdmin ? [{ name: "Super admin", href: "/admin" }] : []),
+    ...(who.superAdmin ? [{ name: "Super admin", href: who.adminUrl ?? "/admin" }] : []),
     // Docs before Help: docs is where someone who has not started goes, help is
     // the reference you open mid-edit. The order is the order you need them in.
     { name: "Docs", href: `/dashboard/docs${qs}` },

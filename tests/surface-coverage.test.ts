@@ -22,6 +22,8 @@ const CALLBACK = "called by something else holding its own proof, not by a perso
 const NOT_IN_CLI: Record<string, string> = {
   "POST /api/account/close": "closing an account is the owner's, in person, in Settings",
   "POST /api/oauth/handoff/[id]": "accepting a terminal-started connection is a signed-in person's, in the browser; the CLI opens the page (/api/oauth/start answers its URL)",
+  "POST /api/support/enter": "a support view arriving from the operator console in a browser (a one-use ticket in the URL fragment) — a person's act, never a key's",
+  "POST /api/support/exit": "ending a support view from its banner in the browser — a person's act, never a key's",
   ...Object.fromEntries(
     [
       "GET /api/admin/accounts", "POST /api/admin/accounts", "GET /api/admin/accounts/[tenant]", "POST /api/admin/accounts/[tenant]",
@@ -77,6 +79,9 @@ const SEEN = (where: string) => `reached by a call the scanner cannot evaluate: 
 
 /** Operations the dashboard does not call through /api, and why. */
 const NOT_IN_DASHBOARD: Record<string, string> = {
+  // 27 Oct 2026: the support banner ends a view through POST /api/support/exit
+  // on the customer app; this stays for the console's own-host flow.
+  "DELETE /api/admin/accounts/[tenant]/view-as": "a view is ended from the customer app's banner (POST /api/support/exit); this older end remains for a single-host install",
   ...Object.fromEntries(
     [
       "GET /api/admin/accounts", "GET /api/admin/accounts/[tenant]", "GET /api/admin/flags", "PUT /api/admin/flags/[flag]", "DELETE /api/admin/flags/[flag]",

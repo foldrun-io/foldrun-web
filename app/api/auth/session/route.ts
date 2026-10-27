@@ -2,6 +2,7 @@
 // this instead of guessing.
 
 import { isSuperAdmin } from "@/platform/admin";
+import { adminOrigin } from "@/server/surface";
 import { NextRequest, NextResponse } from "next/server";
 import { verifySession, SESSION_COOKIE, signupOpen, hasUsers, roleOfUser } from "@/server/users";
 import { avatarUrl } from "@/platform/avatars";
@@ -27,6 +28,8 @@ export async function GET(req: NextRequest) {
           // guess this; false for everyone else, including on the community
           // image where there is no console.
           superAdmin: isSuperAdmin({ tenant: user.tenant, owner: user.owner }),
+          // Where the console is (27 Oct 2026): its own host once it has one.
+          ...(isSuperAdmin({ tenant: user.tenant, owner: user.owner }) ? { adminUrl: `${adminOrigin() ?? ""}/admin` } : {}),
         }
       : null,
     signupOpen: await signupOpen(),

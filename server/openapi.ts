@@ -373,7 +373,7 @@ const RATE_HEADERS = {
 
 /** The routes this build serves: an install without foldrun's billing has
  *  no /api/billing or /api/admin, so its spec does not offer them. */
-const ROUTES = billing() === freeBilling ? ALL_ROUTES.filter((r) => !/^\/api\/(billing|admin)(\/|$)/.test(r.path)) : ALL_ROUTES;
+const ROUTES = billing() === freeBilling ? ALL_ROUTES.filter((r) => !/^\/api\/(billing|admin|support)(\/|$)/.test(r.path)) : ALL_ROUTES;
 
 const IDEMPOTENT_ROUTES = new Set(ROUTES.flatMap((r) => (r.idempotent ?? []).map((m) => `${m} ${r.path}`)));
 

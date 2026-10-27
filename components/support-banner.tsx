@@ -20,9 +20,11 @@ export function SupportBanner({ account, expiresAt, reason }: { account: string;
   const exit = async () => {
     setLeaving(true);
     try {
-      const res = await fetch(`/api/admin/accounts/${encodeURIComponent(account)}/view-as`, { method: "DELETE" });
-      const data = (await res.json().catch(() => ({}))) as { open?: string };
-      window.location.href = data.open ?? "/admin";
+      // The customer app's own exit (27 Oct 2026): the console may live on
+      // another host, which this page cannot write to.
+      const res = await fetch("/api/support/exit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ account }) });
+      const data = (await res.json().catch(() => ({}))) as { next?: string };
+      window.location.href = data.next ?? `/admin/${encodeURIComponent(account)}`;
     } catch {
       setLeaving(false);
     }

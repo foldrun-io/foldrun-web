@@ -24,7 +24,7 @@ export const isSupportToken = (token: string | undefined | null): boolean => Boo
  * The writes a support view may still make: ending itself, and signing out.
  * Everything else that is not a GET is refused.
  */
-const ALLOWED_WRITES: RegExp[] = [/^\/api\/admin\/accounts\/[^/]+\/view-as$/, /^\/api\/auth\/logout$/];
+const ALLOWED_WRITES: RegExp[] = [/^\/api\/admin\/accounts\/[^/]+\/view-as$/, /^\/api\/support\/(enter|exit)$/, /^\/api\/auth\/logout$/];
 
 /**
  * Reads that hand over the account's data wholesale. A view is for looking,
