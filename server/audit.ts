@@ -84,6 +84,7 @@ export type AuditAction =
   // Plans: what the customer asked for (here) and what Stripe then did
   // (mirrored from the platform's own audit as it lands).
   | "plan.change_requested"
+  | "plan.change_pending"
   | "plan.cancel_requested"
   | "plan.resumed"
   | "plan.cycle"
