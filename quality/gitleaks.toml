@@ -1,0 +1,13 @@
+# gitleaks over the open-source image's /app (quality/leak.sh), 27 Oct 2026.
+# The default rules, plus what is accepted on purpose and why.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Next's build output: compiled from the sources this scan already reads (minified code like r.token,i.ANTHROPIC_AUTH_TOKEN=… reads as a key), and its preview/server-action keys guard nothing — foldrun uses neither draft mode nor Server Actions"
+paths = ['''(^|/)\.next/''']
+
+[[allowlists]]
+description = "the key fields' placeholder text in Settings → Connections (client certificate, SSH key)"
+regexTarget = "line"
+regexes = ['''placeholder="-----BEGIN [A-Z ]*PRIVATE KEY-----"''']

@@ -8,6 +8,13 @@
 **/.ts-test-*
 **/.env
 **/.env.*
+# Any env file by another name, and the quality stack's own state (27 Oct
+# 2026: quality/.state/compose.env — the test stack's secrets — was copied
+# into the image built from that checkout).
+**/*.env
+**/quality/.state
+# The quality harness itself: a test of the image, not part of it.
+foldrun-web/quality
 foldrun-*/tests
 foldrun-cli
 foldrun-infra

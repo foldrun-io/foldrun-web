@@ -1,0 +1,92 @@
+name: quality
+
+# The open-source edition, tested the way a stranger runs it (27 Oct 2026):
+# quality/stack.sh builds the self-hosting install from these commits, adds a
+# fake model, and quality/run.sh runs the suites against it — end to end
+# through the published CLI, concurrency, a scan of the image for anything
+# hosted-only, load (smoke/load/stress/spike/soak), a real browser, API
+# fuzzing against our own OpenAPI document, an OWASP ZAP baseline scan, and
+# chaos (the platform restarted mid-run). Nothing here touches a real install
+# or spends a token. GitHub's runners: free for this public repo, and never a
+# developer's laptop.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 16 * * *"   # nightly: everything but the soak
+    - cron: "41 17 * * 0"   # weekly: the 60-minute soak
+  workflow_dispatch:
+    inputs:
+      suites:
+        description: "Suites (push | all | a list: e2e races leak load:smoke browser fuzz dast chaos load:load load:stress load:spike load:soak)"
+        default: all
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.ref }}-${{ github.event.schedule || 'run' }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: foldrun-web
+      # The public siblings the self-hosting image is built from.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: foldrun-io/foldrun-core
+          path: foldrun-core
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: foldrun-io/foldrun-platform
+          path: foldrun-platform
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: foldrun-io/foldrun-docs
+          path: foldrun-docs
+      - name: which suites
+        id: which
+        env:
+          INPUT: ${{ github.event.inputs.suites }}
+          SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          case "$SCHEDULE" in
+            "17 16 * * *") s=all ;;
+            "41 17 * * 0") s="e2e load:soak" ;;
+            *) s=${INPUT:-push} ;;
+          esac
+          echo "suites=$s" >> "$GITHUB_OUTPUT"
+          echo "suites: $s"
+      - name: run
+        working-directory: foldrun-web
+        env:
+          SUITES: ${{ steps.which.outputs.suites }}
+        run: |
+          # shellcheck disable=SC2086
+          bash quality/run.sh $SUITES
+      - name: reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: quality-reports
+          path: foldrun-web/quality/reports
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # The one-line install as a stranger runs it: foldrun.io's installer, the
+  # published images, sign-up, deploy, a run. Its own job: it takes the same
+  # ports as the quality stack.
+  installer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: install from foldrun.io and run a flow
+        run: bash quality/installer.sh

@@ -377,6 +377,21 @@ const ROUTES = billing() === freeBilling ? ALL_ROUTES.filter((r) => !/^\/api\/(b
 
 const IDEMPOTENT_ROUTES = new Set(ROUTES.flatMap((r) => (r.idempotent ?? []).map((m) => `${m} ${r.path}`)));
 
+/** Statuses a route answers by design that the general rules above do not
+ *  cover — found by the API fuzz (quality/fuzz.sh, 27 Oct 2026). */
+const EXTRA_STATUSES: Record<string, string[]> = {
+  // An unknown or spent sign-in code.
+  "GET /api/cli/authorize": ["404"],
+  // Closed (404) while FOLDRUN_METRICS_TOKEN is unset.
+  "GET /api/metrics": ["404"],
+  // Nothing to fix, a proposal for that eval already open, or paused.
+  "POST /api/workspaces/{workspace}/evals/{evalName}/improve": ["409"],
+  // The file changed since it was loaded (body.ifMatch is not its sha256).
+  "PUT /api/workspaces/{workspace}/source": ["409"],
+  // No secret by that name.
+  "PATCH /api/secrets": ["404"],
+};
+
 export function openapiDocument(origin?: string): Schema {
   const paths: Record<string, Record<string, Schema>> = {};
   for (const r of ROUTES) {
@@ -404,6 +419,12 @@ export function openapiDocument(origin?: string): Schema {
           "200": { description: "OK", headers: RATE_HEADERS, content: { "application/json": { schema: shape?.response ?? GENERIC } } },
           "400": { $ref: "#/components/responses/Error" },
           ...(open ? {} : { "401": { $ref: "#/components/responses/Error" }, "403": { $ref: "#/components/responses/Error" } }),
+          // A route that names something in its path can find nothing there
+          // (27 Oct 2026: the API fuzz found 26 undocumented 404s).
+          ...(params.length ? { "404": { $ref: "#/components/responses/Error" } } : {}),
+          // An open route that carries a token in its path refuses a bad one.
+          ...(open && params.length ? { "401": { $ref: "#/components/responses/Error" } } : {}),
+          ...Object.fromEntries((EXTRA_STATUSES[`${method} ${r.path}`] ?? []).map((c) => [c, { $ref: "#/components/responses/Error" }])),
           "429": { $ref: "#/components/responses/RateLimited" },
           ...(IDEMPOTENT_ROUTES.has(`${method} ${r.path}`) ? { "422": { $ref: "#/components/responses/Error" } } : {}),
         },

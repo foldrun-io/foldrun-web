@@ -44,7 +44,14 @@ export async function GET(
     return new Response(message, { status });
   }
 
-  const file = runFilePath(tenant, workspace, runId);
+  // A name the store refuses (control characters, a path) cannot be a run:
+  // 404, not the 500 an uncaught throw gave (27 Oct 2026, the API fuzz).
+  let file: string;
+  try {
+    file = runFilePath(tenant, workspace, runId);
+  } catch {
+    return new Response("run not found", { status: 404 });
+  }
   if (!fs.existsSync(file)) return new Response("run not found", { status: 404 });
 
   const encoder = new TextEncoder();

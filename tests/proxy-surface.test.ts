@@ -66,3 +66,31 @@ test("on the customer app: nothing new — pages it never touched pass, the dash
 test("a FOLDRUN_SURFACE typo serves nothing rather than guess", async () => {
   assert.equal((await at("amdin", "/dashboard")).status, 500);
 });
+
+test("every page carries the security headers, sign-in included; share links keep their own", async () => {
+  for (const p of ["/login", "/signup", "/forgot", "/"]) {
+    const r = await at(undefined, p);
+    assert.equal(r.headers.get("x-frame-options"), "DENY", `${p} cannot be framed`);
+    assert.equal(r.headers.get("x-content-type-options"), "nosniff", p);
+    assert.equal(r.headers.get("cross-origin-opener-policy"), "same-origin", p);
+    assert.ok(r.headers.get("content-security-policy-report-only")?.includes("frame-ancestors 'none'"), p);
+  }
+  const share = await at(undefined, "/s/abc");
+  assert.equal(share.headers.get("x-frame-options"), null, "a share link sets its own headers");
+});
+
+// 27 Oct 2026, from the API fuzz: a run stream for names the store refuses
+// is a 404, not an uncaught 500.
+test("a run stream for an impossible workspace or run name is a 404", async () => {
+  const route = await import("../app/api/workspaces/[workspace]/runs/[runId]/stream/route.ts");
+  const prev = process.env.FOLDRUN_DEV_NO_AUTH;
+  process.env.FOLDRUN_DEV_NO_AUTH = "1";
+  try {
+    const r = await route.GET(new NextRequest("http://x/api/workspaces/x/runs/y/stream", { headers: { "x-foldrun-tenant": "acme" } }), {
+      params: Promise.resolve({ workspace: "m:\u0007?\u007f", runId: "f\u001a\u0010Y " }),
+    });
+    assert.equal(r.status, 404);
+  } finally {
+    prev === undefined ? delete process.env.FOLDRUN_DEV_NO_AUTH : (process.env.FOLDRUN_DEV_NO_AUTH = prev);
+  }
+});

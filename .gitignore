@@ -78,3 +78,7 @@ next-env.d.ts
 /tests/stripe.test.ts
 /tests/support-view.test.ts
 /.foldrun-admin-laid
+
+# The quality stack: its secrets and its reports (quality/run.sh)
+/quality/.state
+/quality/reports

@@ -33,11 +33,12 @@ function stamped(res: NextResponse): NextResponse {
  * run archive and the browser theater, avatars, and the token-gated approve
  * page. Their headers are deliberate — the blanket policy below would only
  * add noise, and `X-Frame-Options: DENY` could break an embedded preview —
- * so they are left exactly as they are. (`/s/<token>` share links are not
- * under this proxy's matcher, so they need no mention here.)
+ * so they are left exactly as they are — and so are `/s/<token>` share
+ * links, which the proxy has seen since its matcher took every path (27 Oct
+ * 2026) and which set their own headers.
  */
 function selfHardened(pathname: string): boolean {
-  if (pathname.startsWith("/api/avatars/") || pathname.startsWith("/api/approve/")) return true;
+  if (pathname.startsWith("/api/avatars/") || pathname.startsWith("/api/approve/") || pathname.startsWith("/s/")) return true;
   const m = pathname.match(/^\/api\/workspaces\/[^/]+\/(.+)$/);
   if (!m) return false;
   return m[1] === "storage/download" || /^runs\/[^/]+\/(archive|live)$/.test(m[1]);
@@ -70,6 +71,10 @@ function harden(res: NextResponse, req: NextRequest, nonce: string): NextRespons
   h.set("X-Content-Type-Options", "nosniff");
   h.set("Referrer-Policy", "strict-origin-when-cross-origin");
   h.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  // No other site's window may hold a reference to ours, and our responses
+  // are not loaded by other sites (27 Oct 2026, ZAP 90004).
+  h.set("Cross-Origin-Opener-Policy", "same-origin");
+  h.set("Cross-Origin-Resource-Policy", "same-site");
   // This host only: includeSubDomains would bind every name under it to
   // HTTPS for a year, which a dashboard header has no business deciding.
   if (overHttps(req)) h.set("Strict-Transport-Security", "max-age=31536000");
@@ -153,9 +158,13 @@ export async function proxy(req: NextRequest) {
       return harden(NextResponse.next({ request: { headers: requestHeaders } }), req, nonce);
     }
   } else if (!req.nextUrl.pathname.startsWith("/api/") && !/^\/dashboard(\/|$)/.test(req.nextUrl.pathname)) {
-    // The customer app: the proxy's reach widened for the console's sake;
-    // everything it did not act on before still passes untouched.
-    return NextResponse.next();
+    // Every other page (sign-in, signup, reset, the home page): no session
+    // logic, but the same security headers as the dashboard. Until 27 Oct
+    // 2026 they got none — the quality stack's ZAP scan found a frameable
+    // sign-in page with no CSP, nosniff or Permissions-Policy.
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set("x-nonce", nonce);
+    return harden(NextResponse.next({ request: { headers: requestHeaders } }), req, nonce);
   }
   if (req.nextUrl.pathname.startsWith("/api/")) {
     // A cookie-carrying write from an origin that is not ours. SameSite=Lax

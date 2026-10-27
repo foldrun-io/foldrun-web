@@ -1,0 +1,29 @@
+# The quality stack (27 Oct 2026): the self-hosting install as a stranger
+# runs it (../self-hosting/docker-compose.yml, built from THIS checkout by
+# docker-compose.build.yml), plus a fake model so runs cost nothing. Started
+# by quality/stack.sh; never pointed at a real install.
+services:
+  fake-model:
+    image: nginx:1.27-alpine
+    volumes:
+      - ${QUALITY_DIR}/fake-model/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${QUALITY_DIR}/fake-model/fake.js:/etc/nginx/fake.js:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 2s
+      retries: 30
+  platform:
+    depends_on:
+      fake-model:
+        condition: service_healthy
+    environment:
+      ANTHROPIC_BASE_URL: ${QUALITY_MODEL_URL:-http://fake-model:8080/model}
+      ANTHROPIC_API_KEY: sk-ant-quality-fake
+      # The fake model is an internal name, which the egress proxy refuses
+      # on purpose (no request inward). A single-tenant install may allow it;
+      # this throwaway stack is one. The refusal itself stays tested in core.
+      FOLDRUN_EGRESS_ALLOW_PRIVATE: "1"
+      # Load measures throughput, so the per-key limit (300 reads a minute on
+      # a self-hosted install) is off here — the switch exists for exactly
+      # this; the limiter has its own tests (tests/api-limits*.test.ts).
+      FOLDRUN_API_RATE_LIMIT: "off"
