@@ -1145,6 +1145,8 @@ test("every foldrun_ metric an alert references is one we emit", { skip: needsIn
     // The billing gauges are composed in the platform and spliced into the
     // same response; their names live where they are produced.
     ...[...read("../foldrun-platform/src/billing-metrics.ts").matchAll(/# HELP (foldrun_\w+)/g)].map((m) => m[1]),
+    // The room gauges (27 Oct 2026), composed the same way.
+    ...[...read("../foldrun-platform/src/room-metrics.ts").matchAll(/# HELP (foldrun_\w+)/g)].map((m) => m[1]),
     ...[...read("../foldrun-infra/dev/node-metrics.sh").matchAll(/# HELP (foldrun_\w+)/g)].map((m) => m[1]),
   ]);
   assert.ok(emitted.size > 5, "found the emitted metric names at all");

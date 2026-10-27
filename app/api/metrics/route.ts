@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { errorResponse, ApiError } from "@/server/api";
 import { queueStats } from "@/platform/queue";
+import { roomMetricsText } from "@/platform/room-metrics";
 import { billingMetricsText } from "@/platform/billing-metrics";
 import { listTenants, listWorkspaces, listRunSummaries } from "@/lib/store";
 
@@ -75,6 +76,9 @@ export async function GET(req: NextRequest) {
       "# TYPE foldrun_runs_awaiting_approval gauge",
       `foldrun_runs_awaiting_approval ${awaiting}`,
       ...(await billingMetricsText()),
+      // Steps waiting for room (27 Oct 2026): parked ones count as
+      // "scheduled" above, and waits in a driver did not count at all.
+      ...roomMetricsText(),
     ];
     return new NextResponse(lines.join("\n") + "\n", {
       headers: { "content-type": "text/plain; version=0.0.4" },
