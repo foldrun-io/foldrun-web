@@ -1,7 +1,10 @@
 // The other end of the reset link. The token names the user and the
 // password as it was; a changed password, an expired link or a forged one
 // all fail the same way. On success every session of theirs is ended and
-// the new password signs them in fresh.
+// the new password signs them in fresh — unless they have a second factor:
+// a reset link proves only the inbox, so it must not stand in for the code
+// (27 Oct 2026; it used to mint the session either way). They sign in, and
+// the login asks for the code.
 
 import { NextRequest, NextResponse } from "next/server";
 import { readToken, hashFingerprint } from "@/server/auth-tokens";
@@ -23,6 +26,7 @@ export async function POST(req: NextRequest) {
     await setEmailVerified(user.id);
     await audit("password.reset", { actor: user.email, tenant: user.tenant });
     const fresh = (await findUserById(user.id))!;
+    if (fresh.mfaSecret) return NextResponse.json({ ok: true, account: user.tenant, signIn: true });
     const session = await mintSession(fresh, req.headers.get("user-agent"));
     const res = NextResponse.json({ ok: true, account: user.tenant });
     res.cookies.set(SESSION_COOKIE, session.value, sessionCookieOptions(req, session.expires));

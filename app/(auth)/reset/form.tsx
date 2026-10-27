@@ -13,7 +13,12 @@ export function ResetForm({ token }: { token: string }) {
         setBusy(true); setError(null);
         const password = String(new FormData(e.currentTarget).get("password") ?? "");
         const res = await fetch("/api/auth/reset", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, password }) });
-        if (res.ok) { window.location.assign("/dashboard"); return; }
+        if (res.ok) {
+          // With a second factor the reset signs nobody in: the login asks for the code.
+          const j = (await res.json().catch(() => ({}))) as { signIn?: boolean };
+          window.location.assign(j.signIn ? "/login?reset=1" : "/dashboard");
+          return;
+        }
         const j = (await res.json().catch(() => ({}))) as { error?: string };
         setError(j.error ?? `HTTP ${res.status}`);
         setBusy(false);
