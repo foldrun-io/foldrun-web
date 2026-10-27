@@ -11,12 +11,18 @@ import { rateLimit, rateLimitReset } from "@/platform/cache";
 import { audit } from "@/server/audit";
 import { listWorkspaces } from "@/lib/store";
 import { errorResponse } from "@/server/api";
+import { surface } from "@/server/surface";
 
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json().catch(() => ({}))) as { challenge?: string; code?: string };
     const claims = readToken("mfa-challenge", String(body.challenge ?? ""));
     if (!claims) return NextResponse.json({ error: "sign in again" }, { status: 401 });
+    // A challenge is for the surface it was asked on: one from the customer
+    // app does not finish a sign-in to the console. Older challenges carry no
+    // surface and count as the app's.
+    const here = surface();
+    if ((claims.a || "app") !== here) return NextResponse.json({ error: "sign in again" }, { status: 401 });
     const user = await findUserById(claims.u);
     if (!user?.mfaSecret) return NextResponse.json({ error: "sign in again" }, { status: 401 });
 
@@ -32,7 +38,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "that code is not right" }, { status: 401 });
     }
     await rateLimitReset(`mfa:${user.id}`);
-    const session = await mintSession(user, req.headers.get("user-agent"));
+    const session = await mintSession(user, req.headers.get("user-agent"), { audience: here === "admin" ? "admin" : null, mfa: true });
     await audit("login", { actor: user.email, tenant: user.tenant, subject: session.sessionId, detail: { mfa: how } });
     const res = NextResponse.json({ ok: true, tenant: user.tenant, workspace: listWorkspaces(user.tenant)[0]?.name ?? null, ...(how === "backup" ? { backupUsed: true } : {}) });
     res.cookies.set(SESSION_COOKIE, session.value, sessionCookieOptions(req, session.expires));

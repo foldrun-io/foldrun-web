@@ -1613,7 +1613,9 @@ test("the way into the super admin console is drawn from the session, not guesse
   assert.match(read("components/user-menu.tsx"), /who\.superAdmin \? \[\{ name: "Super admin"/);
   const offenders = webFiles((f) => /\.tsx?$/.test(f))
     .filter((f) => !path.relative(root, f).startsWith("server/admin/"))
-    .filter((f) => /isSuperAdmin\(/.test(fs.readFileSync(f, "utf8")) && !path.relative(root, f).startsWith("app/api/auth/session/"))
+    // The console's own sign-in (27 Oct 2026) asks it too: on that surface
+    // only the operator may sign in at all — a gate, not a door drawn.
+    .filter((f) => /isSuperAdmin\(/.test(fs.readFileSync(f, "utf8")) && !path.relative(root, f).startsWith("app/api/auth/session/") && !path.relative(root, f).startsWith("app/api/auth/login/"))
     .map((f) => path.relative(root, f));
   assert.deepEqual(offenders, []);
 });

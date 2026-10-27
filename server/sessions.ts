@@ -42,12 +42,21 @@ export async function recordSession(
   tenant: string,
   expires: Date,
   userAgent: string | null,
+  how: { audience?: string | null; mfa?: boolean } = {},
 ): Promise<void> {
   const q = orm();
   if (!q) return;
   await q
     .insert(sessions)
-    .values({ id, userId, tenant, expiresAt: expires, userAgent: userAgent?.slice(0, 300) ?? null })
+    .values({
+      id,
+      userId,
+      tenant,
+      expiresAt: expires,
+      userAgent: userAgent?.slice(0, 300) ?? null,
+      audience: how.audience ?? null,
+      mfaAt: how.mfa ? new Date() : null,
+    })
     .onConflictDoNothing({ target: sessions.id });
 }
 
@@ -60,15 +69,15 @@ export async function recordSession(
  * the database disappears after v2 tokens were minted, where refusing means a
  * re-login and accepting would mean revocation silently stopped working.
  */
-export async function sessionAllowed(id: string): Promise<{ userId: string } | null> {
+export async function sessionAllowed(id: string): Promise<{ userId: string; audience: string | null; mfa: boolean } | null> {
   const q = orm();
   if (!q) return null;
   const rows = await q
     .update(sessions)
     .set({ lastSeenAt: sql`now()` })
     .where(and(eq(sessions.id, id), isNull(sessions.revokedAt), gt(sessions.expiresAt, sql`now()`)))
-    .returning({ userId: sessions.userId });
-  return rows[0] ? { userId: rows[0].userId } : null;
+    .returning({ userId: sessions.userId, audience: sessions.audience, mfaAt: sessions.mfaAt });
+  return rows[0] ? { userId: rows[0].userId, audience: rows[0].audience ?? null, mfa: rows[0].mfaAt !== null } : null;
 }
 
 /** Every live session for a person, newest first — what the profile lists. */

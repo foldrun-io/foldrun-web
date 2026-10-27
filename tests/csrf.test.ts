@@ -33,3 +33,20 @@ test("what it leaves alone: reads, Bearer requests, requests with no Origin, req
   assert.equal(crossSiteWrite(req("POST", { host: "app.foldrun.io", origin: "https://evil.example" }), undefined), null, "no cookie, nothing to forge");
   assert.equal(crossSiteWrite(req("POST", { host: "app.foldrun.io", cookie: "other=1; notfoldrun_session=x", origin: "https://evil.example" }), undefined), null);
 });
+
+// 27 Oct 2026: on the operator console every write must name exactly the
+// console's origin — no Bearer shortcut, no missing Origin, and the customer
+// app's host (a same-site sibling) is not its own.
+test("on the console, every write must come from exactly the console's origin", () => {
+  const admin = "https://admin.foldrun.io";
+  const w = (method: string, headers: Record<string, string>) => crossSiteWrite(req(method, headers), "https://dev.foldrun.io", admin);
+  assert.equal(w("POST", { origin: admin }), null, "sign-in from the console itself");
+  assert.equal(w("DELETE", { ...withCookie, origin: admin }), null);
+  assert.match(w("POST", { origin: "https://dev.foldrun.io" })!, /not the console/, "the customer app is a sibling, not the console");
+  assert.match(w("POST", { ...withCookie })!, /must say where it came from/, "no Origin is no pass here");
+  assert.match(w("POST", { authorization: "Bearer mda_x", origin: "https://evil.example" })!, /not the console/, "an Authorization header buys nothing");
+  assert.ok(w("POST", { origin: "https://admin.foldrun.io.evil.example" }));
+  assert.ok(w("POST", { origin: "http://admin.foldrun.io" }), "scheme is part of an origin");
+  assert.equal(w("GET", { origin: "https://evil.example" }), null, "reads are not writes");
+  assert.match(crossSiteWrite(req("POST", { origin: admin }), undefined, "")!, /no FOLDRUN_ADMIN_URL/, "a console with no address accepts no writes");
+});

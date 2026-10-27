@@ -70,6 +70,7 @@ next-env.d.ts
 /tests/billing-admin.test.ts
 /tests/billing-checkout.test.ts
 /tests/stripe-e2e.test.ts
+/tests/console-guard.test.ts
 /tests/billing-notices-billing.test.ts
 /tests/consistency-billing.test.ts
 /tests/flags-routes.test.ts

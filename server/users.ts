@@ -109,6 +109,11 @@ export interface UserRecord {
    *  reading this account as its owner sees it, read-only, until expiresAt.
    *  Every write is refused while it is set — proxy.ts and server/api.ts. */
   viewAs?: { id: string; by: string; reason: string; expiresAt: string } | null;
+  /** How the presented token was made (27 Oct 2026): its kind, the surface
+   *  it was made for (null = the customer app) and whether a second factor
+   *  was completed. Set by verifySession; the console accepts only a v2
+   *  "admin" session with mfa. */
+  session?: { kind: "v1" | "v2" | "s1"; audience: string | null; mfa: boolean };
   /** A person's own small settings: `onboardingDismissedAt`, and the like. */
   prefs?: Record<string, unknown> | null;
 }
@@ -338,11 +343,12 @@ const sign = (payload: string) =>
 export async function mintSession(
   user: UserRecord,
   userAgent?: string | null,
+  how: { audience?: string | null; mfa?: boolean } = {},
 ): Promise<{ value: string; expires: Date; sessionId: string | null }> {
   const expires = sessionExpiry();
   if (revocable()) {
     const id = newSessionId();
-    await recordSession(id, user.id, user.tenant, expires, userAgent ?? null);
+    await recordSession(id, user.id, user.tenant, expires, userAgent ?? null, how);
     const payload = `${id}.${expires.getTime()}`;
     return { value: `v2.${payload}.${sign(payload)}`, expires, sessionId: id };
   }
@@ -833,7 +839,7 @@ export async function verifySession(token: string | undefined): Promise<UserReco
     if (!view) return null;
     const owner = await ownerOf(tenant);
     if (!owner) return null;
-    return { ...owner, viewAs: { id: view.id, by: view.by, reason: view.reason, expiresAt: view.expiresAt } };
+    return { ...owner, viewAs: { id: view.id, by: view.by, reason: view.reason, expiresAt: view.expiresAt }, session: { kind: "s1", audience: null, mfa: false } };
   }
   if (version === "v2") {
     // The signature proves nobody forged the id. The row decides whether it is
@@ -842,10 +848,12 @@ export async function verifySession(token: string | undefined): Promise<UserReco
     // one that never claimed it.
     const live = await sessionAllowed(subject);
     if (!live) return null;
-    return (await readUsers()).find((u) => u.id === live.userId) ?? null;
+    const user = (await readUsers()).find((u) => u.id === live.userId);
+    return user ? { ...user, session: { kind: "v2", audience: live.audience, mfa: live.mfa } } : null;
   }
   // v1: the pre-database form. Still accepted so that deploying revocable
   // sessions does not sign everybody out, and still minted where an install
   // has no database at all.
-  return (await readUsers()).find((u) => u.id === subject) ?? null;
+  const user = (await readUsers()).find((u) => u.id === subject);
+  return user ? { ...user, session: { kind: "v1", audience: null, mfa: false } } : null;
 }
