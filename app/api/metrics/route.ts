@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { errorResponse, ApiError } from "@/server/api";
-import { queueStats } from "@/platform/queue";
+import { CLAIM_RENEW_MS, queueStats } from "@/platform/queue";
 import { roomMetricsText } from "@/platform/room-metrics";
 import { billingMetricsText } from "@/platform/billing-metrics";
 import { listTenants, listWorkspaces, listRunSummaries } from "@/lib/store";
@@ -69,6 +69,16 @@ export async function GET(req: NextRequest) {
       "# HELP foldrun_queue_oldest_pending_seconds Age of the longest-waiting ready job.",
       "# TYPE foldrun_queue_oldest_pending_seconds gauge",
       `foldrun_queue_oldest_pending_seconds ${q.oldestPendingSecs ?? 0}`,
+      // Is a claimed job still being driven? (27 Oct 2026) Its worker renews
+      // the claim every interval below, so a claim unrenewed for two is
+      // stuck. Replaces "the claimed count has not changed", which a busy,
+      // healthy queue at constant concurrency also satisfies.
+      "# HELP foldrun_queue_oldest_claim_renewal_seconds Seconds since the least recently renewed claim was renewed (0 with no claim, and on the file queue, whose claims are not renewed).",
+      "# TYPE foldrun_queue_oldest_claim_renewal_seconds gauge",
+      `foldrun_queue_oldest_claim_renewal_seconds ${q.oldestClaimSecs ?? 0}`,
+      "# HELP foldrun_queue_claim_renewal_interval_seconds How often a driving worker renews its claim.",
+      "# TYPE foldrun_queue_claim_renewal_interval_seconds gauge",
+      `foldrun_queue_claim_renewal_interval_seconds ${Math.round(CLAIM_RENEW_MS / 1000)}`,
       "# HELP foldrun_runs_running Runs executing now.",
       "# TYPE foldrun_runs_running gauge",
       `foldrun_runs_running ${running}`,
