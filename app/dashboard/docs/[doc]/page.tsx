@@ -1,8 +1,8 @@
 // One doc, rendered from the repo's own docs/*.md.
 //
-// Same files, same words, no second copy to drift. Read at build time rather
-// than per request: the docs ship in the image and change only when a deploy
-// does.
+// Same files, same words, no second copy to drift. Read per request (since
+// 28 Oct 2026, for the CSP nonce): the markdown ships in the image and
+// changes only when a deploy does.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -12,11 +12,10 @@ import { Card, PageHeader } from "@/components/ui";
 import { Markdown } from "@/components/markdown";
 import { allDocs, docsDir, docTitle, docSummary } from "@/docs-index";
 
-export const dynamic = "force-static";
-
-export function generateStaticParams() {
-  return allDocs().map((doc) => ({ doc }));
-}
+// Per request, not prerendered (28 Oct 2026): the enforced CSP's nonce is
+// minted per request, and a static page cannot carry one. The markdown ships
+// in the image beside the app for this (foldrun-infra Dockerfile).
+export const dynamic = "force-dynamic";
 
 export default async function DocPage({ params }: { params: Promise<{ doc: string }> }) {
   const { doc } = await params;

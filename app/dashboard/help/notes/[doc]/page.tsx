@@ -6,8 +6,8 @@
 // box) could not reach them without a checkout. Same files, same words,
 // reachable from the sidebar.
 //
-// Read at build time, not per request: the docs ship in the image and change
-// only when a deploy does, so this is static like the rest of help.
+// Read per request (since 28 Oct 2026, for the CSP nonce): the markdown
+// ships in the image and changes only when a deploy does.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -17,11 +17,10 @@ import { Card, PageHeader } from "@/components/ui";
 import { Markdown } from "@/components/markdown";
 import { designNotes, docsDir, noteTitle } from "../../design-notes";
 
-export const dynamic = "force-static";
-
-export function generateStaticParams() {
-  return designNotes().map((slug) => ({ doc: slug }));
-}
+// Per request, not prerendered (28 Oct 2026): the enforced CSP's nonce is
+// minted per request, and a static page cannot carry one. The markdown ships
+// in the image beside the app for this (foldrun-infra Dockerfile).
+export const dynamic = "force-dynamic";
 
 export default async function NotePage({ params }: { params: Promise<{ doc: string }> }) {
   const { doc } = await params;

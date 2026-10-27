@@ -11,7 +11,10 @@ import { WithEmails } from "@/components/email";
 import { Card, PageHeader } from "@/components/ui";
 import { designNotes, docsDir, noteTitle, noteSummary } from "./design-notes";
 
-export const dynamic = "force-static";
+// Per request, not prerendered (28 Oct 2026): the enforced CSP's nonce is
+// minted per request, and a static page cannot carry one. The markdown ships
+// in the image beside the app for this (foldrun-infra Dockerfile).
+export const dynamic = "force-dynamic";
 
 const Code = ({ children }: { children: ReactNode }) => (
   <code className="rounded bg-muted px-1 py-0.5 font-mono text-[12px] text-gray-800">{children}</code>
@@ -45,7 +48,7 @@ function Table({ rows, head }: { head: [string, string]; rows: [string, string][
 }
 
 export default function HelpPage() {
-  // Read at build time — the notes ship in the image and change with a deploy.
+  // Read per request — the notes ship in the image and change with a deploy.
   const notes = designNotes().map((slug) => {
     const raw = fs.readFileSync(path.join(docsDir(), `${slug}.md`), "utf8");
     return { slug, title: noteTitle(raw, slug), summary: noteSummary(raw) };

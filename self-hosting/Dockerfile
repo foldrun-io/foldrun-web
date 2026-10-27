@@ -28,10 +28,11 @@ COPY foldrun-docs ./foldrun-docs
 # its tag is a fingerprint of it, so it must be this core's — or an upgrade
 # would keep running the previous runner.
 RUN cd foldrun-core && npx tsc -p tsconfig.json
-# The assistant's docs index, then the dashboard. The docs are read at build
-# time only.
+# The assistant's docs index, then the dashboard. The docs and help pages
+# read the markdown per request (28 Oct 2026: the enforced CSP's nonce needs
+# a per-request render), so the top-level *.md stay; the rest goes.
 RUN cd foldrun-web && node scripts/assistant-docs.mjs && cp assistant-docs.json ../foldrun-platform/assistant-docs.json \
- && npx next build && rm -rf /app/foldrun-docs
+ && npx next build && find /app/foldrun-docs -mindepth 1 -maxdepth 1 ! -name '*.md' -exec rm -rf {} +
 
 FROM ${NODE_IMAGE}
 # python3 for agents' scripts the platform runs itself; the Docker CLI (from

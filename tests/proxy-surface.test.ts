@@ -73,7 +73,7 @@ test("every page carries the security headers, sign-in included; share links kee
     assert.equal(r.headers.get("x-frame-options"), "DENY", `${p} cannot be framed`);
     assert.equal(r.headers.get("x-content-type-options"), "nosniff", p);
     assert.equal(r.headers.get("cross-origin-opener-policy"), "same-origin", p);
-    assert.ok(r.headers.get("content-security-policy-report-only")?.includes("frame-ancestors 'none'"), p);
+    assert.ok(r.headers.get("content-security-policy")?.includes("frame-ancestors 'none'"), p);
   }
   const share = await at(undefined, "/s/abc");
   assert.equal(share.headers.get("x-frame-options"), null, "a share link sets its own headers");

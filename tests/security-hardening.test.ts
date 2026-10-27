@@ -3,6 +3,8 @@
 //   2. the baseline security headers the proxy puts on every page and API
 //      response (except the routes that harden their own bytes).
 
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
@@ -53,8 +55,10 @@ const BASELINE = {
 
 function assertBaseline(res: { headers: Headers }, where: string) {
   for (const [k, v] of Object.entries(BASELINE)) assert.equal(res.headers.get(k), v, `${where}: ${k}`);
-  const csp = res.headers.get("content-security-policy-report-only");
-  assert.ok(csp, `${where}: CSP-Report-Only present`);
+  // Enforced since 28 Oct 2026; report-only only by FOLDRUN_CSP=report-only.
+  const csp = res.headers.get("content-security-policy");
+  assert.ok(csp, `${where}: CSP present and enforced`);
+  assert.equal(res.headers.get("content-security-policy-report-only"), null, `${where}: not report-only`);
   assert.match(csp!, /frame-ancestors 'none'/, `${where}: CSP frame-ancestors`);
   assert.match(csp!, /default-src 'self'/, `${where}: CSP default-src self`);
   assert.match(csp!, /nonce-[0-9a-f]+/, `${where}: CSP carries a nonce`);
@@ -84,4 +88,43 @@ test("a route that hardens its own bytes is left untouched by the blanket policy
   const res = await proxy(new NextRequest("https://app.foldrun.io/api/avatars/user/abc"));
   assert.equal(res.headers.get("x-frame-options"), null, "self-hardened route keeps its own headers, not the blanket set");
   assert.equal(res.headers.get("content-security-policy-report-only"), null);
+  assert.equal(res.headers.get("content-security-policy"), null);
+});
+
+test("a page's request carries the same policy and nonce, which is where Next reads it", async () => {
+  const res = await proxy(new NextRequest("https://app.foldrun.io/login"));
+  const sent = res.headers.get("content-security-policy");
+  const forwarded = res.headers.get("x-middleware-request-content-security-policy");
+  assert.ok(sent && forwarded, "the policy on the response and on the request");
+  assert.equal(forwarded, sent, "one policy, one nonce");
+  assert.equal(res.headers.get("x-middleware-request-x-nonce"), sent!.match(/'nonce-([^']+)'/)?.[1]);
+  const again = (await proxy(new NextRequest("https://app.foldrun.io/login"))).headers.get("content-security-policy");
+  assert.notEqual(again, sent, "a fresh nonce per request");
+  assert.doesNotMatch(sent!, /unsafe-eval|script-src[^;]*unsafe-inline/, "production allows no eval and no inline script");
+});
+
+test("FOLDRUN_CSP=report-only is the way back: the policy is reported, not enforced", async () => {
+  process.env.FOLDRUN_CSP = "report-only";
+  try {
+    const res = await proxy(new NextRequest("https://app.foldrun.io/login"));
+    assert.ok(res.headers.get("content-security-policy-report-only"));
+    assert.equal(res.headers.get("content-security-policy"), null);
+    assert.ok(res.headers.get("x-middleware-request-content-security-policy"), "Next still tags its scripts");
+  } finally {
+    delete process.env.FOLDRUN_CSP;
+  }
+});
+
+test("no page is prerendered: a static page cannot carry the per-request nonce", () => {
+  const root = path.join(import.meta.dirname, "..", "app");
+  const offenders: string[] = [];
+  const walk = (d: string) => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const f = path.join(d, e.name);
+      if (e.isDirectory()) walk(f);
+      else if (/^(page|layout)\.tsx$/.test(e.name) && /force-static|generateStaticParams|export const revalidate/.test(fs.readFileSync(f, "utf8"))) offenders.push(path.relative(root, f));
+    }
+  };
+  walk(root);
+  assert.deepEqual(offenders, [], "render these per request (export const dynamic = \"force-dynamic\")");
 });

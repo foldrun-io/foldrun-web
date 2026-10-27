@@ -1,4 +1,4 @@
 # ZAP baseline rules accepted on purpose (quality/dast.sh fails on any medium
 # or high finding whose id is not listed here). <id>	WARN	<reason>
-10038	WARN	The CSP is sent Report-Only: enforcing it needs every page rendered per request with the nonce passed to Next (the request's CSP header) — a separate change, gated on the browser test (27 Oct 2026).
 90004	WARN	Cross-Origin-Embedder-Policy is not set: require-corp exists for SharedArrayBuffer-class features foldrun does not use, and would block legitimate cross-origin resources. COOP and CORP are set.
+10055	WARN	style-src keeps 'unsafe-inline' (28 Oct 2026): React renders style props as style="" attributes in server HTML, and a nonce covers <style> elements, never attributes (CSP3 style-src-attr). script-src is strict — a per-request nonce and 'strict-dynamic', no inline script, no eval — and that is what stops injected code running.

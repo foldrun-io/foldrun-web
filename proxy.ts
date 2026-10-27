@@ -58,11 +58,11 @@ function overHttps(req: NextRequest): boolean {
  *
  * X-Frame-Options and the CSP's frame-ancestors are the clickjacking fence;
  * nosniff, Referrer-Policy and Permissions-Policy are the usual floor; HSTS
- * only over TLS. The CSP is **Report-Only** for now: a strict policy that
- * reports a violation rather than blocking it, so turning it on breaks no
- * page while we read what it would refuse. A per-request nonce is minted and
- * forwarded to the app on `x-nonce` (below), so inline scripts can be tagged
- * before the policy is ever enforced.
+ * only over TLS. The CSP is **enforced** (28 Oct 2026): a per-request nonce
+ * goes into the policy, and the same policy rides on the request (forward()
+ * below), which is where Next reads the nonce to tag its own scripts — every
+ * page is rendered per request for that reason, the docs and help included.
+ * FOLDRUN_CSP=report-only is the way back: the policy is then only reported.
  */
 function harden(res: NextResponse, req: NextRequest, nonce: string): NextResponse {
   if (selfHardened(req.nextUrl.pathname)) return res;
@@ -78,22 +78,34 @@ function harden(res: NextResponse, req: NextRequest, nonce: string): NextRespons
   // This host only: includeSubDomains would bind every name under it to
   // HTTPS for a year, which a dashboard header has no business deciding.
   if (overHttps(req)) h.set("Strict-Transport-Security", "max-age=31536000");
-  h.set(
-    "Content-Security-Policy-Report-Only",
-    [
-      "default-src 'self'",
-      `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob:",
-      "font-src 'self'",
-      "connect-src 'self'",
-      "frame-ancestors 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-      "object-src 'none'",
-    ].join("; "),
-  );
+  h.set(process.env.FOLDRUN_CSP === "report-only" ? "Content-Security-Policy-Report-Only" : "Content-Security-Policy", csp(nonce));
   return res;
+}
+
+/** The page policy. Scripts only with this request's nonce, and what those
+ *  load ('strict-dynamic'); `next dev` also needs eval, production never. */
+function csp(nonce: string): string {
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self'",
+    "connect-src 'self'",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+  ].join("; ");
+}
+
+/** The request as the app sees it: the nonce, and the policy Next reads it
+ *  from (it takes the nonce out of the request's CSP header). */
+function forward(req: NextRequest, nonce: string, from: Headers = req.headers): Headers {
+  const h = new Headers(from);
+  h.set("x-nonce", nonce);
+  h.set("content-security-policy", csp(nonce));
+  return h;
 }
 
 /** An unpredictable per-request token for the CSP nonce. randomUUID is in
@@ -141,9 +153,7 @@ export async function proxy(req: NextRequest) {
       if (!who || who.session?.audience !== "admin") {
         return harden(NextResponse.redirect(new URL(`/login?next=${encodeURIComponent(p)}`, req.url)), req, nonce);
       }
-      const requestHeaders = new Headers(req.headers);
-      requestHeaders.set("x-nonce", nonce);
-      return harden(NextResponse.next({ request: { headers: requestHeaders } }), req, nonce);
+      return harden(NextResponse.next({ request: { headers: forward(req, nonce) } }), req, nonce);
     }
     if (p === "/login" && !req.nextUrl.searchParams.get("next")) {
       // Signed in here, the only place to land is the console (the form's
@@ -153,18 +163,14 @@ export async function proxy(req: NextRequest) {
     if (!p.startsWith("/api/")) {
       // The sign-in page itself: served as is (the dashboard's "signed out →
       // /login" below would send it to itself).
-      const requestHeaders = new Headers(req.headers);
-      requestHeaders.set("x-nonce", nonce);
-      return harden(NextResponse.next({ request: { headers: requestHeaders } }), req, nonce);
+      return harden(NextResponse.next({ request: { headers: forward(req, nonce) } }), req, nonce);
     }
   } else if (!req.nextUrl.pathname.startsWith("/api/") && !/^\/dashboard(\/|$)/.test(req.nextUrl.pathname)) {
     // Every other page (sign-in, signup, reset, the home page): no session
     // logic, but the same security headers as the dashboard. Until 27 Oct
     // 2026 they got none — the quality stack's ZAP scan found a frameable
     // sign-in page with no CSP, nosniff or Permissions-Policy.
-    const requestHeaders = new Headers(req.headers);
-    requestHeaders.set("x-nonce", nonce);
-    return harden(NextResponse.next({ request: { headers: requestHeaders } }), req, nonce);
+    return harden(NextResponse.next({ request: { headers: forward(req, nonce) } }), req, nonce);
   }
   if (req.nextUrl.pathname.startsWith("/api/")) {
     // A cookie-carrying write from an origin that is not ours. SameSite=Lax
@@ -188,7 +194,7 @@ export async function proxy(req: NextRequest) {
 
   // Local development trusts the URL, exactly as the API's dev fallback
   // trusts the x-foldrun-tenant header. Only `next dev` sets this.
-  if (process.env.FOLDRUN_DEV_NO_AUTH === "1") return harden(NextResponse.next(), req, nonce);
+  if (process.env.FOLDRUN_DEV_NO_AUTH === "1") return harden(NextResponse.next({ request: { headers: forward(req, nonce) } }), req, nonce);
 
   const user = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
   if (!user) {
@@ -199,8 +205,7 @@ export async function proxy(req: NextRequest) {
     return harden(NextResponse.redirect(to), req, nonce);
   }
 
-  const requestHeaders = new Headers(req.headers);
-  requestHeaders.set("x-nonce", nonce);
+  const requestHeaders = forward(req, nonce);
   const url = req.nextUrl.clone();
   url.searchParams.set("tenant", user.tenant);
   return harden(NextResponse.rewrite(url, { request: { headers: requestHeaders } }), req, nonce);

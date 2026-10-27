@@ -7,7 +7,10 @@ import Link from "next/link";
 import { Card, PageHeader } from "@/components/ui";
 import { openapiDocument } from "@/server/openapi";
 
-export const dynamic = "force-static";
+// Per request, not prerendered (28 Oct 2026): the enforced CSP's nonce is
+// minted per request, and a static page cannot carry one. The markdown ships
+// in the image beside the app for this (foldrun-infra Dockerfile).
+export const dynamic = "force-dynamic";
 
 type Op = {
   summary?: string;

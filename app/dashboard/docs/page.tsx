@@ -12,10 +12,13 @@ import Link from "next/link";
 import { Card, PageHeader } from "@/components/ui";
 import { docsDir, groupedDocs, docTitle, docSummary } from "@/docs-index";
 
-export const dynamic = "force-static";
+// Per request, not prerendered (28 Oct 2026): the enforced CSP's nonce is
+// minted per request, and a static page cannot carry one. The markdown ships
+// in the image beside the app for this (foldrun-infra Dockerfile).
+export const dynamic = "force-dynamic";
 
 export default function DocsPage() {
-  // Read at build time: the docs ship in the image and change with a deploy.
+  // Read per request: the docs ship in the image and change with a deploy.
   const groups = groupedDocs().map((g) => ({
     ...g,
     docs: g.slugs.map((slug) => {
