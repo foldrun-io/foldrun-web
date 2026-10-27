@@ -143,3 +143,25 @@ export function stepCredential(step: Pick<StepRecord, "credential">): StepImageV
           : "no credential";
   return { label, title: `model credential: ${c}` };
 }
+
+/** What a step changed that was not taken back to the workspace —
+ *  configuration and code, which a run proposes and a person applies
+ *  (core copy-back.ts, FOL-96). Null when nothing was refused. */
+export interface RefusedView {
+  line: string;
+  paths: string[];
+}
+
+export function stepRefused(step: Pick<StepRecord, "refused">): RefusedView | null {
+  const r = step.refused;
+  if (!r?.length) return null;
+  const config = r.filter((x) => x.kind === "config").length;
+  const code = r.length - config;
+  const what = [config ? "configuration" : null, code ? "code" : null].filter(Boolean).join(" and ");
+  return {
+    line:
+      `This step changed the workspace's ${what}; ${r.length === 1 ? "that change was" : "those changes were"} not kept. ` +
+      `A run doesn't change its own setup — propose it as a fix, and a person applies it.`,
+    paths: r.map((x) => x.path),
+  };
+}
