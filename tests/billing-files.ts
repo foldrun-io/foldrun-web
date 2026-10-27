@@ -80,6 +80,7 @@ export const BILLING_TESTS = [
   "admin-idempotency.test.ts",
   "billing-admin.test.ts",
   "billing-checkout.test.ts",
+  "stripe-e2e.test.ts",
   "billing-notices-billing.test.ts",
   "consistency-billing.test.ts",
   "flags-routes.test.ts",
