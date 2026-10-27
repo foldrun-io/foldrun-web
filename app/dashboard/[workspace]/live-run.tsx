@@ -31,7 +31,7 @@ import { stepInputs, stepOutputs, fmtTokens, fmtBytes, fmtCached, fmtTokenDetail
 import { isRunTerminal, defaultUnfolded, activeStep, newer, tabTitle } from "@/components/live-run-model";
 import type { RunOutputFile } from "@/lib/store";
 import { BrowserTheater } from "@/components/run-browser";
-import { stepImage, stepHeld, stepCredential, stepStartup, browserPodPanel } from "@/components/step-image-model";
+import { stepImage, stepHeld, stepCredential, stepStartup, browserPodPanel, stepRefused } from "@/components/step-image-model";
 import { RunTree } from "@/components/run-tree";
 import { RunCompare } from "@/components/run-compare";
 import { TraceView } from "@/components/trace-view";
@@ -807,6 +807,18 @@ export function LiveRun({
                   </span>
                 )}
               </p>
+            );
+          })()}
+          {/* Configuration or code the step changed and the copy-back
+              refused (FOL-96): named, so nobody wonders where the edit went. */}
+          {(() => {
+            const refused = stepRefused(step);
+            if (!refused) return null;
+            return (
+              <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-900">
+                <span className="block"><span className="font-medium">Not kept:</span> {refused.line}</span>
+                <span className="mt-0.5 block font-mono">{refused.paths.join(", ")}</span>
+              </div>
             );
           })()}
           {/* Waiting for room to start (27 Oct 2026): no time limit, its

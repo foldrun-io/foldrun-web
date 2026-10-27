@@ -3,7 +3,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { stepImage, stepHeld, browserPodNote, podTries, browserPodPanel, stepCredential, stepStartup } from "../components/step-image-model.ts";
+import { stepImage, stepHeld, browserPodNote, podTries, browserPodPanel, stepCredential, stepStartup, stepRefused } from "../components/step-image-model.ts";
 import { resourcesLabel } from "../components/editor-context-model.ts";
 
 test("the chip: slim through the pod, slim, full, or nothing on a record from before", () => {
@@ -108,4 +108,15 @@ test("the editor's resources: chip", () => {
   assert.equal(resourcesLabel({ memory: "4Gi" }), "4Gi");
   assert.equal(resourcesLabel({}), null);
   assert.equal(resourcesLabel("big"), null);
+});
+
+test("refused paths: named on the run page, quiet when there were none (FOL-96)", () => {
+  assert.equal(stepRefused({}), null);
+  assert.equal(stepRefused({ refused: [] }), null);
+  const one = stepRefused({ refused: [{ path: "AGENTS.md", kind: "config" }] });
+  assert.deepEqual(one?.paths, ["AGENTS.md"]);
+  assert.match(one!.line, /changed the workspace's configuration; that change was not kept/);
+  const both = stepRefused({ refused: [{ path: "flows/x.md", kind: "config" }, { path: "scripts/r.py", kind: "code" }] });
+  assert.match(both!.line, /configuration and code; those changes were not kept/);
+  assert.deepEqual(both?.paths, ["flows/x.md", "scripts/r.py"]);
 });
