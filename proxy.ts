@@ -12,7 +12,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { verifySession, SESSION_COOKIE, hasUsers } from "@/server/users";
-import { crossSiteWrite } from "@/server/csrf";
+import { crossSiteWrite, jsonOnly } from "@/server/csrf";
 import { bodyTooLarge } from "@/server/body-limit";
 import { apiGate } from "@/server/api-limits";
 import { RESOLVED_VERSION_HEADER } from "@/server/api-version";
@@ -131,11 +131,15 @@ export async function proxy(req: NextRequest) {
     return harden(NextResponse.next({ request: { headers: forward(req, nonce) } }), req, nonce);
   }
   if (req.nextUrl.pathname.startsWith("/api/")) {
-    // A cookie-carrying write from an origin that is not ours. SameSite=Lax
-    // is the first layer; this is the second, and it refuses before any
-    // handler runs. Bearer requests and requests with no Origin pass.
+    // A cookie-carrying write from an origin that is not ours — or a write
+    // to a sign-in route, cookie or not. SameSite=Lax is the first layer;
+    // this is the second, and it refuses before any handler runs. Bearer
+    // requests and non-browser requests (no Origin, no Sec-Fetch-Site) pass.
     const why = crossSiteWrite(req);
     if (why) return harden(stamped(NextResponse.json({ error: why }, { status: 403 })), req, nonce);
+    // Those sign-in routes take JSON only, which no HTML form can send.
+    const notJson = jsonOnly(req);
+    if (notJson) return harden(stamped(NextResponse.json({ error: notJson }, { status: 415 })), req, nonce);
     // Over the limit Next would hand the route a truncated body, silently
     // (server/body-limit.ts). Refuse it whole instead.
     const tooBig = bodyTooLarge(req.headers.get("content-length"));
