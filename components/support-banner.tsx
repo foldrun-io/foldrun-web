@@ -24,7 +24,7 @@ export function SupportBanner({ account, expiresAt, reason }: { account: string;
       // another host, which this page cannot write to.
       const res = await fetch("/api/support/exit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ account }) });
       const data = (await res.json().catch(() => ({}))) as { next?: string };
-      window.location.href = data.next ?? `/admin/${encodeURIComponent(account)}`;
+      window.location.href = data.next ?? "/dashboard";
     } catch {
       setLeaving(false);
     }

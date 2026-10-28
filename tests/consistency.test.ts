@@ -1613,7 +1613,9 @@ test("the way into the super admin console is drawn from the session, not guesse
   // the session said so. No customer-facing file decides it another way.
   assert.match(read("app/api/auth/session/route.ts"), /superAdmin: isSuperAdmin\(\{ tenant: user\.tenant, owner: user\.owner \}\)/);
   assert.match(read("app/api/auth/session/route.ts"), /from "@\/platform\/admin"/);
-  assert.match(read("components/user-menu.tsx"), /who\.superAdmin \? \[\{ name: "Super admin"/);
+  // …and only when the install has a console of its own to link to.
+  assert.match(read("components/user-menu.tsx"), /who\.superAdmin && who\.adminUrl \? \[\{ name: "Super admin", href: who\.adminUrl \}\]/);
+  assert.match(read("app/api/auth/session/route.ts"), /&& adminOrigin\(\) \? \{ adminUrl:/);
   const offenders = webFiles((f) => /\.tsx?$/.test(f))
     .filter((f) => !path.relative(root, f).startsWith("server/admin/"))
     // The console's own sign-in (27 Oct 2026) asks it too: on that surface

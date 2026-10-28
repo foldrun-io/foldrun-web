@@ -68,7 +68,9 @@ export function UserMenu() {
     // The way into the super admin console, for the one person it
     // exists for. Last, and separated below, because it is not part of
     // this account — it is the platform looking at every account.
-    ...(who.superAdmin ? [{ name: "Super admin", href: who.adminUrl ?? "/admin" }] : []),
+    // The console is its own container at its own address (28 Oct 2026);
+    // an install without one (self-hosted) has no console to link to.
+    ...(who.superAdmin && who.adminUrl ? [{ name: "Super admin", href: who.adminUrl }] : []),
     // Docs before Help: docs is where someone who has not started goes, help is
     // the reference you open mid-edit. The order is the order you need them in.
     { name: "Docs", href: `/dashboard/docs${qs}` },

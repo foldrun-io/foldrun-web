@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
           // image where there is no console.
           superAdmin: isSuperAdmin({ tenant: user.tenant, owner: user.owner }),
           // Where the console is (27 Oct 2026): its own host once it has one.
-          ...(isSuperAdmin({ tenant: user.tenant, owner: user.owner }) ? { adminUrl: `${adminOrigin() ?? ""}/admin` } : {}),
+          ...(isSuperAdmin({ tenant: user.tenant, owner: user.owner }) && adminOrigin() ? { adminUrl: `${adminOrigin()}/admin` } : {}),
         }
       : null,
     signupOpen: await signupOpen(),
