@@ -713,6 +713,9 @@ export async function changeEmail(userId: string, newEmail: string): Promise<{ f
   user.email = to;
   user.emailVerifiedAt = null;
   await writeUsers(users);
+  // Their API keys name them by address: they move too (FOL-97). Imported
+  // here, not at the top — auth.ts imports this file.
+  await (await import("./auth.ts")).moveKeysToEmail(user.tenant, from, to);
   return { from, to };
 }
 

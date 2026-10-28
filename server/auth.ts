@@ -12,7 +12,7 @@ import type { NextRequest } from "next/server";
 import { dataRoot } from "@/lib/paths.ts";
 import { assertSafeName } from "@/lib/store.ts";
 import { verifySession, SESSION_COOKIE, roleOfUser , allowedWorkspaces } from "./users.ts";
-import { isRole, type Role } from "@/platform/permissions.ts";
+import { isRole, outranks, type Role } from "@/platform/permissions.ts";
 import { supportViewRefusal } from "./view-as.ts";
 import { databaseEnabled } from "@/platform/db.ts";
 import {
@@ -24,6 +24,7 @@ import {
   importApiKeysDb,
   touchApiKeyDb,
   setApiKeyExpiryDb,
+  renameKeyOwnerDb,
   expiringApiKeysDb,
   markExpiryWarnedDb,
   markApiKeyReplacedDb,
@@ -201,6 +202,50 @@ export async function revokeApiKey(tenant: string, id: string): Promise<boolean>
   key.revokedAt = new Date().toISOString();
   writeKeys(keys);
   return true;
+}
+
+/** A member's address changed: their keys move with them, so a later
+ *  removal or downgrade still finds every one (FOL-97). */
+export async function moveKeysToEmail(tenant: string, from: string, to: string): Promise<number> {
+  if (databaseEnabled()) return renameKeyOwnerDb(tenant, from, to);
+  const keys = readKeys();
+  let n = 0;
+  for (const k of keys) {
+    if (k.tenant === tenant && (k.createdBy ?? "").toLowerCase() === from.toLowerCase()) {
+      k.createdBy = to;
+      n++;
+    }
+  }
+  if (n) writeKeys(keys);
+  return n;
+}
+
+/**
+ * A person's keys in an account, after they lost standing there (FOL-97):
+ * removed from the team, every key they minted stops; a lower role or fewer
+ * workspaces, every key of theirs that would now reach more than they can
+ * stops. A key is not narrowed in place — it is revoked, and they mint a
+ * new one at their new standing. Keys minted by `foldrun login` carry the
+ * person's email too. Returns the ids revoked.
+ */
+export async function revokeKeysBeyond(
+  tenant: string,
+  email: string,
+  now: { role: Role; workspaces: string[] | null } | null,
+): Promise<string[]> {
+  const mine = (await listApiKeys(tenant)).filter((k) => !k.revokedAt && (k.createdBy ?? "").toLowerCase() === email.toLowerCase());
+  const beyond = mine.filter((k) => {
+    if (!now) return true;
+    const role = (k.role ?? "admin") as Role;
+    if (outranks(role, now.role)) return true;
+    if (now.workspaces === null) return false;
+    // Narrowed to some workspaces: a key for all of them, or for one not
+    // among them, reaches too far.
+    return !k.workspaces || k.workspaces.some((w) => !now.workspaces!.includes(w));
+  });
+  const revoked: string[] = [];
+  for (const k of beyond) if (await revokeApiKey(tenant, k.id)) revoked.push(k.id);
+  return revoked;
 }
 
 /** Bring a key's end forward to `at` — never back. */

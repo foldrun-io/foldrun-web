@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requirePerson, errorResponse, ApiError } from "@/server/api";
 import { removeMember, setMemberRole, setMemberScope, listMembers } from "@/server/users";
 import { audit } from "@/server/audit";
+import { revokeKeysBeyond } from "@/server/auth";
 import { isRole } from "@/platform/permissions";
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -15,6 +16,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const { id } = await ctx.params;
     const body = (await req.json().catch(() => ({}))) as { role?: unknown; workspaces?: unknown };
     const before = (await listMembers(tenant)).find((m) => m.id === id);
+    try {
     if (body.role !== undefined) {
       if (!isRole(body.role)) throw new ApiError("expected { role: viewer | editor | admin }", 400);
       // There is exactly one owner and it is transferred, not assigned:
@@ -32,6 +34,16 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       await audit("member.scope_changed", { actor: actor.name, tenant, subject: before?.email ?? id, detail: { from: before?.workspaces ?? null, to: scope } });
     }
     if (body.role === undefined && body.workspaces === undefined) throw new ApiError("nothing to change — send role and/or workspaces", 400);
+    } finally {
+      // Their keys follow them down (FOL-97): one that reaches more than they
+      // now can stops working — also when the role was saved and the
+      // workspace change after it was refused.
+      const now = (await listMembers(tenant)).find((m) => m.id === id);
+      if (now?.email) {
+        const revoked = await revokeKeysBeyond(tenant, now.email, { role: now.role, workspaces: now.workspaces ?? null });
+        if (revoked.length) await audit("apikey.revoked", { actor: actor.name, tenant, subject: now.email, detail: { keys: revoked, reason: "member's role or workspaces narrowed" } });
+      }
+    }
     const after = (await listMembers(tenant)).find((m) => m.id === id);
     return NextResponse.json({ ok: true, role: after?.role, workspaces: after?.workspaces ?? null });
   } catch (err) {
@@ -48,7 +60,10 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
     const target = (await listMembers(tenant)).find((m) => m.id === id);
     const removed = await removeMember(tenant, id, actor.id);
     if (!removed) return NextResponse.json({ error: "no such member" }, { status: 404 });
-    await audit("member.removed", { actor: actor.name, tenant, subject: target?.email ?? id, detail: { role: target?.role } });
+    // Every key they minted here stops with them (FOL-97) — a key is not a
+    // way to stay on the team.
+    const revoked = target?.email ? await revokeKeysBeyond(tenant, target.email, null) : [];
+    await audit("member.removed", { actor: actor.name, tenant, subject: target?.email ?? id, detail: { role: target?.role, keysRevoked: revoked } });
     return NextResponse.json({ ok: true });
   } catch (err) {
     return errorResponse(err);
