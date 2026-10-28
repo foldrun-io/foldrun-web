@@ -37,7 +37,7 @@ const enabled = process.env.FOLDRUN_API_E2E === "1";
 const opts = { skip: enabled ? false : "set FOLDRUN_API_E2E=1 to run (starts a server)" };
 // The founder's password as it stands: the hosted cases reset it, and the
 // cases after them must sign in with whatever it is now on either edition.
-let founderPassword = "correct horse battery";
+const founderPassword = "correct horse battery";
 // Billing, Stripe and the operator console are foldrun-admin's: absent from a
 // public checkout, so their cases run only where it is laid over this one.
 const hosted = { skip: opts.skip || (billingPresent ? false : "needs foldrun's billing (foldrun-admin)") };
@@ -782,160 +782,10 @@ test("a signed Stripe payment credits the ledger exactly once", hosted, async ()
 
 // ---------------------------------------------------------------- triggers
 
-// -------------------------------------------------------------- super admin
+// -------------------------------------------------------------- billing
 //
-// The console stands outside every account. `default` (the API key's
-// tenant, where workspace hello lives) is the customer; the founder on
-// The founder is the super admin, because they own the platform account and for no
-// other reason.
-
-test("to a stranger and to an API key, the super admin console does not exist", hosted, async () => {
-  assert.equal((await fetch(`${base}/admin`)).status, 404);
-  assert.equal((await fetch(`${base}/admin/default`)).status, 404);
-  // An API key names an account, never a person — it is never the super admin.
-  const res = await api("/api/admin/accounts/default", { method: "POST", body: JSON.stringify({ action: "notes", notes: "x" }) });
-  assert.equal(res.status, 404);
-});
-
-test("the super admin sees the customers, and one customer", hosted, async () => {
-  const list = await fetch(`${base}/admin`, { headers: { cookie } });
-  assert.equal(list.status, 200);
-  const html = await list.text();
-  assert.ok(html.includes("/admin/default"), "the customer list links the default account");
-  const one = await fetch(`${base}/admin/default`, { headers: { cookie } });
-  assert.equal(one.status, 200);
-  assert.ok((await one.text()).includes("Levers"));
-});
-
-test("a credit needs a reason and lands on the ledger", hosted, async () => {
-  const before = (await (await api("/api/billing")).json()) as { balanceUsd: number };
-  const bad = await fetch(`${base}/api/admin/accounts/default`, {
-    method: "POST", headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ action: "adjust", usd: 10, note: "  " }),
-  });
-  assert.equal(bad.status, 400, await bad.text());
-  const ok = await fetch(`${base}/api/admin/accounts/default`, {
-    method: "POST", headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ action: "adjust", usd: 10, note: "e2e goodwill" }),
-  });
-  assert.equal(ok.status, 200, await ok.text());
-  const after = (await (await api("/api/billing")).json()) as { balanceUsd: number };
-  assert.equal(Math.round((after.balanceUsd - before.balanceUsd) * 100), 1000);
-});
-
-test("a suspended customer starts no runs and is told why; restored, it can", hosted, async () => {
-  const suspend = await fetch(`${base}/api/admin/accounts/default`, {
-    method: "POST", headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ action: "suspend", reason: "e2e: chargeback" }),
-  });
-  assert.equal(suspend.status, 200, await suspend.text());
-  // Refused before anything is enqueued, so this costs nothing.
-  const refused = await api("/api/workspaces/hello/agents/notetaker/run", { method: "POST", body: JSON.stringify({ task: "hi" }) });
-  const refusedText = await refused.text();
-  assert.equal(refused.status, 423, refusedText);
-  assert.match(refusedText, /suspended: e2e: chargeback/);
-  // Twice is a conflict, not a second suspension.
-  const again = await fetch(`${base}/api/admin/accounts/default`, {
-    method: "POST", headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ action: "suspend", reason: "again" }),
-  });
-  assert.equal(again.status, 409);
-  const restore = await fetch(`${base}/api/admin/accounts/default`, {
-    method: "POST", headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ action: "restore" }),
-  });
-  assert.equal(restore.status, 200);
-  // The gate is open again: whatever happens next is not a 423.
-  const allowed = await api("/api/workspaces/hello/agents/notetaker/run", { method: "POST", body: JSON.stringify({ task: "hi" }) });
-  const allowedText = await allowed.text();
-  assert.notEqual(allowed.status, 423, allowedText);
-});
-
-test("the plan overrides the account, and every action is on the audit", hosted, async () => {
-  const plan = await fetch(`${base}/api/admin/accounts/default`, {
-    method: "POST", headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ action: "plan", name: "e2e-team", priority: "high", concurrency: 3, workspaces: 9 }),
-  });
-  assert.equal(plan.status, 200, await plan.text());
-  const audit = await fetch(`${base}/admin/audit`, { headers: { cookie } });
-  assert.equal(audit.status, 200);
-  const html = await audit.text();
-  for (const action of ["credit", "suspend", "restore", "plan"]) assert.ok(html.includes(`>${action}<`), `audit shows ${action}`);
-});
-
-test("a plan granted by hand: the bundle lands, the levers are the tier's, once a day; ended, the bundle goes and their money stays", hosted, async () => {
-  const before = (await (await api("/api/billing")).json()) as { balanceUsd: number };
-  const grant = await fetch(`${base}/api/admin/accounts/default`, {
-    method: "POST", headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ action: "grant-plan", plan: "creator" }),
-  });
-  assert.equal(grant.status, 200, await grant.text());
-  const after = (await (await api("/api/billing")).json()) as { balanceUsd: number };
-  assert.equal(Math.round((after.balanceUsd - before.balanceUsd) * 100), 8800, "8,800 credits is $88");
-  const plans = (await (await api("/api/billing/plans")).json()) as { current: { plan: string; cycleCredits: number; cycleRemainingCredits: number } | null; plans: { id: string }[] };
-  assert.equal(plans.plans.length, 4);
-  assert.equal(plans.current?.plan, "creator");
-  assert.equal(plans.current?.cycleCredits, 8800);
-  const state = (await (await fetch(`${base}/api/admin/accounts/default`, { headers: { cookie } })).json()) as { state: { plan?: { name?: string; concurrency?: number; priority?: string; workspaces?: number; vcpu?: number; memGiB?: number; stepVcpu?: number; stepMemGiB?: number } } };
-  assert.deepEqual(state.state.plan, { name: "creator", priority: "normal", concurrency: 2, workspaces: 10, vcpu: 8, memGiB: 16, diskGiB: 80, stepVcpu: 4, stepMemGiB: 8, stepDiskGiB: 20 });
-  // The same day again writes nothing.
-  const twice = await fetch(`${base}/api/admin/accounts/default`, {
-    method: "POST", headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ action: "grant-plan", plan: "creator" }),
-  });
-  assert.equal(((await twice.json()) as { granted: boolean }).granted, false);
-  assert.equal(Math.round(((await (await api("/api/billing")).json() as { balanceUsd: number }).balanceUsd - after.balanceUsd) * 100), 0);
-  // Ended: the unused bundle expires; what they had before is theirs.
-  const end = await fetch(`${base}/api/admin/accounts/default`, {
-    method: "POST", headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ action: "end-plan" }),
-  });
-  assert.equal(end.status, 200, await end.text());
-  const ended = (await (await api("/api/billing")).json()) as { balanceUsd: number };
-  assert.equal(Math.round((ended.balanceUsd - before.balanceUsd) * 100), 0);
-  assert.equal(((await (await api("/api/billing/plans")).json()) as { current: unknown }).current, null);
-});
-
-test("an overdraft is set with a floor, shown to the customer, and taken away", hosted, async () => {
-  // The gate itself (402 below zero, the floor, the refusal wording) is
-  // proven in the platform's own suite under FOLDRUN_BILLING=1; this server
-  // does not enforce billing, so what is proven here is the door and the
-  // window: the super admin's action, and what the customer can see.
-  const allow = await fetch(`${base}/api/admin/accounts/default`, {
-    method: "POST", headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ action: "overdraft", limitUsd: 50, note: "e2e: invoice terms" }),
-  });
-  assert.equal(allow.status, 200, await allow.text());
-  let plans = (await (await api("/api/billing/plans")).json()) as { overdraft: { limitUsd: number | null } | null };
-  assert.deepEqual(plans.overdraft, { limitUsd: 50 }, "the customer can see the terms");
-
-  const bad = await fetch(`${base}/api/admin/accounts/default`, {
-    method: "POST", headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ action: "overdraft", limitUsd: -5 }),
-  });
-  assert.equal(bad.status, 400);
-
-  const noFloor = await fetch(`${base}/api/admin/accounts/default`, {
-    method: "POST", headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ action: "overdraft", limitUsd: null }),
-  });
-  assert.equal(noFloor.status, 200);
-  plans = (await (await api("/api/billing/plans")).json()) as { overdraft: { limitUsd: number | null } | null };
-  assert.deepEqual(plans.overdraft, { limitUsd: null });
-
-  const off = await fetch(`${base}/api/admin/accounts/default`, {
-    method: "POST", headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ action: "overdraft", off: true }),
-  });
-  assert.equal(off.status, 200, await off.text());
-  plans = (await (await api("/api/billing/plans")).json()) as { overdraft: { limitUsd: number | null } | null };
-  assert.equal(plans.overdraft, null);
-  const offAgain = await fetch(`${base}/api/admin/accounts/default`, {
-    method: "POST", headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ action: "overdraft", off: true }),
-  });
-  assert.equal(offAgain.status, 409);
-});
+// The operator console's levers are driven in foldrun-admin's
+// console-e2e.test.ts, on the console's own host (28 Oct 2026).
 
 test("the trial lands when the owner verifies their address — once, and not at signup", hosted, async () => {
   // Mint the link the mail would have carried, with the server's own key.
@@ -955,38 +805,6 @@ test("the trial lands when the owner verifies their address — once, and not at
   assert.equal(again.balanceUsd, after.balanceUsd);
 });
 
-test("the super admin resets a member's password: old one dead, new one works, sessions ended", hosted, async () => {
-  // The founder on acme-e2e is both super admin and the member being reset —
-  // which is also the sharpest check: their OWN session must end.
-  const me = (await (await fetch(`${base}/api/auth/session`, { headers: { cookie } })).json()) as { id?: string; user?: { id: string } };
-  const userId = me.id ?? me.user?.id;
-  assert.ok(userId, `session did not say who I am: ${JSON.stringify(me)}`);
-  const res = await fetch(`${base}/api/admin/accounts/acme-e2e`, {
-    method: "POST", headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ action: "reset-password", userId }),
-  });
-  const resText = await res.text();
-  assert.equal(res.status, 200, resText);
-  const { password } = JSON.parse(resText) as { password: string };
-  assert.ok(password.length >= 12);
-  founderPassword = password;
-  // The old password is dead …
-  const old = await fetch(`${base}/api/auth/login`, {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: "founder@example.test", password: "correct horse battery" }),
-  });
-  assert.equal(old.status, 401);
-  // … the new one signs in …
-  const fresh = await fetch(`${base}/api/auth/login`, {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: "founder@example.test", password }),
-  });
-  assert.equal(fresh.status, 200, await fresh.text());
-  const set = fresh.headers.getSetCookie().find((c) => c.startsWith("foldrun_session="));
-  assert.ok(set);
-  cookie = set!.split(";")[0]; // the tests after this one keep working
-});
-
 // ---------------------------------------------------------------- sign-in security
 
 test("forgot: the same answer for every address, and a limit", opts, async () => {
@@ -999,34 +817,6 @@ test("forgot: the same answer for every address, and a limit", opts, async () =>
 test("a weak password is refused at signup, at change, and at reset", opts, async () => {
   const res = await fetch(`${base}/api/auth/password`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ current: "irrelevant", next: "short" }) });
   assert.equal(res.status, 400, await res.text());
-});
-
-let resetUrl = "";
-test("the super admin hands over a reset link; it works once and signs the person in", hosted, async () => {
-  const me = (await (await fetch(`${base}/api/auth/session`, { headers: { cookie } })).json()) as { user?: { id: string } };
-  const link = await fetch(`${base}/api/admin/accounts/acme-e2e`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ action: "reset-link", userId: me.user!.id }) });
-  const linkText = await link.text();
-  assert.equal(link.status, 200, linkText);
-  resetUrl = JSON.parse(linkText).url;
-  const token = new URL(resetUrl).searchParams.get("token")!;
-  // The page exists for a stranger (it is how they get in) …
-  assert.equal((await fetch(`${base}/reset?token=${encodeURIComponent(token)}`)).status, 200);
-  // … a weak password is refused …
-  const weak = await fetch(`${base}/api/auth/reset`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, password: "short" }) });
-  assert.equal(weak.status, 400);
-  // … a good one works and signs in …
-  const ok = await fetch(`${base}/api/auth/reset`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, password: "a genuinely new passphrase" }) });
-  if (ok.ok) founderPassword = "a genuinely new passphrase";
-  assert.equal(ok.status, 200, await ok.text());
-  const set = ok.headers.getSetCookie().find((c) => c.startsWith("foldrun_session="));
-  assert.ok(set, "a reset signs you in");
-  cookie = set!.split(";")[0];
-  // … and the same link is dead now: the password it was bound to is gone.
-  const again = await fetch(`${base}/api/auth/reset`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, password: "another new passphrase" }) });
-  assert.equal(again.status, 400, "a reset link works once");
-  // The reset proved the inbox.
-  const who = (await (await fetch(`${base}/api/auth/session`, { headers: { cookie } })).json()) as { user?: { emailVerifiedAt?: string } };
-  assert.ok(who.user?.emailVerifiedAt, "using the link verifies the address");
 });
 
 test("two-factor: enrol with a real code, then sign-in needs the code, then a backup code, then disable", opts, async () => {
@@ -1069,23 +859,6 @@ test("two-factor: enrol with a real code, then sign-in needs the code, then a ba
   assert.equal(off.status, 200, await off.text());
   const plain = (await (await fetch(`${base}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "founder@example.test", password: founderPassword }) })).json()) as { mfa?: boolean };
   assert.ok(!plain.mfa);
-});
-
-test("the super admin creates a customer: an owner who sets their own password from a link", hosted, async () => {
-  const res = await fetch(`${base}/api/admin/accounts`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ account: "newco-e2e", email: "owner@newco-e2e.test" }) });
-  const text = await res.text();
-  assert.equal(res.status, 200, text);
-  const j = JSON.parse(text) as { setPasswordUrl: string; mailed: boolean };
-  assert.equal(j.mailed, false, "no mail credential in the e2e; the link is the handover");
-  const token = new URL(j.setPasswordUrl).searchParams.get("token")!;
-  const set = await fetch(`${base}/api/auth/reset`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, password: "newco chooses this" }) });
-  assert.equal(set.status, 200, await set.text());
-  const login = await fetch(`${base}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "owner@newco-e2e.test", password: "newco chooses this" }) });
-  const l = JSON.parse(await login.text()) as { tenant?: string };
-  assert.equal(login.status, 200); assert.equal(l.tenant, "newco-e2e");
-  // Taken names and taken emails are refused, not overwritten.
-  const dup = await fetch(`${base}/api/admin/accounts`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ account: "newco-e2e", email: "other@x.test" }) });
-  assert.equal(dup.status, 409);
 });
 
 test("nothing can make a super admin from inside an account", hosted, async () => {
