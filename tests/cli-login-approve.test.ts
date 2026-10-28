@@ -41,3 +41,12 @@ test("a denial after an approval won is not-found, and mints nothing", async () 
   assert.equal(deny, "not-found");
   assert.equal((await listApiKeys("acme")).length - before, 1);
 });
+
+test("two DIFFERENT requests approved at once both land: neither write loses the other (file store)", async () => {
+  const a = await beginCliLogin("laptop-a");
+  const b = await beginCliLogin("laptop-b");
+  const outcomes = await Promise.all([decideCliLogin(a.code, "approve", person), decideCliLogin(b.code, "approve", person)]);
+  assert.deepEqual(outcomes, ["approved", "approved"]);
+  assert.equal((await pollCliLogin(a.id)).status, "approved", "a was not written back to approving by b");
+  assert.equal((await pollCliLogin(b.id)).status, "approved");
+});
