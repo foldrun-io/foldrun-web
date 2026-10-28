@@ -661,7 +661,7 @@ test("the dashboard admits a session, whatever tenant the URL claims", opts, asy
   assert.match(await res.text(), /acme-e2e/);
 });
 
-test("billing reads empty, and a top-up moves the balance", hosted, async () => {
+test("billing reads empty, and credit by hand is refused (FOL-94)", hosted, async () => {
   const empty = (await (await fetch(`${base}/api/billing`, { headers: { cookie } })).json()) as {
     enabled: boolean;
     balanceUsd: number;
@@ -671,14 +671,16 @@ test("billing reads empty, and a top-up moves the balance", hosted, async () => 
   // proven where verification is.
   assert.equal(empty.balanceUsd, 0);
 
-  const topped = (await (
-    await fetch(`${base}/api/billing`, {
-      method: "POST",
-      headers: { cookie, "content-type": "application/json" },
-      body: JSON.stringify({ usd: 5, note: "e2e" }),
-    })
-  ).json()) as { balanceUsd: number };
-  assert.equal(topped.balanceUsd, 5);
+  // No credit by hand, for anyone (FOL-94): a payment, or the platform
+  // team's capped console adjustment.
+  const byHand = await fetch(`${base}/api/billing`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ usd: 5, note: "e2e" }),
+  });
+  assert.equal(byHand.status, 404);
+  const after = (await (await fetch(`${base}/api/billing`, { headers: { cookie } })).json()) as { balanceUsd: number };
+  assert.equal(after.balanceUsd, 0, "nothing was credited");
 });
 
 test("a team grows by invite link and refuses to lose its last member", opts, async () => {
