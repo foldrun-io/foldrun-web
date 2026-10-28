@@ -16,6 +16,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const { id } = await ctx.params;
     const body = (await req.json().catch(() => ({}))) as { role?: unknown; workspaces?: unknown };
     const before = (await listMembers(tenant)).find((m) => m.id === id);
+    assertWithinScope(actor.workspaces, before?.workspaces);
     try {
     if (body.role !== undefined) {
       if (!isRole(body.role)) throw new ApiError("expected { role: viewer | editor | admin }", 400);
@@ -58,6 +59,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
     const { tenant, actor } = await requirePerson(req, "team:manage");
     const { id } = await ctx.params;
     const target = (await listMembers(tenant)).find((m) => m.id === id);
+    assertWithinScope(actor.workspaces, target?.workspaces);
     const removed = await removeMember(tenant, id, actor.id);
     if (!removed) return NextResponse.json({ error: "no such member" }, { status: 404 });
     // Every key they minted here stops with them (FOL-97) — a key is not a
@@ -67,5 +69,14 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
     return NextResponse.json({ ok: true });
   } catch (err) {
     return errorResponse(err);
+  }
+}
+
+/** A member scoped to some workspaces manages only people who work inside
+ *  them — not someone with every workspace, or with one it cannot open. */
+function assertWithinScope(mine: string[] | null, theirs: string[] | null | undefined): void {
+  if (mine === null || theirs === undefined) return;
+  if (theirs === null || theirs.some((w) => !mine.includes(w))) {
+    throw new ApiError("that member works in workspaces you were not given — only someone with every workspace can change them", 403);
   }
 }

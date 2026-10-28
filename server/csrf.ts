@@ -17,6 +17,16 @@ import { SESSION_COOKIE } from "./users.ts";
 import { consoleWrite } from "./surface.ts";
 
 const WRITES = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const SIGN_IN = /^\/api\/auth\/(?:login|signup|reset|mfa\/verify)\/?$/;
+
+function signInPath(url: string | undefined): boolean {
+  if (!url) return false;
+  try {
+    return SIGN_IN.test(new URL(url, "http://local").pathname);
+  } catch {
+    return false;
+  }
+}
 
 /** The request's own origin(s), as hosts: FOLDRUN_PUBLIC_URL when set, and
  *  the host the request arrived on — a LAN install has only the latter. */
@@ -40,7 +50,7 @@ function ownHosts(headers: Headers, publicUrl: string | undefined): string[] {
  * Pure: the caller decides what a refusal looks like on the wire.
  */
 export function crossSiteWrite(
-  req: { method: string; headers: Headers },
+  req: { method: string; headers: Headers; url?: string },
   publicUrl = process.env.FOLDRUN_PUBLIC_URL,
 ): string | null {
   if (!WRITES.has(req.method.toUpperCase())) return null;
@@ -51,7 +61,11 @@ export function crossSiteWrite(
   const authz = req.headers.get("authorization") ?? "";
   if (authz.startsWith("Bearer ")) return null;
   const cookie = req.headers.get("cookie") ?? "";
-  if (!new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=`).test(cookie)) return null;
+  // Signing in carries no cookie yet, and is still worth forging: a page
+  // that POSTs the attacker's credentials (an enctype=text/plain form is
+  // valid JSON) signs the victim into the attacker's account, where they
+  // then save their secrets. Those routes get the Origin rule cookie or not.
+  if (!signInPath(req.url) && !new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=`).test(cookie)) return null;
   const origin = req.headers.get("origin");
   if (origin === null) return null;
   // "null" is what a browser sends from a sandboxed frame or a data: page —

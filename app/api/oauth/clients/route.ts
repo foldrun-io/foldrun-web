@@ -3,7 +3,7 @@
 // the consent flow from a saved client is /api/oauth/start's job.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requirePermission } from "@/server/api";
+import { requireTenant, errorResponse, requirePermission, requireAccountWide } from "@/server/api";
 import { saveOAuthClient, listOAuthClients, deleteOAuthClient } from "@/platform/oauth-clients";
 import type { OAuthProviderConfig } from "@/platform/oauth-connect";
 import { idempotent } from "@/server/idempotency";
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
 async function postOnce(req: NextRequest) {
   try {
-    const tenant = (await requirePermission(req, "secrets:write")).tenant;
+    const tenant = (await requireAccountWide(req, "secrets:write")).tenant;
     const body = (await req.json().catch(() => ({}))) as {
       name?: string;
       config?: OAuthProviderConfig;
@@ -35,7 +35,7 @@ async function postOnce(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const tenant = (await requirePermission(req, "secrets:write")).tenant;
+    const tenant = (await requireAccountWide(req, "secrets:write")).tenant;
     const body = (await req.json().catch(() => ({}))) as { client?: string };
     if (!body.client) return NextResponse.json({ error: "expected { client }" }, { status: 400 });
     if (!(await deleteOAuthClient(tenant, body.client))) {

@@ -58,9 +58,13 @@ export function AuthForm({ mode, invite, setup }: { mode: "login" | "signup"; in
         // Only a same-site absolute path is honoured: `//evil.com` and
         // `/\evil.com` start with "/" but browsers resolve them off-origin, so
         // `?next=` would be a post-login open redirect. Require a single
-        // leading slash followed by a non-slash, non-backslash.
-        const safeNext = /^\/[^/\\]/.test(next) ? next : target;
-        window.location.assign(safeNext !== "/dashboard" ? safeNext : target);
+        // leading slash followed by a non-slash, non-backslash — and no
+        // control characters: browsers drop tab/CR/LF from a URL, so
+        // "/\t/evil.com" passed the old test and landed on evil.com.
+        // The default "/dashboard" means "wherever the sign-in says": the
+        // account's first workspace.
+        const safeNext = next === "/dashboard" ? target : sameOriginPath(next) ?? target;
+        window.location.assign(safeNext);
         return;
       }
       const payload = (await res.json().catch(() => ({}))) as { error?: string };
@@ -128,4 +132,17 @@ export function AuthForm({ mode, invite, setup }: { mode: "login" | "signup"; in
       </button>
     </form>
   );
+}
+
+/** `next` as a path on this origin, or null when it would leave it. */
+function sameOriginPath(next: string): string | null {
+  if (!/^\/[^/\\]/.test(next) || /[\u0000-\u001f\u007f]/.test(next)) return null;
+  try {
+    const u = new URL(next, window.location.origin);
+    // The absolute URL, not its path: "/a/..//evil.com" resolves to a path
+    // of "//evil.com", which a browser reads as another host.
+    return u.origin === window.location.origin && !u.pathname.startsWith("//") ? u.href : null;
+  } catch {
+    return null;
+  }
 }

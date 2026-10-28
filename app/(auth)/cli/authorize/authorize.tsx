@@ -9,7 +9,10 @@ type Me = { user: { email: string; tenant: string; role: string } | null };
 
 export function CliAuthorize() {
   const fromUrl = useSearchParams().get("code") ?? "";
-  const [code, setCode] = useState(fromUrl);
+  // Never filled in from the link: typing the code the terminal shows is the
+  // proof that the terminal is yours. A link with the code in it can be sent
+  // by anyone who ran `foldrun login` themselves (device-code phishing).
+  const [code, setCode] = useState("");
   const [me, setMe] = useState<Me["user"] | undefined>(undefined);
   const [request, setRequest] = useState<Request | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +98,7 @@ export function CliAuthorize() {
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
           placeholder="ABCD-1234"
-          autoFocus={!fromUrl}
+          autoFocus
           className={inputClass("font-mono tracking-widest")}
         />
       </label>
@@ -113,7 +116,9 @@ export function CliAuthorize() {
             <div className="flex justify-between gap-4"><dt className="text-fg-muted">Role</dt><dd className="text-fg">{me.role === "owner" ? "admin (a key is never an owner)" : me.role}</dd></div>
           </dl>
           <p className="mt-3 text-xs text-fg-muted">
-            Approving creates an API key for that machine at your role. If you did not run this, deny it.
+            Approving creates an API key for that machine at your role. The machine name is whatever that terminal said — it proves nothing.
+            Approve only if you ran <span className="font-mono">foldrun login</span> yourself just now and your own terminal shows this code.
+            If someone sent you this link, deny it.
           </p>
           <div className="mt-4 flex gap-2">
             <button type="button" disabled={busy} onClick={() => decide("approve")} className={buttonClass("primary")}>

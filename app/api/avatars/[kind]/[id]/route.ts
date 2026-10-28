@@ -4,6 +4,7 @@ import { verifySession, SESSION_COOKIE } from "@/server/users";
 import { workspaceDir } from "@/lib/store";
 import { AVATAR_KINDS, AVATAR_MAX_BYTES, readAvatar, setAvatar, deleteAvatar, avatarUrl, type AvatarKind } from "@/platform/avatars";
 import fs from "node:fs";
+import { scopeAllows } from "@/platform/scope";
 
 // A picture for a person, a workspace or the account.
 //
@@ -28,7 +29,9 @@ async function mayWrite(req: NextRequest, kind: AvatarKind, id: string): Promise
     }
     return tenant;
   }
-  const tenant = (await requirePermission(req, "workspace:manage")).tenant;
+  const { tenant, actor } = await requirePermission(req, "workspace:manage");
+  if (kind === "workspace" && actor.workspaces !== null && !scopeAllows(actor.workspaces, id)) throw new ApiError("this workspace is not one you were given access to", 403);
+  if (kind === "account" && actor.workspaces !== null) throw new ApiError("the account's picture is shared by every workspace — a scoped member cannot change it", 403);
   if (kind === "workspace" && !fs.existsSync(workspaceDir(tenant, id))) throw new ApiError("workspace not found", 404);
   if (kind === "account" && id !== tenant) throw new ApiError("that is not this account", 403);
   return tenant;

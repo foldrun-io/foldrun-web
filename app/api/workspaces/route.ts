@@ -57,7 +57,13 @@ async function postOnce(req: NextRequest) {
     if (!body.name || !Array.isArray(body.files) || body.files.length === 0) {
       return NextResponse.json({ error: "expected { name, files: [{path, content}] }" }, { status: 400 });
     }
-    const tenant = (await requirePermission(req, "workspace:manage")).tenant;
+    const { tenant, actor } = await requirePermission(req, "workspace:manage");
+    // A member scoped to some workspaces may create a new one, never replace
+    // the source of one they were not given (the URL names no workspace
+    // here, so the usual scope check never sees it).
+    if (actor.workspaces !== null && !scopeAllows(actor.workspaces, body.name) && fs.existsSync(workspaceDir(tenant, body.name))) {
+      return NextResponse.json({ error: "this workspace is not one you were given access to" }, { status: 403 });
+    }
     // The plan's workspace count, checked only for NEW workspaces — pushing
     // to an existing one must never bounce off the limit, or a deploy to
     // workspace N becomes an outage the moment the plan shrinks.

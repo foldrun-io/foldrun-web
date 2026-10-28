@@ -33,6 +33,7 @@ import crypto from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { cache } from "@/platform/cache";
 import { resolveTenant } from "./auth.ts";
+import { installKey } from "@/lib/webhook.ts";
 
 export const IDEMPOTENCY_TTL_SEC = 24 * 3600;
 /** Set by a handler whose answer must not be replayed; never sent out. */
@@ -160,7 +161,9 @@ export async function idempotent(req: NextRequest, handler: () => Promise<Respon
 
   const bytes = new Uint8Array(await req.clone().arrayBuffer());
   const url = req.nextUrl;
-  const fp = sha(`${req.method} ${url.pathname}${url.search}\n`) + sha(bytes);
+  // Keyed, not a bare hash: the body of PUT /api/secrets IS a secret, and a
+  // plain sha256 of it in Redis for a day is a guessing target offline.
+  const fp = sha(`${req.method} ${url.pathname}${url.search}\n`) + crypto.createHmac("sha256", installKey()).update(bytes).digest("hex");
   const id = sha(`${auth.tenant}\n${auth.actor.kind}:${auth.actor.id}\n${req.method} ${url.pathname}\n${key}`).slice(0, 40);
 
   const prior = await claim(id, { fp, state: "pending" });

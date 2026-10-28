@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createApiKey, listApiKeys, revokeApiKey, resolveTenant, parseKeyExpiry, type Actor } from "@/server/auth";
 import { audit } from "@/server/audit";
-import { verifySession, SESSION_COOKIE, hasUsers } from "@/server/users";
+import { verifySession, SESSION_COOKIE, hasUsers, setupTokenRequired, setupTokenMatches } from "@/server/users";
+import { sendSecurityNotice } from "@/server/email";
+import { clientIp } from "@/server/limits";
 import { can, isRole, type Role } from "@/platform/permissions";
 import { withinMinter, keyWithin } from "@/server/key-scope";
 import { listWorkspaces } from "@/lib/store";
@@ -35,6 +37,12 @@ async function authorize(req: NextRequest, claimed: () => Promise<string | undef
   // Identified and refused (a support view's write): say so, as it is.
   if (auth.status === 403) throw new ApiError(auth.message, 403);
   if (process.env.FOLDRUN_DEV_NO_AUTH === "1" || !(await hasUsers())) {
+    // Before the first signup, the setup token guards this door exactly as
+    // it guards signup: without it, anyone who reached a fresh self-hosted
+    // install minted an owner key there and never needed to sign up at all.
+    if (process.env.FOLDRUN_DEV_NO_AUTH !== "1" && (await setupTokenRequired()) && !setupTokenMatches(req.headers.get("x-foldrun-setup-token"))) {
+      throw new ApiError("this install is waiting for its first sign-up — use the link the installer printed (or send its setup token as X-Foldrun-Setup-Token)", 401);
+    }
     return { tenant: (await claimed()) ?? "default", minter: { role: "owner", workspaces: null }, by: "setup" };
   }
   throw new ApiError(auth.status === 401 && auth.message !== "invalid API key" ? auth.message : "key management requires a valid key for this workspace", 401);
@@ -102,6 +110,7 @@ async function postOnce(req: NextRequest) {
       subject: record.id,
       detail: { label: record.label, prefix: record.prefix, role: record.role, workspaces: record.workspaces ?? null, expiresAt: record.expiresAt ?? null },
     });
+    if (who) sendSecurityNotice(tenant, who, "a new API key was created", clientIp(req));
     return NextResponse.json({ ok: true, key, id: record.id, prefix: record.prefix, role: record.role, workspaces: record.workspaces ?? null, expiresAt: record.expiresAt ?? null });
   } catch (err) {
     return errorResponse(err);

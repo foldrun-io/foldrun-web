@@ -31,14 +31,22 @@ const ALLOWED_WRITES: RegExp[] = [/^\/api\/admin\/accounts\/[^/]+\/view-as$/, /^
  * on screen; a copy of everything leaves with whoever downloads it, so the
  * export stays the owner's own act.
  */
-const REFUSED_READS: RegExp[] = [/^\/api\/account\/export$/];
+// Reads that hand over data wholesale or a token that ACTS (a webhook URL
+// starts runs, a share link publishes): a read-only view must not leave
+// with either.
+const REFUSED_READS: RegExp[] = [
+  /^\/api\/account\/export$/,
+  /^\/api\/workspaces\/[^/]+\/export$/,
+  /^\/api\/workspaces\/[^/]+\/hooks\/[^/]+$/,
+  /^\/api\/workspaces\/[^/]+\/shares(?:\/.*)?$/,
+];
 
 export const READ_ONLY_MESSAGE = "read-only: support is viewing this account — changes are refused until the view ends";
 
 /** Why this request is refused under a support view, or null when it may go. */
 export function supportViewRefusal(method: string, pathname: string): string | null {
   if (SAFE_METHODS.has(method.toUpperCase())) {
-    return REFUSED_READS.some((r) => r.test(pathname)) ? "support views cannot export the account's data" : null;
+    return REFUSED_READS.some((r) => r.test(pathname)) ? "support views cannot export the account's data or read its tokens" : null;
   }
   if (ALLOWED_WRITES.some((r) => r.test(pathname))) return null;
   return READ_ONLY_MESSAGE;

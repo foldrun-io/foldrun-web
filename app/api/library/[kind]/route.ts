@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, actorOf, requirePermission } from "@/server/api";
+import { requireTenant, errorResponse, actorOf, requirePermission, requireAccountWide } from "@/server/api";
 import { startingFiles } from "@/server/starters";
 import {
   LIBRARY_KINDS,
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ kind: strin
 // POST creates from a template (dashboard "New"); PUT writes exact content.
 async function postOnce(req: NextRequest, ctx: { params: Promise<{ kind: string }> }) {
   try {
-    const tenant = (await requirePermission(req, "workspace:write")).tenant;
+    const tenant = (await requireAccountWide(req, "workspace:write")).tenant;
     const kind = kindOf((await ctx.params).kind);
     const body = (await req.json()) as { name?: string; template?: string; language?: string };
     if (!body.name || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(body.name)) {
@@ -76,7 +76,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ kind: string 
 
 export async function PUT(req: NextRequest, ctx: { params: Promise<{ kind: string }> }) {
   try {
-    const tenant = (await requirePermission(req, "workspace:write")).tenant;
+    const tenant = (await requireAccountWide(req, "workspace:write")).tenant;
     const kind = kindOf((await ctx.params).kind);
     const body = (await req.json()) as { path?: string; content?: string };
     if (!body.path || typeof body.content !== "string") {
@@ -91,7 +91,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ kind: strin
 
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ kind: string }> }) {
   try {
-    const tenant = (await requirePermission(req, "workspace:write")).tenant;
+    const tenant = (await requireAccountWide(req, "workspace:write")).tenant;
     const kind = kindOf((await ctx.params).kind);
     const body = (await req.json()) as { path?: string };
     if (!body.path) return NextResponse.json({ error: "expected { path }" }, { status: 400 });

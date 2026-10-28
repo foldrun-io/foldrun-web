@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readToken } from "@/server/auth-tokens";
 import { findUserById, openString, consumeBackupCode, mintSession, sessionCookieOptions, SESSION_COOKIE } from "@/server/users";
 import { verifyTotp, hashBackup } from "@/server/totp";
-import { rateLimit, rateLimitReset } from "@/platform/cache";
+import { rateLimit, rateLimitReset, cache } from "@/platform/cache";
 import { audit } from "@/server/audit";
 import { listWorkspaces } from "@/lib/store";
 import { errorResponse } from "@/server/api";
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
 
     const code = String(body.code ?? "").trim();
     let how: "totp" | "backup" | null = null;
-    if (verifyTotp(openString(user.mfaSecret), code)) how = "totp";
+    if (verifyTotp(openString(user.mfaSecret), code) && (await firstUse(user.id, code))) how = "totp";
     else if (await consumeBackupCode(user.id, hashBackup(code))) how = "backup";
     if (!how) {
       await audit("mfa.refused", { actor: user.email, tenant: user.tenant });
@@ -45,5 +45,21 @@ export async function POST(req: NextRequest) {
     return res;
   } catch (err) {
     return errorResponse(err);
+  }
+}
+
+/**
+ * A code signs in once. It stays valid for its 30 s step and one either
+ * side, so one seen over a shoulder or phished in real time would work again
+ * for about a minute and a half (ASVS 2.8.4). Remembered in Redis for two
+ * minutes; an install with no Redis keeps the old behaviour.
+ */
+async function firstUse(userId: string, code: string): Promise<boolean> {
+  const c = cache();
+  if (!c) return true;
+  try {
+    return (await c.set(`totp-used:${userId}:${code.replace(/\s/g, "")}`, "1", "EX", 120, "NX")) === "OK";
+  } catch {
+    return true; // Redis down: the rate limit above still holds
   }
 }

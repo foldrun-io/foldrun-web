@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requirePermission, errorResponse } from "@/server/api";
+import { requireTenant, requirePermission, errorResponse, requireAccountWide } from "@/server/api";
 import { accountDir } from "@/lib/store";
 import { readAgentsMdKeys, setAgentsMdKeys } from "@/lib/agents-md";
 import { defaultsPatch, defaultsOf } from "@/components/defaults-model";
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const { tenant, actor } = await requirePermission(req, "workspace:manage");
+    const { tenant, actor } = await requireAccountWide(req, "workspace:manage");
     const body = (await req.json()) as Record<string, unknown>;
     // telemetry: sends every workspace's runs, with header secrets filled
     // from the vault, to the URL it names: only a caller who holds every

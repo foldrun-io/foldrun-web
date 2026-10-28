@@ -22,8 +22,17 @@ const post = (token: string, password: string) =>
   reset.POST(new NextRequest("http://x/api/auth/reset", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, password }) }));
 const linkFor = async (id: string) => {
   const u = (await findUserById(id))!;
-  return mintToken("reset", { u: u.id, h: hashFingerprint(u.hash) }, RESET_TTL_MS);
+  return mintToken("reset", { u: u.id, h: hashFingerprint(u.hash), e: u.email }, RESET_TTL_MS);
 };
+
+test("a reset link is for the address it was sent to: one without it, or for another, is refused", async () => {
+  const u = await createAccountBySuperAdmin("bound@reset.test", "an old password long enough 5", "reset-bound");
+  const noEmail = mintToken("reset", { u: u.id, h: hashFingerprint(u.hash) }, RESET_TTL_MS);
+  assert.equal((await post(noEmail, "a brand new password, long 6")).status, 400);
+  const oldInbox = mintToken("reset", { u: u.id, h: hashFingerprint(u.hash), e: "old@reset.test" }, RESET_TTL_MS);
+  assert.equal((await post(oldInbox, "a brand new password, long 7")).status, 400);
+  assert.equal((await findUserById(u.id))!.hash, u.hash, "the password did not change");
+});
 
 test("with MFA on, a reset changes the password but sets no session", async () => {
   const u = await createAccountBySuperAdmin("mfa@reset.test", "an old password long enough 1", "reset-mfa");

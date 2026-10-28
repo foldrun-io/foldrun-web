@@ -16,7 +16,7 @@
 // the platform's credential: customers bring API keys, not claude.ai logins.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requirePermission, errorResponse } from "@/server/api";
+import { requireTenant, requirePermission, errorResponse, requireAccountWide } from "@/server/api";
 import { audit } from "@/server/audit";
 import { idempotent } from "@/server/idempotency";
 import { setSecret, deleteSecret } from "@/lib/secrets";
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 
 async function putOnce(req: NextRequest) {
   try {
-    const { tenant, actor } = await requirePermission(req, "secrets:write");
+    const { tenant, actor } = await requireAccountWide(req, "secrets:write");
     const body = (await req.json().catch(() => ({}))) as { provider?: string; apiKey?: string; baseUrl?: string; format?: string };
     const apiKey = (body.apiKey ?? "").trim();
     const name = (body.provider ?? "").trim().toLowerCase();
@@ -80,7 +80,7 @@ export async function PUT(...args: Parameters<typeof putOnce>) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const { tenant, actor } = await requirePermission(req, "secrets:write");
+    const { tenant, actor } = await requireAccountWide(req, "secrets:write");
     for (const n of Object.values(ACCOUNT_MODEL_SECRETS)) deleteSecret(tenant, n);
     await audit("model.key_removed", { actor: actor.name, tenant });
     return NextResponse.json({ ok: true, ...describe(tenant) });

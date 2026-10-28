@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, actorOf, requirePermission, requireTenant } from "@/server/api";
+import { errorResponse, actorOf, requirePermission, requireTenant, requireAccountWide } from "@/server/api";
 import { GALLERY, galleryDrift, galleryFiles, galleryTool, writeGalleryCopy } from "@/platform/gallery";
 import { libraryFileExists, readLibraryFile } from "@/lib/library";
 import { idempotent } from "@/server/idempotency";
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
  */
 async function postOnce(req: NextRequest) {
   try {
-    const tenant = (await requirePermission(req, "workspace:write")).tenant;
+    const tenant = (await requireAccountWide(req, "workspace:write")).tenant;
     const body = (await req.json()) as { tool?: string };
     const tool = body.tool ? galleryTool(body.tool) : undefined;
     if (!tool) return NextResponse.json({ error: `no gallery tool named "${body.tool ?? ""}"` }, { status: 404 });

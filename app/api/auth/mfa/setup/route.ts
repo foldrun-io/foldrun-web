@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import QRCode from "qrcode";
-import { requireSession, errorResponse } from "@/server/api";
+import { requireSession, errorResponse, ApiError } from "@/server/api";
 import { newSecret, otpauthUri } from "@/server/totp";
 import { mintToken, ENROL_TTL_MS } from "@/server/auth-tokens";
 import { sealString } from "@/server/users";
@@ -13,6 +13,7 @@ import { sealString } from "@/server/users";
 export async function POST(req: NextRequest) {
   try {
     const me = await requireSession(req);
+    if (me.mfaSecret) throw new ApiError("the second factor is already on — turn it off first (that needs your password and a code)", 409);
     const secret = newSecret();
     const uri = otpauthUri(secret, me.email);
     const qr = await QRCode.toDataURL(uri, { margin: 1, width: 200 });

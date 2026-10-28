@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireCaller, errorResponse, requirePermission } from "@/server/api";
+import { requireCaller, errorResponse, requirePermission, requireAccountWide } from "@/server/api";
 import { listWorkspaces, listFlows } from "@/lib/store";
 import { parseCron, cronMatches, tick } from "@/platform/scheduler";
 import { scopeAllows } from "@/platform/scope";
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
 // Force a scheduler tick — for testing a schedule without waiting.
 async function postOnce(req: NextRequest) {
   try {
-    const { tenant } = await requirePermission(req, "workspace:manage");
+    const { tenant } = await requireAccountWide(req, "workspace:manage");
     // The tick is the install's, and fires every tenant's due flows (they
     // were due anyway; this only makes them go now). The answer is the
     // caller's own: it listed every account's workspaces and flows.

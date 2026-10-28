@@ -7,7 +7,8 @@ import { requireSession, errorResponse, ApiError } from "@/server/api";
 import { verifyPassword, openString, setMfa, consumeBackupCode } from "@/server/users";
 import { verifyTotp, hashBackup } from "@/server/totp";
 import { audit } from "@/server/audit";
-import { refuseWhenLimited, clearLimit } from "@/server/limits";
+import { refuseWhenLimited, clearLimit, clientIp } from "@/server/limits";
+import { sendSecurityNotice } from "@/server/email";
 
 // Six in five minutes — the same window the MFA code itself gets. Without
 // it, a six-digit code here could be tried at the rate the box allowed.
@@ -27,6 +28,7 @@ export async function POST(req: NextRequest) {
     await clearLimit(`mfa-disable:${me.id}`);
     await setMfa(me.id, null);
     await audit("mfa.disabled", { actor: me.email, tenant: me.tenant });
+    sendSecurityNotice(me.tenant, me.email, "two-step sign-in was turned off", clientIp(req));
     return NextResponse.json({ ok: true });
   } catch (err) {
     return errorResponse(err);

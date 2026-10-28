@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireCaller, errorResponse, requirePermission, assertWorkspaceScope } from "@/server/api";
+import { requireCaller, errorResponse, requirePermission, assertWorkspaceScope, ApiError } from "@/server/api";
+
+const MAIL_SENDER = new Set(["RESEND_API_KEY", "EMAIL_FROM"]);
+
+/** The owner in person, or a key the owner minted (`foldrun login` keys
+ *  are admin-role but carry the minter's address as the actor's name). */
+async function actsForOwner(tenant: string, actor: { role: string; kind?: string; name: string }): Promise<boolean> {
+  if (actor.role === "owner") return true;
+  const owner = await ownerOf(tenant);
+  return Boolean(owner && actor.kind === "key" && actor.name.toLowerCase() === owner.email.toLowerCase());
+}
 import { audit } from "@/server/audit";
+import { ownerOf } from "@/server/users";
 import {
   listSecrets, setSecret, deleteSecret, setOAuth2Secret, setServiceAccountSecret, setFileSecret,
   setSshSecret, setApiSecret, setClientCertSecret, setIdentitySecret, setSecretSites,
@@ -76,6 +87,13 @@ async function putOnce(req: NextRequest) {
     if (body.sites !== undefined && !isSiteList(body.sites)) return NextResponse.json({ error: "sites is a list of domains, like [\"api.example.com\", \"*.example.com\"]" }, { status: 400 });
     const scope = scopeOf(req, body);
     assertWorkspaceScope(actor, scope);
+    // The account's mail sender carries its members' password-reset and
+    // sign-up links (core platformMail). Only the owner chooses it: an admin
+    // who pointed it at their own Resend account could read the owner's
+    // reset link and take the account.
+    if (!scope && MAIL_SENDER.has(body.name) && !(await actsForOwner(tenant, actor))) {
+      throw new ApiError(`only the account's owner can set ${body.name} — it is the sender of everyone's sign-in mail`, 403);
+    }
     if (body.oauth2) {
       setOAuth2Secret(tenant, body.name, body.oauth2, scope);
       if (body.oauth2.grant_type !== "client_credentials") {

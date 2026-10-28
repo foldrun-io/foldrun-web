@@ -62,7 +62,9 @@ async function postOnce(
       // approving your own run have someone to check. A key is a caller,
       // not a person: it carries a role but no address, so it passes the
       // self-approval rule and only an `approvers:` list can stop it.
-      actor: actor.kind === "user" ? { email: actor.name, role: actor.role } : { email: null, role: actor.role },
+      // A key minted by a person carries their address as its name: it
+      // decides as them, so their own run cannot be approved with their key.
+      actor: actor.kind === "user" || !actor.name.startsWith("key:") ? { email: actor.name, role: actor.role } : { email: null, role: actor.role },
     });
 
     return NextResponse.json({ ok: true, decision, steps });

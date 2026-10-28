@@ -46,6 +46,20 @@ export function assertWorkspaceScope(actor: Actor, workspace: string | undefined
   }
 }
 
+/**
+ * requirePermission, for something every workspace shares — the library,
+ * the account's AGENTS.md defaults, its model provider, its OAuth apps. A
+ * member or key scoped to some workspaces reaches into the others through
+ * these, so they need every workspace, not just the role.
+ */
+export async function requireAccountWide(req: NextRequest, action: Parameters<typeof requirePermission>[1]): Promise<Awaited<ReturnType<typeof requirePermission>>> {
+  const got = await requirePermission(req, action);
+  if (got.actor.workspaces !== null) {
+    throw new ApiError("this is shared by every workspace in the account — a member or key scoped to some workspaces cannot change it", 403);
+  }
+  return got;
+}
+
 /** The caller and what it may see — for routes that list across workspaces. */
 export async function requireCaller(req: NextRequest): Promise<{ tenant: string; actor: Actor }> {
   const auth = await resolveTenant(req);

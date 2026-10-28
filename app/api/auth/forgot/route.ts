@@ -30,8 +30,13 @@ export async function POST(req: NextRequest) {
     if (!email) return NextResponse.json(SAME);
     const user = await findUser(email);
     if (user) {
-      const sent = await sendResetEmail(user.tenant, user.email, resetLink(publicOrigin(req), user), ip);
-      await audit("password.reset_requested", { actor: user.email, tenant: user.tenant, detail: { sent: sent.ok, ...(sent.ok ? {} : { error: sent.error }) } });
+      // Not awaited: waiting on the mail API only when the address has an
+      // account made the answer's timing say which addresses do.
+      const link = resetLink(publicOrigin(req), user);
+      void (async () => {
+        const sent = await sendResetEmail(user.tenant, user.email, link, ip);
+        await audit("password.reset_requested", { actor: user.email, tenant: user.tenant, detail: { sent: sent.ok, ...(sent.ok ? {} : { error: sent.error }) } });
+      })().catch((err) => console.error("forgot: reset mail failed", err instanceof Error ? err.message : err));
     }
     return NextResponse.json(SAME);
   } catch (err) {

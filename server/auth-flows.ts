@@ -52,7 +52,9 @@ export function browserHost(req: NextRequest): string {
 export function resetLink(origin: string, user: UserRecord): string {
   // Bound to the password as it is now: using the link changes the hash,
   // and the same link then no longer verifies. Single-use without a table.
-  const token = mintToken("reset", { u: user.id, h: hashFingerprint(user.hash) }, RESET_TTL_MS);
+  // And to the address it was sent to: after an email change, a link still
+  // sitting in the OLD inbox must stop working.
+  const token = mintToken("reset", { u: user.id, h: hashFingerprint(user.hash), e: user.email }, RESET_TTL_MS);
   return `${origin}/reset?token=${encodeURIComponent(token)}`;
 }
 

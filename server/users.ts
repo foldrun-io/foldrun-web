@@ -14,7 +14,7 @@
 import { ensureTenantKey } from "@/platform/tenant-keys.ts";
 import { assertPasswordPolicy } from "@/server/password-policy";
 import { allUsersDb, upsertUserDb, importUsersToDatabase } from "@/platform/users-db";
-import { tx, databaseEnabled, users as usersTable, notInArray } from "@/platform/orm";
+import { tx, databaseEnabled, users as usersTable, eq, sql } from "@/platform/orm";
 import { revokeSessions } from "./sessions";
 import fs from "node:fs";
 import {
@@ -144,6 +144,13 @@ export function openString(sealed: string): string {
 // whole point of the seam. In database mode a write-back is one transaction:
 // upsert what is here, delete what is not. Small N; per-row writes are the
 // optimisation for a day this list is long.
+//
+// Every change goes through mutateUsers: one at a time (a Postgres advisory
+// lock, or a queue in this process for the file), against a read taken
+// UNDER that lock, writing back only the rows that changed. Before 29 Oct
+// each mutation read everyone, then upserted everyone — so any member's
+// name or timezone write could put back another person's old password,
+// role, MFA secret or removed membership from a snapshot a moment stale.
 
 /** The file — still the fallback, still what a backup carries. Exported so
  *  the boot import can hand it to the database once. */
@@ -157,19 +164,42 @@ async function readUsers(): Promise<UserRecord[]> {
   return readUsersFile();
 }
 
-async function writeUsers(users: UserRecord[]): Promise<void> {
+// Any constant both web and console agree on; it names the users table's lock.
+const USERS_LOCK = 0x666f6c75;
+let fileQueue: Promise<unknown> = Promise.resolve();
+
+/**
+ * Change people. `fn` gets everyone, read fresh under the lock, and may edit
+ * records in place, push new ones, or splice one out. Its throw rolls back.
+ * Keep `fn` quick and local: no network calls while the lock is held.
+ */
+async function mutateUsers<T>(fn: (users: UserRecord[]) => T | Promise<T>): Promise<T> {
   if (databaseEnabled()) {
-    await tx(async (t) => {
-      for (const u of users) await upsertUserDb(u, t);
-      const keep = users.map((u) => u.id);
-      // Whoever is not in the array any more has left.
-      if (keep.length) await t.delete(usersTable).where(notInArray(usersTable.id, keep));
-      else await t.delete(usersTable);
+    return tx(async (t) => {
+      await t.execute(sql`select pg_advisory_xact_lock(${USERS_LOCK})`);
+      const users = (await allUsersDb(t)) as UserRecord[];
+      const before = new Map(users.map((u) => [u.id, JSON.stringify(u)]));
+      const value = await fn(users);
+      const after = new Set<string>();
+      for (const u of users) {
+        after.add(u.id);
+        if (before.get(u.id) !== JSON.stringify(u)) await upsertUserDb(u, t);
+      }
+      for (const id of before.keys()) {
+        if (!after.has(id)) await t.delete(usersTable).where(eq(usersTable.id, id));
+      }
+      return value;
     });
-    return;
   }
-  fs.mkdirSync(path.dirname(usersFile()), { recursive: true });
-  fs.writeFileSync(usersFile(), JSON.stringify(users, null, 2), { mode: 0o600 });
+  const run = fileQueue.then(async () => {
+    const users = readUsersFile();
+    const value = await fn(users);
+    fs.mkdirSync(path.dirname(usersFile()), { recursive: true });
+    fs.writeFileSync(usersFile(), JSON.stringify(users, null, 2), { mode: 0o600 });
+    return value;
+  });
+  fileQueue = run.catch(() => undefined);
+  return run;
 }
 
 /** The file's people, into the database, once. Idempotent. */
@@ -233,14 +263,7 @@ export async function createUser(
   // is possible at all is decided BEFORE anything specific to this address,
   // so a closed install refuses every address with the same sentence instead
   // of confirming which ones are registered.
-  const users = await readUsers();
-  assertSignupAllowed({
-    joining: Boolean(opts.joining),
-    open: await signupOpen(),
-    accountExists: users.some((u) => u.tenant === tenant),
-    emailTaken: Boolean(await findUser(normalized)),
-    nameTaken: users.some((u) => u.tenant === tenant) || fs.existsSync(accountDir(tenant)),
-  });
+  const open = await signupOpen();
 
   const salt = crypto.randomBytes(16).toString("hex");
   const user: UserRecord = {
@@ -257,7 +280,16 @@ export async function createUser(
     ...(opts.joining ? { role: opts.role ?? "editor" } : {}),
     ...(opts.joining && opts.workspaces ? { workspaces: opts.workspaces } : {}),
   };
-  await writeUsers([...await readUsers(), user]);
+  await mutateUsers((users) => {
+    assertSignupAllowed({
+      joining: Boolean(opts.joining),
+      open,
+      accountExists: users.some((u) => u.tenant === tenant),
+      emailTaken: users.some((u) => u.email === normalized),
+      nameTaken: users.some((u) => u.tenant === tenant) || fs.existsSync(accountDir(tenant)),
+    });
+    users.push(user);
+  });
 
   // The account exists the moment its owner does — same lazy scaffold every
   // other path goes through, just earlier, so the first dashboard render
@@ -306,21 +338,25 @@ export async function passwordMatches(userId: string, password: string): Promise
 }
 
 export async function changePassword(userId: string, current: string, next: string): Promise<void> {
-  const users = await readUsers();
-  const user = users.find((u) => u.id === userId);
-  if (!user) throw new Error("no such user");
-  await assertPasswordPolicy(next, user.email);
-  const presented = Buffer.from(scrypt(current, user.salt), "hex");
-  const stored = Buffer.from(user.hash, "hex");
-  if (presented.length !== stored.length || !crypto.timingSafeEqual(presented, stored)) {
-    throw new Error("that is not your current password");
-  }
+  const known = await findUserById(userId);
+  if (!known) throw new Error("no such user");
+  await assertPasswordPolicy(next, known.email);
   // A fresh salt with the new password: reusing the old one would let anyone
   // holding a stolen users.json tell that the password changed but the salt
   // did not, and rainbow work done against the old salt still applies.
-  user.salt = crypto.randomBytes(16).toString("hex");
-  user.hash = scrypt(next, user.salt);
-  await writeUsers(users);
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = scrypt(next, salt);
+  await mutateUsers((users) => {
+    const user = users.find((u) => u.id === userId);
+    if (!user) throw new Error("no such user");
+    const presented = Buffer.from(scrypt(current, user.salt), "hex");
+    const stored = Buffer.from(user.hash, "hex");
+    if (presented.length !== stored.length || !crypto.timingSafeEqual(presented, stored)) {
+      throw new Error("that is not your current password");
+    }
+    user.salt = salt;
+    user.hash = hash;
+  });
 }
 
 // ---------- sessions ----------
@@ -541,20 +577,24 @@ export async function allowedWorkspaces(tenant: string, userId: string): Promise
 /** Set which workspaces a member may open. Null opens all. The owner is
  *  never scoped, and only someone who manages the team may do this. */
 export async function setMemberScope(tenant: string, id: string, workspaces: string[] | null, actorId: string): Promise<void> {
-  const users = await readUsers();
+  return mutateUsers((users) => {
   const target = users.find((u) => u.tenant === tenant && u.id === id);
   if (!target) throw Object.assign(new Error("no such member"), { status: 404 });
   if (ownerOfMembers(users, tenant)?.id === id) throw Object.assign(new Error("the owner sees every workspace"), { status: 400 });
   const actorRole = roleOfMembers(users, tenant, actorId);
   if (!actorRole || !can(actorRole, "team:manage")) throw Object.assign(new Error("your role cannot change who sees what"), { status: 403 });
   if (id !== actorId && actorRole !== "owner") {
+    // Strictly above them: an admin narrowing another admin to no
+    // workspaces would lock them out, and only the owner makes or unmakes
+    // an admin.
     const targetRole = roleOfMembers(users, tenant, id) ?? "viewer";
-    if (!outranks(actorRole, targetRole) && actorRole !== targetRole) throw Object.assign(new Error("that member outranks you"), { status: 403 });
+    if (!outranks(actorRole, targetRole)) throw Object.assign(new Error(targetRole === actorRole ? "only the owner can change what another " + targetRole + " sees" : "that member outranks you"), { status: 403 });
   }
   if (workspaces) {
     for (const w of workspaces) assertSafeName(w, "workspace");
   }
-  await writeUsers(users.map((u) => (u === target ? { ...u, workspaces: workspaces && workspaces.length ? [...new Set(workspaces)] : workspaces === null ? null : [] } : u)));
+  target.workspaces = workspaces && workspaces.length ? [...new Set(workspaces)] : workspaces === null ? null : [];
+  });
 }
 
 
@@ -565,11 +605,11 @@ export async function roleOfUser(tenant: string, userId: string): Promise<Role |
 
 /** Give a member a role, as somebody. The rules are in permissions.ts. */
 export async function setMemberRole(tenant: string, id: string, role: Role, actorId: string): Promise<void> {
-  const users = await readUsers();
-  assertCanChangeRole(users, tenant, id, role, actorId); // throws with a status
-  const target = users.find((u) => u.tenant === tenant && u.id === id)!;
-  target.role = role;
-  await writeUsers(users);
+  return mutateUsers((users) => {
+    assertCanChangeRole(users, tenant, id, role, actorId); // throws with a status
+    const target = users.find((u) => u.tenant === tenant && u.id === id)!;
+    target.role = role;
+  });
 }
 
 /**
@@ -577,7 +617,7 @@ export async function setMemberRole(tenant: string, id: string, role: Role, acto
  * keep running the account, they just stop being the one who pays for it.
  */
 export async function transferOwnership(tenant: string, toId: string, actorId: string): Promise<void> {
-  const users = await readUsers();
+  return mutateUsers((users) => {
   assertCanTransfer(users, tenant, toId, actorId); // throws with a status
   for (const u of users) {
     if (u.tenant !== tenant) continue;
@@ -589,7 +629,7 @@ export async function transferOwnership(tenant: string, toId: string, actorId: s
       u.role = "admin";
     }
   }
-  await writeUsers(users);
+  });
 }
 
 /**
@@ -612,12 +652,13 @@ export async function isOwner(tenant: string, userId: string): Promise<boolean> 
  * bug this is fixing.
  */
 export async function removeMember(tenant: string, id: string, actorId: string): Promise<boolean> {
-  const users = await readUsers();
-  const target = users.find((u) => u.tenant === tenant && u.id === id);
-  if (!target) return false;
-  assertCanRemoveMember(users, tenant, id, actorId); // throws with a status
-  await writeUsers(users.filter((u) => u.id !== id));
-  return true;
+  return mutateUsers((users) => {
+    const at = users.findIndex((u) => u.tenant === tenant && u.id === id);
+    if (at < 0) return false;
+    assertCanRemoveMember(users, tenant, id, actorId); // throws with a status
+    users.splice(at, 1);
+    return true;
+  });
 }
 
 /**
@@ -650,13 +691,17 @@ export function isValidTimeZone(tz: string): boolean {
  * a reset that leaves a stolen session alive is not a reset.
  */
 export async function resetPassword(userId: string, next: string): Promise<void> {
-  const users = await readUsers();
-  const user = users.find((u) => u.id === userId);
-  if (!user) throw new Error("no such user");
-  await assertPasswordPolicy(next, user.email);
-  user.salt = crypto.randomBytes(16).toString("hex");
-  user.hash = scrypt(next, user.salt);
-  await writeUsers(users);
+  const known = await findUserById(userId);
+  if (!known) throw new Error("no such user");
+  await assertPasswordPolicy(next, known.email);
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = scrypt(next, salt);
+  await mutateUsers((users) => {
+    const user = users.find((u) => u.id === userId);
+    if (!user) throw new Error("no such user");
+    user.salt = salt;
+    user.hash = hash;
+  });
   await revokeSessions(userId);
 }
 
@@ -687,12 +732,12 @@ export async function setName(userId: string, firstName: string | null, lastName
     const t = (v ?? "").trim().slice(0, 80);
     return t.length ? t : null;
   };
-  const users = await readUsers();
-  const user = users.find((u) => u.id === userId);
-  if (!user) throw Object.assign(new Error("no such user"), { status: 404 });
-  user.firstName = clean(firstName);
-  user.lastName = clean(lastName);
-  await writeUsers(users);
+  await mutateUsers((users) => {
+    const user = users.find((u) => u.id === userId);
+    if (!user) throw Object.assign(new Error("no such user"), { status: 404 });
+    user.firstName = clean(firstName);
+    user.lastName = clean(lastName);
+  });
 }
 
 /** The name to show for a person: what they told us, or their email. */
@@ -704,34 +749,33 @@ export function displayName(u: Pick<UserRecord, "email" | "firstName" | "lastNam
 export async function changeEmail(userId: string, newEmail: string): Promise<{ from: string; to: string }> {
   const to = newEmail.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) throw Object.assign(new Error("that is not an email address"), { status: 400 });
-  const users = await readUsers();
-  const user = users.find((u) => u.id === userId);
-  if (!user) throw Object.assign(new Error("no such user"), { status: 404 });
-  if (user.email === to) throw Object.assign(new Error("that is already their address"), { status: 409 });
-  if (users.some((u) => u.email === to)) throw Object.assign(new Error("that address already belongs to someone"), { status: 409 });
-  const from = user.email;
-  user.email = to;
-  user.emailVerifiedAt = null;
-  await writeUsers(users);
+  const { from, tenant } = await mutateUsers((users) => {
+    const user = users.find((u) => u.id === userId);
+    if (!user) throw Object.assign(new Error("no such user"), { status: 404 });
+    if (user.email === to) throw Object.assign(new Error("that is already their address"), { status: 409 });
+    if (users.some((u) => u.email === to)) throw Object.assign(new Error("that address already belongs to someone"), { status: 409 });
+    const was = user.email;
+    user.email = to;
+    user.emailVerifiedAt = null;
+    return { from: was, tenant: user.tenant };
+  });
   // Their API keys name them by address: they move too (FOL-97). Imported
   // here, not at the top — auth.ts imports this file.
-  await (await import("./auth.ts")).moveKeysToEmail(user.tenant, from, to);
+  await (await import("./auth.ts")).moveKeysToEmail(tenant, from, to);
   return { from, to };
 }
 
 export async function setEmailVerified(userId: string): Promise<void> {
-  const users = await readUsers();
-  const user = users.find((u) => u.id === userId);
-  if (!user) throw new Error("no such user");
-  if (!user.emailVerifiedAt) {
-    user.emailVerifiedAt = new Date().toISOString();
-    await writeUsers(users);
-  }
+  return mutateUsers((users) => {
+    const user = users.find((u) => u.id === userId);
+    if (!user) throw new Error("no such user");
+    if (!user.emailVerifiedAt) user.emailVerifiedAt = new Date().toISOString();
+  });
 }
 
 /** Turn the second factor on (sealed secret + hashed backup codes) or off (null). */
 export async function setMfa(userId: string, mfa: { secret: string; backupHashes: string[] } | null): Promise<void> {
-  const users = await readUsers();
+  return mutateUsers((users) => {
   const user = users.find((u) => u.id === userId);
   if (!user) throw new Error("no such user");
   if (mfa) {
@@ -741,17 +785,18 @@ export async function setMfa(userId: string, mfa: { secret: string; backupHashes
   } else {
     delete user.mfaSecret; delete user.mfaBackup; delete user.mfaEnabledAt;
   }
-  await writeUsers(users);
+  });
 }
 
 /** A backup code was used: strike it. Returns false if it was not one of theirs. */
 export async function consumeBackupCode(userId: string, hash: string): Promise<boolean> {
-  const users = await readUsers();
-  const user = users.find((u) => u.id === userId);
-  if (!user?.mfaBackup?.includes(hash)) return false;
-  user.mfaBackup = user.mfaBackup.filter((h) => h !== hash);
-  await writeUsers(users);
-  return true;
+  // Under the lock, so two requests racing with the same code get one true.
+  return mutateUsers((users) => {
+    const user = users.find((u) => u.id === userId);
+    if (!user?.mfaBackup?.includes(hash)) return false;
+    user.mfaBackup = user.mfaBackup.filter((h) => h !== hash);
+    return true;
+  });
 }
 
 /**
@@ -766,16 +811,17 @@ export async function createAccountBySuperAdmin(email: string, password: string,
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) throw new Error("that is not an email address");
   await assertPasswordPolicy(password, normalized);
   assertSafeName(tenant, "account name");
-  const users = await readUsers();
-  if (users.some((u) => u.email === normalized)) throw Object.assign(new Error("that email already has an account"), { status: 409 });
-  if (users.some((u) => u.tenant === tenant) || fs.existsSync(accountDir(tenant))) throw Object.assign(new Error("that account name is taken"), { status: 409 });
   const salt = crypto.randomBytes(16).toString("hex");
   const user: UserRecord = {
     id: crypto.randomBytes(8).toString("hex"),
     email: normalized, tenant, salt, hash: scrypt(password, salt),
     createdAt: new Date().toISOString(), owner: true,
   };
-  await writeUsers([...users, user]);
+  await mutateUsers((users) => {
+    if (users.some((u) => u.email === normalized)) throw Object.assign(new Error("that email already has an account"), { status: 409 });
+    if (users.some((u) => u.tenant === tenant) || fs.existsSync(accountDir(tenant))) throw Object.assign(new Error("that account name is taken"), { status: 409 });
+    users.push(user);
+  });
   fs.mkdirSync(path.join(accountDir(tenant), "workspaces"), { recursive: true });
   ensureAccountFiles(tenant);
   // The account's own encryption key, minted the moment the account exists.
@@ -787,28 +833,28 @@ export async function createAccountBySuperAdmin(email: string, password: string,
 }
 
 export async function setUserTimezone(userId: string, tz: string | null): Promise<void> {
-  const users = await readUsers();
-  const user = users.find((u) => u.id === userId);
-  if (!user) throw new Error("no such user");
   if (tz !== null && !isValidTimeZone(tz)) throw new Error(`not a known timezone: ${tz}`);
-  if (tz === null) delete user.timezone;
-  else user.timezone = tz;
-  await writeUsers(users);
+  return mutateUsers((users) => {
+    const user = users.find((u) => u.id === userId);
+    if (!user) throw new Error("no such user");
+    if (tz === null) delete user.timezone;
+    else user.timezone = tz;
+  });
 }
 
 /** A person's own small settings, merged: `null` clears a key. */
 export async function setUserPrefs(userId: string, patch: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const users = await readUsers();
-  const user = users.find((u) => u.id === userId);
-  if (!user) throw new Error("no such user");
-  const prefs: Record<string, unknown> = { ...(user.prefs ?? {}) };
-  for (const [k, v] of Object.entries(patch)) {
-    if (v === null) delete prefs[k];
-    else prefs[k] = v;
-  }
-  user.prefs = Object.keys(prefs).length ? prefs : null;
-  await writeUsers(users);
-  return prefs;
+  return mutateUsers((users) => {
+    const user = users.find((u) => u.id === userId);
+    if (!user) throw new Error("no such user");
+    const prefs: Record<string, unknown> = { ...(user.prefs ?? {}) };
+    for (const [k, v] of Object.entries(patch)) {
+      if (v === null) delete prefs[k];
+      else prefs[k] = v;
+    }
+    user.prefs = Object.keys(prefs).length ? prefs : null;
+    return prefs;
+  });
 }
 
 /**
@@ -854,9 +900,11 @@ export async function verifySession(token: string | undefined): Promise<UserReco
     const user = (await readUsers()).find((u) => u.id === live.userId);
     return user ? { ...user, session: { kind: "v2", audience: live.audience, mfa: live.mfa } } : null;
   }
-  // v1: the pre-database form. Still accepted so that deploying revocable
-  // sessions does not sign everybody out, and still minted where an install
-  // has no database at all.
+  // v1: the pre-database form, minted only where an install has no database.
+  // Where there is one, a v1 token cannot be revoked by sign-out, a reset or
+  // Settings → Sessions, and carries no MFA fact — refused (29 Oct 2026; v2
+  // has been minted there for well over the 30-day life of any v1).
+  if (databaseEnabled()) return null;
   const user = (await readUsers()).find((u) => u.id === subject);
   return user ? { ...user, session: { kind: "v1", audience: null, mfa: false } } : null;
 }

@@ -163,3 +163,17 @@ export function sendRestoreRequestNotice(
     `Note: ${r.note || "(none)"}\n\n` +
     `Nothing has been restored. The runbook is foldrun-infra dev/README.md, "Restore"; restore into a scratch volume and copy back only this account's paths.\n`, undefined, "account");
 }
+
+/**
+ * "Your sign-in changed" — after a password change or reset, the second
+ * factor turned on or off, or a new API key. The person learns of it even
+ * when it was not them, which is the point (ASVS 2.2.3). Never awaited by a
+ * route: a mail outage must not fail the change it reports.
+ */
+export function sendSecurityNotice(tenant: string, to: string, what: string, ip: string | null): void {
+  void platformSend(tenant, to, `foldrun: ${what}`,
+    `${what[0].toUpperCase()}${what.slice(1)} on the foldrun account ${to}${ip ? ` (from ${ip})` : ""}, at ${new Date().toUTCString()}.\n\n` +
+    `If this was you, there is nothing to do.\n` +
+    `If it was not, reset your password now from the sign-in page ("Forgot password"), then check Profile → Sessions and Settings → API keys.\n`)
+    .catch((err) => console.error("security notice failed:", err instanceof Error ? err.message : err));
+}
