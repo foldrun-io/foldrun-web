@@ -78,6 +78,17 @@ function read(): CliLogin[] {
   }
 }
 
+/** Change one request in the file store from a fresh read — never from a
+ *  copy held across an await, which would write back over a request another
+ *  approval changed meanwhile (Codex review of FOL-94). */
+function updateRow(id: string, change: (r: CliLogin) => void): void {
+  const fresh = read();
+  const r = fresh.find((x) => x.id === id);
+  if (!r) return;
+  change(r);
+  write(fresh);
+}
+
 function write(rows: CliLogin[]) {
   fs.mkdirSync(path.dirname(file()), { recursive: true });
   fs.writeFileSync(file(), JSON.stringify(rows, null, 2), { mode: 0o600 });
@@ -203,15 +214,16 @@ export async function decideCliLogin(
   try {
     minted = await createApiKey(person.tenant, `cli · ${row.hostname}`, person.email, undefined, role, person.workspaces ?? null);
   } catch (err) {
-    row.status = "pending";
-    write(rows);
+    updateRow(row.id, (r) => void (r.status = "pending"));
     throw err;
   }
   const { key, record } = minted;
   await audit("apikey.created", { actor: person.email, tenant: person.tenant, subject: record.id, detail: { label: record.label, prefix: record.prefix, role, via: "foldrun login" } });
-  row.status = "approved";
-  row.grant = seal({ key, tenant: person.tenant, email: person.email, role });
-  write(rows);
+  const grant = seal({ key, tenant: person.tenant, email: person.email, role });
+  updateRow(row.id, (r) => {
+    r.status = "approved";
+    r.grant = grant;
+  });
   return "approved";
 }
 
