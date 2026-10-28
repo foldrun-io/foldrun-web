@@ -1266,7 +1266,10 @@ test("the scaffolded CLAUDE.md names every directory and agent field", () => {
 // that exists and is not in it is a capability nobody outside this repo can
 // find — the same failure as an undocumented frontmatter field, one layer up.
 test("every API route is in docs/api.md", () => {
-  const doc = read("../foldrun-docs/api.md");
+  // The operator console's routes are documented privately, beside its code
+  // (foldrun-admin/docs/console.md, 28 Oct 2026); a public tree has neither.
+  const consoleDoc = path.join(root, "../foldrun-admin/docs/console.md");
+  const doc = read("../foldrun-docs/api.md") + (fs.existsSync(consoleDoc) ? "\n" + fs.readFileSync(consoleDoc, "utf8") : "");
   const apiRoot = path.join(root, "app/api");
 
   const routes: string[] = [];

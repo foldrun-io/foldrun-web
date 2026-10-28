@@ -183,8 +183,6 @@ test("every side-effect POST the brief names answers through idempotent()", () =
     "POST /api/oauth/start",
     "POST /api/oauth/reconnect",
     "POST /api/oauth/clients",
-    "POST /api/admin/accounts",
-    "POST /api/admin/incidents",
   ];
   const have = new Set(ROUTES.flatMap((r) => (r.idempotent ?? []).map((m) => `${m} ${r.path}`)));
   assert.deepEqual(must.filter((m) => !have.has(m)), []);

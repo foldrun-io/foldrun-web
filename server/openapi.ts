@@ -347,20 +347,6 @@ const SHAPES: Record<string, { body?: Schema; response?: Schema; query?: { name:
   },
   "PATCH /api/account/api": { body: obj({ version: { type: ["string", "null"], description: "YYYY-MM-DD, or null for current" } }, ["version"]) },
   "GET /api/account/flags": { response: obj({ flags: { type: "array", items: EffectiveFlag } }) },
-  "GET /api/admin/flags": {
-    query: [{ name: "account", description: "also answer `effective`: every flag as it stands for this account" }],
-    response: obj({ flags: { type: "array", items: GENERIC }, account: str(), effective: { type: "array", items: EffectiveFlag } }),
-  },
-  "PUT /api/admin/flags/{flag}": {
-    body: obj({
-      enabled: { type: ["boolean", "null"], description: "on/off for every account without an override; null lets the rollout or the default decide" },
-      rollout: { type: ["integer", "null"], minimum: 0, maximum: 100, description: "percentage of accounts; null for the registry's" },
-    }),
-    response: obj({ flag: GENERIC }),
-  },
-  "DELETE /api/admin/flags/{flag}": { response: obj({ flag: GENERIC }) },
-  "PUT /api/admin/flags/{flag}/accounts/{tenant}": { body: obj({ enabled: bool }, ["enabled"]), response: obj({ flag: EffectiveFlag }) },
-  "DELETE /api/admin/flags/{flag}/accounts/{tenant}": { response: obj({ flag: EffectiveFlag }) },
 };
 
 const rl = (d: string): Schema => ({ description: d, schema: { type: "integer" } });
@@ -372,8 +358,9 @@ const RATE_HEADERS = {
 };
 
 /** The routes this build serves: an install without foldrun's billing has
- *  no /api/billing or /api/admin, so its spec does not offer them. */
-const ROUTES = billing() === freeBilling ? ALL_ROUTES.filter((r) => !/^\/api\/(billing|admin|support)(\/|$)/.test(r.path)) : ALL_ROUTES;
+ *  no /api/billing, so its spec does not offer it. The operator console's
+ *  routes are never in it (scripts/gen-openapi.mjs leaves them out). */
+const ROUTES = billing() === freeBilling ? ALL_ROUTES.filter((r) => !/^\/api\/billing(\/|$)/.test(r.path)) : ALL_ROUTES;
 
 const IDEMPOTENT_ROUTES = new Set(ROUTES.flatMap((r) => (r.idempotent ?? []).map((m) => `${m} ${r.path}`)));
 

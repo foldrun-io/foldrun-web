@@ -25,6 +25,9 @@ export function walkRoutes(root = webRoot) {
       if (e.isDirectory()) walk(full);
       else if (e.name === "route.ts") {
         const rel = "/api/" + path.relative(apiRoot, dir).split(path.sep).join("/");
+        // The operator console's routes (28 Oct 2026: its own container,
+        // private code) are not part of the public API or its spec.
+        if (CONSOLE_ROUTE.test(rel)) continue;
         const src = fs.readFileSync(full, "utf8");
         out.push({ path: rel.replace(/\/$/, ""), methods: methodsOf(src), idempotent: idempotentOf(src) });
       }
@@ -46,6 +49,9 @@ function methodsOf(src) {
 function idempotentOf(src) {
   return [...src.matchAll(/^export (?:async )?function (POST|PUT|PATCH|DELETE)\([^)]*\)[^{]*\{\s*return idempotent\(/gm)].map((m) => m[1]);
 }
+
+/** The console's own routes — in a hosted tree only, and never described here. */
+export const CONSOLE_ROUTE = /^\/api\/(admin|support)(\/|$)/;
 
 /** `[workspace]` → `{workspace}`, `[...path]` → `{path}`. */
 export const openapiPath = (p) => p.replace(/\[(?:\.\.\.)?([a-zA-Z]+)\]/g, "{$1}");

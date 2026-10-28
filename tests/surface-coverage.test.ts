@@ -14,7 +14,6 @@ import assert from "node:assert/strict";
 import { operations, cliReach, dashboardReach } from "../scripts/surface-coverage.mjs";
 import { billingPresent, isBillingRoute } from "./billing-files.ts";
 
-const ADMIN = "the super admin console — the platform owner's, in a browser; no account key reaches it";
 const SESSION = "a person's own sign-in, profile or security — session only, a key is refused";
 const CALLBACK = "called by something else holding its own proof, not by a person: ";
 
@@ -22,18 +21,6 @@ const CALLBACK = "called by something else holding its own proof, not by a perso
 const NOT_IN_CLI: Record<string, string> = {
   "POST /api/account/close": "closing an account is the owner's, in person, in Settings",
   "POST /api/oauth/handoff/[id]": "accepting a terminal-started connection is a signed-in person's, in the browser; the CLI opens the page (/api/oauth/start answers its URL)",
-  "POST /api/support/enter": "a support view arriving from the operator console in a browser (a one-use ticket in the URL fragment) — a person's act, never a key's",
-  "POST /api/support/exit": "ending a support view from its banner in the browser — a person's act, never a key's",
-  ...Object.fromEntries(
-    [
-      "GET /api/admin/accounts", "POST /api/admin/accounts", "GET /api/admin/accounts/[tenant]", "POST /api/admin/accounts/[tenant]",
-      "POST /api/admin/accounts/[tenant]/view-as", "DELETE /api/admin/accounts/[tenant]/view-as", "GET /api/admin/export",
-      "GET /api/admin/flags", "PUT /api/admin/flags/[flag]", "DELETE /api/admin/flags/[flag]",
-      "PUT /api/admin/flags/[flag]/accounts/[tenant]", "DELETE /api/admin/flags/[flag]/accounts/[tenant]",
-      "GET /api/admin/incidents", "POST /api/admin/incidents", "GET /api/admin/incidents/[id]", "PATCH /api/admin/incidents/[id]", "DELETE /api/admin/incidents/[id]",
-      "POST /api/admin/runs", "GET /api/admin/stripe-events", "POST /api/admin/stripe-events/[id]/replay",
-    ].map((op) => [op, ADMIN]),
-  ),
   ...Object.fromEntries(
     [
       "POST /api/auth/email", "POST /api/auth/forgot", "POST /api/auth/login", "POST /api/auth/logout",
@@ -56,7 +43,7 @@ const NOT_IN_CLI: Record<string, string> = {
   "POST /api/hooks/[tenant]/[workspace]/[flow]": CALLBACK + "a flow's webhook URL (`foldrun flow hook` prints it)",
   "POST /api/inbox/[tenant]/[workspace]/[flow]": CALLBACK + "inbound mail for a flow",
   // FOL-94: `foldrun billing credit` is retired with it — it answers 404 to all.
-  "POST /api/billing": "answers 404 to every caller: credit by hand is the console's adjustment (POST /api/admin/accounts/[tenant])",
+  "POST /api/billing": "answers 404 to every caller: credit by hand is the platform console's capped adjustment",
   "GET /api/billing/confirm": CALLBACK + "Stripe Checkout's return",
   "POST /api/billing/stripe": CALLBACK + "Stripe's signed webhook",
   "POST /api/unsubscribe": CALLBACK + "the one-click unsubscribe in a mail",
@@ -81,16 +68,6 @@ const SEEN = (where: string) => `reached by a call the scanner cannot evaluate: 
 
 /** Operations the dashboard does not call through /api, and why. */
 const NOT_IN_DASHBOARD: Record<string, string> = {
-  // 27 Oct 2026: the support banner ends a view through POST /api/support/exit
-  // on the customer app; this stays for the console's own-host flow.
-  "DELETE /api/admin/accounts/[tenant]/view-as": "a view is ended from the customer app's banner (POST /api/support/exit); this older end remains for a single-host install",
-  ...Object.fromEntries(
-    [
-      "GET /api/admin/accounts", "GET /api/admin/accounts/[tenant]", "GET /api/admin/flags", "PUT /api/admin/flags/[flag]", "DELETE /api/admin/flags/[flag]",
-      "PUT /api/admin/flags/[flag]/accounts/[tenant]", "DELETE /api/admin/flags/[flag]/accounts/[tenant]", "GET /api/admin/incidents",
-      "GET /api/admin/incidents/[id]", "GET /api/admin/stripe-events",
-    ].map((op) => [op, "the admin console renders these on the server and writes through its forms (app/admin)"]),
-  ),
   "GET /api/account/api": SERVER("settings/page.tsx → apiFactsFor"),
   "GET /api/account/jobs": SERVER("settings pages → defaultsOf and the JOBS headings, read on the server"),
   "GET /api/account/pause": SERVER("settings/page.tsx and layout.tsx → pauseView / adminState"),
@@ -118,7 +95,7 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   "GET /api/billing": SERVER("billing pages → walletSummary, readLedger"),
   // FOL-94: no caller is credited here any more — it answers 404 to all; the
   // super admin credits through the console's adjustment.
-  "POST /api/billing": "answers 404 to every caller: credit by hand is the console's adjustment (POST /api/admin/accounts/[tenant])",
+  "POST /api/billing": "answers 404 to every caller: credit by hand is the platform console's capped adjustment",
   "GET /api/billing/details": SERVER("billing/details/page.tsx → billingDetails"),
   "GET /api/billing/plans": SERVER("billing/plans/page.tsx → PLANS"),
   "POST /api/billing/stripe": CALLBACK + "Stripe's signed webhook",
