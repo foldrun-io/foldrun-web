@@ -170,8 +170,7 @@ export function unmetered(method: string, pathname: string): boolean {
   if (method === "GET" || method === "HEAD") {
     if (p === "/api/healthz" || p === "/api/version" || p === "/api/status" || p.startsWith("/api/status/")) return true;
   }
-  if (method === "POST" && p === "/api/auth/logout") return true;
-  if (method === "DELETE" && /^\/api\/admin\/accounts\/[^/]+\/view-as$/.test(p)) return true;
+  if (method === "POST" && (p === "/api/auth/logout" || p === "/api/support/exit")) return true;
   return false;
 }
 

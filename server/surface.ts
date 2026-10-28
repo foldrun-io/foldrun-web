@@ -1,32 +1,47 @@
-// Which part of the product this process serves (27 Oct 2026).
+// Which part of the product this process serves, and what an operator
+// console would ask of the routes it shares with the customer app.
 //
-// One build can run as more than one Deployment: the customer app, and — on
-// the hosted platform — the operator console on its own hostname behind
-// Cloudflare Access (and later customer billing on its own container). The
-// surface decides which sessions are accepted and which origin a write must
-// come from; FOLDRUN_ROLE still decides which loops the process runs.
-//
-//   FOLDRUN_SURFACE   app (default) | admin | billing
-//   FOLDRUN_ADMIN_URL the console's origin, e.g. https://admin.foldrun.io
+// foldrun's operator console is its own container with private code
+// (foldrun-admin, 28 Oct 2026); the public edition has none. As this
+// repository has it, this file says so everywhere: the one surface is the
+// customer app, no request belongs to a console, no sign-in is refused for
+// one, and a session is the customer app's. The hosted build replaces it
+// (foldrun-admin overlay.sh).
 
-export type Surface = "app" | "admin" | "billing";
+import type { NextRequest, NextResponse } from "next/server";
+import type { UserRecord } from "./users.ts";
+
+export type Surface = "app";
 
 export function surface(): Surface {
-  const s = (process.env.FOLDRUN_SURFACE ?? "").trim() || "app";
-  if (s === "app" || s === "admin" || s === "billing") return s;
-  // A typo must not quietly serve the wrong thing — or the console with the
-  // customer app's looser rules.
-  throw new Error(`FOLDRUN_SURFACE must be app, admin or billing, not "${s}"`);
+  return "app";
 }
 
-/** The console's origin, when the install has one. */
+/** The console's origin: there is no console. */
 export function adminOrigin(): string | null {
-  const raw = process.env.FOLDRUN_ADMIN_URL?.trim();
-  if (!raw) return null;
-  try {
-    const u = new URL(raw);
-    return u.protocol === "https:" || u.hostname === "localhost" || u.hostname === "127.0.0.1" ? u.origin : null;
-  } catch {
-    return null;
-  }
+  return null;
+}
+
+/** A console host's routing, ahead of the customer app's (proxy.ts): none. */
+export async function consoleRoute(
+  _req: NextRequest,
+  _reply: { pass: () => NextResponse; answer: (res: NextResponse) => NextResponse },
+): Promise<NextResponse | null> {
+  return null;
+}
+
+/** A console's rule for a write (server/csrf.ts): undefined, the customer
+ *  app's rules apply. */
+export function consoleWrite(_req: { method: string; headers: Headers }): string | null | undefined {
+  return undefined;
+}
+
+/** Why this person may not sign in here: nobody is refused for a console. */
+export async function signInRefusal(_user: UserRecord): Promise<string | null> {
+  return null;
+}
+
+/** The audience a session minted here carries: the customer app's. */
+export function sessionAudience(): string | null {
+  return null;
 }

@@ -9,7 +9,7 @@
     "start": "FOLDRUN_DATA=../data next start -p 3900",
     "lint": "eslint",
     "typecheck": "node node_modules/typescript-7/bin/tsc --noEmit -p tsconfig.json",
-    "test": "FOLDRUN_DATA=$(mktemp -d /tmp/foldrun-test-XXXXXX) node --import ./tests/register.mjs --test $(ls tests/*.test.ts | grep -v e2e)",
+    "test": "FOLDRUN_DATA=$(mktemp -d /tmp/foldrun-test-XXXXXX) node --import ./tests/register.mjs --experimental-test-module-mocks --test $(ls tests/*.test.ts | grep -v e2e)",
     "api": "FOLDRUN_API_E2E=1 node --import ./tests/register.mjs --test --test-timeout=300000 tests/api-e2e.test.ts",
     "prepare": "(test ! -f .githooks/install.sh || sh .githooks/install.sh)"
   },

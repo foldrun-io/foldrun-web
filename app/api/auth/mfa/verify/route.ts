@@ -11,7 +11,7 @@ import { rateLimit, rateLimitReset } from "@/platform/cache";
 import { audit } from "@/server/audit";
 import { listWorkspaces } from "@/lib/store";
 import { errorResponse } from "@/server/api";
-import { surface } from "@/server/surface";
+import { surface, sessionAudience } from "@/server/surface";
 
 export async function POST(req: NextRequest) {
   try {
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "that code is not right" }, { status: 401 });
     }
     await rateLimitReset(`mfa:${user.id}`);
-    const session = await mintSession(user, req.headers.get("user-agent"), { audience: here === "admin" ? "admin" : null, mfa: true });
+    const session = await mintSession(user, req.headers.get("user-agent"), { audience: sessionAudience(), mfa: true });
     await audit("login", { actor: user.email, tenant: user.tenant, subject: session.sessionId, detail: { mfa: how } });
     const res = NextResponse.json({ ok: true, tenant: user.tenant, workspace: listWorkspaces(user.tenant)[0]?.name ?? null, ...(how === "backup" ? { backupUsed: true } : {}) });
     res.cookies.set(SESSION_COOKIE, session.value, sessionCookieOptions(req, session.expires));

@@ -67,6 +67,10 @@ next-env.d.ts
 /components/dunning-banner.tsx
 /components/manage-in-stripe.tsx
 /tests/admin-export.test.ts
+/tests/console-session.ts
+/tests/console-surface.test.ts
+/tests/csrf-console.test.ts
+/tests/proxy-console.test.ts
 /tests/admin-idempotency-billing.test.ts
 /tests/admin-idempotency.test.ts
 /tests/billing-admin.test.ts

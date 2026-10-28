@@ -14,7 +14,7 @@
 // why SameSite stays the first layer rather than this one).
 
 import { SESSION_COOKIE } from "./users.ts";
-import { surface, adminOrigin } from "./surface.ts";
+import { consoleWrite } from "./surface.ts";
 
 const WRITES = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
@@ -42,20 +42,12 @@ function ownHosts(headers: Headers, publicUrl: string | undefined): string[] {
 export function crossSiteWrite(
   req: { method: string; headers: Headers },
   publicUrl = process.env.FOLDRUN_PUBLIC_URL,
-  consoleOrigin: string | null | undefined = surface() === "admin" ? (adminOrigin() ?? "") : undefined,
 ): string | null {
   if (!WRITES.has(req.method.toUpperCase())) return null;
-  // The operator console (27 Oct 2026) takes no shortcut: every write —
-  // sign-in included, cookie or not, an Authorization header or not — must
-  // name exactly the console's origin. Nothing legitimate writes to it from
-  // anywhere else, and the customer app's host is NOT its own here: sibling
-  // subdomains are same-site, so SameSite=Lax does not separate them.
-  if (consoleOrigin !== undefined) {
-    if (!consoleOrigin) return "this console has no FOLDRUN_ADMIN_URL, so it accepts no writes";
-    const origin = req.headers.get("origin");
-    if (origin === consoleOrigin) return null;
-    return origin === null ? "a write to the console must say where it came from (Origin)" : `this request came from ${origin}, which is not the console`;
-  }
+  // An operator console has its own, stricter rule (hosted only:
+  // foldrun-admin's server/surface.ts); undefined means this is no console.
+  const onConsole = consoleWrite(req);
+  if (onConsole !== undefined) return onConsole;
   const authz = req.headers.get("authorization") ?? "";
   if (authz.startsWith("Bearer ")) return null;
   const cookie = req.headers.get("cookie") ?? "";

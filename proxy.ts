@@ -17,7 +17,7 @@ import { bodyTooLarge } from "@/server/body-limit";
 import { apiGate } from "@/server/api-limits";
 import { RESOLVED_VERSION_HEADER } from "@/server/api-version";
 import { versionHeaders } from "@/server/release";
-import { surface, type Surface } from "@/server/surface";
+import { consoleRoute } from "@/server/surface";
 
 /** X-Foldrun-Version (and X-Foldrun-Api, X-Foldrun-Cli) on a response, so any
  *  client — the CLI's update notice, a script, a support ticket's curl -i —
@@ -114,58 +114,16 @@ function makeNonce(): string {
   return crypto.randomUUID().replace(/-/g, "");
 }
 
-/** What the operator console's surface serves (27 Oct 2026): the console,
- *  the sign-in that leads to it, and health. Everything else — the customer
- *  dashboard, the customer API, signup — is not on this host at all. */
-const CONSOLE_PATHS = [
-  /^\/admin(\/.*)?$/,
-  /^\/api\/admin\/.+$/,
-  /^\/login$/,
-  /^\/api\/auth\/(login|logout|session|mfa\/verify)$/,
-  /^\/api\/(healthz|version)$/,
-];
-
-/** The surface, or null when FOLDRUN_SURFACE is wrong — and then this
- *  process serves nothing rather than guess which rules apply. */
-function surfaceOrNull(): Surface | null {
-  try {
-    return surface();
-  } catch {
-    return null;
-  }
-}
-
 export async function proxy(req: NextRequest) {
   const nonce = makeNonce();
-  const here = surfaceOrNull();
-  if (here === null) return harden(NextResponse.json({ error: "this server's FOLDRUN_SURFACE is not app, admin or billing" }, { status: 500 }), req, nonce);
-  if (here === "admin") {
-    const p = req.nextUrl.pathname;
-    if (!CONSOLE_PATHS.some((re) => re.test(p))) {
-      // The host's front door is the console; anything else is not here.
-      if (p === "/") return harden(NextResponse.redirect(new URL("/login?next=/admin", req.url)), req, nonce);
-      return harden(new NextResponse("not found", { status: 404 }), req, nonce);
-    }
-    if (/^\/admin(\/|$)/.test(p)) {
-      // Signed out, or holding anything but a console session: to the
-      // console's sign-in. The guard behind it decides the rest.
-      const who = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
-      if (!who || who.session?.audience !== "admin") {
-        return harden(NextResponse.redirect(new URL(`/login?next=${encodeURIComponent(p)}`, req.url)), req, nonce);
-      }
-      return harden(NextResponse.next({ request: { headers: forward(req, nonce) } }), req, nonce);
-    }
-    if (p === "/login" && !req.nextUrl.searchParams.get("next")) {
-      // Signed in here, the only place to land is the console (the form's
-      // default, the dashboard, is not on this host).
-      return harden(NextResponse.redirect(new URL("/login?next=/admin", req.url)), req, nonce);
-    }
-    if (!p.startsWith("/api/")) {
-      // The sign-in page itself: served as is (the dashboard's "signed out →
-      // /login" below would send it to itself).
-      return harden(NextResponse.next({ request: { headers: forward(req, nonce) } }), req, nonce);
-    }
-  } else if (!req.nextUrl.pathname.startsWith("/api/") && !/^\/dashboard(\/|$)/.test(req.nextUrl.pathname)) {
+  // An operator console's host answers first (hosted only: foldrun-admin's
+  // server/surface.ts; the public stub has no console and answers nothing).
+  const onConsole = await consoleRoute(req, {
+    pass: () => harden(NextResponse.next({ request: { headers: forward(req, nonce) } }), req, nonce),
+    answer: (res) => harden(res, req, nonce),
+  });
+  if (onConsole) return onConsole;
+  if (!req.nextUrl.pathname.startsWith("/api/") && !/^\/dashboard(\/|$)/.test(req.nextUrl.pathname)) {
     // Every other page (sign-in, signup, reset, the home page): no session
     // logic, but the same security headers as the dashboard. Until 27 Oct
     // 2026 they got none — the quality stack's ZAP scan found a frameable
@@ -212,7 +170,7 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // Every page and route (27 Oct 2026): the console's surface must be able
-  // to refuse anything that is not the console. Static assets stay out.
+  // Every page and route (27 Oct 2026): a console's host must be able to
+  // refuse anything that is not the console. Static assets stay out.
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

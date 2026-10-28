@@ -9,8 +9,7 @@ import { rateLimit, rateLimitReset } from "@/platform/cache";
 import { audit } from "@/server/audit";
 import { mintToken, CHALLENGE_TTL_MS } from "@/server/auth-tokens";
 import { errorResponse } from "@/server/api";
-import { surface } from "@/server/surface";
-import { isSuperAdmin } from "@/platform/admin";
+import { surface, signInRefusal } from "@/server/surface";
 
 // Two limits, because they answer different attacks. Per-account stops someone
 // grinding one person's password; per-IP stops the same client working through
@@ -60,20 +59,11 @@ export async function POST(req: NextRequest) {
     // three times and then got it right is not throttled by their own typos.
     await rateLimitReset(`login:acct:${email}`);
 
-    // The operator console (27 Oct 2026): only the platform's operator signs
-    // in here, and never without a second factor — the password alone buys
-    // nothing on this surface.
+    // An operator console lets only the platform's operator in (hosted only:
+    // foldrun-admin's server/surface.ts; nobody is refused here otherwise).
+    const refused = await signInRefusal(user);
+    if (refused) return NextResponse.json({ error: refused }, { status: 403 });
     const here = surface();
-    if (here === "admin") {
-      if (!isSuperAdmin(user)) {
-        await audit("login.refused", { actor: user.email, tenant: user.tenant, detail: { reason: "not-operator", surface: here } });
-        return NextResponse.json({ error: "this sign-in is for the platform's operator" }, { status: 403 });
-      }
-      if (!user.mfaSecret) {
-        await audit("login.refused", { actor: user.email, tenant: user.tenant, detail: { reason: "no-mfa", surface: here } });
-        return NextResponse.json({ error: "the console needs a second factor — set one up in your account's settings first" }, { status: 403 });
-      }
-    }
 
     // A second factor is on: the password bought a challenge, not a session.
     // The challenge token names the user and the surface it was asked on, and

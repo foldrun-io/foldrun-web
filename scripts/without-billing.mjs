@@ -36,7 +36,7 @@ const REPOS = ["foldrun-core", "foldrun-platform", "foldrun-docs", "foldrun-cli"
 const SKIP = new Set(["node_modules", ".next", ".git", "coverage", ".turbo"]);
 
 const { PRIVATE, HOSTED_STUB, importsOf } = await import(path.join(parent, "foldrun-platform/tests/billing-boundary-lists.ts"));
-const { BILLING_FILES, STUBS } = await import(path.join(here, "tests/billing-files.ts"));
+const { BILLING_FILES, BILLING_TESTS, STUBS } = await import(path.join(here, "tests/billing-files.ts"));
 
 function copy(from, to) {
   fs.mkdirSync(to, { recursive: true });
@@ -134,6 +134,13 @@ for (const dir of [path.join(platform, "tests"), path.join(web, "tests")]) {
   for (const name of fs.readdirSync(dir)) {
     if (!/\.test\.tsx?$/.test(name)) continue;
     const file = path.join(dir, name);
+    // foldrun-admin's own tests (BILLING_TESTS) go with it, whatever they
+    // import — the console's, which test the stubs' hosted halves, too.
+    if (dir === path.join(web, "tests") && BILLING_TESTS.includes(name)) {
+      fs.rmSync(file);
+      droppedTests.push(`${path.relative(out, file)} (foldrun-admin's)`);
+      continue;
+    }
     // Named as billing's half of a split test file: moves with billing.
     if (/-billing\.test\.tsx?$/.test(name)) {
       fs.rmSync(file);
