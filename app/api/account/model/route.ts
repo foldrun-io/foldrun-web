@@ -23,7 +23,8 @@ import { setSecret, deleteSecret } from "@/lib/secrets";
 import { describeAccountModel as describe } from "@/server/account-model";
 import { ACCOUNT_MODEL_SECRETS, isClaudeLoginToken } from "@/lib/model-credential";
 import { providerPreset } from "@/lib/providers";
-import { platform } from "@/lib/platform";
+import { platform, guardsUntrustedUrls } from "@/lib/platform";
+import { refuseInternalUrl } from "@/platform/ssrf";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,11 @@ async function putOnce(req: NextRequest) {
     if (name && name !== "custom" && !preset) return bad(`unknown provider "${name}" — use a preset name (anthropic, openrouter, openai, groq, …) or "custom" with a baseUrl`);
     if (!preset && !baseUrl) return bad("a custom provider needs baseUrl — the endpoint your key is for");
     if (baseUrl && !/^https:\/\//.test(baseUrl)) return bad("baseUrl must be an https:// URL");
+    // The host calls this URL for a judge, a draft, the assistant: on a
+    // platform, never a private or cluster address (FOL-95). The guard checks
+    // every request again; this is so the person hears it now, not later.
+    const refused = baseUrl ? ((guardsUntrustedUrls() ? refuseInternalUrl(baseUrl) : null) ?? (await platform.checkUntrustedUrl(baseUrl))) : null;
+    if (refused) return bad(`baseUrl refused: ${refused}`);
     if (preset && !preset.baseUrl && !baseUrl) return bad(`${preset.name} needs a baseUrl — ${preset.note ?? "its address is per account"}`);
     if (format && !(FORMATS as readonly string[]).includes(format)) return bad(`format is anthropic or openai`);
 
