@@ -9,7 +9,7 @@ import { rateLimit, rateLimitReset } from "@/platform/cache";
 import { audit } from "@/server/audit";
 import { mintToken, CHALLENGE_TTL_MS } from "@/server/auth-tokens";
 import { errorResponse } from "@/server/api";
-import { surface, signInRefusal } from "@/server/surface";
+import { surface, signInRefusal, sessionAudience } from "@/server/surface";
 
 // Two limits, because they answer different attacks. Per-account stops someone
 // grinding one person's password; per-IP stops the same client working through
@@ -74,7 +74,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, mfa: true, challenge });
     }
 
-    const session = await mintSession(user, req.headers.get('user-agent'));
+    // The surface's audience (an operator console's, when its second factor
+    // is optional — hosted only; the customer app's otherwise).
+    const session = await mintSession(user, req.headers.get('user-agent'), { audience: sessionAudience() });
     await audit('login', { actor: user.email, tenant: user.tenant, subject: session.sessionId });
     const res = NextResponse.json({
       ok: true,
