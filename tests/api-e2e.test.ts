@@ -9,7 +9,7 @@
 //   a flow naming a missing agent → 422, with the issue and its line
 //   a good deploy               → lands on disk
 //   a refused deploy            → the CLI exits 1, so CI fails
-//   ?wait=true on a failing run → 500 with the failure
+//   ?wait=true on a failing run → 200, ok false, with the failure (FOL-106)
 //   ?wait=true on a working one → 200 with the result and the cost
 //
 // It needs a built dashboard and a port, so it is opt-in and excluded from
@@ -353,7 +353,7 @@ test("without wait, a run returns a receipt", opts, async () => {
 
 // A failure has to arrive as a failure. Returning 200 with a null result would
 // make a broken agent indistinguishable from a quiet one.
-test("waiting on a run that fails answers 500, with the failure", opts, async () => {
+test("waiting on a run that fails answers 200, ok false, with the failure (FOL-106)", opts, async () => {
   // Deploy a flow whose agent is not there — no model call, fails immediately.
   const res = await api("/api/workspaces/broken/deploy", {
     method: "POST",
@@ -374,17 +374,18 @@ test("waiting on a run that fails answers 500, with the failure", opts, async ()
   const run = await api("/api/workspaces/broken/flows/go/run?wait=true&timeout=30", {
     method: "POST",
   });
-  assert.equal(run.status, 500);
+  assert.equal(run.status, 200, "a run that failed is the answer, not a fault (FOL-106)");
   const body = await run.json();
   assert.equal(body.ok, false);
   assert.equal(body.status, "failed");
   assert.equal(body.steps[0].status, "failed");
+  assert.equal(body.failure?.agent, "writer");
 
   // The same verdict is available on the run itself, so a caller whose
   // first wait timed out (202) can keep asking in short requests rather
   // than hold one open past whatever proxy sits in front of the platform.
   const again = await api(`/api/workspaces/broken/runs/${body.runId}?wait=true&timeout=5`);
-  assert.equal(again.status, 500);
+  assert.equal(again.status, 200);
   const verdict = await again.json();
   assert.equal(verdict.runId, body.runId);
   assert.equal(verdict.status, "failed");
