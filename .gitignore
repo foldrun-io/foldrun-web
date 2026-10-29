@@ -58,6 +58,7 @@ next-env.d.ts
 /app/dashboard/wallet/
 /app/support/
 /server/admin/
+/server/admin-api/
 /server/console-access.ts
 /server/stripe.ts
 /server/stripe-webhook.ts

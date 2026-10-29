@@ -1487,13 +1487,15 @@ test("billingEnabled() is asked only where the edition is already hosted", () =>
     // The billing section is the wallet's successor: gated at its layout,
     // and the one place the finer question (is an empty balance refused?)
     // belongs. The admin console reports the switch as a fact about the
-    // install, behind a fence that asks the edition first. The dashboard
+    // install, behind a fence that asks the edition first (since 30 Oct 2026
+    // read by the app's internal admin API, server/admin-api, which a hosted
+    // app alone starts). The dashboard
     // layout settles the edition for every page and, only once it is hosted,
     // asks whether anything is metered — the plan badge said "Metered" on
     // dev and staging, where billing is off (FOL-28). The money notices
     // (server/billing-notices.ts, hosted-only, called after the edition is
     // settled) word the funds gate, so they ask its own question.
-    .filter((rel) => !/^(app\/(dashboard\/wallet|dashboard\/billing|api\/billing)|server\/admin)\//.test(rel) && rel !== "app/dashboard/layout.tsx" && rel !== "server/billing-notices.ts");
+    .filter((rel) => !/^(app\/(dashboard\/wallet|dashboard\/billing|api\/billing)|server\/admin(-api)?)\//.test(rel) && rel !== "app/dashboard/layout.tsx" && rel !== "server/billing-notices.ts");
   assert.deepEqual(offenders, [], `ask platform.edition() instead:\n${offenders.join("\n")}`);
 });
 

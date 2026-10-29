@@ -17,6 +17,7 @@ export const BILLING_FILES = [
   "app/dashboard/wallet/",
   "app/support/",
   "server/admin/",
+  "server/admin-api/",
   "server/console-access.ts",
   "server/stripe.ts",
   "server/stripe-webhook.ts",
@@ -119,6 +120,16 @@ export async function signInRefusal(_user: UserRecord): Promise<string | null> {
 export function sessionAudience(): string | null {
   return null;
 }
+
+/** Whether this process is an operator console, which runs none of the
+ *  app's boot (instrumentation.ts): never, here. */
+export function consoleProcess(): boolean {
+  return false;
+}
+
+/** What the hosted app starts beside itself once booted (instrumentation.ts):
+ *  nothing, here. */
+export async function startSurfaceServices(): Promise<void> {}
 `;
 
 /** server/view-as.ts as the public repository has it: no support views
