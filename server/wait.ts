@@ -7,7 +7,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { waitForRun, runResult } from "@/lib/runner";
-import { runCost, type RunRecord } from "@/lib/store";
+import { runCost, runFailure, type RunRecord } from "@/lib/store";
 
 /** Long enough for a real multi-step flow, short enough to not hold forever. */
 const DEFAULT_TIMEOUT_S = 300;
@@ -27,9 +27,15 @@ function timeoutMs(req: NextRequest): number {
 /**
  * Block until the run stops, then answer with what it produced.
  *
- * The status codes are the point. A caller scripting against this needs to
- * tell apart "the agent answered", "the agent failed", "a person has to
- * approve something", and "it is still going" — and only the first is a 200.
+ * A caller scripting against this needs to tell apart "the agent answered",
+ * "the agent failed", "a person has to approve something", and "it is still
+ * going". The first two are both a 200 — the call worked, and the answer is
+ * the run's own `status` (with `ok` and, when it failed, `failure`); 202 is
+ * "not finished". A run that failed on its own terms (no model key, a step's
+ * error) used to answer 500 (FOL-106): that read as the platform breaking,
+ * paged whoever watches 5xx, and made clients retry a run that had already
+ * ended. A start that is refused before any run exists — paused, no such
+ * agent, overlap — never reaches here and keeps its 4xx.
  */
 export async function waitAndRespond(
   req: NextRequest,
@@ -47,6 +53,9 @@ export async function waitAndRespond(
     runId: run.id,
     status: run.status,
     result: runResult(run),
+    // Why it failed, in one line — the failing step and its last error, as
+    // the runs list shows it. null for every other status.
+    failure: runFailure(run),
     costUsd: runCost(run),
     steps: run.steps.map((s) => ({
       agent: s.agent,
@@ -64,5 +73,5 @@ export async function waitAndRespond(
   if (run.status === "awaiting-approval") {
     return NextResponse.json({ ...body, awaitingApproval: true }, { status: 202 });
   }
-  return NextResponse.json(body, { status: run.status === "completed" ? 200 : 500 });
+  return NextResponse.json(body, { status: 200 });
 }
