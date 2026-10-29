@@ -101,3 +101,59 @@ test("the week's-notice expiry mail skips login keys; their end, once reached, s
   assert.equal(ended.tenant, null);
   assert.match((ended as { message?: string }).message ?? "", /sign-in ended on .* run `foldrun login`/);
 });
+
+/** Make a key look minted `ms` ago (the file store). */
+function age(id: string, ms: number) {
+  const file = path.join(process.env.FOLDRUN_DATA!, "keys.json");
+  const all = JSON.parse(fs.readFileSync(file, "utf8"));
+  all.find((k: { id: string }) => k.id === id).createdAt = new Date(Date.now() - ms).toISOString();
+  fs.writeFileSync(file, JSON.stringify(all));
+}
+
+test("a renewal whose answer was lost: a retry with the old key inside the grace gets a key it can keep", async () => {
+  const { token, record } = await signIn("lost");
+  const first = await post(record.id, token);
+  assert.equal(first.status, 200, await first.clone().text());
+  const lost = await first.json(); // the CLI never stored this one
+  assert.equal((await post(record.id, token)).status, 409, "a replacement seconds old may be another command's, just saved");
+  age(lost.id, 60_000);
+  const again = await post(record.id, token);
+  assert.equal(again.status, 200, await again.clone().text());
+  const kept = await again.json();
+  assert.match(kept.key, /^mda_/);
+  assert.notEqual(kept.id, lost.id);
+  assert.equal(kept.replaced.id, lost.id, "the unused replacement is what was rotated");
+  const keys = await listApiKeys("acme");
+  assert.ok(keys.find((k) => k.id === lost.id)!.revokedAt, "the lost key ends at once");
+  const fresh = keys.find((k) => k.id === kept.id)!;
+  assert.equal(fresh.origin, "cli-login");
+  assert.equal(fresh.role, "viewer");
+  assert.deepEqual(fresh.workspaces, ["blog"]);
+  assert.equal((await resolveTenant(new NextRequest("http://localhost/api/me", { headers: { authorization: `Bearer ${kept.key}` } }))).tenant, "acme");
+});
+
+test("once the replacement has been used, the old key cannot rotate again", async () => {
+  const { token, record } = await signIn("used");
+  const first = await (await post(record.id, token)).json();
+  // The CLI stored it and called with it.
+  assert.equal((await resolveTenant(new NextRequest("http://localhost/api/me", { headers: { authorization: `Bearer ${first.key}` } }))).tenant, "acme");
+  const again = await post(record.id, token);
+  assert.equal(again.status, 409, await again.clone().text());
+  assert.equal((await listApiKeys("acme")).find((k) => k.id === first.id)!.revokedAt ?? null, null, "the key in use stays");
+});
+
+test("two answers lost in a row: the retry follows the chain to the newest unused key", async () => {
+  const { token, record } = await signIn("lost-twice");
+  const b = await (await post(record.id, token)).json();
+  age(b.id, 60_000);
+  const c = await (await post(record.id, token)).json();
+  assert.equal(c.replaced.id, b.id);
+  age(c.id, 60_000);
+  const third = await post(record.id, token);
+  assert.equal(third.status, 200, await third.clone().text());
+  const d = await third.json();
+  assert.equal(d.replaced.id, c.id, "the newest replacement is the one rotated");
+  const keys = await listApiKeys("acme");
+  assert.ok(keys.find((k) => k.id === c.id)!.revokedAt);
+  assert.equal(keys.find((k) => k.id === d.id)!.revokedAt ?? null, null);
+});
