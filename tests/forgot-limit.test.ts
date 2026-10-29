@@ -24,6 +24,16 @@ const { createUser } = await import("../server/users.ts");
 const { rateLimit } = await import("@/platform/cache");
 const { recentAudit } = await import("../server/audit.ts");
 
+/** The reset mail (and its audit line) is sent after the answer, so the
+ *  answer's timing says nothing: wait for the n-th line. */
+const resets = async (n: number) => {
+  for (let i = 0; i < 200; i++) {
+    const lines = (await recentAudit("forgot-acct")).filter((e) => e.action === "password.reset_requested");
+    if (lines.length >= n) return lines;
+    await new Promise((r) => setTimeout(r, 10));
+  }
+  throw new Error(`no reset audit line ${n}`);
+};
 const ask = (email: string, headers: Record<string, string> = {}) =>
   forgot.POST(new NextRequest("http://x/api/auth/forgot", { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify({ email }) }));
 
@@ -57,17 +67,16 @@ test("install-wide: past the hour's reset mail, the answer is the same sentence 
   const first = await ask(user.email);
   assert.equal(first.status, 200);
   // Made-up addresses above spent none of the install's mail.
-  let entries = await recentAudit("forgot-acct");
-  assert.equal(entries.filter((e) => e.action === "password.reset_requested").length, 1);
-  assert.notEqual(entries[0].detail.error, "the install's hourly reset mail limit was reached");
+  const lines = await resets(1);
+  assert.equal(lines.length, 1);
+  assert.notEqual(lines[0].detail.error, "the install's hourly reset mail limit was reached");
 
   // Use up the rest of the hour's mail (300; one went above).
   for (let i = 0; i < 299; i++) await rateLimit("forgot:sends", 300, 3600);
   const over = await ask(user.email);
   assert.equal(over.status, 200, "a 429 here would say the address has an account");
   assert.deepEqual(await over.json(), await (await ask("nobody@forgot.test")).json());
-  entries = await recentAudit("forgot-acct");
-  const last = entries.find((e) => e.action === "password.reset_requested")!;
+  const last = (await resets(2))[0];
   assert.equal(last.detail.sent, false);
   assert.equal(last.detail.error, "the install's hourly reset mail limit was reached");
 });
