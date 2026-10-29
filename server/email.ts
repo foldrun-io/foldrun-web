@@ -21,7 +21,7 @@ export async function sendInviteEmail(
     subject: `${detail.from} invited you to ${tenant} on foldrun`,
     text:
       `${detail.from} invited you to join the account "${tenant}" on foldrun as ${detail.role}, with access to ${detail.scope}.\n\n` +
-      `Accept the invite here (it is for this address only, and expires ${detail.expires.toDateString()}):\n${url}\n\n` +
+      `Accept the invite here (it works once, for this address only, and expires ${detail.expires.toDateString()}):\n${url}\n\n` +
       `If you were not expecting this, ignore it — nothing happens until you accept.\n`,
   });
   if (!res.ok) return { ok: false, error: res.status ? `the mail service refused it (HTTP ${res.status})` : res.error ?? "not sent" };

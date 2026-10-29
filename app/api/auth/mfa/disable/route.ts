@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession, errorResponse, ApiError } from "@/server/api";
-import { verifyPassword, openString, setMfa, consumeBackupCode } from "@/server/users";
+import { verifyPassword, openString, mfaBinding, setMfa, consumeBackupCode } from "@/server/users";
 import { verifyTotp, hashBackup } from "@/server/totp";
 import { audit } from "@/server/audit";
 import { refuseWhenLimited, clearLimit, clientIp } from "@/server/limits";
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     if (!(await verifyPassword(me.email, String(body.password ?? "")))) throw new ApiError("wrong password", 401);
     if (!me.mfaSecret) throw new ApiError("the second factor is not on", 409);
     const code = String(body.code ?? "").trim();
-    const ok = verifyTotp(openString(me.mfaSecret), code) || (await consumeBackupCode(me.id, hashBackup(code)));
+    const ok = verifyTotp(openString(me.mfaSecret, mfaBinding(me.id)), code) || (await consumeBackupCode(me.id, hashBackup(code)));
     if (!ok) throw new ApiError("that code is not right", 401);
     await clearLimit(`mfa-disable:${me.id}`);
     await setMfa(me.id, null);

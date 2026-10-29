@@ -8,7 +8,7 @@ import QRCode from "qrcode";
 import { requireSession, errorResponse, ApiError } from "@/server/api";
 import { newSecret, otpauthUri } from "@/server/totp";
 import { mintToken, ENROL_TTL_MS } from "@/server/auth-tokens";
-import { sealString } from "@/server/users";
+import { sealString, mfaEnrolBinding } from "@/server/users";
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     const qr = await QRCode.toDataURL(uri, { margin: 1, width: 200 });
     // Sealed inside the token too: a token is a bearer thing that passes
     // through the browser, and the secret must not be readable from it.
-    const enrol = mintToken("mfa-enrol", { u: me.id, s: sealString(secret) }, ENROL_TTL_MS);
+    const enrol = mintToken("mfa-enrol", { u: me.id, s: sealString(secret, mfaEnrolBinding(me.id)) }, ENROL_TTL_MS);
     return NextResponse.json({ secret, uri, qr, enrol });
   } catch (err) {
     return errorResponse(err);

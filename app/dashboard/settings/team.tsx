@@ -3,9 +3,10 @@
 // The team: who is in this account, what each may do, and which workspaces
 // each may open. An invite goes by email through the account's Resend key
 // and is shown as a link too; either way it is bound to the address it was
-// made for and good for seven days. A member's role and scope are edited
-// in place; the owner is never scoped and is the only one who can hand
-// the account on.
+// made for, works once, and is good for seven days. The invites still out
+// are listed with a Revoke each. A member's role and scope are edited in
+// place; the owner is never scoped and is the only one who can hand the
+// account on.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -26,6 +27,18 @@ interface Member {
   role: Role;
   workspaces: string[] | null;
   avatar?: string | null;
+}
+
+/** A pending invite, as GET /api/team/invites answers — never its link. */
+interface PendingInvite {
+  id: string;
+  email: string | null;
+  role: Role;
+  workspaces: string[] | null;
+  invitedBy: string;
+  createdAt: string;
+  expiresAt: string;
+  status: string;
 }
 
 const DESCRIBE: Record<Role, string> = {
@@ -71,7 +84,7 @@ function ScopePicker({ all, value, onChange, disabled = false }: { all: string[]
   );
 }
 
-export function TeamManager({ members, self, workspaces }: { members: Member[]; self: string | null; workspaces: string[] }) {
+export function TeamManager({ members, invites = [], self, workspaces }: { members: Member[]; invites?: PendingInvite[]; self: string | null; workspaces: string[] }) {
   const mine = useRole();
   const router = useRouter();
   const [confirm, confirmDialog] = useConfirm();
@@ -106,8 +119,15 @@ export function TeamManager({ members, self, workspaces }: { members: Member[]; 
     const data = await call("/api/team", "POST", { role: inviteRole, workspaces: inviteScope, email: email.trim() || null, send });
     if (data?.path) {
       setResult({ url: `${window.location.origin}${data.path as string}`, sent: (data.sent as boolean | null) ?? null, sendError: (data.sendError as string | null) ?? null, email: (data.email as string | null) ?? null });
+      // The new one joins the pending list; one it replaced leaves it.
+      router.refresh();
     }
     setBusy(false);
+  }
+  async function revokeInvite(inv: PendingInvite) {
+    const who = inv.email ?? "anyone with the link";
+    if (!(await confirm({ title: `Revoke the invite for ${who}?`, body: "The link stops working at once. You can send a new one later.", confirmLabel: "Revoke" }))) return;
+    if (await call(`/api/team/invites/${encodeURIComponent(inv.id)}`, "DELETE")) router.refresh();
   }
   const copy = async (url: string) => {
     try {
@@ -171,7 +191,7 @@ export function TeamManager({ members, self, workspaces }: { members: Member[]; 
               <ScopePicker all={workspaces} value={inviteScope} onChange={setInviteScope} />
             </div>
             <p className="text-xs text-fg-muted">
-              <strong>{inviteRole}</strong> {DESCRIBE[inviteRole]}. An invite is good for seven days; with an address it can only be accepted by that address.
+              <strong>{inviteRole}</strong> {DESCRIBE[inviteRole]}. An invite works once, for seven days; with an address it can only be accepted by that address.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 border-t border-line-faint bg-sunken/60 px-4 py-3">
@@ -181,20 +201,42 @@ export function TeamManager({ members, self, workspaces }: { members: Member[]; 
             <button type="button" disabled={busy} onClick={() => void invite(false)} className={buttonClass("secondary")}>
               {email.trim() ? "Just make the link" : "Make a link anyone can use"}
             </button>
-            {error && <span className="text-xs text-red-600">{error}</span>}
+            {error && <span className="text-xs text-danger">{error}</span>}
           </div>
         </form>
       )}
 
       {result && (
         <div className="rounded-lg border border-line bg-sunken p-3 text-sm">
-          {result.sent === true && <p className="text-emerald-700">Sent to {result.email}. The same link, in case they need it:</p>}
-          {result.sent === false && <p className="text-amber-700">Could not send: {result.sendError}. Copy the link and send it yourself:</p>}
-          {result.sent === null && <p className="text-fg-tertiary">{result.email ? `For ${result.email} only.` : "Anyone with this link can join — share it with care."} Valid 7 days, shown once:</p>}
+          {result.sent === true && <p className="text-success">Sent to <Email value={result.email} />. The same link, in case they need it:</p>}
+          {result.sent === false && <p className="text-warning">Could not send: {result.sendError}. Copy the link and send it yourself:</p>}
+          {result.sent === null && <p className="text-fg-tertiary">{result.email ? <>For <Email value={result.email} /> only.</> : "One person with this link can join — share it with care."} It works once, for seven days. Shown once:</p>}
           <div className="mt-1.5 flex items-center gap-2">
             <code className="min-w-0 flex-1 truncate font-mono text-xs text-fg-secondary">{result.url}</code>
             <button type="button" onClick={() => void copy(result.url)} className={buttonClass("secondary", "!px-2.5 !py-1 !text-xs")}>{copied ? "Copied" : "Copy"}</button>
           </div>
+        </div>
+      )}
+
+      {manages && invites.length > 0 && (
+        <div className="rounded-xl border border-line bg-surface">
+          <p className="border-b border-line-faint px-4 py-2 text-[10px] font-medium uppercase tracking-wide text-fg-subtle">Pending invites</p>
+          <ul className="divide-y divide-line-faint">
+            {invites.map((inv) => (
+              <li key={inv.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm text-fg">{inv.email ? <Email value={inv.email} /> : <span className="text-fg-muted">anyone with the link</span>}</p>
+                  <p className="text-xs text-fg-muted">
+                    {describeScope(inv.workspaces)} · invited by <Email value={inv.invitedBy} /> · expires <LocalTime iso={inv.expiresAt} options={{ dateStyle: "medium", timeStyle: "short" }} />
+                  </p>
+                </div>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-fg-tertiary" title={DESCRIBE[inv.role]}>{inv.role}</span>
+                {(inv.role !== "admin" || managesAdmins) && (
+                  <button type="button" onClick={() => void revokeInvite(inv)} className={buttonClass("destructive", "!px-2 !py-1 !text-xs")}>Revoke</button>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
@@ -256,7 +298,7 @@ export function TeamManager({ members, self, workspaces }: { members: Member[]; 
           ))}
         </ul>
       </div>
-      {error && !manages && <p className="text-sm text-red-700">{error}</p>}
+      {error && !manages && <p className="text-sm text-danger">{error}</p>}
     </div>
   );
 }

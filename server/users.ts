@@ -14,7 +14,7 @@
 import { ensureTenantKey } from "@/platform/tenant-keys.ts";
 import { assertPasswordPolicy } from "@/server/password-policy";
 import { allUsersDb, upsertUserDb, importUsersToDatabase } from "@/platform/users-db";
-import { tx, databaseEnabled, users as usersTable, eq, sql } from "@/platform/orm";
+import { tx, databaseEnabled, users as usersTable, eq, sql, type Db } from "@/platform/orm";
 import { revokeSessions } from "./sessions";
 import fs from "node:fs";
 import {
@@ -41,7 +41,18 @@ import {
   roleOf as roleOfMembers,
   type Role,
 } from "@/platform/permissions.ts";
-import { formatScope, parseScope } from "@/platform/scope.ts";
+import {
+  claimInviteDb,
+  insertInviteDb,
+  inviteByIdDb,
+  invitesOfTenantDb,
+  inviteStatus,
+  readInvitesFile,
+  revokeInvitesDb,
+  writeInvitesFile,
+  type InviteRow,
+  type InviteStatus,
+} from "@/platform/invites.ts";
 
 const usersFile = () => path.join(dataRoot(), "users.json");
 
@@ -123,18 +134,36 @@ export interface UserRecord {
 // readable from a dump of the table — the second factor.
 const GCM = { authTagLength: 16 } as const;
 const installKeyBytes = () => crypto.createHash("sha256").update(installKey()).digest();
-export function sealString(plain: string): string {
+//
+// Bound to whose it is (29 Oct 2026, OWASP review): `bind` (e.g. ["foldrun-mfa",
+// userId]) is sealed in as AAD, and the result carries an "s2." prefix ("."
+// is not base64url, so the forms cannot be confused). One person's sealed
+// secret copied onto another's row, or an enrol token's secret planted as a
+// stored one, no longer opens. Written once the install writes bound records
+// (FOLDRUN_VAULT_WRITE_BOUND=1); the unbound form is read always.
+export const mfaBinding = (userId: string) => ["foldrun-mfa", userId];
+export const mfaEnrolBinding = (userId: string) => ["foldrun-mfa-enrol", userId];
+const S2 = "s2.";
+export function sealString(plain: string, bind?: string[]): string {
+  const bound = bind !== undefined && process.env.FOLDRUN_VAULT_WRITE_BOUND === "1";
   const iv = crypto.randomBytes(12);
   const c = crypto.createCipheriv("aes-256-gcm", installKeyBytes(), iv, GCM);
+  if (bound) c.setAAD(Buffer.from(JSON.stringify(bind), "utf8"));
   const enc = Buffer.concat([c.update(plain, "utf8"), c.final()]);
-  return Buffer.concat([iv, c.getAuthTag(), enc]).toString("base64url");
+  const body = Buffer.concat([iv, c.getAuthTag(), enc]).toString("base64url");
+  return bound ? S2 + body : body;
 }
-export function openString(sealed: string): string {
-  const raw = Buffer.from(sealed, "base64url");
+export function openString(sealed: string, bind?: string[]): string {
+  const bound = sealed.startsWith(S2);
+  if (bound && bind === undefined) throw new Error("a bound secret needs its binding to open");
+  const raw = Buffer.from(bound ? sealed.slice(S2.length) : sealed, "base64url");
   const d = crypto.createDecipheriv("aes-256-gcm", installKeyBytes(), raw.subarray(0, 12), GCM);
   d.setAuthTag(raw.subarray(12, 28));
+  if (bound) d.setAAD(Buffer.from(JSON.stringify(bind), "utf8"));
   return Buffer.concat([d.update(raw.subarray(28)), d.final()]).toString("utf8");
 }
+/** Whether a stored second factor is still in the unbound form. */
+export const isUnboundSeal = (sealed: string) => !sealed.startsWith(S2);
 
 // The store: rows when this install has a database, the file when it does
 // not. The array shape is kept on purpose — every mutation below reads the
@@ -169,17 +198,89 @@ const USERS_LOCK = 0x666f6c75;
 let fileQueue: Promise<unknown> = Promise.resolve();
 
 /**
+ * The team's invites, as a mutation sees them: under the same lock and in
+ * the same transaction as the people, so accepting one and creating the
+ * member it lets in land together or not at all. With a database these are
+ * statements on the transaction; without one, invites.json, loaded when
+ * first touched and written only after `fn` returns.
+ */
+interface InviteStore {
+  add(row: InviteRow): Promise<void>;
+  /** Use it up, once: the row, or null if it was used, revoked, expired or never there. */
+  claim(id: string, userId: string): Promise<InviteRow | null>;
+  get(id: string): Promise<InviteRow | null>;
+  ofTenant(tenant: string): Promise<InviteRow[]>;
+  /** Revoke the still-pending ones among `ids`; returns those it revoked. */
+  revoke(ids: string[], by: string, reason: string): Promise<InviteRow[]>;
+}
+
+function dbInviteStore(t: Db): InviteStore {
+  return {
+    add: (row) => insertInviteDb(row, t),
+    claim: (id, userId) => claimInviteDb(id, userId, t),
+    get: (id) => inviteByIdDb(id, t),
+    ofTenant: (tenant) => invitesOfTenantDb(tenant, t),
+    revoke: (ids, by, reason) => revokeInvitesDb(ids, by, reason, t),
+  };
+}
+
+function fileInviteStore(): InviteStore & { flush(): void } {
+  let rows: InviteRow[] | null = null;
+  let dirty = false;
+  const load = () => (rows ??= readInvitesFile());
+  return {
+    async add(row) {
+      load().push({ ...row });
+      dirty = true;
+    },
+    async claim(id, userId) {
+      const r = load().find((x) => x.id === id);
+      if (!r || inviteStatus(r) !== "pending") return null;
+      r.usedAt = new Date().toISOString();
+      r.usedBy = userId;
+      dirty = true;
+      return { ...r };
+    },
+    async get(id) {
+      const r = load().find((x) => x.id === id);
+      return r ? { ...r } : null;
+    },
+    async ofTenant(tenant) {
+      return load()
+        .filter((x) => x.tenant === tenant)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id))
+        .map((x) => ({ ...x }));
+    },
+    async revoke(ids, by, reason) {
+      const at = new Date().toISOString();
+      const out: InviteRow[] = [];
+      for (const r of load()) {
+        if (!ids.includes(r.id) || r.usedAt || r.revokedAt) continue;
+        Object.assign(r, { revokedAt: at, revokedBy: by, revokeReason: reason });
+        out.push({ ...r });
+      }
+      if (out.length) dirty = true;
+      return out;
+    },
+    flush() {
+      if (dirty && rows) writeInvitesFile(rows);
+    },
+  };
+}
+
+/**
  * Change people. `fn` gets everyone, read fresh under the lock, and may edit
- * records in place, push new ones, or splice one out. Its throw rolls back.
+ * records in place, push new ones, or splice one out — and the team's
+ * invites, in the same transaction. Its throw rolls back both.
  * Keep `fn` quick and local: no network calls while the lock is held.
  */
-async function mutateUsers<T>(fn: (users: UserRecord[]) => T | Promise<T>): Promise<T> {
+async function mutateUsers<T>(fn: (users: UserRecord[], invites: InviteStore) => T | Promise<T>): Promise<T> {
   if (databaseEnabled()) {
     return tx(async (t) => {
       await t.execute(sql`select pg_advisory_xact_lock(${USERS_LOCK})`);
       const users = (await allUsersDb(t)) as UserRecord[];
       const before = new Map(users.map((u) => [u.id, JSON.stringify(u)]));
-      const value = await fn(users);
+      const value = await fn(users, dbInviteStore(t));
       const after = new Set<string>();
       for (const u of users) {
         after.add(u.id);
@@ -193,7 +294,11 @@ async function mutateUsers<T>(fn: (users: UserRecord[]) => T | Promise<T>): Prom
   }
   const run = fileQueue.then(async () => {
     const users = readUsersFile();
-    const value = await fn(users);
+    const invites = fileInviteStore();
+    const value = await fn(users, invites);
+    // The invites first: a crash between the two writes then leaves an
+    // invite used and no member — refused, never a link that works twice.
+    invites.flush();
     fs.mkdirSync(path.dirname(usersFile()), { recursive: true });
     fs.writeFileSync(usersFile(), JSON.stringify(users, null, 2), { mode: 0o600 });
     return value;
@@ -433,85 +538,295 @@ export function sessionCookieOptions(req: { headers: Headers; url: string }, exp
 // ---------- teams ----------
 
 // One account, many users: membership is `user.tenant`, and joining is an
-// invite link — a signed statement like a session, stored nowhere, so an
-// invite cannot be enumerated out of a table that does not exist. Rotating
-// the install key voids outstanding invites along with everything else.
+// invite link. Until 29 Oct 2026 the link was the whole invite — a signed
+// statement stored nowhere — so it could be used any number of times, by
+// any number of people, for seven days, and nobody could take it back: a
+// member removed from the team rejoined with the link they came in on.
+//
+// Now an invite is a row (platform/invites.ts) and the link names it:
+// `inv4.<id>.<expiresMs>.<hmac>`. The MAC and expiry are checked before
+// anything is read, so a guessed id costs nothing; the row says what it
+// grants and to whom, and is used up in the same transaction that creates
+// the member. Removing or demoting the member who made it, or removing the
+// person it was for, revokes it; so does a newer invite to the same
+// address, and Settings → Team. Older link forms (inv1–inv3) are refused.
 
 const INVITE_DAYS = 7;
+const INVITE_RE = /^inv4\.([0-9a-f]{32})\.(\d{1,15})\.([0-9a-f]{64})$/;
+const inviteMac = (id: string, expires: string) => sign(`invite4:${id}.${expires}`);
 
-/**
- * An invite carries the role it grants, signed with the rest, so the person
- * who accepts it cannot pick a better one. inv2; the inv1 form from before
- * roles is still honoured for the week it stays valid, as an admin — which is
- * what an invite meant when it was minted.
- */
+/** The one sentence every dead link gets — used, revoked, expired, forged,
+ *  from before 29 Oct, or its maker no longer able to make it: the holder
+ *  is not told which. */
+export const INVITE_INVALID = "That invite is no longer valid (used, revoked or expired) — ask for a fresh link";
+const invalidInvite = () => Object.assign(new Error(INVITE_INVALID), { status: 400 });
+
 export interface InviteOptions {
   /** Which workspaces the invitee may open; null or absent for all. */
   workspaces?: string[] | null;
-  /** The address the invite was sent to. Bound into the token: only that
-   *  address can accept it, so a forwarded link is not a key. */
+  /** The address it is for: only that address can accept it, so a
+   *  forwarded link is not a key. Absent: anyone with the link — once. */
   email?: string | null;
+  /** Who is making it. Their standing is checked again when it is accepted.
+   *  `role` and `workspaces` (theirs, null for all) bound which older invites
+   *  to the same address this one may supersede: only those they could
+   *  revoke themselves. Absent: the maker's own record decides. */
+  by: { id: string; email: string; role?: Role; workspaces?: string[] | null };
 }
 
-const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64url");
-const unb64 = (s: string) => Buffer.from(s, "base64url").toString("utf8");
+/** The id and expiry a well-formed, correctly signed, unexpired link names;
+ *  null for anything else. Reads nothing. */
+function parseInviteToken(token: string | undefined): { id: string; expires: number } | null {
+  const m = typeof token === "string" ? INVITE_RE.exec(token) : null;
+  if (!m) return null;
+  const [, id, expires, mac] = m;
+  if (Number(expires) <= Date.now()) return null;
+  const presented = Buffer.from(mac, "latin1");
+  const wanted = Buffer.from(inviteMac(id, expires), "latin1");
+  if (presented.length !== wanted.length || !crypto.timingSafeEqual(presented, wanted)) return null;
+  return { id, expires: Number(expires) };
+}
+
+/** Could the member who made this invite still make it? Still in the
+ *  account, still managing the team (and the admins, for an admin invite),
+ *  and every workspace it opens still one they can open. */
+function minterStillMay(users: UserRecord[], row: InviteRow): boolean {
+  const role = roleOfMembers(users, row.tenant, row.createdBy);
+  if (!role || !can(role, "team:manage")) return false;
+  if (row.role === "admin" && !can(role, "admins:manage")) return false;
+  const minter = users.find((u) => u.tenant === row.tenant && u.id === row.createdBy)!;
+  const scope = ownerOfMembers(users, row.tenant)?.id === minter.id ? null : (minter.workspaces ?? null);
+  return withinScope(row.workspaces, scope);
+}
+
+/** Does `inner` (null: every workspace) fit inside `outer`? */
+function withinScope(inner: string[] | null, outer: string[] | null): boolean {
+  if (outer === null) return true;
+  return inner !== null && inner.every((w) => outer.includes(w));
+}
 
 /**
- * An invite carries the role it grants, the workspaces it opens and the
- * address it went to, all signed together, so the person who accepts it
- * cannot pick a better one. inv3; the inv2 and inv1 forms from before are
- * still honoured for the week they stay valid, as "all workspaces".
+ * Make an invite: a row, and the link that names it. A newer invite to an
+ * address replaces any still pending to it in the same account — those are
+ * revoked here, and their ids returned for the audit.
  */
-export function mintInvite(tenant: string, role: Role = "editor", opts: InviteOptions = {}): { token: string; expires: Date } {
+export async function mintInvite(
+  tenant: string,
+  role: Role,
+  opts: InviteOptions,
+): Promise<{ id: string; token: string; expires: Date; superseded: string[] }> {
   if (!isRole(role) || role === "owner") throw new Error("an invite can be viewer, editor or admin");
+  const id = crypto.randomBytes(16).toString("hex");
   const expires = new Date(Date.now() + INVITE_DAYS * 24 * 60 * 60 * 1000);
-  const scope = formatScope(opts.workspaces ?? null);
-  const email = opts.email ? b64(opts.email.trim().toLowerCase()) : "-";
-  const payload = `${tenant}.${role}.${scope}.${email}.${expires.getTime()}`;
-  return { token: `inv3.${payload}.${sign(`invite:${payload}`)}`, expires };
+  const email = opts.email ? opts.email.trim().toLowerCase() : null;
+  const workspaces = opts.workspaces ? [...new Set(opts.workspaces)] : null;
+  const superseded = await mutateUsers(async (users, invites) => {
+    let gone: InviteRow[] = [];
+    if (email) {
+      // Only the ones this maker could revoke by hand (DELETE
+      // /api/team/invites/<id>): inside their scope, and an admin invite
+      // only by the owner. Anything else stays pending beside the new one.
+      const makerRole = opts.by.role ?? roleOfMembers(users, tenant, opts.by.id);
+      const maker = users.find((u) => u.tenant === tenant && u.id === opts.by.id);
+      const makerScope = opts.by.workspaces !== undefined
+        ? opts.by.workspaces
+        : !maker || ownerOfMembers(users, tenant)?.id === maker.id ? null : (maker.workspaces ?? null);
+      const mayRevoke = (r: InviteRow) =>
+        makerRole !== null && withinScope(r.workspaces, makerScope) && (r.role !== "admin" || can(makerRole, "admins:manage"));
+      const older = (await invites.ofTenant(tenant)).filter((r) => r.email === email && inviteStatus(r) === "pending" && mayRevoke(r));
+      gone = await invites.revoke(older.map((r) => r.id), opts.by.email, "superseded by a newer invite to the same address");
+    }
+    await invites.add({
+      id,
+      tenant,
+      role,
+      workspaces,
+      email,
+      createdBy: opts.by.id,
+      createdByEmail: opts.by.email,
+      createdAt: new Date().toISOString(),
+      expiresAt: expires.toISOString(),
+      usedAt: null,
+      usedBy: null,
+      revokedAt: null,
+      revokedBy: null,
+      revokeReason: null,
+    });
+    return gone.map((r) => r.id);
+  });
+  const ms = String(expires.getTime());
+  return { id, token: `inv4.${id}.${ms}.${inviteMac(id, ms)}`, expires, superseded };
 }
 
-export interface Invite {
+/** What a still-good link would grant, for the signup page — nothing is
+ *  used up. Null when it would be refused. */
+export interface InvitePreview {
   tenant: string;
   role: Role;
   workspaces: string[] | null;
   email: string | null;
 }
 
-export function verifyInvite(token: string | undefined): Invite | null {
-  if (!token) return null;
-  const parts = token.split(".");
-  let tenant: string;
-  let role: Role;
-  let expires: string;
-  let mac: string;
-  let payload: string;
-  let workspaces: string[] | null = null;
-  let email: string | null = null;
-  if (parts.length === 7 && parts[0] === "inv3") {
-    const claimed = parts[2];
-    if (!isRole(claimed) || claimed === "owner") return null;
-    [tenant, role, expires, mac] = [parts[1], claimed, parts[5], parts[6]];
-    workspaces = parseScope(parts[3]);
-    email = parts[4] === "-" ? null : unb64(parts[4]);
-    payload = `${tenant}.${role}.${parts[3]}.${parts[4]}.${expires}`;
-  } else if (parts.length === 5 && parts[0] === "inv2") {
-    const claimed = parts[2];
-    if (!isRole(claimed) || claimed === "owner") return null;
-    [tenant, role, expires, mac] = [parts[1], claimed, parts[3], parts[4]];
-    payload = `${tenant}.${role}.${expires}`;
-  } else if (parts.length === 4 && parts[0] === "inv1") {
-    [tenant, role, expires, mac] = [parts[1], "admin", parts[2], parts[3]];
-    payload = `${tenant}.${expires}`;
-  } else {
-    return null;
-  }
-  if (!/^\d+$/.test(expires) || Number(expires) < Date.now()) return null;
-  const expected = sign(`invite:${payload}`);
-  const presented = Buffer.from(mac, "latin1");
-  const wanted = Buffer.from(expected, "latin1");
-  if (presented.length !== wanted.length || !crypto.timingSafeEqual(presented, wanted)) return null;
-  return { tenant, role, workspaces, email };
+export async function peekInvite(token: string | undefined): Promise<InvitePreview | null> {
+  const parsed = parseInviteToken(token);
+  if (!parsed) return null;
+  const row = databaseEnabled() ? await inviteByIdDb(parsed.id) : readInvitesFile().find((r) => r.id === parsed.id) ?? null;
+  if (!row || inviteStatus(row) !== "pending" || !isRole(row.role) || row.role === "owner") return null;
+  if (!minterStillMay(await readUsers(), row)) return null;
+  return { tenant: row.tenant, role: row.role, workspaces: row.workspaces, email: row.email };
+}
+
+/**
+ * Join an account on an invite. The link's MAC and expiry, the address and
+ * the password are checked first, outside the lock; then, in one
+ * transaction: the invite is used up, the address checked against the one
+ * it was for, its maker's standing checked again, and the member created
+ * with the role and workspaces the ROW holds. Any refusal in there rolls
+ * the whole of it back — the invite stays pending for the right person.
+ */
+export async function acceptInvite(
+  token: string,
+  email: string,
+  password: string,
+): Promise<{ user: UserRecord; invite: InviteRow }> {
+  const parsed = parseInviteToken(token);
+  if (!parsed) throw invalidInvite();
+  const normalized = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) throw new Error("that is not an email address");
+  await assertPasswordPolicy(password, normalized);
+  const open = await signupOpen();
+
+  const salt = crypto.randomBytes(16).toString("hex");
+  const user: UserRecord = {
+    id: crypto.randomBytes(8).toString("hex"),
+    email: normalized,
+    tenant: "",
+    salt,
+    hash: scrypt(password, salt),
+    createdAt: new Date().toISOString(),
+    owner: false,
+  };
+  const invite = await mutateUsers(async (users, invites) => {
+    const row = await invites.claim(parsed.id, user.id);
+    if (!row || !isRole(row.role) || row.role === "owner") throw invalidInvite();
+    if (row.email && row.email !== normalized) {
+      throw Object.assign(new Error(`this invite was sent to ${row.email} — sign up with that address`), { status: 400 });
+    }
+    if (!minterStillMay(users, row)) throw invalidInvite();
+    assertSignupAllowed({
+      joining: true,
+      open,
+      accountExists: users.some((u) => u.tenant === row.tenant),
+      emailTaken: users.some((u) => u.email === normalized),
+      nameTaken: true,
+    });
+    user.tenant = row.tenant;
+    user.role = row.role;
+    if (row.workspaces) user.workspaces = row.workspaces;
+    users.push(user);
+    return row;
+  });
+
+  fs.mkdirSync(path.join(accountDir(user.tenant), "workspaces"), { recursive: true });
+  ensureAccountFiles(user.tenant);
+  await ensureTenantKey(user.tenant);
+  return { user, invite };
+}
+
+/** An invite as the team page and GET /api/team/invites show it — never
+ *  the link, which exists only in the answer that minted it. */
+export interface InviteView {
+  id: string;
+  email: string | null;
+  role: Role;
+  workspaces: string[] | null;
+  invitedBy: string;
+  createdAt: string;
+  expiresAt: string;
+  status: InviteStatus;
+}
+
+const viewOf = (r: InviteRow): InviteView => ({
+  id: r.id,
+  email: r.email,
+  role: r.role as Role,
+  workspaces: r.workspaces,
+  invitedBy: r.createdByEmail,
+  createdAt: r.createdAt,
+  expiresAt: r.expiresAt,
+  status: inviteStatus(r),
+});
+
+async function invitesOf(tenant: string): Promise<InviteRow[]> {
+  if (databaseEnabled()) return invitesOfTenantDb(tenant);
+  return readInvitesFile()
+    .filter((r) => r.tenant === tenant)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
+}
+
+/**
+ * An account's invites, newest first: the pending ones, or every one with
+ * `all`. A caller scoped to some workspaces sees only invites inside its
+ * own scope — not one for every workspace, nor one naming a workspace it
+ * was not given.
+ */
+export async function listInvites(tenant: string, opts: { all?: boolean; scope: string[] | null }): Promise<InviteView[]> {
+  return (await invitesOf(tenant))
+    .filter((r) => withinScope(r.workspaces, opts.scope))
+    .map(viewOf)
+    .filter((v) => opts.all || v.status === "pending");
+}
+
+/** One invite of this account, or null — for a route's scope check. */
+export async function findInvite(tenant: string, id: string): Promise<InviteView | null> {
+  const row = databaseEnabled() ? await inviteByIdDb(id) : readInvitesFile().find((r) => r.id === id) ?? null;
+  return row && row.tenant === tenant ? viewOf(row) : null;
+}
+
+/**
+ * Revoke one invite. 404 for one that is not this account's, 409 for one
+ * already accepted (remove the member instead); one already revoked or
+ * expired answers as revoked, `changed: false`.
+ */
+export async function revokeInvite(tenant: string, id: string, by: string): Promise<{ invite: InviteView; changed: boolean }> {
+  return mutateUsers(async (_users, invites) => {
+    const row = await invites.get(id);
+    if (!row || row.tenant !== tenant) throw Object.assign(new Error("no such invite"), { status: 404 });
+    if (row.usedAt) throw Object.assign(new Error("that invite was already accepted — remove the member instead"), { status: 409 });
+    // Already over — revoked, or expired: left as it was, so its history
+    // still says which.
+    if (inviteStatus(row) !== "pending") return { invite: viewOf(row), changed: false };
+    const [done] = await invites.revoke([row.id], by, "revoked");
+    return { invite: viewOf(done ?? row), changed: Boolean(done) };
+  });
+}
+
+/**
+ * Revoke the pending invites a member made that they could no longer make
+ * (`now` their new standing; null when they left), and — on removal — the
+ * pending ones addressed to them. Mirrors revokeKeysBeyond: an invite is no
+ * more a way to keep access than a key is. Returns the ids revoked.
+ */
+export async function revokeInvitesBeyond(
+  tenant: string,
+  member: { id: string; email: string },
+  now: { role: Role; workspaces: string[] | null } | null,
+  by: string,
+): Promise<string[]> {
+  const email = member.email.toLowerCase();
+  const beyond = (r: InviteRow) => {
+    if (r.createdBy !== member.id) return false;
+    if (!now) return true;
+    if (!can(now.role, "team:manage")) return true;
+    if (r.role === "admin" && !can(now.role, "admins:manage")) return true;
+    return !withinScope(r.workspaces, now.workspaces);
+  };
+  return mutateUsers(async (_users, invites) => {
+    const pending = (await invites.ofTenant(tenant)).filter((r) => inviteStatus(r) === "pending");
+    const ids = pending.filter((r) => beyond(r) || (!now && r.email === email)).map((r) => r.id);
+    const reason = now ? "its maker's role or workspaces narrowed" : "its maker or addressee left the team";
+    return (await invites.revoke(ids, by, reason)).map((r) => r.id);
+  });
 }
 
 export async function listMembers(tenant: string): Promise<{ id: string; email: string; createdAt: string; owner: boolean; role: Role; workspaces: string[] | null }[]> {
@@ -651,13 +966,21 @@ export async function isOwner(tenant: string, userId: string): Promise<boolean> 
  * future caller forgets to pass and silently skips, which is the shape of the
  * bug this is fixing.
  */
-export async function removeMember(tenant: string, id: string, actorId: string): Promise<boolean> {
-  return mutateUsers((users) => {
+export async function removeMember(tenant: string, id: string, actorId: string, by: string = actorId): Promise<false | { invitesRevoked: string[] }> {
+  return mutateUsers(async (users, invites) => {
     const at = users.findIndex((u) => u.tenant === tenant && u.id === id);
     if (at < 0) return false;
     assertCanRemoveMember(users, tenant, id, actorId); // throws with a status
-    users.splice(at, 1);
-    return true;
+    const [gone] = users.splice(at, 1);
+    // In the same transaction: every pending invite they made, and every
+    // one still pending to their address. Done after, a removed person
+    // could accept one addressed to them in between and be back.
+    const email = gone.email.toLowerCase();
+    const ids = (await invites.ofTenant(tenant))
+      .filter((r) => inviteStatus(r) === "pending" && (r.createdBy === id || r.email === email))
+      .map((r) => r.id);
+    const revoked = await invites.revoke(ids, by, "its maker or addressee left the team");
+    return { invitesRevoked: revoked.map((r) => r.id) };
   });
 }
 
@@ -779,12 +1102,25 @@ export async function setMfa(userId: string, mfa: { secret: string; backupHashes
   const user = users.find((u) => u.id === userId);
   if (!user) throw new Error("no such user");
   if (mfa) {
-    user.mfaSecret = sealString(mfa.secret);
+    user.mfaSecret = sealString(mfa.secret, mfaBinding(user.id));
     user.mfaBackup = mfa.backupHashes;
     user.mfaEnabledAt = new Date().toISOString();
   } else {
     delete user.mfaSecret; delete user.mfaBackup; delete user.mfaEnabledAt;
   }
+  });
+}
+
+/** A second factor still sealed the old, unbound way: seal it bound to its
+ *  person, in place (lazily, at a sign-in that proved it). A no-op until the
+ *  install writes bound records, or when it already is. */
+export async function rebindMfa(userId: string): Promise<boolean> {
+  if (process.env.FOLDRUN_VAULT_WRITE_BOUND !== "1") return false;
+  return mutateUsers((users) => {
+    const user = users.find((u) => u.id === userId);
+    if (!user?.mfaSecret || !isUnboundSeal(user.mfaSecret)) return false;
+    user.mfaSecret = sealString(openString(user.mfaSecret), mfaBinding(user.id));
+    return true;
   });
 }
 

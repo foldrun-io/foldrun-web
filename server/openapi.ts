@@ -270,6 +270,46 @@ const SHAPES: Record<string, { body?: Schema; response?: Schema; query?: { name:
     response: obj({ ok: bool, key: str("shown once"), id: str(), prefix: str(), role: str(), workspaces: { type: ["array", "null"], items: str() } }),
   },
   "DELETE /api/keys": { body: obj({ id: str() }, ["id"]) },
+  "POST /api/team": {
+    body: obj({
+      role: str("viewer | editor | admin, default editor; admin only by the owner"),
+      workspaces: { type: ["array", "null"], items: str(), description: "names, or omit / null for all — never wider than your own scope" },
+      email: { type: ["string", "null"], description: "the one address that may accept it; omit for a link anyone may use, once" },
+      send: { ...bool, description: "false: do not mail it, only return the link" },
+    }),
+    response: obj({
+      ok: bool,
+      id: str("the invite's id — GET/DELETE /api/team/invites"),
+      role: str(),
+      workspaces: { type: ["array", "null"], items: str() },
+      email: { type: ["string", "null"] },
+      path: str("the invite's relative URL; shown once — it works once, for seven days"),
+      expires: str(),
+      sent: { type: ["boolean", "null"] },
+      sendError: { type: ["string", "null"] },
+    }),
+  },
+  "GET /api/team/invites": {
+    query: [{ name: "all", description: "1: accepted, revoked and expired invites too; pending only by default" }],
+    response: obj({
+      invites: {
+        type: "array",
+        items: obj({
+          id: str(),
+          email: { type: ["string", "null"], description: "the address it is for; null for a link anyone may use, once" },
+          role: str("viewer | editor | admin"),
+          workspaces: { type: ["array", "null"], items: str(), description: "null for every workspace" },
+          invitedBy: str("who made it"),
+          createdAt: str(),
+          expiresAt: str(),
+          status: str("pending | accepted | revoked | expired"),
+        }),
+      },
+    }),
+  },
+  "DELETE /api/team/invites/{id}": {
+    response: obj({ ok: bool, revoked: { ...bool, description: "false when it was already revoked or expired" }, invite: GENERIC }),
+  },
   "GET /api/usage/compute": {
     response: obj({
       compute: obj({

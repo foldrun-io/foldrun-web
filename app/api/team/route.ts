@@ -1,6 +1,8 @@
 // The team behind an account. GET lists members with their roles; POST mints
-// an invite link that grants one. Invites are signed, not stored — there is
-// no invite table to leak or to clean up, and they expire on their own.
+// an invite link that grants one. An invite is a row (since 29 Oct 2026):
+// the link names it, it works once, for seven days, and it can be revoked —
+// GET/DELETE /api/team/invites. A newer invite to the same address revokes
+// the older ones still pending.
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireCaller, requirePerson, errorResponse, ApiError } from "@/server/api";
@@ -53,7 +55,7 @@ async function postOnce(req: NextRequest) {
     }
     const email = typeof body.email === "string" && body.email.trim() ? body.email.trim().toLowerCase() : null;
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new ApiError(`"${email}" is not an email address`, 400);
-    const invite = mintInvite(tenant, role, { workspaces, email });
+    const invite = await mintInvite(tenant, role, { workspaces, email, by: { id: actor.id, email: actor.name, role: actor.role, workspaces: actor.workspaces } });
     const path = `/signup?invite=${encodeURIComponent(invite.token)}`;
     // The same origin the reset and verify mails use: FOLDRUN_PUBLIC_URL,
     // else the request's own. Built from x-forwarded-host with an http://
@@ -64,9 +66,13 @@ async function postOnce(req: NextRequest) {
     if (email && body.send !== false) {
       sent = await sendInviteEmail(tenant, email, `${origin}${path}`, { from: actor.name, role, scope: describeScope(workspaces), expires: invite.expires });
     }
-    await audit("member.invited", { actor: actor.name, tenant, detail: { role, workspaces, email, sent: sent?.ok ?? null } });
+    if (invite.superseded.length) {
+      await audit("member.invite_revoked", { actor: actor.name, tenant, subject: email, detail: { invites: invite.superseded, reason: "superseded by a newer invite to the same address" } });
+    }
+    await audit("member.invited", { actor: actor.name, tenant, subject: email, detail: { inviteId: invite.id, role, workspaces, email, sent: sent?.ok ?? null, superseded: invite.superseded } });
     return NextResponse.json({
       ok: true,
+      id: invite.id,
       role,
       workspaces,
       email,

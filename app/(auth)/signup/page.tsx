@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { signupOpen, verifyInvite, setupTokenRequired } from "@/server/users";
+import { signupOpen, peekInvite, setupTokenRequired } from "@/server/users";
 import { AuthForm } from "../auth-form";
+import { Email } from "@/components/email";
 import { Brand } from "../brand";
 
 export const metadata = { title: "Create account" };
@@ -13,7 +14,9 @@ export default async function SignupPage({
   searchParams: Promise<{ invite?: string; setup?: string }>;
 }) {
   const { invite, setup } = await searchParams;
-  const invited = invite ? verifyInvite(invite) : null;
+  // Looked at, not used up: the invite is spent only when the form posts
+  // and the member is created (acceptInvite).
+  const invited = invite ? await peekInvite(invite) : null;
 
   // A valid invite is its own permission: someone on the team sent it, so
   // the install's open-signup setting does not apply.
@@ -25,7 +28,7 @@ export default async function SignupPage({
             Join <span className="font-mono">{invited.tenant}</span>
           </h1>
           <p className="mb-6 text-sm text-fg-muted">
-            You were invited as {invited.role}, with access to {invited.workspaces === null ? "every workspace" : invited.workspaces.length ? invited.workspaces.join(", ") : "no workspaces yet"}.{invited.email ? ` Sign up with ${invited.email} — the invite is for that address.` : ""}
+            You were invited as {invited.role}, with access to {invited.workspaces === null ? "every workspace" : invited.workspaces.length ? invited.workspaces.join(", ") : "no workspaces yet"}.{invited.email ? <> Sign up with <Email value={invited.email} /> — the invite is for that address, and works once.</> : " The link works once."}
           </p>
           <Suspense>
             <AuthForm mode="signup" invite={invite} />
@@ -38,8 +41,8 @@ export default async function SignupPage({
     return (
       <main className="flex min-h-screen items-center justify-center bg-paper px-4">
         <div className="w-full max-w-sm text-center">
-          <h1 className="mb-2 text-xl font-semibold text-fg">That invite has expired</h1>
-          <p className="text-sm text-fg-muted">Ask your teammate for a fresh link — they last 7 days.</p>
+          <h1 className="mb-2 text-xl font-semibold text-fg">That invite is no longer valid</h1>
+          <p className="text-sm text-fg-muted">Used, revoked or expired — ask your teammate for a fresh link. An invite works once, for seven days.</p>
         </div>
       </main>
     );

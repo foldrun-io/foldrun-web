@@ -37,6 +37,10 @@ export type AuditAction =
   | "apikey.created"
   | "apikey.revoked"
   | "member.invited"
+  // An invite taken back before it was used: by a person, by a newer
+  // invite to the same address, or because its maker or addressee left
+  // the team or was narrowed (29 Oct 2026).
+  | "member.invite_revoked"
   | "member.joined"
   // Keys over their whole life: minted, rotated (the new one's id is the
   // subject, the old one's in detail), revoked by a person.

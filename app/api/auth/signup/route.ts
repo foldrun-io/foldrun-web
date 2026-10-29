@@ -9,7 +9,7 @@ import { verifyLink, publicOrigin } from "@/server/auth-flows";
 import { errorResponse } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
 import { clientIp } from "@/server/limits";
-import { createUser, mintSession, verifyInvite, sessionCookieOptions, SESSION_COOKIE, setupTokenRequired, setupTokenMatches } from "@/server/users";
+import { acceptInvite, createUser, mintSession, sessionCookieOptions, SESSION_COOKIE, setupTokenRequired, setupTokenMatches } from "@/server/users";
 import { audit } from "@/server/audit";
 import { listWorkspaces, saveWorkspace, templateFiles } from "@/lib/store";
 import { rateLimit } from "@/platform/cache";
@@ -57,9 +57,11 @@ export async function POST(req: NextRequest) {
     if (!byEmail.allowed) return tooMany(byEmail.retryAfter);
 
     // An invite decides the account and bypasses the open-signup gate — a
-    // member chose to let this person in. The token itself is the proof;
-    // whatever `account` the body claims is ignored.
-    const invited = body.invite ? verifyInvite(body.invite) : null;
+    // member chose to let this person in. The invite's row is the proof and
+    // says what they get; whatever `account` the body claims is ignored. It
+    // is used up in the same transaction that creates the member, so a link
+    // lets in one person, once (acceptInvite, server/users.ts).
+    const invited = typeof body.invite === "string" && body.invite !== "";
     // The first account of an install that set a setup token: only with it.
     // Checked before anything about the address, like the open-signup gate.
     if (!invited && (await setupTokenRequired()) && !setupTokenMatches(body.setup)) {
@@ -68,22 +70,20 @@ export async function POST(req: NextRequest) {
         { status: 403 },
       );
     }
-    if (body.invite && !invited) {
-      return NextResponse.json({ error: "that invite is invalid or expired" }, { status: 400 });
-    }
-    if (invited?.email && (body.email ?? "").trim().toLowerCase() !== invited.email) {
-      return NextResponse.json({ error: `this invite was sent to ${invited.email} — sign up with that address` }, { status: 400 });
-    }
-    const user = invited
-      ? await createUser(body.email ?? "", body.password ?? "", invited.tenant, { joining: true, role: invited.role, workspaces: invited.workspaces })
-      : await createUser(body.email ?? "", body.password ?? "", body.account ?? "");
+    const joined = invited ? await acceptInvite(body.invite!, body.email ?? "", body.password ?? "") : null;
+    const user = joined ? joined.user : await createUser(body.email ?? "", body.password ?? "", body.account ?? "");
     // The first line of an account's log, or the line where a person joined it.
-    await audit(invited ? "member.joined" : "account.created", { actor: user.email, tenant: user.tenant, subject: user.id, detail: invited ? { role: invited.role } : {} });
+    await audit(joined ? "member.joined" : "account.created", {
+      actor: user.email,
+      tenant: user.tenant,
+      subject: user.id,
+      detail: joined ? { role: joined.invite.role, workspaces: joined.invite.workspaces, inviteId: joined.invite.id, invitedBy: joined.invite.createdByEmail } : {},
+    });
     // Prove the inbox, best effort: a sign-up that cannot get mail out is
     // still a sign-up; the dashboard will offer to resend until it lands.
     // Only the owner of a NEW account gets the trial on confirming, so only
     // they are told about it — see the grant in api/auth/verify.
-    const trialCredits = !invited && platform.edition() === "hosted" ? billing().trialCredits() : undefined;
+    const trialCredits = !joined && platform.edition() === "hosted" ? billing().trialCredits() : undefined;
     void sendVerifyEmail(user.tenant, user.email, verifyLink(publicOrigin(req), user), { trialCredits }).then((r) => {
       if (!r.ok) console.warn("[signup] verification mail not sent:", r.error);
     });

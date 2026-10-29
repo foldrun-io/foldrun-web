@@ -121,6 +121,7 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   "GET /api/schedule": SERVER("dashboard/page.tsx and settings → upcoming"),
   "GET /api/secrets": SERVER("settings pages → listSecrets, secretHealth"),
   "GET /api/team": SERVER("settings/page.tsx → listMembers"),
+  "GET /api/team/invites": SERVER("settings/page.tsx → listInvites"),
   "GET /api/usage": SERVER("usage/page.tsx → accountUsage"),
   "GET /api/usage/history": SERVER("usage/page.tsx → spendHistory"),
   "DELETE /api/workspaces/[workspace]": SEEN("[workspace]/settings/page.tsx (Delete workspace)"),

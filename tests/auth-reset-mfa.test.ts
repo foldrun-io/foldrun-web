@@ -50,3 +50,21 @@ test("without MFA, a reset still signs the person in", async () => {
   assert.equal(r.status, 200);
   assert.ok(r.cookies.get(SESSION_COOKIE)?.value, "signed in, as before");
 });
+
+test("a bound MFA secret opens only for its own person; the old form still opens", async () => {
+  const { sealString, openString, mfaBinding, mfaEnrolBinding } = await import("../server/users.ts");
+  const legacy = sealString("JBSWY3DPEHPK3PXP", mfaBinding("u1"));
+  assert.ok(!legacy.startsWith("s2."), "unbound until the install writes bound records");
+  assert.equal(openString(legacy, mfaBinding("u2")), "JBSWY3DPEHPK3PXP");
+  process.env.FOLDRUN_VAULT_WRITE_BOUND = "1";
+  try {
+    const bound = sealString("JBSWY3DPEHPK3PXP", mfaBinding("u1"));
+    assert.ok(bound.startsWith("s2."));
+    assert.equal(openString(bound, mfaBinding("u1")), "JBSWY3DPEHPK3PXP");
+    assert.throws(() => openString(bound, mfaBinding("u2")), "another person's row");
+    assert.throws(() => openString(bound, mfaEnrolBinding("u1")), "an enrol token is not a stored secret");
+    assert.throws(() => openString(bound), "no binding");
+  } finally {
+    delete process.env.FOLDRUN_VAULT_WRITE_BOUND;
+  }
+});

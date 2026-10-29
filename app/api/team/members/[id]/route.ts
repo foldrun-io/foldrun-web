@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requirePerson, errorResponse, ApiError } from "@/server/api";
-import { removeMember, setMemberRole, setMemberScope, listMembers } from "@/server/users";
+import { removeMember, setMemberRole, setMemberScope, listMembers, revokeInvitesBeyond } from "@/server/users";
 import { audit } from "@/server/audit";
 import { revokeKeysBeyond } from "@/server/auth";
 import { isRole } from "@/platform/permissions";
@@ -43,6 +43,9 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       if (now?.email) {
         const revoked = await revokeKeysBeyond(tenant, now.email, { role: now.role, workspaces: now.workspaces ?? null });
         if (revoked.length) await audit("apikey.revoked", { actor: actor.name, tenant, subject: now.email, detail: { keys: revoked, reason: "member's role or workspaces narrowed" } });
+        // And the invites they made that they could no longer make.
+        const invites = await revokeInvitesBeyond(tenant, { id: now.id, email: now.email }, { role: now.role, workspaces: now.workspaces ?? null }, actor.name);
+        if (invites.length) await audit("member.invite_revoked", { actor: actor.name, tenant, subject: now.email, detail: { invites, reason: "its maker's role or workspaces narrowed" } });
       }
     }
     const after = (await listMembers(tenant)).find((m) => m.id === id);
@@ -60,12 +63,14 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
     const { id } = await ctx.params;
     const target = (await listMembers(tenant)).find((m) => m.id === id);
     assertWithinScope(actor.workspaces, target?.workspaces);
-    const removed = await removeMember(tenant, id, actor.id);
+    // Their pending invites, and any to their address, go in the same
+    // transaction (OWASP review, 29 Oct 2026): removal is not undone by a link.
+    const removed = await removeMember(tenant, id, actor.id, actor.name);
     if (!removed) return NextResponse.json({ error: "no such member" }, { status: 404 });
     // Every key they minted here stops with them (FOL-97) — a key is not a
     // way to stay on the team.
     const revoked = target?.email ? await revokeKeysBeyond(tenant, target.email, null) : [];
-    await audit("member.removed", { actor: actor.name, tenant, subject: target?.email ?? id, detail: { role: target?.role, keysRevoked: revoked } });
+    await audit("member.removed", { actor: actor.name, tenant, subject: target?.email ?? id, detail: { role: target?.role, keysRevoked: revoked, invitesRevoked: removed.invitesRevoked } });
     return NextResponse.json({ ok: true });
   } catch (err) {
     return errorResponse(err);

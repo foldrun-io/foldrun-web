@@ -5,7 +5,7 @@ import { ScheduleInYourTime } from "./schedule-in-your-time";
 import { cookies } from "next/headers";
 import { listApiKeys } from "@/server/auth";
 import { can } from "@/platform/permissions";
-import { verifySession, listMembers, SESSION_COOKIE, viewerScope, viewerRole } from "@/server/users";
+import { verifySession, listMembers, listInvites, SESSION_COOKIE, viewerScope, viewerRole } from "@/server/users";
 import { PauseCard } from "@/components/pause-card";
 import { TelemetryCard } from "@/components/telemetry-card";
 import { pauseView } from "@/server/pause";
@@ -156,6 +156,9 @@ export default async function SettingsPage({
 
   const members = session ? (await listMembers(session.tenant)).map((m) => ({ ...m, avatar: avatarUrl(session.tenant, "user", m.id) })) : [];
   const teamWorkspaces = visibleWorkspaces.map((w) => w.name);
+  // The links still out, for those who may take one back (GET
+  // /api/team/invites answers the same, through the same function).
+  const invites = session && (role === null || can(role, "team:manage")) ? await listInvites(session.tenant, { scope }) : [];
   const fm = readAgentsMdKeys(accountDir(tenant));
   const defaults = defaultsOf(fm);
   const provider = parseProvider(fm.provider);
@@ -276,8 +279,8 @@ export default async function SettingsPage({
         </SettingsSection>
 
         {session && (
-          <SettingsSection wide id="team" title="Team" description="Who can open this account, and what each person may do. An invite is a link that expires in a week.">
-            <TeamManager members={members} self={session.email} workspaces={teamWorkspaces} />
+          <SettingsSection wide id="team" title="Team" description="Who can open this account, and what each person may do. An invite is a link that works once, for seven days, and can be revoked until it is used.">
+            <TeamManager members={members} invites={invites} self={session.email} workspaces={teamWorkspaces} />
           </SettingsSection>
         )}
 

@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { readToken } from "@/server/auth-tokens";
-import { findUserById, openString, consumeBackupCode, mintSession, sessionCookieOptions, SESSION_COOKIE } from "@/server/users";
+import { findUserById, openString, mfaBinding, rebindMfa, consumeBackupCode, mintSession, sessionCookieOptions, SESSION_COOKIE } from "@/server/users";
 import { verifyTotp, hashBackup } from "@/server/totp";
 import { rateLimit, rateLimitReset, cache } from "@/platform/cache";
 import { audit } from "@/server/audit";
@@ -31,13 +31,14 @@ export async function POST(req: NextRequest) {
 
     const code = String(body.code ?? "").trim();
     let how: "totp" | "backup" | null = null;
-    if (verifyTotp(openString(user.mfaSecret), code) && (await firstUse(user.id, code))) how = "totp";
+    if (verifyTotp(openString(user.mfaSecret, mfaBinding(user.id)), code) && (await firstUse(user.id, code))) how = "totp";
     else if (await consumeBackupCode(user.id, hashBackup(code))) how = "backup";
     if (!how) {
       await audit("mfa.refused", { actor: user.email, tenant: user.tenant });
       return NextResponse.json({ error: "that code is not right" }, { status: 401 });
     }
     await rateLimitReset(`mfa:${user.id}`);
+    if (how === "totp") await rebindMfa(user.id).catch(() => false);
     const session = await mintSession(user, req.headers.get("user-agent"), { audience: sessionAudience(), mfa: true });
     await audit("login", { actor: user.email, tenant: user.tenant, subject: session.sessionId, detail: { mfa: how } });
     const res = NextResponse.json({ ok: true, tenant: user.tenant, workspace: listWorkspaces(user.tenant)[0]?.name ?? null, ...(how === "backup" ? { backupUsed: true } : {}) });

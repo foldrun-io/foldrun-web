@@ -691,8 +691,10 @@ test("a team grows by invite link and refuses to lose its last member", opts, as
 
   const invite = (await (
     await fetch(`${base}/api/team`, { method: "POST", headers: { cookie } })
-  ).json()) as { path: string };
-  assert.match(invite.path, /^\/signup\?invite=/);
+  ).json()) as { path: string; id: string };
+  assert.match(invite.path, /^\/signup\?invite=inv4\./);
+  const listed = (await (await fetch(`${base}/api/team/invites`, { headers: { cookie } })).json()) as { invites: { id: string; status: string }[] };
+  assert.ok(listed.invites.some((i) => i.id === invite.id && i.status === "pending"), "the new invite is pending");
 
   // The invited signup joins the existing account — no open-signup flag, no
   // account field, whatever the body claims.
@@ -711,6 +713,14 @@ test("a team grows by invite link and refuses to lose its last member", opts, as
   assert.equal(joined.status, 200, joinedBody);
   assert.equal((JSON.parse(joinedBody) as { tenant: string }).tenant, "acme-e2e");
 
+  // It works once: the same link, another address, is refused.
+  const twice = await fetch(`${base}/api/auth/signup`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: "second@example.test", password: "hunter2hunter2", invite: token }),
+  });
+  assert.equal(twice.status, 400, await twice.text());
+
   const two = (await (await fetch(`${base}/api/team`, { headers: { cookie } })).json()) as {
     members: { id: string; email: string }[];
   };
@@ -723,6 +733,13 @@ test("a team grows by invite link and refuses to lose its last member", opts, as
     headers: { cookie },
   });
   assert.equal(removed.status, 200);
+  // Removed, then back with the link they came in on: refused.
+  const rejoin = await fetch(`${base}/api/auth/signup`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: "teammate@example.test", password: "hunter2hunter2", invite: token }),
+  });
+  assert.equal(rejoin.status, 400);
   const self = one.members[0];
   const refused = await fetch(`${base}/api/team/members/${self.id}`, {
     method: "DELETE",
