@@ -24,9 +24,11 @@ if (url) {
 test("a console session is stored with its surface and its second factor; a plain one with neither", opts, async () => {
   const { migrate } = await import("@/platform/db.ts");
   await migrate();
-  const { createAccountBySuperAdmin, mintSession, verifySession } = await import("../server/users.ts");
+  // Fixtures: several accounts, each its own owner — signup stays open for them.
+  process.env.FOLDRUN_OPEN_SIGNUP = "1";
+  const { createUser, mintSession, verifySession } = await import("../server/users.ts");
   const tenant = `aud${Date.now()}`;
-  const user = await createAccountBySuperAdmin(`op@${tenant}.test`, "a long enough password here 1", tenant);
+  const user = await createUser(`op@${tenant}.test`, "a long enough password here 1", tenant);
   const consoleToken = await mintSession(user, "test", { audience: "admin", mfa: true });
   assert.match(consoleToken.value, /^v2\./, "revocable: the facts live in the row");
   assert.deepEqual((await verifySession(consoleToken.value))?.session, { kind: "v2", audience: "admin", mfa: true });

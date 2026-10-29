@@ -19,14 +19,16 @@ process.env.FOLDRUN_SECRET_KEY ??= "a".repeat(64);
 
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
-const { createAccountBySuperAdmin } = await import("../server/users.ts");
+// Fixtures: several accounts, each its own owner — signup stays open for them.
+process.env.FOLDRUN_OPEN_SIGNUP = "1";
+const { createUser } = await import("../server/users.ts");
 const auditRoute = await import("../app/api/audit/route.ts");
 const keysRoute = await import("../app/api/keys/route.ts");
 const secretsRoute = await import("../app/api/secrets/route.ts");
 const { audit, auditCsv, queryAudit } = await import("../server/audit.ts");
 
-await createAccountBySuperAdmin("owner@acme.test", "correct horse battery staple 9", "acme");
-await createAccountBySuperAdmin("owner@globex.test", "correct horse battery staple 9", "globex");
+await createUser("owner@acme.test", "correct horse battery staple 9", "acme");
+await createUser("owner@globex.test", "correct horse battery staple 9", "globex");
 const { key: acmeAdmin } = await createApiKey("acme", "ops", "owner@acme.test", undefined, "admin");
 const { key: acmeEditor } = await createApiKey("acme", "ci", "owner@acme.test", undefined, "editor");
 const { key: acmeScoped } = await createApiKey("acme", "one-ws", "owner@acme.test", undefined, "admin", ["leads"]);

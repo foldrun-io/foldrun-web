@@ -14,7 +14,9 @@ import path from "node:path";
 process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-api-deprecations-"));
 delete process.env.FOLDRUN_DATABASE_URL;
 
-const { createAccountBySuperAdmin } = await import("../server/users.ts");
+// Fixtures: several accounts, each its own owner — signup stays open for them.
+process.env.FOLDRUN_OPEN_SIGNUP = "1";
+const { createUser } = await import("../server/users.ts");
 const usage = await import("@/platform/api-usage");
 const { stepsDue, warnDeprecatedCallers, deprecationNotice } = await import("../server/api-deprecations.ts");
 const { apiUsageFacts } = await import("../server/api-facts.ts");
@@ -35,8 +37,8 @@ const fresh = () => {
   for (const f of [".api-usage.json", ".api-deprecation-notices.json"]) fs.rmSync(path.join(process.env.FOLDRUN_DATA!, f), { force: true });
 };
 
-await createAccountBySuperAdmin("owner@dep.test", "correct horse battery staple 9", "dep");
-await createAccountBySuperAdmin("owner@quiet.test", "correct horse battery staple 9", "quiet");
+await createUser("owner@dep.test", "correct horse battery staple 9", "dep");
+await createUser("owner@quiet.test", "correct horse battery staple 9", "quiet");
 
 test("the steps due: seen always, then 90, 30 and 7 days before the sunset; nothing after it", () => {
   assert.deepEqual(stepsDue(dep(null), NOW), ["seen"]);

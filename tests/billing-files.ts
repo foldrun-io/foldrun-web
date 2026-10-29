@@ -26,16 +26,18 @@ export const BILLING_FILES = [
   "components/balance-pill.tsx",
   "components/dunning-banner.tsx",
   "components/manage-in-stripe.tsx",
+  "components/support-banner.tsx",
 ];
 
 /** components/billing-slots.tsx as the public repository has it: renders
  *  nothing. The hosted build lays foldrun-admin's real one over it. */
 export const SLOTS_STUB = `"use client";
 
-// The dashboard's billing chrome — the balance pill and the low-balance and
-// payment-overdue banners — is foldrun's hosted business (foldrun-admin).
-// Without it there is nothing to show. The hosted build replaces this file
-// with the real components (foldrun-admin overlay.sh).
+// The dashboard's hosted chrome — the balance pill, the low-balance and
+// payment-overdue banners, and support's view-as bar — is foldrun's hosted
+// business (foldrun-admin). Without it there is nothing to show. The hosted
+// build replaces this file with the real components (foldrun-admin
+// overlay.sh).
 
 export function BalancePill(_: { tenant: string }) {
   return null;
@@ -46,6 +48,10 @@ export function LowBalanceBanner(_: { tenant: string }) {
 }
 
 export function DunningBanner(_: { tenant: string }) {
+  return null;
+}
+
+export function SupportBanner(_: { account: string; expiresAt: string; reason: string }) {
   return null;
 }
 `;
@@ -90,11 +96,6 @@ export function surface(): Surface {
   return "app";
 }
 
-/** The console's origin: there is no console. */
-export function adminOrigin(): string | null {
-  return null;
-}
-
 /** A console host's routing, ahead of the customer app's (proxy.ts): none. */
 export async function consoleRoute(
   _req: NextRequest,
@@ -120,16 +121,57 @@ export function sessionAudience(): string | null {
 }
 `;
 
+/** server/view-as.ts as the public repository has it: no support views
+ *  (30 Oct 2026 — the view-as rules are foldrun-admin's). */
+const VIEW_AS_STUB = `// Support's read-only view of a customer account — the hosted operator
+// console's (foldrun-admin), and not part of this repository.
+//
+// As this repository has it there are no support views: no token resolves
+// to one, nothing needs ending at sign-out, and were a session ever marked
+// as one, every request would be refused. The hosted build replaces this
+// file with the real rules (foldrun-admin overlay.sh); server/users.ts,
+// server/auth.ts, server/api.ts, server/api-limits.ts and the sign-out
+// route ask it, and nothing else decides.
+
+import type { NextResponse } from "next/server";
+import type { UserRecord } from "./users.ts";
+
+/** The live grant a support token names: there are none. */
+export async function liveSupportView(_tenant: string, _id: string): Promise<{ id: string; by: string; reason: string; expiresAt: string } | null> {
+  return null;
+}
+
+/** Why this request is refused under a support view: every one is. */
+export function supportViewRefusal(_method: string, _pathname: string): string | null {
+  return "support views are not part of this install";
+}
+
+/** Sign-out's part for a support view: true when it handled the sign-out
+ *  of one (the caller then does nothing else for it). There are none. */
+export async function supportSignOut(_session: UserRecord | null, _res: NextResponse): Promise<boolean> {
+  return false;
+}
+
+/** A write the API's rate limits never refuse, besides signing out: none. */
+export function supportExempt(_method: string, _pathname: string): boolean {
+  return false;
+}
+`;
+
 /** Every public file foldrun-admin replaces, with what it must be when
  *  committed here (billing-guard.mjs refuses anything else). */
 export const STUBS: Record<string, string> = {
   "components/billing-slots.tsx": SLOTS_STUB,
   "server/billing-notices.ts": NOTICES_STUB,
   "server/surface.ts": SURFACE_STUB,
+  "server/view-as.ts": VIEW_AS_STUB,
 };
 
-/** Billing's tests in tests/ (foldrun-admin's web/tests). */
+/** Billing's tests in tests/ (foldrun-admin's web/tests), and their
+ *  helpers. */
 export const BILLING_TESTS = [
+  "console-session.ts",
+  "console-access-keys.ts",
   "admin-export.test.ts",
   "admin-idempotency-billing.test.ts",
   "admin-idempotency.test.ts",

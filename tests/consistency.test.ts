@@ -1571,11 +1571,11 @@ test("widening from a workspace's runs to the account's keeps the filters", () =
   for (const k of ["flow", "status", "since", "q"]) assert.ok(new RegExp(`\\b${k}\\?: string`).test(account), `the account runs page no longer reads ${k}`);
 });
 
-// ------------------------------------------------------------- super admin
+// ------------------------------------------------------------- operator console
 //
-// The super admin console is a fenced module: app/admin, app/api/admin,
-// server/admin. It is hosted-only and for the platform account's owner
-// only, and NOTHING customer-facing reaches into it — that fence is what
+// The operator console is a fenced module: app/admin, app/api/admin,
+// server/admin — foldrun-admin's, laid over a hosted checkout only — and
+// NOTHING customer-facing reaches into it — that fence is what
 // makes "extract it into its own app one day" a git mv rather than a
 // rewrite, and what makes "can a customer ever see this" a test rather
 // than an audit.
@@ -1598,35 +1598,18 @@ test("nothing customer-facing imports the super admin console", () => {
   assert.deepEqual(offenders, [], `the fence is crossed by:\n${offenders.join("\n")}`);
 });
 
-test("the super admin is the owner of the platform account, and nothing else grants it", () => {
-  // The rule lives in one function and reads two facts: the account, and
-  // ownership of it. No email list, no role word, no route that writes it.
-  const gate = read("../foldrun-platform/src/admin.ts");
-  assert.match(gate, /export function isSuperAdmin/);
-  assert.match(gate, /who\?\.owner && who\.tenant && who\.tenant === platformAccount\(\)/);
-  assert.doesNotMatch(gate, /FOLDRUN_OPERATORS/);
+test("no customer-facing file grants or draws a way into the operator console", () => {
+  // Since 30 Oct 2026 the console's operators are people Cloudflare Access and
+  // their own second factor vouch for (foldrun-admin), not an account here:
+  // no route names a role for it, no session says who may use it, and the
+  // menu draws no door to it.
   const offenders = walk(path.join(root, "app/api"), (f) => f.endsWith("route.ts"))
     .filter((f) => /role.*["'](operator|superadmin|super-admin)["']/.test(fs.readFileSync(f, "utf8")))
     .map((f) => path.relative(root, f));
   assert.deepEqual(offenders, []);
-});
-
-test("the way into the super admin console is drawn from the session, not guessed", () => {
-  // The session route asks the fence; the menu shows the item only when
-  // the session said so. No customer-facing file decides it another way.
-  assert.match(read("app/api/auth/session/route.ts"), /superAdmin: isSuperAdmin\(\{ tenant: user\.tenant, owner: user\.owner \}\)/);
-  assert.match(read("app/api/auth/session/route.ts"), /from "@\/platform\/admin"/);
-  // …and only when the install has a console of its own to link to.
-  assert.match(read("components/user-menu.tsx"), /who\.superAdmin && who\.adminUrl \? \[\{ name: "Super admin", href: who\.adminUrl \}\]/);
-  assert.match(read("app/api/auth/session/route.ts"), /&& adminOrigin\(\) \? \{ adminUrl:/);
-  const offenders = webFiles((f) => /\.tsx?$/.test(f))
-    .filter((f) => !path.relative(root, f).startsWith("server/admin/"))
-    // The console's sign-in rule asks it too (server/surface.ts, hosted
-    // only): on that surface only the operator may sign in — a gate, not a
-    // door drawn.
-    .filter((f) => /isSuperAdmin\(/.test(fs.readFileSync(f, "utf8")) && !path.relative(root, f).startsWith("app/api/auth/session/") && path.relative(root, f) !== "server/surface.ts")
-    .map((f) => path.relative(root, f));
-  assert.deepEqual(offenders, []);
+  assert.doesNotMatch(read("app/api/auth/session/route.ts"), /superAdmin|adminUrl|isSuperAdmin/);
+  assert.doesNotMatch(read("components/user-menu.tsx"), /Super admin|adminUrl/);
+  assert.doesNotMatch(read("../foldrun-platform/src/admin.ts"), /isSuperAdmin/);
 });
 
 // ------------------------------------------------------------- the one ORM

@@ -30,6 +30,7 @@ import { billing } from "@/platform/billing";
 import { adminState } from "@/platform/admin";
 import { apiKeyFor } from "./auth.ts";
 import { verifySession, SESSION_COOKIE } from "./users.ts";
+import { supportExempt } from "./view-as.ts";
 import { resolveVersion, deprecationFor, deprecationHeaders, RESOLVED_VERSION_HEADER } from "./api-version.ts";
 
 export const WINDOW_SEC = 60;
@@ -170,7 +171,8 @@ export function unmetered(method: string, pathname: string): boolean {
   if (method === "GET" || method === "HEAD") {
     if (p === "/api/healthz" || p === "/api/version" || p === "/api/status" || p.startsWith("/api/status/")) return true;
   }
-  if (method === "POST" && (p === "/api/auth/logout" || p === "/api/support/exit")) return true;
+  if (method === "POST" && p === "/api/auth/logout") return true;
+  if (supportExempt(method, p)) return true;
   return false;
 }
 

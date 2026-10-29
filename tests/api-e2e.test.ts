@@ -879,9 +879,9 @@ test("two-factor: enrol with a real code, then sign-in needs the code, then a ba
   assert.ok(!plain.mfa);
 });
 
-test("nothing can make a super admin from inside an account", hosted, async () => {
-  // The only way in is owning the platform account. No member carries a
-  // role word for it, because there is no such role.
+test("nothing can make an operator from inside an account", hosted, async () => {
+  // The operator console's people are not accounts here. No member carries
+  // a role word for it, because there is no such role.
   const res = await fetch(`${base}/api/account/members`, { method: "GET", headers: { cookie } });
   if (res.status === 200) {
     const text = await res.text();

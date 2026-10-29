@@ -29,6 +29,7 @@ import crypto from "node:crypto";
 import { dataRoot } from "@/lib/paths.ts";
 import { assertSafeName, accountDir, ensureAccountFiles } from "@/lib/store.ts";
 import { installKey } from "@/lib/webhook.ts";
+import { sessionMac } from "./session-mac.ts";
 import { isOwner as isOwnerOf, ownerOf as ownerOfMembers } from "@/platform/ownership.ts";
 import { assertSignupAllowed } from "@/platform/signup.ts";
 import {
@@ -116,9 +117,10 @@ export interface UserRecord {
   /** sha256 of each unused backup code. */
   mfaBackup?: string[] | null;
   mfaEnabledAt?: string | null;
-  /** Set only on a support view's session (never stored): the super admin
-   *  reading this account as its owner sees it, read-only, until expiresAt.
-   *  Every write is refused while it is set — proxy.ts and server/api.ts. */
+  /** Set only on a support view's session (never stored; hosted only):
+   *  support reading this account as its owner sees it, read-only, until
+   *  expiresAt. Every write is refused while it is set — server/auth.ts and
+   *  server/api.ts ask server/view-as.ts. */
   viewAs?: { id: string; by: string; reason: string; expiresAt: string } | null;
   /** How the presented token was made (27 Oct 2026): its kind, the surface
    *  it was made for (null = the customer app) and whether a second factor
@@ -352,23 +354,33 @@ export async function findUser(email: string): Promise<UserRecord | null> {
   return (await readUsers()).find((u) => u.email === needle) ?? null;
 }
 
-export async function createUser(
+/** What the users lock knows when it decides whether this person may be
+ *  added: asked inside the lock, so two at once cannot both pass. */
+export interface NewUserFacts {
+  accountExists: boolean;
+  emailTaken: boolean;
+  nameTaken: boolean;
+}
+
+/**
+ * Add a person, and — for an owner — their account: the address, password
+ * and name checks, one locked write, the account's files and its own
+ * encryption key. Every way in shares it; what differs is who may come in,
+ * which `decide` answers (asked after the input checks, before anything
+ * specific to this address; its answer is applied inside the lock).
+ */
+async function addUser(
   email: string,
   password: string,
   tenant: string,
-  opts: { joining?: boolean; role?: Role; workspaces?: string[] | null } = {},
+  opts: { joining?: boolean; role?: Role; workspaces?: string[] | null },
+  decide: () => Promise<(facts: NewUserFacts) => void>,
 ): Promise<UserRecord> {
   const normalized = email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) throw new Error("that is not an email address");
   await assertPasswordPolicy(password, normalized);
   assertSafeName(tenant, "account name");
-
-  // The order these are asked in is a security property, and it lives in
-  // core where it can be unit-tested — see signup.ts. Briefly: whether signup
-  // is possible at all is decided BEFORE anything specific to this address,
-  // so a closed install refuses every address with the same sentence instead
-  // of confirming which ones are registered.
-  const open = await signupOpen();
+  const allowed = await decide();
 
   const salt = crypto.randomBytes(16).toString("hex");
   const user: UserRecord = {
@@ -386,9 +398,7 @@ export async function createUser(
     ...(opts.joining && opts.workspaces ? { workspaces: opts.workspaces } : {}),
   };
   await mutateUsers((users) => {
-    assertSignupAllowed({
-      joining: Boolean(opts.joining),
-      open,
+    allowed({
       accountExists: users.some((u) => u.tenant === tenant),
       emailTaken: users.some((u) => u.email === normalized),
       nameTaken: users.some((u) => u.tenant === tenant) || fs.existsSync(accountDir(tenant)),
@@ -407,6 +417,35 @@ export async function createUser(
   // across replicas; a no-op without a database.
   await ensureTenantKey(tenant);
   return user;
+}
+
+/** A sign-up: the install's signup rules decide (core signup.ts). */
+export async function createUser(
+  email: string,
+  password: string,
+  tenant: string,
+  opts: { joining?: boolean; role?: Role; workspaces?: string[] | null } = {},
+): Promise<UserRecord> {
+  return addUser(email, password, tenant, opts, async () => {
+    // The order these are asked in is a security property, and it lives in
+    // core where it can be unit-tested — see signup.ts. Briefly: whether signup
+    // is possible at all is decided BEFORE anything specific to this address,
+    // so a closed install refuses every address with the same sentence instead
+    // of confirming which ones are registered.
+    const open = await signupOpen();
+    return (facts) => assertSignupAllowed({ joining: Boolean(opts.joining), open, ...facts });
+  });
+}
+
+/**
+ * A new account and its owner, made by trusted server code rather than a
+ * sign-up form — the hosted operator console's way in for a customer who was
+ * sold to (foldrun-admin). `allowed` is the caller's rule, asked inside the
+ * lock; the signup gate is not asked, so nothing that answers a request
+ * from the public may call this.
+ */
+export async function createAccountOwner(email: string, password: string, tenant: string, allowed: (facts: NewUserFacts) => void): Promise<UserRecord> {
+  return addUser(email, password, tenant, {}, async () => allowed);
 }
 
 export async function verifyPassword(email: string, password: string): Promise<UserRecord | null> {
@@ -469,8 +508,7 @@ export async function changePassword(userId: string, current: string, next: stri
 export const SESSION_COOKIE = "foldrun_session";
 const SESSION_DAYS = 30;
 
-const sign = (payload: string) =>
-  crypto.createHmac("sha256", installKey()).update(payload).digest("hex");
+const sign = sessionMac;
 
 /**
  * A token the browser holds. Verifiable by anyone with the install key,
@@ -495,18 +533,6 @@ export async function mintSession(
   }
   const payload = `${user.id}.${expires.getTime()}`;
   return { value: `v1.${payload}.${sign(payload)}`, expires, sessionId: null };
-}
-
-/**
- * A support view's token: the grant (account and id), its end, signed like a
- * session. It names no person — verifySession resolves it to the account's
- * owner, marked `viewAs`, for as long as the grant stays live.
- */
-export function mintSupportSession(view: { tenant: string; id: string; expiresAt: string }): { value: string; expires: Date } {
-  const expires = new Date(view.expiresAt);
-  const subject = Buffer.from(`${view.tenant}:${view.id}`).toString("base64url");
-  const payload = `${subject}.${expires.getTime()}`;
-  return { value: `s1.${payload}.${sign(payload)}`, expires };
 }
 
 /** The session id inside a token, without deciding whether it is still live.
@@ -1135,39 +1161,6 @@ export async function consumeBackupCode(userId: string, hash: string): Promise<b
   });
 }
 
-/**
- * A new account made by the super admin, not by a sign-up: the invite-only
- * install's front door for a customer who was sold to rather than one who
- * found the form. Everything createUser checks except "is signup open" —
- * the super admin IS the opening. The password is the caller's problem to hand
- * over; the reset link is the better handover.
- */
-export async function createAccountBySuperAdmin(email: string, password: string, tenant: string): Promise<UserRecord> {
-  const normalized = email.trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) throw new Error("that is not an email address");
-  await assertPasswordPolicy(password, normalized);
-  assertSafeName(tenant, "account name");
-  const salt = crypto.randomBytes(16).toString("hex");
-  const user: UserRecord = {
-    id: crypto.randomBytes(8).toString("hex"),
-    email: normalized, tenant, salt, hash: scrypt(password, salt),
-    createdAt: new Date().toISOString(), owner: true,
-  };
-  await mutateUsers((users) => {
-    if (users.some((u) => u.email === normalized)) throw Object.assign(new Error("that email already has an account"), { status: 409 });
-    if (users.some((u) => u.tenant === tenant) || fs.existsSync(accountDir(tenant))) throw Object.assign(new Error("that account name is taken"), { status: 409 });
-    users.push(user);
-  });
-  fs.mkdirSync(path.join(accountDir(tenant), "workspaces"), { recursive: true });
-  ensureAccountFiles(tenant);
-  // The account's own encryption key, minted the moment the account exists.
-  // It used to be minted only at boot, so an account created after boot
-  // kept its secrets under the install key until the next deploy. Idempotent
-  // across replicas; a no-op without a database.
-  await ensureTenantKey(tenant);
-  return user;
-}
-
 export async function setUserTimezone(userId: string, tz: string | null): Promise<void> {
   if (tz !== null && !isValidTimeZone(tz)) throw new Error(`not a known timezone: ${tz}`);
   return mutateUsers((users) => {
@@ -1215,12 +1208,14 @@ export async function verifySession(token: string | undefined): Promise<UserReco
   if (presented.length !== wanted.length || !crypto.timingSafeEqual(presented, wanted)) return null;
 
   if (version === "s1") {
-    // A support view: live only while its grant is — ended or lapsed, the
-    // token is nothing. It reads as the account's owner, marked read-only.
+    // A support view (the hosted console's: foldrun-admin view-as.ts mints
+    // them): live only while its grant is — ended or lapsed, the token is
+    // nothing. It reads as the account's owner, marked read-only. As this
+    // repository has it no grant is ever live (server/view-as.ts is a stub).
     const [tenant, id] = Buffer.from(subject, "base64url").toString().split(":");
     if (!tenant || !id) return null;
-    const { billing } = await import("@/platform/billing");
-    const view = await billing().liveSupportView(tenant, id);
+    const { liveSupportView } = await import("./view-as.ts");
+    const view = await liveSupportView(tenant, id);
     if (!view) return null;
     const owner = await ownerOf(tenant);
     if (!owner) return null;

@@ -14,7 +14,9 @@ process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-reset-
 process.env.FOLDRUN_SECRET_KEY = "reset-mfa-test-key";
 process.env.FOLDRUN_SKIP_BREACH_CHECK = "1";
 const { NextRequest } = await import("next/server");
-const { createAccountBySuperAdmin, setMfa, findUserById, SESSION_COOKIE } = await import("../server/users.ts");
+// Fixtures: several accounts, each its own owner — signup stays open for them.
+process.env.FOLDRUN_OPEN_SIGNUP = "1";
+const { createUser, setMfa, findUserById, SESSION_COOKIE } = await import("../server/users.ts");
 const { mintToken, hashFingerprint, RESET_TTL_MS } = await import("../server/auth-tokens.ts");
 const reset = await import("../app/api/auth/reset/route.ts");
 
@@ -26,7 +28,7 @@ const linkFor = async (id: string) => {
 };
 
 test("a reset link is for the address it was sent to: one without it, or for another, is refused", async () => {
-  const u = await createAccountBySuperAdmin("bound@reset.test", "an old password long enough 5", "reset-bound");
+  const u = await createUser("bound@reset.test", "an old password long enough 5", "reset-bound");
   const noEmail = mintToken("reset", { u: u.id, h: hashFingerprint(u.hash) }, RESET_TTL_MS);
   assert.equal((await post(noEmail, "a brand new password, long 6")).status, 400);
   const oldInbox = mintToken("reset", { u: u.id, h: hashFingerprint(u.hash), e: "old@reset.test" }, RESET_TTL_MS);
@@ -35,7 +37,7 @@ test("a reset link is for the address it was sent to: one without it, or for ano
 });
 
 test("with MFA on, a reset changes the password but sets no session", async () => {
-  const u = await createAccountBySuperAdmin("mfa@reset.test", "an old password long enough 1", "reset-mfa");
+  const u = await createUser("mfa@reset.test", "an old password long enough 1", "reset-mfa");
   await setMfa(u.id, { secret: "JBSWY3DPEHPK3PXP", backupHashes: [] });
   const r = await post(await linkFor(u.id), "a brand new password, long 2");
   assert.equal(r.status, 200);
@@ -45,7 +47,7 @@ test("with MFA on, a reset changes the password but sets no session", async () =
 });
 
 test("without MFA, a reset still signs the person in", async () => {
-  const u = await createAccountBySuperAdmin("plain@reset.test", "an old password long enough 3", "reset-plain");
+  const u = await createUser("plain@reset.test", "an old password long enough 3", "reset-plain");
   const r = await post(await linkFor(u.id), "a brand new password, long 4");
   assert.equal(r.status, 200);
   assert.ok(r.cookies.get(SESSION_COOKIE)?.value, "signed in, as before");

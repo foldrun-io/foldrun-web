@@ -41,7 +41,7 @@ function target(from: string, spec: string): string | null {
 }
 
 const resolvesToBilling = (rel: string) =>
-  BILLING_FILES.some((p) => (p.endsWith("/") ? `${rel}/`.startsWith(p) || rel.startsWith(p) : rel === p.replace(/\.ts$/, "")));
+  BILLING_FILES.some((p) => (p.endsWith("/") ? `${rel}/`.startsWith(p) || rel.startsWith(p) : rel === p.replace(/\.tsx?$/, "")));
 
 test("the dashboard and API reach billing only through billing()", () => {
   const breaches: string[] = [];

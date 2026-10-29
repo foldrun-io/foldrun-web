@@ -67,6 +67,7 @@ next-env.d.ts
 /components/balance-pill.tsx
 /components/dunning-banner.tsx
 /components/manage-in-stripe.tsx
+/components/support-banner.tsx
 /tests/admin-export.test.ts
 /tests/console-session.ts
 /tests/console-surface.test.ts

@@ -17,11 +17,6 @@ export function surface(): Surface {
   return "app";
 }
 
-/** The console's origin: there is no console. */
-export function adminOrigin(): string | null {
-  return null;
-}
-
 /** A console host's routing, ahead of the customer app's (proxy.ts): none. */
 export async function consoleRoute(
   _req: NextRequest,

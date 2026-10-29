@@ -13,11 +13,13 @@ process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-key-ro
 delete process.env.FOLDRUN_DATABASE_URL;
 
 const { createApiKey, rotateApiKey, listApiKeys } = await import("../server/auth.ts");
-const { createAccountBySuperAdmin } = await import("../server/users.ts");
+// Fixtures: several accounts, each its own owner — signup stays open for them.
+process.env.FOLDRUN_OPEN_SIGNUP = "1";
+const { createUser } = await import("../server/users.ts");
 const { warnExpiringKeys } = await import("../server/key-expiry.ts");
 
 test("rotating with a grace does not mail a warning about the old key", async () => {
-  await createAccountBySuperAdmin("owner@rot.test", "correct horse battery staple 9", "rot");
+  await createUser("owner@rot.test", "correct horse battery staple 9", "rot");
   const { record } = await createApiKey("rot", "ci", "owner@rot.test", undefined, "editor");
   const { record: fresh } = await rotateApiKey("rot", record.id, 24 * 3_600_000);
   const sent: string[] = [];

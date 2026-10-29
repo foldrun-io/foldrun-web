@@ -31,7 +31,7 @@ export async function sendInviteEmail(
 /** Everything here goes through core's sendMail with its category — all of
  *  them required ones (security, account), so none can be turned off and
  *  none carries an unsubscribe. */
-async function platformSend(
+export async function platformSend(
   tenant: string,
   to: string,
   subject: string,
@@ -109,15 +109,6 @@ export function sendVerifyEmail(tenant: string, to: string, url: string, opts?: 
       after: `${esc(why)} The link is good for 24 hours.`,
     }),
   );
-}
-
-/** A new account, made for someone by the super admin. No password in the
- *  mail, ever — a set-password link that works once. */
-export function sendAccountCreatedEmail(tenant: string, to: string, url: string) {
-  return platformSend(tenant, to, `Your foldrun account "${tenant}" is ready`,
-    `An account named "${tenant}" was created for ${to} on foldrun.\n\n` +
-    `Choose your password here (the link works once, for 30 minutes):\n${url}\n\n` +
-    `If you were not expecting this, reply to this email.\n`);
 }
 
 /** To the OLD address, after a change: the one person who must hear that a

@@ -42,5 +42,4 @@ test("signing out works when the account's write bucket is spent", async () => {
   for (const { key } of keys) for (let i = 0; i < TIERS.free.write; i++) await apiGate(req("POST", "/api/keys", { authorization: `Bearer ${key}` }));
   assert.ok((await apiGate(req("POST", "/api/workspaces/w/deploy", cookie))).refuse, "the account's writes are spent");
   assert.equal((await apiGate(req("POST", "/api/auth/logout", cookie))).refuse, undefined, "sign-out is not refused");
-  assert.equal((await apiGate(req("POST", "/api/support/exit", cookie))).refuse, undefined, "ending a support view is not refused");
 });
