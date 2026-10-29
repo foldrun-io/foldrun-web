@@ -15,8 +15,16 @@ python3 - "$WEB/../foldrun-platform/tests/billing-boundary-lists.ts" "$WEB/tests
 import re, sys
 names = set()
 for f in sys.argv[1:]:
-    try: names |= set(re.findall(r'"([a-z0-9][a-z0-9./_-]+)"', open(f).read()))
-    except FileNotFoundError: pass
+    try: text = open(f).read()
+    except FileNotFoundError: continue
+    # The public stubs are not private: their keys name files every image
+    # has (server/surface.ts, server/billing-notices.ts …), and their bodies,
+    # written as template literals, quote ordinary imports ("next/server").
+    # Read neither as a private name (29 Oct 2026: they were, and the check
+    # flagged the open-source image for having its own stub).
+    stubs = set(re.findall(r'"([^"]+)":\s*[A-Z_]+_STUB\b', text))
+    text = re.sub(r'`[^`]*`', '', text)
+    names |= set(re.findall(r'"([a-z0-9][a-z0-9./_-]+)"', text)) - stubs
 for n in sorted(names):
     if len(n) > 3: print(n)
 PY
@@ -45,7 +53,9 @@ while read -r n; do
   done
 done < <(grep -v -e '^billing-hosted' -e 'test.ts$' -e '/$' "$tmp/names")
 for marker in "STRIPE_PRICE_STARTER" "createSubscriptionSession" "consoleAllows"; do
-  hit=$(grep -rl --exclude-dir=node_modules "$marker" "$tmp/app" 2>/dev/null | grep -v -e '\.md$' | head -3 || true)
+  # Not this script: it names the markers it looks for, and an image that
+  # ships quality/ would otherwise find itself.
+  hit=$(grep -rl --exclude-dir=node_modules "$marker" "$tmp/app" 2>/dev/null | grep -v -e '\.md$' -e '/quality/leak\.sh$' | head -3 || true)
   [ -n "$hit" ] && { echo "LEAK marker '$marker' in: $hit"; found=1; }
 done
 docker run --rm -v "$tmp/app:/scan:ro" -v "$QUALITY_DIR/gitleaks.toml:/cfg.toml:ro" zricethezav/gitleaks:v8.28.0 dir /scan --config /cfg.toml --no-banner --redact >/dev/null 2>"$tmp/gl" || { echo "LEAK gitleaks found a secret in the image:"; tail -20 "$tmp/gl"; found=1; }
