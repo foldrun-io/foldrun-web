@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
-import { requireTenant, errorResponse, requirePermission } from "@/server/api";
+import { requireTenant, errorResponse, requirePermission, actorOf } from "@/server/api";
 import { workspaceDir, assertSafeName, writeWorkspaceFile, listAgents } from "@/lib/store";
 import { listEvals } from "@/lib/evals";
 import { idempotent } from "@/server/idempotency";
@@ -36,6 +36,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
         `## it does the thing\ntask: Ask it to do the thing.\nexpect:\n` +
         `  - contains: some text the answer must include\n` +
         `  - judge: the answer actually does what was asked\n`,
+      { by: await actorOf(req) },
     );
     return NextResponse.json({ ok: true, path: rel });
   } catch (err) {

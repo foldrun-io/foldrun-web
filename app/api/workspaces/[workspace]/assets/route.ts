@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import { startingFiles } from "@/server/starters";
-import { requireTenant, errorResponse, requirePermission } from "@/server/api";
+import { requireTenant, errorResponse, requirePermission, actorOf } from "@/server/api";
 import { assertSafeName, workspaceDir, writeWorkspaceFile } from "@/lib/store";
 import { KINDS, type Kind } from "@/lib/kinds";
 import { idempotent } from "@/server/idempotency";
@@ -82,7 +82,8 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
         { status: 409 },
       );
     }
-    for (const f of starters) writeWorkspaceFile(tenant, workspace, prefix + f.file, f.content);
+    const by = await actorOf(req);
+    for (const f of starters) writeWorkspaceFile(tenant, workspace, prefix + f.file, f.content, { by });
     return NextResponse.json({ ok: true, path: rel, type: meta.docType });
   } catch (err) {
     return errorResponse(err);

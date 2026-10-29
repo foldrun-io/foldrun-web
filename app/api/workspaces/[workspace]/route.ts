@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requirePermission } from "@/server/api";
+import { requireTenant, errorResponse, requirePermission, actorOf } from "@/server/api";
 import { audit } from "@/server/audit";
 import fs from "node:fs";
 import {
@@ -95,7 +95,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
       }
       const patch = defaultsPatch(scoped, current);
       if ("error" in patch) return NextResponse.json({ error: patch.error }, { status: 400 });
-      writeWorkspaceFile(tenant, workspace, "AGENTS.md", patchFrontmatter(before, patch.keys), { message: `settings: ${Object.keys(patch.keys).join(", ")}` });
+      writeWorkspaceFile(tenant, workspace, "AGENTS.md", patchFrontmatter(before, patch.keys), { by: await actorOf(req), message: `settings: ${Object.keys(patch.keys).join(", ")}` });
     }
 
     let renamedTo: string | null = null;

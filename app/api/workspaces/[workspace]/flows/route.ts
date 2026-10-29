@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requirePermission } from "@/server/api";
+import { requireTenant, errorResponse, requirePermission, actorOf } from "@/server/api";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -40,7 +40,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
       return NextResponse.json({ error: `flow ${body.name} already exists` }, { status: 409 });
     }
     const agents = listAgents(tenant, workspace).map((a) => a.name);
-    writeWorkspaceFile(tenant, workspace, rel, flowPatternTemplate(pattern, body.name, agents));
+    writeWorkspaceFile(tenant, workspace, rel, flowPatternTemplate(pattern, body.name, agents), { by: await actorOf(req) });
     return NextResponse.json({ ok: true, path: rel, pattern });
   } catch (err) {
     return errorResponse(err);

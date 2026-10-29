@@ -33,7 +33,11 @@ import {
   unclaimCliLoginDb,
   pollCliLoginDb,
 } from "@/platform/short-lived-db.ts";
-import { createApiKey, revokeApiKey } from "./auth.ts";
+import { createApiKey, revokeApiKey, CLI_KEY_DAYS } from "./auth.ts";
+
+/** A `foldrun login` key ends after CLI_KEY_DAYS unless the CLI renews it
+ *  (FOL-71) — before, it lived until someone revoked it by hand. */
+const cliKeyLife = () => ({ expiresAt: new Date(Date.now() + CLI_KEY_DAYS * 86_400_000), origin: "cli-login" as const });
 import type { Role } from "@/platform/permissions.ts";
 
 const file = () => path.join(dataRoot(), "cli-logins.json");
@@ -183,7 +187,7 @@ export async function decideCliLogin(
     const role: Role = person.role === "owner" ? "admin" : person.role;
     let minted: Awaited<ReturnType<typeof createApiKey>>;
     try {
-      minted = await createApiKey(person.tenant, `cli · ${row.hostname}`, person.email, undefined, role, person.workspaces ?? null);
+      minted = await createApiKey(person.tenant, `cli · ${row.hostname}`, person.email, undefined, role, person.workspaces ?? null, cliKeyLife());
     } catch (err) {
       await unclaimCliLoginDb(c).catch(() => {});
       throw err;
@@ -212,7 +216,7 @@ export async function decideCliLogin(
   // gets a CLI that opens those two.
   let minted: Awaited<ReturnType<typeof createApiKey>>;
   try {
-    minted = await createApiKey(person.tenant, `cli · ${row.hostname}`, person.email, undefined, role, person.workspaces ?? null);
+    minted = await createApiKey(person.tenant, `cli · ${row.hostname}`, person.email, undefined, role, person.workspaces ?? null, cliKeyLife());
   } catch (err) {
     updateRow(row.id, (r) => void (r.status = "pending"));
     throw err;

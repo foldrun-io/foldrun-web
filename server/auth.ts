@@ -87,7 +87,16 @@ export interface ApiKeyRecord {
   /** The id of the key that replaced this one in a rotation; null until
    *  then. A key already replaced is not rotated again — the new key is. */
   replacedBy?: string | null;
+  /** "cli-login" when `foldrun login` minted it (FOL-71): it lives
+   *  CLI_KEY_DAYS, the CLI rotates it itself before it ends, and no expiry
+   *  mail is sent for it. Absent on every key a person minted. */
+  origin?: "cli-login";
 }
+
+/** How long a `foldrun login` key lives; the CLI renews it with under
+ *  CLI_RENEW_DAYS left, so a machine in use never sees it end. */
+export const CLI_KEY_DAYS = 90;
+export const CLI_RENEW_DAYS = 14;
 
 /**
  * "30d", "90d", "365d", "never", a number of days — into the moment a key
@@ -151,7 +160,7 @@ export async function createApiKey(
   scope?: ApiKeyRecord["scope"],
   role: Role = "editor",
   workspaces: string[] | null = null,
-  opts: { expiresAt?: Date | null } = {},
+  opts: { expiresAt?: Date | null; origin?: ApiKeyRecord["origin"] } = {},
 ): Promise<{ record: ApiKeyRecord; key: string }> {
   assertSafeName(tenant, "tenant");
   if (scope) throw new Error("deploy keys went with the platform's own git (17 Oct 2026)");
@@ -173,6 +182,7 @@ export async function createApiKey(
     workspaces,
     revokedAt: null,
     expiresAt: opts.expiresAt ? opts.expiresAt.toISOString() : null,
+    ...(opts.origin ? { origin: opts.origin } : {}),
   };
   if (databaseEnabled()) await insertApiKeyDb(record as ApiKeyRow);
   else writeKeys([...readKeys(), record]);
@@ -307,6 +317,7 @@ export async function rotateApiKey(
   const lifetime = old.expiresAt ? Date.parse(old.expiresAt) - Date.parse(old.createdAt) : null;
   const made = await createApiKey(tenant, old.label, by ?? old.createdBy, old.scope, (old.role ?? "admin") === "owner" ? "admin" : (old.role ?? "admin"), old.workspaces ?? null, {
     expiresAt: lifetime && lifetime > 0 ? new Date(Date.now() + lifetime) : null,
+    origin: old.origin,
   });
   // Claim the old key before ending it. Two rotations at once both pass the
   // check above; only one claim lands, and the loser's key is revoked unseen.
@@ -364,10 +375,10 @@ export function resetKeyTouches(): void {
 }
 
 /** Live keys, every account's, that end before `before` and whose owner has
- *  not been told. */
+ *  not been told — never a `foldrun login` key, which the CLI renews. */
 export async function expiringKeys(before: Date): Promise<ApiKeyRecord[]> {
   if (databaseEnabled()) return (await expiringApiKeysDb(before)) as ApiKeyRecord[];
-  return readKeys().filter((k) => !k.revokedAt && !k.expiryWarnedAt && k.expiresAt && Date.parse(k.expiresAt) <= before.getTime());
+  return readKeys().filter((k) => !k.revokedAt && !k.expiryWarnedAt && k.origin !== "cli-login" && k.expiresAt && Date.parse(k.expiresAt) <= before.getTime());
 }
 
 export async function markExpiryWarned(id: string, at = new Date()): Promise<void> {
@@ -467,6 +478,7 @@ export async function resolveTenant(req: NextRequest): Promise<AuthResult> {
     if (!record) return { tenant: null, status: 401, message: "invalid API key" };
     if (record.revokedAt) return { tenant: null, status: 401, message: "API key revoked" };
     if (keyExpired(record)) {
+      if (record.origin === "cli-login") return { tenant: null, status: 401, message: `this machine's sign-in ended on ${record.expiresAt!.slice(0, 10)} — run \`foldrun login\` to sign in again (the CLI renews it while it is in use)` };
       return { tenant: null, status: 401, message: `API key expired on ${record.expiresAt!.slice(0, 10)} — mint a new one on Settings → API keys (or \`foldrun keys create\`); rotate a key before it ends to keep its role and scope` };
     }
     // A deploy key opened the platform's own git and nothing else; with that
