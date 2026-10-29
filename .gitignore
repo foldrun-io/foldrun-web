@@ -58,6 +58,7 @@ next-env.d.ts
 /app/dashboard/wallet/
 /app/support/
 /server/admin/
+/server/console-access.ts
 /server/stripe.ts
 /server/stripe-webhook.ts
 /components/billing-details-form.tsx
@@ -78,6 +79,9 @@ next-env.d.ts
 /tests/stripe-e2e.test.ts
 /tests/console-guard.test.ts
 /tests/console-e2e.test.ts
+/tests/console-access.test.ts
+/tests/console-access-keys.ts
+/tests/console-operators.test.ts
 /tests/billing-notices-billing.test.ts
 /tests/consistency-billing.test.ts
 /tests/flags-routes.test.ts
