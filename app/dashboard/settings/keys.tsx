@@ -28,6 +28,8 @@ interface KeyRow {
   lastIp?: string | null;
   /** The id of the key that replaced it in a rotation. */
   replacedBy?: string | null;
+  /** "cli-login" for a key `foldrun login` minted: it renews itself. */
+  origin?: "cli-login";
 }
 
 const EXPIRY = [
@@ -319,7 +321,12 @@ export function KeyManager({
                     {!k.revokedAt && k.expiresAt && Date.parse(k.expiresAt) <= Date.now() && (
                       <span className="rounded-md bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-800">expired</span>
                     )}
-                    {!k.revokedAt && k.expiresAt && Date.parse(k.expiresAt) > Date.now() && Date.parse(k.expiresAt) - Date.now() < 7 * 86_400_000 && (
+                    {k.origin === "cli-login" && !k.revokedAt && (
+                      <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-fg-secondary" title="Minted by foldrun login on that machine. It lasts 90 days and the CLI renews it while the machine is in use; revoke it to sign that machine out.">
+                        CLI sign-in · renews itself
+                      </span>
+                    )}
+                    {!k.revokedAt && k.origin !== "cli-login" && k.expiresAt && Date.parse(k.expiresAt) > Date.now() && Date.parse(k.expiresAt) - Date.now() < 7 * 86_400_000 && (
                       <span className="rounded-md bg-orange-100 px-1.5 py-0.5 text-xs font-medium text-orange-800">expires {relative(k.expiresAt)}</span>
                     )}
                   </p>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requirePermission } from "@/server/api";
+import { requireTenant, errorResponse, requirePermission, actorOf } from "@/server/api";
 import fs from "node:fs";
 import path from "node:path";
 import { workspaceDir, assertSafeName, writeWorkspaceFile, listAgents, AGENT_TEMPLATE } from "@/lib/store";
@@ -39,7 +39,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
       description: typeof body.description === "string" ? body.description : undefined,
       model: typeof body.model === "string" ? body.model : undefined,
     });
-    writeWorkspaceFile(tenant, workspace, rel, content);
+    writeWorkspaceFile(tenant, workspace, rel, content, { by: await actorOf(req) });
     return NextResponse.json({ ok: true, path: rel });
   } catch (err) {
     return errorResponse(err);

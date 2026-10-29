@@ -27,6 +27,10 @@ export async function GET(req: NextRequest) {
               prefix: key?.prefix ?? null,
               createdBy: key?.createdBy ?? null,
               createdAt: key?.createdAt ?? null,
+              // FOL-71: when it ends, and whether it renews itself — the CLI
+              // reads both to rotate a `foldrun login` key before it ends.
+              expiresAt: key?.expiresAt ?? null,
+              origin: key?.origin ?? null,
             },
     });
   } catch (err) {
