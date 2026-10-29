@@ -6,6 +6,7 @@ import { readPackage, planImport, applyImport, PackageError } from "@/lib/packag
 import { platform } from "@/lib/platform";
 import { billing } from "@/platform/billing";
 import { idempotent } from "@/server/idempotency";
+import { settingText } from "@/platform/settings";
 
 // Import a package (what …/export downloads) into this workspace — or, for
 // a workspace package, make this workspace from it. The body is the .zip.
@@ -37,7 +38,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     if (plan.creates) {
       await requirePermission(req, "workspace:manage");
       // The plan's workspace count, as POST /api/workspaces checks it.
-      const cap = (await billing().plan(tenant))?.workspaces ?? Number(process.env.FOLDRUN_PLAN_WORKSPACES);
+      const cap = (await billing().plan(tenant))?.workspaces ?? Number(settingText("FOLDRUN_PLAN_WORKSPACES"));
       if (Number.isFinite(cap) && cap > 0 && platform.edition() === "hosted" && listWorkspaces(tenant).length >= cap) {
         return NextResponse.json({ error: `this plan includes ${cap} workspace${cap === 1 ? "" : "s"} — delete one or upgrade` }, { status: 402 });
       }

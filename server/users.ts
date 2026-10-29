@@ -54,6 +54,7 @@ import {
   type InviteRow,
   type InviteStatus,
 } from "@/platform/invites.ts";
+import { settingText } from "@/platform/settings";
 
 const usersFile = () => path.join(dataRoot(), "users.json");
 
@@ -323,7 +324,7 @@ export async function hasUsers(): Promise<boolean> {
 }
 
 export async function signupOpen(): Promise<boolean> {
-  return !await hasUsers() || process.env.FOLDRUN_OPEN_SIGNUP === "1";
+  return !await hasUsers() || settingText("FOLDRUN_OPEN_SIGNUP") === "1";
 }
 
 /**

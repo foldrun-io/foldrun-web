@@ -396,6 +396,8 @@ export async function draftFlow(
   }
   const dir = workspaceDir(tenant, workspace);
   if (!fs.existsSync(dir)) throw refuse(`no workspace "${workspace}"`, 404);
+  // Charged at the prices it started under (30 Oct 2026).
+  const pricing = billing().priceSnapshot?.() ?? null;
 
   const flows = listFlows(tenant, workspace);
   let current: DraftContext["current"] = null;
@@ -455,7 +457,7 @@ export async function draftFlow(
       // One line, like a run's, attributed to the drafting rather than to a
       // flow that does not exist yet. A ledger that blinks here must not
       // turn a finished draft into an error.
-      await recordRunCost(tenant, workspace, `draft-${Date.now().toString(36)}-${crypto.randomBytes(3).toString("hex")}`, { tokenCostUsd: cost, steps: 0, computeSecs: 0 }, { flow: "ai-draft" }).catch(
+      await recordRunCost(tenant, workspace, `draft-${Date.now().toString(36)}-${crypto.randomBytes(3).toString("hex")}`, { tokenCostUsd: cost, steps: 0, computeSecs: 0 }, { flow: "ai-draft", pricing }).catch(
         (err) => console.error(`[foldrun] ai draft: could not record $${cost.toFixed(4)} for ${tenant}: ${err instanceof Error ? err.message : String(err)}`),
       );
     }

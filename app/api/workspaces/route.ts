@@ -10,6 +10,7 @@ import { demoWorkspaceFiles, DEMO_WORKSPACE } from "@/platform/demo-workspace";
 import { platform } from "@/lib/platform";
 import { billing } from "@/platform/billing";
 import { idempotent } from "@/server/idempotency";
+import { settingText } from "@/platform/settings";
 
 async function tenantOf(req: NextRequest) {
   return await requireTenant(req);
@@ -71,7 +72,7 @@ async function postOnce(req: NextRequest) {
     // default. A plan is a hosted concept: the `self-hosted` edition has no
     // workspace cap however FOLDRUN_PLAN_WORKSPACES is set, because there
     // is no plan.
-    const cap = (await billing().plan(tenant))?.workspaces ?? Number(process.env.FOLDRUN_PLAN_WORKSPACES);
+    const cap = (await billing().plan(tenant))?.workspaces ?? Number(settingText("FOLDRUN_PLAN_WORKSPACES"));
     if (Number.isFinite(cap) && cap > 0 && platform.edition() === "hosted") {
       const existing = listWorkspaces(tenant);
       if (!existing.some((w) => w.name === body.name) && existing.length >= cap) {

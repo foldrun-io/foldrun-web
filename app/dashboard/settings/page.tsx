@@ -47,6 +47,7 @@ import { describeAccountModel, modelPresetChoices } from "@/server/account-model
 import { ProviderCheck } from "./provider-check";
 import { Email } from "@/components/email";
 import { installOrigin } from "@/server/auth-flows";
+import { settingText } from "@/platform/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -222,7 +223,7 @@ export default async function SettingsPage({
           <div className="grid gap-3">
             <OwnerCard endpoint="/api/account" tenant={tenant} initial={defaults.owner} />
             {/* The plan's number, not the install's alone: until 26 Oct 2026 this read only FOLDRUN_PLAN_CONCURRENCY, so a customer on a plan saw the wrong figure. */}
-            <ConcurrencyCard endpoint="/api/account" tenant={tenant} initial={defaults.concurrency} plan={(await billing().plan(tenant))?.concurrency ?? (Number(process.env.FOLDRUN_PLAN_CONCURRENCY) > 0 ? Number(process.env.FOLDRUN_PLAN_CONCURRENCY) : null)} />
+            <ConcurrencyCard endpoint="/api/account" tenant={tenant} initial={defaults.concurrency} plan={(await billing().plan(tenant))?.concurrency ?? (Number(settingText("FOLDRUN_PLAN_CONCURRENCY")) > 0 ? Number(settingText("FOLDRUN_PLAN_CONCURRENCY")) : null)} />
             <ComputeCard endpoint="/api/account" tenant={tenant} initial={defaults.compute} pool={await accountCompute(tenant)} inUse={computeInUse(tenant, scope)} waiting={roomWaiting(tenant, scope)} />
             <DeployBlockCard endpoint="/api/account" tenant={tenant} initial={defaults.deployBlock} />
           <PauseCard
