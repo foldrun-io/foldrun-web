@@ -6,7 +6,8 @@
 // secret was connected with (its record), else the client's default.
 
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, requirePermission, assertWorkspaceScope } from "@/server/api";
+import { errorResponse, requirePermission } from "@/server/api";
+import { assertMayWriteSecret } from "@/server/secret-writes";
 
 import { getOAuthClient } from "@/platform/oauth-clients";
 import { clientForSecret, scopesForSecret } from "@/platform/oauth-connections";
@@ -21,7 +22,10 @@ async function postOnce(req: NextRequest) {
     const asked = scopesOf(body.scopes);
     if (asked instanceof Error) return NextResponse.json({ error: asked.message }, { status: 400 });
     if (!body.secret) return NextResponse.json({ error: "expected { secret }" }, { status: 400 });
-    assertWorkspaceScope(actor, body.workspace || undefined);
+    // The callback rewrites the secret with no caller left to ask: checked
+    // now, as PUT /api/secrets would check it (server/secret-writes.ts).
+    await assertMayWriteSecret(tenant, actor, body.secret, body.workspace);
+    if (body.provider !== undefined && typeof body.provider !== "string") return NextResponse.json({ error: "provider is a saved OAuth client's name" }, { status: 400 });
     const client = await clientForSecret(tenant, body.secret, body.workspace || undefined, body.provider);
     const config = client ? await getOAuthClient(tenant, client) : null;
     if (!client || !config) {

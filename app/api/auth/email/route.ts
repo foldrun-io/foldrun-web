@@ -3,27 +3,43 @@
 // The session says who you are; the body has to prove you know your
 // password, for the same reason the password route does — a borrowed
 // unlocked browser must not be able to re-point a login at a stranger's
-// inbox. The new address is unverified until it clicks the mail this
-// sends, and the OLD address is told, because the person who most needs to
-// hear "your login just moved" is the one who no longer receives mail at
-// the new one.
+// inbox.
 //
-// Every other session ends with it: a login that moved is a login whose
-// old sessions may belong to whoever prompted the move.
+// Asking does not move anything (30 Oct 2026). It mails the NEW address: a
+// link that makes the move when it is free (emailChangeLink, landing on
+// /api/auth/verify), or a note that it already has a login when it is
+// taken — and answers the caller the same either way. It used to move at
+// once and answer 409 "that address already belongs to someone", which let
+// any signed-in person test every address on the install, closed-signup
+// installs included, with the rate limit cleared on each right password.
+// The move, the old address's notice and the end of every other session
+// happen at the click.
+//
+// An install that can send no mail at all cannot prove a new inbox, so
+// there the move still happens at once, as before.
 
 import { errorResponse, sessionUser } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
-import { changeEmail, passwordMatches, findUserById, sessionIdOf, SESSION_COOKIE } from "@/server/users";
+import { changeEmail, passwordMatches, findUser, findUserById, loginAddress, sessionIdOf, SESSION_COOKIE } from "@/server/users";
 import { revokeSessions } from "@/server/sessions";
 import { refuseWhenLimited, clearLimit } from "@/server/limits";
-import { sendVerifyEmail, sendEmailChangedNotice } from "@/server/email";
-import { verifyLink, publicOrigin } from "@/server/auth-flows";
+import { refuseNonText } from "@/server/auth-input";
+import { sendEmailChangeConfirm, sendEmailTakenNotice } from "@/server/email";
+import { emailChangeLink, publicOrigin } from "@/server/auth-flows";
+import { platformMail } from "@/lib/notify";
 import { audit } from "@/server/audit";
 
 // Six tries in fifteen minutes, like the password change: this route
 // verifies a password too, and was the one place a stolen session could
-// grind it for free.
+// grind it for free. Cleared only when a request has gone all the way
+// through, never on the password alone.
 const LIMIT = { limit: 6, windowSec: 15 * 60 };
+
+// Each request mails an address the caller typed, from the platform's
+// sender, in the uncapped "security" category — so it is capped here, per
+// person per day, the way invites are capped per account (29 Oct 2026). A
+// person moving their login needs one or two; five covers typos.
+const EMAIL_CHANGES_PER_DAY = 5;
 
 export async function POST(req: NextRequest) {
   const cookie = req.cookies.get(SESSION_COOKIE)?.value;
@@ -35,20 +51,38 @@ export async function POST(req: NextRequest) {
   if (limited) return limited;
 
   const body = (await req.json().catch(() => ({}))) as { password?: string; email?: string };
+  const notText = refuseNonText(body, "password", "email");
+  if (notText) return notText;
   try {
     if (!(await passwordMatches(user.id, body.password ?? ""))) {
       return NextResponse.json({ error: "that is not your password" }, { status: 400 });
     }
-    await clearLimit(`email:${user.id}`);
-    const moved = await changeEmail(user.id, body.email ?? "");
-    const ended = await revokeSessions(user.id, sessionIdOf(cookie) ?? undefined);
-    await audit("email.changed", { actor: moved.from, tenant: user.tenant, subject: user.id, detail: { from: moved.from, to: moved.to, otherSessionsEnded: ended } });
+    const to = loginAddress(body.email ?? "");
+    if (to === user.email) return NextResponse.json({ error: "that is already your address" }, { status: 409 });
+
+    if (!platformMail(user.tenant)) {
+      // No sender, so no inbox can be proven: move now, as before.
+      const moved = await changeEmail(user.id, to);
+      await clearLimit(`email:${user.id}`);
+      const ended = await revokeSessions(user.id, sessionIdOf(cookie) ?? undefined);
+      await audit("email.changed", { actor: moved.from, tenant: user.tenant, subject: user.id, detail: { from: moved.from, to: moved.to, otherSessionsEnded: ended } });
+      return NextResponse.json({ ok: true, from: moved.from, to: moved.to, pending: false, verificationSent: false, otherSessionsEnded: ended });
+    }
+
+    const daily = await refuseWhenLimited(`email-change:day:${user.id}`, EMAIL_CHANGES_PER_DAY, 24 * 60 * 60);
+    if (daily) return daily;
+
     const fresh = await findUserById(user.id);
-    const [verify] = await Promise.all([
-      fresh ? sendVerifyEmail(user.tenant, moved.to, verifyLink(publicOrigin(req), fresh)) : Promise.resolve({ ok: false as const, error: "no user" }),
-      sendEmailChangedNotice(user.tenant, moved.from, moved.to),
-    ]);
-    return NextResponse.json({ ok: true, from: moved.from, to: moved.to, verificationSent: verify.ok, otherSessionsEnded: ended });
+    if (!fresh) return NextResponse.json({ error: "sign in first" }, { status: 401 });
+    const taken = Boolean(await findUser(to));
+    const sent = taken
+      ? await sendEmailTakenNotice(user.tenant, to, user.email)
+      : await sendEmailChangeConfirm(user.tenant, to, user.email, emailChangeLink(publicOrigin(req), fresh, to));
+    if (sent.ok) await clearLimit(`email:${user.id}`);
+    // Whether the address was taken is not recorded: this log is read back
+    // by the account's admins, and it would be the same oracle.
+    await audit("email.change_requested", { actor: user.email, tenant: user.tenant, subject: user.id, detail: { to, sent: sent.ok } });
+    return NextResponse.json({ ok: true, from: user.email, to, pending: true, verificationSent: sent.ok, otherSessionsEnded: 0 });
   } catch (err) {
     return errorResponse(err);
   }

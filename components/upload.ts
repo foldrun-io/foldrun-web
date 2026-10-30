@@ -20,7 +20,7 @@ export async function uploadFile(workspace: string, tenant: string, file: File, 
   };
   if (file.size === 0) throw new Error(`${file.name} is empty — the platform keeps no empty files`);
   const sha = await sha256Of(file);
-  const ask = await fetch(`${base}/upload-url`, { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ path: rel, sha }) });
+  const ask = await fetch(`${base}/upload-url`, { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ path: rel, sha, size: file.size }) });
   if (!ask.ok) throw new Error(await said(ask, `the platform refused ${rel} (${ask.status})`));
   const { url } = (await ask.json()) as { url: string | null };
   if (url) {

@@ -192,6 +192,19 @@ test("browser_versions: the dotted versions the deploy carried beside the names"
   assert.equal(release.runnerEngineVersions("chromium,chrome"), null);
 });
 
+test("healthz looks at its dependencies once per few seconds, not once per call", async () => {
+  // 30 Oct 2026: an open, unmetered route ran a SELECT 1, a PING and a lease
+  // read on every call.
+  const { healthDependencies, resetHealthDependencies } = await import("../server/healthz.ts");
+  resetHealthDependencies();
+  const first = healthDependencies();
+  assert.equal(healthDependencies(), first, "a second probe shares the first look");
+  const seen = await first;
+  assert.equal(typeof seen.workerAlive, "boolean");
+  resetHealthDependencies();
+  assert.notEqual(healthDependencies(), first, "a fresh look once the last is gone");
+});
+
 test("healthz reports the same version as /api/version: the file's, when the rollout set none", async () => {
   // Staging sets no FOLDRUN_VERSION; healthz said "dev" there while
   // /api/version said v2026.10.25.21 (26 Oct 2026).

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, errorResponse } from "@/server/api";
 import path from "node:path";
-import { getFile, downloadUrl, readFileBytes, previewType } from "@/lib/storage";
+import { getFile, downloadUrl, openFile, storedSize, previewType, requireWorkspace } from "@/lib/storage";
 import { byteRange } from "@/server/byte-range";
 import { contentDisposition } from "@/server/content-disposition";
 
@@ -29,6 +29,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
     const tenant = await requireTenant(req);
     const rel = req.nextUrl.searchParams.get("path");
     if (!rel) return NextResponse.json({ error: "expected ?path=" }, { status: 400 });
+    requireWorkspace(tenant, workspace);
 
     const record = getFile(tenant, workspace, rel);
     if (!record) return NextResponse.json({ error: "no such file" }, { status: 404 });
@@ -48,8 +49,11 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
     if (media) {
       const signed = await downloadUrl(tenant, workspace, record, { inline: true });
       if (signed) return NextResponse.redirect(signed, 302);
-      const bytes = await readFileBytes(tenant, workspace, rel);
-      if (!bytes) return NextResponse.json({ error: "no such file" }, { status: 404 });
+      // Streamed, a range at a time when one is asked for (30 Oct 2026): the
+      // whole object was read into memory per request, and a video seeks
+      // with many.
+      const size = await storedSize(tenant, workspace, rel);
+      if (size === null) return NextResponse.json({ error: "no such file" }, { status: 404 });
       const headers: Record<string, string> = {
         "content-type": media,
         "accept-ranges": "bytes",
@@ -57,13 +61,14 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
         "x-content-type-options": "nosniff",
         "cache-control": "private, max-age=60",
       };
-      const range = byteRange(req.headers.get("range"), bytes.length);
-      if (range === "bad") return new NextResponse(null, { status: 416, headers: { "content-range": `bytes */${bytes.length}` } });
+      const range = byteRange(req.headers.get("range"), size);
+      if (range === "bad") return new NextResponse(null, { status: 416, headers: { "content-range": `bytes */${size}` } });
+      const opened = await openFile(tenant, workspace, rel, range);
+      if (!opened) return NextResponse.json({ error: "no such file" }, { status: 404 });
       if (range) {
-        const part = bytes.subarray(range.start, range.end + 1);
-        return new NextResponse(new Uint8Array(part), { status: 206, headers: { ...headers, "content-length": String(part.length), "content-range": `bytes ${range.start}-${range.end}/${bytes.length}` } });
+        return new NextResponse(opened.body, { status: 206, headers: { ...headers, "content-length": String(range.end - range.start + 1), "content-range": `bytes ${range.start}-${range.end}/${size}` } });
       }
-      return new NextResponse(new Uint8Array(bytes), { headers: { ...headers, "content-length": String(bytes.length) } });
+      return new NextResponse(opened.body, { headers: { ...headers, "content-length": String(opened.size) } });
     }
 
     // An inline preview is served from here even on an object store. The
@@ -78,12 +83,15 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
       if (signed) return NextResponse.redirect(signed, 302);
     }
 
-    const bytes = await readFileBytes(tenant, workspace, rel);
-    if (!bytes) return NextResponse.json({ error: "no such file" }, { status: 404 });
-    return new NextResponse(new Uint8Array(bytes), {
+    // Streamed, not read whole (30 Oct 2026): on the fs driver this is every
+    // download, and an inline preview on a bucket used to buffer an object of
+    // whatever size was PUT under the key.
+    const opened = await openFile(tenant, workspace, rel);
+    if (!opened) return NextResponse.json({ error: "no such file" }, { status: 404 });
+    return new NextResponse(opened.body, {
       headers: {
         "content-type": inline && imageType ? imageType : "application/octet-stream",
-        "content-length": String(bytes.length),
+        "content-length": String(opened.size),
         "content-disposition": contentDisposition(inline && imageType ? "inline" : "attachment", path.basename(record.path)),
         // Belt and braces: no sniffing back to text/html on an old browser.
         "x-content-type-options": "nosniff",

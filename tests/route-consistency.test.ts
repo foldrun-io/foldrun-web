@@ -31,6 +31,9 @@ const triggers = (await import("../app/api/workspaces/[workspace]/triggers/route
 const observe = (await import("../app/api/workspaces/[workspace]/observe/route.ts")) as unknown as { GET: Handler };
 const usage = (await import("../app/api/usage/route.ts")) as unknown as { GET: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
 const approve = (await import("../app/api/workspaces/[workspace]/runs/[runId]/approve/route.ts")) as unknown as { POST: Handler };
+const bulk = (await import("../app/api/workspaces/[workspace]/runs/bulk/route.ts")) as unknown as { POST: Handler };
+const stopRoute = (await import("../app/api/workspaces/[workspace]/runs/[runId]/stop/route.ts")) as unknown as { POST: Handler };
+const rerunRoute = (await import("../app/api/workspaces/[workspace]/runs/[runId]/rerun/route.ts")) as unknown as { POST: Handler };
 const { writeRun, readRun } = await import("@/lib/store");
 
 const TENANT = "acme";
@@ -137,4 +140,61 @@ test("approve with a payload releases a wait: event step as the caller, and is a
   assert.ok(released.events.some((e) => /approved by /.test(e.text) && !/external event/.test(e.text)), JSON.stringify(released.events));
   const replay = await send("run-event", { decision: "approve", step: 1, payload: { status: "paid" } });
   assert.equal(replay.headers.get("idempotent-replayed"), "true");
+});
+
+// 30 Oct 2026: any decision but the exact "reject" used to approve.
+test("approve takes only decision approve or reject; anything else is a 400 that decides nothing", async () => {
+  resetIdempotencyMemory();
+  writeRun(TENANT, "desk", {
+    id: "run-typo",
+    flow: "publish",
+    status: "awaiting-approval",
+    startedAt: new Date().toISOString(),
+    finishedAt: null,
+    steps: [{ agent: "writer", instruction: "do it", group: 1, status: "awaiting-approval", events: [] }],
+  } as never);
+  const send = (body: unknown, key: string) =>
+    approve.POST(req("POST", "/api/workspaces/desk/runs/run-typo/approve", admin, body, { "idempotency-key": key }), ctx({ workspace: "desk", runId: "run-typo" }));
+  for (const [i, body] of [{ decision: "deny" }, { decision: "REJECT" }, { decison: "reject" }, {}, { decision: "approve", step: "0" }, { decision: "approve", step: 0.5 }].entries()) {
+    const res = await send(body, `k-typo-${i}`);
+    assert.equal(res.status, 400, JSON.stringify(body));
+    assert.equal(readRun(TENANT, "desk", "run-typo")!.steps[0].status, "awaiting-approval", `${JSON.stringify(body)} decided nothing`);
+  }
+  const rejected = await send({ decision: "reject", step: 0 }, "k-typo-ok");
+  assert.equal(rejected.status, 200);
+  assert.equal(readRun(TENANT, "desk", "run-typo")!.steps[0].status, "failed");
+});
+
+// 30 Oct 2026: stop and rerun answered every refusal 400 (and step 1.5 a
+// 500); a bulk action handed back a TypeError's text per run.
+test("stop and rerun answer 404 for no run, 409 for the wrong state, 400 for a half step; bulk scrubs a fault", async () => {
+  resetIdempotencyMemory();
+  const runs = path.join(DATA, TENANT, "workspaces/other/runs");
+  fs.mkdirSync(runs, { recursive: true });
+  const at = new Date().toISOString();
+  const one = { agent: "writer", instruction: "w", group: 1, optional: false, events: [], result: null, costUsd: 0 };
+  fs.writeFileSync(path.join(runs, "run-done.json"), JSON.stringify({ id: "run-done", flow: "f", status: "completed", startedAt: at, finishedAt: at, steps: [{ ...one, status: "completed" }] }));
+  fs.writeFileSync(path.join(runs, "run-live.json"), JSON.stringify({ id: "run-live", flow: "f", status: "awaiting-approval", startedAt: at, finishedAt: null, steps: [{ ...one, status: "awaiting-approval" }] }));
+  // A record a fault reads: no steps array, so rerunFrom throws a TypeError.
+  fs.writeFileSync(path.join(runs, "run-broken.json"), JSON.stringify({ id: "run-broken", flow: "f", status: "failed", startedAt: at, finishedAt: at, steps: null }));
+
+  const stop = (id: string) => stopRoute.POST(req("POST", `/api/workspaces/other/runs/${id}/stop`, admin, {}, { "idempotency-key": `s-${id}` }), ctx({ workspace: "other", runId: id }));
+  const rerun = (id: string, body: unknown, k: string) => rerunRoute.POST(req("POST", `/api/workspaces/other/runs/${id}/rerun`, admin, body, { "idempotency-key": k }), ctx({ workspace: "other", runId: id }));
+  assert.equal((await stop("run-nowhere")).status, 404);
+  assert.equal((await stop("run-done")).status, 409);
+  assert.equal((await rerun("run-nowhere", { step: 1 }, "r1")).status, 404);
+  assert.equal((await rerun("run-live", { step: 1 }, "r2")).status, 409);
+  const half = await rerun("run-done", { step: 1.5 }, "r3");
+  assert.equal(half.status, 400);
+  assert.match(((await half.json()) as { error: string }).error, /whole number/);
+
+  const send = (body: unknown, k: string) => bulk.POST(req("POST", "/api/workspaces/other/runs/bulk", admin, body, { "idempotency-key": k }), ctx({ workspace: "other" }));
+  assert.equal((await send({ action: "rerun", runIds: ["run-done"], from: 1.5 }, "b1")).status, 400);
+  const res = await send({ action: "rerun", runIds: ["run-broken"] }, "b2");
+  assert.equal(res.status, 200);
+  const { runs: out } = (await res.json()) as { runs: { runId: string; ok: boolean; error?: string }[] };
+  assert.equal(out[0].ok, false);
+  assert.equal(out[0].error, "something went wrong on our side");
+  const stopped = (await (await send({ action: "stop", runIds: ["run-done"] }, "b3")).json()) as { runs: { error?: string }[] };
+  assert.match(stopped.runs[0].error!, /nothing to stop/, "a refusal keeps its sentence");
 });

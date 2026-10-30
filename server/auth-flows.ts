@@ -5,7 +5,7 @@
 
 import type { NextRequest } from "next/server";
 import { mintToken, hashFingerprint, RESET_TTL_MS, VERIFY_TTL_MS } from "@/server/auth-tokens";
-import type { UserRecord } from "@/server/users";
+import { emailMovesOf, type UserRecord } from "@/server/users";
 
 /** This install's own address, as the outside world reaches it — each
  *  environment sets FOLDRUN_PUBLIC_URL (dev.foldrun.io, stage.foldrun.io, a
@@ -60,5 +60,20 @@ export function resetLink(origin: string, user: UserRecord): string {
 
 export function verifyLink(origin: string, user: UserRecord): string {
   const token = mintToken("verify", { u: user.id, e: user.email }, VERIFY_TTL_MS);
+  return `${origin}/api/auth/verify?token=${encodeURIComponent(token)}`;
+}
+
+/**
+ * The link that MOVES a login to a new address, mailed to that address
+ * (30 Oct 2026). The move happens when it is clicked, not when it is asked
+ * for, so asking says nothing about whether the address is taken. Bound to
+ * how many times the login has moved (`n`, emailMovesOf: any move since,
+ * this one included, spends it — single use, even after A → B → A), to the
+ * address it has now, and to the password as it is now (a password change
+ * or reset cancels a move a thief with the old password asked for). Lands
+ * on the verify route, which knows the kind.
+ */
+export function emailChangeLink(origin: string, user: UserRecord, to: string): string {
+  const token = mintToken("email-change", { u: user.id, e: user.email, h: hashFingerprint(user.hash), n: String(emailMovesOf(user)), to }, VERIFY_TTL_MS);
   return `${origin}/api/auth/verify?token=${encodeURIComponent(token)}`;
 }

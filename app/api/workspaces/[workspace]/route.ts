@@ -17,6 +17,8 @@ import { patchFrontmatter, readAgentsMdKeys } from "@/lib/agents-md";
 import { defaultsPatch, defaultsOf, WORKSPACE_PATCHABLE } from "@/components/defaults-model";
 import { configMatter } from "@/lib/matter";
 import { adminState, workspacePause } from "@/platform/admin";
+import { requireWorkspace, purgeWorkspaceStorage, moveWorkspaceStorage } from "@/lib/storage";
+import { revokeWorkspaceShares, moveWorkspaceShares } from "@/platform/shares";
 
 async function tenantOf(req: NextRequest) {
   return await requireTenant(req);
@@ -44,6 +46,13 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ workspac
   try {
     const { workspace } = await ctx.params;
     const { tenant, actor } = await requirePermission(req, "workspace:manage");
+    requireWorkspace(tenant, workspace);
+    // What it published and stored goes with it (30 Oct 2026). The store and
+    // the share rows are kept by name beside the folder, so a delete used to
+    // leave every public link serving and hand the files to the next
+    // workspace given this name. Links first: they are the public part.
+    await revokeWorkspaceShares(tenant, workspace);
+    await purgeWorkspaceStorage(tenant, workspace);
     deleteWorkspace(tenant, workspace);
     await audit("workspace.deleted", { actor: actor.name, tenant, subject: workspace, detail: { workspace } });
     return NextResponse.json({ ok: true });
@@ -72,7 +81,9 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
 
     // Description first: after a rename the old name no longer resolves.
     if (typeof body.description === "string") {
-      setWorkspaceDescription(tenant, workspace, body.description);
+      // Written as YAML and recorded as a revision (core store.ts): a
+      // newline in it can no longer add a key past WORKSPACE_PATCHABLE.
+      setWorkspaceDescription(tenant, workspace, body.description, { by: await actorOf(req) });
     }
     // The defaults — timezone, budget, notify, network_enforce — edited as
     // frontmatter keys in place, through the writer that records a revision.
@@ -109,6 +120,17 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
       }
       brokeWebhooks = renameImpact(tenant, workspace).webhookFlows;
       renameWorkspace(tenant, workspace, body.name);
+      // Its stored files and public links follow it (30 Oct 2026); they are
+      // kept by name, and used to stay behind for whoever took the old one.
+      // A store that cannot be moved puts the folder back, so the workspace
+      // and its files never end up under two names.
+      try {
+        await moveWorkspaceStorage(tenant, workspace, body.name);
+      } catch (err) {
+        renameWorkspace(tenant, body.name, workspace);
+        throw err;
+      }
+      await moveWorkspaceShares(tenant, workspace, body.name);
       renamedTo = body.name;
     }
 

@@ -10,17 +10,16 @@
 
 import { errorResponse } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "node:crypto";
 import { loadFlow } from "@/lib/runner";
 import { enqueueFlowRun } from "@/platform/queue";
 import { webhookToken, recordDelivery } from "@/lib/webhook";
-import { clientIp, refuseWhenLimited } from "@/server/limits";
+import { clientIp, refuseWhenLimited, sameToken, BAD_CALLBACK_TOKENS } from "@/server/limits";
 import { normaliseInboundEmail, emailTask, withTask, deliveryKey } from "@/lib/triggers";
 import { platform } from "@/lib/platform";
 
-/** Wrong tokens one caller may present in a window before a 429. Far
- *  above a misconfigured sender retrying; far below a guessing run. */
-const BAD_TOKENS = { limit: 30, windowSec: 60 };
+/** Wrong tokens one caller may present in a window before a 429 — shared
+ *  with the inbox and event URLs (server/limits.ts). */
+const BAD_TOKENS = BAD_CALLBACK_TOKENS;
 
 export async function POST(
   req: NextRequest,
@@ -37,10 +36,7 @@ export async function POST(
     const presented =
       (/^Bearer\s+(.+)$/i.exec(header)?.[1] ?? req.headers.get("x-foldrun-token") ?? req.nextUrl.searchParams.get("token") ?? "").trim();
     const expected = webhookToken(tenant, workspace, flowName);
-    const ok =
-      presented.length === expected.length &&
-      crypto.timingSafeEqual(Buffer.from(presented), Buffer.from(expected));
-    if (!ok) {
+    if (!sameToken(presented, expected)) {
       // Counted per caller, and only when refused: a sender with the right
       // token never meets this, so a stranger cannot throttle a real hook.
       const ip = clientIp(req);

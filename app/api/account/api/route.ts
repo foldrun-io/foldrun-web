@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requirePermission, errorResponse } from "@/server/api";
+import { requireTenant, requireAccountWide, errorResponse } from "@/server/api";
 import { updateAdminState } from "@/platform/admin";
 import { forgetAccountProfile } from "@/server/api-limits";
 import { parseVersion } from "@/server/api-version";
@@ -23,7 +23,9 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const { tenant, actor } = await requirePermission(req, "keys:manage");
+    // The pin is every key's in the account: a caller scoped to some
+    // workspaces would change what the others' CI receives (30 Oct 2026).
+    const { tenant, actor } = await requireAccountWide(req, "keys:manage");
     const body = (await req.json()) as { version?: unknown };
     if (!("version" in (body ?? {}))) return NextResponse.json({ error: "expected { version: \"YYYY-MM-DD\" | null }" }, { status: 400 });
     let version: string | undefined;

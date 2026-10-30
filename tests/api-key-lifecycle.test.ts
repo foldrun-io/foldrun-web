@@ -212,3 +212,20 @@ test("asking for a deploy key is refused, never answered with an account key", a
   }
   assert.equal((await listApiKeys("acme")).length, before, "nothing was minted");
 });
+
+test("a key known only by its label rotates the owner's login key into a label-only key, never one acting as the owner (30 Oct 2026)", async () => {
+  // An admin key with no person behind it: the setup key of a fresh install.
+  const { key: bare } = await createApiKey("acme", "setup", undefined, undefined, "admin");
+  const { record: login } = await createApiKey("acme", "cli · laptop", "owner@acme.test", undefined, "admin", null, { origin: "cli-login" });
+  const res = await rotateRoute.POST(call(bare, `/api/keys/${login.id}/rotate`, { method: "POST", body: { grace: "0" } }), { params: Promise.resolve({ id: login.id }) });
+  assert.equal(res.status, 200);
+  const out = (await res.json()) as { id: string };
+  const fresh = (await listApiKeys("acme")).find((k) => k.id === out.id)!;
+  assert.equal(fresh.createdBy, undefined, "not the owner's address: the rotating caller is no person");
+  // A person rotating it makes a key that acts as that person, as before.
+  const { record: ci } = await createApiKey("acme", "ci", "owner@acme.test", undefined, "editor");
+  const byPerson = await rotateRoute.POST(call(admin, `/api/keys/${ci.id}/rotate`, { method: "POST", body: { grace: "0" } }), { params: Promise.resolve({ id: ci.id }) });
+  const nextId = ((await byPerson.json()) as { id: string }).id;
+  const next = (await listApiKeys("acme")).find((k) => k.id === nextId)!;
+  assert.equal(next.createdBy, "owner@acme.test");
+});

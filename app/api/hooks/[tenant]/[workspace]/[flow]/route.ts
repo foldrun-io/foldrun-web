@@ -17,18 +17,17 @@
 
 import { errorResponse } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "node:crypto";
 import { loadFlow } from "@/lib/runner";
 import { enqueueFlowRun } from "@/platform/queue";
 import { webhookToken, recordDelivery } from "@/lib/webhook";
-import { clientIp, refuseWhenLimited } from "@/server/limits";
+import { clientIp, refuseWhenLimited, sameToken, BAD_CALLBACK_TOKENS } from "@/server/limits";
 import { verifyWebhookSignature, withTask, deliveryKey } from "@/lib/triggers";
 import { platform } from "@/lib/platform";
 import { webhookFilterPayload } from "@/lib/trigger-filter";
 
-/** Wrong tokens one caller may present in a window before a 429. Far
- *  above a misconfigured sender retrying; far below a guessing run. */
-const BAD_TOKENS = { limit: 30, windowSec: 60 };
+/** Wrong tokens one caller may present in a window before a 429 — shared
+ *  with the inbox and event URLs (server/limits.ts). */
+const BAD_TOKENS = BAD_CALLBACK_TOKENS;
 
 export async function POST(
   req: NextRequest,
@@ -55,10 +54,7 @@ export async function POST(
     const presented =
       (/^Bearer\s+(.+)$/i.exec(header)?.[1] ?? req.headers.get("x-foldrun-token") ?? req.nextUrl.searchParams.get("token") ?? "").trim();
     const expected = webhookToken(tenant, workspace, flowName);
-    const ok =
-      presented.length === expected.length &&
-      crypto.timingSafeEqual(Buffer.from(presented), Buffer.from(expected));
-    if (!ok) {
+    if (!sameToken(presented, expected)) {
       // Counted per caller, and only when refused: a sender with the right
       // token never meets this, so a stranger cannot throttle a real hook.
       const ip = clientIp(req);
@@ -91,9 +87,15 @@ export async function POST(
     }
 
     // Whatever was posted becomes context for the first step. Read whole
-    // before any signature check: every scheme signs the exact bytes.
-    const raw = (await req.text()).slice(0, 20_000);
-    const verdict = verifyWebhookSignature(tenant, workspace, flow, raw, (name) => req.headers.get(name));
+    // before any signature check: every scheme signs the exact bytes. The
+    // signature, idempotency: body:<field> and filter: read the WHOLE body
+    // (the proxy's body limit bounds it); only what the run is handed is cut
+    // to 20,000 characters. Until 30 Oct 2026 the cut came first, so every
+    // signed delivery over 20 KB failed its HMAC with a 401 — a GitHub push
+    // or a Stripe invoice event is often that big.
+    const full = await req.text();
+    const raw = full.slice(0, 20_000);
+    const verdict = verifyWebhookSignature(tenant, workspace, flow, full, (name) => req.headers.get(name));
     if (verdict.challenge) {
       log("accepted", { detail: "slack url_verification" });
       return NextResponse.json({ challenge: verdict.challenge });
@@ -109,12 +111,12 @@ export async function POST(
     // else and a sender with retries would hammer the hook forever trying
     // to deliver a duplicate we deliberately ignored.
     const gate = await platform.admitTrigger(tenant, workspace, flow, {
-      deliveryKey: deliveryKey(flow.idempotency, (n) => req.headers.get(n), raw),
+      deliveryKey: deliveryKey(flow.idempotency, (n) => req.headers.get(n), full),
       body: raw,
       tag: "webhook_payload",
       // What `filter:` reads: the body as JSON (null when it is not, which
       // no filter matches). Only parsed when the flow has a filter.
-      ...(flow.filter != null ? { fields: webhookFilterPayload(raw) } : {}),
+      ...(flow.filter != null ? { fields: webhookFilterPayload(full) } : {}),
     });
     if (!gate.admit) {
       log("dropped", { detail: `${gate.reason}: ${gate.detail}`, bytes: raw.length });
@@ -129,7 +131,7 @@ export async function POST(
       // window. Neither is true if the run could not start — undo them, so
       // the sender's retry is a fresh event and not a "duplicate" of nothing.
       await platform.rollbackTrigger(tenant, workspace, flow, {
-        deliveryKey: deliveryKey(flow.idempotency, (n) => req.headers.get(n), raw),
+        deliveryKey: deliveryKey(flow.idempotency, (n) => req.headers.get(n), full),
         reason: err instanceof Error ? err.message : String(err),
       });
       throw err;

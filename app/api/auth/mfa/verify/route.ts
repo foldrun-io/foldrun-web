@@ -2,6 +2,14 @@
 // six-digit code from the app, or one backup code. Rate limited per user:
 // six digits is a million guesses, and five minutes is enough to try them
 // without a limit.
+//
+// The limit alone never ended, though: six guesses every five minutes is
+// ~1,700 a day, and someone holding the password could keep it up for
+// months unseen (30 Oct 2026). So ten wrong six-digit codes in a row pause
+// six-digit codes for the rest of a day, and the person is mailed at their
+// own address. Not a lock-out: a backup code still signs in (ten random
+// characters, nothing to grind), the pause lifts by itself, and the mail
+// says to reset the password — whoever typed the codes had it.
 
 import { NextRequest, NextResponse } from "next/server";
 import { readToken } from "@/server/auth-tokens";
@@ -11,6 +19,13 @@ import { rateLimit, rateLimitReset, cache } from "@/platform/cache";
 import { audit } from "@/server/audit";
 import { listWorkspaces } from "@/lib/store";
 import { errorResponse } from "@/server/api";
+import { clientIp } from "@/server/limits";
+import { sendSecurityNotice } from "@/server/email";
+
+const PER_USER = { limit: 6, windowSec: 5 * 60 };
+// Six-digit codes in a row without a right one, and how long they stay
+// paused. Far under NIST 800-63B's 100; far over a person fumbling an app.
+const MFA_PAUSE = { after: 10, windowSec: 24 * 60 * 60 };
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,18 +35,42 @@ export async function POST(req: NextRequest) {
     const user = await findUserById(claims.u);
     if (!user?.mfaSecret) return NextResponse.json({ error: "sign in again" }, { status: 401 });
 
-    const limit = await rateLimit(`mfa:${user.id}`, 6, 5 * 60);
-    if (!limit.allowed) return NextResponse.json({ error: "too many codes — sign in again in a few minutes" }, { status: 429 });
+    const limit = await rateLimit(`mfa:${user.id}`, PER_USER.limit, PER_USER.windowSec);
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: "too many codes — sign in again in a few minutes" },
+        { status: 429, headers: { "retry-after": String(limit.retryAfter) } },
+      );
+    }
 
     const code = String(body.code ?? "").trim();
     let how: "totp" | "backup" | null = null;
-    if (verifyTotp(openString(user.mfaSecret, mfaBinding(user.id)), code) && (await firstUse(user.id, code))) how = "totp";
-    else if (await consumeBackupCode(user.id, hashBackup(code))) how = "backup";
+    // A six-digit code is the app's; anything else can only be a backup
+    // code (ten characters, letters among them), so the two never mix.
+    const sixDigits = /^\d{6}$/.test(code.replace(/\s/g, ""));
+    if (sixDigits) {
+      // Counts every six-digit try since the last right code; the window
+      // starts at the first, so a pause lasts until a day after the streak began.
+      const streak = await rateLimit(`mfa:totp:${user.id}`, MFA_PAUSE.after, MFA_PAUSE.windowSec);
+      if (!streak.allowed) {
+        return NextResponse.json(
+          { error: "too many wrong codes in a row — codes from the app are paused for this account for up to a day. Sign in with a backup code, or wait" },
+          { status: 429, headers: { "retry-after": String(streak.retryAfter) } },
+        );
+      }
+      if (verifyTotp(openString(user.mfaSecret, mfaBinding(user.id)), code) && (await firstUse(user.id, code))) how = "totp";
+      else if (streak.remaining === 0) {
+        // The tenth wrong one: say so once, to the address the account has.
+        await audit("mfa.locked", { actor: user.email, tenant: user.tenant, detail: { after: MFA_PAUSE.after } });
+        sendSecurityNotice(user.tenant, user.email, `${MFA_PAUSE.after} wrong two-step codes in a row were entered after your password, so codes from the app are paused for up to a day (a backup code still signs in)`, clientIp(req));
+      }
+    } else if (await consumeBackupCode(user.id, hashBackup(code))) how = "backup";
     if (!how) {
       await audit("mfa.refused", { actor: user.email, tenant: user.tenant });
       return NextResponse.json({ error: "that code is not right" }, { status: 401 });
     }
     await rateLimitReset(`mfa:${user.id}`);
+    await rateLimitReset(`mfa:totp:${user.id}`);
     if (how === "totp") await rebindMfa(user.id).catch(() => false);
     const session = await mintSession(user, req.headers.get("user-agent"), { mfa: true });
     await audit("login", { actor: user.email, tenant: user.tenant, subject: session.sessionId, detail: { mfa: how } });

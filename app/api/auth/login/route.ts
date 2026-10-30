@@ -9,6 +9,7 @@ import { rateLimit, rateLimitReset } from "@/platform/cache";
 import { audit } from "@/server/audit";
 import { mintToken, CHALLENGE_TTL_MS } from "@/server/auth-tokens";
 import { errorResponse } from "@/server/api";
+import { refuseNonText } from "@/server/auth-input";
 
 // Two limits, because they answer different attacks. Per-account stops someone
 // grinding one person's password; per-IP stops the same client working through
@@ -29,6 +30,8 @@ function tooMany(retryAfter: number) {
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json().catch(() => ({}))) as { email?: string; password?: string };
+    const notText = refuseNonText(body, "email", "password");
+    if (notText) return notText;
     const email = (body.email ?? "").toLowerCase().trim();
     const ip = clientIp(req);
 

@@ -5,12 +5,15 @@
 import { errorResponse, sessionUser } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
 import { setName } from "@/server/users";
+import { refuseNonText } from "@/server/auth-input";
 
 export async function POST(req: NextRequest) {
   const user = await sessionUser(req);
   if (user instanceof Response) return user;
   if (!user) return NextResponse.json({ error: "sign in first" }, { status: 401 });
   const body = (await req.json().catch(() => ({}))) as { firstName?: string | null; lastName?: string | null };
+  const notText = refuseNonText(body, "firstName", "lastName");
+  if (notText) return notText;
   try {
     await setName(user.id, body.firstName ?? null, body.lastName ?? null);
     return NextResponse.json({ ok: true });

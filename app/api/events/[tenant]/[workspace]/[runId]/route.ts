@@ -10,7 +10,7 @@
 
 import { errorResponse } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "node:crypto";
+import { clientIp, refuseWhenLimited, sameToken, BAD_CALLBACK_TOKENS } from "@/server/limits";
 import { eventToken } from "@/lib/webhook";
 import { deliverEvent } from "@/lib/approvals";
 
@@ -22,10 +22,15 @@ export async function POST(
     const { tenant, workspace, runId } = await ctx.params;
     const presented = req.nextUrl.searchParams.get("token") ?? "";
     const expected = eventToken(tenant, workspace, runId);
-    const ok =
-      presented.length === expected.length &&
-      crypto.timingSafeEqual(Buffer.from(presented), Buffer.from(expected));
-    if (!ok) return NextResponse.json({ error: "invalid token" }, { status: 401 });
+    if (!sameToken(presented, expected)) {
+      // The wrong-token limit hooks and inboxes keep, under its own key: an
+      // event URL had none until 30 Oct 2026. Counted only when refused, so a
+      // stranger cannot throttle a real release.
+      const ip = clientIp(req);
+      const limited = ip ? await refuseWhenLimited(`event-refused:${ip}`, BAD_CALLBACK_TOKENS.limit, BAD_CALLBACK_TOKENS.windowSec) : null;
+      if (limited) return limited;
+      return NextResponse.json({ error: "invalid token" }, { status: 401 });
+    }
 
     const payload = (await req.text()).slice(0, 20_000);
     const { steps } = await deliverEvent(tenant, workspace, runId, payload);

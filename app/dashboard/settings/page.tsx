@@ -40,8 +40,7 @@ import { VersionFacts, ComponentTable } from "@/components/version-table";
 import { ApiSettings } from "./api-settings";
 import { apiFactsFor } from "@/server/api-facts";
 import { effectiveFlags } from "@/platform/flags";
-import { lastProviderCheck } from "@/platform/watchdog";
-import { providersInUse } from "@/lib/provider-health";
+import { providerFactsFor } from "@/server/provider-facts";
 import { ModelKey } from "./model-key";
 import { describeAccountModel, modelPresetChoices } from "@/server/account-model";
 import { ProviderCheck } from "./provider-check";
@@ -187,13 +186,9 @@ export default async function SettingsPage({
     { id: "data", label: "Your data", group: SETUP },
   ];
   const isOwner = role === null || role === "owner";
-  // The provider check, as GET /api/account/providers answers it.
-  const providerConfigured = providersInUse(tenant).map((p) => ({
-    provider: p.spec.name || p.spec.baseUrl,
-    declaredIn: p.declaredIn,
-    model: p.model,
-  }));
-  const providerLast = await lastProviderCheck(tenant);
+  // The provider check, as GET /api/account/providers answers it — for a
+  // scoped member, the account's blocks and its own workspaces' only.
+  const { configured: providerConfigured, lastCheck: providerLast } = await providerFactsFor(tenant, scope);
   const apiFacts = await apiFactsFor(tenant);
   const flags = await effectiveFlags(tenant);
   const closeRequestedAt = platform.edition() === "hosted" ? ((await adminState(tenant)).closeRequested?.at ?? null) : null;
@@ -306,7 +301,7 @@ export default async function SettingsPage({
               <Link href={`/dashboard/docs/providers${qs}`} className="font-medium text-fg-secondary underline">providers reference</Link> lists the shapes for about thirty vendors.
             </p>
           </Card>
-          <ProviderCheck tenant={tenant} configured={providerConfigured} initial={providerLast} mayCheck={role === null || can(role, "run:start")} />
+          <ProviderCheck tenant={tenant} configured={providerConfigured} initial={providerLast} mayCheck={(role === null || can(role, "run:start")) && scope === null} />
         </SettingsSection>
 
         <SettingsSection wide id="security" title="Security" description="Two facts about this install that decide whether it is safe to expose.">

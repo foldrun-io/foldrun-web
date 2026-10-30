@@ -9,30 +9,22 @@
 // one needs the permission that spends rather than the one that reads.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requirePermission } from "@/server/api";
-import { lastProviderCheck, checkProvidersNow } from "@/platform/watchdog";
-import { providersInUse } from "@/lib/provider-health";
+import { requireCaller, errorResponse, requireAccountWide } from "@/server/api";
+import { checkProvidersNow } from "@/platform/watchdog";
+import { providerFactsFor } from "@/server/provider-facts";
 import { idempotent } from "@/server/idempotency";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const tenant = await requireTenant(req);
-    const last = await lastProviderCheck(tenant);
-    return NextResponse.json({
-      // What WOULD be checked, always — so an account that has never been
-      // checked still sees which credentials its agents depend on, and an
-      // empty list is visibly "you use the platform's own key" rather than
-      // an unexplained blank.
-      configured: providersInUse(tenant).map((p) => ({
-        provider: p.spec.name || p.spec.baseUrl,
-        declaredIn: p.declaredIn,
-        model: p.model,
-        format: p.spec.format,
-      })),
-      lastCheck: last,
-    });
+    const { tenant, actor } = await requireCaller(req);
+    // What WOULD be checked, always — so an account that has never been
+    // checked still sees which credentials its agents depend on, and an
+    // empty list is visibly "you use the platform's own key" rather than
+    // an unexplained blank. A scoped caller sees its own workspaces' and
+    // the account's (server/provider-facts.ts).
+    return NextResponse.json(await providerFactsFor(tenant, actor.workspaces));
   } catch (err) {
     return errorResponse(err);
   }
@@ -40,7 +32,9 @@ export async function GET(req: NextRequest) {
 
 async function postOnce(req: NextRequest) {
   try {
-    const { tenant } = await requirePermission(req, "run:start");
+    // A check spends a request at every workspace's endpoints: a caller
+    // scoped to some workspaces may not spend the others' (30 Oct 2026).
+    const { tenant } = await requireAccountWide(req, "run:start");
     return NextResponse.json({ ok: true, lastCheck: await checkProvidersNow(tenant) });
   } catch (err) {
     return errorResponse(err);

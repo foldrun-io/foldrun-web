@@ -6,10 +6,10 @@ import path from "node:path";
 import { listWorkspaces, saveWorkspace, listAgents, listFlows, templateFiles, blankTemplateFiles, workspaceDir, type DeployFile } from "@/lib/store";
 import { avatarUrl } from "@/platform/avatars";
 import { demoWorkspaceFiles, DEMO_WORKSPACE } from "@/platform/demo-workspace";
-import { platform } from "@/lib/platform";
-import { billing } from "@/platform/billing";
 import { idempotent } from "@/server/idempotency";
-import { settingText } from "@/platform/settings";
+import { workspaceCapRefusal } from "@/server/workspace-cap";
+import { deployWorkspace } from "@/lib/deploy";
+import { audit } from "@/server/audit";
 
 export async function GET(req: NextRequest) {
   try {
@@ -60,23 +60,10 @@ async function postOnce(req: NextRequest) {
     if (actor.workspaces !== null && !scopeAllows(actor.workspaces, body.name) && fs.existsSync(workspaceDir(tenant, body.name))) {
       return NextResponse.json({ error: "this workspace is not one you were given access to" }, { status: 403 });
     }
-    // The plan's workspace count, checked only for NEW workspaces — pushing
-    // to an existing one must never bounce off the limit, or a deploy to
-    // workspace N becomes an outage the moment the plan shrinks.
-    // The plan the platform's operator set for this customer first, else the install-wide
-    // default. A plan is a hosted concept: the `self-hosted` edition has no
-    // workspace cap however FOLDRUN_PLAN_WORKSPACES is set, because there
-    // is no plan.
-    const cap = (await billing().plan(tenant))?.workspaces ?? Number(settingText("FOLDRUN_PLAN_WORKSPACES"));
-    if (Number.isFinite(cap) && cap > 0 && platform.edition() === "hosted") {
-      const existing = listWorkspaces(tenant);
-      if (!existing.some((w) => w.name === body.name) && existing.length >= cap) {
-        return NextResponse.json(
-          { error: `this plan includes ${cap} workspace${cap === 1 ? "" : "s"} — delete one or upgrade` },
-          { status: 402 },
-        );
-      }
-    }
+    // The plan's workspace count, for NEW workspaces only — the same check
+    // import and a deploy to a new name make (server/workspace-cap.ts).
+    const overCap = await workspaceCapRefusal(tenant, body.name);
+    if (overCap) return NextResponse.json({ error: overCap }, { status: 402 });
     if (body.ifAbsent === true) {
       // Claimed atomically: a folder made without `recursive` fails when it
       // is there, so two creates of one name cannot both win — listing first
@@ -99,6 +86,33 @@ async function postOnce(req: NextRequest) {
         fs.rmSync(dir, { recursive: true, force: true });
         throw err;
       }
+    } else if (fs.existsSync(workspaceDir(tenant, body.name))) {
+      // Over a workspace that exists, this POST is a deploy, so it takes the
+      // deploy's gate (30 Oct 2026): the checks a deploy refuses on, the
+      // refusal while a run is reading the files, and the audit entry.
+      // saveWorkspace straight from here skipped all three.
+      const result = deployWorkspace(tenant, body.name, body.files);
+      if (!result.applied) {
+        return NextResponse.json(
+          {
+            ok: false,
+            reason: result.issues.length ? "did not check out" : "runs in flight",
+            error: result.issues.length
+              ? `${body.name} exists, and these files did not check out — nothing was changed`
+              : `${body.name} exists and a run is reading its files — nothing was changed; try again when it ends`,
+            issues: result.issues,
+            warnings: result.warnings,
+            blockedBy: result.blockedBy,
+          },
+          { status: 422 },
+        );
+      }
+      await audit("workspace.deployed", {
+        actor: actor.name,
+        tenant,
+        subject: body.name,
+        detail: { workspace: body.name, commit: null, added: result.added.length, updated: result.updated.length, removed: result.removed.length },
+      });
     } else {
       saveWorkspace(tenant, body.name, body.files);
     }

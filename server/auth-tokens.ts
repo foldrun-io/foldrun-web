@@ -12,7 +12,7 @@
 import crypto from "node:crypto";
 import { installKey } from "../../foldrun-core/src/webhook.ts";
 
-type Kind = "reset" | "verify" | "mfa-challenge" | "mfa-enrol" | "support-handoff";
+type Kind = "reset" | "verify" | "email-change" | "mfa-challenge" | "mfa-enrol" | "support-handoff";
 
 const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64url");
 const unb64 = (s: string) => Buffer.from(s, "base64url").toString("utf8");

@@ -1095,17 +1095,42 @@ export function displayName(u: Pick<UserRecord, "email" | "firstName" | "lastNam
   return full || u.email;
 }
 
-export async function changeEmail(userId: string, newEmail: string): Promise<{ from: string; to: string }> {
-  const to = newEmail.trim().toLowerCase();
+/** An address as logins store it (trimmed, lower case), or a 400. Asked by
+ *  the email-change request before it mails anything, and by the move. */
+export function loginAddress(email: string): string {
+  const to = email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) throw Object.assign(new Error("that is not an email address"), { status: 400 });
+  return to;
+}
+
+/** How many times this login has moved address — kept in prefs (no
+ *  column, no migration; no route writes this key). An email-change link
+ *  carries the count it was minted at and works only while it still holds:
+ *  "still at the old address" was not single-use, since A → B → A made the
+ *  first link good again (Codex, 30 Oct 2026). */
+const EMAIL_MOVES = "emailMoves";
+export function emailMovesOf(u: Pick<UserRecord, "prefs">): number {
+  const n = u.prefs?.[EMAIL_MOVES];
+  return typeof n === "number" && Number.isInteger(n) ? n : 0;
+}
+
+/** `ifMoves`: move only if the login has moved exactly this many times —
+ *  checked and bumped under the same lock as the write, so one link moves
+ *  it once, and two clicks racing get one move. */
+export async function changeEmail(userId: string, newEmail: string, opts: { ifMoves?: number } = {}): Promise<{ from: string; to: string }> {
+  const to = loginAddress(newEmail);
   const { from, tenant } = await mutateUsers((users) => {
     const user = users.find((u) => u.id === userId);
     if (!user) throw Object.assign(new Error("no such user"), { status: 404 });
+    if (opts.ifMoves !== undefined && emailMovesOf(user) !== opts.ifMoves) {
+      throw Object.assign(new Error("that link was already used, or the address has changed since"), { status: 409 });
+    }
     if (user.email === to) throw Object.assign(new Error("that is already their address"), { status: 409 });
     if (users.some((u) => u.email === to)) throw Object.assign(new Error("that address already belongs to someone"), { status: 409 });
     const was = user.email;
     user.email = to;
     user.emailVerifiedAt = null;
+    user.prefs = { ...(user.prefs ?? {}), [EMAIL_MOVES]: emailMovesOf(user) + 1 };
     return { from: was, tenant: user.tenant };
   });
   // Their API keys name them by address: they move too (FOL-97). Imported

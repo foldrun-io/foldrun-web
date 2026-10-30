@@ -29,9 +29,13 @@ export type AuditAction =
   | "password.reset"
   | "email.verified"
   | "email.changed"
+  // A move to a new address asked for; it happens when that inbox clicks.
+  | "email.change_requested"
   | "mfa.enabled"
   | "mfa.disabled"
   | "mfa.refused"
+  // Ten wrong six-digit codes in a row: six-digit codes paused for the day.
+  | "mfa.locked"
   | "account.created"
   | "timezone.changed"
   | "apikey.created"

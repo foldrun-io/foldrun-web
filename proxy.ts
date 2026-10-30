@@ -17,6 +17,7 @@ import { bodyTooLarge } from "@/server/body-limit";
 import { apiGate } from "@/server/api-limits";
 import { RESOLVED_VERSION_HEADER } from "@/server/api-version";
 import { versionHeaders } from "@/server/release";
+import { unsafeApiPath } from "@/server/raw-path";
 
 /** X-Foldrun-Version (and X-Foldrun-Api, X-Foldrun-Cli) on a response, so any
  *  client — the CLI's update notice, a script, a support ticket's curl -i —
@@ -123,6 +124,11 @@ export async function proxy(req: NextRequest) {
     return harden(NextResponse.next({ request: { headers: forward(req, nonce) } }), req, nonce);
   }
   if (req.nextUrl.pathname.startsWith("/api/")) {
+    // An encoded / \ or NUL, or a . / .. segment, in the raw path: no route
+    // takes one, and a decoded %2F turns a name into a path (30 Oct 2026,
+    // server/raw-path.ts). Refused before anything else reads the request.
+    const badPath = unsafeApiPath(new URL(req.url).pathname);
+    if (badPath) return harden(stamped(NextResponse.json({ error: badPath }, { status: 400 })), req, nonce);
     // A cookie-carrying write from an origin that is not ours — or a write
     // to a sign-in route, cookie or not. SameSite=Lax is the first layer;
     // this is the second, and it refuses before any handler runs. Bearer

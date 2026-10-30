@@ -10,6 +10,7 @@ import { verifySession, sessionIdOf, SESSION_COOKIE } from "@/server/users";
 import { listSessions, revokeSession, revokeSessions, revocable } from "@/server/sessions";
 import { audit } from "@/server/audit";
 import { sessionUser, errorResponse } from "@/server/api";
+import { refuseNonText } from "@/server/auth-input";
 
 export async function GET(req: NextRequest) {
   try {
@@ -48,6 +49,8 @@ export async function DELETE(req: NextRequest) {
 
     const current = sessionIdOf(token);
     const body = (await req.json().catch(() => ({}))) as { id?: string; others?: boolean };
+    const notText = refuseNonText(body, "id");
+    if (notText) return notText;
 
     if (body.others) {
       const n = await revokeSessions(user.id, current ?? undefined);

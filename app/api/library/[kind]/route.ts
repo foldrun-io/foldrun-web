@@ -93,8 +93,9 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ kind: st
     const tenant = (await requireAccountWide(req, "workspace:write")).tenant;
     const kind = kindOf((await ctx.params).kind);
     const body = (await req.json()) as { path?: string };
-    if (!body.path) return NextResponse.json({ error: "expected { path }" }, { status: 400 });
-    deleteLibraryPath(tenant, kind, body.path);
+    if (!body.path || typeof body.path !== "string") return NextResponse.json({ error: "expected { path }" }, { status: 400 });
+    // Attributed like a write: a deletion is a revision too.
+    deleteLibraryPath(tenant, kind, body.path, { by: await actorOf(req) });
     return NextResponse.json({ ok: true });
   } catch (err) {
     return errorResponse(err);

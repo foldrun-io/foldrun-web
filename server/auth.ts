@@ -298,12 +298,18 @@ function alreadyRotated(next: Pick<ApiKeyRecord, "prefix" | "label" | "revokedAt
  * one ends: at once with no grace, or when the grace runs out, so a CI job
  * can be moved to the new key before the old stops answering. The new key
  * is returned once, like any mint.
+ *
+ * `by` is the person the new key acts as (its createdBy): the rotating
+ * person; null when the caller is no person (a key known only by its label),
+ * so the new key is label-only too; unsaid, the old key's. Null used to fall
+ * back to the old key's minter, and a label-only key that rotated the owner's
+ * `foldrun login` key received a key acting as the owner (30 Oct 2026).
  */
 export async function rotateApiKey(
   tenant: string,
   id: string,
   graceMs: number,
-  by?: string,
+  by?: string | null,
 ): Promise<{ record: ApiKeyRecord; key: string; old: Omit<ApiKeyRecord, "hash">; oldEndsAt: string }> {
   const all = await keysOf(tenant);
   const old = all.find((k) => k.id === id);
@@ -315,7 +321,7 @@ export async function rotateApiKey(
   if (old.revokedAt) throw Object.assign(new Error("key not found"), { status: 404 });
   if (keyExpired(old)) throw Object.assign(new Error("that key has already expired — mint a new one instead"), { status: 409 });
   const lifetime = old.expiresAt ? Date.parse(old.expiresAt) - Date.parse(old.createdAt) : null;
-  const made = await createApiKey(tenant, old.label, by ?? old.createdBy, old.scope, (old.role ?? "admin") === "owner" ? "admin" : (old.role ?? "admin"), old.workspaces ?? null, {
+  const made = await createApiKey(tenant, old.label, by === undefined ? old.createdBy : by ?? undefined, old.scope, (old.role ?? "admin") === "owner" ? "admin" : (old.role ?? "admin"), old.workspaces ?? null, {
     expiresAt: lifetime && lifetime > 0 ? new Date(Date.now() + lifetime) : null,
     origin: old.origin,
   });

@@ -23,13 +23,23 @@ async function postOnce(
     const { workspace, runId } = await ctx.params;
     const { tenant, actor } = await requirePermission(req, "run:start");
     const body = (await req.json().catch(() => ({}))) as {
-      decision?: "approve" | "reject";
+      decision?: unknown;
       reason?: string;
       note?: string;
       step?: number;
       payload?: unknown;
     };
-    const decision = body.decision === "reject" ? "reject" : "approve";
+    // Only the two words the docs name. Until 30 Oct 2026 anything but the
+    // exact "reject" approved — `"deny"`, `"REJECT"`, a typo'd key — so a
+    // script meaning to stop a risky step let it run. A payload alone still
+    // means approve: releasing a wait: event step is the only thing it does.
+    if (body.decision !== "approve" && body.decision !== "reject" && !(body.decision === undefined && body.payload !== undefined)) {
+      throw new ApiError('decision must be "approve" or "reject"', 400);
+    }
+    if (body.step !== undefined && !(Number.isInteger(body.step) && (body.step as number) >= 0)) {
+      throw new ApiError("step must be a step's index, a whole number from 0", 400);
+    }
+    const decision: "approve" | "reject" = body.decision === "reject" ? "reject" : "approve";
 
     if (body.payload !== undefined) {
       if (decision !== "approve") throw new ApiError("a payload releases a wait: event step — it cannot go with a reject", 400);

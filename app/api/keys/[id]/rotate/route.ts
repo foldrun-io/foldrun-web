@@ -70,7 +70,9 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ id: string }>
     // A key revoked by a no-grace rotation is still answered by
     // rotateApiKey's 409 naming its replacement; one revoked outright is gone.
     if (!target || (target.revokedAt && !target.replacedBy) || !keyWithin({ role: actor.role, workspaces: actor.workspaces }, target)) throw new ApiError("key not found", 404);
-    const who = actor.kind === "user" || !actor.name.startsWith("key:") ? actor.name : undefined;
+    // The new key acts as whoever rotated it — never as the old key's
+    // minter on the word of a caller who is no person (rotateApiKey).
+    const who = actor.kind === "user" || !actor.name.startsWith("key:") ? actor.name : null;
     const { record, key, oldEndsAt } = await rotateApiKey(tenant, id, graceMs, who);
     await audit("apikey.rotated", {
       actor: actor.name,

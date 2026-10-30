@@ -118,8 +118,38 @@ export function sendVerifyEmail(tenant: string, to: string, url: string, opts?: 
 export function sendEmailChangedNotice(tenant: string, oldAddress: string, newAddress: string) {
   return platformSend(tenant, oldAddress, "Your foldrun login address was changed",
     `The login for your foldrun account "${tenant}" was just changed from ${oldAddress} to ${newAddress}.\n\n` +
-    `If that was you, there is nothing to do — confirm the new address from the mail sent there.\n\n` +
+    `If that was you, there is nothing to do.\n\n` +
     `If it was not you, reply to this email straight away and we will reverse it.\n`);
+}
+
+/**
+ * To the NEW address, when someone asks to move their login there and the
+ * address is free: the link that makes the move (emailChangeLink). Nothing
+ * has moved yet, and nothing does unless this inbox clicks.
+ */
+export function sendEmailChangeConfirm(tenant: string, to: string, from: string, url: string) {
+  const lead = `Someone signed in as ${from} asked to move their foldrun login to ${to}.`;
+  const after = `Nothing changes until you click. The link works once and for 24 hours. If you did not ask for this, ignore it.`;
+  return platformSend(
+    tenant,
+    to,
+    "Confirm your new foldrun login address",
+    `${lead}\n\nMove it here:\n${url}\n\n${after}\n`,
+    linkEmail({ lead: esc(lead), button: "Move my login here", url, after: esc(after) }),
+  );
+}
+
+/**
+ * To the NEW address, when it already has a login on this install: the
+ * same one mail the free case gets, so the person who asked learns the
+ * answer only by reading this inbox — the request itself answers the same
+ * either way (30 Oct 2026: the old 409 told any signed-in person which
+ * addresses had an account anywhere on the install).
+ */
+export function sendEmailTakenNotice(tenant: string, to: string, from: string) {
+  return platformSend(tenant, to, "Your foldrun login address was not changed",
+    `Someone signed in as ${from} asked to move their foldrun login to ${to}, but ${to} already has a foldrun login, so nothing was changed.\n\n` +
+    `If that was you, sign in with ${to} instead, or pick another address. If it was not you, ignore this.\n`);
 }
 
 /** To the platform's operator: an owner asked to close their account. The account

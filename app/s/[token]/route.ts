@@ -12,6 +12,36 @@
 
 import { NextRequest } from "next/server";
 import { resolveShare } from "@/platform/shares.ts";
+import { rateLimit } from "@/platform/cache";
+import { clientIp } from "@/server/limits";
+
+/**
+ * Flood control (30 Oct 2026). This is the one route with no credential, and
+ * it sits outside the /api gate's limits, so nothing counted it: a public
+ * link fetched in a loop cost the pod a read per request. Two counts, either
+ * can refuse — per caller, where a trusted proxy names one (clientIp: never
+ * a header anyone can send), and per link, which is what bounds a flood when
+ * no caller can be told apart. The per-link count is wide on purpose: a
+ * header image in a sent newsletter is fetched by every reader.
+ */
+const SHARE_LIMITS = {
+  perIp: { limit: 120, windowSec: 60 },
+  perToken: { limit: 1200, windowSec: 60 },
+} as const;
+
+async function limited(req: NextRequest, token: string): Promise<Response | null> {
+  const ip = clientIp(req);
+  const verdicts = await Promise.all([
+    ip ? rateLimit(`share:ip:${ip}`, SHARE_LIMITS.perIp.limit, SHARE_LIMITS.perIp.windowSec) : null,
+    rateLimit(`share:token:${token.slice(0, 64)}`, SHARE_LIMITS.perToken.limit, SHARE_LIMITS.perToken.windowSec),
+  ]);
+  const over = verdicts.find((v) => v && !v.allowed);
+  if (!over) return null;
+  return new Response("Too many requests", {
+    status: 429,
+    headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store", "retry-after": String(over.retryAfter) },
+  });
+}
 
 const notFound = () =>
   new Response("Not found", {
@@ -36,28 +66,34 @@ function headersFor(contentType: string, size: number, immutable: boolean) {
   };
 }
 
-export async function GET(_req: NextRequest, ctx: { params: Promise<{ token: string }> }) {
+export async function GET(req: NextRequest, ctx: { params: Promise<{ token: string }> }) {
   const { token } = await ctx.params;
+  const refused = await limited(req, token);
+  if (refused) return refused;
   const hit = await resolveShare(token);
   if (!hit) return notFound();
 
-  // From the folder, or from the file store where uploads live.
-  const bytes = await hit.read().catch(() => null);
-  if (!bytes) return notFound(); // deleted between resolve and read
-  return new Response(new Uint8Array(bytes), {
+  // From the folder, or from the file store where uploads live — streamed
+  // (30 Oct 2026). It was read whole into memory per request, so twenty
+  // parallel fetches of a 1 GB video held 20 GB on the pod.
+  const opened = await hit.open().catch(() => null);
+  if (!opened) return notFound(); // deleted between resolve and read
+  return new Response(opened.body, {
     status: 200,
-    headers: headersFor(hit.share.contentType, bytes.length, hit.share.expiresAt === null),
+    headers: headersFor(hit.share.contentType, opened.size, hit.share.expiresAt === null),
   });
 }
 
-/** Fetchers routinely HEAD before they GET; answering it saves them a round trip. */
-export async function HEAD(_req: NextRequest, ctx: { params: Promise<{ token: string }> }) {
+/** Fetchers routinely HEAD before they GET; answering it saves them a round trip.
+ *  A stat or a HEAD to the store for the length — never the bytes. */
+export async function HEAD(req: NextRequest, ctx: { params: Promise<{ token: string }> }) {
   const { token } = await ctx.params;
+  const refused = await limited(req, token);
+  if (refused) return refused;
   const hit = await resolveShare(token);
   if (!hit) return notFound();
-  const bytes = await hit.read().catch(() => null);
-  if (!bytes) return notFound();
-  const size = bytes.length;
+  const size = await hit.size().catch(() => null);
+  if (size === null) return notFound();
   return new Response(null, {
     status: 200,
     headers: headersFor(hit.share.contentType, size, hit.share.expiresAt === null),

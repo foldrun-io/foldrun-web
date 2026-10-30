@@ -14,7 +14,9 @@ import { evaluateDeployed } from "@/lib/evals";
 import { errorResponse, requirePermission } from "@/server/api";
 import { audit } from "@/server/audit";
 import { deployWorkspace, planDeploy } from "@/lib/deploy";
-import type { DeployFile } from "@/lib/store";
+import { workspaceDir, type DeployFile } from "@/lib/store";
+import { workspaceCapRefusal } from "@/server/workspace-cap";
+import fs from "node:fs";
 import { idempotent } from "@/server/idempotency";
 
 /** A deploy is markdown, so this is generous — and still finite. */
@@ -84,6 +86,18 @@ async function postOnce(
     if (body.dryRun === true) {
       const plan = planDeploy(tenant, workspace, files);
       return NextResponse.json({ ok: plan.issues.length === 0, applied: false, ...plan, files: undefined });
+    }
+
+    // A deploy to a name that does not exist yet MAKES a workspace, so it
+    // needs what making one needs everywhere else (30 Oct 2026): the
+    // workspace:manage role and room under the plan's workspace count, as
+    // POST /api/workspaces and import ask. With workspace:write alone an
+    // editor could make any number. `foldrun deploy` of a new workspace by
+    // an admin is unchanged; a dry run writes nothing and is not asked.
+    if (!fs.existsSync(workspaceDir(tenant, workspace))) {
+      await requirePermission(req, "workspace:manage");
+      const overCap = await workspaceCapRefusal(tenant, workspace);
+      if (overCap) return NextResponse.json({ error: overCap }, { status: 402 });
     }
 
     const result = deployWorkspace(tenant, workspace, files, {

@@ -7,7 +7,8 @@
 // the same. One registered app serves every API its provider offers.
 
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, requirePermission, assertWorkspaceScope } from "@/server/api";
+import { errorResponse, requirePermission } from "@/server/api";
+import { assertMayWriteSecret } from "@/server/secret-writes";
 
 import { getOAuthClient } from "@/platform/oauth-clients";
 import { idempotent } from "@/server/idempotency";
@@ -28,7 +29,10 @@ async function postOnce(req: NextRequest) {
     }
     const scopes = scopesOf(body.scopes);
     if (scopes instanceof Error) return NextResponse.json({ error: scopes.message }, { status: 400 });
-    assertWorkspaceScope(actor, body.workspace || undefined);
+    // The callback stores what this starts, with no caller left to ask: the
+    // secret's name is checked as a PUT /api/secrets would check it, now.
+    await assertMayWriteSecret(tenant, actor, body.secret, body.workspace);
+    if (typeof body.client !== "string") return NextResponse.json({ error: "client is a saved OAuth client's name" }, { status: 400 });
     const config = await getOAuthClient(tenant, body.client);
     if (!config) return NextResponse.json({ error: `no saved OAuth client "${body.client}"` }, { status: 404 });
 

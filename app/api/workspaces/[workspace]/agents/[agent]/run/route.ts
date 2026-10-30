@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, requirePermission } from "@/server/api";
+import { errorResponse, requirePermission, ApiError } from "@/server/api";
 import fs from "node:fs";
 import path from "node:path";
-import { workspaceDir } from "@/lib/store";
+import { workspaceDir, isOneSegment } from "@/lib/store";
 import { enqueueFlowRun } from "@/platform/queue";
 import { wantsWait, waitAndRespond } from "@/server/wait";
 import { idempotent } from "@/server/idempotency";
@@ -14,6 +14,10 @@ async function postOnce(
   try {
     const { workspace, agent } = await ctx.params;
     const tenant = (await requirePermission(req, "run:start")).tenant;
+    // The name is one folder under agents/, never a path (30 Oct 2026): Next
+    // decodes %2F in a segment, and `..%2F..%2F<tenant>%2F…` ran another
+    // account's agent under this caller's run. The runner refuses it too.
+    if (!isOneSegment(agent)) throw new ApiError(`invalid agent "${agent}" — an agent's folder name, not a path`, 400);
     if (!fs.existsSync(path.join(workspaceDir(tenant, workspace), "agents", agent, "agent.md"))) {
       return NextResponse.json({ error: `agent ${agent} not found` }, { status: 404 });
     }

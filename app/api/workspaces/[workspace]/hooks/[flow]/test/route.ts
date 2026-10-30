@@ -16,7 +16,7 @@ import { requirePermission, errorResponse, ApiError } from "@/server/api";
 import { idempotent } from "@/server/idempotency";
 import { workspaceDir } from "@/lib/store";
 import { libraryDir } from "@/lib/library";
-import { resolveHooks, runHook } from "@/lib/hooks";
+import { resolveHooks, runHook, isHookName } from "@/lib/hooks";
 import { hookTestRefusal, testEvent } from "@/server/hooks";
 
 async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: string; flow: string }> }) {
@@ -28,6 +28,9 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
       throw new ApiError("event is one JSON object — the event the hook reads on stdin", 400);
     }
 
+    // A hook's folder name, never a path (30 Oct 2026; core resolveHooks
+    // refuses it too): a 400 before anything on disk is looked at.
+    if (!isHookName(name)) throw new ApiError(`invalid hook "${name}" — lowercase letters, digits and dashes`, 400);
     const root = workspaceDir(tenant, workspace);
     const r = resolveHooks({ workspaceRoot: root, libraryRoot: libraryDir(tenant), names: [name] });
     if (r.missing.length) throw new ApiError(`no hook "${name}" in this workspace's hooks/ or the account library`, 404);

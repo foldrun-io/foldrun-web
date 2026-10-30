@@ -21,7 +21,7 @@
 // than treated as "everything".
 
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, requirePermission } from "@/server/api";
+import { errorResponse, reportError, requirePermission } from "@/server/api";
 import { rerunFrom, stopRun } from "@/platform/queue";
 import { listRuns } from "@/lib/store";
 import { idempotent } from "@/server/idempotency";
@@ -55,6 +55,9 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
 
     if (body.action !== "stop" && body.action !== "rerun") {
       return NextResponse.json({ error: 'expected { action: "stop" | "rerun" }' }, { status: 400 });
+    }
+    if (body.from !== undefined && !(Number.isInteger(body.from) && body.from >= 1)) {
+      return NextResponse.json({ error: "from is a step's number in the trace, a whole number from 1" }, { status: 400 });
     }
     const hasFilter =
       (body.runIds?.length ?? 0) > 0 || (body.status?.length ?? 0) > 0 || !!body.flow || !!body.since || !!body.until;
@@ -104,7 +107,10 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
           done.push({ runId: run.id, ok: true, newRunId: fresh.id });
         }
       } catch (err) {
-        done.push({ runId: run.id, ok: false, error: err instanceof Error ? err.message : String(err) });
+        // The same scrub one run's error gets: a refusal's sentence, but a
+        // TypeError or an fs fault (with its server path) is logged and
+        // answered as "something went wrong on our side" (30 Oct 2026).
+        done.push({ runId: run.id, ok: false, error: reportError(err).message });
       }
     }
     return NextResponse.json({

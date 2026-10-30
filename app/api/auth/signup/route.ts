@@ -9,7 +9,9 @@ import { verifyLink, publicOrigin } from "@/server/auth-flows";
 import { errorResponse } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
 import { clientIp } from "@/server/limits";
-import { acceptInvite, createUser, mintSession, sessionCookieOptions, SESSION_COOKIE, setupTokenRequired, setupTokenMatches } from "@/server/users";
+import { acceptInvite, createUser, mintSession, sessionCookieOptions, SESSION_COOKIE, setupTokenRequired, setupTokenMatches, signupOpen } from "@/server/users";
+import { refuseNonText } from "@/server/auth-input";
+import { assertSignupAllowed } from "@/platform/signup";
 import { audit } from "@/server/audit";
 import { listWorkspaces, saveWorkspace, templateFiles } from "@/lib/store";
 import { rateLimit } from "@/platform/cache";
@@ -41,6 +43,8 @@ export async function POST(req: NextRequest) {
       /** The install's setup token, for its first account (FOLDRUN_SETUP_TOKEN). */
       setup?: string;
     };
+    const notText = refuseNonText(body, "email", "password", "account", "invite", "setup");
+    if (notText) return notText;
     // Limited before anything is created, and before scrypt runs: hashing a
     // password is deliberately expensive, so an unlimited signup endpoint is
     // also an unlimited way to spend the box's CPU.
@@ -69,6 +73,15 @@ export async function POST(req: NextRequest) {
         { error: "this install's first account needs its setup link — open the one the installer printed (…/signup?setup=…), or read FOLDRUN_SETUP_TOKEN in the install's .env" },
         { status: 403 },
       );
+    }
+    // A closed install refuses a stranger here, before the password's breach
+    // lookup and scrypt: those ran first and the lock refused after, so with
+    // no caller address to limit on, every new address bought both on an
+    // install that would never take one (30 Oct 2026). The same sentence as
+    // the lock's (core signup.ts, asked with nothing about the address), and
+    // the lock still asks again for the race with the first sign-up.
+    if (!invited && !(await signupOpen())) {
+      assertSignupAllowed({ joining: false, open: false, accountExists: false, emailTaken: false, nameTaken: false });
     }
     const joined = invited ? await acceptInvite(body.invite!, body.email ?? "", body.password ?? "") : null;
     const user = joined ? joined.user : await createUser(body.email ?? "", body.password ?? "", body.account ?? "");

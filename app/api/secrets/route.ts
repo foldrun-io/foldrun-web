@@ -1,17 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireCaller, errorResponse, requirePermission, assertWorkspaceScope, ApiError } from "@/server/api";
-
-const MAIL_SENDER = new Set(["RESEND_API_KEY", "EMAIL_FROM"]);
-
-/** The owner in person, or a key the owner minted (`foldrun login` keys
- *  are admin-role but carry the minter's address as the actor's name). */
-async function actsForOwner(tenant: string, actor: { role: string; kind?: string; name: string }): Promise<boolean> {
-  if (actor.role === "owner") return true;
-  const owner = await ownerOf(tenant);
-  return Boolean(owner && actor.kind === "key" && actor.name.toLowerCase() === owner.email.toLowerCase());
-}
+import { requireCaller, errorResponse, requirePermission, assertWorkspaceScope } from "@/server/api";
+import { assertMayWriteSecret } from "@/server/secret-writes";
 import { audit } from "@/server/audit";
-import { ownerOf } from "@/server/users";
 import {
   listSecrets, setSecret, deleteSecret, setOAuth2Secret, setServiceAccountSecret, setFileSecret,
   setSshSecret, setApiSecret, setClientCertSecret, setIdentitySecret, setSecretSites,
@@ -86,19 +76,19 @@ async function putOnce(req: NextRequest) {
     if (!body.name) return NextResponse.json({ error: "expected { name }" }, { status: 400 });
     if (body.sites !== undefined && !isSiteList(body.sites)) return NextResponse.json({ error: "sites is a list of domains, like [\"api.example.com\", \"*.example.com\"]" }, { status: 400 });
     const scope = scopeOf(req, body);
-    assertWorkspaceScope(actor, scope);
-    // The account's mail sender carries its members' password-reset and
-    // sign-up links (core platformMail). Only the owner chooses it: an admin
-    // who pointed it at their own Resend account could read the owner's
-    // reset link and take the account.
-    if (!scope && MAIL_SENDER.has(body.name) && !(await actsForOwner(tenant, actor))) {
-      throw new ApiError(`only the account's owner can set ${body.name} — it is the sender of everyone's sign-in mail`, 403);
-    }
+    // Scope, the owner-only mail sender (core platformMail sends members'
+    // reset and sign-up links through it), and a name that is a string —
+    // server/secret-writes.ts, shared with the OAuth connect routes.
+    body.name = await assertMayWriteSecret(tenant, actor, body.name, scope);
     if (body.oauth2) {
       setOAuth2Secret(tenant, body.name, body.oauth2, scope);
       if (body.oauth2.grant_type !== "client_credentials") {
         await rememberConnection(tenant, body.name, scope, { ...body.oauth2, scopes: body.scopes }, {
           refreshExpiresIn: body.refresh_token_expires_in,
+          // The account's saved OAuth apps are every workspace's: a caller
+          // scoped to some workspaces may not save or change one directly
+          // (POST /api/oauth/clients), so not through a recipe either.
+          keepSavedClients: actor.workspaces !== null,
         });
       }
     }
@@ -135,7 +125,8 @@ export async function DELETE(req: NextRequest) {
     const body = (await req.json()) as { name?: string; workspace?: string; project?: string };
     if (!body.name) return NextResponse.json({ error: "expected { name }" }, { status: 400 });
     const scope = scopeOf(req, body);
-    assertWorkspaceScope(actor, scope);
+    // Removing the mail sender chooses one too (the platform's own).
+    body.name = await assertMayWriteSecret(tenant, actor, body.name, scope);
     deleteSecret(tenant, body.name, scope);
     await forgetSecretHealth(tenant, healthKey(body.name, scope ? "workspace" : "account", scope));
     await audit("secret.deleted", { actor: actor.name, tenant, subject: body.name, detail: { name: body.name, ...(scope ? { workspace: scope } : {}) } });
@@ -162,7 +153,7 @@ export async function PATCH(req: NextRequest) {
     if (!body.name) return NextResponse.json({ error: "expected { name, sites }" }, { status: 400 });
     if (!isSiteList(body.sites)) return NextResponse.json({ error: "sites is a list of domains, like [\"api.example.com\", \"*.example.com\"]; [] unbinds" }, { status: 400 });
     const scope = scopeOf(req, body);
-    assertWorkspaceScope(actor, scope);
+    body.name = await assertMayWriteSecret(tenant, actor, body.name, scope);
     let sites: string[];
     try {
       sites = setSecretSites(tenant, body.name, body.sites, scope);

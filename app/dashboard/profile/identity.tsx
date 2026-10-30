@@ -65,18 +65,22 @@ export function EmailForm({ current }: { current: string }) {
       onSubmit={async (e) => {
         e.preventDefault();
         setState({});
-        if (!confirm(`Move your login from ${current} to ${email.trim()}? You will need to confirm the new address from the mail it receives.`)) return;
+        if (!confirm(`Move your login from ${current} to ${email.trim()}? The move happens when you click the link in the mail that address receives.`)) return;
         setBusy(true);
         const res = await fetch("/api/auth/email", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ email, password }),
         });
-        const body = (await res.json().catch(() => ({}))) as { error?: string; to?: string; verificationSent?: boolean; otherSessionsEnded?: number };
+        const body = (await res.json().catch(() => ({}))) as { error?: string; to?: string; pending?: boolean; verificationSent?: boolean; otherSessionsEnded?: number };
         setBusy(false);
         if (!res.ok) return setState({ error: body.error ?? `HTTP ${res.status}` });
         setPassword("");
         setEmail("");
+        // Nothing has moved yet: the link mailed to the new address makes the move.
+        if (body.pending) {
+          return setState({ done: body.verificationSent ? `Check ${body.to} — the link in the mail there moves your login. Until then you still sign in as ${current}.` : "The mail to that address could not be sent — try again later." });
+        }
         const ended = body.otherSessionsEnded ? ` ${body.otherSessionsEnded === 1 ? "One other browser was" : `${body.otherSessionsEnded} other browsers were`} signed out.` : "";
         setState({ done: `Moved to ${body.to}.${ended} ${body.verificationSent ? "Check that inbox for the confirmation link." : "The confirmation mail could not be sent — ask your admin to mark the address verified."}` });
       }}

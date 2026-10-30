@@ -16,8 +16,19 @@ export async function GET(req: NextRequest) {
 
   const providerError = params.get("error");
   if (providerError) {
-    settings.searchParams.set("connect_error", params.get("error_description") ?? providerError);
-    return NextResponse.redirect(settings);
+    // The provider's words are shown only to the browser that started this
+    // consent (its binding cookie): anyone can craft a link to this URL, and
+    // its error_description used to appear on the victim's Settings page as
+    // if the platform had said it (30 Oct 2026).
+    const errState = params.get("state");
+    const ours = Boolean(errState && req.cookies.get(bindingCookie(errState))?.value);
+    settings.searchParams.set(
+      "connect_error",
+      ours ? (params.get("error_description") ?? providerError).slice(0, 300) : "the provider did not complete the connection — start it again from Settings",
+    );
+    const res = NextResponse.redirect(settings);
+    if (ours) res.cookies.set(bindingCookie(errState!), "", { path: "/api/oauth/callback", maxAge: 0 });
+    return res;
   }
 
   const code = params.get("code");

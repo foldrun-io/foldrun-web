@@ -7,6 +7,7 @@ import {
   deleteFile,
   usedBytes,
   driverFor,
+  requireWorkspace,
 } from "@/lib/storage";
 import { bodyCut } from "@/server/body-limit";
 import { idempotent } from "@/server/idempotency";
@@ -38,6 +39,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
   try {
     const { workspace } = await ctx.params;
     const tenant = await requireTenant(req);
+    // A name with no workspace is a 404, here and on every write (core
+    // storage.ts requireWorkspace, 30 Oct 2026) — not an empty store.
+    requireWorkspace(tenant, workspace);
     return NextResponse.json({
       files: listStorage(tenant, workspace),
       driver: driverFor(tenant, workspace).kind,
@@ -59,7 +63,9 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
       return NextResponse.json({ error: "expected { path, sha, size }" }, { status: 400 });
     }
     // registerUpload HEADs the object before it believes any of this — the
-    // browser saying an upload finished is not evidence that it did.
+    // browser saying an upload finished is not evidence that it did, and
+    // `size` is not the size: the record, the per-file limit and the quota
+    // use the length the store reports (30 Oct 2026).
     const file = await registerUpload(tenant, workspace, body.path, body.sha, body.size, await actor(req));
     return NextResponse.json({ file });
   } catch (err) {
@@ -92,6 +98,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ workspac
     const tenant = (await requirePermission(req, "workspace:write")).tenant;
     const rel = req.nextUrl.searchParams.get("path");
     if (!rel) return NextResponse.json({ error: "expected ?path=" }, { status: 400 });
+    requireWorkspace(tenant, workspace);
     const gone = await deleteFile(tenant, workspace, rel);
     if (!gone) return NextResponse.json({ error: "no such file" }, { status: 404 });
     return NextResponse.json({ ok: true });

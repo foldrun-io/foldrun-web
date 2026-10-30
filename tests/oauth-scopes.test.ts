@@ -68,6 +68,22 @@ test("the callback refuses a consent opened in another browser (no binding cooki
   assert.match(to.searchParams.get("connect_error") ?? "", /started in another browser/);
 });
 
+test("a provider error shows its words only to the browser that started the consent (30 Oct 2026)", async () => {
+  // A crafted link: any text, no consent behind it.
+  const spoof = await callback.GET(new NextRequest("http://x/api/oauth/callback?error=x&error_description=Your+account+is+suspended,+call+us"));
+  const shown = new URL(spoof.headers.get("location")!).searchParams.get("connect_error") ?? "";
+  assert.doesNotMatch(shown, /suspended/);
+  assert.match(shown, /did not complete the connection/);
+  // The real browser, refused at the provider, hears the provider.
+  const r = await asPerson(start.POST, "/api/oauth/start", { client: "any-app", secret: "D_TOKEN", workspace: "desk" });
+  const state = new URL(((await r.json()) as { url: string }).url).searchParams.get("state")!;
+  const binding = /foldrun_oauth_[^=]+=([^;]+)/.exec(r.headers.get("set-cookie") ?? "")![1];
+  const denied = await callback.GET(new NextRequest(`http://x/api/oauth/callback?error=access_denied&error_description=The+user+said+no&state=${state}`, {
+    headers: { cookie: `foldrun_oauth_${state.slice(0, 16)}=${binding}` },
+  }));
+  assert.equal(new URL(denied.headers.get("location")!).searchParams.get("connect_error"), "The user said no");
+});
+
 test("a key gets a hand-off page; a signed-in person accepts it into a bound consent with the asked scopes", async () => {
   const r = await asKey(start.POST, "/api/oauth/start", { client: "any-app", secret: "CLI_TOKEN", workspace: "desk", scopes: "read:cli" });
   assert.equal(r.status, 200);

@@ -4,7 +4,8 @@
 // the consent that starts is bound to this browser like any other.
 
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, requirePerson, assertWorkspaceScope } from "@/server/api";
+import { errorResponse, requirePerson } from "@/server/api";
+import { assertMayWriteSecret } from "@/server/secret-writes";
 import { peekHandoff } from "@/platform/oauth-connect";
 import { getOAuthClient } from "@/platform/oauth-clients";
 import { startBound } from "@/server/oauth-browser";
@@ -19,7 +20,9 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ id: string }>
     // accept it must not be able to spend it for the person who may.
     const seen = await peekHandoff(id);
     if (!seen || seen.tenant !== tenant) return gone();
-    assertWorkspaceScope(actor, seen.workspace);
+    // The person accepting is who the secret is written for: they must be
+    // allowed to write it (the account's mail sender is the owner's alone).
+    await assertMayWriteSecret(tenant, actor, seen.name, seen.workspace);
     const config = await getOAuthClient(tenant, seen.client);
     if (!config) return NextResponse.json({ error: `no saved OAuth app "${seen.client}"` }, { status: 404 });
     // Not used up here: a lost answer to Accept can be retried, giving the

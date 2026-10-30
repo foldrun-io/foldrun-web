@@ -66,7 +66,24 @@ export function clientIp(req: Pick<NextRequest, "headers">): string | null {
 
 /** The edge stamp against the secret, in constant time for equal lengths. */
 function sameSecret(got: string | null, secret: string): boolean {
-  if (!got || !secret) return false;
-  const a = Buffer.from(got), b = Buffer.from(secret);
+  return sameToken(got, secret);
+}
+
+/**
+ * A presented token against the expected one, in constant time for equal
+ * lengths — the one compare for the open callbacks (hooks, inbox, event
+ * URLs). The BYTE lengths are compared, not the string's: a 32-character
+ * token with an `é` in it is 33+ bytes, and timingSafeEqual throws on
+ * unequal buffers, which answered a stranger 500 with a logged stack and
+ * skipped the wrong-token limit (30 Oct 2026).
+ */
+export function sameToken(got: string | null | undefined, want: string): boolean {
+  if (!got || !want) return false;
+  const a = Buffer.from(got), b = Buffer.from(want);
   return a.length === b.length && timingSafeEqual(a, b);
 }
+
+/** Wrong tokens one caller may present to an open callback (a webhook, an
+ *  inbox, an event URL) in a window before a 429. Far above a
+ *  misconfigured sender retrying; far below a guessing run. */
+export const BAD_CALLBACK_TOKENS = { limit: 30, windowSec: 60 } as const;
