@@ -20,7 +20,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import * as yaml from "js-yaml";
-import { ALL_KINDS, kindsAt, docKeyOf, docTypeOf, type Kind } from "../../foldrun-core/src/kinds.ts";
+import { ALL_KINDS, kindsAt, docKeyOf, docTypeOf } from "../../foldrun-core/src/kinds.ts";
 
 import { WORKSPACE_DIRS, templateFiles, anchoredReason, accountFileSealed } from "../../foldrun-core/src/store.ts";
 import { starterFiles } from "../../foldrun-core/src/starter.ts";

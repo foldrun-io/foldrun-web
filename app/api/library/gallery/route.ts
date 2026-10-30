@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, actorOf, requirePermission, requireTenant, requireAccountWide } from "@/server/api";
+import { errorResponse, actorOf, requireTenant, requireAccountWide } from "@/server/api";
 import { GALLERY, galleryDrift, galleryFiles, galleryTool, writeGalleryCopy } from "@/platform/gallery";
 import { libraryFileExists, readLibraryFile } from "@/lib/library";
 import { idempotent } from "@/server/idempotency";

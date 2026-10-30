@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import { startingFiles } from "@/server/starters";
-import { requireTenant, errorResponse, requirePermission, actorOf } from "@/server/api";
+import { errorResponse, requirePermission, actorOf } from "@/server/api";
 import { assertSafeName, workspaceDir, writeWorkspaceFile } from "@/lib/store";
 import { KINDS, type Kind } from "@/lib/kinds";
 import { idempotent } from "@/server/idempotency";

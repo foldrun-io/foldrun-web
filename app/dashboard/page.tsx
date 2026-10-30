@@ -11,7 +11,6 @@
 // workspace cards), each block added on top of the last. mission-control.tsx
 // holds the pieces, which the workspace page shares.
 
-import Link from "next/link";
 import { viewerScope } from "@/server/users";
 import { scopeAllows } from "@/platform/scope";
 import { listWorkspaces, listAllRuns } from "@/lib/store";
@@ -22,8 +21,8 @@ import { upcomingRuns } from "@/platform/scheduler";
 import { avatarUrl } from "@/platform/avatars";
 import { CreateForm } from "@/components/create";
 import { DemoButton } from "./demo-button";
-import { alertsFor, fmtAgo, nowMs } from "@/components/overview-model";
-import { AttentionPanel, NowNext, Panel, StatusStrip } from "@/components/mission-control";
+import { alertsFor, nowMs } from "@/components/overview-model";
+import { AttentionPanel, NowNext, StatusStrip } from "@/components/mission-control";
 import { DesksTable } from "@/components/desks-table";
 import { deskRows } from "@/components/desks-model";
 import { needsList, heartbeats, nowBoard, spendWithin, DAY_MS } from "@/components/mission-model";

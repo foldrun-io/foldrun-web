@@ -64,11 +64,6 @@ const AGENTS: Record<string, AgentTeam> = Object.fromEntries(
 );
 AGENTS.writer = agent("writer", { subagents: ["researcher"], consults: ["editor"], tools: ["read", "ask"], model: "max" });
 
-/** Everything outside the steps, byte for byte. */
-const frame = (raw: string) => {
-  const lines = raw.split("\n");
-  return [lines.slice(0, 8).join("\n"), raw.slice(raw.indexOf("Notes below"))];
-};
 
 // ---------- markdown → model ----------
 

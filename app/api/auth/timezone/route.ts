@@ -6,7 +6,7 @@
 
 import { errorResponse, sessionUser } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
-import { verifySession, setUserTimezone, SESSION_COOKIE } from "@/server/users";
+import { setUserTimezone } from "@/server/users";
 
 export async function POST(req: NextRequest) {
   const user = await sessionUser(req);

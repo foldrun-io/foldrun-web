@@ -3,7 +3,7 @@
 // counter, not a token — see core/src/webhook.ts.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requirePermission } from "@/server/api";
+import { errorResponse, requirePermission } from "@/server/api";
 import { rotateWebhook } from "@/lib/webhook";
 import { idempotent } from "@/server/idempotency";
 

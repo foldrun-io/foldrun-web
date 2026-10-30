@@ -6,7 +6,7 @@
 // line that holds the next run to the recorded conclusion.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, actorOf, requirePermission, ApiError } from "@/server/api";
+import { errorResponse, actorOf, requirePermission, ApiError } from "@/server/api";
 import { promoteRunToEval } from "@/lib/evals";
 import { idempotent } from "@/server/idempotency";
 

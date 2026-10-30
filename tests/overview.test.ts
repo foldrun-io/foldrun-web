@@ -4,15 +4,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { alertsFor, lastRunOf, fmtMoney } from "../components/overview-model.ts";
-import type { RunRecord, StepRecord } from "../../foldrun-core/src/store.ts";
+import type { RunRecord } from "../../foldrun-core/src/store.ts";
 
 const NOW = Date.parse("2026-09-04T00:00:00Z");
 const DAY = 24 * 60 * 60 * 1000;
 const at = (daysAgo: number) => new Date(NOW - daysAgo * DAY).toISOString();
 
-const step = (over: Partial<StepRecord>): StepRecord => ({
-  agent: "writer", instruction: "", group: 1, optional: false, status: "completed", events: [], result: null, costUsd: null, ...over,
-});
 const run = (over: Partial<RunRecord> & { workspace?: string }): RunRecord & { workspace: string } => ({
   id: "r", flow: "weekly", status: "completed", startedAt: at(0), finishedAt: null, steps: [], workspace: "ws", ...over,
 });

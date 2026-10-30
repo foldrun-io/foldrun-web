@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requirePermission } from "@/server/api";
+import { errorResponse, requirePermission } from "@/server/api";
 import { workspaceTools } from "@/lib/store";
 import { libraryTools } from "@/lib/library";
 import { testTool } from "@/lib/tool-test";

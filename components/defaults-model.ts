@@ -3,7 +3,7 @@
 // way back in. Shared by the two PATCH routes and the forms, so one rule
 // says what a valid budget or a valid notify is. tests/defaults.test.ts.
 
-import { parseBudget, budgetProblem, formatBudget, type Budget } from "../../foldrun-core/src/budget.ts";
+import { parseBudget, budgetProblem, type Budget } from "../../foldrun-core/src/budget.ts";
 import { parseTelemetry, type TelemetryConfig } from "../../foldrun-core/src/otel-config.ts";
 import { parseAlerts } from "../../foldrun-core/src/alerts.ts";
 import { parseJudge } from "../../foldrun-core/src/judge-verdict.ts";

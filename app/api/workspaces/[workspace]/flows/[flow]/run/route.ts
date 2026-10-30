@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requirePermission } from "@/server/api";
+import { errorResponse, requirePermission } from "@/server/api";
 import { loadFlow } from "@/lib/runner";
 import { listRunSummaries } from "@/lib/store";
 import { enqueueFlowRun, startFlowFromStep } from "@/platform/queue";

@@ -6,7 +6,7 @@
 // Custom cron remains one preset away for the shapes the presets can't say.
 
 import { useEffect, useState } from "react";
-import { useResolvedTimeZone, useViewerTime } from "@/components/viewer-time";
+import { useResolvedTimeZone } from "@/components/viewer-time";
 import { useRouter } from "next/navigation";
 
 import { inputClass, selectClass, buttonClass, chipButtonClass, FIELD_LABEL_CLASS } from "@/components/ui";

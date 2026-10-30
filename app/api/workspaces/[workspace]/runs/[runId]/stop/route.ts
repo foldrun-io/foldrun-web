@@ -3,7 +3,7 @@
 // their results and their costs — they ran.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requirePermission } from "@/server/api";
+import { errorResponse, requirePermission } from "@/server/api";
 import { stopRun } from "@/platform/queue";
 import { idempotent } from "@/server/idempotency";
 

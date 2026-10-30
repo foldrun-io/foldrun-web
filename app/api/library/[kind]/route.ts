@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, actorOf, requirePermission, requireAccountWide } from "@/server/api";
+import { requireTenant, errorResponse, actorOf, requireAccountWide } from "@/server/api";
 import { startingFiles } from "@/server/starters";
 import {
   LIBRARY_KINDS,
-  LIBRARY_TEMPLATES,
   listLibrary,
   readLibraryFile,
   writeLibraryFile,

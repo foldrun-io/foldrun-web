@@ -3,7 +3,7 @@
 // the consent flow from a saved client is /api/oauth/start's job.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requirePermission, requireAccountWide } from "@/server/api";
+import { requireTenant, errorResponse, requireAccountWide } from "@/server/api";
 import { saveOAuthClient, listOAuthClients, deleteOAuthClient } from "@/platform/oauth-clients";
 import type { OAuthProviderConfig } from "@/platform/oauth-connect";
 import { idempotent } from "@/server/idempotency";

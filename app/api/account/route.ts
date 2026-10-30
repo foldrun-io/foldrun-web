@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requirePermission, errorResponse, requireAccountWide } from "@/server/api";
+import { requireTenant, errorResponse, requireAccountWide } from "@/server/api";
 import { accountDir } from "@/lib/store";
 import { readAgentsMdKeys, setAgentsMdKeys } from "@/lib/agents-md";
 import { defaultsPatch, defaultsOf } from "@/components/defaults-model";

@@ -507,7 +507,6 @@ export async function changePassword(userId: string, current: string, next: stri
 // ---------- sessions ----------
 
 export const SESSION_COOKIE = "foldrun_session";
-const SESSION_DAYS = 30;
 
 const sign = sessionMac;
 

@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { evaluateDeployed } from "@/lib/evals";
-import { requireTenant, errorResponse, requirePermission } from "@/server/api";
+import { errorResponse, requirePermission } from "@/server/api";
 import { audit } from "@/server/audit";
 import { deployWorkspace, planDeploy } from "@/lib/deploy";
 import type { DeployFile } from "@/lib/store";

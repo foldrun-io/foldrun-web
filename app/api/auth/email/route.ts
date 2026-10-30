@@ -13,7 +13,7 @@
 
 import { errorResponse, sessionUser } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
-import { verifySession, changeEmail, passwordMatches, findUserById, sessionIdOf, SESSION_COOKIE } from "@/server/users";
+import { changeEmail, passwordMatches, findUserById, sessionIdOf, SESSION_COOKIE } from "@/server/users";
 import { revokeSessions } from "@/server/sessions";
 import { refuseWhenLimited, clearLimit } from "@/server/limits";
 import { sendVerifyEmail, sendEmailChangedNotice } from "@/server/email";

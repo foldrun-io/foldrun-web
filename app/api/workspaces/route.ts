@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requirePermission } from "@/server/api";
-import { requireCaller } from "@/server/api";
+import { requireCaller, errorResponse, requirePermission } from "@/server/api";
 import { scopeAllows } from "@/platform/scope";
 import fs from "node:fs";
 import path from "node:path";
@@ -11,10 +10,6 @@ import { platform } from "@/lib/platform";
 import { billing } from "@/platform/billing";
 import { idempotent } from "@/server/idempotency";
 import { settingText } from "@/platform/settings";
-
-async function tenantOf(req: NextRequest) {
-  return await requireTenant(req);
-}
 
 export async function GET(req: NextRequest) {
   try {

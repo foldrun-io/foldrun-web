@@ -17,7 +17,7 @@ process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-idem-"
 delete process.env.FOLDRUN_REDIS_URL;
 
 const { createApiKey } = await import("../server/auth.ts");
-const { idempotent, resetIdempotencyMemory, PENDING_TTL_SEC } = await import("../server/idempotency.ts");
+const { idempotent, resetIdempotencyMemory } = await import("../server/idempotency.ts");
 
 const req = (key: string, idem: string, body = "{}", p = "/api/keys") =>
   new NextRequest(`http://localhost:3900${p}`, {

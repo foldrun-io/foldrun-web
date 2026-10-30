@@ -13,7 +13,6 @@ import { avatarUrl } from "@/platform/avatars";
 import { Avatar } from "@/components/avatar";
 import { platform } from "@/lib/platform";
 import { workspaceBudgetStanding } from "@/platform/limits";
-import { Badge } from "@/components/ui";
 import { AgentsPanel, FlowsPanel } from "@/components/workspace-desk";
 import { AttentionPanel, NowNext, StatusStrip } from "@/components/mission-control";
 import { needsList, flowStrips, nowBoard, spendWithin, DAY_MS } from "@/components/mission-model";

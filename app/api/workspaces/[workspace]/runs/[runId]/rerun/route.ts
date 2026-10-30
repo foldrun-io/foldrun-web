@@ -6,7 +6,7 @@
 // ones' results, so re-running only the middle would ship stale work.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requirePermission, ApiError } from "@/server/api";
+import { errorResponse, requirePermission, ApiError } from "@/server/api";
 import { rerunFrom } from "@/platform/queue";
 import { wantsWait, waitAndRespond } from "@/server/wait";
 import { idempotent } from "@/server/idempotency";

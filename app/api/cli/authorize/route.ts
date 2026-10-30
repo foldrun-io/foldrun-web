@@ -8,7 +8,7 @@
 // is not managing keys, it is being yourself on another machine.
 
 import { NextRequest, NextResponse } from "next/server";
-import { verifySession, SESSION_COOKIE, roleOfUser, allowedWorkspaces } from "@/server/users";
+import { roleOfUser, allowedWorkspaces } from "@/server/users";
 import { describeCliLogin, decideCliLogin } from "@/server/cli-login";
 import { errorResponse, sessionUser } from "@/server/api";
 

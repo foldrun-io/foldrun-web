@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireCaller, errorResponse, requirePermission, requireAccountWide } from "@/server/api";
+import { requireCaller, errorResponse, requireAccountWide } from "@/server/api";
 import { listWorkspaces, listFlows } from "@/lib/store";
 import { parseCron, cronMatches, tick } from "@/platform/scheduler";
 import { scopeAllows } from "@/platform/scope";

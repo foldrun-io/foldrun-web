@@ -4,7 +4,7 @@
 
 import fs from "node:fs";
 import Link from "next/link";
-import { accountDir, listWorkspaces, workspaceDir } from "@/lib/store";
+import { accountDir, listWorkspaces } from "@/lib/store";
 import { readAgentsMdKeys } from "@/lib/agents-md";
 import { accountBudgetStanding, workspaceBudgetStanding, type BudgetStanding } from "@/platform/limits";
 import { PageHeader, Card } from "@/components/ui";

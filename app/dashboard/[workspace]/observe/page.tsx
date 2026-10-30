@@ -39,7 +39,6 @@ const fine = (v: number | null) => ms(v === null ? null : v * 1000);
 // Credits charged (FOL-54): the ledger's figure, list price for a run not
 // settled yet. Token cost is not the bill.
 const usd = (v: number) => creditsShort(v);
-const pct = (part: number, whole: number) => (whole === 0 ? "—" : `${Math.round((part / whole) * 100)}%`);
 // Deterministic grouping — toLocaleString on the server formats with the
 // BOX's locale, and this page renders on the server.
 const num = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");

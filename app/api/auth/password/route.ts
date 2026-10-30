@@ -9,7 +9,7 @@
 
 import { errorResponse, sessionUser } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
-import { verifySession, changePassword, sessionIdOf, SESSION_COOKIE } from "@/server/users";
+import { changePassword, sessionIdOf, SESSION_COOKIE } from "@/server/users";
 import { revokeSessions, revocable } from "@/server/sessions";
 import { refuseWhenLimited, clearLimit, clientIp } from "@/server/limits";
 import { audit } from "@/server/audit";

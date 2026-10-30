@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, errorResponse, requirePermission, actorOf } from "@/server/api";
 import fs from "node:fs";
 import path from "node:path";
-import { workspaceDir, assertSafeName, writeWorkspaceFile, listAgents, AGENT_TEMPLATE } from "@/lib/store";
+import { workspaceDir, assertSafeName, writeWorkspaceFile, AGENT_TEMPLATE } from "@/lib/store";
 import { newAgentFile } from "@/lib/flow-patterns";
 import { idempotent } from "@/server/idempotency";
 import { agentsWithActivity } from "@/server/agent-activity";

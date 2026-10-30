@@ -16,7 +16,7 @@
 // the platform's credential: customers bring API keys, not claude.ai logins.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requirePermission, errorResponse, requireAccountWide } from "@/server/api";
+import { requireTenant, errorResponse, requireAccountWide } from "@/server/api";
 import { audit } from "@/server/audit";
 import { idempotent } from "@/server/idempotency";
 import { setSecret, deleteSecret } from "@/lib/secrets";
