@@ -7,35 +7,40 @@
 // accepted — the numbers are every account's, not one account's.
 
 import { NextRequest, NextResponse } from "next/server";
-import { timingSafeEqual } from "node:crypto";
 import { errorResponse, ApiError } from "@/server/api";
 import { CLAIM_RENEW_MS, queueStats } from "@/platform/queue";
 import { roomMetricsText } from "@/platform/room-metrics";
 import { billingMetricsText } from "@/platform/billing-metrics";
 import { listTenants, listWorkspaces, listRunSummaries } from "@/lib/store";
+import { clientIp, refuseWhenLimited, sameToken, BAD_CALLBACK_TOKENS } from "@/server/limits";
 
 export const dynamic = "force-dynamic";
 
 /**
- * The scrape credential, compared without leaking its length or content
- * through timing. Unset means the token path is closed entirely — a scraper
- * cannot get in by presenting an empty string, which is what a plain equality
- * check against an unset variable would have allowed.
+ * The scrape credential, compared in constant time (server/limits.ts
+ * sameToken: byte lengths, so a non-ASCII guess is a plain no). Unset means
+ * the token path is closed entirely — a scraper cannot get in by presenting
+ * an empty string, which is what a plain equality check against an unset
+ * variable would have allowed.
  */
 function scraperAuthorized(req: NextRequest): boolean {
   const expected = process.env.FOLDRUN_METRICS_TOKEN;
   if (!expected) return false;
   const offered = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
-  const a = Buffer.from(offered);
-  const b = Buffer.from(expected);
-  // timingSafeEqual throws on a length mismatch, which would itself leak the
-  // length; compare a fixed-size digest-shaped pair instead by padding to the
-  // longer of the two and requiring the lengths to match as a separate boolean.
-  if (a.length !== b.length) {
-    timingSafeEqual(b, b); // keep the work constant either way
-    return false;
-  }
-  return timingSafeEqual(a, b);
+  return sameToken(offered, expected);
+}
+
+/**
+ * Wrong scrape tokens are counted (30 Oct 2026), as the open callbacks count
+ * theirs: the API gate's limits key on an API key or a session, and this
+ * token is neither, so a stranger could try tokens without end. Per caller
+ * where a trusted proxy names one; else one count for the install — safe,
+ * because only refusals are counted and the right token is compared first,
+ * so a guesser can never throttle the real scraper.
+ */
+async function refuseWrongToken(req: NextRequest): Promise<NextResponse | null> {
+  if (!process.env.FOLDRUN_METRICS_TOKEN) return null; // closed: nothing to guess
+  return refuseWhenLimited(`metrics-refused:${clientIp(req) ?? "unknown"}`, BAD_CALLBACK_TOKENS.limit, BAD_CALLBACK_TOKENS.windowSec);
 }
 
 export async function GET(req: NextRequest) {
@@ -44,7 +49,11 @@ export async function GET(req: NextRequest) {
     // — queue depth, every account's spend — so an account's key or session
     // must not read them; until 2026-09-25 any tenant could. Without a
     // token configured the route is closed, as scraperAuthorized says.
-    if (!scraperAuthorized(req)) throw new ApiError("not found", 404);
+    if (!scraperAuthorized(req)) {
+      const limited = await refuseWrongToken(req);
+      if (limited) return limited;
+      throw new ApiError("not found", 404);
+    }
     const q = await queueStats();
     let running = 0;
     let awaiting = 0;

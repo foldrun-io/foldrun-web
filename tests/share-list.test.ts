@@ -8,6 +8,7 @@ import { isLiveShare, shareStatus, shareWho, visibleShares, type ShareRow } from
 
 const NOW = Date.parse("2026-10-19T12:00:00Z");
 const row = (p: Partial<ShareRow>): ShareRow => ({
+  id: "sh_tok",
   token: "tok",
   path: "storage/a.pdf",
   createdAt: "2026-10-19T11:00:00Z",
@@ -63,5 +64,6 @@ test("copies the server's public URL, renders emails safely, refreshes after a c
   const browser = fs.readFileSync(new URL("../components/file-browser.tsx", import.meta.url), "utf8");
   assert.equal((browser.match(/router\.refresh\(\)/g) ?? []).length >= 4, true, "share and unshare re-read the page too");
   const page = fs.readFileSync(new URL("../app/dashboard/[workspace]/storage/page.tsx", import.meta.url), "utf8");
-  assert.match(page, /url: canShare \? shareUrl\(s\.token\) : null/, "shareUrl() only when a public URL exists (it throws otherwise)");
+  assert.match(page, /url: canShare && sees \? shareUrl\(s\.token\) : null/, "shareUrl() only when a public URL exists (it throws otherwise), and only for a reader who may hold the token");
+  assert.match(list, /shares\?id=\$\{encodeURIComponent\(s\.id\)\}/, "revoke by id, so a masked row can still be taken down");
 });

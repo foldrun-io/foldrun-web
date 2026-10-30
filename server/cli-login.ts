@@ -33,7 +33,8 @@ import {
   unclaimCliLoginDb,
   pollCliLoginDb,
 } from "@/platform/short-lived-db.ts";
-import { createApiKey, revokeApiKey, CLI_KEY_DAYS } from "./auth.ts";
+import { createApiKey, revokeApiKey, coarseIp, CLI_KEY_DAYS } from "./auth.ts";
+import { clientIp } from "./limits.ts";
 
 /** A `foldrun login` key ends after CLI_KEY_DAYS unless the CLI renews it
  *  (FOL-71) — before, it lived until someone revoked it by hand. */
@@ -42,6 +43,12 @@ import type { Role } from "@/platform/permissions.ts";
 
 const file = () => path.join(dataRoot(), "cli-logins.json");
 const TTL_MS = 10 * 60 * 1000;
+/** How old a request may be and still be approved (RFC 8628 §5.4). A person
+ *  signing in their own terminal confirms within a minute or two; a code
+ *  someone else started has to be carried to the victim first, so a short
+ *  window is what makes that phishing hard. Denying stays open the whole
+ *  TTL (30 Oct 2026). */
+export const APPROVE_WINDOW_MS = 5 * 60 * 1000;
 /** How long the CLI is told to wait between polls. */
 export const POLL_SECONDS = 3;
 /** The most requests one install keeps at once — the endpoint is open. */
@@ -54,6 +61,11 @@ export interface CliLogin {
   code: string;
   /** The machine asking, as the CLI reports it — for the label on the key. */
   hostname: string;
+  /** Where the request came from, coarsely (an IPv4 /24 or IPv6 /48, from
+   *  the trusted proxy's word), and its country when the edge says; null
+   *  when not known. Shown on the approval page (30 Oct 2026). */
+  requestedFrom?: string | null;
+  requestedCountry?: string | null;
   createdAt: string;
   expiresAt: string;
   /** `approving`: won by a person, its key being minted — still pending to the CLI. */
@@ -112,10 +124,30 @@ function newCode(taken: Set<string>): string {
   }
 }
 
-/** A new request. The CLI keeps `id`; the person sees `code`. */
-export async function beginCliLogin(hostname: string): Promise<CliLogin> {
+/**
+ * Where a request came from, as far as anything honest says: the trusted
+ * proxy's address for the caller (clientIp — never a raw header), cut to
+ * its /24 or /48, and, behind Cloudflare with the edge stamp, the country
+ * Cloudflare writes. Nulls when not known.
+ */
+export function requestOrigin(req: { headers: Headers }): { network: string | null; country: string | null } {
+  const ip = clientIp(req);
+  if (!ip) return { network: null, country: null };
+  const country = process.env.FOLDRUN_TRUST_PROXY === "cloudflare" ? (req.headers.get("cf-ipcountry")?.trim().toUpperCase() ?? null) : null;
+  return {
+    network: coarseIp(new Headers({ "x-forwarded-for": ip })),
+    // XX is Cloudflare's "unknown"; T1 (Tor) is not a country.
+    country: country && /^[A-Z]{2}$/.test(country) && country !== "XX" ? country : null,
+  };
+}
+
+/** A new request. The CLI keeps `id`; the person sees `code`. `from` is
+ *  where it came from, for the approval page — never trusted for anything. */
+export async function beginCliLogin(hostname: string, from: { network?: string | null; country?: string | null } = {}): Promise<CliLogin> {
   const now = Date.now();
   const cleanHost = hostname.replace(/[^\w.-]/g, "").slice(0, 64) || "unknown";
+  const requestedFrom = from.network ?? null;
+  const requestedCountry = from.country && /^[A-Z]{2}$/.test(from.country) ? from.country : null;
   if (databaseEnabled()) {
     if ((await sweepCliLoginsDb()) >= MAX_PENDING) throw new Error("too many sign-in requests waiting — try again in a few minutes");
     for (;;) {
@@ -123,6 +155,8 @@ export async function beginCliLogin(hostname: string): Promise<CliLogin> {
         id: crypto.randomBytes(24).toString("hex"),
         code: newCode(new Set()),
         hostname: cleanHost,
+        requestedFrom,
+        requestedCountry,
         createdAt: new Date(now).toISOString(),
         expiresAt: new Date(now + TTL_MS).toISOString(),
         status: "pending",
@@ -131,6 +165,8 @@ export async function beginCliLogin(hostname: string): Promise<CliLogin> {
         id: row.id,
         code: row.code,
         hostname: row.hostname,
+        requestedFrom,
+        requestedCountry,
         status: "pending",
         createdAt: new Date(row.createdAt),
         expiresAt: new Date(row.expiresAt),
@@ -144,6 +180,8 @@ export async function beginCliLogin(hostname: string): Promise<CliLogin> {
     id: crypto.randomBytes(24).toString("hex"),
     code: newCode(new Set(rows.map((r) => r.code))),
     hostname: cleanHost,
+    requestedFrom,
+    requestedCountry,
     createdAt: new Date(now).toISOString(),
     expiresAt: new Date(now + TTL_MS).toISOString(),
     status: "pending",
@@ -152,19 +190,27 @@ export async function beginCliLogin(hostname: string): Promise<CliLogin> {
   return row;
 }
 
-/** What the browser needs to show before the person decides. */
+/** What the browser needs to show before the person decides: the machine,
+ *  when it asked, from where (when known), and until when it can still be
+ *  approved (`approveBy`, the short window — RFC 8628 §5.4). */
 export async function describeCliLogin(
   code: string,
-): Promise<Pick<CliLogin, "code" | "hostname" | "expiresAt" | "status"> | null> {
+): Promise<(Pick<CliLogin, "code" | "hostname" | "expiresAt" | "status" | "createdAt"> & { requestedFrom: string | null; requestedCountry: string | null; approveBy: string }) | null> {
+  const approveBy = (createdAt: string) => new Date(Date.parse(createdAt) + APPROVE_WINDOW_MS).toISOString();
   if (databaseEnabled()) {
     const r = await findCliLoginByCodeDb(normaliseCode(code));
-    return r ? { code: r.code, hostname: r.hostname, expiresAt: r.expiresAt.toISOString(), status: r.status } : null;
+    if (!r) return null;
+    const createdAt = r.createdAt.toISOString();
+    return { code: r.code, hostname: r.hostname, expiresAt: r.expiresAt.toISOString(), status: r.status, createdAt, requestedFrom: r.requestedFrom ?? null, requestedCountry: r.requestedCountry ?? null, approveBy: approveBy(createdAt) };
   }
   const row = read().find((r) => r.code === normaliseCode(code) && live(r));
   if (!row) return null;
-  const { hostname, expiresAt, status } = row;
-  return { code: row.code, hostname, expiresAt, status };
+  const { hostname, expiresAt, status, createdAt } = row;
+  return { code: row.code, hostname, expiresAt, status, createdAt, requestedFrom: row.requestedFrom ?? null, requestedCountry: row.requestedCountry ?? null, approveBy: approveBy(createdAt) };
 }
+
+/** Too old to approve: past APPROVE_WINDOW_MS since the CLI asked. */
+const tooOldToApprove = (createdAt: string | Date, now = Date.now()) => now - new Date(createdAt).getTime() > APPROVE_WINDOW_MS;
 
 /**
  * The person's decision. Approval mints the key at their role — an owner's
@@ -175,12 +221,13 @@ export async function decideCliLogin(
   code: string,
   decision: "approve" | "deny",
   person: { tenant: string; email: string; role: Role; workspaces?: string[] | null },
-): Promise<"approved" | "denied" | "not-found"> {
+): Promise<"approved" | "denied" | "not-found" | "too-old"> {
   if (databaseEnabled()) {
     const c = normaliseCode(code);
     const row = await findCliLoginByCodeDb(c);
     if (!row || row.status !== "pending") return "not-found";
     if (decision === "deny") return (await decideCliLoginDb(c, "denied", null)) ? "denied" : "not-found";
+    if (tooOldToApprove(row.createdAt)) return "too-old";
     // Win the request first, then mint: two approvals at once used to mint
     // two keys, and the loser's lived on, delivered to nobody (FOL-94).
     if (!(await claimCliLoginDb(c))) return "not-found";
@@ -208,6 +255,7 @@ export async function decideCliLogin(
     write(rows);
     return "denied";
   }
+  if (tooOldToApprove(row.createdAt)) return "too-old";
   const role: Role = person.role === "owner" ? "admin" : person.role;
   // Claimed before the key exists, as on the database path.
   row.status = "approving";

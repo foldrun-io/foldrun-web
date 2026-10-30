@@ -25,6 +25,7 @@ const runDisplayStatus = (r: Pick<RunRecord, "status" | "stopRequested">) =>
   r.status === "failed" && r.stopRequested ? "stopped" : r.status;
 import { Markdown } from "@/components/markdown";
 import { useConfirm } from "@/components/confirm";
+import { useCan } from "@/components/role";
 import { SmartTextarea } from "@/components/smart-textarea";
 import { RunTimeline, traceEvents, stepSpan, fmtDur } from "@/components/run-timeline";
 import { stepInputs, stepOutputs, fmtTokens, fmtBytes, fmtCached, fmtTokenDetail, fmtTokenLine, promptCacheNote, type StepRef, deniedPaths } from "@/components/step-io-model";
@@ -93,6 +94,8 @@ export function LiveRun({
   // last event — so the server and the browser draw the same thing.
   const clock = hydrated || run.finishedAt ? now : runClock(run);
   const [busy, setBusy] = useState(false);
+  // Erasing a run's record is workspace:manage (an admin), as the API asks.
+  const mayErase = useCan("workspace:manage");
   // What the approver wants to say on the way through — guidance on approve,
   // reason on reject. Keyed by step so parallel gates don't share a box.
   const [notes, setNotes] = useState<Record<number, string>>({});
@@ -509,7 +512,7 @@ export function LiveRun({
               Turn into a test
             </button>
           )}
-          {finished && (
+          {finished && mayErase && (
             <button onClick={() => void remove()} disabled={busy} className={buttonClass("minimal")}>
               Delete
             </button>

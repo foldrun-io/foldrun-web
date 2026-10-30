@@ -3,8 +3,24 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { buttonClass, inputClass } from "@/components/ui";
+import { LocalTime } from "@/components/local-time";
 
-type Request = { code: string; hostname: string; expiresAt: string; status: string };
+type Request = {
+  code: string;
+  hostname: string;
+  expiresAt: string;
+  status: string;
+  /** When the terminal asked, from where (an IPv4 /24 or IPv6 /48, and a
+   *  country behind Cloudflare; null when not known), whether this browser
+   *  is on that network, and until when it can be approved (30 Oct 2026). */
+  createdAt?: string;
+  requestedFrom?: string | null;
+  requestedCountry?: string | null;
+  sameNetwork?: boolean | null;
+  approveBy?: string;
+};
+
+const CLOCK: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit" };
 type Me = { user: { email: string; tenant: string; role: string } | null };
 
 export function CliAuthorize() {
@@ -111,10 +127,17 @@ export function CliAuthorize() {
         <div className="mt-5 rounded-md border border-line bg-surface p-4 text-sm">
           <dl className="space-y-1.5">
             <div className="flex justify-between gap-4"><dt className="text-fg-muted">Machine</dt><dd className="font-mono text-fg">{request.hostname}</dd></div>
+            {request.createdAt && <div className="flex justify-between gap-4"><dt className="text-fg-muted">Asked at</dt><dd className="text-fg"><LocalTime iso={request.createdAt} options={CLOCK} />{request.approveBy ? <span className="text-fg-muted"> — can be approved until <LocalTime iso={request.approveBy} options={CLOCK} /></span> : null}</dd></div>}
+            <div className="flex justify-between gap-4"><dt className="text-fg-muted">Asked from</dt><dd className="font-mono text-fg">{request.requestedFrom ? `${request.requestedFrom}${request.requestedCountry ? ` (${request.requestedCountry})` : ""}` : <span className="font-sans text-fg-muted">not known</span>}</dd></div>
             <div className="flex justify-between gap-4"><dt className="text-fg-muted">Signs in as</dt><dd className="text-fg">{me.email}</dd></div>
             <div className="flex justify-between gap-4"><dt className="text-fg-muted">Account</dt><dd className="text-fg">{me.tenant}</dd></div>
             <div className="flex justify-between gap-4"><dt className="text-fg-muted">Role</dt><dd className="text-fg">{me.role === "owner" ? "admin (a key is never an owner)" : me.role}</dd></div>
           </dl>
+          {request.sameNetwork === false && (
+            <p className="mt-3 rounded-md border border-red-300 bg-red-50 p-2 text-xs text-red-700">
+              This request came from a different network than the one this browser is on. If you did not just run <span className="font-mono">foldrun login</span> on another machine of your own, deny it.
+            </p>
+          )}
           <p className="mt-3 text-xs text-fg-muted">
             Approving creates an API key for that machine at your role. The machine name is whatever that terminal said — it proves nothing.
             Approve only if you ran <span className="font-mono">foldrun login</span> yourself just now and your own terminal shows this code.

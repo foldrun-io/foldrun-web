@@ -13,8 +13,8 @@ import { WorkspaceHeader } from "@/components/workspace-header";
 import { UploadZone } from "./storage-tools";
 import { FileBrowser } from "@/components/file-browser";
 import { ShareList } from "@/components/share-list";
-import { browserDesks } from "@/server/storage-browser";
-import { listShares, shareUrl } from "@/platform/shares";
+import { browserDesks, dashboardShareReader } from "@/server/storage-browser";
+import { listShares, shareUrl, shareId, maskToken, readerSeesToken } from "@/platform/shares";
 import { can } from "@/platform/permissions";
 import { viewerRole } from "@/server/users";
 
@@ -43,25 +43,33 @@ export default async function WorkspaceFilesPage({
       </main>
     );
   }
-  const { desks, canShare } = await browserDesks(tenant, [workspace]);
+  const reader = await dashboardShareReader();
+  const { desks, canShare } = await browserDesks(tenant, [workspace], reader);
   const count = listStorage(tenant, workspace).length;
   // Every link this desk has (live, expired and revoked), newest decided in
   // the list itself. Read here so the list and the browser's per-file pills
   // can never disagree; revoking still goes through the API.
   const role = await viewerRole();
   const canRevoke = role === null || can(role, "workspace:write");
-  const shares = (await listShares(tenant, workspace)).map((s) => ({
-    token: s.token,
-    path: s.path,
-    createdAt: s.createdAt,
-    createdBy: s.createdBy,
-    expiresAt: s.expiresAt,
-    revokedAt: s.revokedAt,
-    // The public link from FOLDRUN_PUBLIC_URL, as the browser's pills and the
-    // share API give it. shareUrl() throws with no public address; then the
-    // row is listed and revocable but has nothing honest to copy.
-    url: canShare ? shareUrl(s.token) : null,
-  }));
+  // A token is the link itself: only an admin or the link's maker is handed
+  // it (and so a Copy button); everyone else sees the row, masked, and an
+  // editor can still revoke it by id (30 Oct 2026) — the API's own rule.
+  const shares = (await listShares(tenant, workspace)).map((s) => {
+    const sees = readerSeesToken(s, reader);
+    return {
+      id: shareId(s.token),
+      token: sees ? s.token : maskToken(s.token),
+      path: s.path,
+      createdAt: s.createdAt,
+      createdBy: s.createdBy,
+      expiresAt: s.expiresAt,
+      revokedAt: s.revokedAt,
+      // The public link from FOLDRUN_PUBLIC_URL, as the browser's pills and the
+      // share API give it. shareUrl() throws with no public address; then the
+      // row is listed and revocable but has nothing honest to copy.
+      url: canShare && sees ? shareUrl(s.token) : null,
+    };
+  });
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-8">

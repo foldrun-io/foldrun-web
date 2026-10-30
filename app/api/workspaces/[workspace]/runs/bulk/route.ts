@@ -23,7 +23,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, reportError, requirePermission } from "@/server/api";
 import { rerunFrom, stopRun } from "@/platform/queue";
-import { listRuns } from "@/lib/store";
+import { listRunSummaries } from "@/lib/store";
 import { idempotent } from "@/server/idempotency";
 
 /** The most runs one call will touch. A bulk action is a recovery tool, not
@@ -127,13 +127,16 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
 }
 
 /** The runs a filter names, newest first. Every clause is an AND, and an
- *  absent clause constrains nothing. */
-function select(tenant: string, workspace: string, body: BulkBody) {
+ *  absent clause constrains nothing. Read off the runs index, as the list
+ *  route is (30 Oct 2026): listRuns JSON-parsed every record in the
+ *  workspace on every call, dry runs included, and only id, flow, status and
+ *  startedAt are needed here. */
+function select(tenant: string, workspace: string, body: BulkBody): { id: string }[] {
   const ids = body.runIds?.length ? new Set(body.runIds) : null;
   const statuses = body.status?.length ? new Set(body.status) : null;
   const since = body.since ? new Date(body.since).getTime() : null;
   const until = body.until ? new Date(body.until).getTime() : null;
-  return listRuns(tenant, workspace)
+  const found = listRunSummaries(tenant, workspace)
     .filter((r) => {
       if (ids && !ids.has(r.id)) return false;
       if (statuses && !statuses.has(r.status)) return false;
@@ -144,6 +147,17 @@ function select(tenant: string, workspace: string, body: BulkBody) {
       return true;
     })
     .sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1));
+  // A run named by id is never dropped silently: one the index cannot
+  // summarise (a torn record) or does not hold is still tried, so the answer
+  // says what went wrong with it. Only when the ids are the whole filter — a
+  // status or date clause cannot be judged without the summary.
+  if (ids && !statuses && !body.flow && since === null && until === null) {
+    const have = new Set(found.map((r) => r.id));
+    const picked: { id: string }[] = [...found];
+    for (const id of ids) if (!have.has(id)) picked.push({ id });
+    return picked;
+  }
+  return found;
 }
 
 /** At most once per Idempotency-Key — server/idempotency.ts. */

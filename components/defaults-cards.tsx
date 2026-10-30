@@ -490,7 +490,7 @@ export function NotifyCard({
   const v = form.value;
   const set = (p: Partial<typeof v>) => form.setValue({ ...v, ...p });
   const toggleEvent = (e: string) => set({ events: v.events.includes(e) ? v.events.filter((x) => x !== e) : [...v.events, e] });
-  const inheritedLine = inherited ? [inherited.email, inherited.url].filter(Boolean).join(" and ") : null;
+  const inheritedLine = inherited ? [inherited.email, inherited.url, inherited.hidden ? "a webhook" : null].filter(Boolean).join(" and ") : null;
 
   return (
     <SettingsForm form={form} hint="notify: in AGENTS.md">
@@ -499,6 +499,9 @@ export function NotifyCard({
         {v.enabled ? "Notifications set here" : inheritedLine ? `Inherit the account's: ${inheritedLine}` : "No notifications"}
       </label>
       {scopeNote && <p className="text-xs text-fg-subtle">{scopeNote}</p>}
+      {(initial?.hidden || inherited?.hidden) && (
+        <p className="text-xs text-fg-subtle">The account&apos;s webhook URL is set; it is shown only to members with every workspace, since a webhook URL is often a credential.</p>
+      )}
       {v.enabled && (
         <>
           <Field label="Email" help="Sent through the account's RESEND_API_KEY connection.">

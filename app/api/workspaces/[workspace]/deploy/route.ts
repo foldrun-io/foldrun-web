@@ -16,6 +16,7 @@ import { audit } from "@/server/audit";
 import { deployWorkspace, planDeploy } from "@/lib/deploy";
 import { workspaceDir, type DeployFile } from "@/lib/store";
 import { workspaceCapRefusal } from "@/server/workspace-cap";
+import { assertMayChangeWorkspacePolicy } from "@/server/workspace-policy";
 import fs from "node:fs";
 import { idempotent } from "@/server/idempotency";
 
@@ -98,6 +99,11 @@ async function postOnce(
       await requirePermission(req, "workspace:manage");
       const overCap = await workspaceCapRefusal(tenant, workspace);
       if (overCap) return NextResponse.json({ error: overCap }, { status: 402 });
+    } else {
+      // The deployed AGENTS.md may not change the workspace's policy keys
+      // past an editor (server/workspace-policy.ts, 30 Oct 2026); a deploy
+      // that makes the workspace already needed workspace:manage above.
+      assertMayChangeWorkspacePolicy(actor, tenant, workspace, files, "replace");
     }
 
     const result = deployWorkspace(tenant, workspace, files, {

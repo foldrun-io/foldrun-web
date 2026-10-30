@@ -46,6 +46,8 @@ for (const ws of ["desk", "other"]) {
 }
 const DRAFT_FLOW = path.join(DATA, TENANT, "workspaces/desk/flows/draft.md");
 fs.writeFileSync(DRAFT_FLOW, "---\nname: draft\n---\n\n1. [[writer]] — Write it.\n");
+// Rotate refuses a flow that is not a webhook (30 Oct 2026): the one it rotates is one.
+fs.writeFileSync(path.join(DATA, TENANT, "workspaces/desk/flows/hooked.md"), "---\nname: hooked\ntrigger: webhook\n---\n\n1. [[writer]] — Publish it.\n");
 
 const { key: admin } = await createApiKey(TENANT, "admin", "owner@acme.test", undefined, "admin");
 const { key: scoped } = await createApiKey(TENANT, "scoped", "owner@acme.test", undefined, "editor", ["desk"]);
@@ -60,14 +62,14 @@ const req = (method: string, url: string, key?: string, body?: unknown, headers:
 
 test("rotating a webhook twice with one Idempotency-Key rotates once, and the replay withholds the token", async () => {
   resetIdempotencyMemory();
-  const send = () => rotate.POST(req("POST", "/api/workspaces/desk/hooks/publish/rotate", admin, {}, { "idempotency-key": "rot-1" }), ctx({ workspace: "desk", flow: "publish" }));
+  const send = () => rotate.POST(req("POST", "/api/workspaces/desk/hooks/hooked/rotate", admin, {}, { "idempotency-key": "rot-1" }), ctx({ workspace: "desk", flow: "hooked" }));
   const first = await send();
   assert.equal(first.status, 200);
   assert.match(((await first.json()) as { path: string }).path, /token=/);
   const again = await send();
   assert.equal(again.headers.get("idempotent-replayed"), "true");
   assert.equal(((await again.json()) as { path: string | null }).path, null);
-  assert.equal(hookGeneration(TENANT, "desk", "publish"), 1);
+  assert.equal(hookGeneration(TENANT, "desk", "hooked"), 1);
 });
 
 test("a step appended through flows/draft (a flow named draft) is appended once per key, not refused as in flight", async () => {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
+import { Readable } from "node:stream";
 import { requireTenant, errorResponse } from "@/server/api";
 import { readRun, runOutputPath } from "@/lib/store";
 import { byteRange } from "@/server/byte-range";
@@ -33,6 +34,16 @@ const TYPES: Record<string, string> = {
   ".cpuprofile": "application/json; charset=utf-8",
 };
 
+/**
+ * The bytes from start to end (inclusive), streamed (30 Oct 2026). Both
+ * answers used to buffer what they sent — the whole file without a Range,
+ * and `bytes=0-` asked for the same — so a few parallel fetches of a
+ * multi-GB browser recording held it all on the web pod.
+ */
+function streamOf(file: string, start: number, end: number): ReadableStream<Uint8Array> {
+  return Readable.toWeb(fs.createReadStream(file, { start, end })) as unknown as ReadableStream<Uint8Array>;
+}
+
 export async function GET(
   req: NextRequest,
   ctx: { params: Promise<{ workspace: string; runId: string }> },
@@ -52,14 +63,11 @@ export async function GET(
     const range = byteRange(req.headers.get("range"), size);
     if (range === "bad") return new NextResponse(null, { status: 416, headers: { "content-range": `bytes */${size}` } });
     if (range) {
-      const fd = fs.openSync(file, "r");
-      const part = Buffer.alloc(range.end - range.start + 1);
-      try { fs.readSync(fd, part, 0, part.length, range.start); } finally { fs.closeSync(fd); }
-      return new NextResponse(new Uint8Array(part), {
+      return new NextResponse(streamOf(file, range.start, range.end), {
         status: 206,
         headers: {
           "content-type": type,
-          "content-length": String(part.length),
+          "content-length": String(range.end - range.start + 1),
           "content-range": `bytes ${range.start}-${range.end}/${size}`,
           "accept-ranges": "bytes",
           "content-disposition": disposition,
@@ -68,12 +76,11 @@ export async function GET(
         },
       });
     }
-    const bytes = fs.readFileSync(file);
-    return new NextResponse(new Uint8Array(bytes), {
+    return new NextResponse(size === 0 ? null : streamOf(file, 0, size - 1), {
       headers: {
         "content-type": type,
         "accept-ranges": "bytes",
-        "content-length": String(bytes.length),
+        "content-length": String(size),
         "content-disposition": contentDisposition("inline", path.basename(file)),
         "x-content-type-options": "nosniff",
         "cache-control": "private, no-store",

@@ -33,6 +33,8 @@ export interface ConnectionRow {
   /** The sites it is bound to: the egress proxy fills it for these alone,
    *  and it never enters a sandbox. Absent when unbound. */
   sites?: string[];
+  /** An account secret limited to these workspaces; absent: every one. */
+  workspaces?: string[];
   /** What the far end said the last time this credential was used. Null
    *  when nothing has used it yet, which is a third state and shown as
    *  one: unused is not the same as working, or as broken. */
@@ -207,8 +209,108 @@ function SecretSites({ row, tenant, workspace, editable }: { row: ConnectionRow;
   );
 }
 
+/**
+ * Which workspaces may use an account secret: all (the default), or only
+ * the ones selected — GitHub's "selected repositories" for an organisation
+ * secret. Any other workspace finds it not set. `choices` is every
+ * workspace's name when the viewer may change it (an account-wide admin);
+ * without it the setting is shown, not offered.
+ */
+function SecretWorkspaces({ row, tenant, choices }: { row: ConnectionRow; tenant: string; choices?: string[] }) {
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [mode, setMode] = useState<"all" | "selected">(row.workspaces ? "selected" : "all");
+  const [picked, setPicked] = useState<string[]>(row.workspaces ?? []);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  async function save() {
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/secrets", {
+        method: "PATCH",
+        headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
+        // ifWorkspaces: the list this row showed. Another admin's change
+        // since is refused (409) rather than silently overwritten.
+        body: JSON.stringify({ workspaces: mode === "all" ? null : picked, ifWorkspaces: row.workspaces ?? null, name: row.name }),
+      });
+      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "could not save");
+      setEditing(false);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+  const limited = row.workspaces;
+  return (
+    <div className="mt-1 text-xs">
+      {!editing ? (
+        <p className="flex flex-wrap items-center gap-1.5 text-fg-subtle">
+          <span>Workspaces:</span>
+          {!limited ? (
+            <span className="text-fg">all</span>
+          ) : limited.length ? (
+            <>
+              <span>only</span>
+              {limited.map((w) => <code key={w} className="font-mono text-fg">{w}</code>)}
+            </>
+          ) : (
+            <span className="text-fg">none — no workspace can use it</span>
+          )}
+          {choices && (
+            <button type="button" onClick={() => {
+              // From what the page holds NOW, not what it held when this row
+              // first drew: a refresh since may have changed the list.
+              setMode(row.workspaces ? "selected" : "all");
+              setPicked(row.workspaces ?? []);
+              setError(null);
+              setEditing(true);
+            }} className="text-accent underline-offset-2 hover:underline">
+              Change
+            </button>
+          )}
+        </p>
+      ) : (
+        <form onSubmit={(e) => { e.preventDefault(); void save(); }} className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-3" role="radiogroup" aria-label={`Workspaces that may use ${row.name}`}>
+            <label className="flex items-center gap-1.5">
+              <input type="radio" name={`ws-${row.name}`} checked={mode === "all"} onChange={() => setMode("all")} />
+              All workspaces
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input type="radio" name={`ws-${row.name}`} checked={mode === "selected"} onChange={() => setMode("selected")} />
+              Selected workspaces
+            </label>
+          </div>
+          {mode === "selected" && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {(choices ?? []).map((w) => (
+                <label key={w} className="flex items-center gap-1.5 font-mono">
+                  <input type="checkbox" checked={picked.includes(w)}
+                    onChange={(e) => setPicked(e.target.checked ? [...picked, w] : picked.filter((x) => x !== w))} />
+                  {w}
+                </label>
+              ))}
+            </div>
+          )}
+          <p className="text-fg-muted">
+            &quot;All&quot; includes workspaces made later. A change applies to runs that start after it — stop a running one to cut it off now.
+          </p>
+          <div className="flex items-center gap-2">
+            <button type="submit" disabled={busy} className={buttonClass("primary")}>Save</button>
+            <button type="button" onClick={() => setEditing(false)} className={buttonClass("minimal")}>Cancel</button>
+          </div>
+        </form>
+      )}
+      {error && <p className="mt-1 text-red-600">{error}</p>}
+    </div>
+  );
+}
+
 export function Connections({
-  tenant, secrets, clients, workspace, heading = true, callbackUrl = null, connections = [],
+  tenant, secrets, clients, workspace, heading = true, callbackUrl = null, connections = [], limitTo,
 }: {
   tenant: string;
   secrets: ConnectionRow[];
@@ -222,6 +324,10 @@ export function Connections({
    *  has one configured (FOLDRUN_OAUTH_CALLBACK_URL). Otherwise it is this
    *  page's own origin plus /api/oauth/callback, filled in on the client. */
   callbackUrl?: string | null;
+  /** Every workspace's name, on the account's page for a viewer who may
+   *  limit an account secret to some of them; otherwise the limit is shown
+   *  and not offered. */
+  limitTo?: string[];
 }) {
   const router = useRouter();
   const [confirm, confirmDialog] = useConfirm();
@@ -230,6 +336,10 @@ export function Connections({
   const [f, setF] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // A new account secret's workspaces: null is all (the default), a list is
+  // only those — sent with the value in the same PUT, so it is never open
+  // to every workspace in between (30 Oct 2026).
+  const [newLimit, setNewLimit] = useState<string[] | null>(null);
   // Nothing is chosen for the person: "" = no app picked yet, NEW_APP = enter
   // one, else a saved app's name (no client id or secret again). With no saved
   // app on an account page there is nothing to pick, so a new one is implied.
@@ -273,7 +383,7 @@ export function Connections({
     const res = await fetch("/api/secrets", {
       method: "PUT",
       headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
-      body: JSON.stringify({ workspace, ...payload, name }),
+      body: JSON.stringify({ workspace, ...payload, name, ...(!workspace && limitTo && newLimit !== null ? { workspaces: newLimit } : {}) }),
     });
     if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "could not save");
   }
@@ -443,6 +553,33 @@ export function Connections({
               {oauthBrowser ? (savedApp ? "Connect →" : "Save & Connect →") : "Save"}
             </button>
           </div>
+
+          {!workspace && limitTo && !oauthBrowser && (
+            <div className="space-y-1 text-xs" role="radiogroup" aria-label="Workspaces that may use it">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className={FIELD_LABEL_CLASS}>Workspaces</span>
+                <label className="flex items-center gap-1.5">
+                  <input type="radio" name="new-secret-workspaces" checked={newLimit === null} onChange={() => setNewLimit(null)} />
+                  All workspaces
+                </label>
+                <label className="flex items-center gap-1.5">
+                  <input type="radio" name="new-secret-workspaces" checked={newLimit !== null} onChange={() => setNewLimit([])} />
+                  Selected workspaces
+                </label>
+              </div>
+              {newLimit !== null && (
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  {limitTo.map((w) => (
+                    <label key={w} className="flex items-center gap-1.5 font-mono">
+                      <input type="checkbox" checked={newLimit.includes(w)}
+                        onChange={(e) => setNewLimit(e.target.checked ? [...newLimit, w] : newLimit.filter((x) => x !== w))} />
+                      {w}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {kind === "key" && (
             <>
@@ -664,6 +801,7 @@ export function Connections({
                   {grant && <GrantStatus c={grant} />}
                   <SecretHealth health={s.health ?? null} />
                   <SecretSites row={s} tenant={tenant} workspace={workspace} editable={!workspace || s.scope === "workspace"} />
+                  {!workspace && s.scope === "account" && <SecretWorkspaces row={s} tenant={tenant} choices={limitTo} />}
                 </div>
                 {grant?.client && (!workspace || s.scope === "workspace") ? (
                   <button onClick={() => reconnect(s)} className={buttonClass(grant.status === "ok" ? "secondary" : "primary")}>Reconnect</button>

@@ -11,6 +11,7 @@ import {
 } from "@/lib/storage";
 import { bodyCut } from "@/server/body-limit";
 import { idempotent } from "@/server/idempotency";
+import { jsonObject } from "@/server/body";
 
 // The file store's HTTP surface. Three verbs, one noun:
 //
@@ -58,8 +59,9 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
   try {
     const { workspace } = await ctx.params;
     const tenant = (await requirePermission(req, "workspace:write")).tenant;
-    const body = (await req.json()) as { path?: string; sha?: string; size?: number };
-    if (!body.path || !body.sha || typeof body.size !== "number") {
+    // An object with string path and sha, or 400 — a `null` body was a 500.
+    const body = await jsonObject(req);
+    if (typeof body.path !== "string" || !body.path || typeof body.sha !== "string" || !body.sha || typeof body.size !== "number") {
       return NextResponse.json({ error: "expected { path, sha, size }" }, { status: 400 });
     }
     // registerUpload HEADs the object before it believes any of this — the

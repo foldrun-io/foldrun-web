@@ -15,7 +15,7 @@ import { fileStoreEnabled } from "@/lib/storage";
 import { nowMs } from "@/components/overview-model";
 import { PageHeader } from "@/components/ui";
 import { FileBrowser } from "@/components/file-browser";
-import { browserDesks } from "@/server/storage-browser";
+import { browserDesks, dashboardShareReader } from "@/server/storage-browser";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +36,7 @@ export default async function AccountStoragePage({ searchParams }: { searchParam
 
   const scope = await viewerScope();
   const names = listWorkspaces(tenant).filter((w) => scopeAllows(scope, w.name)).map((w) => w.name);
-  const { desks, canShare } = await browserDesks(tenant, names);
+  const { desks, canShare } = await browserDesks(tenant, names, await dashboardShareReader());
   // Desks with files first, busiest first; the empty ones at the end.
   desks.sort((a, b) => (b.files.length > 0 ? 1 : 0) - (a.files.length > 0 ? 1 : 0) || b.files.reduce((s, f) => s + f.size, 0) - a.files.reduce((s, f) => s + f.size, 0));
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireAccountWide, errorResponse } from "@/server/api";
+import { requireCaller, requireAccountWide, errorResponse } from "@/server/api";
 import { updateAdminState } from "@/platform/admin";
 import { forgetAccountProfile } from "@/server/api-limits";
 import { parseVersion } from "@/server/api-version";
@@ -9,13 +9,15 @@ import { apiFactsFor } from "@/server/api-facts";
 // its requests get when they send no Foldrun-Version header, and its use of
 // the API over the last 30 days (versions, and deprecated routes it calls).
 //
-//   GET                         { version: {…}, limits: {…}, usage: {…} | null }
+//   GET                         { version: {…}, limits: {…}, usage: {…} | null, usageHidden? }
 //   PATCH { version: "YYYY-MM-DD" | null }   pin, or unpin (null → current)
 
 export async function GET(req: NextRequest) {
   try {
-    const tenant = await requireTenant(req);
-    return NextResponse.json(await apiFactsFor(tenant));
+    const { tenant, actor } = await requireCaller(req);
+    // Who calls which route is the whole account's: shown to a caller with
+    // every workspace (apiFactsFor).
+    return NextResponse.json(await apiFactsFor(tenant, actor.workspaces));
   } catch (err) {
     return errorResponse(err);
   }

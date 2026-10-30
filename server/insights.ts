@@ -21,3 +21,28 @@ export function accountInsights(tenant: string, scope: string[] | null, days = 7
   }
   return findInsights(runs);
 }
+
+/**
+ * accountInsights, remembered for a short while per account, scope, window
+ * and workspace (30 Oct 2026). Each answer reads up to PER_WORKSPACE whole
+ * run records per workspace, synchronously; a key polling GET /api/insights
+ * on a 25-workspace account read ~7,500 files a request. Recurring problems
+ * over days do not change by the second, so thirty seconds of staleness
+ * costs nothing and bounds the reads to one pass per half-minute per caller
+ * shape. In-process: each pod keeps its own, which is all the bound needs.
+ */
+export const INSIGHTS_TTL_MS = 30_000;
+const INSIGHTS_MAX_ENTRIES = 500;
+const remembered = new Map<string, { at: number; insights: Insight[] }>();
+
+export function cachedAccountInsights(tenant: string, scope: string[] | null, days = 7, only?: string | null, now = Date.now()): Insight[] {
+  const key = JSON.stringify([tenant, scope ? [...scope].sort() : null, days, only ?? null]);
+  const hit = remembered.get(key);
+  if (hit && now - hit.at < INSIGHTS_TTL_MS) return hit.insights;
+  const insights = accountInsights(tenant, scope, days, only, now);
+  remembered.delete(key);
+  remembered.set(key, { at: now, insights });
+  // Oldest first in a Map's order: drop from the front past the cap.
+  while (remembered.size > INSIGHTS_MAX_ENTRIES) remembered.delete(remembered.keys().next().value as string);
+  return insights;
+}

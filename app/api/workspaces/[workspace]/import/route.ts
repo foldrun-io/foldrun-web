@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requirePermission, errorResponse, actorOf } from "@/server/api";
+import { requirePermission, errorResponse, reportError, actorOf } from "@/server/api";
 import { audit } from "@/server/audit";
 import { readPackage, planImport, applyImport, PackageError } from "@/lib/package";
 import { idempotent } from "@/server/idempotency";
 import { workspaceCapRefusal } from "@/server/workspace-cap";
+import { assertMayChangeWorkspacePolicy } from "@/server/workspace-policy";
 
 // Import a package (what …/export downloads) into this workspace — or, for
 // a workspace package, make this workspace from it. The body is the .zip.
@@ -37,6 +38,12 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
       // The plan's workspace count, as POST /api/workspaces checks it.
       const overCap = await workspaceCapRefusal(tenant, workspace);
       if (overCap) return NextResponse.json({ error: overCap }, { status: 402 });
+    } else {
+      // Into a workspace that exists: what the import would write over its
+      // AGENTS.md (or add beside a project.md) may not change the policy
+      // keys past an editor (server/workspace-policy.ts, 30 Oct 2026).
+      const written = new Set([...plan.added, ...(flag("overwrite") ? plan.overwritten : [])]);
+      assertMayChangeWorkspacePolicy(actor, tenant, workspace, pkg.files.filter((f) => written.has(f.path)), "merge");
     }
     const by = await actorOf(req);
     // `expect`: the permission and plan checks above were for this answer to
@@ -58,6 +65,12 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     });
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
+    // A write that failed is the server's fault, and its message is a Node
+    // error naming the data path (30 Oct 2026): logged by reportError, and
+    // the caller hears only what reportError lets through.
+    if (err instanceof PackageError && err.status >= 500 && err.cause !== undefined) {
+      return NextResponse.json({ error: `the import could not be written, and nothing was kept: ${reportError(err.cause).message}` }, { status: err.status });
+    }
     if (err instanceof PackageError) return NextResponse.json({ error: err.message }, { status: err.status });
     return errorResponse(err);
   }

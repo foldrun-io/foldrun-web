@@ -18,18 +18,6 @@ import { RestoreWorkspace, RequestRestore } from "./controls";
 
 export const dynamic = "force-dynamic";
 
-function size(bytes: number | null): string {
-  if (bytes === null) return "—";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let n = bytes;
-  let i = 0;
-  while (n >= 1024 && i < units.length - 1) {
-    n /= 1024;
-    i++;
-  }
-  return `${n.toFixed(n >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
-}
-
 export default async function BackupsPage({ searchParams }: { searchParams: Promise<{ tenant?: string }> }) {
   const { tenant = "default" } = await searchParams;
   const qs = tenant !== "default" ? `?tenant=${tenant}` : "";
@@ -116,7 +104,6 @@ export default async function BackupsPage({ searchParams }: { searchParams: Prom
                 <tr className="border-b border-line-faint text-left text-[11px] uppercase tracking-wide text-fg-subtle">
                   <th className="px-4 py-2 font-medium">Taken</th>
                   <th className="px-4 py-2 font-medium">Holds</th>
-                  <th className="px-4 py-2 font-medium">Size</th>
                   <th className="px-4 py-2 font-medium">Checked</th>
                   <th className="px-4 py-2 font-medium">Where</th>
                   <th className="px-4 py-2 font-medium">Encrypted</th>
@@ -127,7 +114,6 @@ export default async function BackupsPage({ searchParams }: { searchParams: Prom
                   <tr key={b.id}>
                     <td className="whitespace-nowrap px-4 py-2"><LocalTime iso={b.at} /></td>
                     <td className="px-4 py-2 text-fg-tertiary">{b.kinds.map((k) => (k === "files" ? "files" : k === "database" ? "database" : b.encrypted ? "keys" : "keys (sealed)")).join(", ")}</td>
-                    <td className="px-4 py-2 tabular-nums text-fg-tertiary">{size(b.bytes)}</td>
                     <td className="px-4 py-2">{b.verified ? <Badge variant="success">verified</Badge> : <Badge variant="warning">no</Badge>}</td>
                     <td className="px-4 py-2 text-fg-tertiary">{b.offsite ? `server + ${b.offsite.toUpperCase()}` : "server only"}</td>
                     <td className="px-4 py-2">

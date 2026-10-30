@@ -749,14 +749,25 @@ test("a team grows by invite link and refuses to lose its last member", opts, as
 });
 
 test("rotating a webhook changes its URL, twice changes it twice", opts, async () => {
-  const first = (await (
-    await api("/api/workspaces/hello/hooks/note/rotate", { method: "POST" })
-  ).json()) as { path: string };
-  const second = (await (
-    await api("/api/workspaces/hello/hooks/note/rotate", { method: "POST" })
-  ).json()) as { path: string };
-  assert.match(first.path, /token=/);
-  assert.notEqual(first.path, second.path);
+  // Only a webhook flow has a URL to rotate (30 Oct 2026): `note` is
+  // trigger: manual, so it is refused as GET …/hooks/note refuses it, and
+  // made a webhook for the rotation, then put back.
+  assert.equal((await api("/api/workspaces/hello/hooks/note/rotate", { method: "POST" })).status, 409);
+  assert.equal((await api("/api/workspaces/hello/hooks/no-such-flow/rotate", { method: "POST" })).status, 404);
+  const setTrigger = (trigger: string) => api("/api/workspaces/hello/flows/note", { method: "PATCH", body: JSON.stringify({ trigger: { trigger } }) });
+  assert.equal((await setTrigger("webhook")).status, 200);
+  try {
+    const first = (await (
+      await api("/api/workspaces/hello/hooks/note/rotate", { method: "POST" })
+    ).json()) as { path: string };
+    const second = (await (
+      await api("/api/workspaces/hello/hooks/note/rotate", { method: "POST" })
+    ).json()) as { path: string };
+    assert.match(first.path, /token=/);
+    assert.notEqual(first.path, second.path);
+  } finally {
+    await setTrigger("manual");
+  }
 });
 
 test("a signed Stripe payment credits the ledger exactly once", hosted, async () => {

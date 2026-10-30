@@ -76,7 +76,7 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   "GET /api/workspaces/[workspace]/proposals": SERVER("[workspace]/evals/page.tsx and inbox → listProposals + settleProposal"),
   "GET /api/workspaces/[workspace]/proposals/[id]": SERVER("[workspace]/evals/page.tsx → listProposals, each settled as it is read"),
   "GET /api/workspaces/[workspace]/runs/[runId]/trace": SERVER("live-run.tsx → RunTree builds the same tree with core trace-tree.ts from the run it already polls"),
-  "GET /api/insights": SERVER("observe/page.tsx → accountInsights"),
+  "GET /api/insights": SERVER("observe/page.tsx → cachedAccountInsights"),
   "GET /api/issues": SERVER("issues/page.tsx, page.tsx and [workspace]/page.tsx → accountIssues"),
   "GET /api/issues/[id]": SERVER("issues/page.tsx → accountIssues (one card per issue, #id)"),
   "GET /api/account/backups": SERVER("settings/backups/page.tsx → listBackups, backupPolicy"),

@@ -23,6 +23,7 @@ const { createApiKey } = await import("../server/auth.ts");
 const { webhookPath, hookGeneration } = await import("@/lib/webhook");
 type Handler = (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
 const read = (await import("../app/api/workspaces/[workspace]/hooks/[flow]/route.ts")) as unknown as { GET: Handler };
+const rotate = (await import("../app/api/workspaces/[workspace]/hooks/[flow]/rotate/route.ts")) as unknown as { POST: Handler };
 
 const TENANT = "acme";
 const dir = path.join(DATA, TENANT, "workspaces", "desk");
@@ -69,4 +70,18 @@ test("an unknown flow is a 404", async () => {
 test("the URL is a credential: workspace:manage, as rotate and the settings page", async () => {
   assert.equal((await get("publish")).status, 401);
   assert.equal((await get("publish", editor)).status, 403);
+});
+
+test("rotate refuses what GET refuses: an unknown flow is 404, a non-webhook flow 409, and neither gets a generation (30 Oct 2026)", async () => {
+  const post = (flow: string) =>
+    rotate.POST(new NextRequest(`http://localhost/api/workspaces/desk/hooks/${flow}/rotate`, { method: "POST", headers: { authorization: `Bearer ${admin}` } }), ctx({ workspace: "desk", flow }));
+  assert.equal((await post("nope")).status, 404);
+  assert.equal(hookGeneration(TENANT, "desk", "nope"), 0);
+  const manual = await post("daily");
+  assert.equal(manual.status, 409);
+  assert.match((await manual.json()).error, /not webhook/);
+  assert.equal(hookGeneration(TENANT, "desk", "daily"), 0);
+  const before = hookGeneration(TENANT, "desk", "publish");
+  assert.equal((await post("publish")).status, 200);
+  assert.equal(hookGeneration(TENANT, "desk", "publish"), before + 1);
 });

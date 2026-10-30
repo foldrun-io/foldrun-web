@@ -18,11 +18,11 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const { tenant } = await requireCaller(req);
+    const { tenant, actor } = await requireCaller(req);
     const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
     const person = session ? await findUserById(session.id) : null;
     const dismissedAt = (person?.prefs?.[ONBOARDING_PREF] as string | undefined) ?? null;
-    return NextResponse.json({ ...(await onboardingFor(tenant)), dismissed: Boolean(dismissedAt), dismissedAt });
+    return NextResponse.json({ ...(await onboardingFor(tenant, actor.workspaces)), dismissed: Boolean(dismissedAt), dismissedAt });
   } catch (err) {
     return errorResponse(err);
   }

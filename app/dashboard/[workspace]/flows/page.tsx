@@ -11,7 +11,7 @@ import { workspaceDir, listAgents, listFlows, listRuns, parseProvider, accountDi
 import { lintFlow } from "@/lib/flow-lint";
 import { workspaceTools } from "@/lib/store";
 import { libraryTools } from "@/lib/library";
-import { readCatalog, loadCatalog, lintFlowModels, type AgentModelInfo } from "@/lib/catalog";
+import { readCatalog, refreshCatalogSoon, lintFlowModels, type AgentModelInfo } from "@/lib/catalog";
 import { configMatter } from "@/lib/matter";
 import path from "node:path";
 import { RunButton } from "../../run-button";
@@ -127,7 +127,7 @@ export default async function FlowsPage({
     frontOf(workspaceDir(tenant, workspace)).provider ?? frontOf(accountDir(tenant)).provider,
   );
   const catalog = provider?.baseUrl ? readCatalog(provider.baseUrl) : null;
-  if (provider?.baseUrl) void loadCatalog(provider.baseUrl);
+  if (provider?.baseUrl) refreshCatalogSoon(provider.baseUrl);
   const agentModels: AgentModelInfo[] = agents.map((a) => ({
     name: a.name,
     model: a.model,

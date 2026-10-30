@@ -5,16 +5,18 @@
 // one-line descriptions in foldrun-docs/api.md) — so the spec cannot drift
 // from what the server answers; tests/openapi.test.ts fails when it would.
 //
-// Request and response schemas are written here for the routes people call
-// most, from what those handlers actually validate. Every other operation
-// gets the generic object schema: an honest "JSON, see the docs" is better
-// than an invented shape a code generator would trust.
+// Request and response schemas: every operation has one (30 Oct 2026), in
+// server/openapi-shapes/<group>.ts, written from what the handler validates
+// and answers — or a sentence saying why it has none (tests/openapi-coverage
+// .test.ts). The API guard (scripts/api-guard.mjs) can only protect fields a
+// schema names, which is why they matter.
 
 import { ROUTES as ALL_ROUTES } from "./openapi-routes.ts";
 import { billing, freeBilling } from "@/platform/billing";
 import { CURRENT_API_VERSION } from "./api-version.ts";
 
-type Schema = Record<string, unknown>;
+import { type Schema, type Shape, obj, str, bool, int, GENERIC, Issue, Run, EffectiveFlag } from "./openapi-shapes/kit.ts";
+import { GROUP_SHAPES } from "./openapi-shapes/index.ts";
 
 /** Routes that carry their own proof (a token in the URL, a signature) or
  *  none at all — everything else takes the bearer key or the session. */
@@ -30,59 +32,32 @@ const OPEN = [
 const OPEN_OPS = new Set(["GET /api/cli/authorize"]);
 export const isOpen = (p: string, method?: string) => OPEN.some((r) => r.test(p)) || (method !== undefined && OPEN_OPS.has(`${method} ${p}`));
 
-const obj = (properties: Record<string, Schema>, required: string[] = []): Schema => ({
-  type: "object",
-  properties,
-  ...(required.length ? { required } : {}),
-});
-const str = (description?: string): Schema => ({ type: "string", ...(description ? { description } : {}) });
-const bool = { type: "boolean" };
-const int = { type: "integer" };
-const GENERIC: Schema = { type: "object", additionalProperties: true, description: "JSON — see docs/api.md for this route's fields" };
-
-const Tokens: Schema = {
-  ...obj({
-    input: { ...int, description: "all input tokens, cache reads and writes included" },
-    output: int,
-    cacheRead: { ...int, description: "the part of input the prompt cache served (a tenth of the price); absent before 18 Oct 2026" },
-    cacheWrite: { ...int, description: "the part of input written to the prompt cache; absent before 18 Oct 2026" },
-  }),
-  type: ["object", "null"],
-};
-
-// FOL-54 step 3: core issues.ts.
-const IssueEvent = obj({ at: str(), by: str(), action: str("acknowledge | snooze | resolve | reopen"), until: str(), note: str() });
-const Issue = obj({
-  id: str(), kind: str("platform | failed | blocked | bad | missed"), status: str("open | acknowledged | snoozed | resolved"),
-  regressed: { ...bool, description: "it was resolved before and came back" }, sinceRevision: { type: ["string", "null"], description: "the revision the first run of this episode ran" },
-  snoozedFor: { type: ["integer", "null"], description: "snoozed until it happens this many more times" },
-  workspace: str(), workspaces: { type: "array", items: str() }, what: str(), agent: { type: ["string", "null"] },
-  reason: str(), action: str("what to do, in plain words"), firstSeen: str(), lastSeen: str(), count: int,
-  runs: { type: "array", items: obj({ workspace: str(), id: str(), at: str() }) },
-  recoveredAt: { type: ["string", "null"], description: "the flow's newest good run after the last occurrence; it closes nothing" },
-  acknowledged: { type: ["object", "null"] }, snoozedUntil: { type: ["string", "null"] }, resolved: { type: ["object", "null"] },
-  history: { type: "array", items: IssueEvent },
+/** GET /api/account/api (server/api-facts.ts apiFactsFor). */
+const AccountApi = obj({
+  version: obj({ current: str(), pinned: { type: ["string", "null"] }, effective: str(), supported: { type: "array", items: str() }, supportMonths: int }),
+  limits: obj({ plan: str(), windowSeconds: int, perCredential: obj({ read: int, write: int }), perAccount: obj({ read: int, write: int }) }),
+  usage: {
+    ...obj({
+      days: int,
+      versions: { type: "array", items: obj({ version: str(), requests: int, lastSeen: str() }) },
+      deprecated: {
+        type: "array",
+        items: obj({
+          route: str(), requests: int, lastSeen: str(),
+          callers: { type: "array", items: obj({ credential: str("who called: a key's prefix or a person"), requests: int, lastSeen: str() }) },
+          deprecatedAt: { type: ["string", "null"] }, sunsetAt: { type: ["string", "null"] }, link: { type: ["string", "null"] },
+        }),
+        description: "deprecated routes the account still calls",
+      },
+    }),
+    type: ["object", "null"],
+    description: "the account's API use over the last 30 days; null to a caller limited to some workspaces (it names who calls each route), or when it could not be read",
+  },
+  usageHidden: { ...bool, description: "true: usage is withheld because the caller is limited to some workspaces" },
 });
 
-const Run = obj({
-  id: str(), flow: str(), status: str("queued | running | awaiting-approval | completed | failed | stopped"),
-  startedAt: str(), finishedAt: str(), test: bool,
-  verdict: { type: ["string", "null"], description: "GOOD | QUIET | BLOCKED | BAD, the word the run's summary leads with; null for none" },
-  outcome: str("in the runs list: running | queued | waiting | good | done | quiet | blocked | bad | failed | stopped — the one outcome every surface shows"),
-  failure: { type: ["object", "null"], description: "in the runs list: { agent, reason } — the step that failed and its last error; null when none" },
-  chargedUsd: { type: ["number", "null"], description: "in the runs list: what the account was charged for the run, in USD (one credit is one cent); null until the ledger settles it. costUsd is the token cost at the model's list price" },
-  tokens: Tokens,
-  steps: { type: "array", items: { ...obj({ tokens: Tokens }), additionalProperties: true } },
-});
-
-const EffectiveFlag = obj({
-  name: str(), description: str(), owner: str(), default: bool, on: bool,
-  source: str("account | global | rollout | default — what decided it"),
-  rollout: { type: ["integer", "null"], description: "the rollout percentage in force, when one is" },
-});
-
-/** Hand-written shapes, by "METHOD path". */
-const SHAPES: Record<string, { body?: Schema; response?: Schema; query?: { name: string; description: string }[] }> = {
+/** Written before the per-group files (kept as they were). */
+const LEGACY_SHAPES: Record<string, Shape> = {
   "GET /api/workspaces/{workspace}/runs": {
     query: [
       { name: "limit", description: "newest first; default 50, at most 500 — counted after the filters" },
@@ -107,13 +82,25 @@ const SHAPES: Record<string, { body?: Schema; response?: Schema; query?: { name:
   "POST /api/workspaces/{workspace}/deploy": {
     body: obj(
       {
-        files: { type: "object", additionalProperties: { type: "string" }, description: "path → content" },
+        // An array of { path, content } — the route refuses anything else. It
+        // was documented as a path → content map until 30 Oct 2026 (a
+        // SCHEMA_CORRECTIONS entry in server/api-version.ts says so).
+        files: { type: "array", items: obj({ path: str(), content: str() }, ["path", "content"]), description: "every file of the workspace; at most 10 MB of content in all" },
         commit: { type: ["string", "null"] }, force: bool, dryRun: bool,
         expectRemoved: { type: "array", items: str(), description: "the removals a person confirmed" },
       },
       ["files"],
     ),
-    response: obj({ ok: bool, applied: bool, issues: { type: "array", items: GENERIC }, removed: { type: "array", items: str() } }),
+    response: obj({
+      ok: bool, applied: bool,
+      issues: { type: "array", items: GENERIC, description: "dry run: { where, message } the deploy would refuse on" },
+      removed: { type: "array", items: str() },
+      added: { type: "array", items: str() }, updated: { type: "array", items: str() },
+      warnings: { type: "array", items: obj({ where: str(), message: str() }) },
+      blockedBy: { type: "array", items: str(), description: "dry run: runs in flight that would block the swap" },
+      commit: { type: ["string", "null"], description: "applied: the commit the workspace now runs, when known" },
+      preserved: { ...int, description: "applied: files kept that the deploy does not own (state, memory, storage)" },
+    }),
   },
   "GET /api/workspaces/{workspace}/check": {
     query: [
@@ -139,7 +126,10 @@ const SHAPES: Record<string, { body?: Schema; response?: Schema; query?: { name:
   },
   "GET /api/workspaces/{workspace}/source": {
     query: [{ name: "path", description: "one file; omitted, the tree" }],
-    response: obj({ path: str(), content: str(), sha256: str() }),
+    response: obj({
+      path: str("with ?path="), content: str("with ?path="), sha256: str("with ?path=: what PUT's ifMatch takes"),
+      files: { type: "array", items: str(), description: "without ?path=: every file's workspace-relative path (runs/ and outputs/ left out)" },
+    }),
   },
   "PUT /api/workspaces/{workspace}/source": {
     body: obj(
@@ -147,19 +137,23 @@ const SHAPES: Record<string, { body?: Schema; response?: Schema; query?: { name:
         path: str(),
         content: str(),
         message: str("the revision's note"),
-        ifMatch: str("sha256 from a GET; 409 if the file changed"),
+        ifMatch: { type: ["string", "null"], description: "sha256 from a GET; null: the caller saw no file there. 409 (with the current sha256, or null) if that is no longer so" },
         check: { type: "boolean", description: "refuse (422, with the issues, nothing written) when the file has an error a deploy would refuse" },
       },
       ["path", "content"],
     ),
     response: obj({
       ok: bool,
+      path: str(),
       sha256: str(),
       issues: { type: "array", description: "the deploy's checks for this file, as it was saved: errors and warnings", items: obj({ level: str("error | warn"), rule: str(), where: str(), message: str() }) },
     }),
   },
-  "PATCH /api/workspaces/{workspace}/source": { body: obj({ from: str(), to: str() }, ["from", "to"]) },
-  "DELETE /api/workspaces/{workspace}/source": { body: obj({ path: str() }, ["path"]) },
+  "PATCH /api/workspaces/{workspace}/source": {
+    body: { ...obj({ from: str(), to: str() }, ["from", "to"]), description: "rename a file; both paths pass the same gate as a write" },
+    response: obj({ ok: bool, path: str("the new path") }),
+  },
+  "DELETE /api/workspaces/{workspace}/source": { body: obj({ path: str("a file or a folder") }, ["path"]), response: obj({ ok: bool }) },
   "PATCH /api/workspaces/{workspace}/agents/{agent}": {
     body: obj({
       list: obj({ key: str("subagents | agents | tools"), name: str(), action: str("add | remove") }),
@@ -173,26 +167,62 @@ const SHAPES: Record<string, { body?: Schema; response?: Schema; query?: { name:
   },
   "GET /api/secrets": {
     query: [{ name: "workspace", description: "that workspace's own store; omitted, the account's" }],
-    response: obj({ secrets: { type: "array", items: obj({ name: str(), scope: str(), updatedAt: str(), health: GENERIC, sites: { type: "array", items: str(), description: "bound: filled by the egress proxy for these sites alone, never in a sandbox" } }) } }),
+    response: obj({
+      secrets: {
+        type: "array",
+        items: obj({
+          name: str(), scope: str("account | workspace"), updatedAt: str(),
+          kind: str("oauth2 | service_account | file | ssh | api | client_cert | identity — absent for a plain value"),
+          shadowed: { ...bool, description: "with ?workspace: this workspace's own entry hides an account secret of the same name" },
+          health: { ...GENERIC, type: ["object", "null"], description: "how the credential fared where it was last used; null before anything used it" },
+          sites: { type: "array", items: str(), description: "bound: filled by the egress proxy for these sites alone, never in a sandbox" },
+          workspaces: { type: "array", items: str(), description: "an account secret limited to these workspaces (listed without ?workspace); absent: every workspace" },
+        }),
+      },
+    }),
   },
   "PUT /api/secrets": {
     body: obj(
       {
-        name: str(), value: str("write-only, never returned"), workspace: str(), oauth2: GENERIC, service_account: GENERIC, ssh: GENERIC, api: GENERIC, file: str(),
+        name: str(), value: str("write-only, never returned"), workspace: str("that workspace's own store; omitted, the account's"),
+        oauth2: GENERIC, service_account: GENERIC, ssh: GENERIC, api: GENERIC,
+        client_cert: { ...GENERIC, description: "a client certificate for mutual TLS: { cert, key, passphrase?, export? }" },
+        identity: { ...GENERIC, description: "a keyless cloud identity: { audience }" },
+        file: str(),
+        scopes: str("with oauth2: the scopes consented to, kept for reconnecting"),
+        refresh_token_expires_in: { ...int, description: "with oauth2: seconds the refresh token lasts" },
         sites: { type: "array", items: str(), description: "bind it to these sites as it is set (see PATCH)" },
+        workspaces: { type: ["array", "null"], items: str(), description: "an ACCOUNT secret limited to these existing workspaces, sealed with the value in one write; null for every workspace. Not with workspace" },
       },
       ["name"],
     ),
-    response: obj({ ok: bool, sites: { type: "array", items: str() } }),
+    response: obj({
+      ok: bool, name: str(), scope: str("account | workspace"),
+      sites: { type: "array", items: str(), description: "when sites was sent" },
+      workspaces: { type: ["array", "null"], items: str(), description: "when workspaces was sent" },
+    }),
   },
   "PATCH /api/secrets": {
-    body: obj(
-      { name: str(), sites: { type: "array", items: str(), description: "api.example.com or *.example.com; [] unbinds" }, workspace: str() },
-      ["name", "sites"],
-    ),
-    response: obj({ ok: bool, name: str(), scope: str(), sites: { type: "array", items: str() } }),
+    body: {
+      ...obj(
+        {
+          name: str(),
+          sites: { type: "array", items: str(), description: "api.example.com or *.example.com; [] unbinds. The secret must exist in that scope" },
+          workspaces: { type: ["array", "null"], items: str(), description: "limits an ACCOUNT secret to these existing workspaces; null opens it to every workspace, [] to none. Not with workspace, and only by a caller who holds every workspace" },
+          workspace: str("that workspace's own store (sites only); omitted, the account's"),
+          ifWorkspaces: { type: ["array", "null"], items: str(), description: "the list you last saw — refused with 409 if it changed meanwhile" },
+        },
+        ["name"],
+      ),
+      description: "sites, workspaces, or both — at least one",
+    },
+    response: obj({
+      ok: bool, name: str(), scope: str("account | workspace"),
+      sites: { type: "array", items: str(), description: "when sites was sent: the binding now" },
+      workspaces: { type: ["array", "null"], items: str(), description: "when workspaces was sent: the limit now; null is every workspace" },
+    }),
   },
-  "DELETE /api/secrets": { body: obj({ name: str(), workspace: str() }, ["name"]) },
+  "DELETE /api/secrets": { body: obj({ name: str(), workspace: str() }, ["name"]), response: obj({ ok: bool }) },
   "POST /api/workspaces/{workspace}/runs/{runId}/rerun": {
     body: obj({
       step: { ...int, description: "1-based step to start from" },
@@ -263,13 +293,30 @@ const SHAPES: Record<string, { body?: Schema; response?: Schema; query?: { name:
     response: obj({ issue: Issue }),
   },
   "GET /api/keys": {
-    response: obj({ keys: { type: "array", items: obj({ id: str(), prefix: str(), label: str(), role: str(), workspaces: { type: ["array", "null"], items: str() }, createdAt: str(), revokedAt: { type: ["string", "null"] } }) } }),
+    response: obj({
+      keys: {
+        type: "array",
+        items: obj({
+          id: str(), prefix: str(), label: str(), tenant: str(), role: str(), workspaces: { type: ["array", "null"], items: str() },
+          createdAt: str(), createdBy: str(), revokedAt: { type: ["string", "null"] },
+          expiresAt: { type: ["string", "null"], description: "when it stops working; null never" },
+          lastUsedAt: { type: ["string", "null"] }, lastIp: { type: ["string", "null"], description: "coarse: an IPv4 /24 or IPv6 /48" },
+          expiryWarnedAt: { type: ["string", "null"] },
+          replacedBy: { type: ["string", "null"], description: "the key that replaced it in a rotation" },
+          origin: str("cli-login when `foldrun login` minted it; absent otherwise"),
+        }),
+      },
+    }),
   },
   "POST /api/keys": {
-    body: obj({ label: str(), role: str("viewer | editor | admin"), workspaces: { type: ["array", "null"], items: str() }, workspace: str("refused: deploy keys went with the platform's own git (17 Oct 2026)"), access: str("refused, as workspace") }),
-    response: obj({ ok: bool, key: str("shown once"), id: str(), prefix: str(), role: str(), workspaces: { type: ["array", "null"], items: str() } }),
+    body: obj({
+      label: str(), role: str("viewer | editor | admin"), workspaces: { type: ["array", "null"], items: str() },
+      expires: { type: ["string", "integer", "null"], description: "30d, 90d, 365d, a number of days (1–3650), or never / null" },
+      workspace: str("refused: deploy keys went with the platform's own git (17 Oct 2026)"), access: str("refused, as workspace"),
+    }),
+    response: obj({ ok: bool, key: str("shown once"), id: str(), prefix: str(), role: str(), workspaces: { type: ["array", "null"], items: str() }, expiresAt: { type: ["string", "null"] } }),
   },
-  "DELETE /api/keys": { body: obj({ id: str() }, ["id"]) },
+  "DELETE /api/keys": { body: obj({ id: str("a key may always revoke itself") }, ["id"]), response: obj({ ok: bool }) },
   "POST /api/team": {
     body: obj({
       role: str("viewer | editor | admin, default editor; admin only by the owner"),
@@ -368,26 +415,64 @@ const SHAPES: Record<string, { body?: Schema; response?: Schema; query?: { name:
       generatedAt: { type: "string" },
       totals: GENERIC,
       workspaces: { type: "array", items: GENERIC },
-      ledger: obj({
-        balanceUsd: { type: "number", description: "the account's balance" },
-        chargedUsd: { type: "number", description: "what the account has been charged for runs, all time" },
-      }),
-      waived: { type: "array", items: { type: "string" } },
+      ledger: {
+        ...obj({
+          balanceUsd: { type: "number", description: "the account's balance" },
+          chargedUsd: { type: "number", description: "what the account has been charged for runs, all time" },
+        }),
+        type: ["object", "null"],
+        description: "null for a caller limited to some workspaces: the wallet and the account-wide charge are not theirs to read",
+      },
+      waived: { type: ["array", "null"], items: { type: "string" }, description: "models | compute | network — legs the bill leaves out; null for a caller limited to some workspaces" },
     }),
   },
-  "GET /api/billing": { response: obj({ balance: { type: "number" }, balanceUsd: { type: "number" }, notices: { type: "array", items: { type: "string" } }, entries: { type: "array", items: GENERIC } }) },
+  "GET /api/billing": {
+    response: obj({
+      enabled: { ...bool, description: "billing is on for this install" },
+      balanceUsd: { type: "number", description: "the account's credit, in USD (one credit is one cent)" },
+      fullyWaived: { ...bool, description: "every leg is waived by the operator — the balance never stops a run" },
+      notices: { type: "array", items: { type: "string" }, description: "what the account should be told, worded by the server" },
+      entries: { type: "array", items: GENERIC, description: "the newest 100 ledger lines, newest first; a caller limited to some workspaces sees only theirs" },
+    }),
+  },
   "POST /api/billing/checkout": { body: obj({ usd: { type: "number" } }, ["usd"]), response: obj({ url: str() }) },
   "POST /api/billing/portal": { body: obj({ returnTo: str() }), response: obj({ url: str() }) },
-  "POST /api/billing/subscribe": { body: obj({ plan: str("starter | creator | pro | scale"), resume: bool }), response: obj({ url: str(), changed: bool }) },
-  "GET /api/account/api": {
+  "POST /api/billing/subscribe": {
+    body: obj({ plan: str("starter | creator | pro | scale"), resume: bool }),
     response: obj({
-      version: obj({ current: str(), pinned: { type: ["string", "null"] }, effective: str(), supported: { type: "array", items: str() }, supportMonths: int }),
-      limits: obj({ plan: str(), windowSeconds: int, perCredential: obj({ read: int, write: int }), perAccount: obj({ read: int, write: int }) }),
+      ok: bool,
+      url: str("Stripe Checkout, when the plan starts with a card"),
+      changed: { ...bool, description: "the plan was switched in place" },
+      resumed: { ...bool, description: "a plan set to stop was resumed" },
+      unchanged: { ...bool, description: "already on that plan" },
+      plan: str("the plan now in force"),
     }),
   },
-  "PATCH /api/account/api": { body: obj({ version: { type: ["string", "null"], description: "YYYY-MM-DD, or null for current" } }, ["version"]) },
+  "GET /api/account/api": { response: AccountApi },
+  "PATCH /api/account/api": {
+    body: obj({ version: { type: ["string", "null"], description: "YYYY-MM-DD, or null for current" } }, ["version"]),
+    response: { ...AccountApi, description: "the same as GET, as the whole account sees it (only a caller who holds every workspace may PATCH)" },
+  },
   "GET /api/account/flags": { response: obj({ flags: { type: "array", items: EffectiveFlag } }) },
 };
+
+/** Every operation's shape: the ones above, then each group's file. A key in
+ *  two places is a mistake — the later one would silently win. */
+export const SHAPES: Record<string, Shape> = (() => {
+  const out: Record<string, Shape> = { ...LEGACY_SHAPES };
+  for (const group of GROUP_SHAPES) {
+    for (const [op, shape] of Object.entries(group)) {
+      if (op in out) throw new Error(`openapi: ${op} has two shapes`);
+      out[op] = shape;
+    }
+  }
+  return out;
+})();
+
+/** The operations this build serves, as "METHOD /path" (HEAD left out). */
+export function documentedOperations(): string[] {
+  return ROUTES.flatMap((r) => r.methods.filter((m) => m !== "HEAD").map((m) => `${m} ${r.path}`));
+}
 
 const rl = (d: string): Schema => ({ description: d, schema: { type: "integer" } });
 const RATE_HEADERS = {
@@ -416,7 +501,15 @@ const EXTRA_STATUSES: Record<string, string[]> = {
   // The file changed since it was loaded (body.ifMatch is not its sha256).
   "PUT /api/workspaces/{workspace}/source": ["409"],
   // No secret by that name.
-  "PATCH /api/secrets": ["404"],
+  "PATCH /api/secrets": ["404", "409"],
+  // Renaming onto a taken name, or a secret limited to this workspace that
+  // cannot be read (409); the vault could not be updated (503).
+  "PATCH /api/workspaces/{workspace}": ["409", "503"],
+  "DELETE /api/workspaces/{workspace}": ["409", "503"],
+  // A sign-in code older than five minutes can no longer be approved.
+  "POST /api/cli/authorize": ["410"],
+  // The install sends no mail (code mail_not_configured), or it is already your address.
+  "POST /api/auth/email": ["409"],
 };
 
 export function openapiDocument(origin?: string): Schema {
@@ -443,7 +536,7 @@ export function openapiDocument(origin?: string): Schema {
         ...(open ? { security: [] } : {}),
         ...(shape?.body && method !== "GET" ? { requestBody: { required: true, content: { "application/json": { schema: shape.body } } } } : {}),
         responses: {
-          "200": { description: "OK", headers: RATE_HEADERS, content: { "application/json": { schema: shape?.response ?? GENERIC } } },
+          ...successOf(shape),
           "400": { $ref: "#/components/responses/Error" },
           ...(open ? {} : { "401": { $ref: "#/components/responses/Error" }, "403": { $ref: "#/components/responses/Error" } }),
           // A route that names something in its path can find nothing there
@@ -516,6 +609,19 @@ export function openapiDocument(origin?: string): Schema {
       },
     },
   };
+}
+
+/** The success response: JSON by default; a media type, an empty 204 or a
+ *  302 redirect where the shape says so. */
+function successOf(shape: Shape | undefined): Record<string, Schema> {
+  const status = shape?.status ?? "200";
+  if (status === "204") return { "204": { description: "Done — no body", headers: RATE_HEADERS } };
+  if (status.startsWith("3")) return { [status]: { description: shape?.media?.description ?? "A redirect", headers: { Location: { schema: { type: "string" } } } } };
+  if (shape?.media) {
+    const schema = shape.media.schema ?? { type: "string", format: "binary" };
+    return { [status]: { description: shape.media.description ?? "OK", headers: RATE_HEADERS, content: { [shape.media.type]: { schema } } } };
+  }
+  return { [status]: { description: "OK", headers: RATE_HEADERS, content: { "application/json": { schema: shape?.response ?? GENERIC } } } };
 }
 
 function tagOf(p: string): string {

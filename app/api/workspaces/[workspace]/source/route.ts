@@ -3,6 +3,7 @@ import { requireTenant, errorResponse, actorOf, requirePermission } from "@/serv
 import { createHash } from "node:crypto";
 import { readWorkspaceFile, writeWorkspaceFile, deleteWorkspacePath, listWorkspaceFiles, renameWorkspaceFile } from "@/lib/store";
 import { saveCheck } from "@/server/checks";
+import { assertMayChangeWorkspacePolicy } from "@/server/workspace-policy";
 
 /** The bytes a reader saw, as a short name: what `ifMatch` on a write
  *  compares against, so a restore or a save from a stale page is refused
@@ -36,7 +37,10 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ workspace: 
     if (!body.path || typeof body.content !== "string") {
       return NextResponse.json({ error: "expected { path, content, message?, ifMatch?, check? }" }, { status: 400 });
     }
-    const { tenant } = await requirePermission(req, "workspace:write");
+    const { tenant, actor } = await requirePermission(req, "workspace:write");
+    // AGENTS.md's policy keys (budget, notify, network_enforce…) are an
+    // admin's on this path too — server/workspace-policy.ts (30 Oct 2026).
+    assertMayChangeWorkspacePolicy(actor, tenant, workspace, [{ path: body.path, content: body.content }], "merge");
     const by = await actorOf(req);
     // ifMatch: the sha256 GET answered when the caller read the file. Checked
     // and written with nothing in between (both synchronous), so a change

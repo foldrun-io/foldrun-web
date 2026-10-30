@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ApiError, errorResponse, requirePermission } from "@/server/api";
 import { uploadUrl } from "@/lib/storage";
 import { idempotent } from "@/server/idempotency";
+import { jsonObject } from "@/server/body";
 
 // Phase one of an upload: ask where to put the bytes.
 //
@@ -28,7 +29,8 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
   try {
     const { workspace } = await ctx.params;
     const tenant = (await requirePermission(req, "workspace:write")).tenant;
-    const body = (await req.json()) as { path?: unknown; sha?: unknown; size?: unknown };
+    // An object, or 400: a `null` body used to be a TypeError, a 500.
+    const body = await jsonObject(req);
     if (typeof body.path !== "string" || !body.path || typeof body.sha !== "string" || !body.sha || (body.size !== undefined && typeof body.size !== "number")) {
       throw new ApiError("expected { path, sha, size? } — size is the file's length in bytes", 400);
     }

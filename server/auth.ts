@@ -433,6 +433,10 @@ export interface Actor {
   workspaces: string[] | null;
   /** A support view: reads as the owner, refused every write. */
   readOnly?: boolean;
+  /** For a key: "cli-login" when `foldrun login` minted it — a person's own
+   *  sign-in on their machine, which owner-only acts accept (actsForOwner);
+   *  absent for every other key. */
+  origin?: "cli-login";
 }
 
 export type AuthResult =
@@ -499,7 +503,7 @@ export async function resolveTenant(req: NextRequest): Promise<AuthResult> {
       // when a signed-in person minted it (the CLI's `foldrun login` key,
       // every key from the Settings page), else the key by its label — a
       // history of "api-key" said nothing about who changed the file.
-      actor: { kind: "key", id: record.id, name: record.createdBy ?? `key:${record.label || record.prefix}`, role: record.role ?? "admin", workspaces: record.workspaces ?? null },
+      actor: { kind: "key", id: record.id, name: record.createdBy ?? `key:${record.label || record.prefix}`, role: record.role ?? "admin", workspaces: record.workspaces ?? null, ...(record.origin === "cli-login" ? { origin: "cli-login" as const } : {}) },
     };
   }
   // The dashboard's own fetches carry no Bearer key — they carry the session

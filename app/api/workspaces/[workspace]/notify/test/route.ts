@@ -15,6 +15,13 @@ import { errorResponse, requirePermission } from "@/server/api";
 import { sendTestNotification } from "@/lib/notify";
 import { workspaceDir } from "@/lib/store";
 import { idempotent } from "@/server/idempotency";
+import { refuseWhenLimited } from "@/server/limits";
+
+/** Test sends per workspace per hour (30 Oct 2026). Each one is real mail
+ *  from the platform's domain, or a POST, to an address an editor chose; a
+ *  loop with fresh Idempotency-Keys was bounded only by the API's general
+ *  write limit. Enough to fix a setting and try again, several times. */
+const TESTS_PER_HOUR = 10;
 
 async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: string }> }) {
   try {
@@ -23,6 +30,8 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     if (!fs.existsSync(workspaceDir(tenant, workspace))) {
       return NextResponse.json({ error: `no workspace "${workspace}"` }, { status: 404 });
     }
+    const limited = await refuseWhenLimited(`notify-test:${tenant}:${workspace}`, TESTS_PER_HOUR, 3600);
+    if (limited) return limited;
     const result = await sendTestNotification(tenant, workspace);
     // 200 either way: the request was handled and the answer is the result.
     // A 500 here would read as "the test endpoint is broken" rather than

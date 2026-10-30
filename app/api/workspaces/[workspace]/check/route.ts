@@ -9,8 +9,10 @@
 // rule or category, `?online=1` adds the network checks (FOL-58).
 
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "node:crypto";
 import fs from "node:fs";
-import { requireTenant, errorResponse } from "@/server/api";
+import { requireTenant, requirePermission, errorResponse } from "@/server/api";
+import { refuseWhenLimited } from "@/server/limits";
 import { workspaceDir } from "@/lib/store";
 import { CHECK_RULES, SCAN_RULES, scanRule } from "@/lib/scan";
 import { workspaceCheck } from "@/server/checks";
@@ -21,23 +23,57 @@ import { lastRescan } from "@/platform/rescan";
 
 const SECURITY = new Set(["secret", "security", "content", "supply-chain"]);
 
+type OnlineResult = Awaited<ReturnType<typeof onlineFindings>>;
+
+/**
+ * ?online=1 sends the server out to OSV and to every remote MCP server the
+ * workspace names. Since 30 Oct 2026 that is an editor's ask (workspace:write,
+ * the role that can change what is checked), its answer is kept per workspace
+ * for ONLINE_TTL_MS while the files are the same, and fresh online passes are
+ * limited per workspace. Any viewer could loop it before and make the server
+ * fetch third-party URLs on every request.
+ */
+const ONLINE_TTL_MS = 10 * 60_000;
+const ONLINE_FRESH = { limit: 6, windowSec: 10 * 60 } as const;
+const onlineKept = new Map<string, { at: number; files: string; result: OnlineResult }>();
+
+/** The files the online checks read, as one digest: a redeploy is a fresh pass. */
+function filesDigest(tree: { path: string; content: string }[]): string {
+  const h = crypto.createHash("sha256");
+  for (const f of [...tree].sort((a, b) => a.path.localeCompare(b.path))) h.update(f.path).update("\0").update(f.content).update("\0");
+  return h.digest("hex");
+}
+
 export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: string }> }) {
   try {
     const { workspace } = await ctx.params;
-    const tenant = await requireTenant(req);
+    const q = req.nextUrl.searchParams;
+    const wantOnline = q.get("online") === "1" || q.get("online") === "true";
+    const tenant = wantOnline ? (await requirePermission(req, "workspace:write")).tenant : await requireTenant(req);
     const dir = workspaceDir(tenant, workspace);
     if (!fs.existsSync(dir)) return NextResponse.json({ error: `no workspace "${workspace}"` }, { status: 404 });
 
     let findings = workspaceCheck(tenant, workspace);
-    const q = req.nextUrl.searchParams;
     // FOL-58: ?online=1 adds the checks that need the network — known
     // vulnerabilities for exact runtime pins (OSV) and remote MCP servers'
     // tool text — and says what could not be checked.
-    const wantOnline = q.get("online") === "1" || q.get("online") === "true";
     let online: { problems: string[]; sources: { source: string; checked: boolean; problem?: string }[] } | null = null;
     if (wantOnline) {
-      const fetchGuarded = (u: string, i?: RequestInit) => platform.fetchUntrusted(u, i, { maxBytes: ONLINE_MAX_BYTES });
-      const r = await onlineFindings(checkTree(dir), { fetch: fetchGuarded, osvFetch: fetchGuarded });
+      const tree = checkTree(dir);
+      const files = filesDigest(tree);
+      const key = `${tenant}\0${workspace}`;
+      const kept = onlineKept.get(key);
+      let r: OnlineResult;
+      if (kept && kept.files === files && Date.now() - kept.at < ONLINE_TTL_MS) {
+        r = kept.result;
+      } else {
+        const limited = await refuseWhenLimited(`check-online:${tenant}/${workspace}`, ONLINE_FRESH.limit, ONLINE_FRESH.windowSec);
+        if (limited) return limited;
+        const fetchGuarded = (u: string, i?: RequestInit) => platform.fetchUntrusted(u, i, { maxBytes: ONLINE_MAX_BYTES });
+        r = await onlineFindings(tree, { fetch: fetchGuarded, osvFetch: fetchGuarded });
+        onlineKept.set(key, { at: Date.now(), files, result: r });
+        if (onlineKept.size > 1000) onlineKept.delete(onlineKept.keys().next().value as string);
+      }
       findings = [...findings, ...r.findings];
       online = { problems: r.problems, sources: r.sources };
     }

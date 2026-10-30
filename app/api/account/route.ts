@@ -1,20 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requireAccountWide } from "@/server/api";
+import { requireCaller, errorResponse, requireAccountWide } from "@/server/api";
 import { accountDir } from "@/lib/store";
 import { readAgentsMdKeys, setAgentsMdKeys } from "@/lib/agents-md";
-import { defaultsPatch, defaultsOf } from "@/components/defaults-model";
+import { defaultsPatch, defaultsOf, accountDefaultsFor } from "@/components/defaults-model";
 
 // The account's defaults — what its AGENTS.md frontmatter sets for every
 // workspace: a timezone for schedules, where to notify, a monthly cap.
 //
-//   GET            the current values
+//   GET            the current values — to a caller limited to some
+//                  workspaces, notify:'s URL and telemetry: as `hidden: true`
+//                  (accountDefaultsFor)
 //   PATCH { … }    set some; null clears one. Edits the keys in place and
 //                  leaves the rest of the file — comments included — alone.
 
 export async function GET(req: NextRequest) {
   try {
-    const tenant = await requireTenant(req);
-    return NextResponse.json({ defaults: defaultsOf(readAgentsMdKeys(accountDir(tenant))) });
+    const { tenant, actor } = await requireCaller(req);
+    return NextResponse.json({ defaults: accountDefaultsFor(defaultsOf(readAgentsMdKeys(accountDir(tenant))), actor.workspaces) });
   } catch (err) {
     return errorResponse(err);
   }

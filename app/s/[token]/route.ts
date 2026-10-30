@@ -49,13 +49,17 @@ const notFound = () =>
     headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
   });
 
-function headersFor(contentType: string, size: number, immutable: boolean) {
+function headersFor(contentType: string, size: number) {
   return {
     "content-type": contentType,
     "content-length": String(size),
-    // The bytes behind a token never change — a re-share mints a new token —
-    // so a long cache is safe, but only for a link that will still exist.
-    "cache-control": immutable ? "public, max-age=3600, immutable" : "public, max-age=300",
+    // Never stored by a shared cache (30 Oct 2026). This was "public,
+    // max-age=3600, immutable" for a link with no expiry and "public,
+    // max-age=300" otherwise, so a CDN edge kept serving a link for up to an
+    // hour after it was revoked or expired — and "the bytes never change" was
+    // never true either: the path behind a token is one an agent can rewrite.
+    // Revoking has to mean the next fetch is a 404.
+    "cache-control": "private, no-store",
     // This origin serves other people's files. Never let a browser decide a
     // .txt is really HTML, and never let it run as a page.
     "x-content-type-options": "nosniff",
@@ -80,7 +84,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ token: stri
   if (!opened) return notFound(); // deleted between resolve and read
   return new Response(opened.body, {
     status: 200,
-    headers: headersFor(hit.share.contentType, opened.size, hit.share.expiresAt === null),
+    headers: headersFor(hit.share.contentType, opened.size),
   });
 }
 
@@ -96,6 +100,6 @@ export async function HEAD(req: NextRequest, ctx: { params: Promise<{ token: str
   if (size === null) return notFound();
   return new Response(null, {
     status: 200,
-    headers: headersFor(hit.share.contentType, size, hit.share.expiresAt === null),
+    headers: headersFor(hit.share.contentType, size),
   });
 }

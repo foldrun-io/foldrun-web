@@ -165,15 +165,18 @@ export function FileBrowser({
     try { await navigator.clipboard.writeText(url); setToast(note); } catch { window.prompt("Copy this link", url); }
   };
   const share = async (f: BrowserFile) => {
-    if (f.share && shareState(f.share, now).state === "shared") return copy(f.share.url, "Link copied");
+    // A live link this viewer may copy is copied; one whose token is masked
+    // (another person's, and this viewer is not an admin) is not theirs to
+    // hand out, so Share mints them their own (30 Oct 2026).
+    if (f.share?.url && shareState(f.share, now).state === "shared") return copy(f.share.url, "Link copied");
     setBusy(keyOf(f));
     try {
       const r = await fetch(`/api/workspaces/${encodeURIComponent(f.workspace)}/shares`, { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ path: `storage/${f.path}` }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error ?? `sharing failed (${r.status})`);
-      const s: BrowserShare = { token: j.token, url: j.url, expiresAt: j.expiresAt ?? null };
+      const s: BrowserShare = { id: j.id, token: j.token, url: j.url, expiresAt: j.expiresAt ?? null };
       patch(f, { share: s });
-      await copy(s.url, `Shared — link copied${s.expiresAt ? ", works for 7 days" : ""}`);
+      await copy(j.url, `Shared — link copied${s.expiresAt ? ", works for 7 days" : ""}`);
       // The page's link list reads the store too: read it again.
       router.refresh();
     } catch (err) {
@@ -185,7 +188,7 @@ export function FileBrowser({
   const unshare = async (f: BrowserFile) => {
     if (!f.share) return;
     if (!(await confirm({ title: `Stop sharing ${f.path}?`, body: "The link stops working for everyone who has it.", confirmLabel: "Stop sharing" }))) return;
-    const r = await fetch(`/api/workspaces/${encodeURIComponent(f.workspace)}/shares?token=${encodeURIComponent(f.share.token)}`, { method: "DELETE", headers });
+    const r = await fetch(`/api/workspaces/${encodeURIComponent(f.workspace)}/shares?id=${encodeURIComponent(f.share.id)}`, { method: "DELETE", headers });
     if (r.ok) { patch(f, { share: null }); setToast("No longer shared"); router.refresh(); } else setToast(`could not stop sharing (${r.status})`);
   };
   // Files into a desk, one after another, then the page reads the store again.
@@ -237,7 +240,7 @@ export function FileBrowser({
   const qs = tenant !== "default" ? `?tenant=${tenant}` : "";
 
   const actions = (f: BrowserFile, big = false) => {
-    const shared = shareState(f.share, now).state === "shared";
+    const shared = shareState(f.share, now).state === "shared" && !!f.share?.url;
     // The design system's buttons, one size down on a row.
     const size = big ? "!gap-1.5 !text-sm" : "!gap-1.5 !px-2 !py-1 !text-xs";
     return (

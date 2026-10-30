@@ -129,7 +129,7 @@ export default async function UsagePage({
       />
       <BillingTabs current="usage" tenant={tenant} hosted={platform.edition() === "hosted"} />
 
-      {u.waived.length > 0 && (
+      {u.waived && u.waived.length > 0 && (
         <Banner tone="ok">
           This account is not charged for{" "}
           {u.waived.map((w) => (w === "models" ? "model tokens" : w === "compute" ? "sandbox time" : "network")).join(", ")}
@@ -145,7 +145,9 @@ export default async function UsagePage({
         <StatCard label="Models" value={credits(u.totals.modelUsd)} />
         <StatCard label="Platform" value={credits(u.totals.platformUsd)} />
         <StatCard label="Storage" value={fmtBytes(u.totals.storageBytes)} />
-        <StatCard label="Credit balance" value={credits(u.ledger.balanceUsd)} />
+        {/* The wallet is the whole account's: not shown to a member limited
+            to some workspaces (ledger: null, 30 Oct 2026). */}
+        <StatCard label="Credit balance" value={u.ledger ? credits(u.ledger.balanceUsd) : "—"} />
       </div>
 
       {/* What each desk and each agent costs, and whether that is moving.

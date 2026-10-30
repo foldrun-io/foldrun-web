@@ -121,3 +121,27 @@ test("the dialog's suggested workspace name is always a valid one", async () => 
   assert.equal(suggestName("blog.zip"), "blog");
   assert.equal(suggestName("--x--.ZIP"), "x");
 });
+
+test("a write that fails mid-import is a 500 that names no server path, and keeps nothing (30 Oct 2026)", async () => {
+  write("walled", "AGENTS.md", "---\nname: walled\n---\n");
+  const { bytes } = await exportOf("/api/workspaces/blog/export?kind=flow&name=publish", "blog");
+  const real = fs.writeFileSync;
+  // An EACCES as Node raises it: its message carries the absolute path.
+  (fs as { writeFileSync: typeof fs.writeFileSync }).writeFileSync = ((file: fs.PathOrFileDescriptor, ...rest: unknown[]) => {
+    if (typeof file === "string" && file.includes(`${path.sep}walled${path.sep}flows`)) {
+      throw Object.assign(new Error(`EACCES: permission denied, open '${file}'`), { code: "EACCES", syscall: "open", path: file, errno: -13 });
+    }
+    return (real as (...a: unknown[]) => void)(file, ...rest);
+  }) as typeof fs.writeFileSync;
+  let r: Response;
+  try {
+    r = await imp.POST(post("/api/workspaces/walled/import", admin, bytes), ctx("walled"));
+  } finally {
+    (fs as { writeFileSync: typeof fs.writeFileSync }).writeFileSync = real;
+  }
+  assert.equal(r.status, 500);
+  const { error } = (await r.json()) as { error: string };
+  assert.match(error, /nothing was kept/);
+  assert.ok(!error.includes(DATA) && !error.includes("EACCES"), `no path or errno in: ${error}`);
+  assert.equal(fs.existsSync(path.join(DATA, TENANT, "workspaces", "walled", "flows", "publish.md")), false);
+});

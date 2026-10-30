@@ -87,3 +87,16 @@ test("a declared schema correction is reported, not refused", () => {
   const r = judge([gone], base({}), { ...base({}), corrections: [{ method: "GET", path: RUNS, reason: "never returned" }] });
   assert.deepEqual([r.refused.length, r.answered[0].by], [0, "schema correction: never returned"]);
 });
+
+// 30 Oct 2026: every operation got a schema. Describing an operation the
+// document had left generic states what it always required; adding a required
+// body to an operation that was described (and took none) is still a break.
+test("documenting an undescribed operation for the first time is not a break; a new required body on a described one is", () => {
+  const generic = { type: "object", additionalProperties: true, description: "JSON — see docs/api.md for this route's fields" };
+  const a = doc({ "/api/x": { post: op(generic) }, "/api/y": { post: op(obj({ ok: { type: "boolean" } })) } });
+  const b = doc({
+    "/api/x": { post: op(obj({ ok: { type: "boolean" } }), obj({ name: str }, ["name"])) },
+    "/api/y": { post: op(obj({ ok: { type: "boolean" } }), obj({ name: str }, ["name"])) },
+  });
+  assert.deepEqual(apiBreaks(a, b).map((x: { path: string; what: string }) => `${x.path}: ${x.what}`), ["/api/y: a request body is now required"]);
+});

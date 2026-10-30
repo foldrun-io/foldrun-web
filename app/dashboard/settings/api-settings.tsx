@@ -28,13 +28,17 @@ export interface ApiFacts {
       callers: { credential: string; requests: number; lastSeen: string }[];
     }[];
   } | null;
+  /** True for a member limited to some workspaces: the account's use names
+   *  every workspace's callers, so it is not shown to them. */
+  usageHidden?: true;
 }
 
 const day = (iso: string) => new Date(iso).toISOString().slice(0, 10);
 
 /** Which versions answered this account lately, and any route on its way out
  *  it still calls — with who calls it, so the right script gets moved. */
-function ApiUsage({ usage }: { usage: ApiFacts["usage"] }) {
+function ApiUsage({ usage, hidden }: { usage: ApiFacts["usage"]; hidden?: boolean }) {
+  if (hidden) return <p className="mt-1 text-xs text-fg-subtle">The account&apos;s API use is shown to members with every workspace.</p>;
   if (!usage) return <p className="mt-1 text-xs text-fg-subtle">Usage could not be read just now.</p>;
   const total = usage.versions.reduce((s, v) => s + v.requests, 0);
   return (
@@ -170,7 +174,7 @@ export function ApiSettings({ facts, qs }: { facts: ApiFacts; qs: string }) {
         {!manages && <p className="mt-2 text-xs text-fg-subtle">An admin can change the pin.</p>}
         {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
         <p className="mt-4 text-sm font-semibold text-fg">Your use, last 30 days</p>
-        <ApiUsage usage={facts.usage} />
+        <ApiUsage usage={facts.usage} hidden={facts.usageHidden} />
         <p className="mt-4 text-xs">
           <Link href={`/dashboard/docs/api-reference${qs}`} className="text-accent hover:underline">
             API reference

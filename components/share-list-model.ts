@@ -4,6 +4,10 @@
 // found and taken down without the CLI.
 
 export interface ShareRow {
+  /** The handle the list revokes by — a hash of the token, never the link. */
+  id: string;
+  /** The token, or a masked stub of it ("abcd…") when this viewer is neither
+   *  an admin nor the link's maker (30 Oct 2026). */
   token: string;
   /** Workspace-relative, POSIX-separated, e.g. `storage/report.pdf`. */
   path: string;
@@ -16,7 +20,8 @@ export interface ShareRow {
   revokedAt: string | null;
   /** The public link, built on the server from FOLDRUN_PUBLIC_URL (never the
    *  browser's own origin, which can be localhost or an internal host). Null
-   *  when the install has no public address: listed, revocable, not copyable. */
+   *  when the install has no public address, or the token is masked: listed,
+   *  revocable, not copyable. */
   url: string | null;
 }
 

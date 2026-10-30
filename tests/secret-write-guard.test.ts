@@ -33,7 +33,10 @@ const reconnectRoute = await import("../app/api/oauth/reconnect/route.ts");
 
 await createUser("owner@acme.test", "correct horse battery staple 9", "acme");
 fs.mkdirSync(path.join(process.env.FOLDRUN_DATA!, "acme", "workspaces", "desk"), { recursive: true });
-const { key: ownerKey } = await createApiKey("acme", "owner's laptop", "owner@acme.test", undefined, "admin");
+// The owner's own `foldrun login` key acts as the owner; a key the owner
+// minted for anything else (CI, a contractor) does not (30 Oct 2026).
+const { key: ownerKey } = await createApiKey("acme", "cli · owner's laptop", "owner@acme.test", undefined, "admin", null, { origin: "cli-login" });
+const { key: ownerCiKey } = await createApiKey("acme", "ci", "owner@acme.test", undefined, "admin");
 const { key: admin } = await createApiKey("acme", "ops", "admin@acme.test", undefined, "admin");
 const { key: scoped } = await createApiKey("acme", "desk ops", "desk@acme.test", undefined, "admin", ["desk"]);
 
@@ -91,4 +94,18 @@ test("a workspace-scoped admin's oauth2 recipe does not rewrite the account's sa
   }));
   assert.equal(res.status, 200, "the workspace's own secret is still written");
   assert.deepEqual(await getOAuthClient("acme", "google"), before);
+});
+
+test("only the owner in person sets the mail sender: their session or their own `foldrun login` key, never another key they minted", async () => {
+  const { actsForOwner } = await import("../server/secret-writes.ts");
+  const ci = await secretsRoute.PUT(call(ownerCiKey, "/api/secrets", "PUT", { name: "EMAIL_FROM", value: "ci@acme.test" }));
+  assert.equal(ci.status, 403, "an admin CI key the owner minted is not the owner");
+  assert.equal((await secretsRoute.PUT(call(ownerKey, "/api/secrets", "PUT", { name: "EMAIL_FROM", value: "owner@acme.test" }))).status, 200);
+  // The rule itself, for every kind of caller.
+  assert.equal(await actsForOwner("acme", { kind: "user", id: "u1", name: "owner@acme.test", role: "owner" }), true);
+  assert.equal(await actsForOwner("acme", { kind: "user", id: "u1", name: "support:ops@foldrun.io", role: "owner", readOnly: true }), false, "a support view acts for no one");
+  assert.equal(await actsForOwner("acme", { kind: "user", id: "u2", name: "admin@acme.test", role: "admin" }), false);
+  assert.equal(await actsForOwner("acme", { kind: "key", id: "k1", name: "owner@acme.test", role: "admin" }), false, "a key with no origin");
+  assert.equal(await actsForOwner("acme", { kind: "key", id: "k2", name: "owner@acme.test", role: "admin", origin: "cli-login" }), true);
+  assert.equal(await actsForOwner("acme", { kind: "key", id: "k3", name: "admin@acme.test", role: "admin", origin: "cli-login" }), false, "an admin's own CLI is not the owner's");
 });

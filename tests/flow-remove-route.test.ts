@@ -87,3 +87,11 @@ test("DELETE { step } is the same edit: prose after the last step survives", asy
   assert.doesNotMatch(out, /\[\[writer\]\]/);
   assert.match(out, /Notes below stay\./);
 });
+
+test("an edits list past the cap is refused before any is applied (30 Oct 2026)", async () => {
+  const before = fs.readFileSync(file, "utf8");
+  const res = await patch({ edits: Array.from({ length: 201 }, () => ({ op: "remove", step: 1 })) });
+  assert.equal(res.status, 400);
+  assert.match(((await res.json()) as { error: string }).error, /at most 200 edits/);
+  assert.equal(fs.readFileSync(file, "utf8"), before, "nothing written");
+});

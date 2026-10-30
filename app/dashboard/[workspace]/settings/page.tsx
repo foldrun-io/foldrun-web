@@ -15,11 +15,11 @@ import { secretHealth, healthKey } from "@/lib/secret-health";
 import { parseCron } from "@/platform/scheduler";
 import { webhookPath, publicUrl } from "@/lib/webhook";
 import { CopyField } from "@/components/copy-field";
-import { viewerRole } from "@/server/users";
+import { viewerRole, viewerScope } from "@/server/users";
 import { can } from "@/platform/permissions";
 import { workspaceBudgetStanding, accountCompute, computeHeld, roomWaiting, workspaceCompute } from "@/platform/limits";
 import { readAgentsMdKeys } from "@/lib/agents-md";
-import { defaultsOf } from "@/components/defaults-model";
+import { defaultsOf, accountDefaultsFor } from "@/components/defaults-model";
 import { BudgetCard, TimezoneCard, NotifyCard, NetworkEnforceCard, OwnerCard, AlertsCard, JudgeCard, ComputeCard } from "@/components/defaults-cards";
 
 import { Badge, Card } from "@/components/ui";
@@ -78,7 +78,9 @@ export default async function WorkspaceSettingsPage({
   const managesWorkspace = role === null || can(role, "workspace:manage");
   const { budget, spentUsd: spent } = await workspaceBudgetStanding(tenant, workspace);
   const own = defaultsOf(readAgentsMdKeys(workspaceDir(tenant, workspace)));
-  const inherited = defaultsOf(readAgentsMdKeys(accountDir(tenant)));
+  // The account's, as GET /api/account answers this person: limited to
+  // some workspaces, its notify URL is "set", not shown (30 Oct 2026).
+  const inherited = accountDefaultsFor(defaultsOf(readAgentsMdKeys(accountDir(tenant))), await viewerScope());
   const endpoint = `/api/workspaces/${workspace}`;
   const halt = await pauseView(tenant, workspace);
 

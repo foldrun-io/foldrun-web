@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requirePermission, actorOf } from "@/server/api";
+import { requireTenant, errorResponse, requirePermission, actorOf, ApiError } from "@/server/api";
 import { audit } from "@/server/audit";
 import fs from "node:fs";
 import {
@@ -19,6 +19,30 @@ import { configMatter } from "@/lib/matter";
 import { adminState, workspacePause } from "@/platform/admin";
 import { requireWorkspace, purgeWorkspaceStorage, moveWorkspaceStorage } from "@/lib/storage";
 import { revokeWorkspaceShares, moveWorkspaceShares } from "@/platform/shares";
+import { retargetSecretWorkspaces } from "@/lib/secrets";
+import { jsonObject, optionalString } from "@/server/body";
+
+/**
+ * Move every account secret's grant from `from` to `to` (null: remove it),
+ * or throw. A record that holds the name but cannot be opened with this
+ * install's keys keeps it — a key restored later would bring the grant
+ * back — so the caller is refused with their names rather than told it
+ * went cleanly (30 Oct 2026). `done` says what happened already.
+ */
+function secretsLetGo(tenant: string, from: string, to: string | null, done: string): void {
+  let failed: string[];
+  try {
+    failed = retargetSecretWorkspaces(tenant, from, to).failed;
+  } catch (err) {
+    throw new ApiError(`${done}: the vault could not be updated — ${err instanceof Error ? err.message : String(err)}. Try again.`, 503);
+  }
+  if (failed.length) {
+    throw new ApiError(
+      `${done}: ${failed.join(", ")} ${failed.length === 1 ? "is an account secret" : "are account secrets"} limited to ${from} that cannot be read with this install's keys, so ${from} cannot be taken off ${failed.length === 1 ? "its" : "their"} list — set ${failed.length === 1 ? "it" : "them"} again or delete ${failed.length === 1 ? "it" : "them"}, then try again.`,
+      409,
+    );
+  }
+}
 
 async function tenantOf(req: NextRequest) {
   return await requireTenant(req);
@@ -47,6 +71,11 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ workspac
     const { workspace } = await ctx.params;
     const { tenant, actor } = await requirePermission(req, "workspace:manage");
     requireWorkspace(tenant, workspace);
+    // Off every account secret's list of workspaces FIRST (30 Oct 2026): a
+    // name left there would hand those secrets to the next workspace given
+    // it. Before anything is deleted, so a vault that cannot be updated
+    // stops the delete instead of leaving the grant behind.
+    secretsLetGo(tenant, workspace, null, "Nothing was deleted");
     // What it published and stored goes with it (30 Oct 2026). The store and
     // the share rows are kept by name beside the folder, so a delete used to
     // leave every public link serving and hand the files to the next
@@ -54,6 +83,9 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ workspac
     await revokeWorkspaceShares(tenant, workspace);
     await purgeWorkspaceStorage(tenant, workspace);
     deleteWorkspace(tenant, workspace);
+    // And again: a limit saved while the folder still existed (the secrets
+    // route checks the name under the vault lock) is taken off now.
+    secretsLetGo(tenant, workspace, null, `${workspace} was deleted`);
     await audit("workspace.deleted", { actor: actor.name, tenant, subject: workspace, detail: { workspace } });
     return NextResponse.json({ ok: true });
   } catch (err) {
@@ -73,7 +105,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
   try {
     const { workspace } = await ctx.params;
     const tenant = (await requirePermission(req, "workspace:manage")).tenant;
-    const body = (await req.json()) as { name?: string; description?: string; timezone?: unknown; budget?: unknown; notify?: unknown; network_enforce?: unknown };
+    // A JSON object, or 400 (30 Oct 2026): no body, `null`, or a `name`
+    // that is not a string used to throw past every check into a 500.
+    const raw = await jsonObject(req);
+    const body = { ...raw, name: optionalString(raw, "name"), description: optionalString(raw, "description") };
 
     if (!fs.existsSync(workspaceDir(tenant, workspace))) {
       return NextResponse.json({ error: "workspace not found" }, { status: 404 });
@@ -119,18 +154,43 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
         return NextResponse.json({ error: `${workspace} is paused — resume it before renaming it, so the rename does not quietly lift the pause` }, { status: 409 });
       }
       brokeWebhooks = renameImpact(tenant, workspace).webhookFlows;
-      renameWorkspace(tenant, workspace, body.name);
-      // Its stored files and public links follow it (30 Oct 2026); they are
-      // kept by name, and used to stay behind for whoever took the old one.
-      // A store that cannot be moved puts the folder back, so the workspace
-      // and its files never end up under two names.
+      // A name taken is refused before the vault is touched: moving the
+      // grants onto it would hand them to the workspace that has it.
+      if (fs.existsSync(workspaceDir(tenant, body.name))) {
+        return NextResponse.json({ error: `workspace ${body.name} already exists` }, { status: 409 });
+      }
+      // The account secrets limited to it move to the new name BEFORE the
+      // folder does (30 Oct 2026), so the old name is never left granted
+      // for whoever takes it next; a vault that cannot be updated stops the
+      // rename. Until the folder moves, runs starting under the old name
+      // find those secrets not set: closed, never open.
+      secretsLetGo(tenant, workspace, body.name, "Nothing was renamed");
       try {
-        await moveWorkspaceStorage(tenant, workspace, body.name);
+        renameWorkspace(tenant, workspace, body.name);
+        // Its stored files and public links follow it (30 Oct 2026); they are
+        // kept by name, and used to stay behind for whoever took the old one.
+        // A store that cannot be moved puts the folder back, so the workspace
+        // and its files never end up under two names.
+        try {
+          await moveWorkspaceStorage(tenant, workspace, body.name);
+        } catch (err) {
+          renameWorkspace(tenant, body.name, workspace);
+          throw err;
+        }
       } catch (err) {
-        renameWorkspace(tenant, body.name, workspace);
+        // The folder kept its name: so do its grants. Best effort — the
+        // rename's own error is the one reported; if the vault refuses this
+        // too, the grants sit on the unused new name until it is retried.
+        try {
+          retargetSecretWorkspaces(tenant, body.name, workspace);
+        } catch {
+          /* reported below as the rename's failure */
+        }
         throw err;
       }
       await moveWorkspaceShares(tenant, workspace, body.name);
+      // And again: a limit naming the old name saved while it still existed.
+      secretsLetGo(tenant, workspace, body.name, `${workspace} was renamed to ${body.name}`);
       renamedTo = body.name;
     }
 

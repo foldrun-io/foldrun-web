@@ -13,7 +13,8 @@
 // result. One comparison of an eval at a time; a second is a 409.
 
 import { NextRequest, NextResponse, after } from "next/server";
-import { requireTenant, errorResponse, requirePermission } from "@/server/api";
+import { requireTenant, errorResponse, requirePermission, ApiError } from "@/server/api";
+import { adminState, pauseOf } from "@/platform/admin";
 import { idempotent } from "@/server/idempotency";
 import { listEvals } from "@/lib/evals";
 import { planComparison, compareEval } from "@/lib/eval-compare";
@@ -25,6 +26,11 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
   try {
     const { workspace, evalName } = await ctx.params;
     const tenant = (await requirePermission(req, "run:start")).tenant;
+    // The kill switch, as grade and improve hold it (30 Oct 2026): a
+    // comparison is up to MAX_TRIALS paid case runs, run in-process by core's
+    // runEval — never through the queue that refuses a paused workspace.
+    const halt = pauseOf(await adminState(tenant), workspace);
+    if (halt) throw new ApiError(`${halt.scope === "account" ? "the account" : "this workspace"} is paused — resume it first`, 409);
     const info = listEvals(tenant, workspace).find((e) => e.name === evalName);
     if (!info) return NextResponse.json({ error: `eval ${evalName} not found` }, { status: 404 });
     const plan = planComparison(info, await req.json().catch(() => null));

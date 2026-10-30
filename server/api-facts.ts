@@ -26,7 +26,13 @@ export async function apiUsageFacts(tenant: string, deprecations: Deprecation[] 
   }
 }
 
-export async function apiFactsFor(tenant: string) {
+/**
+ * `scope`: the caller's workspaces (null: all). The account's API use names
+ * who calls each route — keys and people across every workspace — so a
+ * caller limited to some gets `usage: null` and `usageHidden: true`, not the
+ * account's numbers (30 Oct 2026).
+ */
+export async function apiFactsFor(tenant: string, scope: readonly string[] | null = null) {
   const profile = await accountProfile(tenant);
   let pinned: string | null = null;
   try {
@@ -42,6 +48,6 @@ export async function apiFactsFor(tenant: string) {
       supportMonths: VERSION_SUPPORT_MONTHS,
     },
     limits: limitsFor(profile.tier),
-    usage: await apiUsageFacts(tenant),
+    ...(scope === null ? { usage: await apiUsageFacts(tenant) } : { usage: null, usageHidden: true as const }),
   };
 }

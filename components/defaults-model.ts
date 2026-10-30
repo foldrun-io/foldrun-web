@@ -27,6 +27,9 @@ export interface Notify {
   url?: string;
   email?: string;
   events: string[];
+  /** The account's notify: as shown to a caller limited to some workspaces:
+   *  a webhook URL is set, and is not shown (accountDefaultsFor). */
+  hidden?: true;
 }
 
 export interface Defaults {
@@ -45,7 +48,7 @@ export interface Defaults {
   networkEnforce: boolean;
   /** telemetry: — where each run goes as an OpenTelemetry trace. Header
    *  values are as written: `${NAME}` for a vault secret, never its value. */
-  telemetry: TelemetryConfig | null;
+  telemetry: (TelemetryConfig & { hidden?: true }) | null;
   /** owner: — who answers for every agent and flow here that names none. */
   owner: string | null;
   /** alerts: — the thresholds that tell notify:, as written. */
@@ -90,6 +93,40 @@ export function defaultsOf(fm: Record<string, unknown>): Defaults {
     alerts: alertsOf(fm.alerts),
     judge: judgeOf(fm.judge),
   };
+}
+
+/**
+ * The ACCOUNT's defaults as a caller sees them (`workspaces`: the caller's
+ * scope, null for every workspace). A member or key limited to some
+ * workspaces learns that notify: and telemetry: are set, never the webhook
+ * URL, the collector, its headers or a token in them — a Slack incoming
+ * webhook URL is itself a credential (owner decision, 30 Oct 2026). The
+ * marker is `hidden: true`; GET /api/account, GET /api/account/jobs and both
+ * Settings pages answer through this.
+ */
+export function accountDefaultsFor(d: Defaults, workspaces: readonly string[] | null): Defaults {
+  if (workspaces === null) return d;
+  return {
+    ...d,
+    notify: d.notify ? { ...(d.notify.email ? { email: d.notify.email } : {}), events: d.notify.events, ...(d.notify.url ? { hidden: true as const } : {}) } : null,
+    telemetry: d.telemetry ? { endpoint: "", headers: {}, hidden: true } : null,
+  };
+}
+
+/** The same for one raw AGENTS.md value, by key (the four-jobs view shows
+ *  fields as written): notify: and telemetry: keep only that they are set. */
+export function accountFieldFor(key: string, value: unknown, workspaces: readonly string[] | null): unknown {
+  if (workspaces === null || value === null || value === undefined) return value;
+  if (key === "telemetry") return { hidden: true };
+  if (key === "notify") {
+    // `notify: <url or email>` as one string, or the block.
+    if (typeof value !== "object" || Array.isArray(value)) return { hidden: true };
+    const rest: Record<string, unknown> = { ...(value as Record<string, unknown>) };
+    const hadUrl = rest.url !== undefined;
+    delete rest.url;
+    return hadUrl ? { ...rest, hidden: true } : rest;
+  }
+  return value;
 }
 
 function computeOf(raw: unknown): Defaults["compute"] {

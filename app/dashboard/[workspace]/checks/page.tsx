@@ -13,6 +13,8 @@ import { workspaceDir } from "@/lib/store";
 import { WorkspaceHeader } from "@/components/workspace-header";
 import { PageHeader } from "@/components/ui";
 import { ChecksPanel } from "./checks-panel";
+import { can } from "@/platform/permissions";
+import { viewerRole } from "@/server/users";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +29,10 @@ export default async function ChecksPage({
   const { tenant = "default" } = await searchParams;
   if (!fs.existsSync(workspaceDir(tenant, workspace))) notFound();
   const qs = tenant !== "default" ? `?tenant=${tenant}` : "";
+  // The online checks fetch OSV and remote MCP servers, an editor's ask
+  // since 30 Oct 2026; a viewer is not offered a button the API refuses.
+  const role = await viewerRole();
+  const canOnline = role === null || can(role, "workspace:write");
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-8">
@@ -39,7 +45,7 @@ export default async function ChecksPage({
           Every rule →
         </Link>
       </PageHeader>
-      <ChecksPanel workspace={workspace} tenantQuery={tenant !== "default" ? `&tenant=${tenant}` : ""} />
+      <ChecksPanel workspace={workspace} tenantQuery={tenant !== "default" ? `&tenant=${tenant}` : ""} canOnline={canOnline} />
     </main>
   );
 }

@@ -22,6 +22,9 @@ export type AuditAction =
   | "workspace.paused"
   | "workspace.resumed"
   | "login.refused"
+  // Every caller together reached the quarter hour's wrong-password ceiling
+  // for one account; the person was mailed (30 Oct 2026).
+  | "login.throttled"
   | "logout"
   | "session.revoked"
   | "password.changed"
@@ -54,6 +57,8 @@ export type AuditAction =
   | "secret.deleted"
   // Bound to sites, or unbound: where the egress proxy may send it.
   | "secret.sites"
+  // An account secret limited to some workspaces, or opened to all again.
+  | "secret.workspaces"
   | "model.key_set"
   | "model.key_removed"
   // What went live, and what went away.

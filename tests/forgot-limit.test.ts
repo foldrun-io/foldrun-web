@@ -14,6 +14,8 @@ import path from "node:path";
 
 process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-forgot-limit-"));
 process.env.FOLDRUN_SKIP_BREACH_CHECK = "1";
+// Several people sign up here; an install closed to signups refuses all but the first.
+process.env.FOLDRUN_OPEN_SIGNUP = "1";
 delete process.env.FOLDRUN_DATABASE_URL;
 delete process.env.FOLDRUN_REDIS_URL;
 delete process.env.FOLDRUN_TRUST_PROXY;
@@ -21,7 +23,7 @@ delete process.env.FOLDRUN_TRUST_PROXY;
 const { NextRequest } = await import("next/server");
 const forgot = await import("../app/api/auth/forgot/route.ts");
 const { createUser } = await import("../server/users.ts");
-const { rateLimit } = await import("@/platform/cache");
+const { rateLimit, rateLimitReset } = await import("@/platform/cache");
 const { recentAudit } = await import("../server/audit.ts");
 
 /** The reset mail (and its audit line) is sent after the answer, so the
@@ -79,4 +81,40 @@ test("install-wide: past the hour's reset mail, the answer is the same sentence 
   const last = (await resets(2))[0];
   assert.equal(last.detail.sent, false);
   assert.equal(last.detail.error, "the install's hourly reset mail limit was reached");
+});
+
+test("one caller cannot spend the install's reset mail: past its share, its asks send nothing and cost the install nothing (30 Oct 2026)", async () => {
+  process.env.FOLDRUN_TRUST_PROXY = "1";
+  // A fresh hour for the install: the test above used it all up.
+  await rateLimitReset("forgot:sends");
+  try {
+    const users: Awaited<ReturnType<typeof createUser>>[] = [];
+    // Twelve people, each with their own account (one account takes one signup).
+    for (let i = 0; i < 12; i++) users.push(await createUser(`share${i}@forgot.test`, "Correct-horse-battery-9", `forgot-share-${i}`));
+    const shareLines = async (n: number) => {
+      for (let i = 0; i < 300; i++) {
+        const all = (await Promise.all(users.map((_u, j) => recentAudit(`forgot-share-${j}`)))).flat();
+        const lines = all.filter((e) => e.action === "password.reset_requested").sort((x, y) => (x.at < y.at ? 1 : -1));
+        if (lines.length >= n) return lines;
+        await new Promise((r) => setTimeout(r, 10));
+      }
+      throw new Error(`no reset audit line ${n}`);
+    };
+    const from = { "x-forwarded-for": "203.0.113.77" };
+    for (let i = 0; i < 12; i++) {
+      const r = await ask(users[i].email, from);
+      assert.equal(r.status, 200, "the same sentence, always");
+      await shareLines(i + 1);
+    }
+    const lines = await shareLines(12);
+    const refused = lines.filter((l) => l.detail.error === "this caller's hourly share of reset mail was reached");
+    assert.equal(refused.length, 2, "the 11th and 12th from one caller send nothing");
+    // Another caller still gets a reset sent — the share, not the ceiling, stopped the first.
+    const other = await ask(users[0].email, { "x-forwarded-for": "198.51.100.77" });
+    assert.equal(other.status, 200);
+    const after = await shareLines(13);
+    assert.notEqual(after[0].detail.error, "this caller's hourly share of reset mail was reached");
+  } finally {
+    delete process.env.FOLDRUN_TRUST_PROXY;
+  }
 });

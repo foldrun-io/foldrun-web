@@ -59,7 +59,7 @@ function Inline({ text }: { text: string }) {
   );
 }
 
-export function ChecksPanel({ workspace, tenantQuery }: { workspace: string; tenantQuery: string }) {
+export function ChecksPanel({ workspace, tenantQuery, canOnline = true }: { workspace: string; tenantQuery: string; canOnline?: boolean }) {
   const [security, setSecurity] = useState(false);
   const [online, setOnline] = useState(false);
   const [data, setData] = useState<Answer | null>(null);
@@ -112,15 +112,17 @@ export function ChecksPanel({ workspace, tenantQuery }: { workspace: string; ten
         <button type="button" className={chipButtonClass(security ? "border-ink text-fg" : "")} onClick={() => setSecurity((s) => !s)} aria-pressed={security}>
           {security ? "✓ " : ""}Security only
         </button>
-        <button
-          type="button"
-          className={chipButtonClass(online ? "border-ink text-fg" : "")}
-          onClick={() => setOnline((o) => !o)}
-          aria-pressed={online}
-          title="Also ask OSV.dev about exact runtime pins, and read what remote MCP servers tell the model about their tools"
-        >
-          {online ? "✓ " : ""}Online checks
-        </button>
+        {canOnline && (
+          <button
+            type="button"
+            className={chipButtonClass(online ? "border-ink text-fg" : "")}
+            onClick={() => setOnline((o) => !o)}
+            aria-pressed={online}
+            title="Also ask OSV.dev about exact runtime pins, and read what remote MCP servers tell the model about their tools"
+          >
+            {online ? "✓ " : ""}Online checks
+          </button>
+        )}
         <button type="button" className={chipButtonClass()} onClick={() => void again()} disabled={busy}>
           {busy ? "Checking…" : "Check again"}
         </button>

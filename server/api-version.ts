@@ -180,7 +180,18 @@ export const DEPRECATIONS: Deprecation[] = [
  * `/api/workspaces/{workspace}/runs`. Never for a real change in what the
  * API does: that is a VersionChange.
  */
-export const SCHEMA_CORRECTIONS: { method: string; path: string; reason: string }[] = [];
+export const SCHEMA_CORRECTIONS: { method: string; path: string; reason: string }[] = [
+  {
+    method: "POST",
+    path: "/api/workspaces/{workspace}/deploy",
+    reason: "files was documented as a path → content object; the route has only ever taken an array of { path, content } and refuses an object with 400 (corrected 30 Oct 2026)",
+  },
+  {
+    method: "GET",
+    path: "/api/billing",
+    reason: "balance was documented but never answered — the field has always been balanceUsd (corrected 30 Oct 2026)",
+  },
+];
 
 /** `Deprecation: @<epoch>` (RFC 9745), `Sunset: <HTTP-date>` (RFC 8594) and
  *  a `Link rel="deprecation"` when there is somewhere to read about it. */

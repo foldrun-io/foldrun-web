@@ -45,9 +45,19 @@ function methodsOf(src) {
   return order.filter((m) => found.has(m));
 }
 
-/** The methods that answer through server/idempotency.ts. */
+/** The methods that answer through server/idempotency.ts: an exported
+ *  handler whose body returns idempotent(…) — anywhere in it, not only as
+ *  its first statement (the import route checks the body's size first, and
+ *  was missed while this looked only at the opening line). The body is
+ *  read up to the next `}` at the start of a line. */
 function idempotentOf(src) {
-  return [...src.matchAll(/^export (?:async )?function (POST|PUT|PATCH|DELETE)\([^)]*\)[^{]*\{\s*return idempotent\(/gm)].map((m) => m[1]);
+  const out = [];
+  for (const m of src.matchAll(/^export (?:async )?function (POST|PUT|PATCH|DELETE)\b/gm)) {
+    const rest = src.slice(m.index);
+    const end = rest.search(/^\}/m);
+    if (/\breturn idempotent\(/.test(end === -1 ? rest : rest.slice(0, end))) out.push(m[1]);
+  }
+  return out;
 }
 
 /** Hosted-only routes laid over this tree (support's view-as hand-over) —

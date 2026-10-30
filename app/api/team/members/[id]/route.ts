@@ -9,13 +9,17 @@ import { removeMember, setMemberRole, setMemberScope, listMembers, revokeInvites
 import { audit } from "@/server/audit";
 import { revokeKeysBeyond } from "@/server/auth";
 import { isRole } from "@/platform/permissions";
+import { jsonObject } from "@/server/body";
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
     const { tenant, actor } = await requirePerson(req, "team:manage");
     const { id } = await ctx.params;
-    const body = (await req.json().catch(() => ({}))) as { role?: unknown; workspaces?: unknown };
+    const body = await jsonObject(req, { optional: true });
     const before = (await listMembers(tenant)).find((m) => m.id === id);
+    // Who first, then what (30 Oct 2026): an unknown id is a 404 as on
+    // DELETE, not "nothing to change" when the body happened to be empty.
+    if (!before) throw new ApiError("no such member", 404);
     assertWithinScope(actor.workspaces, before?.workspaces);
     try {
     if (body.role !== undefined) {

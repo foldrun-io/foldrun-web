@@ -7,7 +7,7 @@
 // run outcomes through server/run-lite.ts, steps and tools through
 // platform/observe.ts, shaped by components/account-observe-model.ts.
 
-import { accountInsights } from "@/server/insights";
+import { cachedAccountInsights } from "@/server/insights";
 import { creditsShort } from "@/components/money";
 import Link from "next/link";
 import { viewerScope } from "@/server/users";
@@ -188,7 +188,7 @@ export default async function AccountObservePage({ searchParams }: { searchParam
   const desks = deskHealth(workspaces, cur, prev);
   const per = workspaces.map((w) => observeWorkspace(tenant, w, days, undefined, charges));
   // Recurring problems with their evidence and cost (FOL-72 step 8).
-  const insights = accountInsights(tenant, scope, Math.min(days, 30), null, now);
+  const insights = cachedAccountInsights(tenant, scope, Math.min(days, 30), null, now);
   const agents = agentsToWatch(per, 10);
   const tools = toolsAcross(per, 10);
   const platformRows = why.filter((c) => c.platform);

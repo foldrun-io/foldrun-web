@@ -162,15 +162,21 @@ test("five moves asked for a day, then a 429 that says when", async () => {
   assert.equal(mailTo("daily6@people.test").length, 0, "no mail past the cap");
 });
 
-test("an install that sends no mail still moves at once", async () => {
+test("an install that sends no mail refuses the move and says how to set mail up (30 Oct 2026)", async () => {
   const me = await createUser("nomail@people.test", PW, "people-nomail");
   const cookie = await cookieFor(me.id);
   delete process.env.FOLDRUN_RESEND_API_KEY;
   try {
     const r = await askMove(cookie, "nomail-new@people.test");
-    assert.equal(r.status, 200);
-    assert.equal((await r.json()).pending, false);
-    assert.equal((await findUserById(me.id))!.email, "nomail-new@people.test");
+    assert.equal(r.status, 409);
+    const body = (await r.json()) as { error: string; code: string };
+    assert.equal(body.code, "mail_not_configured");
+    assert.match(body.error, /RESEND_API_KEY/);
+    assert.match(body.error, /FOLDRUN_RESEND_API_KEY/);
+    assert.equal((await findUserById(me.id))!.email, "nomail@people.test", "the login has not moved");
+    // A taken address gets the same refusal: no oracle on this path either.
+    await createUser("nomail-taken@people.test", PW, "people-nomail-taken");
+    assert.equal((await askMove(cookie, "nomail-taken@people.test")).status, 409);
   } finally {
     process.env.FOLDRUN_RESEND_API_KEY = "re_test_auth_people";
   }

@@ -13,7 +13,7 @@ import type { TelemetryConfig } from "./defaults-model";
 
 const SECRET_REF = /^\$\{([A-Z][A-Z0-9_]{1,63})\}$/;
 
-export function TelemetryCard({ tenant, initial, mayEdit }: { tenant: string; initial: TelemetryConfig | null; mayEdit: boolean }) {
+export function TelemetryCard({ tenant, initial, mayEdit }: { tenant: string; initial: (TelemetryConfig & { hidden?: true }) | null; mayEdit: boolean }) {
   const router = useRouter();
   // The one header this form edits: the first whose value is a secret.
   // Every other header — a literal one too — is kept as AGENTS.md has it.
@@ -80,6 +80,10 @@ export function TelemetryCard({ tenant, initial, mayEdit }: { tenant: string; in
       </div>
       {note && <Banner tone="ok">{note}</Banner>}
       {error && <Banner tone="error">{error}</Banner>}
+      {/* A member limited to some workspaces is told it is set, not where
+          runs go or with which header (GET /api/account, 30 Oct 2026). */}
+      {initial?.hidden && <p className="text-fg-tertiary">Runs are sent to a collector. Where, and with which header, is shown only to members with every workspace.</p>}
+      {!initial?.hidden && <>
       <label className="block">
         <span className={FIELD_LABEL_CLASS}>Collector URL (OTLP/HTTP traces)</span>
         <input value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="https://otel.example.com/v1/traces" disabled={!mayEdit} className={inputClass("w-full font-mono")} />
@@ -94,6 +98,7 @@ export function TelemetryCard({ tenant, initial, mayEdit }: { tenant: string; in
           <input value={secret} onChange={(e) => setSecret(e.target.value.toUpperCase())} placeholder="OTEL_TOKEN" disabled={!mayEdit} className={inputClass("w-56 font-mono")} />
         </label>
       </div>
+      </>}
       {mayEdit ? (
         <div className="flex flex-wrap items-center gap-2">
           <button disabled={busy !== null || !endpoint.trim()} onClick={() => save(false)} className={buttonClass("primary")}>

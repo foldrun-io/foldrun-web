@@ -4,9 +4,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
-import { requireTenant, errorResponse } from "@/server/api";
+import { requireCaller, errorResponse } from "@/server/api";
 import { workspaceDir, listAgents, listFlows, workspaceTools } from "@/lib/store";
-import { listStorage } from "@/lib/storage";
+import { listStorage, requireWorkspace } from "@/lib/storage";
 import { libraryTools, libraryDir } from "@/lib/library";
 import { listSecrets } from "@/lib/secrets";
 import { readBundle } from "@/lib/okf";
@@ -15,7 +15,7 @@ import { discoverSkills } from "@/lib/runner";
 import type { Vocabulary } from "@/lib/completions";
 import { configMatter } from "@/lib/matter";
 import { parseProvider, accountDir } from "@/lib/store";
-import { readCatalog, loadCatalog, catalogCompletions } from "@/lib/catalog";
+import { readCatalog, refreshCatalogSoon, catalogCompletions } from "@/lib/catalog";
 
 const listScripts = (dir: string, prefix: string) => {
   if (!fs.existsSync(dir)) return [];
@@ -35,7 +35,10 @@ const listScripts = (dir: string, prefix: string) => {
 export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: string }> }) {
   try {
     const { workspace } = await ctx.params;
-    const tenant = await requireTenant(req);
+    const { tenant, actor } = await requireCaller(req);
+    // A name with no workspace is a 404 as on its siblings (30 Oct 2026),
+    // not an empty answer that reads as "nothing here".
+    requireWorkspace(tenant, workspace);
     const dir = workspaceDir(tenant, workspace);
     const agents = listAgents(tenant, workspace).map((a) => a.name);
 
@@ -90,7 +93,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
           ...Object.keys(workspaceTools(tenant, workspace)),
         ]),
       ].sort(),
-      secrets: listSecrets(tenant, workspace).map((s) => s.name),
+      // The account store's names to a caller with every workspace only,
+      // as GET /api/secrets lists them (30 Oct 2026).
+      secrets: listSecrets(tenant, workspace).filter((s) => actor.workspaces === null || s.scope === "workspace").map((s) => s.name),
       scripts: [
         ...listScripts(path.join(dir, "scripts"), "workspace/scripts/"),
         ...listScripts(libraryDir(tenant, "scripts"), "account/scripts/"),
@@ -114,7 +119,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
     const provider = parseProvider(front(dir).provider ?? front(accountDir(tenant)).provider);
     if (provider?.baseUrl) {
       vocab.models = catalogCompletions(readCatalog(provider.baseUrl));
-      void loadCatalog(provider.baseUrl);
+      refreshCatalogSoon(provider.baseUrl);
     }
     return NextResponse.json(vocab);
   } catch (err) {

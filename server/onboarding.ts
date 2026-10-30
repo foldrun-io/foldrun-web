@@ -2,6 +2,7 @@
 // read from where each thing really lives. Nothing here is written.
 
 import { listWorkspaces, listFlows, listRunSummaries } from "@/lib/store";
+import { scopeAllows } from "@/platform/scope";
 import { listSecrets } from "@/lib/secrets";
 import { listRevisions } from "@/lib/history";
 import { deployedCommit } from "@/lib/deploy";
@@ -25,8 +26,11 @@ function agentAuthored(tenant: string, workspace: string): boolean {
   return revs.slice(0, -1).some((r) => r.paths.some((p) => AGENT_PATH.test(p)));
 }
 
-export async function onboardingFacts(tenant: string): Promise<OnboardingFacts> {
-  const workspaces = listWorkspaces(tenant).map((w) => w.name);
+/** `scope`: the caller's workspaces (null: all). A caller limited to some
+ *  is told about those alone — the steps' links name the first workspace,
+ *  and it used to be any of the account's (30 Oct 2026). */
+export async function onboardingFacts(tenant: string, scope: string[] | null = null): Promise<OnboardingFacts> {
+  const workspaces = listWorkspaces(tenant).map((w) => w.name).filter((w) => scopeAllows(scope, w));
   let runs = 0;
   let completedRuns = 0;
   let triggers = 0;
@@ -61,8 +65,8 @@ export async function onboardingFacts(tenant: string): Promise<OnboardingFacts> 
   };
 }
 
-export async function onboardingFor(tenant: string): Promise<Onboarding> {
-  return onboardingSteps(await onboardingFacts(tenant));
+export async function onboardingFor(tenant: string, scope: string[] | null = null): Promise<Onboarding> {
+  return onboardingSteps(await onboardingFacts(tenant, scope));
 }
 
 /** The pref key a person's dismissal is kept under. */

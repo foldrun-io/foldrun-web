@@ -11,6 +11,7 @@ export function MfaSection({ enabled }: { enabled: boolean }) {
   const router = useRouter();
   const [setup, setSetup] = useState<{ secret: string; qr: string; enrol: string } | null>(null);
   const [backup, setBackup] = useState<string[] | null>(null);
+  const [ended, setEnded] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const post = async (url: string, body: unknown) => {
@@ -25,7 +26,7 @@ export function MfaSection({ enabled }: { enabled: boolean }) {
   if (backup) {
     return (
       <div className="space-y-3 text-sm">
-        <p className="font-medium text-fg">Two-factor authentication is on.</p>
+        <p className="font-medium text-fg">Two-factor authentication is on.{ended > 0 ? ` ${ended === 1 ? "One other browser was" : `${ended} other browsers were`} signed out.` : ""}</p>
         <p className="text-fg-tertiary">These backup codes each work once if you lose the app. This is the only time they are shown — keep them somewhere safe.</p>
         <pre className="rounded-lg bg-sunken p-3 font-mono text-sm leading-6 text-fg">{backup.join("\n")}</pre>
         <button className={buttonClass("primary")} onClick={() => { setBackup(null); router.refresh(); }}>I have saved them</button>
@@ -60,7 +61,7 @@ export function MfaSection({ enabled }: { enabled: boolean }) {
         e.preventDefault();
         const code = String(new FormData(e.currentTarget).get("code") ?? "");
         const j = await post("/api/auth/mfa/enable", { enrol: setup.enrol, code });
-        if (j) { setSetup(null); setBackup(j.backup as string[]); }
+        if (j) { setSetup(null); setBackup(j.backup as string[]); setEnded(typeof j.otherSessionsEnded === "number" ? j.otherSessionsEnded : 0); }
       }}>
         {/* The QR on the left; everything a person does on the right, in
             the order they do it: scan, or type the key; enter the code;

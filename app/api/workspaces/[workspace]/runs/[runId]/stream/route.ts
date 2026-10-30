@@ -15,6 +15,12 @@ import { isRunTerminal, sseFrame } from "@/components/live-run-model";
 export const dynamic = "force-dynamic";
 
 const POLL_MS = 250;
+/** How slow the watch gets while nothing changes (30 Oct 2026). Each idle
+ *  tick doubles the wait up to this; a change drops it back to POLL_MS. */
+const IDLE_MAX_MS = 2_000;
+/** A full read at least this often even when the stat says nothing changed —
+ *  a rewrite of the same size inside a coarse mtime (NFS) is not missed. */
+const FORCE_READ_MS = 10_000;
 const MAX_MS = 30 * 60_000; // don't hold a socket open forever
 
 // A step can think for minutes without writing anything, and this stream only
@@ -55,7 +61,7 @@ export async function GET(
   if (!fs.existsSync(file)) return new Response("run not found", { status: 404 });
 
   const encoder = new TextEncoder();
-  let timer: ReturnType<typeof setInterval> | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   let beat: ReturnType<typeof setInterval> | undefined;
 
   const stream = new ReadableStream({
@@ -71,7 +77,7 @@ export async function GET(
       let stopped = false;
       const stop = () => {
         stopped = true;
-        clearInterval(timer);
+        clearTimeout(timer);
         clearInterval(beat);
         try {
           controller.close();
@@ -89,10 +95,39 @@ export async function GET(
         }
       };
 
+      // The file is read only when its stat moved (30 Oct 2026). Every open
+      // stream re-read the whole run record every 250 ms for up to 30
+      // minutes — MBs of events, four times a second, per viewer. A stat is
+      // what tells us it changed; FORCE_READ_MS is the safety net.
+      let lastStat = "";
+      let lastRead = 0;
+      let wait = POLL_MS;
+      const changed = (): boolean => {
+        let now = "";
+        try {
+          const st = fs.statSync(file);
+          now = `${st.ino}:${st.size}:${st.mtimeMs}`;
+        } catch {
+          now = ""; // gone for a moment (a rename in flight): read to find out
+        }
+        const due = Date.now() - lastRead >= FORCE_READ_MS;
+        if (now && now === lastStat && !due) return false;
+        lastStat = now;
+        lastRead = Date.now();
+        return true;
+      };
+
       const tick = () => {
         try {
+          if (!changed()) {
+            wait = Math.min(wait * 2, IDLE_MAX_MS);
+            if (Date.now() - started > MAX_MS) stop();
+            return;
+          }
           const raw = fs.readFileSync(file, "utf8");
+          if (raw === lastPayload) wait = Math.min(wait * 2, IDLE_MAX_MS);
           if (raw !== lastPayload) {
+            wait = POLL_MS;
             lastPayload = raw;
             send("run", raw);
             const run = JSON.parse(raw);
@@ -114,8 +149,15 @@ export async function GET(
           if (Date.now() - started > MAX_MS) stop();
         } catch (err) {
           if (err instanceof StreamGone) return;
-          // A partially-written file just means "try again next tick".
+          // A partially-written file just means "try again next tick" — and
+          // the next tick must read it, whatever the stat says.
+          lastStat = "";
         }
+      };
+      // One tick at a time, each scheduling the next at the current wait.
+      const loop = () => {
+        tick();
+        if (!stopped) timer = setTimeout(loop, wait);
       };
 
       tick(); // send current state immediately, no first-paint delay
@@ -123,7 +165,7 @@ export async function GET(
       // timers exist — the first tick used to close the controller and
       // the intervals were then started against it anyway.
       if (stopped) return;
-      timer = setInterval(tick, POLL_MS);
+      timer = setTimeout(loop, wait);
       beat = setInterval(() => {
         try {
           controller.enqueue(encoder.encode(": keepalive\n\n"));
@@ -136,7 +178,7 @@ export async function GET(
       req.signal.addEventListener("abort", stop);
     },
     cancel() {
-      clearInterval(timer);
+      clearTimeout(timer);
       clearInterval(beat);
     },
   });

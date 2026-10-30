@@ -10,11 +10,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, requirePermission } from "@/server/api";
 import { workspaceRuntimeReport } from "@/platform/runtime-warm.ts";
+import { requireWorkspace } from "@/lib/storage";
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: string }> }) {
   try {
     const { workspace } = await ctx.params;
     const tenant = (await requirePermission(req, "workspace:read")).tenant;
+    // A name with no workspace is a 404 as on its siblings (30 Oct 2026),
+    // not an empty answer that reads as "nothing here".
+    requireWorkspace(tenant, workspace);
     return NextResponse.json({ workspace, runtimes: workspaceRuntimeReport(tenant, workspace) });
   } catch (err) {
     return errorResponse(err);

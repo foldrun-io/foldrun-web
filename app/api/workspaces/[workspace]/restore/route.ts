@@ -32,7 +32,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
 async function restorePost(req: NextRequest, ctx: Ctx) {
   try {
     const { workspace } = await ctx.params;
-    const { tenant } = await requirePermission(req, "workspace:write");
+    const { tenant, actor } = await requirePermission(req, "workspace:write");
     const body = (await req.json().catch(() => ({}))) as { to?: unknown; dryRun?: unknown; confirm?: unknown; expectRemoved?: unknown };
     if (typeof body.to !== "string" || !body.to.trim()) throw new ApiError("expected { to: <commit, date or age> }", 400);
     const to = body.to.trim();
@@ -44,7 +44,7 @@ async function restorePost(req: NextRequest, ctx: Ctx) {
     }
     const expectRemoved = Array.isArray(body.expectRemoved) ? body.expectRemoved.filter((p): p is string => typeof p === "string") : undefined;
     const by = await actorOf(req);
-    const result = applyRestore(tenant, workspace, to, { by, expectRemoved });
+    const result = applyRestore(tenant, workspace, to, { by, expectRemoved, actor });
     const { plan } = result;
     if (plan.noop) return NextResponse.json({ ok: true, applied: false, noop: true, to: plan.to, main: result.main });
     if (!result.applied) {

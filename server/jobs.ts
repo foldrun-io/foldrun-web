@@ -10,7 +10,7 @@
 import { JOBS, fieldsOfJob, type Job } from "@/lib/frontmatter-fields";
 import { readAgentsMdKeys } from "@/lib/agents-md";
 import { accountDir, workspaceDir } from "@/lib/store";
-import { ACCOUNT_PATCHABLE, WORKSPACE_PATCHABLE } from "@/components/defaults-model";
+import { ACCOUNT_PATCHABLE, WORKSPACE_PATCHABLE, accountFieldFor } from "@/components/defaults-model";
 
 /** How an account's and a workspace's value for a field combine at run time. */
 export type Combine = "workspace replaces" | "either turns it on" | "both apply" | "per key" | "per field" | "level nearest, sites from both" | "account only";
@@ -52,7 +52,10 @@ export interface JobView {
   fields: JobField[];
 }
 
-export function jobsView(tenant: string, workspace: string | null): JobView[] {
+/** `scope`: the caller's workspaces (null: all). A caller limited to some
+ *  sees that the account's notify: and telemetry: are set, not their URL,
+ *  headers or tokens (accountFieldFor, 30 Oct 2026). */
+export function jobsView(tenant: string, workspace: string | null, scope: readonly string[] | null = null): JobView[] {
   const account = readAgentsMdKeys(accountDir(tenant));
   const ws = workspace ? readAgentsMdKeys(workspaceDir(tenant, workspace)) : null;
   const writable = new Set<string>(workspace ? WORKSPACE_PATCHABLE : ACCOUNT_PATCHABLE);
@@ -63,7 +66,7 @@ export function jobsView(tenant: string, workspace: string | null): JobView[] {
     what: j.what,
     fields: fieldsOfJob("agents-md", j.name).map((key) => ({
       key,
-      account: set(account[key]),
+      account: set(accountFieldFor(key, account[key], scope)),
       ...(ws ? { workspace: set(ws[key]) } : {}),
       combine: COMBINE[key] ?? "workspace replaces",
       writable: writable.has(key) && !(workspace && COMBINE[key] === "account only"),

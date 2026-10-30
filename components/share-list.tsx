@@ -83,18 +83,18 @@ export function ShareList({
       confirmLabel: "Revoke link",
       destructive: true,
     }))) return;
-    setBusy(s.token);
+    setBusy(s.id);
     try {
-      const r = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/shares?token=${encodeURIComponent(s.token)}`, {
+      const r = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/shares?id=${encodeURIComponent(s.id)}`, {
         method: "DELETE",
         headers: { "x-foldrun-tenant": tenant },
       });
       const j = (await r.json().catch(() => ({}))) as { revoked?: boolean; error?: string };
       if (!r.ok) throw new Error(j.error ?? `could not revoke (${r.status})`);
       if (!j.revoked) {
-        setToast(`nothing revoked — ${s.token} is not a live link`);
+        setToast(`nothing revoked — that is not a live link`);
       } else {
-        setRows((rs) => rs.map((x) => (x.token === s.token ? { ...x, revokedAt: new Date().toISOString() } : x)));
+        setRows((rs) => rs.map((x) => (x.id === s.id ? { ...x, revokedAt: new Date().toISOString() } : x)));
         setToast(`Revoked — the link answers 404 from now on`);
       }
       // Either way the server knows better than this list, and the file
@@ -126,7 +126,7 @@ export function ShareList({
           {shown.map((s) => {
             const status = shareStatus(s, now);
             return (
-              <div key={s.token} className="flex items-center justify-between gap-4 px-4 py-2.5 text-sm">
+              <div key={s.id} className="flex items-center justify-between gap-4 px-4 py-2.5 text-sm">
                 <div className="min-w-0">
                   <div className="truncate font-medium text-fg">{s.path}</div>
                   <div className="mt-0.5 text-xs text-fg-muted">
@@ -142,8 +142,8 @@ export function ShareList({
                     </button>
                   )}
                   {status.live && canRevoke && (
-                    <button type="button" className={buttonClass("destructive", "text-xs")} disabled={busy === s.token} onClick={() => revoke(s)}>
-                      {busy === s.token ? "Revoking…" : "Revoke"}
+                    <button type="button" className={buttonClass("destructive", "text-xs")} disabled={busy === s.id} onClick={() => revoke(s)}>
+                      {busy === s.id ? "Revoking…" : "Revoke"}
                     </button>
                   )}
                 </div>

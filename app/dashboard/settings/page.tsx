@@ -12,7 +12,7 @@ import { pauseView } from "@/server/pause";
 import { TeamManager } from "./team";
 import { accountDir, parseProvider } from "@/lib/store";
 import { readAgentsMdKeys } from "@/lib/agents-md";
-import { defaultsOf } from "@/components/defaults-model";
+import { defaultsOf, accountDefaultsFor } from "@/components/defaults-model";
 import { TimezoneCard, NotifyCard, ConcurrencyCard, ComputeCard, DeployBlockCard, NetworkEnforceCard, OwnerCard, AlertsCard, JudgeCard } from "@/components/defaults-cards";
 import { accountCompute, computeInUse, roomWaiting } from "@/platform/limits";
 import { billing } from "@/platform/billing";
@@ -160,7 +160,9 @@ export default async function SettingsPage({
   // /api/team/invites answers the same, through the same function).
   const invites = session && (role === null || can(role, "team:manage")) ? await listInvites(session.tenant, { scope }) : [];
   const fm = readAgentsMdKeys(accountDir(tenant));
-  const defaults = defaultsOf(fm);
+  // As GET /api/account answers this person: limited to some workspaces,
+  // notify's URL and telemetry are "set", never shown (30 Oct 2026).
+  const defaults = accountDefaultsFor(defaultsOf(fm), scope);
   const provider = parseProvider(fm.provider);
   // The four jobs first (frontmatter-fields.ts JOBS), then the setup pages.
   const JOB = "The four jobs";
@@ -189,7 +191,7 @@ export default async function SettingsPage({
   // The provider check, as GET /api/account/providers answers it — for a
   // scoped member, the account's blocks and its own workspaces' only.
   const { configured: providerConfigured, lastCheck: providerLast } = await providerFactsFor(tenant, scope);
-  const apiFacts = await apiFactsFor(tenant);
+  const apiFacts = await apiFactsFor(tenant, scope);
   const flags = await effectiveFlags(tenant);
   const closeRequestedAt = platform.edition() === "hosted" ? ((await adminState(tenant)).closeRequested?.at ?? null) : null;
 
@@ -359,8 +361,9 @@ curl -X POST "$FOLDRUN_URL/api/workspaces/my-workspace/agents/writer/run?wait=tr
           <ApiSettings facts={apiFacts} qs={qs} />
         </SettingsSection>
 
-        <SettingsSection wide id="secrets" title="Secrets" description="Credentials every workspace can read as ${NAME}. A workspace can override one of these with its own.">
-          <Connections tenant={tenant} secrets={secrets} clients={(await listOAuthClients(tenant)).map((c) => ({ name: c.name, scopes: c.scopes }))} connections={await connectionStatus(tenant)} heading={false} callbackUrl={process.env.FOLDRUN_OAUTH_CALLBACK_URL ?? null} />
+        <SettingsSection wide id="secrets" title="Secrets" description="Credentials every workspace can read as ${NAME} — or only the workspaces you select for one. A workspace can override one of these with its own.">
+          <Connections tenant={tenant} secrets={secrets} clients={(await listOAuthClients(tenant)).map((c) => ({ name: c.name, scopes: c.scopes }))} connections={await connectionStatus(tenant)} heading={false} callbackUrl={process.env.FOLDRUN_OAUTH_CALLBACK_URL ?? null}
+            limitTo={scope === null && (role === null || can(role, "secrets:write")) ? listWorkspaces(tenant).map((w) => w.name) : undefined} />
         </SettingsSection>
 
         {hooks.length > 0 && (

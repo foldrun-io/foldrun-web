@@ -2,7 +2,7 @@
 // graded run, newest first, and what they add up to.
 //
 //   GET ?days=30&status=fail&limit=100
-//     → { eval, flow, agent, sample, improve, since, summary, grades }
+//     → { eval, flow, agent, sample, improve, days, summary, grades }
 //
 // `summary` is over the window (graded, passed, failed, errors, rate,
 // costUsd, byDay); `grades` the newest `limit` (default 100, at most 500)

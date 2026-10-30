@@ -199,6 +199,7 @@ export function RunsTable({
                       endpoint={`/api/workspaces/${r.workspace}/runs/${r.id}`}
                       tenant={tenant}
                       confirmText={`Delete run ${r.id.slice(4)}? Its record and outputs go; the ledger entry it was charged on stays.`}
+                      action="workspace:manage"
                     />
                   </span>
                 </td>

@@ -113,6 +113,14 @@ export function requestBreaks(docA, a, docB, b, where = "") {
 
 const json200 = (op) => op?.responses?.["200"]?.content?.["application/json"]?.schema ?? null;
 const jsonBody = (op) => op?.requestBody?.content?.["application/json"]?.schema ?? null;
+/** An operation the document did not describe at all: its 200 was the generic
+ *  "JSON — see docs/api.md" object and it had no request body. Documenting
+ *  such an operation for the first time (30 Oct 2026, when every operation got
+ *  a schema) states what the route always required — it changes nothing for a
+ *  caller, so it is not "a request body is now required". Once described, an
+ *  operation that took no body has `noBody` and a real 200 schema, so adding a
+ *  required body later is still caught. */
+const undocumented = (op) => !op?.requestBody && /^JSON — see docs/.test(json200(op)?.description ?? "");
 const queryParams = (doc, op) => (op?.parameters ?? []).map((p) => deref(doc, p)).filter((p) => p.in === "query");
 
 /** Every break between two OpenAPI documents: `{ method, path, what }`. */
@@ -134,7 +142,7 @@ export function apiBreaks(docA, docB) {
       const ba = jsonBody(opA);
       const bb = jsonBody(opB);
       if (ba && bb) for (const what of requestBreaks(docA, ba, docB, bb)) out.push({ ...op, what });
-      else if (!ba && bb && opB.requestBody?.required && Object.keys(deref(docB, bb).required ?? []).length) {
+      else if (!ba && bb && !undocumented(opA) && opB.requestBody?.required && Object.keys(deref(docB, bb).required ?? []).length) {
         out.push({ ...op, what: "a request body is now required" });
       }
       const qa = new Map(queryParams(docA, opA).map((q) => [q.name, q]));

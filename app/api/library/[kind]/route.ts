@@ -11,6 +11,7 @@ import {
   type LibraryKind,
 } from "@/lib/library";
 import { idempotent } from "@/server/idempotency";
+import { jsonObject, optionalString } from "@/server/body";
 
 function kindOf(raw: string): LibraryKind {
   if (!LIBRARY_KINDS.includes(raw as LibraryKind)) {
@@ -36,7 +37,9 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ kind: string 
   try {
     const tenant = (await requireAccountWide(req, "workspace:write")).tenant;
     const kind = kindOf((await ctx.params).kind);
-    const body = (await req.json()) as { name?: string; template?: string; language?: string };
+    // An object with string fields, or 400 — a `null` body used to be a 500.
+    const raw = await jsonObject(req);
+    const body = { name: optionalString(raw, "name"), template: optionalString(raw, "template"), language: optionalString(raw, "language") };
     if (!body.name || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(body.name)) {
       return NextResponse.json({ error: "expected { name } in kebab-case" }, { status: 400 });
     }
@@ -77,8 +80,8 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ kind: strin
   try {
     const tenant = (await requireAccountWide(req, "workspace:write")).tenant;
     const kind = kindOf((await ctx.params).kind);
-    const body = (await req.json()) as { path?: string; content?: string };
-    if (!body.path || typeof body.content !== "string") {
+    const body = await jsonObject(req);
+    if (typeof body.path !== "string" || !body.path || typeof body.content !== "string") {
       return NextResponse.json({ error: "expected { path, content }" }, { status: 400 });
     }
     writeLibraryFile(tenant, kind, body.path, body.content, { by: await actorOf(req) });
@@ -92,7 +95,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ kind: st
   try {
     const tenant = (await requireAccountWide(req, "workspace:write")).tenant;
     const kind = kindOf((await ctx.params).kind);
-    const body = (await req.json()) as { path?: string };
+    const body = await jsonObject(req);
     if (!body.path || typeof body.path !== "string") return NextResponse.json({ error: "expected { path }" }, { status: 400 });
     // Attributed like a write: a deletion is a revision too.
     deleteLibraryPath(tenant, kind, body.path, { by: await actorOf(req) });

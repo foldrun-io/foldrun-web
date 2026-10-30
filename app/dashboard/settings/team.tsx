@@ -154,8 +154,20 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
     if (await call(`/api/team/members/${m.id}`, "DELETE")) router.refresh();
   }
   async function transfer(m: Member) {
-    if (!(await confirm({ title: `Make ${m.email} the owner?`, body: "They take over billing and the admins. You stay on as an admin. This cannot be undone from your side.", confirmLabel: "Transfer ownership" }))) return;
-    if (await call("/api/team/transfer", "POST", { to: m.id })) router.refresh();
+    // Handing over the account asks for the owner again (30 Oct 2026): the
+    // password, and a code from the app when two-step sign-in is on. Read
+    // from the dialog's own fields as they are typed — the dialog is gone
+    // by the time it answers.
+    const proof = { password: "", code: "" };
+    const body = (
+      <div className="space-y-2">
+        <p>They take over billing and the admins. You stay on as an admin. This cannot be undone from your side.</p>
+        <input type="password" autoComplete="current-password" placeholder="your password" aria-label="Your password" onChange={(e) => { proof.password = e.target.value; }} className={inputClass("w-full")} />
+        <input inputMode="numeric" autoComplete="one-time-code" placeholder="code from your app, if two-step sign-in is on" aria-label="Two-step code" onChange={(e) => { proof.code = e.target.value; }} className={inputClass("w-full")} />
+      </div>
+    );
+    if (!(await confirm({ title: `Make ${m.email} the owner?`, body, confirmLabel: "Transfer ownership" }))) return;
+    if (await call("/api/team/transfer", "POST", { to: m.id, password: proof.password, ...(proof.code.trim() ? { code: proof.code.trim() } : {}) })) router.refresh();
   }
 
   const mayTouch = (m: Member) => manages && !m.owner && m.email !== self && (m.role !== "admin" || managesAdmins);

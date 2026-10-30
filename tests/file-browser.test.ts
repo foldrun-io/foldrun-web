@@ -53,17 +53,17 @@ test("provenance: a run's file links back to its run, an upload names who", () =
 test("share state: a fresh 7-day link reads 7d, a last day reads in hours, an expired one is private", () => {
   const day = 86_400_000;
   assert.deepEqual(shareState(null, NOW), { state: "private" });
-  assert.equal((shareState({ token: "t", url: "u", expiresAt: new Date(NOW + 7 * day - 60_000).toISOString() }, NOW) as { label: string }).label, "shared · 7d left");
-  const soon = shareState({ token: "t", url: "u", expiresAt: new Date(NOW + 5 * 3_600_000).toISOString() }, NOW) as { label: string; soon: boolean };
+  assert.equal((shareState({ id: "sh_t", token: "t", url: "u", expiresAt: new Date(NOW + 7 * day - 60_000).toISOString() }, NOW) as { label: string }).label, "shared · 7d left");
+  const soon = shareState({ id: "sh_t", token: "t", url: "u", expiresAt: new Date(NOW + 5 * 3_600_000).toISOString() }, NOW) as { label: string; soon: boolean };
   assert.deepEqual([soon.label, soon.soon], ["shared · 5h left", true]);
-  assert.equal(shareState({ token: "t", url: "u", expiresAt: null }, NOW).state, "shared");
-  assert.deepEqual(shareState({ token: "t", url: "u", expiresAt: new Date(NOW - 1).toISOString() }, NOW), { state: "private" });
+  assert.equal(shareState({ id: "sh_t", token: "t", url: "u", expiresAt: null }, NOW).state, "shared");
+  assert.deepEqual(shareState({ id: "sh_t", token: "t", url: "u", expiresAt: new Date(NOW - 1).toISOString() }, NOW), { state: "private" });
 });
 
 test("search and chips keep what matches; empty desks drop out only while searching", () => {
   const desks = [
     { workspace: "blog-desk", files: [file({ path: "covers/a.png" }), file({ path: "reports/weekly.md", updatedAt: "2026-09-29T04:30:00Z" })] },
-    { workspace: "lawyer-desk", files: [file({ workspace: "lawyer-desk", path: "leads.csv", share: { token: "t", url: "u", expiresAt: null } })] },
+    { workspace: "lawyer-desk", files: [file({ workspace: "lawyer-desk", path: "leads.csv", share: { id: "sh_t", token: "t", url: "u", expiresAt: null } })] },
     { workspace: "empty-desk", files: [] },
   ];
   assert.equal(visibleDesks(desks, "", "all", NOW).length, 3);

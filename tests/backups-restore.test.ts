@@ -149,6 +149,10 @@ test("backups: the account sees the snapshots it is in, the policy, and its work
   assert.equal(body.last.encrypted, true);
   assert.equal(body.last.recipient, "sha256:0123456789abcdef");
   assert.equal(body.backups[1].encrypted, false);
+  // The archive's size is the whole install's — every account's — so an
+  // account is told null (30 Oct 2026), and the field stays in the shape.
+  assert.equal(body.backups[1].bytes, null);
+  assert.ok("files" in body.backups[1] && body.backups[1].files === null && body.backups[1].runs === null);
   assert.equal(body.policy.encrypted, true);
   assert.ok(body.policy.covers.length > 0);
   assert.equal(body.workspaces[0].name, "desk");

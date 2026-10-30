@@ -36,7 +36,10 @@ export async function DELETE(
 ) {
   try {
     const { workspace, runId } = await ctx.params;
-    const tenant = (await requirePermission(req, "run:start")).tenant;
+    // Erasing what happened is not running things: workspace:manage (an
+    // admin), not run:start — an editor could wipe the trail of a run they
+    // started that sent mail or made a bad change (30 Oct 2026).
+    const tenant = (await requirePermission(req, "workspace:manage")).tenant;
     const run = readRun(tenant, workspace, runId);
     if (!run) return NextResponse.json({ error: "run not found" }, { status: 404 });
     if (run.status !== "completed" && run.status !== "failed") {

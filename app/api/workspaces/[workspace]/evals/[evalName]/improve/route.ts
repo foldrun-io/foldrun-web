@@ -13,15 +13,21 @@ import { requirePermission, errorResponse, actorOf, ApiError } from "@/server/ap
 import { idempotent } from "@/server/idempotency";
 import { adminState, pauseOf } from "@/platform/admin";
 import { proposeNow } from "@/platform/improve";
+import { refuseAssistantJob } from "@/server/assistant-limits";
 
 async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: string; evalName: string }> }) {
   try {
     const { workspace, evalName } = await ctx.params;
-    const { tenant } = await requirePermission(req, "run:start");
+    const { tenant, actor } = await requirePermission(req, "run:start");
     // The kill switch holds here too: a judge or a draft is paid work, and
     // neither goes through the run queue that refuses a paused workspace.
     const halt = pauseOf(await adminState(tenant), workspace);
     if (halt) throw new ApiError(`${halt.scope === "account" ? "the account" : "this workspace"} is paused — resume it first`, 409);
+    // The draft is an assistant job, so it takes the assistant's brakes
+    // (30 Oct 2026): the caller's hour, the platform-paid day, the balance.
+    // Without them, improve then dismiss in a loop drafted for free.
+    const limited = await refuseAssistantJob(tenant, workspace, actor);
+    if (limited) return limited;
     const p = await proposeNow(tenant, workspace, evalName, await actorOf(req));
     return NextResponse.json(p, { status: 202 });
   } catch (err) {

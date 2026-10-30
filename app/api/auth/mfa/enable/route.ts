@@ -1,12 +1,14 @@
 // Finish enrolling: the enrolment token from /setup and one code from the
 // app. The code proves the app holds the secret; only then is it stored,
-// sealed, with eight backup codes returned exactly once.
+// sealed, with eight backup codes returned exactly once — and every other
+// session of the person ends (`otherSessionsEnded`).
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession, errorResponse, ApiError } from "@/server/api";
 import { readToken } from "@/server/auth-tokens";
 import { verifyTotp, newBackupCodes, hashBackup } from "@/server/totp";
-import { openString, setMfa, mfaEnrolBinding } from "@/server/users";
+import { openString, setMfa, mfaEnrolBinding, sessionIdOf, SESSION_COOKIE } from "@/server/users";
+import { revokeSessions } from "@/server/sessions";
 import { audit } from "@/server/audit";
 import { sendSecurityNotice } from "@/server/email";
 import { clientIp } from "@/server/limits";
@@ -25,9 +27,14 @@ export async function POST(req: NextRequest) {
     if (!verifyTotp(secret, String(body.code ?? ""))) throw new ApiError("that code is not right — check the app's clock and try again", 400);
     const backup = newBackupCodes();
     await setMfa(me.id, { secret, backupHashes: backup.map(hashBackup) });
-    await audit("mfa.enabled", { actor: me.email, tenant: me.tenant });
+    // Every other session ends, as a password or email change ends them
+    // (30 Oct 2026): someone who turns on a second factor because they fear
+    // a stolen session must not leave that session signed in for its month.
+    // This browser keeps its own.
+    const ended = await revokeSessions(me.id, sessionIdOf(req.cookies.get(SESSION_COOKIE)?.value) ?? undefined);
+    await audit("mfa.enabled", { actor: me.email, tenant: me.tenant, detail: { otherSessionsEnded: ended } });
     sendSecurityNotice(me.tenant, me.email, "two-step sign-in was turned on", clientIp(req));
-    return NextResponse.json({ ok: true, backup });
+    return NextResponse.json({ ok: true, backup, otherSessionsEnded: ended });
   } catch (err) {
     return errorResponse(err);
   }

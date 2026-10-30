@@ -2,8 +2,12 @@
 // old, where it came from, whether it is shared, and what a search keeps.
 
 export interface BrowserShare {
-  token: string;
-  url: string;
+  /** The handle to revoke by; never fetches anything. */
+  id: string;
+  /** The token and URL, only for an admin or the link's maker (30 Oct 2026);
+   *  null for anyone else, who sees the file is shared but cannot copy it. */
+  token: string | null;
+  url: string | null;
   expiresAt: string | null;
 }
 export interface BrowserFile {

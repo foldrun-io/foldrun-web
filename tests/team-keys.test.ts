@@ -79,3 +79,15 @@ test("a role saved and a workspace change refused in the same request still stop
   assert.equal(await works(k.key), false, "the role landed, so its keys above it stop");
 });
 
+
+test("PATCH an unknown member is 404, whatever the body — not 'nothing to change' (30 Oct 2026)", async () => {
+  for (const body of [undefined, { role: "viewer" }]) {
+    const r = await memberRoute.PATCH(asOwner("PATCH", "/api/team/members/no-such-id", body), { params: Promise.resolve({ id: "no-such-id" }) });
+    assert.equal(r.status, 404, await r.clone().text());
+  }
+  // A known member with an empty body is still told what to send.
+  const member = await createUser("idle@keys.test", PW, tenant, { joining: true, role: "editor" });
+  const r = await memberRoute.PATCH(asOwner("PATCH", `/api/team/members/${member.id}`), { params: Promise.resolve({ id: member.id }) });
+  assert.equal(r.status, 400);
+  assert.match(((await r.json()) as { error: string }).error, /nothing to change/);
+});

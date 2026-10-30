@@ -18,6 +18,17 @@ import { audit } from "@/server/audit";
 
 export const dynamic = "force-dynamic";
 
+/** A ledger line as the customer's copy holds it: the charge and what it was
+ *  for. Left out, as the platform's and not theirs: `cost` (the provider
+ *  cost behind the charge), `agents`, and since 30 Oct 2026 `key` (the
+ *  once-only handle the ledger dedupes writes by — `pod:<kind>:<name>:…`
+ *  names internals) and `pricingVersion` (the operator-settings snapshot a
+ *  charge was priced at). */
+function exportedLine(line: Awaited<ReturnType<typeof readLedger>>[number]) {
+  const { cost: _cost, agents: _agents, key: _key, pricingVersion: _pricingVersion, ...e } = line;
+  return e;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const caller = await requirePermission(req, "billing:manage");
@@ -34,7 +45,7 @@ export async function GET(req: NextRequest) {
       ...(r.startedBy ? { startedBy: r.startedBy } : {}),
     }));
     const members = (await listMembers(tenant)).map((m) => ({ email: m.email, role: m.owner ? "owner" : m.role ?? null, workspaces: m.workspaces ?? null, since: m.createdAt }));
-    const ledger = (await readLedger(tenant)).map(({ cost: _cost, agents: _agents, ...e }) => e);
+    const ledger = (await readLedger(tenant)).map(exportedLine);
     await audit("account.exported", { actor: caller.actor.name, tenant, detail: { runs: runs.length, ledger: ledger.length } });
     const body = { account: tenant, exportedAt: new Date().toISOString(), workspaces, members, runs, ledger };
     return new NextResponse(JSON.stringify(body, null, 2) + "\n", {

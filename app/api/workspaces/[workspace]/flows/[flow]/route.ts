@@ -9,8 +9,8 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { errorResponse, requirePermission, actorOf } from "@/server/api";
-import { parseCron } from "@/platform/scheduler";
+import { ApiError, errorResponse, requirePermission, actorOf } from "@/server/api";
+import { cronCanFire, parseCron } from "@/platform/scheduler";
 import {
   workspaceDir,
   parseFlow,
@@ -27,6 +27,10 @@ import { idempotent } from "@/server/idempotency";
 import { configMatter } from "@/lib/matter";
 import { patchFrontmatter } from "@/lib/agents-md";
 import { computePatch } from "@/components/defaults-model";
+import { jsonObject } from "@/server/body";
+
+/** A plain JSON object — what an edit, a trigger or step options must be. */
+const isObject = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v);
 
 /** Write a flow file the way /source does: through writeWorkspaceFile, so
  *  the change is on the workspace's revision log with who made it. A
@@ -62,12 +66,12 @@ async function postOnce(
   try {
     const { workspace, flow } = await ctx.params;
     const tenant = (await requirePermission(req, "workspace:write")).tenant;
-    const body = (await req.json().catch(() => ({}))) as {
+    const body = (await jsonObject(req, { optional: true })) as {
       target?: string;
       subflow?: boolean;
       instruction?: string;
     };
-    if (!body.target) return NextResponse.json({ error: "expected { target }" }, { status: 400 });
+    if (typeof body.target !== "string" || !body.target) return NextResponse.json({ error: "expected { target }" }, { status: 400 });
 
     const file = flowFile(tenant, workspace, flow);
     if (!file) return NextResponse.json({ error: "flow not found" }, { status: 404 });
@@ -94,7 +98,7 @@ export async function DELETE(
   try {
     const { workspace, flow } = await ctx.params;
     const tenant = (await requirePermission(req, "workspace:write")).tenant;
-    const body = (await req.json().catch(() => ({}))) as { step?: number; expect?: string };
+    const body = (await jsonObject(req, { optional: true })) as { step?: number; expect?: string };
     if (typeof body.step !== "number") {
       return NextResponse.json({ error: "expected { step, expect? }" }, { status: 400 });
     }
@@ -126,6 +130,32 @@ export async function DELETE(
 // either side of it: what the canvas's undo keeps. Every shape takes
 // `expect` (the text, or its sha256) and is refused with 409 when the file
 // no longer reads it — the canvas and the CLI send it.
+/** The most edits one PATCH applies — the canvas sends one per selected step. */
+const MAX_EDITS = 200;
+
+/** What is wrong with a PATCH body's field types, or null. Only the fields
+ *  given are checked; which shape applies is decided after. */
+function patchShapeError(body: Record<string, unknown>): string | null {
+  if (body.edit !== undefined && !isObject(body.edit)) return "edit must be an object";
+  if (body.edits !== undefined) {
+    if (!Array.isArray(body.edits)) return "edits must be an array of edits";
+    if (body.edits.some((e) => !isObject(e))) return "each of edits must be an object";
+  }
+  if (body.trigger !== undefined && body.trigger !== null) {
+    if (!isObject(body.trigger)) return "trigger must be an object";
+    for (const k of ["trigger", "schedule", "timezone"]) {
+      const v = body.trigger[k];
+      if (v !== undefined && typeof v !== "string") return `trigger.${k} must be a string`;
+    }
+  }
+  if (body.options !== undefined && body.options !== null && !isObject(body.options)) return "options must be an object";
+  if (body.instruction !== undefined && typeof body.instruction !== "string") return "instruction must be a string";
+  if (body.groups !== undefined && (!Array.isArray(body.groups) || body.groups.some((g) => !Array.isArray(g) || g.some((i) => typeof i !== "number")))) {
+    return "groups must be arrays of step numbers";
+  }
+  return null;
+}
+
 export async function PATCH(
   req: NextRequest,
   ctx: { params: Promise<{ workspace: string; flow: string }> },
@@ -133,7 +163,10 @@ export async function PATCH(
   try {
     const { workspace, flow } = await ctx.params;
     const tenant = (await requirePermission(req, "workspace:write")).tenant;
-    const body = (await req.json().catch(() => ({}))) as {
+    // An object, or 400; and each shape's fields are checked for type before
+    // use (30 Oct 2026) — `edits: [null]` or a numeric `trigger.schedule`
+    // used to throw a TypeError deep in the rewrite and answer 500.
+    const body = (await jsonObject(req, { optional: true })) as {
       groups?: number[][];
       trigger?: { trigger?: string; schedule?: string; timezone?: string };
       step?: number;
@@ -145,6 +178,9 @@ export async function PATCH(
       expect?: string;
       compute?: Record<string, unknown> | null;
     };
+
+    const shapeError = patchShapeError(body);
+    if (shapeError) return NextResponse.json({ error: shapeError }, { status: 400 });
 
     const file = flowFile(tenant, workspace, flow);
     if (!file) return NextResponse.json({ error: "flow not found" }, { status: 404 });
@@ -166,6 +202,13 @@ export async function PATCH(
     }
 
     if (Array.isArray(body.edits) && body.edits.length) {
+      // Bounded (30 Oct 2026): each edit re-parses the whole file on the
+      // event loop, and only the body cap limited how many came — 100k of
+      // them pinned the pod before the oversized result was refused. The
+      // canvas sends one per selected step; no flow has this many.
+      if (body.edits.length > MAX_EDITS) {
+        return NextResponse.json({ error: `at most ${MAX_EDITS} edits in one request — got ${body.edits.length}` }, { status: 400 });
+      }
       let rewritten = before;
       for (const e of body.edits) rewritten = applyPatternEdit(rewritten, e);
       await saveFlow(req, tenant, workspace, file, rewritten, "flow edited on the canvas");
@@ -196,12 +239,13 @@ export async function PATCH(
     }
 
     if (body.trigger) {
-      // The scheduler's parser is the authority on what will actually fire.
-      if (body.trigger.trigger === "schedule" && !parseCron((body.trigger.schedule ?? "").trim())) {
-        return NextResponse.json(
-          { error: `"${body.trigger.schedule ?? ""}" is not a cron expression the scheduler can fire` },
-          { status: 400 },
-        );
+      // The scheduler's parser is the authority on what will actually fire —
+      // and a cron it reads that names no real date (30 February) is refused
+      // too (30 Oct 2026): `foldrun check` only warns about one in a file,
+      // but a schedule set here would silently never run.
+      const cron = body.trigger.trigger === "schedule" ? parseCron((body.trigger.schedule ?? "").trim()) : null;
+      if (body.trigger.trigger === "schedule" && (!cron || !cronCanFire(cron))) {
+        throw new ApiError(`"${body.trigger.schedule ?? ""}" is not a cron expression the scheduler can fire`, 400);
       }
       const rewritten = setFlowTrigger(before, {
         trigger: (body.trigger.trigger ?? "manual") as "manual" | "schedule" | "webhook",

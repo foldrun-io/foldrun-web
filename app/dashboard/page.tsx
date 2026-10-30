@@ -86,7 +86,7 @@ export default async function Dashboard({
   );
   const rest = tenant !== "default" ? `&tenant=${tenant}` : "";
   // Getting started: derived from the account, hidden per person.
-  const onboarding = await onboardingFor(tenant);
+  const onboarding = await onboardingFor(tenant, scope);
   const person = await verifySession((await cookies()).get(SESSION_COOKIE)?.value);
   const onboardingHidden = Boolean(person?.prefs?.[ONBOARDING_PREF]);
 

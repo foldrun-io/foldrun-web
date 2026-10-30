@@ -15,13 +15,15 @@
 // The move, the old address's notice and the end of every other session
 // happen at the click.
 //
-// An install that can send no mail at all cannot prove a new inbox, so
-// there the move still happens at once, as before.
+// An install that can send no mail at all cannot prove a new inbox, so it
+// refuses (409) and says how to set mail up (owner decision, 30 Oct 2026).
+// It used to move the login at once, unverified — a borrowed session plus
+// the password re-pointed resets at any inbox, and the move's 409 for a
+// taken address was the enumeration oracle the mailed path closed.
 
 import { errorResponse, sessionUser } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
-import { changeEmail, passwordMatches, findUser, findUserById, loginAddress, sessionIdOf, SESSION_COOKIE } from "@/server/users";
-import { revokeSessions } from "@/server/sessions";
+import { passwordMatches, findUser, findUserById, loginAddress } from "@/server/users";
 import { refuseWhenLimited, clearLimit } from "@/server/limits";
 import { refuseNonText } from "@/server/auth-input";
 import { sendEmailChangeConfirm, sendEmailTakenNotice } from "@/server/email";
@@ -41,8 +43,13 @@ const LIMIT = { limit: 6, windowSec: 15 * 60 };
 // person moving their login needs one or two; five covers typos.
 const EMAIL_CHANGES_PER_DAY = 5;
 
+/** The refusal on an install with no sender — what to do, not just "no". */
+const NO_MAIL =
+  "this install cannot send mail yet, so a new address cannot be confirmed and your login stays where it is — " +
+  "the account's owner sets RESEND_API_KEY and EMAIL_FROM as account secrets (Settings → Secrets, or `foldrun secrets set`), " +
+  "or whoever runs the install sets FOLDRUN_RESEND_API_KEY; then try again";
+
 export async function POST(req: NextRequest) {
-  const cookie = req.cookies.get(SESSION_COOKIE)?.value;
   const user = await sessionUser(req);
   if (user instanceof Response) return user;
   if (!user) return NextResponse.json({ error: "sign in first" }, { status: 401 });
@@ -61,12 +68,8 @@ export async function POST(req: NextRequest) {
     if (to === user.email) return NextResponse.json({ error: "that is already your address" }, { status: 409 });
 
     if (!platformMail(user.tenant)) {
-      // No sender, so no inbox can be proven: move now, as before.
-      const moved = await changeEmail(user.id, to);
-      await clearLimit(`email:${user.id}`);
-      const ended = await revokeSessions(user.id, sessionIdOf(cookie) ?? undefined);
-      await audit("email.changed", { actor: moved.from, tenant: user.tenant, subject: user.id, detail: { from: moved.from, to: moved.to, otherSessionsEnded: ended } });
-      return NextResponse.json({ ok: true, from: moved.from, to: moved.to, pending: false, verificationSent: false, otherSessionsEnded: ended });
+      // No sender, so no inbox can be proven: nothing moves.
+      return NextResponse.json({ error: NO_MAIL, code: "mail_not_configured" }, { status: 409 });
     }
 
     const daily = await refuseWhenLimited(`email-change:day:${user.id}`, EMAIL_CHANGES_PER_DAY, 24 * 60 * 60);

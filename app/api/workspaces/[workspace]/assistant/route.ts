@@ -23,23 +23,15 @@
 import fs from "node:fs";
 import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, requirePermission } from "@/server/api";
-import { paidByPlatform, parseAssistantRequest } from "@/server/assistant";
+import { parseAssistantRequest } from "@/server/assistant";
 import { enqueueAssistantJob, followJob, newJobId, ownerOf, runInline, type AssistantJob, type JobEvent } from "@/platform/assistant/jobs";
 import { isConversationId } from "@/platform/assistant/conversations";
-import { billing } from "@/platform/billing";
 import { workspaceDir } from "@/lib/store";
-import { refuseWhenLimited } from "@/server/limits";
+import { refuseAssistantJob } from "@/server/assistant-limits";
 import { idempotent } from "@/server/idempotency";
 import { sseFrame } from "@/components/live-run-model";
 
 export const dynamic = "force-dynamic";
-
-/** Replies per person (or key) per hour — each is a model call with tools. */
-const PER_HOUR = 60;
-/** Replies per account per day when the platform's credential pays: those
- *  draw on the one pool every account's runs share, and an assistant must
- *  never be what stalls them. */
-const PLATFORM_PER_DAY = 300;
 
 type Ctx = { params: Promise<{ workspace: string }> };
 
@@ -70,16 +62,10 @@ async function postOnce(req: NextRequest, ctx: Ctx) {
     }
     if (!fs.existsSync(workspaceDir(tenant, workspace))) return NextResponse.json({ error: `no workspace "${workspace}"` }, { status: 404 });
 
-    // The account's day first: a request it refuses must not also spend the
-    // person's hour.
-    const platformPays = paidByPlatform(tenant, workspace);
-    const limited =
-      (platformPays ? await refuseWhenLimited(`assistant-day:${tenant}`, PLATFORM_PER_DAY, 86_400) : null) ??
-      (await refuseWhenLimited(`assistant:${tenant}:${actor.kind}:${actor.id}`, PER_HOUR, 3600));
+    // The account's day, the person's hour, the balance — the same brakes
+    // every queued assistant job takes (server/assistant-limits.ts).
+    const limited = await refuseAssistantJob(tenant, workspace, actor);
     if (limited) return limited;
-    // Money is checked where work is added, as a run's start checks it: an
-    // empty wallet is a 402 now, not an error a worker writes later.
-    if (platformPays) await billing().assertFunds(tenant);
 
     const job: AssistantJob = {
       id: newJobId(),

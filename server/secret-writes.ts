@@ -14,12 +14,25 @@ import { ownerOf } from "./users.ts";
  *  and sign-up links through it. */
 export const MAIL_SENDER: ReadonlySet<string> = new Set(["RESEND_API_KEY", "EMAIL_FROM"]);
 
-/** The owner in person, or a key the owner minted (`foldrun login` keys
- *  are admin-role but carry the minter's address as the actor's name). */
-export async function actsForOwner(tenant: string, actor: Pick<Actor, "role" | "kind" | "name">): Promise<boolean> {
-  if (actor.role === "owner") return true;
+/**
+ * The one rule for an act only the owner may do through a key-or-session
+ * route: the owner as a PERSON — their own signed-in session, or the key
+ * their own `foldrun login` minted (origin "cli-login", minted by whoever
+ * owns the account now). Any other key the owner minted — a CI key, an admin
+ * key handed to a contractor — is an account credential, not the owner, and
+ * is refused (owner decision, 30 Oct 2026: every key used to count, because
+ * a key's actor name is its minter's address).
+ *
+ * Role "owner" is only ever the owner's session or the local dev stand-in
+ * (FOLDRUN_DEV_NO_AUTH): a key is never minted an owner. A support view
+ * reads as the owner and acts for no one.
+ */
+export async function actsForOwner(tenant: string, actor: Pick<Actor, "role" | "kind" | "name" | "id"> & Pick<Partial<Actor>, "origin" | "readOnly">): Promise<boolean> {
+  if (actor.readOnly) return false;
+  if (actor.role === "owner") return actor.kind === "user" || actor.id === "dev";
+  if (actor.kind !== "key" || actor.origin !== "cli-login") return false;
   const owner = await ownerOf(tenant);
-  return Boolean(owner && actor.kind === "key" && actor.name.toLowerCase() === owner.email.toLowerCase());
+  return Boolean(owner && actor.name.toLowerCase() === owner.email.toLowerCase());
 }
 
 /**

@@ -5,7 +5,7 @@
 // for a machine with no browser.
 
 import { NextRequest, NextResponse } from "next/server";
-import { beginCliLogin, POLL_SECONDS } from "@/server/cli-login";
+import { beginCliLogin, requestOrigin, POLL_SECONDS } from "@/server/cli-login";
 import { errorResponse } from "@/server/api";
 import { clientIp, refuseWhenLimited } from "@/server/limits";
 import { publicOrigin } from "@/server/auth-flows";
@@ -39,7 +39,8 @@ export async function POST(req: NextRequest) {
       if (limited) return limited;
     }
     const body = (await req.json().catch(() => ({}))) as { hostname?: string };
-    const row = await beginCliLogin(String(body.hostname ?? ""));
+    // Where it came from, for the approval page (RFC 8628 §5.4).
+    const row = await beginCliLogin(String(body.hostname ?? ""), requestOrigin(req));
     const origin = publicOrigin(req);
     return NextResponse.json({
       id: row.id,

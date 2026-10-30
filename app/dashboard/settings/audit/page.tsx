@@ -52,6 +52,10 @@ function describe(e: AuditEntry): string {
       const sites = Array.isArray(d.sites) ? (d.sites as string[]) : [];
       return `${s("name")}${s("workspace") ? ` in ${s("workspace")}` : " (account)"} · ${sites.length ? `bound to ${sites.join(", ")}` : "unbound"}`;
     }
+    case "secret.workspaces": {
+      const list = Array.isArray(d.workspaces) ? (d.workspaces as string[]) : null;
+      return `${s("name")} (account) · ${list === null ? "every workspace" : list.length ? `only ${list.join(", ")}` : "no workspace"}`;
+    }
     case "workspace.deployed":
       return `${s("workspace")}${s("commit") ? ` @ ${s("commit").slice(0, 8)}` : ""} · +${d.added ?? 0} ~${d.updated ?? 0} −${d.removed ?? 0}`;
     case "workspace.exported":

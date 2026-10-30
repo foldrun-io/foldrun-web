@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requirePermission, errorResponse, ApiError } from "@/server/api";
+import { requireTenant, requireCaller, requirePermission, errorResponse, ApiError } from "@/server/api";
 import { verifySession, SESSION_COOKIE } from "@/server/users";
 import { workspaceDir } from "@/lib/store";
 import { AVATAR_KINDS, AVATAR_MAX_BYTES, readAvatar, setAvatar, deleteAvatar, avatarUrl, type AvatarKind } from "@/platform/avatars";
@@ -42,7 +42,11 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ kind: strin
     const { kind: rawKind, id } = await ctx.params;
     const kind = kindOf(rawKind);
     if (!kind) return NextResponse.json({ error: "no such kind" }, { status: 404 });
-    const tenant = await requireTenant(req);
+    const { tenant, actor } = await requireCaller(req);
+    // A workspace's picture is read by callers who may open that workspace,
+    // as its write is (30 Oct 2026): assertScope guards /api/workspaces/…
+    // paths only, and this one names the workspace in its own.
+    if (kind === "workspace" && actor.workspaces !== null && !scopeAllows(actor.workspaces, id)) throw new ApiError("this workspace is not one you were given access to", 403);
     const hit = readAvatar(tenant, kind, id);
     if (!hit) return NextResponse.json({ error: "no picture" }, { status: 404 });
     return new NextResponse(new Uint8Array(hit.bytes), {

@@ -6,7 +6,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { actorOf, errorResponse, requirePermission } from "@/server/api";
-import { createShare, listShares, revokeShare, shareUrl } from "@/platform/shares.ts";
+import { createShare, listShares, maskToken, readerSeesToken, revokeShare, shareId, shareUrl, tokenForShareId } from "@/platform/shares.ts";
+import { can } from "@/platform/permissions";
 import { idempotent } from "@/server/idempotency";
 
 async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: string }> }) {
@@ -48,6 +49,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
       ok: true,
       url,
       token: share.token,
+      id: shareId(share.token),
       path: share.path,
       contentType: share.contentType,
       expiresAt: share.expiresAt,
@@ -60,9 +62,18 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
 export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: string }> }) {
   try {
     const { workspace } = await ctx.params;
-    const tenant = (await requirePermission(req, "workspace:read")).tenant;
+    const { tenant, actor } = await requirePermission(req, "workspace:read");
+    // A token is the link itself, and a link outlives the access of whoever
+    // copies it (30 Oct 2026): a viewer who listed every token kept working
+    // public links after their key was revoked. Admins and a link's own maker
+    // see its token and URL; everyone else sees that it exists — path, dates,
+    // maker — with the token masked and `id` to revoke it by.
+    const reader = { admin: can(actor.role, "workspace:manage"), name: actor.name };
     const shares = (await listShares(tenant, workspace)).map((s) => ({
-      token: s.token,
+      ...(readerSeesToken(s, reader)
+        ? { token: s.token, masked: false, url: urlOf(s.token) }
+        : { token: maskToken(s.token), masked: true, url: null }),
+      id: shareId(s.token),
       path: s.path,
       contentType: s.contentType,
       createdAt: s.createdAt,
@@ -80,11 +91,25 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ workspac
   try {
     const { workspace } = await ctx.params;
     const tenant = (await requirePermission(req, "workspace:write")).tenant;
-    const token = new URL(req.url).searchParams.get("token") ?? "";
-    if (!token) return NextResponse.json({ error: "expected ?token=" }, { status: 400 });
+    const q = new URL(req.url).searchParams;
+    // By token, or by id — the handle a list gives a reader whose tokens are
+    // masked, so an editor can still take down a colleague's link.
+    const id = q.get("id") ?? "";
+    const token = id ? await tokenForShareId(tenant, workspace, id) : q.get("token") ?? "";
+    if (!id && !token) return NextResponse.json({ error: "expected ?token= or ?id=" }, { status: 400 });
+    if (!token) return NextResponse.json({ ok: true, revoked: false });
     return NextResponse.json({ ok: true, revoked: await revokeShare(tenant, token, workspace) });
   } catch (err) {
     return errorResponse(err);
+  }
+}
+
+/** The public URL, or null when this install has none (shareUrl throws). */
+function urlOf(token: string): string | null {
+  try {
+    return shareUrl(token);
+  } catch {
+    return null;
   }
 }
 
