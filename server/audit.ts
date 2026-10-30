@@ -69,8 +69,8 @@ export type AuditAction =
   // The owner's own data and exit: a copy taken, a close asked for.
   | "account.exported"
   | "account.close_requested"
-  // The super admin's levers on a customer — mirrored here from the super admin's
-  // own durable file (platform/admin.ts), so an auditor's one query over
+  // The platform operator's levers on a customer — mirrored here from the
+  // operator's own durable file (platform/admin.ts), so an auditor's one query over
   // this table also sees what the platform did TO an account, not only what
   // the account's people did in it.
   | "operator.credit"
@@ -96,7 +96,7 @@ export type AuditAction =
   | "billing.event"
   // Who the invoices are made out to, changed by the owner.
   | "billing.details"
-  // A Stripe event re-processed by the super admin from the webhook log.
+  // A Stripe event re-processed by the platform's operator from the webhook log.
   | "billing.replay"
   | "plan.ended"
   // A workspace's source rolled back to a point in its history, and a
@@ -105,7 +105,7 @@ export type AuditAction =
   | "backup.restore_requested";
 
 // Without a database the log is a file per account, appended a line at a
-// time — the same shape the super admin's own audit has kept without one
+// time — the same shape the platform operator's own audit has kept without one
 // (platform/admin.ts). An install that never had Postgres used to drop every
 // entry on the floor, and so had no audit log at all.
 const SAFE_TENANT = /^[a-z0-9][a-z0-9._-]{0,63}$/i;
@@ -157,7 +157,7 @@ export interface AuditQuery {
 }
 
 /**
- * What a customer's own audit log does not show: the super admin's levers
+ * What a customer's own audit log does not show: the platform operator's levers
  * (`operator.*` — credits, internal notes, plan overrides), which are the
  * platform's record about the account rather than the account's record.
  * What support did IN the account is written to both, as `support.*`.
@@ -255,23 +255,13 @@ export function auditCsv(entries: AuditEntry[]): string {
   return [head, ...entries.map((e) => [e.id, e.at, e.actor, e.action, e.subject, e.detail?.workspace ?? "", e.detail].map(cell).join(","))].join("\n") + "\n";
 }
 
-/** Recent entries for one account, newest first. */
+/** Recent entries for one account, newest first — the account's own log,
+ *  as queryAudit reads it: the operator's levers (`operator.*`) are not in
+ *  it, with a database or without. (Until 30 Oct 2026 the database path
+ *  read the table directly and returned them too.) */
 export async function recentAudit(tenant: string, limit = 50) {
-  const q = orm();
-  if (!q) return (await queryAudit({ tenant, limit: Math.min(limit, 200) })).entries.map(({ id: _id, ...e }) => e);
-  const rows = await q
-    .select({ at: auditLog.at, actor: auditLog.actor, action: auditLog.action, subject: auditLog.subject, detail: auditLog.detail })
-    .from(auditLog)
-    .where(eq(auditLog.tenant, tenant))
-    .orderBy(desc(auditLog.at))
-    .limit(Math.min(limit, 200));
-  return rows.map((r) => ({
-    at: r.at.toISOString(),
-    actor: r.actor,
-    action: r.action,
-    subject: r.subject,
-    detail: r.detail as Record<string, unknown>,
-  }));
+  const { entries } = await queryAudit({ tenant, limit: Math.min(limit, 200) });
+  return entries.map(({ id: _id, ...e }) => e);
 }
 
 /** "7d", "24h", "30m", or a date/ISO time — into a moment. */
