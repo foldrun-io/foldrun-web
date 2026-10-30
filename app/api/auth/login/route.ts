@@ -9,7 +9,6 @@ import { rateLimit, rateLimitReset } from "@/platform/cache";
 import { audit } from "@/server/audit";
 import { mintToken, CHALLENGE_TTL_MS } from "@/server/auth-tokens";
 import { errorResponse } from "@/server/api";
-import { surface, signInRefusal, sessionAudience } from "@/server/surface";
 
 // Two limits, because they answer different attacks. Per-account stops someone
 // grinding one person's password; per-IP stops the same client working through
@@ -59,24 +58,15 @@ export async function POST(req: NextRequest) {
     // three times and then got it right is not throttled by their own typos.
     await rateLimitReset(`login:acct:${email}`);
 
-    // An operator console lets only the platform's operator in (hosted only:
-    // foldrun-admin's server/surface.ts; nobody is refused here otherwise).
-    const refused = await signInRefusal(user);
-    if (refused) return NextResponse.json({ error: refused }, { status: 403 });
-    const here = surface();
-
     // A second factor is on: the password bought a challenge, not a session.
-    // The challenge token names the user and the surface it was asked on, and
-    // lasts five minutes; the code goes to /api/auth/mfa/verify, which is
-    // where the session is minted — for that surface only.
+    // The challenge token names the user and lasts five minutes; the code
+    // goes to /api/auth/mfa/verify, which is where the session is minted.
     if (user.mfaSecret) {
-      const challenge = mintToken("mfa-challenge", { u: user.id, a: here }, CHALLENGE_TTL_MS);
+      const challenge = mintToken("mfa-challenge", { u: user.id }, CHALLENGE_TTL_MS);
       return NextResponse.json({ ok: true, mfa: true, challenge });
     }
 
-    // The surface's audience (an operator console's, when its second factor
-    // is optional — hosted only; the customer app's otherwise).
-    const session = await mintSession(user, req.headers.get('user-agent'), { audience: sessionAudience() });
+    const session = await mintSession(user, req.headers.get('user-agent'));
     await audit('login', { actor: user.email, tenant: user.tenant, subject: session.sessionId });
     const res = NextResponse.json({
       ok: true,

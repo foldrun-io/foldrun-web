@@ -1575,29 +1575,15 @@ test("widening from a workspace's runs to the account's keeps the filters", () =
 
 // ------------------------------------------------------------- operator console
 //
-// The operator console is a fenced module: app/admin, app/api/admin,
-// server/admin — foldrun-admin's, laid over a hosted checkout only — and
-// NOTHING customer-facing reaches into it — that fence is what
-// makes "extract it into its own app one day" a git mv rather than a
-// rewrite, and what makes "can a customer ever see this" a test rather
-// than an audit.
-//
-// The distinction that matters: customer code MAY read @/platform/admin
-// (the state — a suspended account must see its own notice, the wallet must
-// honour the plan) and may NOT import @/server/admin (the console's
-// identity and pages).
+// The operator console is its own application since 30 Oct 2026
+// (foldrun-admin/console, its own image at admin.foldrun.io), talking to the
+// app only through the signed internal admin API. This tree — public or
+// with foldrun-admin laid over it — holds none of it.
 
-const ADMIN_TREES = ["app/admin/", "app/api/admin/", "server/admin/", "app/operator/"];
-
-test("nothing customer-facing imports the super admin console", () => {
-  const offenders: string[] = [];
-  for (const file of webFiles((f) => /\.(ts|tsx)$/.test(f))) {
-    const rel = path.relative(root, file);
-    if (ADMIN_TREES.some((t) => rel.startsWith(t))) continue;
-    const src = fs.readFileSync(file, "utf8");
-    if (/from "@\/server\/admin|from "\.\.?\/.*\/admin\/|app\/admin\//.test(src)) offenders.push(rel);
+test("the customer app holds no operator console", () => {
+  for (const t of ["app/admin", "app/api/admin", "server/admin", "app/operator", "server/surface.ts"]) {
+    assert.equal(fs.existsSync(path.join(root, t)), false, `${t} is the console's, which is its own application`);
   }
-  assert.deepEqual(offenders, [], `the fence is crossed by:\n${offenders.join("\n")}`);
 });
 
 test("no customer-facing file grants or draws a way into the operator console", () => {

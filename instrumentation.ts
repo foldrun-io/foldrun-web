@@ -15,13 +15,6 @@ export async function register() {
     process.exit(1);
   }
 
-  // An operator console (hosted only; the public server/surface.ts says
-  // there is none) runs none of the app's boot: it holds no app database,
-  // install key or data volume. Asked before the platform is imported, which
-  // plugs itself in on import.
-  const { consoleProcess, startSurfaceServices } = await import("@/server/surface.ts");
-  if (consoleProcess()) return;
-
   const { prepare, startLoops, roleOf } = await import("@/platform/boot.ts");
   const { databaseEnabled } = await import("@/platform/db.ts");
 
@@ -67,9 +60,10 @@ export async function register() {
     setInterval(deprecations, 3_600_000).unref();
   }
 
-  // What the hosted app runs beside itself (its internal admin API, for the
-  // operator console); nothing in the public edition.
-  await startSurfaceServices();
+  // What the hosted app runs beside itself (server/hosted-services.ts —
+  // foldrun-admin's); nothing in the public edition.
+  const { startHostedServices } = await import("@/server/hosted-services.ts");
+  await startHostedServices();
 
   // `web` serves and runs nothing. `worker` should not be a Next.js server
   // at all any more (foldrun-platform/src/worker.ts), but a worker started

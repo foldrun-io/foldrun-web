@@ -23,7 +23,6 @@
 // another site cannot post one of them at all, Origin or no Origin.
 
 import { SESSION_COOKIE } from "./users.ts";
-import { consoleWrite } from "./surface.ts";
 
 const WRITES = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 /** Writes open to anyone (no credential yet), and the one that approves a
@@ -78,10 +77,6 @@ export function crossSiteWrite(
   publicUrl = process.env.FOLDRUN_PUBLIC_URL,
 ): string | null {
   if (!WRITES.has(req.method.toUpperCase())) return null;
-  // An operator console has its own, stricter rule (hosted only:
-  // foldrun-admin's server/surface.ts); undefined means this is no console.
-  const onConsole = consoleWrite(req);
-  if (onConsole !== undefined) return onConsole;
   const authz = req.headers.get("authorization") ?? "";
   if (authz.startsWith("Bearer ")) return null;
   const cookie = req.headers.get("cookie") ?? "";

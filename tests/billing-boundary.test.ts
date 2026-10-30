@@ -11,7 +11,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { PRIVATE, importsOf } from "../../foldrun-platform/tests/billing-boundary-lists.ts";
+import { isPrivate, importsOf } from "../../foldrun-platform/tests/billing-boundary-lists.ts";
 import { BILLING_FILES, STUBS } from "./billing-files.ts";
 
 const ROOT = path.join(import.meta.dirname, "..");
@@ -55,7 +55,7 @@ test("the dashboard and API reach billing only through billing()", () => {
       if (!to) continue;
       if (to.startsWith("platform:")) {
         const mod = to.slice("platform:".length);
-        if (PRIVATE.has(mod)) {
+        if (isPrivate(mod)) {
           breaches.push(`${rel} imports @/platform/${mod}`);
         }
       } else if (resolvesToBilling(to)) {

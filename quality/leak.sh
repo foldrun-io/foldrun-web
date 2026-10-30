@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Nothing hosted-only in the open-source image (27 Oct 2026). The image the
 # self-hosting build made must hold none of foldrun's private files —
-# billing, Stripe, the operator console — by name, and no secret by
+# billing, Stripe, the operator console's admin API — by name, and no secret by
 # pattern (gitleaks over its filesystem).
 #
 #   bash quality/stack.sh up && bash quality/leak.sh [image]
@@ -18,7 +18,7 @@ for f in sys.argv[1:]:
     try: text = open(f).read()
     except FileNotFoundError: continue
     # The public stubs are not private: their keys name files every image
-    # has (server/surface.ts, server/billing-notices.ts …), and their bodies,
+    # has (server/hosted-services.ts, server/billing-notices.ts …), and their bodies,
     # written as template literals, quote ordinary imports ("next/server").
     # Read neither as a private name (29 Oct 2026: they were, and the check
     # flagged the open-source image for having its own stub).
@@ -52,7 +52,7 @@ while read -r n; do
     [ -n "$hit" ] && { echo "LEAK $n → $hit"; found=1; }
   done
 done < <(grep -v -e '^billing-hosted' -e 'test.ts$' -e '/$' "$tmp/names")
-for marker in "STRIPE_PRICE_STARTER" "createSubscriptionSession" "consoleAllows"; do
+for marker in "STRIPE_PRICE_STARTER" "createSubscriptionSession" "startAdminApi"; do
   # Not this script: it names the markers it looks for, and an image that
   # ships quality/ would otherwise find itself.
   hit=$(grep -rl --exclude-dir=node_modules "$marker" "$tmp/app" 2>/dev/null | grep -v -e '\.md$' -e '/quality/leak\.sh$' | head -3 || true)

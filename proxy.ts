@@ -17,7 +17,6 @@ import { bodyTooLarge } from "@/server/body-limit";
 import { apiGate } from "@/server/api-limits";
 import { RESOLVED_VERSION_HEADER } from "@/server/api-version";
 import { versionHeaders } from "@/server/release";
-import { consoleRoute } from "@/server/surface";
 
 /** X-Foldrun-Version (and X-Foldrun-Api, X-Foldrun-Cli) on a response, so any
  *  client — the CLI's update notice, a script, a support ticket's curl -i —
@@ -116,13 +115,6 @@ function makeNonce(): string {
 
 export async function proxy(req: NextRequest) {
   const nonce = makeNonce();
-  // An operator console's host answers first (hosted only: foldrun-admin's
-  // server/surface.ts; the public stub has no console and answers nothing).
-  const onConsole = await consoleRoute(req, {
-    pass: () => harden(NextResponse.next({ request: { headers: forward(req, nonce) } }), req, nonce),
-    answer: (res) => harden(res, req, nonce),
-  });
-  if (onConsole) return onConsole;
   if (!req.nextUrl.pathname.startsWith("/api/") && !/^\/dashboard(\/|$)/.test(req.nextUrl.pathname)) {
     // Every other page (sign-in, signup, reset, the home page): no session
     // logic, but the same security headers as the dashboard. Until 27 Oct
@@ -174,7 +166,7 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // Every page and route (27 Oct 2026): a console's host must be able to
-  // refuse anything that is not the console. Static assets stay out.
+  // Every page and route (27 Oct 2026): every response gets the security
+  // headers. Static assets stay out (next.config.ts sets theirs).
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

@@ -47,49 +47,38 @@ next-env.d.ts
 # the assistant's docs, written before `next build` in the image (scripts/assistant-docs.mjs) — never committed
 /assistant-docs.json
 
-# foldrun-admin (private: billing, the operator console, Stripe) is laid over
+# foldrun-admin (private: billing, support views, the app's side of the
+# operator console's admin API, Stripe) is laid over
 # this checkout by its overlay.sh for a hosted build. Never commit its files:
 # scripts/billing-guard.mjs refuses them in pre-commit, pre-push and CI.
-/app/admin/
-/app/api/admin/
 /app/api/billing/
 /app/api/support/
 /app/dashboard/billing/
 /app/dashboard/wallet/
 /app/support/
-/server/admin/
 /server/admin-api/
-/server/console-access.ts
 /server/stripe.ts
 /server/stripe-webhook.ts
 /components/billing-details-form.tsx
-/components/admin-act.ts
 /components/low-balance-banner.tsx
 /components/balance-pill.tsx
 /components/dunning-banner.tsx
 /components/manage-in-stripe.tsx
 /components/support-banner.tsx
 /tests/admin-export.test.ts
-/tests/console-session.ts
-/tests/console-surface.test.ts
-/tests/csrf-console.test.ts
-/tests/proxy-console.test.ts
-/tests/admin-idempotency-billing.test.ts
-/tests/admin-idempotency.test.ts
 /tests/billing-admin.test.ts
 /tests/billing-checkout.test.ts
 /tests/stripe-e2e.test.ts
-/tests/console-guard.test.ts
 /tests/console-e2e.test.ts
-/tests/console-access.test.ts
 /tests/console-access-keys.ts
-/tests/console-operators.test.ts
 /tests/billing-notices-billing.test.ts
 /tests/consistency-billing.test.ts
 /tests/flags-routes.test.ts
 /tests/status-routes.test.ts
 /tests/stripe.test.ts
 /tests/support-view.test.ts
+/tests/admin-api-contract.test.ts
+/tests/admin-op.ts
 /.foldrun-admin-laid
 
 # The quality stack: its secrets and its reports (quality/run.sh)

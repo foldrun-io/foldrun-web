@@ -1,7 +1,7 @@
-// The proxy: on the customer app nothing a console adds changes a thing (a
-// console's own host is foldrun-admin's tests/proxy-console.test.ts).
+// The proxy on the pages it does not guard: they pass with the security
+// headers, the dashboard asks for a sign-in, share links keep their own.
 //
-//   node --import ./tests/register.mjs --test tests/proxy-surface.test.ts
+//   node --import ./tests/register.mjs --test tests/proxy-pages.test.ts
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -9,23 +9,16 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-proxy-surface-"));
-process.env.FOLDRUN_SECRET_KEY = "proxy-surface-key";
+process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-proxy-pages-"));
+process.env.FOLDRUN_SECRET_KEY = "proxy-pages-key";
 const { NextRequest } = await import("next/server");
 const { proxy } = await import("../proxy.ts");
 
-const at = async (surface: string | undefined, pathname: string, init: { method?: string; headers?: Record<string, string> } = {}) => {
-  const prev = process.env.FOLDRUN_SURFACE;
-  surface === undefined ? delete process.env.FOLDRUN_SURFACE : (process.env.FOLDRUN_SURFACE = surface);
-  try {
-    return await proxy(new NextRequest(`https://admin.example.test${pathname}`, { method: init.method ?? "GET", headers: init.headers }));
-  } finally {
-    prev === undefined ? delete process.env.FOLDRUN_SURFACE : (process.env.FOLDRUN_SURFACE = prev);
-  }
-};
+const at = (_unused: undefined, pathname: string, init: { method?: string; headers?: Record<string, string> } = {}) =>
+  proxy(new NextRequest(`https://app.example.test${pathname}`, { method: init.method ?? "GET", headers: init.headers }));
 const passes = (r: Response) => r.headers.get("x-middleware-next") === "1";
 
-test("on the customer app: nothing new — pages it never touched pass, the dashboard still asks for a sign-in", async () => {
+test("pages it never touched pass, the dashboard still asks for a sign-in", async () => {
   assert.ok(passes(await at(undefined, "/admin")), "a page this app may not have is its own to answer");
   assert.ok(passes(await at(undefined, "/login")));
   assert.ok(passes(await at(undefined, "/")));
