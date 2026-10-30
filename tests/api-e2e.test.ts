@@ -145,12 +145,11 @@ before(async () => {
       STRIPE_WEBHOOK_SECRET: "whsec_e2e_testing",
       // A Stripe key makes this a HOSTED edition without enforcing billing
       // (that is FOLDRUN_BILLING=1, which would refuse every run below on an
-      // empty balance). Hosted is what the billing routes and the super admin
-      // console exist on; nothing here calls Stripe with this key.
+      // empty balance). Hosted is what the billing routes exist on; nothing here calls Stripe with this key.
       STRIPE_SECRET_KEY: "sk_test_e2e_not_a_real_key",
       // The founder signed up below owns acme-e2e, and acme-e2e is the
-      // platform's own account here — which makes them the super admin.
-      // Nothing else grants it, which the last admin test checks.
+      // platform's own account here — which grants them nothing in this
+      // app: the operator console is its own application (foldrun-admin).
       FOLDRUN_PLATFORM_ACCOUNT: "acme-e2e",
       // The breach check calls out to Have I Been Pwned; not from a test.
       FOLDRUN_SKIP_BREACH_CHECK: "1",

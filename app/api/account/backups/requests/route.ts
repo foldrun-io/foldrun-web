@@ -69,7 +69,7 @@ async function requestPost(req: NextRequest) {
     const admin = await ownerOf(platformAccount());
     const mail = admin?.email
       ? await sendRestoreRequestNotice(platformAccount(), admin.email, { ...request })
-      : ({ ok: false, error: "no super admin to tell" } as const);
+      : ({ ok: false, error: "no operator to tell" } as const);
     if (!mail.ok) console.error(`[foldrun] restore request ${request.id} for ${tenant}: operator not mailed — ${mail.error}`);
     await markRestoreRequestNotified(request.id, mail.ok);
     return NextResponse.json({ ok: true, request: { ...request, notified: mail.ok } }, { status: 201 });

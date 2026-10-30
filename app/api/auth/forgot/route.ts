@@ -2,7 +2,7 @@
 // address — the form must not be a way to learn which addresses have an
 // account. Rate limited per address, per caller when one can be told, and
 // install-wide on the mail it sends. If there is an account, a reset link goes to it; if the platform
-// cannot send mail, the super admin console can hand the link over instead.
+// cannot send mail, foldrun's hosted operator can hand the link over instead.
 
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/platform/cache";

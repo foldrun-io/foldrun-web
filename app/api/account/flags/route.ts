@@ -1,5 +1,6 @@
 // The feature flags as they stand for the caller's account — read-only.
-// Only the super admin changes a flag (/api/admin/flags); an account sees
+// Only the platform's operator changes a flag (on foldrun's hosted platform;
+// a self-hosted install runs every flag at its default); an account sees
 // what is on for it, and why: its own override, the install-wide setting,
 // a rollout, or the default.
 //

@@ -1,7 +1,7 @@
 // The account's audit log, for the account's own owner and admins.
 //
 // Until this route the log was written for every sign-in, key, invite and
-// plan change and read by nobody but the super admin. An auditor asks the
+// plan change and read by nobody but the platform's operator. An auditor asks the
 // customer, not us, so the customer reads it here — and only their own:
 // the tenant is the caller's, never a parameter.
 //

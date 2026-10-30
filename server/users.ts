@@ -125,8 +125,7 @@ export interface UserRecord {
   viewAs?: { id: string; by: string; reason: string; expiresAt: string } | null;
   /** How the presented token was made (27 Oct 2026): its kind, the surface
    *  it was made for (null = the customer app) and whether a second factor
-   *  was completed. Set by verifySession; the console accepts only a v2
-   *  "admin" session with mfa. */
+   *  was completed. Set by verifySession. */
   session?: { kind: "v1" | "v2" | "s1"; audience: string | null; mfa: boolean };
   /** A person's own small settings: `onboardingDismissedAt`, and the like. */
   prefs?: Record<string, unknown> | null;
@@ -196,7 +195,7 @@ async function readUsers(): Promise<UserRecord[]> {
   return readUsersFile();
 }
 
-// Any constant both web and console agree on; it names the users table's lock.
+// Any constant every web pod agrees on; it names the users table's lock.
 const USERS_LOCK = 0x666f6c75;
 let fileQueue: Promise<unknown> = Promise.resolve();
 
@@ -440,7 +439,8 @@ export async function createUser(
 
 /**
  * A new account and its owner, made by trusted server code rather than a
- * sign-up form — the hosted operator console's way in for a customer who was
+ * sign-up form — the hosted operator's way in (foldrun-admin's internal admin
+ * API) for a customer who was
  * sold to (foldrun-admin). `allowed` is the caller's rule, asked inside the
  * lock; the signup gate is not asked, so nothing that answers a request
  * from the public may call this.
@@ -1035,7 +1035,7 @@ export function isValidTimeZone(tz: string): boolean {
  * that needs no stored value at all.
  */
 /**
- * A new password with no old one presented — the super admin's lever, and the
+ * A new password with no old one presented — the platform operator's lever, and the
  * end of a forgot-password flow. Everything changePassword does except the
  * check it cannot make. A fresh salt, and every session of theirs is ended:
  * a reset that leaves a stolen session alive is not a reset.

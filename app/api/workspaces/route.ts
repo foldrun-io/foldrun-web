@@ -68,7 +68,7 @@ async function postOnce(req: NextRequest) {
     // The plan's workspace count, checked only for NEW workspaces — pushing
     // to an existing one must never bounce off the limit, or a deploy to
     // workspace N becomes an outage the moment the plan shrinks.
-    // The super admin's plan for this customer first, else the install-wide
+    // The plan the platform's operator set for this customer first, else the install-wide
     // default. A plan is a hosted concept: the `self-hosted` edition has no
     // workspace cap however FOLDRUN_PLAN_WORKSPACES is set, because there
     // is no plan.

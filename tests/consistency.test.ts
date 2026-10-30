@@ -26,6 +26,7 @@ import { WORKSPACE_DIRS, templateFiles, anchoredReason, accountFileSealed } from
 import { starterFiles } from "../../foldrun-core/src/starter.ts";
 import { readAgentsMd } from "../../foldrun-core/src/runner.ts";
 import { LIBRARY_KINDS } from "../../foldrun-core/src/library.ts";
+import { BILLING_FILES, STUBS, billingPresent } from "./billing-files.ts";
 
 const root = path.join(import.meta.dirname, "..");
 
@@ -1598,6 +1599,48 @@ test("no customer-facing file grants or draws a way into the operator console", 
   assert.doesNotMatch(read("app/api/auth/session/route.ts"), /superAdmin|adminUrl|isSuperAdmin/);
   assert.doesNotMatch(read("components/user-menu.tsx"), /Super admin|adminUrl/);
   assert.doesNotMatch(read("../foldrun-platform/src/admin.ts"), /isSuperAdmin/);
+});
+
+test("no public file speaks of the console as part of this app, or of a super admin", () => {
+  // Strict since 30 Oct 2026: every source, script, config and doc this
+  // repository publishes — not a list of files known to have been fixed.
+  // The console's old homes in this tree (server/admin/, server/surface.ts,
+  // FOLDRUN_SURFACE) and its old door (a "super admin" account) are gone;
+  // a comment that still names them describes code that does not exist,
+  // and a self-hoster reading it looks for a console they do not have. The
+  // platform's operator is "the operator". foldrun-admin's own files laid
+  // over this tree (billing, support views, the internal admin API) are
+  // its business and are left out, as are these tests, which name what
+  // they forbid.
+  const manifest = path.join(root, "../foldrun-admin/MANIFEST");
+  const laid = new Set(
+    fs.existsSync(manifest)
+      ? fs.readFileSync(manifest, "utf8").split("\n").filter((l) => l.startsWith("web/")).map((l) => l.slice(4))
+      : [],
+  );
+  const isPrivate = (rel: string) =>
+    laid.has(rel) || BILLING_FILES.some((p) => (p.endsWith("/") ? rel.startsWith(p) : rel === p)) || (billingPresent && rel in STUBS);
+  const SKIP_DIRS = new Set(["node_modules", ".next", ".git", "tests", "public"]);
+  const files: string[] = [];
+  const visit = (dir: string) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (e.isDirectory()) {
+        if (!SKIP_DIRS.has(e.name)) visit(path.join(dir, e.name));
+      } else if (/\.(tsx?|mjs|js|sh|md|ya?ml|json)$/.test(e.name) && !/^(package-lock|release|assistant-docs)\.json$/.test(e.name) && !e.name.endsWith(".tsbuildinfo")) {
+        files.push(path.relative(root, path.join(dir, e.name)));
+      }
+    }
+  };
+  visit(root);
+  assert.ok(files.includes("server/users.ts") && files.includes("README.md"), "the walk reaches the tree");
+  const FORBIDDEN = [/super[ -]?admin/i, /server\/admin\//, /server\/surface\b/, /FOLDRUN_SURFACE/, /isSuperAdmin|\badminUrl\b/];
+  const offenders = files
+    .filter((f) => !isPrivate(f))
+    .flatMap((f) => {
+      const text = fs.readFileSync(path.join(root, f), "utf8");
+      return FORBIDDEN.filter((re) => re.test(text)).map((re) => `${f}: ${re}`);
+    });
+  assert.deepEqual(offenders, []);
 });
 
 // ------------------------------------------------------------- the one ORM

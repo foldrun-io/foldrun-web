@@ -122,7 +122,7 @@ export function sendEmailChangedNotice(tenant: string, oldAddress: string, newAd
     `If it was not you, reply to this email straight away and we will reverse it.\n`);
 }
 
-/** To the super admin: an owner asked to close their account. The account
+/** To the platform's operator: an owner asked to close their account. The account
  *  is already suspended by the time this is sent; what is left is human —
  *  the last invoice, any refund, and when the data goes. */
 export function sendCloseRequestNotice(platformTenant: string, to: string, account: string, by: string, reason: string) {
@@ -133,7 +133,7 @@ export function sendCloseRequestNotice(platformTenant: string, to: string, accou
     `Nothing has been deleted. Settle the last invoice and any refund, then decide when the data goes.\n`, undefined, "account");
 }
 
-/** To the super admin: a customer asked for a restore from a backup — the
+/** To the platform's operator: a customer asked for a restore from a backup — the
  *  runs, state, storage or database records they cannot restore themselves.
  *  Everything needed to find the archive and scope the restore is in the
  *  mail; the request is also a row (restore_requests) and an audit entry. */

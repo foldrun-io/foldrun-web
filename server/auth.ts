@@ -504,9 +504,9 @@ export async function resolveTenant(req: NextRequest): Promise<AuthResult> {
     if (session?.viewAs) {
       // Support, viewing as the owner: every read the owner has, no write.
       // Enforced here, in the funnel, not in proxy.ts (server/view-as.ts):
-      // the proxy cannot refuse a support token's writes wholesale, because
-      // the super admin console stays usable during a view (its routes read
-      // the parked session — server/admin/index.ts ownToken).
+      // which writes a view may still make (ending it, signing out) is
+      // server/view-as.ts's to say, and it says so for every route the
+      // same way, here.
       const refused = supportViewRefusal(req.method, req.nextUrl.pathname);
       if (refused) return { tenant: null, status: 403, message: refused };
       return {

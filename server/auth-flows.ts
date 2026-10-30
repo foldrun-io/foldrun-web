@@ -1,7 +1,7 @@
 // The moves between a person and their session that need a link or a code:
 // mint a reset link, mint a verify link, and the URL they live at. Shared by
-// the auth routes and the super admin console (which can hand a customer a
-// reset link when mail cannot).
+// the auth routes and, on foldrun's hosted platform, the internal admin API
+// (whose operator can hand a customer a reset link when mail cannot).
 
 import type { NextRequest } from "next/server";
 import { mintToken, hashFingerprint, RESET_TTL_MS, VERIFY_TTL_MS } from "@/server/auth-tokens";

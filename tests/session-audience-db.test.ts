@@ -1,5 +1,5 @@
 // A session remembers which surface it was made for and whether a second
-// factor was done (27 Oct 2026) — the facts the operator console decides on.
+// factor was done (27 Oct 2026) — facts kept on the session's own row.
 // Stored in the sessions row, so this runs against Postgres.
 //
 //   FOLDRUN_TEST_DATABASE_URL=postgres://foldrun:test@localhost:55432/foldrun \

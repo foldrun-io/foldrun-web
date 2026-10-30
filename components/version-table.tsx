@@ -1,6 +1,5 @@
 // The version and the commits behind it, as a table. One rendering for
-// Settings → About, the super admin console and What's new, so the three
-// cannot disagree about what a component is called or where its sha links.
+// Settings → About and What's new, so the two cannot disagree about what a component is called or where its sha links.
 
 import type { VersionInfo } from "@/server/release";
 

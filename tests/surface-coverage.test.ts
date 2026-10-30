@@ -94,7 +94,7 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   "GET /api/avatars/[kind]/[id]": SEEN("avatarUrl() as an <img> src"),
   "GET /api/billing": SERVER("billing pages → walletSummary, readLedger"),
   // FOL-94: no caller is credited here any more — it answers 404 to all; the
-  // super admin credits through the console's adjustment.
+  // platform's operator credits through the operator console's adjustment.
   "POST /api/billing": "answers 404 to every caller: credit by hand is the platform console's capped adjustment",
   "GET /api/billing/details": SERVER("billing/details/page.tsx → billingDetails"),
   "GET /api/billing/plans": SERVER("billing/plans/page.tsx → PLANS"),

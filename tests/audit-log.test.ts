@@ -115,7 +115,7 @@ test("CSV neutralises a formula and quotes what needs it", () => {
   assert.match(out, /"a,b"/);
 });
 
-test("the super admin's operator.* levers are the platform's record, not the customer's", async () => {
+test("the platform operator's operator.* levers are the platform's record, not the customer's", async () => {
   await audit("operator.notes" as never, { actor: "boss@foldrun.test", tenant: "acme", detail: { notes: "internal" } });
   const page = await queryAudit({ tenant: "acme", limit: 1000 });
   assert.ok(page.entries.every((e) => !e.action.startsWith("operator.")));

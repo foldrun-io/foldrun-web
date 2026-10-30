@@ -46,7 +46,7 @@ export const ROUTES: RouteEntry[] = [
   {"path":"/api/auth/verify","methods":["GET"],"summary":"the link in the confirmation email — marks the address verified and lands on the dashboard"},
   {"path":"/api/auth/verify/resend","methods":["POST"],"summary":"send the confirmation again, to the signed-in person, 3 an hour"},
   {"path":"/api/avatars/{kind}/{id}","methods":["GET","PUT","DELETE"],"summary":"a picture for a user (their own id), a workspace (its name) or the account (the tenant). PUT the bytes of a PNG, JPEG or WebP under 1 MB; a person sets their own, an admin a workspace's or the account's. GET needs a signed-in tenant and …"},
-  {"path":"/api/billing","methods":["GET","POST"],"idempotent":["POST"],"summary":"balance and recent ledger entries; POST answers 404 to every caller — credit comes through checkout (/api/billing/checkout) or the platform's console adjustment"},
+  {"path":"/api/billing","methods":["GET","POST"],"idempotent":["POST"],"summary":"balance and recent ledger entries; POST answers 404 to every caller — credit comes through checkout (/api/billing/checkout) or an adjustment by the platform's operator"},
   {"path":"/api/billing/card","methods":["POST"],"idempotent":["POST"],"summary":"save a card"},
   {"path":"/api/billing/checkout","methods":["POST"],"idempotent":["POST"],"summary":"a Stripe session (usd)"},
   {"path":"/api/billing/confirm","methods":["GET"],"summary":"settle one"},
