@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requirePermission, errorResponse, reportError, actorOf } from "@/server/api";
+import { requirePermission, errorResponse, reportError, actorOf, refuse } from "@/server/api";
 import { audit } from "@/server/audit";
 import { readPackage, planImport, applyImport, PackageError } from "@/lib/package";
 import { idempotent } from "@/server/idempotency";
@@ -24,8 +24,8 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     // making a new one needs manage, checked below once we know it is new.
     const { tenant, actor } = await requirePermission(req, "workspace:write");
     const bytes = Buffer.from(await req.arrayBuffer());
-    if (bytes.length > MAX_BODY) return NextResponse.json({ error: `the package is larger than ${MAX_BODY / 1024 / 1024} MB` }, { status: 413 });
-    if (bytes.length === 0) return NextResponse.json({ error: "send the .zip as the request body" }, { status: 400 });
+    if (bytes.length > MAX_BODY) return refuse(`the package is larger than ${MAX_BODY / 1024 / 1024} MB`, 413);
+    if (bytes.length === 0) return refuse("send the .zip as the request body", 400);
 
     const pkg = readPackage(bytes);
     const plan = planImport(tenant, workspace, pkg);
@@ -37,7 +37,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
       await requirePermission(req, "workspace:manage");
       // The plan's workspace count, as POST /api/workspaces checks it.
       const overCap = await workspaceCapRefusal(tenant, workspace);
-      if (overCap) return NextResponse.json({ error: overCap }, { status: 402 });
+      if (overCap) return refuse(overCap, 402);
     } else {
       // Into a workspace that exists: what the import would write over its
       // AGENTS.md (or add beside a project.md) may not change the policy
@@ -69,9 +69,9 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     // error naming the data path (30 Oct 2026): logged by reportError, and
     // the caller hears only what reportError lets through.
     if (err instanceof PackageError && err.status >= 500 && err.cause !== undefined) {
-      return NextResponse.json({ error: `the import could not be written, and nothing was kept: ${reportError(err.cause).message}` }, { status: err.status });
+      return refuse(`the import could not be written, and nothing was kept: ${reportError(err.cause).message}`, err.status);
     }
-    if (err instanceof PackageError) return NextResponse.json({ error: err.message }, { status: err.status });
+    if (err instanceof PackageError) return refuse(err.message, err.status);
     return errorResponse(err);
   }
 }
@@ -82,7 +82,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
  *  anything is read. fetch() and the CLI always send a Content-Length. */
 export async function POST(...args: Parameters<typeof postOnce>) {
   const declared = args[0].headers.get("content-length");
-  if (declared === null) return NextResponse.json({ error: "send the .zip with a Content-Length" }, { status: 411 });
-  if (Number(declared) > MAX_BODY) return NextResponse.json({ error: `the package is larger than ${MAX_BODY / 1024 / 1024} MB` }, { status: 413 });
+  if (declared === null) return refuse("send the .zip with a Content-Length", 411);
+  if (Number(declared) > MAX_BODY) return refuse(`the package is larger than ${MAX_BODY / 1024 / 1024} MB`, 413);
   return idempotent(args[0], () => postOnce(...args));
 }

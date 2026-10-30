@@ -4,7 +4,7 @@
 // finished well, else the run this one re-ran.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, ApiError } from "@/server/api";
+import { requireTenant, errorResponse, ApiError, refuse } from "@/server/api";
 import { listRunSummaries, readRun, runDisplayStatus, runVerdict } from "@/lib/store";
 import { outcomeOf, isSuccess } from "@/lib/outcome";
 import { compareRuns, lastGoodBefore } from "@/lib/compare";
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
     const { workspace, runId } = await ctx.params;
     const tenant = await requireTenant(req);
     const run = readRun(tenant, workspace, runId);
-    if (!run) return NextResponse.json({ error: "run not found" }, { status: 404 });
+    if (!run) return refuse("run not found", 404);
     const named = req.nextUrl.searchParams.get("with");
     const baseId = named
       ? named

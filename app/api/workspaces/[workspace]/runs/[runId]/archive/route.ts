@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
-import { requireTenant, errorResponse } from "@/server/api";
+import { requireTenant, errorResponse, refuse } from "@/server/api";
 import { readRun, runOutputPath } from "@/lib/store";
 import { byteRange } from "@/server/byte-range";
 import { contentDisposition } from "@/server/content-disposition";
@@ -51,11 +51,11 @@ export async function GET(
   try {
     const { workspace, runId } = await ctx.params;
     const tenant = await requireTenant(req);
-    if (!readRun(tenant, workspace, runId)) return NextResponse.json({ error: "run not found" }, { status: 404 });
+    if (!readRun(tenant, workspace, runId)) return refuse("run not found", 404);
     const agent = req.nextUrl.searchParams.get("agent") ?? "";
     const rel = req.nextUrl.searchParams.get("path") ?? "";
     const file = runOutputPath(tenant, workspace, runId, agent, rel);
-    if (!file) return NextResponse.json({ error: "no such output" }, { status: 404 });
+    if (!file) return refuse("no such output", 404);
     const ext = path.extname(file).toLowerCase();
     const type = TEXT.has(ext) ? "text/plain; charset=utf-8" : (TYPES[ext] ?? "application/octet-stream");
     const size = fs.statSync(file).size;

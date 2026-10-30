@@ -22,7 +22,7 @@
 
 import fs from "node:fs";
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, requirePermission } from "@/server/api";
+import { errorResponse, requirePermission, refuse } from "@/server/api";
 import { parseAssistantRequest } from "@/server/assistant";
 import { enqueueAssistantJob, followJob, newJobId, ownerOf, runInline, type AssistantJob, type JobEvent } from "@/platform/assistant/jobs";
 import { isConversationId } from "@/platform/assistant/conversations";
@@ -53,14 +53,14 @@ async function postOnce(req: NextRequest, ctx: Ctx) {
     try {
       body = text ? JSON.parse(text) : {};
     } catch {
-      return NextResponse.json({ error: "the body is not JSON" }, { status: 400 });
+      return refuse("the body is not JSON", 400);
     }
     const request = parseAssistantRequest(body);
     const asked = (body ?? {}) as { conversation?: unknown };
     if (asked.conversation !== undefined && asked.conversation !== null && (typeof asked.conversation !== "string" || !isConversationId(asked.conversation))) {
-      return NextResponse.json({ error: "conversation is the id GET /api/assistant/conversations returned" }, { status: 400 });
+      return refuse("conversation is the id GET /api/assistant/conversations returned", 400);
     }
-    if (!fs.existsSync(workspaceDir(tenant, workspace))) return NextResponse.json({ error: `no workspace "${workspace}"` }, { status: 404 });
+    if (!fs.existsSync(workspaceDir(tenant, workspace))) return refuse(`no workspace "${workspace}"`, 404);
 
     // The account's day, the person's hour, the balance — the same brakes
     // every queued assistant job takes (server/assistant-limits.ts).
@@ -87,7 +87,7 @@ async function postOnce(req: NextRequest, ctx: Ctx) {
       const end = await followJob(tenant, job.id, () => undefined);
       if (end?.type === "done") return NextResponse.json(doneBody(end));
       const err = end?.type === "error" ? end : { error: "no answer", status: 500 };
-      return NextResponse.json({ error: err.error }, { status: err.status });
+      return refuse(err.error, err.status);
     }
 
     const encoder = new TextEncoder();

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, requirePermission, ApiError } from "@/server/api";
+import { errorResponse, requirePermission, ApiError, refuse } from "@/server/api";
 import fs from "node:fs";
 import path from "node:path";
 import { workspaceDir, isOneSegment } from "@/lib/store";
@@ -19,7 +19,7 @@ async function postOnce(
     // account's agent under this caller's run. The runner refuses it too.
     if (!isOneSegment(agent)) throw new ApiError(`invalid agent "${agent}" — an agent's folder name, not a path`, 400);
     if (!fs.existsSync(path.join(workspaceDir(tenant, workspace), "agents", agent, "agent.md"))) {
-      return NextResponse.json({ error: `agent ${agent} not found` }, { status: 404 });
+      return refuse(`agent ${agent} not found`, 404);
     }
     let task = "";
     let test: boolean | undefined;

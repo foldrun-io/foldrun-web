@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import fs from "node:fs";
-import { requireTenant, requirePermission, errorResponse } from "@/server/api";
+import { requireTenant, requirePermission, errorResponse, refuse } from "@/server/api";
 import { refuseWhenLimited } from "@/server/limits";
 import { workspaceDir } from "@/lib/store";
 import { CHECK_RULES, SCAN_RULES, scanRule } from "@/lib/scan";
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
     const wantOnline = q.get("online") === "1" || q.get("online") === "true";
     const tenant = wantOnline ? (await requirePermission(req, "workspace:write")).tenant : await requireTenant(req);
     const dir = workspaceDir(tenant, workspace);
-    if (!fs.existsSync(dir)) return NextResponse.json({ error: `no workspace "${workspace}"` }, { status: 404 });
+    if (!fs.existsSync(dir)) return refuse(`no workspace "${workspace}"`, 404);
 
     let findings = workspaceCheck(tenant, workspace);
     // FOL-58: ?online=1 adds the checks that need the network — known

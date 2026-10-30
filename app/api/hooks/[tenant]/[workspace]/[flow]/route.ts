@@ -15,7 +15,7 @@
 // here without starting anything, because a URL that cannot answer it is
 // never saved on their side.
 
-import { errorResponse } from "@/server/api";
+import { errorResponse, refuse } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
 import { loadFlow } from "@/lib/runner";
 import { enqueueFlowRun } from "@/platform/queue";
@@ -61,29 +61,23 @@ export async function POST(
       const limited = ip ? await refuseWhenLimited(`hook-refused:${ip}`, BAD_TOKENS.limit, BAD_TOKENS.windowSec) : null;
       if (limited) return limited;
       log("invalid-token");
-      return NextResponse.json({ error: "invalid token" }, { status: 401 });
+      return refuse("invalid token", 401);
     }
 
     const flow = loadFlow(tenant, workspace, flowName);
     if (!flow) {
       log("no-flow");
-      return NextResponse.json({ error: "flow not found" }, { status: 404 });
+      return refuse("flow not found", 404);
     }
     if (flow.trigger !== "webhook") {
       log("not-webhook");
-      return NextResponse.json(
-        {
-          error:
-            flow.trigger === "email"
+      return refuse(flow.trigger === "email"
               ? `flow ${flowName} is email-triggered — its address is /api/inbox/…, not /api/hooks/…`
-              : `flow ${flowName} is not webhook-triggered (set trigger: webhook)`,
-        },
-        { status: 400 },
-      );
+              : `flow ${flowName} is not webhook-triggered (set trigger: webhook)`, 400);
     }
     if (flow.steps.length === 0) {
       log("error", { detail: "flow has no steps" });
-      return NextResponse.json({ error: "flow has no steps" }, { status: 400 });
+      return refuse("flow has no steps", 400);
     }
 
     // Whatever was posted becomes context for the first step. Read whole
@@ -102,7 +96,7 @@ export async function POST(
     }
     if (!verdict.ok) {
       log("invalid-signature", { detail: verdict.reason });
-      return NextResponse.json({ error: verdict.reason }, { status: 401 });
+      return refuse(verdict.reason, 401);
     }
 
     // idempotency:, throttle:, debounce:, disable_after: — whether this

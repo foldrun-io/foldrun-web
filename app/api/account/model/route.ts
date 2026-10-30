@@ -16,7 +16,7 @@
 // the platform's credential: customers bring API keys, not claude.ai logins.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requireAccountWide } from "@/server/api";
+import { requireTenant, errorResponse, requireAccountWide, refuse } from "@/server/api";
 import { audit } from "@/server/audit";
 import { idempotent } from "@/server/idempotency";
 import { setSecret, deleteSecret } from "@/lib/secrets";
@@ -47,7 +47,7 @@ async function putOnce(req: NextRequest) {
     const name = (body.provider ?? "").trim().toLowerCase();
     const baseUrl = (body.baseUrl ?? "").trim();
     const format = (body.format ?? "").trim().toLowerCase();
-    const bad = (error: string) => NextResponse.json({ error }, { status: 400 });
+    const bad = (error: string) => refuse(error, 400);
     if (!apiKey) return bad("expected { provider, apiKey } — apiKey is the key from your provider");
     if (isClaudeLoginToken(apiKey) && !platform.platformKeyAllowed(tenant)) {
       return bad("that is a Claude login token (sk-ant-oat…), not an API key — create an API key at your provider and use that");

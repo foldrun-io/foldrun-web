@@ -7,7 +7,7 @@ import { clientIp } from "@/server/limits";
 import { can, isRole, type Role } from "@/platform/permissions";
 import { withinMinter, keyWithin } from "@/server/key-scope";
 import { listWorkspaces } from "@/lib/store";
-import { errorResponse, ApiError } from "@/server/api";
+import { errorResponse, ApiError, refuse } from "@/server/api";
 import { idempotent } from "@/server/idempotency";
 
 /**
@@ -84,10 +84,7 @@ async function postOnce(req: NextRequest) {
       expires?: string | number | null;
     };
     if (body.workspace !== undefined || body.access !== undefined) {
-      return NextResponse.json(
-        { error: "deploy keys went with the platform's own git (17 Oct 2026) — mint an account key with workspaces: [\"<ws>\"] to open one workspace" },
-        { status: 400 },
-      );
+      return refuse("deploy keys went with the platform's own git (17 Oct 2026) — mint an account key with workspaces: [\"<ws>\"] to open one workspace", 400);
     }
     const expiresAt = parseKeyExpiry(body.expires);
     const role: Role = isRole(body.role) && body.role !== "owner" ? body.role : "editor";
@@ -97,7 +94,7 @@ async function postOnce(req: NextRequest) {
       asked = body.workspaces.filter((w): w is string => typeof w === "string");
       const have = listWorkspaces(tenant).map((w) => w.name);
       const unknown = asked.filter((w) => !have.includes(w));
-      if (unknown.length) return NextResponse.json({ error: `no such workspace: ${unknown.join(", ")}` }, { status: 400 });
+      if (unknown.length) return refuse(`no such workspace: ${unknown.join(", ")}`, 400);
     }
     // Never a role above the minter's, never a workspace they cannot open:
     // a workspace-scoped admin used to be able to mint an unscoped key

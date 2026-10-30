@@ -20,7 +20,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readUnsubscribeToken, mailCategory } from "@/lib/mail";
 import { setPreference } from "@/platform/email-preferences";
-import { errorResponse } from "@/server/api";
+import { errorResponse, refuse } from "@/server/api";
 
 export async function POST(req: NextRequest) {
   try {
@@ -35,12 +35,12 @@ export async function POST(req: NextRequest) {
       token = ((await req.json().catch(() => ({}))) as { token?: string }).token ?? null;
     }
     const read = readUnsubscribeToken(token);
-    if ("error" in read) return NextResponse.json({ error: read.error }, { status: read.status });
+    if ("error" in read) return refuse(read.error, read.status);
     const { claim } = read;
     const cat = mailCategory(claim.category);
     // A token is only ever minted for an optional category; one naming a
     // required category is not a thing this route turns off.
-    if (!cat || cat.required) return NextResponse.json({ error: "this mail cannot be unsubscribed from" }, { status: 409 });
+    if (!cat || cat.required) return refuse("this mail cannot be unsubscribed from", 409);
     await setPreference(claim.tenant, claim.email, claim.category, false, { workspace: claim.workspace, source: "unsubscribe" });
     if (fromPage) {
       const to = req.nextUrl.clone();

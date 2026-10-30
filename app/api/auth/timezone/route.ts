@@ -4,14 +4,14 @@
 // automatic, which is the default and covers almost everyone. Sending null
 // clears the override and goes back to automatic.
 
-import { errorResponse, sessionUser } from "@/server/api";
+import { errorResponse, sessionUser, refuse } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
 import { setUserTimezone } from "@/server/users";
 
 export async function POST(req: NextRequest) {
   const user = await sessionUser(req);
   if (user instanceof Response) return user;
-  if (!user) return NextResponse.json({ error: "sign in first" }, { status: 401 });
+  if (!user) return refuse("sign in first", 401);
 
   const body = (await req.json().catch(() => ({}))) as { timezone?: string | null };
   try {

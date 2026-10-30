@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { evaluateDeployed } from "@/lib/evals";
-import { errorResponse, requirePermission } from "@/server/api";
+import { errorResponse, requirePermission, refuse } from "@/server/api";
 import { audit } from "@/server/audit";
 import { deployWorkspace, planDeploy } from "@/lib/deploy";
 import { workspaceDir, type DeployFile } from "@/lib/store";
@@ -40,10 +40,7 @@ async function postOnce(
     } | null;
 
     if (!body || !Array.isArray(body.files)) {
-      return NextResponse.json(
-        { error: "expected { files: [{ path, content }] }" },
-        { status: 400 },
-      );
+      return refuse("expected { files: [{ path, content }] }", 400);
     }
 
     const files: DeployFile[] = [];
@@ -55,15 +52,12 @@ async function postOnce(
         typeof (entry as DeployFile).path !== "string" ||
         typeof (entry as DeployFile).content !== "string"
       ) {
-        return NextResponse.json(
-          { error: "every file needs a string path and string content" },
-          { status: 400 },
-        );
+        return refuse("every file needs a string path and string content", 400);
       }
       const f = entry as DeployFile;
       bytes += f.content.length;
       if (bytes > MAX_BYTES) {
-        return NextResponse.json({ error: "deploy is too large" }, { status: 413 });
+        return refuse("deploy is too large", 413);
       }
       files.push({ path: f.path, content: f.content });
     }
@@ -77,7 +71,7 @@ async function postOnce(
     let expectRemoved: string[] | undefined;
     if (body.expectRemoved !== undefined) {
       if (!Array.isArray(body.expectRemoved) || !body.expectRemoved.every((p) => typeof p === "string")) {
-        return NextResponse.json({ error: "expectRemoved must be an array of paths" }, { status: 400 });
+        return refuse("expectRemoved must be an array of paths", 400);
       }
       expectRemoved = body.expectRemoved as string[];
     }
@@ -98,7 +92,7 @@ async function postOnce(
     if (!fs.existsSync(workspaceDir(tenant, workspace))) {
       await requirePermission(req, "workspace:manage");
       const overCap = await workspaceCapRefusal(tenant, workspace);
-      if (overCap) return NextResponse.json({ error: overCap }, { status: 402 });
+      if (overCap) return refuse(overCap, 402);
     } else {
       // The deployed AGENTS.md may not change the workspace's policy keys
       // past an editor (server/workspace-policy.ts, 30 Oct 2026); a deploy

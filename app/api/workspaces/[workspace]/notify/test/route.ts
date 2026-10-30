@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
-import { errorResponse, requirePermission } from "@/server/api";
+import { errorResponse, requirePermission, refuse } from "@/server/api";
 import { sendTestNotification } from "@/lib/notify";
 import { workspaceDir } from "@/lib/store";
 import { idempotent } from "@/server/idempotency";
@@ -28,7 +28,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     const { workspace } = await ctx.params;
     const { tenant } = await requirePermission(req, "run:start");
     if (!fs.existsSync(workspaceDir(tenant, workspace))) {
-      return NextResponse.json({ error: `no workspace "${workspace}"` }, { status: 404 });
+      return refuse(`no workspace "${workspace}"`, 404);
     }
     const limited = await refuseWhenLimited(`notify-test:${tenant}:${workspace}`, TESTS_PER_HOUR, 3600);
     if (limited) return limited;

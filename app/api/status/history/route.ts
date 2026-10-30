@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { statusHistory } from "@/platform/status";
 import { statusPreflight, withStatusCors } from "@/server/status";
+import { refuse } from "@/server/api";
 
 export const dynamic = "force-dynamic";
 
@@ -15,14 +16,14 @@ export async function GET(req: NextRequest) {
   const raw = req.nextUrl.searchParams.get("days");
   const days = raw === null ? 90 : Number(raw);
   if (!Number.isInteger(days) || days < 1 || days > 90) {
-    return withStatusCors(req, NextResponse.json({ error: "days is a whole number from 1 to 90" }, { status: 400 }));
+    return withStatusCors(req, refuse("days is a whole number from 1 to 90", 400));
   }
   try {
     const res = NextResponse.json(await statusHistory(days));
     res.headers.set("cache-control", "public, max-age=300");
     return withStatusCors(req, res);
   } catch {
-    return withStatusCors(req, NextResponse.json({ error: "history unavailable" }, { status: 503 }));
+    return withStatusCors(req, refuse("history unavailable", 503));
   }
 }
 

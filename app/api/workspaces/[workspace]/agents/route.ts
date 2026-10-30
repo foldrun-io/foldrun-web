@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requirePermission, actorOf } from "@/server/api";
+import { requireTenant, errorResponse, requirePermission, actorOf, refuse } from "@/server/api";
 import fs from "node:fs";
 import path from "node:path";
 import { workspaceDir, assertSafeName, writeWorkspaceFile, AGENT_TEMPLATE } from "@/lib/store";
@@ -29,11 +29,11 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     // for them, so the file lands answering the two questions a template
     // otherwise leaves as placeholders.
     const body = (await req.json()) as { name?: string; description?: string; model?: string };
-    if (!body.name) return NextResponse.json({ error: "expected { name }" }, { status: 400 });
+    if (!body.name) return refuse("expected { name }", 400);
     assertSafeName(body.name, "agent name");
     const rel = `agents/${body.name}/agent.md`;
     if (fs.existsSync(path.join(workspaceDir(tenant, workspace), rel))) {
-      return NextResponse.json({ error: `agent ${body.name} already exists` }, { status: 409 });
+      return refuse(`agent ${body.name} already exists`, 409);
     }
     const content = newAgentFile(AGENT_TEMPLATE(body.name), {
       description: typeof body.description === "string" ? body.description : undefined,

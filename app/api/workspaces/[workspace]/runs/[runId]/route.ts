@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requirePermission } from "@/server/api";
+import { requireTenant, errorResponse, requirePermission, refuse } from "@/server/api";
 import { deleteRun, readRun } from "@/lib/store";
 import { stopRun } from "@/platform/queue";
 import { wantsWait, waitAndRespond } from "@/server/wait";
@@ -12,7 +12,7 @@ export async function GET(
     const { workspace, runId } = await ctx.params;
     const tenant = await requireTenant(req);
     const run = readRun(tenant, workspace, runId);
-    if (!run) return NextResponse.json({ error: "run not found" }, { status: 404 });
+    if (!run) return refuse("run not found", 404);
     // ?wait=true[&timeout=N] on a run already started: the same verdict
     // shape the run routes give, so a caller can keep waiting in short
     // requests instead of one long one. Anything in front of the platform
@@ -41,7 +41,7 @@ export async function DELETE(
     // started that sent mail or made a bad change (30 Oct 2026).
     const tenant = (await requirePermission(req, "workspace:manage")).tenant;
     const run = readRun(tenant, workspace, runId);
-    if (!run) return NextResponse.json({ error: "run not found" }, { status: 404 });
+    if (!run) return refuse("run not found", 404);
     if (run.status !== "completed" && run.status !== "failed") {
       stopRun(tenant, workspace, runId);
     }

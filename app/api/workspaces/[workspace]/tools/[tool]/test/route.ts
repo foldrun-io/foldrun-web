@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, requirePermission } from "@/server/api";
+import { errorResponse, requirePermission, refuse } from "@/server/api";
 import { workspaceTools } from "@/lib/store";
 import { libraryTools } from "@/lib/library";
 import { testTool } from "@/lib/tool-test";
@@ -22,10 +22,7 @@ async function postOnce(
 
     const def = { ...libraryTools(tenant), ...workspaceTools(tenant, workspace) }[tool];
     if (!def) {
-      return NextResponse.json(
-        { error: `no tool "${tool}" in this workspace or the account library` },
-        { status: 404 },
-      );
+      return refuse(`no tool "${tool}" in this workspace or the account library`, 404);
     }
 
     const refusal = testableHere(tool);

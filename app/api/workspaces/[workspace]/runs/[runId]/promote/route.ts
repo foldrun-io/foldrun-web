@@ -6,7 +6,7 @@
 // line that holds the next run to the recorded conclusion.
 
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, actorOf, requirePermission, ApiError } from "@/server/api";
+import { errorResponse, actorOf, requirePermission, ApiError, refuse } from "@/server/api";
 import { promoteRunToEval } from "@/lib/evals";
 import { idempotent } from "@/server/idempotency";
 
@@ -32,7 +32,7 @@ async function postOnce(
       body.expect !== undefined &&
       (!Array.isArray(body.expect) || body.expect.some((e) => typeof e !== "string"))
     ) {
-      return NextResponse.json({ error: "expect must be an array of assertion lines" }, { status: 400 });
+      return refuse("expect must be an array of assertion lines", 400);
     }
     const result = promoteRunToEval(tenant, workspace, runId, {
       evalName: str(body.evalName, "evalName"),

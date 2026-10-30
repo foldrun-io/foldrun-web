@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
-import { requireTenant, errorResponse, requirePermission, actorOf } from "@/server/api";
+import { requireTenant, errorResponse, requirePermission, actorOf, refuse } from "@/server/api";
 import { workspaceDir, assertSafeName, writeWorkspaceFile, listAgents } from "@/lib/store";
 import { listEvals } from "@/lib/evals";
 import { idempotent } from "@/server/idempotency";
@@ -20,12 +20,12 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     const { workspace } = await ctx.params;
     const tenant = (await requirePermission(req, "workspace:write")).tenant;
     const body = (await req.json()) as { name?: string };
-    if (!body.name) return NextResponse.json({ error: "expected { name }" }, { status: 400 });
+    if (!body.name) return refuse("expected { name }", 400);
     assertSafeName(body.name, "eval name");
 
     const rel = `evals/${body.name}.md`;
     if (fs.existsSync(path.join(workspaceDir(tenant, workspace), rel))) {
-      return NextResponse.json({ error: `eval ${body.name} already exists` }, { status: 409 });
+      return refuse(`eval ${body.name} already exists`, 409);
     }
     const agent = listAgents(tenant, workspace)[0]?.name ?? "my-agent";
     writeWorkspaceFile(

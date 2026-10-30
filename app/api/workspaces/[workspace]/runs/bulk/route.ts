@@ -21,7 +21,7 @@
 // than treated as "everything".
 
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, reportError, requirePermission } from "@/server/api";
+import { errorResponse, reportError, requirePermission, refuse } from "@/server/api";
 import { rerunFrom, stopRun } from "@/platform/queue";
 import { listRunSummaries } from "@/lib/store";
 import { idempotent } from "@/server/idempotency";
@@ -54,18 +54,15 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     const body = (await req.json().catch(() => ({}))) as BulkBody;
 
     if (body.action !== "stop" && body.action !== "rerun") {
-      return NextResponse.json({ error: 'expected { action: "stop" | "rerun" }' }, { status: 400 });
+      return refuse('expected { action: "stop" | "rerun" }', 400);
     }
     if (body.from !== undefined && !(Number.isInteger(body.from) && body.from >= 1)) {
-      return NextResponse.json({ error: "from is a step's number in the trace, a whole number from 1" }, { status: 400 });
+      return refuse("from is a step's number in the trace, a whole number from 1", 400);
     }
     const hasFilter =
       (body.runIds?.length ?? 0) > 0 || (body.status?.length ?? 0) > 0 || !!body.flow || !!body.since || !!body.until;
     if (!hasFilter) {
-      return NextResponse.json(
-        { error: "name what to act on: runIds, status, flow, since or until — a bulk action never defaults to everything" },
-        { status: 400 },
-      );
+      return refuse("name what to act on: runIds, status, flow, since or until — a bulk action never defaults to everything", 400);
     }
 
     // An unparseable date must refuse, not disappear. A clause that silently
@@ -75,7 +72,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     for (const field of ["since", "until"] as const) {
       const raw = body[field];
       if (raw !== undefined && Number.isNaN(new Date(raw).getTime())) {
-        return NextResponse.json({ error: `${field} is not a date: ${JSON.stringify(raw)} — use an ISO instant` }, { status: 400 });
+        return refuse(`${field} is not a date: ${JSON.stringify(raw)} — use an ISO instant`, 400);
       }
     }
     const matched = select(tenant, workspace, body);

@@ -21,7 +21,7 @@
 // the password re-pointed resets at any inbox, and the move's 409 for a
 // taken address was the enumeration oracle the mailed path closed.
 
-import { errorResponse, sessionUser } from "@/server/api";
+import { errorResponse, sessionUser, refuse } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
 import { passwordMatches, findUser, findUserById, loginAddress } from "@/server/users";
 import { refuseWhenLimited, clearLimit } from "@/server/limits";
@@ -52,7 +52,7 @@ const NO_MAIL =
 export async function POST(req: NextRequest) {
   const user = await sessionUser(req);
   if (user instanceof Response) return user;
-  if (!user) return NextResponse.json({ error: "sign in first" }, { status: 401 });
+  if (!user) return refuse("sign in first", 401);
 
   const limited = await refuseWhenLimited(`email:${user.id}`, LIMIT.limit, LIMIT.windowSec);
   if (limited) return limited;
@@ -62,10 +62,10 @@ export async function POST(req: NextRequest) {
   if (notText) return notText;
   try {
     if (!(await passwordMatches(user.id, body.password ?? ""))) {
-      return NextResponse.json({ error: "that is not your password" }, { status: 400 });
+      return refuse("that is not your password", 400);
     }
     const to = loginAddress(body.email ?? "");
-    if (to === user.email) return NextResponse.json({ error: "that is already your address" }, { status: 409 });
+    if (to === user.email) return refuse("that is already your address", 409);
 
     if (!platformMail(user.tenant)) {
       // No sender, so no inbox can be proven: nothing moves.
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
     if (daily) return daily;
 
     const fresh = await findUserById(user.id);
-    if (!fresh) return NextResponse.json({ error: "sign in first" }, { status: 401 });
+    if (!fresh) return refuse("sign in first", 401);
     const taken = Boolean(await findUser(to));
     const sent = taken
       ? await sendEmailTakenNotice(user.tenant, to, user.email)

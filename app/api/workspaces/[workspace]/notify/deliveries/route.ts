@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
-import { errorResponse, requireTenant } from "@/server/api";
+import { errorResponse, requireTenant, refuse } from "@/server/api";
 import { intParam } from "@/server/query";
 import { workspaceDir } from "@/lib/store";
 import { endpointState, listDeliveries } from "@/platform/webhook-deliveries";
@@ -23,12 +23,12 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
     const { workspace } = await ctx.params;
     const tenant = await requireTenant(req);
     if (!fs.existsSync(workspaceDir(tenant, workspace))) {
-      return NextResponse.json({ error: `no workspace "${workspace}"` }, { status: 404 });
+      return refuse(`no workspace "${workspace}"`, 404);
     }
     const q = req.nextUrl.searchParams;
     const status = q.get("status") || undefined;
     if (status && !STATUSES.has(status)) {
-      return NextResponse.json({ error: `status is one of ${[...STATUSES].join(", ")}` }, { status: 400 });
+      return refuse(`status is one of ${[...STATUSES].join(", ")}`, 400);
     }
     const limit = intParam(q.get("limit"), 50, 1, 200);
     const offset = intParam(q.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);

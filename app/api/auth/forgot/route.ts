@@ -11,7 +11,7 @@ import { findUser } from "@/server/users";
 import { audit } from "@/server/audit";
 import { resetLink, publicOrigin } from "@/server/auth-flows";
 import { sendResetEmail } from "@/server/email";
-import { errorResponse } from "@/server/api";
+import { errorResponse, refuse } from "@/server/api";
 
 const SAME = { ok: true, message: "If that address has an account, a reset link is on its way." };
 
@@ -33,7 +33,7 @@ const INSTALL_SENDS = { key: "forgot:sends", limit: 300, windowSec: 60 * 60 };
  *  caller address nobody can be told apart: set FOLDRUN_TRUST_PROXY. */
 const CALLER_SENDS = { limit: 10, windowSec: 60 * 60 };
 
-const tooMany = () => NextResponse.json({ error: "too many requests — try again in an hour" }, { status: 429 });
+const tooMany = () => refuse("too many requests — try again in an hour", 429);
 
 export async function POST(req: NextRequest) {
   try {

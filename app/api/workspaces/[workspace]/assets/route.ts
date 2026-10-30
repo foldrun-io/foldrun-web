@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import { startingFiles } from "@/server/starters";
-import { errorResponse, requirePermission, actorOf } from "@/server/api";
+import { errorResponse, requirePermission, actorOf, refuse } from "@/server/api";
 import { assertSafeName, workspaceDir, writeWorkspaceFile } from "@/lib/store";
 import { KINDS, type Kind } from "@/lib/kinds";
 import { idempotent } from "@/server/idempotency";
@@ -34,20 +34,14 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
 
     const kind = body.kind as Kind | undefined;
     if (!kind || !(kind in KINDS)) {
-      return NextResponse.json(
-        { error: `expected kind to be one of ${Object.keys(KINDS).join(", ")}` },
-        { status: 400 },
-      );
+      return refuse(`expected kind to be one of ${Object.keys(KINDS).join(", ")}`, 400);
     }
     const meta = KINDS[kind];
-    if (!body.name) return NextResponse.json({ error: "expected { name }" }, { status: 400 });
+    if (!body.name) return refuse("expected { name }", 400);
     assertSafeName(body.name, meta.one);
 
     if (!meta.scopes.includes("workspace")) {
-      return NextResponse.json(
-        { error: `a ${meta.one} does not live in a workspace` },
-        { status: 400 },
-      );
+      return refuse(`a ${meta.one} does not live in a workspace`, 400);
     }
 
     // An agent-scoped document lives under that agent, which is the whole of
@@ -57,10 +51,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     let rel = starters[0].file;
     if (body.agent) {
       if (!meta.scopes.includes("agent")) {
-        return NextResponse.json(
-          { error: `a ${meta.one} belongs to the workspace, not to one agent` },
-          { status: 400 },
-        );
+        return refuse(`a ${meta.one} belongs to the workspace, not to one agent`, 400);
       }
       assertSafeName(body.agent, "agent");
       rel = `agents/${body.agent}/${rel}`;
@@ -77,10 +68,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
       fs.existsSync(path.join(workspaceDir(tenant, workspace), prefix + f.file)),
     );
     if (clash) {
-      return NextResponse.json(
-        { error: `${prefix + clash.file} already exists — pick another name` },
-        { status: 409 },
-      );
+      return refuse(`${prefix + clash.file} already exists — pick another name`, 409);
     }
     const by = await actorOf(req);
     for (const f of starters) writeWorkspaceFile(tenant, workspace, prefix + f.file, f.content, { by });

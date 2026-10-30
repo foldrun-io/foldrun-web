@@ -8,7 +8,7 @@
 // address and an agent handles it" exists without the platform becoming a
 // mail client.
 
-import { errorResponse } from "@/server/api";
+import { errorResponse, refuse } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
 import { loadFlow } from "@/lib/runner";
 import { enqueueFlowRun } from "@/platform/queue";
@@ -43,29 +43,26 @@ export async function POST(
       const limited = ip ? await refuseWhenLimited(`hook-refused:${ip}`, BAD_TOKENS.limit, BAD_TOKENS.windowSec) : null;
       if (limited) return limited;
       log("invalid-token");
-      return NextResponse.json({ error: "invalid token" }, { status: 401 });
+      return refuse("invalid token", 401);
     }
     const flow = loadFlow(tenant, workspace, flowName);
     if (!flow) {
       log("no-flow");
-      return NextResponse.json({ error: "flow not found" }, { status: 404 });
+      return refuse("flow not found", 404);
     }
     if (flow.trigger !== "email") {
       log("not-webhook", { detail: "not email-triggered" });
-      return NextResponse.json({ error: `flow ${flowName} is not email-triggered (set trigger: email)` }, { status: 400 });
+      return refuse(`flow ${flowName} is not email-triggered (set trigger: email)`, 400);
     }
     if (flow.steps.length === 0) {
       log("error", { detail: "flow has no steps" });
-      return NextResponse.json({ error: "flow has no steps" }, { status: 400 });
+      return refuse("flow has no steps", 400);
     }
     const raw = (await req.text()).slice(0, 200_000);
     const mail = normaliseInboundEmail(req.headers.get("content-type"), raw);
     if (!mail) {
       log("error", { detail: "no message in the body" });
-      return NextResponse.json(
-        { error: "no message found — post JSON (from, subject, text) or a form-encoded inbound-parse body" },
-        { status: 400 },
-      );
+      return refuse("no message found — post JSON (from, subject, text) or a form-encoded inbound-parse body", 400);
     }
     const task = emailTask(mail);
     // A mail provider that retries a delivery, or a thread that arrives

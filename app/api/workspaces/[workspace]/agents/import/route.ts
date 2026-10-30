@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireCaller, errorResponse, requirePermission, assertWorkspaceScope, actorOf } from "@/server/api";
+import { requireCaller, errorResponse, requirePermission, assertWorkspaceScope, actorOf, refuse } from "@/server/api";
 import { scopeAllows } from "@/platform/scope";
 import { listWorkspaces, listAgents } from "@/lib/store";
 import { importAgent, AgentImportError } from "@/lib/agent-import";
@@ -38,7 +38,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     const { tenant, actor } = await requirePermission(req, "workspace:write");
     const body = (await req.json().catch(() => ({}))) as { from?: unknown; agent?: unknown; as?: unknown };
     if (typeof body.from !== "string" || typeof body.agent !== "string" || !body.from || !body.agent) {
-      return NextResponse.json({ error: "expected { from: <workspace>, agent: <name>, as?: <new name> }" }, { status: 400 });
+      return refuse("expected { from: <workspace>, agent: <name>, as?: <new name> }", 400);
     }
     assertWorkspaceScope(actor, body.from);
     const by = await actorOf(req);
@@ -48,7 +48,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     });
     return NextResponse.json({ ok: true, from: body.from, ...result });
   } catch (err) {
-    if (err instanceof AgentImportError) return NextResponse.json({ error: err.message }, { status: err.status });
+    if (err instanceof AgentImportError) return refuse(err.message, err.status);
     return errorResponse(err);
   }
 }

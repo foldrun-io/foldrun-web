@@ -6,8 +6,8 @@
 // client's default; the connection keeps it, so a reconnect asks again for
 // the same. One registered app serves every API its provider offers.
 
-import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, requirePermission } from "@/server/api";
+import { NextRequest } from "next/server";
+import { errorResponse, requirePermission, refuse } from "@/server/api";
 import { assertMayWriteSecret } from "@/server/secret-writes";
 
 import { getOAuthClient } from "@/platform/oauth-clients";
@@ -25,16 +25,16 @@ async function postOnce(req: NextRequest) {
       scopes?: unknown;
     };
     if (!body.client || !body.secret) {
-      return NextResponse.json({ error: "expected { client, secret }" }, { status: 400 });
+      return refuse("expected { client, secret }", 400);
     }
     const scopes = scopesOf(body.scopes);
-    if (scopes instanceof Error) return NextResponse.json({ error: scopes.message }, { status: 400 });
+    if (scopes instanceof Error) return refuse(scopes.message, 400);
     // The callback stores what this starts, with no caller left to ask: the
     // secret's name is checked as a PUT /api/secrets would check it, now.
     await assertMayWriteSecret(tenant, actor, body.secret, body.workspace);
-    if (typeof body.client !== "string") return NextResponse.json({ error: "client is a saved OAuth client's name" }, { status: 400 });
+    if (typeof body.client !== "string") return refuse("client is a saved OAuth client's name", 400);
     const config = await getOAuthClient(tenant, body.client);
-    if (!config) return NextResponse.json({ error: `no saved OAuth client "${body.client}"` }, { status: 404 });
+    if (!config) return refuse(`no saved OAuth client "${body.client}"`, 404);
 
     // A person in a browser: the consent is bound to it (a cookie the
     // callback must see again). A key — the CLI — has no browser here, so it

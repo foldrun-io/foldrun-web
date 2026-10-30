@@ -19,14 +19,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { roleOfUser, allowedWorkspaces } from "@/server/users";
 import { describeCliLogin, decideCliLogin, requestOrigin } from "@/server/cli-login";
-import { errorResponse, sessionUser } from "@/server/api";
+import { errorResponse, sessionUser, refuse } from "@/server/api";
 import { jsonObject } from "@/server/body";
 
 export async function GET(req: NextRequest) {
   try {
     const code = req.nextUrl.searchParams.get("code") ?? "";
     const row = await describeCliLogin(code);
-    if (!row) return NextResponse.json({ error: "no such sign-in request — it may have expired; run `foldrun login` again" }, { status: 404 });
+    if (!row) return refuse("no such sign-in request — it may have expired; run `foldrun login` again", 404);
     // Whether the browser looking is on the network that asked: null when
     // either side is not known.
     const here = requestOrigin(req).network;
@@ -40,26 +40,26 @@ export async function POST(req: NextRequest) {
   try {
     const user = await sessionUser(req);
     if (user instanceof Response) return user;
-    if (!user) return NextResponse.json({ error: "sign in first" }, { status: 401 });
+    if (!user) return refuse("sign in first", 401);
     // A JSON object with a string code, or 400: a `null` body, or a code
     // that is not a string, used to reach the lookup and answer 500.
     const body = await jsonObject(req);
-    if (typeof body.code !== "string" || !body.code) return NextResponse.json({ error: "expected { code }" }, { status: 400 });
+    if (typeof body.code !== "string" || !body.code) return refuse("expected { code }", 400);
     // Absent means approve, as it always has (the sign-in page and the
     // CLI's own end-to-end test send none). A word is one of exactly two:
     // anything else used to approve too, so a typo ("reject") minted a key.
     const decision = body.decision === undefined ? "approve" : body.decision;
     if (decision !== "approve" && decision !== "deny") {
-      return NextResponse.json({ error: "expected { decision: \"approve\" | \"deny\" } (or none, to approve)" }, { status: 400 });
+      return refuse("expected { decision: \"approve\" | \"deny\" } (or none, to approve)", 400);
     }
     const role = (await roleOfUser(user.tenant, user.id)) ?? "viewer";
     const workspaces = await allowedWorkspaces(user.tenant, user.id);
     const outcome = await decideCliLogin(body.code, decision, { tenant: user.tenant, email: user.email, role, workspaces });
     if (outcome === "too-old") {
-      return NextResponse.json({ error: "this sign-in request is more than five minutes old, so it can no longer be approved — approve only a code you started yourself just now; run `foldrun login` again" }, { status: 410 });
+      return refuse("this sign-in request is more than five minutes old, so it can no longer be approved — approve only a code you started yourself just now; run `foldrun login` again", 410);
     }
     if (outcome === "not-found") {
-      return NextResponse.json({ error: "no such sign-in request — it may have expired or already been decided" }, { status: 404 });
+      return refuse("no such sign-in request — it may have expired or already been decided", 404);
     }
     return NextResponse.json({ ok: true, status: outcome });
   } catch (err) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, actorOf, requireTenant, requireAccountWide } from "@/server/api";
+import { errorResponse, actorOf, requireTenant, requireAccountWide, refuse } from "@/server/api";
 import { GALLERY, galleryDrift, galleryFiles, galleryTool, writeGalleryCopy } from "@/platform/gallery";
 import { libraryFileExists, readLibraryFile } from "@/lib/library";
 import { idempotent } from "@/server/idempotency";
@@ -42,7 +42,7 @@ async function postOnce(req: NextRequest) {
     const tenant = (await requireAccountWide(req, "workspace:write")).tenant;
     const name = optionalString(await jsonObject(req), "tool");
     const tool = name ? galleryTool(name) : undefined;
-    if (!tool) return NextResponse.json({ error: `no gallery tool named "${name ?? ""}"` }, { status: 404 });
+    if (!tool) return refuse(`no gallery tool named "${name ?? ""}"`, 404);
     const by = await actorOf(req);
     const message = `upgraded ${tool.name} to the gallery's current version`;
     // Stamped, so the automatic sync after a deploy knows this copy is the

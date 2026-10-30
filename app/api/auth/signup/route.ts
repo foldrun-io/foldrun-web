@@ -6,7 +6,7 @@ import { sendVerifyEmail } from "@/server/email";
 import { billing } from "@/platform/billing";
 import { platform } from "@/lib/platform";
 import { verifyLink, publicOrigin } from "@/server/auth-flows";
-import { errorResponse } from "@/server/api";
+import { errorResponse, refuse } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
 import { clientIp } from "@/server/limits";
 import { acceptInvite, createUser, mintSession, sessionCookieOptions, SESSION_COOKIE, setupTokenRequired, setupTokenMatches, signupOpen } from "@/server/users";
@@ -69,10 +69,7 @@ export async function POST(req: NextRequest) {
     // The first account of an install that set a setup token: only with it.
     // Checked before anything about the address, like the open-signup gate.
     if (!invited && (await setupTokenRequired()) && !setupTokenMatches(body.setup)) {
-      return NextResponse.json(
-        { error: "this install's first account needs its setup link — open the one the installer printed (…/signup?setup=…), or read FOLDRUN_SETUP_TOKEN in the install's .env" },
-        { status: 403 },
-      );
+      return refuse("this install's first account needs its setup link — open the one the installer printed (…/signup?setup=…), or read FOLDRUN_SETUP_TOKEN in the install's .env", 403);
     }
     // A closed install refuses a stranger here, before the password's breach
     // lookup and scrypt: those ran first and the lock refused after, so with

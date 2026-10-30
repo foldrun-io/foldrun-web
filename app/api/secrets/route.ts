@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireCaller, errorResponse, requirePermission, assertWorkspaceScope } from "@/server/api";
+import { requireCaller, errorResponse, requirePermission, assertWorkspaceScope, refuse } from "@/server/api";
 import { assertMayWriteSecret } from "@/server/secret-writes";
 import { audit } from "@/server/audit";
 import {
@@ -78,14 +78,14 @@ async function putOnce(req: NextRequest) {
        *  every workspace) — sealed with the value in one write, see PATCH. */
       workspaces?: unknown;
     };
-    if (!body.name) return NextResponse.json({ error: "expected { name }" }, { status: 400 });
-    if (body.sites !== undefined && !isSiteList(body.sites)) return NextResponse.json({ error: "sites is a list of domains, like [\"api.example.com\", \"*.example.com\"]" }, { status: 400 });
+    if (!body.name) return refuse("expected { name }", 400);
+    if (body.sites !== undefined && !isSiteList(body.sites)) return refuse("sites is a list of domains, like [\"api.example.com\", \"*.example.com\"]", 400);
     const scope = scopeOf(req, body);
     // `workspaces` is never ignored: a create meant to be limited that went
     // through open would hand the value to every workspace (30 Oct 2026).
     if (body.workspaces !== undefined) {
-      if (body.workspaces !== null && !isNameList(body.workspaces)) return NextResponse.json({ error: WORKSPACES_SHAPE }, { status: 400 });
-      if (scope) return NextResponse.json({ error: WORKSPACES_ACCOUNT_ONLY }, { status: 400 });
+      if (body.workspaces !== null && !isNameList(body.workspaces)) return refuse(WORKSPACES_SHAPE, 400);
+      if (scope) return refuse(WORKSPACES_ACCOUNT_ONLY, 400);
     }
     // Scope, the owner-only mail sender (core platformMail sends members'
     // reset and sign-up links through it), and a name that is a string —
@@ -112,7 +112,7 @@ async function putOnce(req: NextRequest) {
     else if (body.identity) setIdentitySecret(tenant, body.name, body.identity, scope, limit);
     else if (typeof body.file === "string") setFileSecret(tenant, body.name, body.file, scope, limit);
     else if (typeof body.value === "string" && body.value !== "") setSecret(tenant, body.name, body.value, scope, undefined, limit);
-    else return NextResponse.json({ error: "expected a value, oauth2, service_account, ssh, api, client_cert, identity, or file" }, { status: 400 });
+    else return refuse("expected a value, oauth2, service_account, ssh, api, client_cert, identity, or file", 400);
     const sites = body.sites !== undefined ? setSecretSites(tenant, body.name, body.sites, scope) : undefined;
     // A rotation is a new credential under an old name. Carrying the old
     // one's refusals forward would show a freshly-fixed key as still broken,
@@ -138,7 +138,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const { tenant, actor } = await requirePermission(req, "secrets:write");
     const body = (await req.json()) as { name?: string; workspace?: string; project?: string };
-    if (!body.name) return NextResponse.json({ error: "expected { name }" }, { status: 400 });
+    if (!body.name) return refuse("expected { name }", 400);
     const scope = scopeOf(req, body);
     // Removing the mail sender chooses one too (the platform's own).
     body.name = await assertMayWriteSecret(tenant, actor, body.name, scope);
@@ -172,19 +172,19 @@ export async function PATCH(req: NextRequest) {
   try {
     const { tenant, actor } = await requirePermission(req, "secrets:write");
     const body = (await req.json()) as { name?: string; sites?: unknown; workspaces?: unknown; ifWorkspaces?: unknown; workspace?: string; project?: string };
-    if (!body.name) return NextResponse.json({ error: "expected { name, sites } or { name, workspaces }" }, { status: 400 });
+    if (!body.name) return refuse("expected { name, sites } or { name, workspaces }", 400);
     const hasSites = body.sites !== undefined;
     const hasWorkspaces = body.workspaces !== undefined;
-    if (!hasSites && !hasWorkspaces) return NextResponse.json({ error: "expected { name, sites } or { name, workspaces }" }, { status: 400 });
-    if (hasSites && !isSiteList(body.sites)) return NextResponse.json({ error: "sites is a list of domains, like [\"api.example.com\", \"*.example.com\"]; [] unbinds" }, { status: 400 });
+    if (!hasSites && !hasWorkspaces) return refuse("expected { name, sites } or { name, workspaces }", 400);
+    if (hasSites && !isSiteList(body.sites)) return refuse("sites is a list of domains, like [\"api.example.com\", \"*.example.com\"]; [] unbinds", 400);
     if (hasWorkspaces && body.workspaces !== null && !isNameList(body.workspaces)) {
-      return NextResponse.json({ error: WORKSPACES_SHAPE }, { status: 400 });
+      return refuse(WORKSPACES_SHAPE, 400);
     }
     if (body.ifWorkspaces !== undefined && body.ifWorkspaces !== null && !isNameList(body.ifWorkspaces)) {
-      return NextResponse.json({ error: "ifWorkspaces is the list you loaded, or null for every workspace" }, { status: 400 });
+      return refuse("ifWorkspaces is the list you loaded, or null for every workspace", 400);
     }
     const scope = scopeOf(req, body);
-    if (hasWorkspaces && scope) return NextResponse.json({ error: WORKSPACES_ACCOUNT_ONLY }, { status: 400 });
+    if (hasWorkspaces && scope) return refuse(WORKSPACES_ACCOUNT_ONLY, 400);
     body.name = await assertMayWriteSecret(tenant, actor, body.name, scope);
     let sites: string[] | undefined;
     let workspaces: string[] | null | undefined;
@@ -205,7 +205,7 @@ export async function PATCH(req: NextRequest) {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       const status = (err as { status?: unknown }).status;
-      return NextResponse.json({ error: message }, { status: typeof status === "number" ? status : /^no secret /.test(message) ? 404 : 400 });
+      return refuse(message, typeof status === "number" ? status : /^no secret /.test(message) ? 404 : 400);
     }
     if (sites !== undefined) await audit("secret.sites", { actor: actor.name, tenant, subject: body.name, detail: { name: body.name, sites, ...(scope ? { workspace: scope } : {}) } });
     if (workspaces !== undefined) await audit("secret.workspaces", { actor: actor.name, tenant, subject: body.name, detail: { name: body.name, workspaces } });

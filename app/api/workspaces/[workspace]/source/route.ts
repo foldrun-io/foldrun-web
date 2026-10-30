@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, actorOf, requirePermission } from "@/server/api";
+import { requireTenant, errorResponse, actorOf, requirePermission, refuse } from "@/server/api";
 import { createHash } from "node:crypto";
 import { readWorkspaceFile, writeWorkspaceFile, deleteWorkspacePath, listWorkspaceFiles, renameWorkspaceFile } from "@/lib/store";
 import { saveCheck } from "@/server/checks";
@@ -35,7 +35,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ workspace: 
     const { workspace } = await ctx.params;
     const body = (await req.json()) as { path?: string; content?: string; message?: string; ifMatch?: unknown; check?: unknown };
     if (!body.path || typeof body.content !== "string") {
-      return NextResponse.json({ error: "expected { path, content, message?, ifMatch?, check? }" }, { status: 400 });
+      return refuse("expected { path, content, message?, ifMatch?, check? }", 400);
     }
     const { tenant, actor } = await requirePermission(req, "workspace:write");
     // AGENTS.md's policy keys (budget, notify, network_enforce…) are an
@@ -101,7 +101,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
     const { workspace } = await ctx.params;
     const body = (await req.json()) as { from?: string; to?: string };
     if (!body.from || !body.to) {
-      return NextResponse.json({ error: "expected { from, to }" }, { status: 400 });
+      return refuse("expected { from, to }", 400);
     }
     renameWorkspaceFile((await requirePermission(req, "workspace:write")).tenant, workspace, body.from, body.to, { by: await actorOf(req) });
     return NextResponse.json({ ok: true, path: body.to });
@@ -117,7 +117,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ workspac
     await requirePermission(req, "workspace:write");
     const { workspace } = await ctx.params;
     const body = (await req.json()) as { path?: string };
-    if (!body.path) return NextResponse.json({ error: "expected { path }" }, { status: 400 });
+    if (!body.path) return refuse("expected { path }", 400);
     deleteWorkspacePath((await requirePermission(req, "workspace:write")).tenant, workspace, body.path, { by: await actorOf(req) });
     return NextResponse.json({ ok: true });
   } catch (err) {

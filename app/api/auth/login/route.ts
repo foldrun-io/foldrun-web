@@ -9,7 +9,7 @@ import { listWorkspaces } from "@/lib/store";
 import { rateLimit, rateLimitReset } from "@/platform/cache";
 import { audit } from "@/server/audit";
 import { mintToken, CHALLENGE_TTL_MS } from "@/server/auth-tokens";
-import { errorResponse } from "@/server/api";
+import { errorResponse, refuse } from "@/server/api";
 import { refuseNonText } from "@/server/auth-input";
 
 // Limits, because they answer different attacks. Per-account stops someone
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
           sendSecurityNotice(who.tenant, who.email, `${PER_ACCOUNT_ALL_CALLERS.limit} sign-ins with a wrong password were tried in a quarter hour from several addresses, so password sign-in is paused for up to fifteen minutes`, ip);
         })().catch((err) => console.error("login: throttle notice failed", err instanceof Error ? err.message : err));
       }
-      return NextResponse.json({ error: "wrong email or password" }, { status: 401 });
+      return refuse("wrong email or password", 401);
     }
     // A correct password clears this caller's counter, so someone who mistyped
     // three times and then got it right is not throttled by their own typos.

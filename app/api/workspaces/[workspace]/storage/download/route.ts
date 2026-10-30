@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse } from "@/server/api";
+import { requireTenant, errorResponse, refuse } from "@/server/api";
 import path from "node:path";
 import { getFile, downloadUrl, openFile, storedSize, previewType, requireWorkspace } from "@/lib/storage";
 import { byteRange } from "@/server/byte-range";
@@ -28,11 +28,11 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
     const { workspace } = await ctx.params;
     const tenant = await requireTenant(req);
     const rel = req.nextUrl.searchParams.get("path");
-    if (!rel) return NextResponse.json({ error: "expected ?path=" }, { status: 400 });
+    if (!rel) return refuse("expected ?path=", 400);
     requireWorkspace(tenant, workspace);
 
     const record = getFile(tenant, workspace, rel);
-    if (!record) return NextResponse.json({ error: "no such file" }, { status: 404 });
+    if (!record) return refuse("no such file", 404);
 
     // ?inline=1: the gate shows the thumbnail or the spec a step is about to
     // publish. Only the types above, only by extension, still sandboxed — a
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
       // whole object was read into memory per request, and a video seeks
       // with many.
       const size = await storedSize(tenant, workspace, rel);
-      if (size === null) return NextResponse.json({ error: "no such file" }, { status: 404 });
+      if (size === null) return refuse("no such file", 404);
       const headers: Record<string, string> = {
         "content-type": media,
         "accept-ranges": "bytes",
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
       const range = byteRange(req.headers.get("range"), size);
       if (range === "bad") return new NextResponse(null, { status: 416, headers: { "content-range": `bytes */${size}` } });
       const opened = await openFile(tenant, workspace, rel, range);
-      if (!opened) return NextResponse.json({ error: "no such file" }, { status: 404 });
+      if (!opened) return refuse("no such file", 404);
       if (range) {
         return new NextResponse(opened.body, { status: 206, headers: { ...headers, "content-length": String(range.end - range.start + 1), "content-range": `bytes ${range.start}-${range.end}/${size}` } });
       }
@@ -87,7 +87,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
     // download, and an inline preview on a bucket used to buffer an object of
     // whatever size was PUT under the key.
     const opened = await openFile(tenant, workspace, rel);
-    if (!opened) return NextResponse.json({ error: "no such file" }, { status: 404 });
+    if (!opened) return refuse("no such file", 404);
     return new NextResponse(opened.body, {
       headers: {
         "content-type": inline && imageType ? imageType : "application/octet-stream",

@@ -275,6 +275,13 @@ export function reportError(err: unknown): { status: number; message: string; in
   return parts;
 }
 
+/** A refusal with its sentence and status — the same { error } answer
+ *  errorResponse gives an ApiError, for a route that decides to refuse
+ *  outside a try/catch (30 Oct 2026: 219 routes built this body by hand). */
+export function refuse(message: string, status: number) {
+  return errorResponse(new ApiError(message, status));
+}
+
 export function errorResponse(err: unknown) {
   const { status, message } = reportError(err);
   return NextResponse.json({ error: message }, { status });

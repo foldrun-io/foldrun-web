@@ -4,10 +4,11 @@
 
 import { NextResponse } from "next/server";
 import { oidcIssuer, oidcJwks } from "@/platform/oidc-issuer";
+import { refuse } from "@/server/api";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  if (!oidcIssuer()) return NextResponse.json({ error: "this install does not issue identity tokens" }, { status: 404 });
+  if (!oidcIssuer()) return refuse("this install does not issue identity tokens", 404);
   return NextResponse.json(await oidcJwks(), { headers: { "cache-control": "public, max-age=300" } });
 }

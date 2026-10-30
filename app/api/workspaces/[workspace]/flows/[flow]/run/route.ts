@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, requirePermission } from "@/server/api";
+import { errorResponse, requirePermission, refuse } from "@/server/api";
 import { loadFlow } from "@/lib/runner";
 import { listRunSummaries } from "@/lib/store";
 import { enqueueFlowRun, startFlowFromStep } from "@/platform/queue";
@@ -15,9 +15,9 @@ async function postOnce(
     const { workspace, flow: flowName } = await ctx.params;
     const { tenant, actor } = await requirePermission(req, "run:start");
     const flow = loadFlow(tenant, workspace, flowName);
-    if (!flow) return NextResponse.json({ error: `flow ${flowName} not found` }, { status: 404 });
+    if (!flow) return refuse(`flow ${flowName} not found`, 404);
     if (flow.steps.length === 0) {
-      return NextResponse.json({ error: `flow ${flowName} has no steps` }, { status: 400 });
+      return refuse(`flow ${flowName} has no steps`, 400);
     }
     // A run-level task (CLI --task / dashboard input) is delivered to the
     // first step; output passing carries it down the chain from there.
@@ -46,19 +46,13 @@ async function postOnce(
     }
     const lastStep = Math.max(...flow.steps.map((s) => s.group));
     if (!Number.isInteger(from) || from < 1 || from > lastStep) {
-      return NextResponse.json(
-        { error: `from must be a step number between 1 and ${lastStep}` },
-        { status: 400 },
-      );
+      return refuse(`from must be a step number between 1 and ${lastStep}`, 400);
     }
     if (from > 1 && task) {
       // The task would be stapled to a step that never runs — refuse rather
       // than silently lose it. Checked before the key is claimed, so a
       // refused request never leaves a claim behind.
-      return NextResponse.json(
-        { error: "task and from can't be combined: the task goes to step 1, which from skips" },
-        { status: 400 },
-      );
+      return refuse("task and from can't be combined: the task goes to step 1, which from skips", 400);
     }
     // overlap: skip holds for a person or a key too, not only the scheduler.
     // A second manual start while one is live is almost always a double

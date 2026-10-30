@@ -5,7 +5,7 @@
 // not below it.
 
 import { NextRequest, NextResponse } from "next/server";
-import { actorOf, errorResponse, requirePermission } from "@/server/api";
+import { actorOf, errorResponse, requirePermission, refuse } from "@/server/api";
 import { createShare, listShares, maskToken, readerSeesToken, revokeShare, shareId, shareUrl, tokenForShareId } from "@/platform/shares.ts";
 import { can } from "@/platform/permissions";
 import { idempotent } from "@/server/idempotency";
@@ -19,7 +19,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
       ttlDays?: number | null;
     };
     if (!body.path) {
-      return NextResponse.json({ error: "expected { path } — the file to share" }, { status: 400 });
+      return refuse("expected { path } — the file to share", 400);
     }
 
     // Refuse before creating anything if this install cannot say where it is
@@ -28,13 +28,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     try {
       shareUrl("probe");
     } catch {
-      return NextResponse.json(
-        {
-          error:
-            "this install has no public origin — set FOLDRUN_PUBLIC_URL to the URL the outside world reaches it on, then share again",
-        },
-        { status: 409 },
-      );
+      return refuse("this install has no public origin — set FOLDRUN_PUBLIC_URL to the URL the outside world reaches it on, then share again", 409);
     }
 
     const share = await createShare(tenant, workspace, body.path, {
@@ -96,7 +90,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ workspac
     // masked, so an editor can still take down a colleague's link.
     const id = q.get("id") ?? "";
     const token = id ? await tokenForShareId(tenant, workspace, id) : q.get("token") ?? "";
-    if (!id && !token) return NextResponse.json({ error: "expected ?token= or ?id=" }, { status: 400 });
+    if (!id && !token) return refuse("expected ?token= or ?id=", 400);
     if (!token) return NextResponse.json({ ok: true, revoked: false });
     return NextResponse.json({ ok: true, revoked: await revokeShare(tenant, token, workspace) });
   } catch (err) {

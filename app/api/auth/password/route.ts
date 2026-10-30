@@ -7,7 +7,7 @@
 // the reset flow already did this; a change from inside the account did
 // not, so the person who prompted the change stayed signed in.
 
-import { errorResponse, sessionUser } from "@/server/api";
+import { errorResponse, sessionUser, refuse } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
 import { changePassword, sessionIdOf, SESSION_COOKIE } from "@/server/users";
 import { revokeSessions, revocable } from "@/server/sessions";
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   const cookie = req.cookies.get(SESSION_COOKIE)?.value;
   const user = await sessionUser(req);
   if (user instanceof Response) return user;
-  if (!user) return NextResponse.json({ error: "sign in first" }, { status: 401 });
+  if (!user) return refuse("sign in first", 401);
 
   const limited = await refuseWhenLimited(`password:${user.id}`, LIMIT.limit, LIMIT.windowSec);
   if (limited) return limited;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireCaller, errorResponse, requirePermission } from "@/server/api";
+import { requireCaller, errorResponse, requirePermission, refuse } from "@/server/api";
 import { scopeAllows } from "@/platform/scope";
 import fs from "node:fs";
 import path from "node:path";
@@ -51,19 +51,19 @@ async function postOnce(req: NextRequest) {
       body.files = blankTemplateFiles(body.name);
     }
     if (!body.name || !Array.isArray(body.files) || body.files.length === 0) {
-      return NextResponse.json({ error: "expected { name, files: [{path, content}] }" }, { status: 400 });
+      return refuse("expected { name, files: [{path, content}] }", 400);
     }
     const { tenant, actor } = await requirePermission(req, "workspace:manage");
     // A member scoped to some workspaces may create a new one, never replace
     // the source of one they were not given (the URL names no workspace
     // here, so the usual scope check never sees it).
     if (actor.workspaces !== null && !scopeAllows(actor.workspaces, body.name) && fs.existsSync(workspaceDir(tenant, body.name))) {
-      return NextResponse.json({ error: "this workspace is not one you were given access to" }, { status: 403 });
+      return refuse("this workspace is not one you were given access to", 403);
     }
     // The plan's workspace count, for NEW workspaces only — the same check
     // import and a deploy to a new name make (server/workspace-cap.ts).
     const overCap = await workspaceCapRefusal(tenant, body.name);
-    if (overCap) return NextResponse.json({ error: overCap }, { status: 402 });
+    if (overCap) return refuse(overCap, 402);
     if (body.ifAbsent === true) {
       // Claimed atomically: a folder made without `recursive` fails when it
       // is there, so two creates of one name cannot both win — listing first
@@ -74,7 +74,7 @@ async function postOnce(req: NextRequest) {
         fs.mkdirSync(dir);
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code === "EEXIST") {
-          return NextResponse.json({ error: `a workspace called ${body.name} exists — nothing was changed` }, { status: 409 });
+          return refuse(`a workspace called ${body.name} exists — nothing was changed`, 409);
         }
         throw err;
       }

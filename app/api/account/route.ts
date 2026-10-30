@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireCaller, errorResponse, requireAccountWide } from "@/server/api";
+import { requireCaller, errorResponse, requireAccountWide, refuse } from "@/server/api";
 import { accountDir } from "@/lib/store";
 import { readAgentsMdKeys, setAgentsMdKeys } from "@/lib/agents-md";
 import { defaultsPatch, defaultsOf, accountDefaultsFor } from "@/components/defaults-model";
@@ -30,10 +30,10 @@ export async function PATCH(req: NextRequest) {
     // from the vault, to the URL it names: only a caller who holds every
     // workspace may point it anywhere (Codex review).
     if ("telemetry" in body && actor.workspaces !== null) {
-      return NextResponse.json({ error: "the account's telemetry needs access to every workspace — set telemetry: in a workspace's own AGENTS.md instead" }, { status: 403 });
+      return refuse("the account's telemetry needs access to every workspace — set telemetry: in a workspace's own AGENTS.md instead", 403);
     }
     const patch = defaultsPatch(body, readAgentsMdKeys(accountDir(tenant)));
-    if ("error" in patch) return NextResponse.json({ error: patch.error }, { status: 400 });
+    if ("error" in patch) return refuse(patch.error, 400);
     setAgentsMdKeys(accountDir(tenant), patch.keys);
     return NextResponse.json({ ok: true, defaults: defaultsOf(readAgentsMdKeys(accountDir(tenant))) });
   } catch (err) {

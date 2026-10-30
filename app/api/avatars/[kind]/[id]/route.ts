@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireCaller, requirePermission, errorResponse, ApiError } from "@/server/api";
+import { requireTenant, requireCaller, requirePermission, errorResponse, ApiError, refuse } from "@/server/api";
 import { verifySession, SESSION_COOKIE } from "@/server/users";
 import { workspaceDir } from "@/lib/store";
 import { AVATAR_KINDS, AVATAR_MAX_BYTES, readAvatar, setAvatar, deleteAvatar, avatarUrl, type AvatarKind } from "@/platform/avatars";
@@ -41,14 +41,14 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ kind: strin
   try {
     const { kind: rawKind, id } = await ctx.params;
     const kind = kindOf(rawKind);
-    if (!kind) return NextResponse.json({ error: "no such kind" }, { status: 404 });
+    if (!kind) return refuse("no such kind", 404);
     const { tenant, actor } = await requireCaller(req);
     // A workspace's picture is read by callers who may open that workspace,
     // as its write is (30 Oct 2026): assertScope guards /api/workspaces/…
     // paths only, and this one names the workspace in its own.
     if (kind === "workspace" && actor.workspaces !== null && !scopeAllows(actor.workspaces, id)) throw new ApiError("this workspace is not one you were given access to", 403);
     const hit = readAvatar(tenant, kind, id);
-    if (!hit) return NextResponse.json({ error: "no picture" }, { status: 404 });
+    if (!hit) return refuse("no picture", 404);
     return new NextResponse(new Uint8Array(hit.bytes), {
       headers: { "content-type": hit.mime, "cache-control": "private, max-age=31536000, immutable", "x-content-type-options": "nosniff" },
     });
@@ -61,9 +61,9 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ kind: strin
   try {
     const { kind: rawKind, id } = await ctx.params;
     const kind = kindOf(rawKind);
-    if (!kind) return NextResponse.json({ error: "no such kind" }, { status: 404 });
+    if (!kind) return refuse("no such kind", 404);
     const tenant = await mayWrite(req, kind, id);
-    if (Number(req.headers.get("content-length") ?? 0) > AVATAR_MAX_BYTES) return NextResponse.json({ error: "image too large — the limit is 1 MB" }, { status: 413 });
+    if (Number(req.headers.get("content-length") ?? 0) > AVATAR_MAX_BYTES) return refuse("image too large — the limit is 1 MB", 413);
     const bytes = Buffer.from(await req.arrayBuffer());
     setAvatar(tenant, kind, id, bytes);
     return NextResponse.json({ ok: true, url: avatarUrl(tenant, kind, id) });
@@ -76,7 +76,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ kind: st
   try {
     const { kind: rawKind, id } = await ctx.params;
     const kind = kindOf(rawKind);
-    if (!kind) return NextResponse.json({ error: "no such kind" }, { status: 404 });
+    if (!kind) return refuse("no such kind", 404);
     const tenant = await mayWrite(req, kind, id);
     return NextResponse.json({ ok: true, removed: deleteAvatar(tenant, kind, id) });
   } catch (err) {

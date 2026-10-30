@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requirePermission, actorOf, ApiError } from "@/server/api";
+import { requireTenant, errorResponse, requirePermission, actorOf, ApiError, refuse } from "@/server/api";
 import { audit } from "@/server/audit";
 import fs from "node:fs";
 import {
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
     const { workspace } = await ctx.params;
     const tenant = await tenantOf(req);
     if (!fs.existsSync(workspaceDir(tenant, workspace))) {
-      return NextResponse.json({ error: "workspace not found" }, { status: 404 });
+      return refuse("workspace not found", 404);
     }
     return NextResponse.json({
       name: workspace,
@@ -111,7 +111,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
     const body = { ...raw, name: optionalString(raw, "name"), description: optionalString(raw, "description") };
 
     if (!fs.existsSync(workspaceDir(tenant, workspace))) {
-      return NextResponse.json({ error: "workspace not found" }, { status: 404 });
+      return refuse("workspace not found", 404);
     }
 
     // Description first: after a rename the old name no longer resolves.
@@ -140,7 +140,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
         // unreadable frontmatter: nothing to merge over; the write says so
       }
       const patch = defaultsPatch(scoped, current);
-      if ("error" in patch) return NextResponse.json({ error: patch.error }, { status: 400 });
+      if ("error" in patch) return refuse(patch.error, 400);
       writeWorkspaceFile(tenant, workspace, "AGENTS.md", patchFrontmatter(before, patch.keys), { by: await actorOf(req), message: `settings: ${Object.keys(patch.keys).join(", ")}` });
     }
 
@@ -151,13 +151,13 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
       // paused workspace is resumed first, on purpose (Codex review).
       const held = workspacePause(await adminState(tenant), workspace);
       if (held && !held.resumedAt) {
-        return NextResponse.json({ error: `${workspace} is paused — resume it before renaming it, so the rename does not quietly lift the pause` }, { status: 409 });
+        return refuse(`${workspace} is paused — resume it before renaming it, so the rename does not quietly lift the pause`, 409);
       }
       brokeWebhooks = renameImpact(tenant, workspace).webhookFlows;
       // A name taken is refused before the vault is touched: moving the
       // grants onto it would hand them to the workspace that has it.
       if (fs.existsSync(workspaceDir(tenant, body.name))) {
-        return NextResponse.json({ error: `workspace ${body.name} already exists` }, { status: 409 });
+        return refuse(`workspace ${body.name} already exists`, 409);
       }
       // The account secrets limited to it move to the new name BEFORE the
       // folder does (30 Oct 2026), so the old name is never left granted

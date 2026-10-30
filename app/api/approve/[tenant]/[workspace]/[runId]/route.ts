@@ -18,7 +18,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFileBytes } from "@/lib/storage";
 import { readRun, type RunRecord } from "@/lib/store";
 import { checkApproveLink, decideApproval, readApproveLink } from "@/lib/approvals";
-import { errorResponse, reportError } from "@/server/api";
+import { errorResponse, reportError, refuse } from "@/server/api";
 
 type Params = { params: Promise<{ tenant: string; workspace: string; runId: string }> };
 
@@ -95,7 +95,7 @@ export async function GET(req: NextRequest, ctx: Params) {
   // exist. An expired one is told so — it was a real link once.
   const read = readApproveLink(tenant, workspace, runId, presented);
   if ("error" in read) {
-    if (read.status === 401) return NextResponse.json({ error: "invalid token" }, { status: 401 });
+    if (read.status === 401) return refuse("invalid token", 401);
     return cannotDecide(readRun(tenant, workspace, runId), workspace, runId, read.status, read.error);
   }
   const run = readRun(tenant, workspace, runId);
@@ -176,7 +176,7 @@ export async function POST(req: NextRequest, ctx: Params) {
   const presented = presentedToken(req);
   const read = readApproveLink(tenant, workspace, runId, presented);
   if ("error" in read) {
-    if (read.status === 401) return NextResponse.json({ error: "invalid token" }, { status: 401 });
+    if (read.status === 401) return refuse("invalid token", 401);
     return cannotDecide(readRun(tenant, workspace, runId), workspace, runId, read.status, read.error);
   }
   const approver = read.link.kind === "step" ? read.link.approver : null;

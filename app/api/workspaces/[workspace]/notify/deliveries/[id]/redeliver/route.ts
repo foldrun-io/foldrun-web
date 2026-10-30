@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
-import { errorResponse, requirePermission } from "@/server/api";
+import { errorResponse, requirePermission, refuse } from "@/server/api";
 import { workspaceDir } from "@/lib/store";
 import { redeliver } from "@/platform/webhook-deliveries";
 import { idempotent } from "@/server/idempotency";
@@ -18,10 +18,10 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     const { workspace, id } = await ctx.params;
     const { tenant } = await requirePermission(req, "run:start");
     if (!fs.existsSync(workspaceDir(tenant, workspace))) {
-      return NextResponse.json({ error: `no workspace "${workspace}"` }, { status: 404 });
+      return refuse(`no workspace "${workspace}"`, 404);
     }
     const delivery = await redeliver(tenant, workspace, id);
-    if (!delivery) return NextResponse.json({ error: `no delivery "${id}" in ${workspace}` }, { status: 404 });
+    if (!delivery) return refuse(`no delivery "${id}" in ${workspace}`, 404);
     const last = delivery.attemptLog[delivery.attemptLog.length - 1] ?? null;
     // 200 either way, like notify/test: the redelivery was made, and
     // whether the receiver took it is the answer, not an error of ours.

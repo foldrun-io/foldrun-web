@@ -6,7 +6,7 @@
 // ones' results, so re-running only the middle would ship stale work.
 
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, requirePermission, ApiError } from "@/server/api";
+import { errorResponse, requirePermission, ApiError, refuse } from "@/server/api";
 import { rerunFrom } from "@/platform/queue";
 import { wantsWait, waitAndRespond } from "@/server/wait";
 import { idempotent } from "@/server/idempotency";
@@ -20,10 +20,7 @@ async function postOnce(
     const { tenant, actor } = await requirePermission(req, "run:start");
     const body = (await req.json().catch(() => ({}))) as { agent?: string; step?: number; instruction?: string };
     if (!body.agent && typeof body.step !== "number") {
-      return NextResponse.json(
-        { error: "expected { agent } or { step } — where to re-run from" },
-        { status: 400 },
-      );
+      return refuse("expected { agent } or { step } — where to re-run from", 400);
     }
     if (body.instruction !== undefined && typeof body.instruction !== "string") throw new ApiError("instruction is text: what the step it starts from is told this once", 400);
     const run = await rerunFrom(tenant, workspace, runId, { agent: body.agent, step: body.step }, actor.kind === "user" ? actor.name : null, { instruction: body.instruction });

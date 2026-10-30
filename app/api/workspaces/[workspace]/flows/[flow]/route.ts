@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { ApiError, errorResponse, requirePermission, actorOf } from "@/server/api";
+import { ApiError, errorResponse, requirePermission, actorOf, refuse } from "@/server/api";
 import { cronCanFire, parseCron } from "@/platform/scheduler";
 import {
   workspaceDir,
@@ -71,10 +71,10 @@ async function postOnce(
       subflow?: boolean;
       instruction?: string;
     };
-    if (typeof body.target !== "string" || !body.target) return NextResponse.json({ error: "expected { target }" }, { status: 400 });
+    if (typeof body.target !== "string" || !body.target) return refuse("expected { target }", 400);
 
     const file = flowFile(tenant, workspace, flow);
-    if (!file) return NextResponse.json({ error: "flow not found" }, { status: 404 });
+    if (!file) return refuse("flow not found", 404);
 
     const rewritten = addFlowStep(fs.readFileSync(file, "utf8"), {
       target: body.target,
@@ -100,11 +100,11 @@ export async function DELETE(
     const tenant = (await requirePermission(req, "workspace:write")).tenant;
     const body = (await jsonObject(req, { optional: true })) as { step?: number; expect?: string };
     if (typeof body.step !== "number") {
-      return NextResponse.json({ error: "expected { step, expect? }" }, { status: 400 });
+      return refuse("expected { step, expect? }", 400);
     }
 
     const file = flowFile(tenant, workspace, flow);
-    if (!file) return NextResponse.json({ error: "flow not found" }, { status: 404 });
+    if (!file) return refuse("flow not found", 404);
 
     const before = fs.readFileSync(file, "utf8");
     if (typeof body.expect === "string" && !readsAs(before, body.expect)) {
@@ -180,10 +180,10 @@ export async function PATCH(
     };
 
     const shapeError = patchShapeError(body);
-    if (shapeError) return NextResponse.json({ error: shapeError }, { status: 400 });
+    if (shapeError) return refuse(shapeError, 400);
 
     const file = flowFile(tenant, workspace, flow);
-    if (!file) return NextResponse.json({ error: "flow not found" }, { status: 404 });
+    if (!file) return refuse("flow not found", 404);
     const before = fs.readFileSync(file, "utf8");
     const wrote = (text: string) =>
       NextResponse.json({ ok: true, flow: parseFlow(path.basename(file), text), before, text });
@@ -196,7 +196,7 @@ export async function PATCH(
     }
 
     if (typeof body.restore === "string") {
-      if (typeof body.expect !== "string") return NextResponse.json({ error: "restore needs { expect } — the text you last saw" }, { status: 400 });
+      if (typeof body.expect !== "string") return refuse("restore needs { expect } — the text you last saw", 400);
       await saveFlow(req, tenant, workspace, file, body.restore, "flow edit undone on the canvas");
       return wrote(body.restore);
     }
@@ -207,7 +207,7 @@ export async function PATCH(
       // them pinned the pod before the oversized result was refused. The
       // canvas sends one per selected step; no flow has this many.
       if (body.edits.length > MAX_EDITS) {
-        return NextResponse.json({ error: `at most ${MAX_EDITS} edits in one request — got ${body.edits.length}` }, { status: 400 });
+        return refuse(`at most ${MAX_EDITS} edits in one request — got ${body.edits.length}`, 400);
       }
       let rewritten = before;
       for (const e of body.edits) rewritten = applyPatternEdit(rewritten, e);
@@ -232,7 +232,7 @@ export async function PATCH(
         current = undefined;
       }
       const c = computePatch(body.compute, current);
-      if ("error" in c) return NextResponse.json({ error: c.error }, { status: 400 });
+      if ("error" in c) return refuse(c.error, 400);
       const rewritten = patchFrontmatter(before, { compute: c.value });
       await saveFlow(req, tenant, workspace, file, rewritten, "flow compute: set");
       return wrote(rewritten);
@@ -274,7 +274,7 @@ export async function PATCH(
     }
 
     if (!Array.isArray(body.groups) || body.groups.some((g) => !Array.isArray(g))) {
-      return NextResponse.json({ error: "expected { groups }, { trigger }, { step, options }, { step, instruction }, { edit }, { edits } or { restore, expect }" }, { status: 400 });
+      return refuse("expected { groups }, { trigger }, { step, options }, { step, instruction }, { edit }, { edits } or { restore, expect }", 400);
     }
 
     const rewritten = reorderFlowSteps(before, body.groups);

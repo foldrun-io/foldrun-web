@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
-import { requireTenant, errorResponse } from "@/server/api";
+import { requireTenant, errorResponse, refuse } from "@/server/api";
 import { intParam } from "@/server/query";
 import { workspaceDir } from "@/lib/store";
 import { diffLines, listRevisions, readRevision } from "@/lib/history";
@@ -20,14 +20,14 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
     const { workspace } = await ctx.params;
     const tenant = await requireTenant(req);
     if (!fs.existsSync(workspaceDir(tenant, workspace))) {
-      return NextResponse.json({ error: `no workspace "${workspace}"` }, { status: 404 });
+      return refuse(`no workspace "${workspace}"`, 404);
     }
     const id = req.nextUrl.searchParams.get("id");
     const forPath = req.nextUrl.searchParams.get("path") ?? undefined;
 
     if (id) {
       const rev = readRevision(tenant, workspace, id);
-      if (!rev) return NextResponse.json({ error: "no such revision" }, { status: 404 });
+      if (!rev) return refuse("no such revision", 404);
       const files = (forPath ? rev.files.filter((f) => f.path === forPath) : rev.files).map((f) => ({
         ...f,
         diff: diffLines(f.before ?? "", f.after ?? ""),

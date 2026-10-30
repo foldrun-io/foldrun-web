@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
-import { requireTenant, errorResponse } from "@/server/api";
+import { requireTenant, errorResponse, refuse } from "@/server/api";
 import { intParam } from "@/server/query";
 import { summariseTriggers, readTriggerEvents } from "@/lib/trigger-log";
 import { readDeliveries } from "@/lib/webhook";
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
     const { workspace } = await ctx.params;
     const tenant = await requireTenant(req);
     if (!fs.existsSync(workspaceDir(tenant, workspace))) {
-      return NextResponse.json({ error: `no workspace "${workspace}"` }, { status: 404 });
+      return refuse(`no workspace "${workspace}"`, 404);
     }
     const q = req.nextUrl.searchParams;
     const days = intParam(q.get("days") ?? q.get("since"), 7, 1, 365);

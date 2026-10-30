@@ -13,7 +13,7 @@
 // the caller learned nothing. server/eval-runs.ts has the run records.
 
 import { NextRequest, NextResponse, after } from "next/server";
-import { requireTenant, errorResponse, requirePermission } from "@/server/api";
+import { requireTenant, errorResponse, requirePermission, refuse } from "@/server/api";
 import { listEvals, runEval, writeEvalResult, readEvalResult } from "@/lib/evals";
 import { claimEvalRun, readEvalRun, currentEvalRun } from "@/server/eval-runs";
 import { idempotent } from "@/server/idempotency";
@@ -29,15 +29,15 @@ async function postOnce(
     const tenant = (await requirePermission(req, "run:start")).tenant;
 
     const info = listEvals(tenant, workspace).find((e) => e.name === evalName);
-    if (!info) return NextResponse.json({ error: `eval ${evalName} not found` }, { status: 404 });
+    if (!info) return refuse(`eval ${evalName} not found`, 404);
     if (info.inputs) {
-      return NextResponse.json({ error: `${evalName} is a file of saved inputs, not an eval — run its flow with one instead` }, { status: 400 });
+      return refuse(`${evalName} is a file of saved inputs, not an eval — run its flow with one instead`, 400);
     }
     if (info.trigger === "runs") {
-      return NextResponse.json({ error: `${evalName} grades real runs (trigger: runs) — it has no cases to run; POST …/evals/${evalName}/grade { run } grades one now` }, { status: 400 });
+      return refuse(`${evalName} grades real runs (trigger: runs) — it has no cases to run; POST …/evals/${evalName}/grade { run } grades one now`, 400);
     }
     if (info.cases.length === 0) {
-      return NextResponse.json({ error: `eval ${evalName} has no cases` }, { status: 400 });
+      return refuse(`eval ${evalName} has no cases`, 400);
     }
 
     // Read before the claim: nothing between taking it and the run may throw.
@@ -79,7 +79,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
   try {
     const { workspace, evalName } = await ctx.params;
     const tenant = await requireTenant(req);
-    if (!listEvals(tenant, workspace).some((e) => e.name === evalName)) return NextResponse.json({ error: `eval ${evalName} not found` }, { status: 404 });
+    if (!listEvals(tenant, workspace).some((e) => e.name === evalName)) return refuse(`eval ${evalName} not found`, 404);
     const runId = req.nextUrl.searchParams.get("run");
     if (runId) {
       const view = await readEvalRun(tenant, workspace, evalName, runId);

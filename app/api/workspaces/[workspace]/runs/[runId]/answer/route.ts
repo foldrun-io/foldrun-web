@@ -7,7 +7,7 @@
 // refused (409): an answer there would reach no one.
 
 import { NextRequest, NextResponse } from "next/server";
-import { actorOf, errorResponse, requirePermission } from "@/server/api";
+import { actorOf, errorResponse, requirePermission, refuse } from "@/server/api";
 import { readRun } from "@/lib/store";
 import { ANSWER_MAX, answerQuestion, getQuestion } from "@/platform/operator-store";
 import { idempotent } from "@/server/idempotency";
@@ -19,14 +19,14 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     const body = (await req.json().catch(() => ({}))) as { question?: unknown; answer?: unknown };
     const id = typeof body.question === "string" ? body.question : "";
     const answer = typeof body.answer === "string" ? body.answer.trim() : "";
-    if (!id || !answer) return NextResponse.json({ error: "expected { question: <id>, answer }" }, { status: 400 });
-    if (answer.length > ANSWER_MAX) return NextResponse.json({ error: `an answer is at most ${ANSWER_MAX} characters` }, { status: 413 });
+    if (!id || !answer) return refuse("expected { question: <id>, answer }", 400);
+    if (answer.length > ANSWER_MAX) return refuse(`an answer is at most ${ANSWER_MAX} characters`, 413);
     const run = readRun(tenant, workspace, runId);
-    if (!run) return NextResponse.json({ error: "run not found" }, { status: 404 });
+    if (!run) return refuse("run not found", 404);
     const q = await getQuestion(tenant, runId, id);
-    if (!q) return NextResponse.json({ error: "no such question on this run — it may have expired" }, { status: 404 });
+    if (!q) return refuse("no such question on this run — it may have expired", 404);
     if (q.answer === undefined) {
-      const gone = (why: string) => NextResponse.json({ error: `the agent is no longer waiting on this question — ${why}` }, { status: 409 });
+      const gone = (why: string) => refuse(`the agent is no longer waiting on this question — ${why}`, 409);
       if (q.closed) return gone("it stopped waiting (closed)");
       // The asking step: the one the lease named, else the one whose record
       // carries the question, else (not traced yet) any running step.
@@ -40,8 +40,8 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     }
     const by = await actorOf(req);
     const res = await answerQuestion(tenant, runId, id, answer, by);
-    if (!res) return NextResponse.json({ error: "no such question on this run — it may have expired" }, { status: 404 });
-    if (res.closed) return NextResponse.json({ error: "the agent is no longer waiting on this question — it stopped waiting (closed)" }, { status: 409 });
+    if (!res) return refuse("no such question on this run — it may have expired", 404);
+    if (res.closed) return refuse("the agent is no longer waiting on this question — it stopped waiting (closed)", 409);
     if (res.already) {
       return NextResponse.json(
         { error: "already answered", answer: res.question.answer, by: res.question.by ?? null, answeredAt: res.question.answeredAt },

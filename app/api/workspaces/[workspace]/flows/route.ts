@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requirePermission, actorOf } from "@/server/api";
+import { requireTenant, errorResponse, requirePermission, actorOf, refuse } from "@/server/api";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -30,14 +30,14 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     const { workspace } = await ctx.params;
     const tenant = (await requirePermission(req, "workspace:write")).tenant;
     const body = (await req.json()) as { name?: string; pattern?: string };
-    if (!body.name) return NextResponse.json({ error: "expected { name }" }, { status: 400 });
+    if (!body.name) return refuse("expected { name }", 400);
     assertSafeName(body.name, "flow name");
     const pattern: FlowPattern = FLOW_PATTERNS.includes(body.pattern as FlowPattern)
       ? (body.pattern as FlowPattern)
       : "pipeline";
     const rel = `flows/${body.name}.md`;
     if (fs.existsSync(path.join(workspaceDir(tenant, workspace), rel))) {
-      return NextResponse.json({ error: `flow ${body.name} already exists` }, { status: 409 });
+      return refuse(`flow ${body.name} already exists`, 409);
     }
     const agents = listAgents(tenant, workspace).map((a) => a.name);
     writeWorkspaceFile(tenant, workspace, rel, flowPatternTemplate(pattern, body.name, agents), { by: await actorOf(req) });

@@ -13,7 +13,7 @@
 // it, and stops working once the step is released. The per-run form URLs
 // carried before then still releases a step parked under it.
 
-import { errorResponse } from "@/server/api";
+import { errorResponse, refuse } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
 import { clientIp, refuseWhenLimited, BAD_CALLBACK_TOKENS } from "@/server/limits";
 import { deliverEvent, eventGatesFor } from "@/lib/approvals";
@@ -45,12 +45,12 @@ export async function POST(
       const ip = clientIp(req);
       const limited = ip ? await refuseWhenLimited(`event-refused:${ip}`, BAD_CALLBACK_TOKENS.limit, BAD_CALLBACK_TOKENS.windowSec) : null;
       if (limited) return limited;
-      return NextResponse.json({ error: "invalid token" }, { status: 401 });
+      return refuse("invalid token", 401);
     }
     // A real URL whose gate is over — released already, or parked again
     // under a new URL — is the 409 a run not waiting has always been.
     if (!opened.steps.length) {
-      return NextResponse.json({ error: "this run is not waiting for an event at this URL" }, { status: 409 });
+      return refuse("this run is not waiting for an event at this URL", 409);
     }
     const gates = opened.steps;
 

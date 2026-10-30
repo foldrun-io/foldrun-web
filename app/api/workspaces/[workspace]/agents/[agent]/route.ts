@@ -13,7 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
-import { errorResponse, requirePermission, actorOf } from "@/server/api";
+import { errorResponse, requirePermission, actorOf, refuse } from "@/server/api";
 import { workspaceDir, assertSafeName, writeWorkspaceFile } from "@/lib/store";
 import { editFrontmatterList, setFrontmatterScalar, TEAM_LIST_KEYS } from "@/lib/flow-patterns";
 import { readNetwork, setNetworkSetting } from "@/lib/network";
@@ -38,7 +38,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
     };
     const rel = `agents/${agent}/agent.md`;
     const file = path.join(workspaceDir(tenant, workspace), rel);
-    if (!fs.existsSync(file)) return NextResponse.json({ error: `agent ${agent} not found` }, { status: 404 });
+    if (!fs.existsSync(file)) return refuse(`agent ${agent} not found`, 404);
     const raw = fs.readFileSync(file, "utf8");
 
     let next: string;
@@ -46,19 +46,19 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
     if (body.list) {
       const { key, name, action } = body.list;
       if (!key || !(TEAM_LIST_KEYS as readonly string[]).includes(key)) {
-        return NextResponse.json({ error: `list key is one of ${TEAM_LIST_KEYS.join(", ")}` }, { status: 400 });
+        return refuse(`list key is one of ${TEAM_LIST_KEYS.join(", ")}`, 400);
       }
-      if (action !== "add" && action !== "remove") return NextResponse.json({ error: "action is add or remove" }, { status: 400 });
-      if (!name || !/^[a-z0-9][a-z0-9_-]*$/i.test(name)) return NextResponse.json({ error: "expected a name" }, { status: 400 });
+      if (action !== "add" && action !== "remove") return refuse("action is add or remove", 400);
+      if (!name || !/^[a-z0-9][a-z0-9_-]*$/i.test(name)) return refuse("expected a name", 400);
       if (key !== "tools") assertSafeName(name, "agent");
       next = editFrontmatterList(raw, key, name, action);
       message = `${action === "add" ? "added" : "removed"} ${name} ${action === "add" ? "to" : "from"} ${key}: on the canvas`;
     } else if (body.set) {
       const { key, value } = body.set;
-      if (!key || !SCALAR_KEYS.includes(key)) return NextResponse.json({ error: `set key is one of ${SCALAR_KEYS.join(", ")}` }, { status: 400 });
-      if (typeof value !== "string" || !value.trim()) return NextResponse.json({ error: "expected a value" }, { status: 400 });
+      if (!key || !SCALAR_KEYS.includes(key)) return refuse(`set key is one of ${SCALAR_KEYS.join(", ")}`, 400);
+      if (typeof value !== "string" || !value.trim()) return refuse("expected a value", 400);
       const allowed = SCALAR_VALUES[key];
-      if (allowed && !allowed.includes(value.trim())) return NextResponse.json({ error: `${key} is one of ${allowed.join(", ")}` }, { status: 400 });
+      if (allowed && !allowed.includes(value.trim())) return refuse(`${key} is one of ${allowed.join(", ")}`, 400);
       next = setFrontmatterScalar(raw, key, value);
       message = `set ${key}: on the canvas`;
     } else if (body.network !== undefined) {
@@ -68,16 +68,16 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
         message = "network: inherits";
       } else {
         const { setting, problems } = readNetwork(body.network);
-        if (problems.length || !setting) return NextResponse.json({ error: problems.join(" ") || "expected { level?, allow?, defaults? }" }, { status: 400 });
+        if (problems.length || !setting) return refuse(problems.join(" ") || "expected { level?, allow?, defaults? }", 400);
         next = setNetworkSetting(raw, setting);
         message = `network: ${JSON.stringify(setting)}`;
         // What a run will read is what was asked for.
         if (!isDeepStrictEqual(readNetwork(configMatter(next).data.network).setting, setting)) {
-          return NextResponse.json({ error: "not saved — network: would not read back as written. Edit the file itself, or write its blocks one key per line" }, { status: 409 });
+          return refuse("not saved — network: would not read back as written. Edit the file itself, or write its blocks one key per line", 409);
         }
       }
     } else {
-      return NextResponse.json({ error: "expected { list }, { set } or { network }" }, { status: 400 });
+      return refuse("expected { list }, { set } or { network }", 400);
     }
     // Read back as a run reads it: refused (409, nothing written) if it
     // would not parse, would touch another key, would double one into its

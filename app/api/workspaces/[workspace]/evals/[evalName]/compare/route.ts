@@ -13,7 +13,7 @@
 // result. One comparison of an eval at a time; a second is a 409.
 
 import { NextRequest, NextResponse, after } from "next/server";
-import { requireTenant, errorResponse, requirePermission, ApiError } from "@/server/api";
+import { requireTenant, errorResponse, requirePermission, ApiError, refuse } from "@/server/api";
 import { adminState, pauseOf } from "@/platform/admin";
 import { idempotent } from "@/server/idempotency";
 import { listEvals } from "@/lib/evals";
@@ -32,7 +32,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     const halt = pauseOf(await adminState(tenant), workspace);
     if (halt) throw new ApiError(`${halt.scope === "account" ? "the account" : "this workspace"} is paused — resume it first`, 409);
     const info = listEvals(tenant, workspace).find((e) => e.name === evalName);
-    if (!info) return NextResponse.json({ error: `eval ${evalName} not found` }, { status: 404 });
+    if (!info) return refuse(`eval ${evalName} not found`, 404);
     const plan = planComparison(info, await req.json().catch(() => null));
     const claim = await claimEvalCompare(tenant, workspace, evalName);
     if (!claim) {
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
   try {
     const { workspace, evalName } = await ctx.params;
     const tenant = await requireTenant(req);
-    if (!listEvals(tenant, workspace).some((e) => e.name === evalName)) return NextResponse.json({ error: `eval ${evalName} not found` }, { status: 404 });
+    if (!listEvals(tenant, workspace).some((e) => e.name === evalName)) return refuse(`eval ${evalName} not found`, 404);
     const runId = req.nextUrl.searchParams.get("run");
     if (runId) {
       const view = await readEvalCompare(tenant, workspace, evalName, runId);

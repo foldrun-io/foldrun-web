@@ -12,7 +12,7 @@
 // [flow] route as that flow's edit, so such a flow stays editable.
 
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, requirePermission } from "@/server/api";
+import { errorResponse, requirePermission, refuse } from "@/server/api";
 import { draftFlow } from "@/server/flow-draft";
 import * as flowRoute from "../[flow]/route";
 import { idempotent } from "@/server/idempotency";
@@ -42,7 +42,7 @@ async function postOnce(req: NextRequest, ctx: Ctx) {
     if (body.description === undefined) return flowRoute.POST(again(req, text), await asFlow(ctx));
 
     const { workspace } = await ctx.params;
-    if (typeof body.description !== "string") return NextResponse.json({ error: "expected { description, flow? }" }, { status: 400 });
+    if (typeof body.description !== "string") return refuse("expected { description, flow? }", 400);
     const result = await draftFlow(tenant, workspace, {
       description: body.description,
       flow: typeof body.flow === "string" && body.flow ? body.flow : null,

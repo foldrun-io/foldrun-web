@@ -8,7 +8,7 @@
 // them — a message meant for one must not be read by its sibling.
 
 import { NextRequest, NextResponse } from "next/server";
-import { actorOf, errorResponse, requirePermission } from "@/server/api";
+import { actorOf, errorResponse, requirePermission, refuse } from "@/server/api";
 import { readRun } from "@/lib/store";
 import { MESSAGE_MAX, postMessage } from "@/platform/operator-store";
 import { idempotent } from "@/server/idempotency";
@@ -19,12 +19,12 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     const tenant = (await requirePermission(req, "run:start")).tenant;
     const body = (await req.json().catch(() => ({}))) as { text?: unknown; step?: unknown };
     const text = typeof body.text === "string" ? body.text.trim() : "";
-    if (!text) return NextResponse.json({ error: "expected { text, step? }" }, { status: 400 });
-    if (text.length > MESSAGE_MAX) return NextResponse.json({ error: `a message is at most ${MESSAGE_MAX} characters` }, { status: 413 });
+    if (!text) return refuse("expected { text, step? }", 400);
+    if (text.length > MESSAGE_MAX) return refuse(`a message is at most ${MESSAGE_MAX} characters`, 413);
     const run = readRun(tenant, workspace, runId);
-    if (!run) return NextResponse.json({ error: "run not found" }, { status: 404 });
+    if (!run) return refuse("run not found", 404);
     if (run.status !== "running") {
-      return NextResponse.json({ error: `the run is ${run.status} — only a running step can be written to` }, { status: 409 });
+      return refuse(`the run is ${run.status} — only a running step can be written to`, 409);
     }
     const running = run.steps.flatMap((s, i) => (s.status === "running" ? [{ step: i, agent: s.agent }] : []));
     let step: number;

@@ -3,7 +3,7 @@
 // the consent flow from a saved client is /api/oauth/start's job.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requireAccountWide } from "@/server/api";
+import { requireTenant, errorResponse, requireAccountWide, refuse } from "@/server/api";
 import { saveOAuthClient, listOAuthClients, deleteOAuthClient } from "@/platform/oauth-clients";
 import type { OAuthProviderConfig } from "@/platform/oauth-connect";
 import { idempotent } from "@/server/idempotency";
@@ -24,7 +24,7 @@ async function postOnce(req: NextRequest) {
       config?: OAuthProviderConfig;
     };
     if (!body.name || !body.config) {
-      return NextResponse.json({ error: "expected { name, config }" }, { status: 400 });
+      return refuse("expected { name, config }", 400);
     }
     await saveOAuthClient(tenant, body.name, body.config);
     return NextResponse.json({ ok: true, name: body.name });
@@ -37,9 +37,9 @@ export async function DELETE(req: NextRequest) {
   try {
     const tenant = (await requireAccountWide(req, "secrets:write")).tenant;
     const body = (await req.json().catch(() => ({}))) as { client?: string };
-    if (!body.client) return NextResponse.json({ error: "expected { client }" }, { status: 400 });
+    if (!body.client) return refuse("expected { client }", 400);
     if (!(await deleteOAuthClient(tenant, body.client))) {
-      return NextResponse.json({ error: "no such client" }, { status: 404 });
+      return refuse("no such client", 404);
     }
     return NextResponse.json({ ok: true });
   } catch (err) {

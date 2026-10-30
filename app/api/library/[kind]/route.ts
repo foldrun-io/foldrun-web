@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, actorOf, requireAccountWide } from "@/server/api";
+import { requireTenant, errorResponse, actorOf, requireAccountWide, refuse } from "@/server/api";
 import { startingFiles } from "@/server/starters";
 import {
   LIBRARY_KINDS,
@@ -41,7 +41,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ kind: string 
     const raw = await jsonObject(req);
     const body = { name: optionalString(raw, "name"), template: optionalString(raw, "template"), language: optionalString(raw, "language") };
     if (!body.name || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(body.name)) {
-      return NextResponse.json({ error: "expected { name } in kebab-case" }, { status: 400 });
+      return refuse("expected { name } in kebab-case", 400);
     }
     // "Start from" — a gallery entry as the starting content, renamed to what
     // the author called it. An unknown template falls back to the blank one
@@ -64,10 +64,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ kind: string 
     // that nothing referenced and nothing cleaned up.
     const clash = files.find((f) => libraryFileExists(tenant, kind, f.file));
     if (clash) {
-      return NextResponse.json(
-        { error: `${clash.file} already exists — pick another name` },
-        { status: 409 },
-      );
+      return refuse(`${clash.file} already exists — pick another name`, 409);
     }
     for (const f of files) writeLibraryFile(tenant, kind, f.file, f.content);
     return NextResponse.json({ ok: true, path: files[0].file });
@@ -82,7 +79,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ kind: strin
     const kind = kindOf((await ctx.params).kind);
     const body = await jsonObject(req);
     if (typeof body.path !== "string" || !body.path || typeof body.content !== "string") {
-      return NextResponse.json({ error: "expected { path, content }" }, { status: 400 });
+      return refuse("expected { path, content }", 400);
     }
     writeLibraryFile(tenant, kind, body.path, body.content, { by: await actorOf(req) });
     return NextResponse.json({ ok: true, path: body.path });
@@ -96,7 +93,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ kind: st
     const tenant = (await requireAccountWide(req, "workspace:write")).tenant;
     const kind = kindOf((await ctx.params).kind);
     const body = await jsonObject(req);
-    if (!body.path || typeof body.path !== "string") return NextResponse.json({ error: "expected { path }" }, { status: 400 });
+    if (!body.path || typeof body.path !== "string") return refuse("expected { path }", 400);
     // Attributed like a write: a deletion is a revision too.
     deleteLibraryPath(tenant, kind, body.path, { by: await actorOf(req) });
     return NextResponse.json({ ok: true });

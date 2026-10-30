@@ -18,7 +18,7 @@ import { verifyTotp, hashBackup } from "@/server/totp";
 import { rateLimit, rateLimitReset, cache } from "@/platform/cache";
 import { audit } from "@/server/audit";
 import { listWorkspaces } from "@/lib/store";
-import { errorResponse } from "@/server/api";
+import { errorResponse, refuse } from "@/server/api";
 import { clientIp } from "@/server/limits";
 import { sendSecurityNotice } from "@/server/email";
 
@@ -31,9 +31,9 @@ export async function POST(req: NextRequest) {
   try {
     const body = (await req.json().catch(() => ({}))) as { challenge?: string; code?: string };
     const claims = readToken("mfa-challenge", String(body.challenge ?? ""));
-    if (!claims) return NextResponse.json({ error: "sign in again" }, { status: 401 });
+    if (!claims) return refuse("sign in again", 401);
     const user = await findUserById(claims.u);
-    if (!user?.mfaSecret) return NextResponse.json({ error: "sign in again" }, { status: 401 });
+    if (!user?.mfaSecret) return refuse("sign in again", 401);
 
     const limit = await rateLimit(`mfa:${user.id}`, PER_USER.limit, PER_USER.windowSec);
     if (!limit.allowed) {
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     } else if (await consumeBackupCode(user.id, hashBackup(code))) how = "backup";
     if (!how) {
       await audit("mfa.refused", { actor: user.email, tenant: user.tenant });
-      return NextResponse.json({ error: "that code is not right" }, { status: 401 });
+      return refuse("that code is not right", 401);
     }
     await rateLimitReset(`mfa:${user.id}`);
     await rateLimitReset(`mfa:totp:${user.id}`);

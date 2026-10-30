@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, requirePermission, actorOf } from "@/server/api";
+import { requireTenant, errorResponse, requirePermission, actorOf, refuse } from "@/server/api";
 import {
   listStorage,
   putFile,
@@ -62,7 +62,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     // An object with string path and sha, or 400 — a `null` body was a 500.
     const body = await jsonObject(req);
     if (typeof body.path !== "string" || !body.path || typeof body.sha !== "string" || !body.sha || typeof body.size !== "number") {
-      return NextResponse.json({ error: "expected { path, sha, size }" }, { status: 400 });
+      return refuse("expected { path, sha, size }", 400);
     }
     // registerUpload HEADs the object before it believes any of this — the
     // browser saying an upload finished is not evidence that it did, and
@@ -80,13 +80,13 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ workspace: 
     const { workspace } = await ctx.params;
     const tenant = (await requirePermission(req, "workspace:write")).tenant;
     const rel = req.nextUrl.searchParams.get("path");
-    if (!rel) return NextResponse.json({ error: "expected ?path=" }, { status: 400 });
+    if (!rel) return refuse("expected ?path=", 400);
     const bytes = Buffer.from(await req.arrayBuffer());
-    if (bytes.length === 0) return NextResponse.json({ error: "empty body" }, { status: 400 });
+    if (bytes.length === 0) return refuse("empty body", 400);
     // The proxy refused a declared length over the limit; a chunked body
     // reaches here cut short and looking whole (server/body-limit.ts).
     const cut = bodyCut(req.headers.get("content-length"), bytes.length);
-    if (cut) return NextResponse.json({ error: cut.error }, { status: cut.status });
+    if (cut) return refuse(cut.error, cut.status);
     const file = await putFile(tenant, workspace, rel, bytes, await actor(req));
     return NextResponse.json({ file });
   } catch (err) {
@@ -99,10 +99,10 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ workspac
     const { workspace } = await ctx.params;
     const tenant = (await requirePermission(req, "workspace:write")).tenant;
     const rel = req.nextUrl.searchParams.get("path");
-    if (!rel) return NextResponse.json({ error: "expected ?path=" }, { status: 400 });
+    if (!rel) return refuse("expected ?path=", 400);
     requireWorkspace(tenant, workspace);
     const gone = await deleteFile(tenant, workspace, rel);
-    if (!gone) return NextResponse.json({ error: "no such file" }, { status: 404 });
+    if (!gone) return refuse("no such file", 404);
     return NextResponse.json({ ok: true });
   } catch (err) {
     return errorResponse(err);

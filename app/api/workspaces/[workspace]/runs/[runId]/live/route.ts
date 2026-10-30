@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse } from "@/server/api";
+import { requireTenant, errorResponse, refuse } from "@/server/api";
 import { readRun } from "@/lib/store";
 import { getLiveFrame, liveAgents } from "@/platform/live-view";
 
@@ -23,7 +23,7 @@ export async function GET(
   try {
     const { workspace, runId } = await ctx.params;
     const tenant = await requireTenant(req);
-    if (!readRun(tenant, workspace, runId)) return NextResponse.json({ error: "run not found" }, { status: 404 });
+    if (!readRun(tenant, workspace, runId)) return refuse("run not found", 404);
     const agent = req.nextUrl.searchParams.get("agent");
     if (!agent) return NextResponse.json({ agents: await liveAgents(tenant, runId) }, { headers: { "cache-control": "no-store" } });
     const frame = await getLiveFrame(tenant, runId, agent);

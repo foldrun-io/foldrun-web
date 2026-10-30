@@ -5,7 +5,7 @@
 // Only its owner's: anyone else's id answers 404, the same as none.
 
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, requireCaller } from "@/server/api";
+import { errorResponse, requireCaller, refuse } from "@/server/api";
 import { deleteConversation, getConversation } from "@/platform/assistant/conversations";
 import { ownerOf } from "@/platform/assistant/jobs";
 import { scopeAllows } from "@/platform/scope";
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     const { tenant, actor } = await requireCaller(req);
     const { id } = await ctx.params;
     const c = await getConversation(tenant, ownerOf(actor), id);
-    if (!c || !scopeAllows(actor.workspaces, c.workspace)) return NextResponse.json({ error: "no such conversation" }, { status: 404 });
+    if (!c || !scopeAllows(actor.workspaces, c.workspace)) return refuse("no such conversation", 404);
     const { owner: _owner, ...shown } = c;
     void _owner;
     return NextResponse.json(shown);
@@ -33,7 +33,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
     const { tenant, actor } = await requireCaller(req);
     const { id } = await ctx.params;
     const c = await getConversation(tenant, ownerOf(actor), id);
-    if (!c || !scopeAllows(actor.workspaces, c.workspace)) return NextResponse.json({ error: "no such conversation" }, { status: 404 });
+    if (!c || !scopeAllows(actor.workspaces, c.workspace)) return refuse("no such conversation", 404);
     await deleteConversation(tenant, ownerOf(actor), id);
     return NextResponse.json({ ok: true });
   } catch (err) {

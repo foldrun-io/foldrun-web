@@ -4,7 +4,7 @@
 // core/src/permissions.ts, where they are unit-tested.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requirePerson, errorResponse, ApiError } from "@/server/api";
+import { requirePerson, errorResponse, ApiError, refuse } from "@/server/api";
 import { removeMember, setMemberRole, setMemberScope, listMembers, revokeInvitesBeyond } from "@/server/users";
 import { audit } from "@/server/audit";
 import { revokeKeysBeyond } from "@/server/auth";
@@ -70,7 +70,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
     // Their pending invites, and any to their address, go in the same
     // transaction (OWASP review, 29 Oct 2026): removal is not undone by a link.
     const removed = await removeMember(tenant, id, actor.id, actor.name);
-    if (!removed) return NextResponse.json({ error: "no such member" }, { status: 404 });
+    if (!removed) return refuse("no such member", 404);
     // Every key they minted here stops with them (FOL-97) — a key is not a
     // way to stay on the team.
     const revoked = target?.email ? await revokeKeysBeyond(tenant, target.email, null) : [];

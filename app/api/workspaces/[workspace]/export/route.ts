@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireCaller, errorResponse } from "@/server/api";
+import { requireCaller, errorResponse, refuse } from "@/server/api";
 import { audit } from "@/server/audit";
 import { packageOf, packageZip, packageFilename, PackageError, type PackageKind } from "@/lib/package";
 
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
     const { tenant, actor } = await requireCaller(req);
     const kindParam = req.nextUrl.searchParams.get("kind") ?? "workspace";
     if (kindParam !== "workspace" && kindParam !== "flow" && kindParam !== "agent") {
-      return NextResponse.json({ error: "kind is workspace, flow or agent" }, { status: 400 });
+      return refuse("kind is workspace, flow or agent", 400);
     }
     const kind = kindParam as PackageKind;
     const name = req.nextUrl.searchParams.get("name") ?? undefined;
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
       },
     });
   } catch (err) {
-    if (err instanceof PackageError) return NextResponse.json({ error: err.message }, { status: err.status });
+    if (err instanceof PackageError) return refuse(err.message, err.status);
     return errorResponse(err);
   }
 }

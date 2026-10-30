@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireCaller, requireAccountWide, errorResponse } from "@/server/api";
+import { requireCaller, requireAccountWide, errorResponse, refuse } from "@/server/api";
 import { updateAdminState } from "@/platform/admin";
 import { forgetAccountProfile } from "@/server/api-limits";
 import { parseVersion } from "@/server/api-version";
@@ -29,11 +29,11 @@ export async function PATCH(req: NextRequest) {
     // workspaces would change what the others' CI receives (30 Oct 2026).
     const { tenant, actor } = await requireAccountWide(req, "keys:manage");
     const body = (await req.json()) as { version?: unknown };
-    if (!("version" in (body ?? {}))) return NextResponse.json({ error: "expected { version: \"YYYY-MM-DD\" | null }" }, { status: 400 });
+    if (!("version" in (body ?? {}))) return refuse("expected { version: \"YYYY-MM-DD\" | null }", 400);
     let version: string | undefined;
     if (body.version !== null) {
       const parsed = parseVersion(typeof body.version === "string" ? body.version : String(body.version));
-      if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
+      if ("error" in parsed) return refuse(parsed.error, 400);
       version = parsed.version ?? undefined;
     }
     await updateAdminState(tenant, { apiVersion: version }, actor.name, "api-version", { version: version ?? null });
