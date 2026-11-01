@@ -211,38 +211,61 @@ export async function apiGate(req: NextRequest): Promise<Gate> {
   // (platform api-usage.ts). Counted in memory; never waits, never throws.
   if (caller) recordApiCall({ tenant: caller.tenant, version: version.version, ...(dep ? { route: dep.route, credential: caller.who } : {}) });
 
-  if (caller && profile && limitingOn() && !unmetered(req.method, req.nextUrl.pathname)) {
-    const kind = isRead(req.method) ? "r" : "w";
-    const tier = TIERS[profile.tier];
-    const perCred = kind === "r" ? tier.read : tier.write;
-    const perAccount = perCred * ACCOUNT_MULTIPLE;
-    const [mine, theirs] = await Promise.all([
-      rateLimit(`api:${caller.tenant}:${caller.credential}:${kind}`, perCred, WINDOW_SEC),
-      rateLimit(`api:${caller.tenant}:*:${kind}`, perAccount, WINDOW_SEC),
-    ]);
-    // Report the bucket closer to running out — the one that will refuse first.
-    const tight = !theirs.allowed || (mine.allowed && theirs.remaining < mine.remaining) ? { v: theirs, limit: perAccount } : { v: mine, limit: perCred };
-    headers["x-ratelimit-limit"] = String(tight.limit);
-    headers["x-ratelimit-remaining"] = String(tight.v.remaining);
-    headers["x-ratelimit-reset"] = String(Math.floor(Date.now() / 1000) + tight.v.retryAfter);
-    if (!mine.allowed || !theirs.allowed) {
-      const retry = Math.max(!mine.allowed ? mine.retryAfter : 0, !theirs.allowed ? theirs.retryAfter : 0);
-      const which = !mine.allowed ? (caller.credential.startsWith("key:") ? "this API key" : "you") : "this account";
-      headers["retry-after"] = String(retry);
-      return {
-        refuse: NextResponse.json(
-          {
-            error: `rate limit: ${which} may make ${tight.limit} ${kind === "r" ? "reads" : "writes"} a minute — retry in ${retry}s`,
-            retry_after: retry,
-          },
-          { status: 429 },
-        ),
-        headers,
-        requestHeaders: {},
-      };
-    }
+  const limited = await overLimit(req, caller, profile, headers);
+  if (limited) {
+    return {
+      refuse: NextResponse.json({ error: limited.message, retry_after: limited.retryAfter }, { status: 429 }),
+      headers,
+      requestHeaders: {},
+    };
   }
   return { headers, requestHeaders: { [RESOLVED_VERSION_HEADER]: version.version } };
+}
+
+/**
+ * The rate limit, counted for this request: its X-RateLimit-* headers put in
+ * `headers`, and — over either bucket — the sentence and the wait to send
+ * back (Retry-After is put in `headers` too). Null within the limit.
+ */
+async function overLimit(req: NextRequest, caller: Caller | null, profile: Profile | null, headers: Record<string, string>): Promise<{ message: string; retryAfter: number } | null> {
+  if (!caller || !profile || !limitingOn() || unmetered(req.method, req.nextUrl.pathname)) return null;
+  const kind = isRead(req.method) ? "r" : "w";
+  const tier = TIERS[profile.tier];
+  const perCred = kind === "r" ? tier.read : tier.write;
+  const perAccount = perCred * ACCOUNT_MULTIPLE;
+  const [mine, theirs] = await Promise.all([
+    rateLimit(`api:${caller.tenant}:${caller.credential}:${kind}`, perCred, WINDOW_SEC),
+    rateLimit(`api:${caller.tenant}:*:${kind}`, perAccount, WINDOW_SEC),
+  ]);
+  // Report the bucket closer to running out — the one that will refuse first.
+  const tight = !theirs.allowed || (mine.allowed && theirs.remaining < mine.remaining) ? { v: theirs, limit: perAccount } : { v: mine, limit: perCred };
+  headers["x-ratelimit-limit"] = String(tight.limit);
+  headers["x-ratelimit-remaining"] = String(tight.v.remaining);
+  headers["x-ratelimit-reset"] = String(Math.floor(Date.now() / 1000) + tight.v.retryAfter);
+  if (mine.allowed && theirs.allowed) return null;
+  const retry = Math.max(!mine.allowed ? mine.retryAfter : 0, !theirs.allowed ? theirs.retryAfter : 0);
+  const which = !mine.allowed ? (caller.credential.startsWith("key:") ? "this API key" : "you") : "this account";
+  headers["retry-after"] = String(retry);
+  return { message: `rate limit: ${which} may make ${tight.limit} ${kind === "r" ? "reads" : "writes"} a minute — retry in ${retry}s`, retryAfter: retry };
+}
+
+/**
+ * What the proxy asks of an /a2a request (1 Nov 2026): the rate limit only,
+ * counted in the same buckets as the key's account (an A2A key is a
+ * credential of its account, with its own bucket). No Foldrun-Version — A2A
+ * has its own (A2A-Version, answered by the route) — and no deprecations.
+ * Over the limit, the refusal is the sentence and the wait; the proxy writes
+ * it as JSON-RPC. Never throws.
+ */
+export async function a2aGate(req: NextRequest): Promise<{ headers: Record<string, string>; limited: { message: string; retryAfter: number } | null }> {
+  const headers: Record<string, string> = {};
+  try {
+    const caller = await callerOf(req);
+    const profile = caller ? await accountProfile(caller.tenant) : null;
+    return { headers, limited: await overLimit(req, caller, profile, headers) };
+  } catch {
+    return { headers, limited: null };
+  }
 }
 
 /** For tests: forget cached callers and accounts. */

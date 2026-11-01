@@ -338,7 +338,14 @@ export default async function SettingsPage({
 
         {/* KeyManager carries its own title row — the create form sits in it. */}
         <div id="api-keys" className="scroll-mt-20">
-          <KeyManager tenant={tenant} keys={keys} workspaces={visibleWorkspaces.map((w) => w.name)} scoped={scope !== null} />
+          <KeyManager
+            tenant={tenant}
+            keys={keys}
+            workspaces={visibleWorkspaces.map((w) => w.name)}
+            scoped={scope !== null}
+            // For an A2A key: each workspace's flows, and which are published.
+            a2aFlows={Object.fromEntries(visibleWorkspaces.map((w) => [w.name, listFlows(tenant, w.name).map((f) => ({ name: f.name, published: f.a2a?.publish === true }))]))}
+          />
           <p className="mt-2 text-xs text-fg-muted">A key is you, on a machine: the CLI and the HTTP API. It carries a role no higher than yours and opens no workspace you cannot — narrow it further above.</p>
           <details className="mt-3 rounded-xl border border-line bg-surface">
             <summary className="cursor-pointer px-4 py-3 text-xs font-medium uppercase tracking-wide text-fg-muted">Using a key</summary>

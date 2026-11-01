@@ -22,6 +22,8 @@ import { AskAiButton } from "@/components/assistant";
 import { gradesOfRun } from "@/lib/grades";
 import { WithEmails } from "@/components/email";
 import { anchorId } from "@/components/collapse-model";
+import { listApiKeys } from "@/server/auth";
+import { a2aKeyLabels, a2aRunLabel } from "@/components/a2a-model";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +48,8 @@ export default async function RunPage({
   const charges = await runCharges(tenant);
   const same = all.filter((r) => r.flow === run.flow).slice(0, 40).reverse().map((r) => runLite({ ...r, workspace }, charges));
 
+  // A run an outside agent started: "A2A · <key label>" (1 Nov 2026).
+  const a2aLabel = run.a2a || run.trigger === "a2a" ? a2aRunLabel(run, a2aKeyLabels(await listApiKeys(tenant))) : null;
   const status = runDisplayStatus(run);
   const verdict = run.status === "completed" ? runVerdict(run) : null;
   const outcome = outcomeOf(status, verdict);
@@ -116,7 +120,14 @@ export default async function RunPage({
             {o.label}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] uppercase tracking-wide text-fg-subtle">{kind}</p>
+            <p className="text-[11px] uppercase tracking-wide text-fg-subtle">
+              {kind}
+              {a2aLabel && (
+                <span className="ml-2 normal-case tracking-normal text-fg-muted" title="Started by an outside agent over A2A, with this A2A key">
+                  · {a2aLabel}
+                </span>
+              )}
+            </p>
             <h1 className="truncate text-xl font-semibold text-fg">{what}</h1>
             {(run.revision || run.drivenAt) && (
               <p className="mt-0.5 text-[11px] text-fg-muted">

@@ -93,6 +93,14 @@ const EDIT_FLOW: Shape = {
     edits: arr(PatternEdit, "several canvas edits applied in order as one write"),
     edit: PatternEdit,
     compute: nullable(obj({ vcpu: num, memGiB: num, diskGiB: num }, [])),
+    a2a: nullable({ ...obj({
+      publish: { ...bool, description: "outside agents with an A2A key naming this flow may call it" },
+      name: nullable(str("the agent card's name; null removes it (the flow's name is used)")),
+      description: nullable(str("the card's description; null removes it")),
+      examples: nullable(arr(str(), "example requests the card lists; null removes them")),
+      public_card: nullable({ ...bool, description: "the card is readable without a key (calling it never is)" }),
+      input: { description: "a JSON Schema the request's data part must satisfy; null removes it" },
+    }), description: "merged over the flow's a2a: — a key sent replaces it, null removes it, the rest is kept; null removes the block. Admin only (workspace:manage)" }),
     trigger: obj({
       trigger: str("manual | schedule | webhook (default manual)"),
       schedule: str("a cron expression the scheduler can fire, for schedule"),
@@ -147,6 +155,23 @@ const HookActivity = obj({
 });
 
 export const SHAPES: Record<string, Shape> = {
+  "GET /api/workspaces/{workspace}/a2a": {
+    response: obj({
+      flows: arr(obj({
+        flow: str(), published: bool, publicCard: bool,
+        name: str("the agent card's name"), description: nullable(str()),
+        hasInputSchema: { ...bool, description: "the flow's a2a: input: — a JSON Schema the request's data part must match" },
+        card: str("the agent card's URL"), url: str("the A2A JSON-RPC endpoint"),
+      }), "every flow whose frontmatter says a2a:, published or not"),
+      keys: nullable(arr(obj({ id: str(), label: str(), prefix: str(), flows: arr(str()), maxTasks: nullable(int), expiresAt: nullable(str()) }), "the workspace's live A2A keys; null unless the caller may manage keys")),
+      tasks: arr(obj({
+        id: str("the A2A task id"), flow: str(), state: str("TASK_STATE_SUBMITTED | WORKING | COMPLETED | FAILED | CANCELED | …"),
+        runId: nullable(str()), contextId: str(),
+        key: obj({ id: str(), label: nullable(str()), prefix: nullable(str()), revoked: bool }),
+        createdAt: str(), updatedAt: str("when its state last changed"),
+      }), "the 50 newest A2A tasks"),
+    }, ["flows", "keys", "tasks"]),
+  },
   "GET /api/workspaces/{workspace}/flows": { response: obj({ flows: arr(Flow) }) },
   "POST /api/workspaces/{workspace}/flows": {
     body: obj({ name: str("the new flow's name; flows/<name>.md"), pattern: str("pipeline | review-loop | fan-out | debate | router (anything else is pipeline)") }, ["name"]),

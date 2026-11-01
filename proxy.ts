@@ -14,7 +14,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { verifySession, SESSION_COOKIE, hasUsers } from "@/server/users";
 import { crossSiteWrite, jsonOnly } from "@/server/csrf";
 import { bodyTooLarge } from "@/server/body-limit";
-import { apiGate } from "@/server/api-limits";
+import { apiGate, a2aGate } from "@/server/api-limits";
+import { A2A_BODY_BYTES, A2aError, RPC, rpcErrorBody } from "@/server/a2a-protocol";
 import { RESOLVED_VERSION_HEADER } from "@/server/api-version";
 import { versionHeaders } from "@/server/release";
 import { unsafeApiPath } from "@/server/raw-path";
@@ -114,8 +115,39 @@ function makeNonce(): string {
   return crypto.randomUUID().replace(/-/g, "");
 }
 
+/**
+ * /a2a/… — outside agents (A2A, 1 Nov 2026). The same floor as /api: the
+ * raw-path guard, a body limit, the cross-site rule and the rate gate,
+ * before any route runs. Not /api's Foldrun-Version (A2A has its own
+ * A2A-Version, which the route answers) and never a session: the cookie is
+ * taken off the request, so nothing behind it can authenticate with one —
+ * an /a2a route takes an A2A key, Bearer, and nothing else. Refusals are
+ * JSON-RPC error objects, which an A2A client reads.
+ */
+async function a2aIngress(req: NextRequest): Promise<NextResponse> {
+  const refuse = (status: number, code: number, message: string, headers: Record<string, string> = {}) =>
+    NextResponse.json(rpcErrorBody(null, new A2aError(code, message, code === RPC.SERVER_ERROR ? { reason: status === 429 ? "RATE_LIMITED" : "PERMISSION_DENIED" } : {})), { status, headers });
+  const badPath = unsafeApiPath(new URL(req.url).pathname);
+  if (badPath) return refuse(400, RPC.INVALID_REQUEST, `Request payload validation error: ${badPath}`);
+  const why = crossSiteWrite(req);
+  if (why) return refuse(403, RPC.SERVER_ERROR, why);
+  const declared = Number(req.headers.get("content-length"));
+  if (bodyTooLarge(req.headers.get("content-length")) || (Number.isFinite(declared) && declared > A2A_BODY_BYTES)) {
+    return refuse(413, RPC.INVALID_REQUEST, `Request payload validation error: an A2A request is at most ${A2A_BODY_BYTES} bytes`);
+  }
+  const gate = await a2aGate(req);
+  if (gate.limited) return refuse(429, RPC.SERVER_ERROR, gate.limited.message, gate.headers);
+  const forwarded = new Headers(req.headers);
+  forwarded.delete("cookie");
+  forwarded.delete(RESOLVED_VERSION_HEADER);
+  const res = NextResponse.next({ request: { headers: forwarded } });
+  for (const [k, v] of Object.entries(gate.headers)) res.headers.set(k, v);
+  return res;
+}
+
 export async function proxy(req: NextRequest) {
   const nonce = makeNonce();
+  if (/^\/a2a(\/|$)/.test(req.nextUrl.pathname)) return harden(stamped(await a2aIngress(req)), req, nonce);
   if (!req.nextUrl.pathname.startsWith("/api/") && !/^\/dashboard(\/|$)/.test(req.nextUrl.pathname)) {
     // Every other page (sign-in, signup, reset, the home page): no session
     // logic, but the same security headers as the dashboard. Until 27 Oct

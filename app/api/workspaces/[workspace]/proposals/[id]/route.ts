@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, requirePermission, errorResponse, ApiError, actorOf } from "@/server/api";
 import { idempotent } from "@/server/idempotency";
 import { getProposal, settleProposal, applyProposal, dismissProposal, isProposalId } from "@/platform/improve";
+import { assertMayChangeWorkspacePolicy } from "@/server/workspace-policy";
 import { requireWorkspace } from "@/lib/storage";
 import { jsonObject } from "@/server/body";
 
@@ -35,13 +36,20 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
 async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: string; id: string }> }) {
   try {
     const { workspace, id } = await ctx.params;
-    const { tenant } = await requirePermission(req, "workspace:write");
+    const { tenant, actor } = await requirePermission(req, "workspace:write");
     requireWorkspace(tenant, workspace);
     if (!isProposalId(id)) throw new ApiError(`not a proposal id: ${id}`, 400);
     // An object, or 400: a `null` body used to be a TypeError, a 500.
     const body = await jsonObject(req, { optional: true });
     const by = await actorOf(req);
-    if (body.action === "apply") return NextResponse.json(await applyProposal(tenant, workspace, id, by));
+    if (body.action === "apply") {
+      // A proposed flow file may carry `a2a:` — publishing it to outside
+      // agents is an admin's decision, never a proposal's for an editor to
+      // wave through (server/workspace-policy.ts).
+      const proposal = await getProposal(tenant, workspace, id);
+      if (proposal) assertMayChangeWorkspacePolicy(actor, tenant, workspace, proposal.files.map((f) => ({ path: f.path, content: f.content })), "merge");
+      return NextResponse.json(await applyProposal(tenant, workspace, id, by));
+    }
     if (body.action === "dismiss") return NextResponse.json(await dismissProposal(tenant, workspace, id, by));
     throw new ApiError('expected { action: "apply" | "dismiss" }', 400);
   } catch (err) {

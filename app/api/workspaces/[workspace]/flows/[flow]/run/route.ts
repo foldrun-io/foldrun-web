@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, requirePermission, refuse } from "@/server/api";
 import { loadFlow } from "@/lib/runner";
-import { listRunSummaries } from "@/lib/store";
-import { enqueueFlowRun, startFlowFromStep } from "@/platform/queue";
+import { admitFlowRun, AdmissionRefused } from "@/platform/flow-admission";
 import { claimRequestKey, noteRequestRun, releaseRequestKey } from "@/platform/trigger-gate";
 import { wantsWait, waitAndRespond } from "@/server/wait";
 import { idempotent } from "@/server/idempotency";
+
+/** overlap: skip's answer, as it always was: 409 with the live run's id. */
+function overlapRefusal(err: AdmissionRefused) {
+  return NextResponse.json({ error: err.message, runId: err.runId }, { status: 409 });
+}
 
 async function postOnce(
   req: NextRequest,
@@ -54,21 +58,9 @@ async function postOnce(
       // refused request never leaves a claim behind.
       return refuse("task and from can't be combined: the task goes to step 1, which from skips", 400);
     }
-    // overlap: skip holds for a person or a key too, not only the scheduler.
-    // A second manual start while one is live is almost always a double
-    // click or a retried command, and two copies bill twice and write the
-    // same state files at once.
-    if (flow.overlap === "skip") {
-      const live = listRunSummaries(tenant, workspace).find(
-        (r) => r.flow === flow.name && (r.status === "running" || r.status === "queued" || r.status === "awaiting-approval"),
-      );
-      if (live) {
-        return NextResponse.json(
-          { error: `${flow.name} is already running (${live.id}) — overlap: skip allows one run at a time`, runId: live.id },
-          { status: 409 },
-        );
-      }
-    }
+    // overlap: skip holds for a person or a key too, not only the scheduler
+    // — checked inside admitFlowRun, under the same lock as the enqueue
+    // (platform flow-admission.ts), so two starts at once cannot both pass.
     if (idempotencyKey) {
       // Claimed against a placeholder first: two simultaneous retries must
       // not both find nothing and both start a run. The loser is answered
@@ -88,9 +80,10 @@ async function postOnce(
     if (from > 1) {
       let run;
       try {
-        run = await startFlowFromStep(tenant, workspace, flow.name, from, actor.kind === "user" ? actor.name : null, { test });
+        run = await admitFlowRun({ tenant, workspace, flow, from, startedBy: actor.kind === "user" ? actor.name : null, test });
       } catch (err) {
         if (idempotencyKey) await releaseRequestKey(tenant, workspace, `run:${flow.name}`, idempotencyKey);
+        if (err instanceof AdmissionRefused && err.code === "overlap") return overlapRefusal(err);
         throw err;
       }
       if (idempotencyKey) await noteRequestRun(tenant, workspace, `run:${flow.name}`, idempotencyKey, run.id);
@@ -104,25 +97,25 @@ async function postOnce(
       : flow.steps;
     let run;
     try {
-      run = await enqueueFlowRun(
+      run = await admitFlowRun({
         tenant,
         workspace,
+        flow,
         steps,
-        flow.name,
-        flow.model,
         tags,
         // Who asked. Only a person: a key names an account, not a who, and a
         // gate that refused a key on self-approval grounds would be refusing
         // the whole account.
-        actor.kind === "user" ? actor.name : null,
-        { test },
-      );
+        startedBy: actor.kind === "user" ? actor.name : null,
+        test,
+      });
     } catch (err) {
       // The claim was taken before the run existed, so two retries could not
-      // both win. A start that then failed — over budget, out of funds — must
-      // hand it back, or every retry for a day is told "duplicate" with no
-      // run behind it.
+      // both win. A start that then failed — over budget, out of funds, a
+      // live run under overlap: skip — must hand it back, or every retry for
+      // a day is told "duplicate" with no run behind it.
       if (idempotencyKey) await releaseRequestKey(tenant, workspace, `run:${flow.name}`, idempotencyKey);
+      if (err instanceof AdmissionRefused && err.code === "overlap") return overlapRefusal(err);
       throw err;
     }
     if (idempotencyKey) await noteRequestRun(tenant, workspace, `run:${flow.name}`, idempotencyKey, run.id);

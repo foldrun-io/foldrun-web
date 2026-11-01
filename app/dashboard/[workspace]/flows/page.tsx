@@ -30,6 +30,7 @@ import { FlowAiDraft } from "@/components/flow-ai-draft";
 import { AskAiButton } from "@/components/assistant";
 import { liteRun, type AgentTeam } from "@/components/flow-canvas-model";
 import { TriggerEditor } from "./trigger-editor";
+import { A2aPublish } from "@/components/a2a-publish";
 import { ComputeCard } from "@/components/defaults-cards";
 import { computeHeld } from "@/platform/limits";
 import { ListSearch } from "@/components/list-search";
@@ -237,6 +238,12 @@ export default async function FlowsPage({
                       schedule={f.schedule}
                       timezone={f.timezone}
                     />
+                    {f.a2a?.publish && (
+                      <Badge variant="info" title="a2a: publish: true — outside agents with an A2A key naming this flow may call it">
+                        A2A{f.a2a.publicCard ? " · public card" : ""}
+                      </Badge>
+                    )}
+                    <A2aPublish workspace={workspace} tenant={tenant} flow={f.name} initial={f.a2a ?? null} />
                     {f.model && <Badge variant="info">model: {f.model}</Badge>}
                     {f.compute && (
                       <Badge title="compute: — what one run's steps may hold together at once">

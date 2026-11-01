@@ -27,7 +27,9 @@ import { idempotent } from "@/server/idempotency";
 import { configMatter } from "@/lib/matter";
 import { patchFrontmatter } from "@/lib/agents-md";
 import { computePatch } from "@/components/defaults-model";
+import { a2aPatch } from "@/components/a2a-model";
 import { jsonObject } from "@/server/body";
+import { assertMayChangeWorkspacePolicy } from "@/server/workspace-policy";
 
 /** A plain JSON object — what an edit, a trigger or step options must be. */
 const isObject = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v);
@@ -37,6 +39,10 @@ const isObject = (v: unknown): v is Record<string, unknown> => v !== null && typ
  *  flow-board edit used to be a bare fs write that history never saw. */
 async function saveFlow(req: NextRequest, tenant: string, workspace: string, file: string, content: string, message: string) {
   const rel = path.relative(workspaceDir(tenant, workspace), file).split(path.sep).join("/");
+  // `a2a:` — publishing to outside agents — is an admin's, here as on every
+  // other door into the file (server/workspace-policy.ts).
+  const { actor } = await requirePermission(req, "workspace:write");
+  assertMayChangeWorkspacePolicy(actor, tenant, workspace, [{ path: rel, content }], "merge");
   writeWorkspaceFile(tenant, workspace, rel, content, { by: await actorOf(req), message });
 }
 
@@ -149,6 +155,7 @@ function patchShapeError(body: Record<string, unknown>): string | null {
     }
   }
   if (body.options !== undefined && body.options !== null && !isObject(body.options)) return "options must be an object";
+  if (body.a2a !== undefined && body.a2a !== null && !isObject(body.a2a)) return "a2a must be an object or null";
   if (body.instruction !== undefined && typeof body.instruction !== "string") return "instruction must be a string";
   if (body.groups !== undefined && (!Array.isArray(body.groups) || body.groups.some((g) => !Array.isArray(g) || g.some((i) => typeof i !== "number")))) {
     return "groups must be arrays of step numbers";
@@ -177,6 +184,7 @@ export async function PATCH(
       restore?: string;
       expect?: string;
       compute?: Record<string, unknown> | null;
+      a2a?: Record<string, unknown> | null;
     };
 
     const shapeError = patchShapeError(body);
@@ -238,6 +246,24 @@ export async function PATCH(
       return wrote(rewritten);
     }
 
+    // { a2a } — publishing over A2A (1 Nov 2026): merged over the flow's
+    // `a2a:` (a2aPatch — a key sent replaces, null removes, the rest is
+    // kept), so `{ a2a: { publish: false } }` unpublishes and keeps the
+    // card's words. An admin's: saveFlow's policy check refuses an editor.
+    if ("a2a" in body) {
+      let current: unknown;
+      try {
+        current = (configMatter(before).data ?? {}).a2a;
+      } catch {
+        current = undefined;
+      }
+      const a = a2aPatch(body.a2a, current);
+      if ("error" in a) return refuse(a.error, 400);
+      const rewritten = patchFrontmatter(before, { a2a: a.value });
+      await saveFlow(req, tenant, workspace, file, rewritten, a.value === null ? "flow a2a: removed" : a.value.publish === true ? "flow published over A2A" : "flow a2a: set, not published");
+      return wrote(rewritten);
+    }
+
     if (body.trigger) {
       // The scheduler's parser is the authority on what will actually fire —
       // and a cron it reads that names no real date (30 February) is refused
@@ -274,7 +300,7 @@ export async function PATCH(
     }
 
     if (!Array.isArray(body.groups) || body.groups.some((g) => !Array.isArray(g))) {
-      return refuse("expected { groups }, { trigger }, { step, options }, { step, instruction }, { edit }, { edits } or { restore, expect }", 400);
+      return refuse("expected { groups }, { trigger }, { step, options }, { step, instruction }, { edit }, { edits }, { compute }, { a2a } or { restore, expect }", 400);
     }
 
     const rewritten = reorderFlowSteps(before, body.groups);

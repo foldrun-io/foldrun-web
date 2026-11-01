@@ -8,7 +8,8 @@ import { Pager as BasePager } from "@/components/pager";
 import { paginate, PAGE_SIZE } from "@/components/paging";
 import { Fragment } from "react";
 import { runCost, runDisplayStatus, runDurationSecs, runFailure, runVerdict, type RunRecord } from "@/lib/store";
-import { Card, EmptyScreen, StatCard, TestBadge } from "@/components/ui";
+import { Badge, Card, EmptyScreen, StatCard, TestBadge } from "@/components/ui";
+import { a2aRunLabel } from "@/components/a2a-model";
 import { LocalTime } from "@/components/local-time";
 import { DeleteButton } from "@/app/dashboard/manage";
 import { FilterBar, type FilterDimension } from "@/components/filter-bar";
@@ -64,8 +65,12 @@ export function RunsTable({
   showWorkspace = true,
   emptyDescription,
   money,
+  a2aLabels,
 }: {
   runs: RunRow[];
+  /** A2A key principal → its label (a2aKeyLabels): a run an outside agent
+   *  started reads "A2A · <label>" beside its outcome. */
+  a2aLabels?: Record<string, string>;
   /** runId → what the run is charged, in USD, and whether the ledger has
    *  settled it (else it is the list price). Shown in credits; without it,
    *  the token cost in dollars. */
@@ -170,6 +175,10 @@ export function RunsTable({
                         orange "blocked" here too, not a green "completed". */}
                     <OutcomeBadge outcome={outcomeOf(runDisplayStatus(r), r.status === "completed" ? runVerdict(r) : null)} />
                     {r.test && <TestBadge />}
+                    {(() => {
+                      const a2a = a2aRunLabel(r, a2aLabels);
+                      return a2a ? <Badge variant="info" title="Started by an outside agent over A2A, with this A2A key">{a2a}</Badge> : null;
+                    })()}
                   </span>
                 </td>
                 <td className="px-4 py-2.5 text-xs text-fg-muted">

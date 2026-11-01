@@ -7,6 +7,8 @@ import { RunSearch } from "@/components/run-search";
 import { parseRunFilter, matchesRunFilter, isEmptyFilter } from "@/lib/runs-filter";
 import { SEARCH_KEYS } from "@/components/run-views-model";
 import { runCharges, runCharge } from "@/server/run-charges";
+import { listApiKeys } from "@/server/auth";
+import { a2aKeyLabels } from "@/components/a2a-model";
 import Link from "next/link";
 import { WorkspaceHeader } from "@/components/workspace-header";
 import fs from "node:fs";
@@ -38,6 +40,8 @@ export default async function WorkspaceRunsPage({
 
   const all: RunRow[] = listRuns(tenant, workspace).map((r) => ({ ...r, workspace }));
   const charges = await runCharges(tenant);
+  // Runs an outside agent started read "A2A · <key label>".
+  const a2aLabels = all.some((r) => r.a2a || r.trigger === "a2a") ? a2aKeyLabels(await listApiKeys(tenant)) : {};
   const flows = [...new Set(all.map((r) => whatRan(r.flow)))].sort();
   let filtered = flowFilter ? all.filter((r) => whatRan(r.flow) === flowFilter) : all;
   // Display status, so the chip and the badge in the row agree — a stopped
@@ -128,6 +132,7 @@ export default async function WorkspaceRunsPage({
         <RunsTable
           runs={rows}
           money={Object.fromEntries(rows.map((r) => [r.id, { usd: runCharge(r, charges), charged: charges.usd.has(r.id) }]))}
+          a2aLabels={a2aLabels}
           tenant={tenant}
           tenantParam={tenantParam}
           showWorkspace={false}

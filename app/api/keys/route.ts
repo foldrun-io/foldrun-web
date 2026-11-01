@@ -6,7 +6,7 @@ import { sendSecurityNotice } from "@/server/email";
 import { clientIp } from "@/server/limits";
 import { can, isRole, type Role } from "@/platform/permissions";
 import { withinMinter, keyWithin } from "@/server/key-scope";
-import { listWorkspaces } from "@/lib/store";
+import { listWorkspaces, listFlows } from "@/lib/store";
 import { errorResponse, ApiError, refuse } from "@/server/api";
 import { idempotent } from "@/server/idempotency";
 
@@ -82,7 +82,20 @@ async function postOnce(req: NextRequest) {
       /** When it stops working: "30d", "90d", "365d", a number of days,
        *  or "never" (the default). */
       expires?: string | number | null;
+      /** "a2a": a key for an outside agent (1 Nov 2026) — with `workspace`
+       *  (one) and `flows` (the published flows it may call), and
+       *  optionally `maxTasks` (its tasks open at once, 1–100, default 10).
+       *  It opens /a2a/… only. */
+      purpose?: string;
+      flows?: unknown;
+      maxTasks?: unknown;
     };
+    if (body.purpose !== undefined) {
+      if (body.purpose !== "a2a") return refuse(`purpose must be "a2a" (or left out, for an API key) — got ${JSON.stringify(body.purpose)}`, 400);
+      // Awaited, so its throws (a bad expiry, a workspace outside the
+      // minter's scope) reach the catch below and answer 400/403.
+      return await mintA2aKey(req, tenant, minter, who, by, body);
+    }
     if (body.workspace !== undefined || body.access !== undefined) {
       return refuse("deploy keys went with the platform's own git (17 Oct 2026) — mint an account key with workspaces: [\"<ws>\"] to open one workspace", 400);
     }
@@ -112,6 +125,73 @@ async function postOnce(req: NextRequest) {
   } catch (err) {
     return errorResponse(err);
   }
+}
+
+/** The default, and the most, an A2A key may have open at once. */
+const A2A_DEFAULT_TASKS = 10;
+const A2A_MAX_TASKS = 100;
+
+/**
+ * Mint an A2A key: one workspace, the flows it may call. An admin of that
+ * workspace (keys:manage, and the workspace inside their scope — the same
+ * rule as any key, read through withinMinter). The flows must exist; whether
+ * each is published is read on every call, so unpublishing one closes it to
+ * every key at once and this list need not change.
+ */
+async function mintA2aKey(
+  req: NextRequest,
+  tenant: string,
+  minter: Pick<Actor, "role" | "workspaces">,
+  who: string | undefined,
+  by: string,
+  body: { label?: string; workspace?: unknown; flows?: unknown; maxTasks?: unknown; expires?: string | number | null; role?: unknown; workspaces?: unknown },
+) {
+  if (body.role !== undefined || body.workspaces !== undefined) {
+    return refuse("an A2A key takes workspace and flows, not role or workspaces — it opens /a2a only, for that workspace's flows", 400);
+  }
+  if (typeof body.workspace !== "string" || !body.workspace) return refuse("an A2A key needs { workspace: \"<ws>\" } — the one workspace whose flows it may call", 400);
+  const workspace = body.workspace;
+  // The minter's scope FIRST (Codex review, 1 Nov 2026): a scoped admin
+  // asking for a workspace outside it is refused the same way whether that
+  // workspace exists, and whatever its flows — never told which. withinMinter
+  // refuses the rest (a role above theirs cannot arise: the key is a viewer).
+  // The key's own role is the lowest — it is refused by every /api route
+  // whatever its role; the role is only what keeps it in scope checks
+  // (keyWithin, revokeKeysBeyond) for who may see and end it.
+  const grant = withinMinter(minter, { role: "viewer", workspaces: [workspace] });
+  if (!listWorkspaces(tenant).some((w) => w.name === workspace)) return refuse(`no such workspace: ${workspace}`, 400);
+  if (!Array.isArray(body.flows) || !body.flows.length || body.flows.some((f) => typeof f !== "string" || !f)) {
+    return refuse("an A2A key needs { flows: [\"<flow>\", …] } — the flows it may call", 400);
+  }
+  const flows = [...new Set(body.flows as string[])];
+  if (flows.length > 50) return refuse("an A2A key names at most 50 flows", 400);
+  const have = new Set(listFlows(tenant, workspace).map((f) => f.name));
+  const unknown = flows.filter((f) => !have.has(f));
+  if (unknown.length) return refuse(`no such flow in ${workspace}: ${unknown.join(", ")}`, 400);
+  const maxTasks = body.maxTasks === undefined ? A2A_DEFAULT_TASKS : Number(body.maxTasks);
+  if (!Number.isInteger(maxTasks) || maxTasks < 1 || maxTasks > A2A_MAX_TASKS) return refuse(`maxTasks must be a whole number from 1 to ${A2A_MAX_TASKS}`, 400);
+  const expiresAt = parseKeyExpiry(body.expires);
+  const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, grant.role, grant.workspaces, { expiresAt, a2a: { workspace, flows, maxTasks } });
+  await audit("apikey.created", {
+    actor: by,
+    tenant,
+    subject: record.id,
+    detail: { label: record.label, prefix: record.prefix, purpose: "a2a", workspace, flows, maxTasks, expiresAt: record.expiresAt ?? null },
+  });
+  if (who) sendSecurityNotice(tenant, who, "a new A2A key was created", clientIp(req));
+  return NextResponse.json({
+    ok: true,
+    key,
+    id: record.id,
+    prefix: record.prefix,
+    purpose: "a2a",
+    workspace,
+    flows,
+    maxTasks,
+    role: record.role,
+    workspaces: record.workspaces ?? null,
+    expiresAt: record.expiresAt ?? null,
+  });
 }
 
 export async function DELETE(req: NextRequest) {

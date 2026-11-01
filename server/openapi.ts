@@ -15,7 +15,7 @@ import { ROUTES as ALL_ROUTES } from "./openapi-routes.ts";
 import { billing, freeBilling } from "@/platform/billing";
 import { CURRENT_API_VERSION } from "./api-version.ts";
 
-import { type Schema, type Shape, obj, str, bool, int, GENERIC, Issue, Run, EffectiveFlag } from "./openapi-shapes/kit.ts";
+import { type Schema, type Shape, obj, str, bool, int, arr, GENERIC, Issue, Run, EffectiveFlag } from "./openapi-shapes/kit.ts";
 import { GROUP_SHAPES } from "./openapi-shapes/index.ts";
 
 /** Routes that carry their own proof (a token in the URL, a signature) or
@@ -304,6 +304,8 @@ const LEGACY_SHAPES: Record<string, Shape> = {
           expiryWarnedAt: { type: ["string", "null"] },
           replacedBy: { type: ["string", "null"], description: "the key that replaced it in a rotation" },
           origin: str("cli-login when `foldrun login` minted it; absent otherwise"),
+          purpose: str("a2a for an outside agent's key (it opens /a2a only); absent for an API key"),
+          a2a: obj({ workspace: str(), flows: arr(str()), principal: str("the first key of its rotation chain — the owner of its tasks"), maxTasks: int }),
         }),
       },
     }),
@@ -312,9 +314,15 @@ const LEGACY_SHAPES: Record<string, Shape> = {
     body: obj({
       label: str(), role: str("viewer | editor | admin"), workspaces: { type: ["array", "null"], items: str() },
       expires: { type: ["string", "integer", "null"], description: "30d, 90d, 365d, a number of days (1–3650), or never / null" },
-      workspace: str("refused: deploy keys went with the platform's own git (17 Oct 2026)"), access: str("refused, as workspace"),
+      workspace: str("with purpose: a2a, the A2A key's one workspace; otherwise refused: deploy keys went with the platform's own git (17 Oct 2026)"), access: str("refused, as workspace"),
+      purpose: str("a2a: mint a key for an outside agent — it opens /a2a/<account>/<workspace>/… for `flows` and no /api route"),
+      flows: arr(str(), "purpose: a2a — the flows it may call (each must also be published with a2a:)"),
+      maxTasks: { ...int, description: "purpose: a2a — its tasks open at once, 1–100 (default 10)" },
     }),
-    response: obj({ ok: bool, key: str("shown once"), id: str(), prefix: str(), role: str(), workspaces: { type: ["array", "null"], items: str() }, expiresAt: { type: ["string", "null"] } }),
+    response: obj({
+      ok: bool, key: str("shown once"), id: str(), prefix: str(), role: str(), workspaces: { type: ["array", "null"], items: str() }, expiresAt: { type: ["string", "null"] },
+      purpose: str("a2a, for an A2A key"), workspace: str("an A2A key's workspace"), flows: arr(str()), maxTasks: int,
+    }),
   },
   "DELETE /api/keys": { body: obj({ id: str("a key may always revoke itself") }, ["id"]), response: obj({ ok: bool }) },
   "POST /api/team": {

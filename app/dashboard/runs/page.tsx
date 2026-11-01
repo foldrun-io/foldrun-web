@@ -5,6 +5,8 @@ import { RunSearch } from "@/components/run-search";
 import { parseRunFilter, matchesRunFilter, isEmptyFilter } from "@/lib/runs-filter";
 import { SEARCH_KEYS } from "@/components/run-views-model";
 import { runCharges, runCharge } from "@/server/run-charges";
+import { listApiKeys } from "@/server/auth";
+import { a2aKeyLabels } from "@/components/a2a-model";
 import { listAllRuns, runDisplayStatus } from "@/lib/store";
 import { viewerScope } from "@/server/users";
 import { scopeAllows } from "@/platform/scope";
@@ -59,6 +61,8 @@ export default async function RunsPage({
   const scope = await viewerScope();
   const all: RunRow[] = listAllRuns(tenant).filter((r) => scopeAllows(scope, r.workspace));
   const charges = await runCharges(tenant);
+  // Runs an outside agent started read "A2A · <key label>".
+  const a2aLabels = all.some((r) => r.a2a || r.trigger === "a2a") ? a2aKeyLabels(await listApiKeys(tenant)) : {};
 
   // Choices come from the data, and each dimension's options are computed
   // from the runs the OTHER filters leave — so a chip is never offered that
@@ -115,6 +119,7 @@ export default async function RunsPage({
         <RunsTable
           runs={rows}
           money={Object.fromEntries(rows.map((r) => [r.id, { usd: runCharge(r, charges), charged: charges.usd.has(r.id) }]))}
+          a2aLabels={a2aLabels}
           tenant={tenant}
           tenantParam={tenantParam}
           emptyDescription="Nothing matches these filters. Clear one, or start a run from a workspace page."

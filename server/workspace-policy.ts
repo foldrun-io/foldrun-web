@@ -120,6 +120,17 @@ export function assertMayChangeWorkspacePolicy(
   mode: "replace" | "merge",
 ): void {
   if (can(actor.role, "workspace:manage")) return;
+  // A flow's `a2a:` — whether outside agents may call it — is the
+  // workspace's policy too (1 Nov 2026): publishing a flow opens it to every
+  // A2A key that names it, an admin's decision, by every door into the file.
+  const published = changedFlowPublications(tenant, workspace, files, mode);
+  if (published.length) {
+    throw new ApiError(
+      `this would change a2a: in ${published.join(", ")} — whether outside agents may call ${published.length === 1 ? "that flow" : "those flows"} over A2A is the workspace's policy, ` +
+        `and changing it needs the admin role (workspace:manage); your role is ${actor.role}. Leave a2a: as it is and the rest of the change goes through, or ask an admin to make it.`,
+      403,
+    );
+  }
   const { before, after } = configBeforeAfter(tenant, workspace, files, mode);
   const changed = changedPolicyKeys(before, after);
   if (!changed.length) return;
@@ -130,4 +141,41 @@ export function assertMayChangeWorkspacePolicy(
       `Leave ${changed.length === 1 ? "that key" : "those keys"} as ${changed.length === 1 ? "it is" : "they are"} and the rest of the change goes through, or ask an admin to make it.`,
     403,
   );
+}
+
+/** A flow file, workspace-relative: flows/<name>.md, the one place a flow
+ *  is read from (core schemaKindOf). */
+const FLOW_FILE = /^flows\/[^/]+\.md$/;
+
+/** A flow's `a2a:` as the runtime would read it: absent, or a file that
+ *  does not parse, publishes nothing. */
+function a2aOf(text: string | null): unknown {
+  return keysOf(text).a2a;
+}
+
+/**
+ * The flow files whose `a2a:` a write would change. A flow file the write
+ * removes is not one: removing the flow unpublishes it — less open, never
+ * more — which an editor may do, as DELETE /source lets them. Every other
+ * change counts, publishing and unpublishing alike, as a policy key's does.
+ */
+export function changedFlowPublications(
+  tenant: string,
+  workspace: string,
+  files: { path: string; content: string }[],
+  _mode: "replace" | "merge",
+): string[] {
+  const dir = workspaceDir(tenant, workspace);
+  const out: string[] = [];
+  for (const [rel, content] of shippedMap(files)) {
+    if (!FLOW_FILE.test(rel)) continue;
+    let before: string | null = null;
+    try {
+      before = fs.readFileSync(path.join(dir, rel), "utf8");
+    } catch {
+      before = null;
+    }
+    if (stable(a2aOf(before)) !== stable(a2aOf(content))) out.push(rel);
+  }
+  return out.sort();
 }

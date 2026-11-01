@@ -29,7 +29,10 @@ import {
   markExpiryWarnedDb,
   markApiKeyReplacedDb,
   type ApiKeyRow,
+  type A2aGrant,
 } from "@/platform/api-keys-db.ts";
+
+export type { A2aGrant } from "@/platform/api-keys-db.ts";
 
 // Follows FOLDRUN_DATA like everything else. This was the tenth copy of the
 // data-root path and the last one still reading process.cwd() directly, so
@@ -91,6 +94,17 @@ export interface ApiKeyRecord {
    *  CLI_KEY_DAYS, the CLI rotates it itself before it ends, and no expiry
    *  mail is sent for it. Absent on every key a person minted. */
   origin?: "cli-login";
+  /**
+   * "a2a": an outside agent's key (1 Nov 2026). It opens
+   * /a2a/<account>/<workspace>/… only — the flows its grant names, each
+   * published — and every /api route refuses it (resolveTenant), so it can
+   * never approve a gate, answer a question, read storage or edit a file.
+   * Minted by an admin with POST /api/keys { purpose: "a2a", workspace,
+   * flows }. Absent on every API key.
+   */
+  purpose?: "a2a";
+  /** An A2A key's grant: its workspace, flows, principal and task cap. */
+  a2a?: A2aGrant;
 }
 
 /** How long a `foldrun login` key lives; the CLI renews it with under
@@ -160,12 +174,20 @@ export async function createApiKey(
   scope?: ApiKeyRecord["scope"],
   role: Role = "editor",
   workspaces: string[] | null = null,
-  opts: { expiresAt?: Date | null; origin?: ApiKeyRecord["origin"] } = {},
+  opts: { expiresAt?: Date | null; origin?: ApiKeyRecord["origin"]; a2a?: Omit<A2aGrant, "principal"> & { principal?: string } } = {},
 ): Promise<{ record: ApiKeyRecord; key: string }> {
   assertSafeName(tenant, "tenant");
   if (scope) throw new Error("deploy keys went with the platform's own git (17 Oct 2026)");
   if (!isRole(role) || role === "owner") throw new Error("a key can be viewer, editor or admin");
   if (workspaces) for (const w of workspaces) assertSafeName(w, "workspace");
+  if (opts.a2a) {
+    // One workspace, named flows, and the key's scope that one workspace —
+    // so a minter who later loses it loses the key too (revokeKeysBeyond).
+    assertSafeName(opts.a2a.workspace, "workspace");
+    for (const f of opts.a2a.flows) assertSafeName(f, "flow");
+    if (!opts.a2a.flows.length) throw new Error("an A2A key names at least one flow");
+    if (!workspaces || workspaces.length !== 1 || workspaces[0] !== opts.a2a.workspace) throw new Error("an A2A key is scoped to its one workspace");
+  }
   // A deploy key is visibly a deploy key, so it is never mistaken for an
   // account key when it turns up in a CI log.
   const key = `${scope ? "mdk" : "mda"}_${crypto.randomBytes(24).toString("hex")}`;
@@ -184,6 +206,12 @@ export async function createApiKey(
     expiresAt: opts.expiresAt ? opts.expiresAt.toISOString() : null,
     ...(opts.origin ? { origin: opts.origin } : {}),
   };
+  if (opts.a2a) {
+    record.purpose = "a2a";
+    // The principal owns the tasks: this key's own id, unless it continues
+    // a chain (a rotation hands its predecessor's on).
+    record.a2a = { workspace: opts.a2a.workspace, flows: [...new Set(opts.a2a.flows)], principal: opts.a2a.principal ?? record.id, maxTasks: opts.a2a.maxTasks };
+  }
   if (databaseEnabled()) await insertApiKeyDb(record as ApiKeyRow);
   else writeKeys([...readKeys(), record]);
   return { record, key }; // full key is returned exactly once
@@ -324,6 +352,10 @@ export async function rotateApiKey(
   const made = await createApiKey(tenant, old.label, by === undefined ? old.createdBy : by ?? undefined, old.scope, (old.role ?? "admin") === "owner" ? "admin" : (old.role ?? "admin"), old.workspaces ?? null, {
     expiresAt: lifetime && lifetime > 0 ? new Date(Date.now() + lifetime) : null,
     origin: old.origin,
+    // An A2A key stays one, with the same grant — and the same principal,
+    // so the tasks the old key made are still the new one's to read and
+    // cancel (a deliberate choice: rotation is the same caller's new secret).
+    ...(old.purpose === "a2a" && old.a2a ? { a2a: { ...old.a2a, principal: old.a2a.principal || old.id } } : {}),
   });
   // Claim the old key before ending it. Two rotations at once both pass the
   // check above; only one claim lands, and the loser's key is revoked unseen.
@@ -459,7 +491,7 @@ export async function apiKeyFor(
    *  the once-a-minute guard then skips the route's own note — so a lookup
    *  without them left lastIp empty for every Bearer caller. */
   headers: Headers = new Headers(),
-): Promise<{ tenant: string; label: string; prefix: string; role: Role; workspaces: string[] | null; scope?: ApiKeyRecord["scope"] } | null> {
+): Promise<{ tenant: string; label: string; prefix: string; role: Role; workspaces: string[] | null; scope?: ApiKeyRecord["scope"]; purpose?: "a2a" } | null> {
   const record = await keyByHash(hash(presented.trim()));
   // A deploy key opens nothing since the platform's own git went: refused
   // here as well as in resolveTenant, so no caller of this lookup (the rate
@@ -475,6 +507,7 @@ export async function apiKeyFor(
     role: record.role ?? "admin",
     workspaces: record.workspaces ?? null,
     ...(record.scope ? { scope: record.scope } : {}),
+    ...(record.purpose === "a2a" ? { purpose: "a2a" as const } : {}),
   };
 }
 
@@ -494,6 +527,10 @@ export async function resolveTenant(req: NextRequest): Promise<AuthResult> {
     // A deploy key opened the platform's own git and nothing else; with that
     // git gone it opens nothing.
     if (record.scope) return { tenant: null, status: 403, message: "this is a deploy key — they went with the platform's own git (17 Oct 2026); mint an account key instead" };
+    // An A2A key opens /a2a/… and nothing here: not runs, not approvals,
+    // not answers, not storage, not source. Refused in the funnel every
+    // /api route goes through, so no route can forget to.
+    if (record.purpose === "a2a") return { tenant: null, status: 403, message: "this is an A2A key — it opens /a2a/<account>/<workspace>/… (the agent card and the A2A endpoint of the flows it names) and no /api route; use an API key here" };
     await noteKeyUse(record, req.headers);
     return {
       tenant: record.tenant,
@@ -554,4 +591,32 @@ export async function resolveTenant(req: NextRequest): Promise<AuthResult> {
       "missing API key (Authorization: Bearer mda_...). Set FOLDRUN_DEV_NO_AUTH=1 to allow " +
       "unauthenticated local requests.",
   };
+}
+
+/** Who is calling an /a2a route: an A2A key, live, with its grant. */
+export interface A2aCaller {
+  tenant: string;
+  keyId: string;
+  label: string;
+  prefix: string;
+  grant: A2aGrant;
+}
+
+/**
+ * The A2A key on this request — Bearer only: no session cookie, no dev
+ * header, no API key opens /a2a. A refusal carries the status to answer
+ * (401: no key, a wrong, revoked or expired one; 403: a key of another
+ * kind). Whether the key may reach the URL's account, workspace and flow is
+ * the caller's to check against `grant` — the URL is never the authority.
+ */
+export async function resolveA2aKey(req: Pick<NextRequest, "headers">): Promise<{ ok: true; caller: A2aCaller } | { ok: false; status: 401 | 403; message: string }> {
+  const authz = req.headers.get("authorization");
+  if (!authz || !/^bearer\s/i.test(authz)) return { ok: false, status: 401, message: "an A2A key is required (Authorization: Bearer mda_…)" };
+  const record = await keyByHash(hash(authz.replace(/^bearer\s+/i, "").trim()));
+  if (!record) return { ok: false, status: 401, message: "invalid A2A key" };
+  if (record.revokedAt) return { ok: false, status: 401, message: "A2A key revoked" };
+  if (keyExpired(record)) return { ok: false, status: 401, message: `A2A key expired on ${record.expiresAt!.slice(0, 10)}` };
+  if (record.purpose !== "a2a" || !record.a2a || record.scope) return { ok: false, status: 403, message: "this is not an A2A key — /a2a takes a key minted for A2A (POST /api/keys { purpose: \"a2a\", workspace, flows })" };
+  await noteKeyUse(record, req.headers as Headers);
+  return { ok: true, caller: { tenant: record.tenant, keyId: record.id, label: record.label, prefix: record.prefix, grant: { ...record.a2a, principal: record.a2a.principal || record.id } } };
 }

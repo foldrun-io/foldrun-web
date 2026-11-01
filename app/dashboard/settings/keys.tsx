@@ -30,7 +30,13 @@ interface KeyRow {
   replacedBy?: string | null;
   /** "cli-login" for a key `foldrun login` minted: it renews itself. */
   origin?: "cli-login";
+  /** "a2a": an outside agent's key — it opens /a2a only, for `a2a.flows`. */
+  purpose?: "a2a";
+  a2a?: { workspace: string; flows: string[]; principal?: string; maxTasks: number };
 }
+
+/** The most tasks an A2A key may have open at once (the keys route's bound). */
+const A2A_MAX_TASKS = 100;
 
 const EXPIRY = [
   { v: "30d", label: "30 days" },
@@ -58,9 +64,13 @@ export function KeyManager({
   keys,
   workspaces,
   scoped,
+  a2aFlows = {},
 }: {
   tenant: string;
   keys: KeyRow[];
+  /** Each workspace's flows and whether each is published over A2A — what
+   *  an A2A key may be made for. */
+  a2aFlows?: Record<string, { name: string; published: boolean }[]>;
   /** The workspaces the person minting can open — the most a key can get. */
   workspaces: string[];
   /** Whether that list is a scope (some workspaces) rather than everything. */
@@ -83,6 +93,13 @@ export function KeyManager({
   const [chosen, setChosen] = useState<string[]>([]);
   const manages = useCan("keys:manage");
   const [created, setCreated] = useState<string | null>(null);
+  // An A2A key (1 Nov 2026): one workspace, the flows it may call, how many
+  // tasks it may have open — instead of a role and workspaces.
+  const [kind, setKind] = useState<"api" | "a2a">("api");
+  const [createdKind, setCreatedKind] = useState<"api" | "a2a">("api");
+  const [a2aWs, setA2aWs] = useState<string>(workspaces[0] ?? "");
+  const [a2aChosen, setA2aChosen] = useState<string[]>([]);
+  const [maxTasks, setMaxTasks] = useState("10");
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -96,11 +113,17 @@ export function KeyManager({
         method: "POST",
         headers: { "content-type": "application/json" },
         // Unsaid, the scope is the minter's own; a list narrows it.
-        body: JSON.stringify({ tenant, label, role, expires, ...(narrow ? { workspaces: chosen } : {}) }),
+        body: JSON.stringify(
+          kind === "a2a"
+            ? { tenant, label, expires, purpose: "a2a", workspace: a2aWs, flows: a2aChosen, maxTasks: Number(maxTasks) }
+            : { tenant, label, role, expires, ...(narrow ? { workspaces: chosen } : {}) },
+        ),
       });
       const data = await res.json();
       if (res.ok) {
         setCreated(data.key);
+        setCreatedKind(kind);
+        setA2aChosen([]);
         setLabel("");
         setNarrow(false);
         setChosen([]);
@@ -142,6 +165,7 @@ export function KeyManager({
       const data = await res.json();
       if (res.ok) {
         setCreated(data.key);
+        setCreatedKind(keys.find((k) => k.id === id)?.purpose === "a2a" ? "a2a" : "api");
         setRotating(null);
         router.refresh();
       } else setError(data.error ?? "failed to rotate the key");
@@ -175,6 +199,16 @@ export function KeyManager({
                 and the right answer for CI; admin is for a key that manages
                 the account and should be rare. */}
             <select
+              value={kind}
+              onChange={(e) => setKind(e.target.value as "api" | "a2a")}
+              className="rounded-md border border-line-strong px-2 py-1.5 text-sm text-fg-secondary"
+              aria-label="What the key is for"
+            >
+              <option value="api">API key</option>
+              <option value="a2a">A2A key — an outside agent</option>
+            </select>
+            {kind === "api" && (
+            <select
               value={role}
               onChange={(e) => setRole(e.target.value as Role)}
               className="rounded-md border border-line-strong px-2 py-1.5 text-sm text-fg-secondary"
@@ -186,6 +220,7 @@ export function KeyManager({
                 </option>
               ))}
             </select>
+            )}
             <select
               value={expires}
               onChange={(e) => setExpires(e.target.value)}
@@ -198,14 +233,61 @@ export function KeyManager({
                 </option>
               ))}
             </select>
-            <button className={buttonClass("primary")} disabled={busy || (narrow && chosen.length === 0)}>
+            <button className={buttonClass("primary")} disabled={busy || (kind === "api" ? narrow && chosen.length === 0 : !a2aWs || a2aChosen.length === 0)}>
               {busy ? "…" : "Create key"}
             </button>
           </form>
         )}
       </div>
 
-      {manages && (
+      {manages && kind === "a2a" && (
+        <div className="mb-3 space-y-2 text-xs text-fg-muted">
+          {/* An outside agent's key: it opens /a2a/<account>/<workspace>/…
+              for the flows named here (each also published with a2a:), and
+              no /api route — not runs, approvals, source or keys. */}
+          <p>
+            An A2A key lets an outside agent call published flows of one workspace over A2A — nothing else: every /api route refuses it, and it can never approve a gate or answer a question.
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="inline-flex items-center gap-1.5">
+              Workspace
+              <select
+                value={a2aWs}
+                onChange={(e) => {
+                  setA2aWs(e.target.value);
+                  setA2aChosen([]);
+                }}
+                className="rounded-md border border-line-strong px-2 py-1 text-xs text-fg-secondary"
+                aria-label="The workspace whose flows the A2A key may call"
+              >
+                {workspaces.map((w) => (
+                  <option key={w} value={w}>{w}</option>
+                ))}
+              </select>
+            </label>
+            <label className="inline-flex items-center gap-1.5" title="How many of its tasks may be open at once; one more is refused until one ends">
+              Open tasks at most
+              <input type="number" min={1} max={A2A_MAX_TASKS} value={maxTasks} onChange={(e) => setMaxTasks(e.target.value)} className={inputClass("w-20")} />
+            </label>
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            {(a2aFlows[a2aWs] ?? []).map((f) => (
+              <label key={f.name} className="inline-flex items-center gap-1.5 font-mono text-fg-secondary" title={f.published ? "Published over A2A" : "Not published — the key opens it once the flow says a2a: { publish: true }"}>
+                <input
+                  type="checkbox"
+                  checked={a2aChosen.includes(f.name)}
+                  onChange={(e) => setA2aChosen((c) => (e.target.checked ? [...c, f.name] : c.filter((x) => x !== f.name)))}
+                />
+                {f.name}
+                {!f.published && <span className="font-sans text-fg-subtle">(not published)</span>}
+              </label>
+            ))}
+            {(a2aFlows[a2aWs] ?? []).length === 0 && <span>No flows in this workspace.</span>}
+          </div>
+        </div>
+      )}
+
+      {manages && kind === "api" && (
         <div className="mb-3 text-xs text-fg-muted">
           {/* What the key will be able to reach, said before it exists. A
               key is never more than its minter: a role at or below yours,
@@ -263,8 +345,11 @@ export function KeyManager({
             </button>
           </div>
           <p className="mt-2 font-mono text-[11px] leading-relaxed text-green-800">
-            export FOLDRUN_TOKEN={created.slice(0, 12)}…
+            export {createdKind === "a2a" ? "FOLDRUN_A2A_KEY" : "FOLDRUN_TOKEN"}={created.slice(0, 12)}…
           </p>
+          {createdKind === "a2a" && (
+            <p className="mt-1 text-[11px] text-green-800">Give it to the outside agent; it sends it as Authorization: Bearer to /a2a only.</p>
+          )}
         </Card>
       )}
 
@@ -280,12 +365,29 @@ export function KeyManager({
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2 text-sm font-medium text-fg">
                     {k.label}
+                    {k.purpose === "a2a" ? (
+                      <span
+                        className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-fg-tertiary"
+                        title="An outside agent's key: it opens /a2a only — the published flows it names — and no /api route"
+                      >
+                        A2A
+                      </span>
+                    ) : (
                     <span
                       className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-fg-tertiary"
                       title={k.role ? "What this key may do" : "Minted before roles existed — acts as admin"}
                     >
                       {k.role ?? "admin"}
                     </span>
+                    )}
+                    {k.purpose === "a2a" && k.a2a && (
+                      <span
+                        className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-fg-secondary"
+                        title={`The flows this key may call in ${k.a2a.workspace}, each also published; at most ${k.a2a.maxTasks} tasks open at once`}
+                      >
+                        {k.a2a.workspace}: {k.a2a.flows.join(", ")} · {k.a2a.maxTasks} open
+                      </span>
+                    )}
                     {k.scope && (
                       <span
                         className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-fg-secondary"
@@ -294,7 +396,7 @@ export function KeyManager({
                         deploy key · opens nothing · revoke
                       </span>
                     )}
-                    {!k.scope && (
+                    {!k.scope && k.purpose !== "a2a" && (
                       <span
                         className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-fg-secondary"
                         title={k.workspaces ? "The workspaces this key opens — its minter's at the time, or fewer" : "Every workspace in the account"}

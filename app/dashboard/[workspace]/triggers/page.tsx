@@ -27,6 +27,7 @@ import { Badge, EmptyScreen, PageHeader, StatCard } from "@/components/ui";
 import { DataTable, FilterChips } from "@/components/data";
 import { WebhookDeliveries } from "./webhook-deliveries";
 import { FilterTest } from "./filter-test";
+import { A2aPanel } from "./a2a-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -207,6 +208,16 @@ export default async function TriggersPage({
           }))}
         />
       )}
+
+      {/* Outside agents (A2A, 1 Nov 2026): the flows this workspace serves
+          over A2A, the keys that may call them, the newest tasks. */}
+      <section id="a2a" className="mt-8">
+        <h2 className="mb-1 text-sm font-semibold text-fg">Outside agents (A2A)</h2>
+        <p className="mb-3 text-sm text-fg-muted">
+          Flows published with <code className="text-xs">a2a:</code> can be called by another company&apos;s agent over A2A 1.0, with an A2A key that names them. Gates and questions stay with your people: the caller sees &quot;waiting for a person&quot;.
+        </p>
+        <A2aPanel workspace={workspace} tenant={tenant} />
+      </section>
 
       {/* The other direction: what this workspace SENT. Every notify:
           webhook delivery, each attempt, and Redeliver. */}

@@ -30,7 +30,10 @@ function agentAuthored(tenant: string, workspace: string): boolean {
  *  is told about those alone — the steps' links name the first workspace,
  *  and it used to be any of the account's (30 Oct 2026). */
 export async function onboardingFacts(tenant: string, scope: string[] | null = null): Promise<OnboardingFacts> {
-  const workspaces = listWorkspaces(tenant).map((w) => w.name).filter((w) => scopeAllows(scope, w));
+  // Sorted: the steps link the first one, and a directory listing has no
+  // order of its own (the same account linked a different workspace from one
+  // filesystem to the next).
+  const workspaces = listWorkspaces(tenant).map((w) => w.name).filter((w) => scopeAllows(scope, w)).sort();
   let runs = 0;
   let completedRuns = 0;
   let triggers = 0;

@@ -20,7 +20,7 @@ process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
-const { changedPolicyKeys } = await import("../server/workspace-policy.ts");
+const { changedPolicyKeys, changedFlowPublications } = await import("../server/workspace-policy.ts");
 const { deployWorkspace } = await import("@/lib/deploy");
 const { workspaceDir } = await import("@/lib/store");
 const { headRevision } = await import("@/lib/history");
@@ -132,4 +132,26 @@ test("restore: an editor may not go back to before the policy was set; an admin 
   const done = await restoreRoute.POST(json("/api/workspaces/desk/restore", "POST", admin, body), ctx);
   assert.equal(done.status, 200, await done.clone().text());
   assert.doesNotMatch(agentsMd(), /budget/);
+});
+
+// A flow's `a2a:` — publishing it to outside agents over A2A (1 Nov 2026) —
+// is the workspace's policy too, on every door: here the deploy, the one
+// that replaces the whole tree.
+test("a2a: on a flow — an editor's deploy may not publish, change or unpublish one; removing the flow is allowed", async () => {
+  const published = { path: "flows/publish.md", content: FLOW.content.replace("trigger: manual\n", "trigger: manual\na2a:\n  publish: true\n") };
+  assert.deepEqual(changedFlowPublications("acme", "desk", [published], "merge"), ["flows/publish.md"]);
+  assert.deepEqual(changedFlowPublications("acme", "desk", [FLOW], "merge"), [], "the flow as it is");
+  assert.deepEqual(changedFlowPublications("acme", "desk", [{ path: "knowledge/a2a.md", content: "---\na2a:\n  publish: true\n---\n" }], "merge"), [], "only a flow file publishes");
+  const refused = await deployRoute.POST(json("/api/workspaces/desk/deploy", "POST", editor, { files: [{ path: "AGENTS.md", content: POLICY }, AGENT, published] }), ctx);
+  assert.equal(refused.status, 403);
+  assert.match(((await refused.json()) as { error: string }).error, /a2a: in flows\/publish\.md/);
+  assert.equal((await deployRoute.POST(json("/api/workspaces/desk/deploy", "POST", admin, { files: [{ path: "AGENTS.md", content: POLICY }, AGENT, published] }), ctx)).status, 200);
+  // Published now: an editor's change to the block, or taking it out, is refused…
+  const unpublished = await deployRoute.POST(json("/api/workspaces/desk/deploy", "POST", editor, { files: [{ path: "AGENTS.md", content: POLICY }, AGENT, FLOW] }), ctx);
+  assert.equal(unpublished.status, 403);
+  // …the prose around it is not, and neither is dropping the flow (less open, never more).
+  const reworded = { ...published, content: published.content.replace("write it", "write it well") };
+  assert.deepEqual(changedFlowPublications("acme", "desk", [reworded], "replace"), []);
+  assert.deepEqual(changedFlowPublications("acme", "desk", [{ path: "AGENTS.md", content: POLICY }, AGENT], "replace"), [], "a flow the deploy removes is not a publication change");
+  reset();
 });

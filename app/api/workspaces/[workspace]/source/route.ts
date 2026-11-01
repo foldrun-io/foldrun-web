@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, errorResponse, actorOf, requirePermission, refuse } from "@/server/api";
 import { createHash } from "node:crypto";
-import { readWorkspaceFile, writeWorkspaceFile, deleteWorkspacePath, listWorkspaceFiles, renameWorkspaceFile } from "@/lib/store";
+import { readWorkspaceFile, writeWorkspaceFile, deleteWorkspacePath, listWorkspaceFiles, renameWorkspaceFile, assertEditablePath } from "@/lib/store";
 import { saveCheck } from "@/server/checks";
 import { assertMayChangeWorkspacePolicy } from "@/server/workspace-policy";
 
@@ -103,7 +103,29 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
     if (!body.from || !body.to) {
       return refuse("expected { from, to }", 400);
     }
-    renameWorkspaceFile((await requirePermission(req, "workspace:write")).tenant, workspace, body.from, body.to, { by: await actorOf(req) });
+    const { tenant, actor } = await requirePermission(req, "workspace:write");
+    // A file moved arrives with whatever it holds: moved into flows/ with
+    // `a2a:`, it is as much a publication as writing it there
+    // (server/workspace-policy.ts). The destination is read the way the
+    // rename itself reads it — assertEditablePath, which normalises
+    // `./flows/x.md` and `flows//x.md` to flows/x.md — so no spelling of
+    // the path slips past the check and still lands in flows/.
+    let dest: string | null = null;
+    try {
+      dest = assertEditablePath(body.to).replaceAll("\\", "/");
+    } catch {
+      dest = null; // not a path the rename takes: it refuses with the reason
+    }
+    if (dest !== null) {
+      let content: string | null = null;
+      try {
+        content = readWorkspaceFile(tenant, workspace, body.from);
+      } catch {
+        content = null; // nothing there: the rename says so itself
+      }
+      if (content !== null) assertMayChangeWorkspacePolicy(actor, tenant, workspace, [{ path: dest, content }], "merge");
+    }
+    renameWorkspaceFile(tenant, workspace, body.from, body.to, { by: await actorOf(req) });
     return NextResponse.json({ ok: true, path: body.to });
   } catch (err) {
     return errorResponse(err);
