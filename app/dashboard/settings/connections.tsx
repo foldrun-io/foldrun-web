@@ -969,7 +969,7 @@ export function Connections({
                     <textarea value={f.tls_client_cert ?? ""} onChange={set("tls_client_cert")} rows={2} placeholder="-----BEGIN CERTIFICATE-----" className={inputClass(cred)} autoComplete="off" />
                   </Field>
                   <Field label="Its private key, PEM">
-                    <textarea value={f.tls_client_key ?? ""} onChange={set("tls_client_key")} rows={2} placeholder="-----BEGIN PRIVATE KEY-----" className={inputClass(cred)} autoComplete="off" />
+                    <textarea value={f.tls_client_key ?? ""} onChange={set("tls_client_key")} rows={2} placeholder="the PEM private key (BEGIN PRIVATE KEY …)" className={inputClass(cred)} autoComplete="off" />
                   </Field>
                   <p className="mt-1 text-xs text-fg-muted">Presented to the token URL instead of a secret, and on the calls the token is bound to — bind this connection to the API&apos;s sites. The key is sealed and never shown again.</p>
                 </div>
@@ -977,7 +977,7 @@ export function Connections({
               {f.token_auth === "private_key_jwt" && (
                 <div className="col-span-2">
                   <Field label="Private key, PEM or JWK — leave empty and foldrun makes one">
-                    <textarea value={f.client_assertion_key ?? ""} onChange={set("client_assertion_key")} rows={3} placeholder="-----BEGIN PRIVATE KEY-----" className={inputClass(cred)} autoComplete="off" />
+                    <textarea value={f.client_assertion_key ?? ""} onChange={set("client_assertion_key")} rows={3} placeholder="the PEM private key (BEGIN PRIVATE KEY …)" className={inputClass(cred)} autoComplete="off" />
                   </Field>
                   <Field label="Its certificate, PEM (optional — Microsoft Entra names keys by it)">
                     <textarea value={f.client_assertion_cert ?? ""} onChange={set("client_assertion_cert")} rows={2} placeholder="-----BEGIN CERTIFICATE-----" className={inputClass(cred)} autoComplete="off" />
