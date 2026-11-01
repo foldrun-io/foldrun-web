@@ -185,7 +185,8 @@ const LEGACY_SHAPES: Record<string, Shape> = {
     body: obj(
       {
         name: str(), value: str("write-only, never returned"), workspace: str("that workspace's own store; omitted, the account's"),
-        oauth2: GENERIC, service_account: GENERIC, ssh: GENERIC, api: GENERIC,
+        oauth2: { ...GENERIC, description: "a refresh recipe: { token_url, client_id, client_secret?, refresh_token?, grant_type? (refresh_token or client_credentials), extra?, token_auth? (client_secret_post, client_secret_basic or none; absent is the form body) }" },
+        service_account: GENERIC, ssh: GENERIC, api: GENERIC,
         client_cert: { ...GENERIC, description: "a client certificate for mutual TLS: { cert, key, passphrase?, export? }" },
         identity: { ...GENERIC, description: "a keyless cloud identity: { audience }" },
         file: str(),

@@ -435,6 +435,7 @@ export function Connections({
         await put({ oauth2: {
           token_url: f.token_url, client_id: f.client_id, client_secret: f.client_secret,
           grant_type: "client_credentials", ...(f.scope ? { extra: { scope: f.scope } } : {}),
+          ...(f.token_auth === "client_secret_basic" ? { token_auth: "client_secret_basic" } : {}),
         }});
       } else {
         // Browser OAuth from a saved app: only this connection's scopes,
@@ -455,6 +456,8 @@ export function Connections({
             ...(Object.keys(authorize_extra).length ? { authorize_extra } : {}),
             ...(f.pkce === "off" ? { pkce: false } : {}),
             ...(f.issuer?.trim() ? { issuer: f.issuer.trim() } : {}),
+            // Absent is the form body (or none, for a public app).
+            ...(f.token_auth === "client_secret_basic" ? { token_auth: "client_secret_basic" } : {}),
           }, name: clientNameFor(name) }),
         });
         if (!saved.ok) throw new Error(((await saved.json().catch(() => ({}))) as { error?: string }).error ?? "could not save the client");
@@ -750,6 +753,12 @@ export function Connections({
               <Field label="Token URL"><input value={f.token_url ?? ""} onChange={set("token_url")} placeholder="https://auth.example.com/token" className={inputClass(cred)} autoComplete="off" /></Field>
               <Field label="client_id"><input value={f.client_id ?? ""} onChange={set("client_id")} className={inputClass(cred)} autoComplete="off" /></Field>
               <Field label={kind === "oauth" ? "client_secret (empty for a public app)" : "client_secret"}><input type="password" value={f.client_secret ?? ""} onChange={set("client_secret")} className={inputClass(cred)} autoComplete="new-password" /></Field>
+              <Field label="Client authentication at the token URL">
+                <select value={f.token_auth ?? "client_secret_post"} onChange={set("token_auth")} className={selectClass("w-56")}>
+                  <option value="client_secret_post">in the form body (most providers)</option>
+                  <option value="client_secret_basic">HTTP Basic (Notion, Spotify, Reddit, Zoom)</option>
+                </select>
+              </Field>
               {kind === "oauth" && (
                 <Field label="PKCE">
                   <select value={f.pkce ?? "on"} onChange={set("pkce")} className={selectClass("w-56")}>

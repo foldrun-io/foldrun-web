@@ -80,6 +80,7 @@ const OAuthClientConfig = obj(
     authorize_extra: { type: "object", additionalProperties: { type: "string" }, description: "extra authorize-URL params (Google: access_type=offline, prompt=consent)" },
     pkce: { ...bool, description: "S256 PKCE, on unless false" },
     issuer: str("the authorization server's issuer; the callback's iss must equal it"),
+    token_auth: { type: "string", enum: ["client_secret_post", "client_secret_basic", "none"], description: "how the app authenticates at the token endpoint: the form body (absent — the default), HTTP Basic (Notion, Spotify, Reddit, Zoom), or none for a public app" },
   },
   ["authorize_url", "token_url", "client_id"],
 );
@@ -319,7 +320,7 @@ export const SHAPES: Record<string, Shape> = {
       clients: arr(obj({
         name: str(), authorize_url: str(), token_url: str(), client_id: str(), scopes: str(),
         authorize_extra: { type: "object", additionalProperties: { type: "string" } },
-        pkce: bool, issuer: str(), createdAt: str(),
+        pkce: bool, issuer: str(), token_auth: str("client_secret_post | client_secret_basic | none; absent is the form body"), createdAt: str(),
       }), "metadata only — the client_secret never comes back"),
     }),
   },
