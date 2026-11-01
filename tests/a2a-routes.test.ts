@@ -236,6 +236,12 @@ test("A2A-Version is required (empty is 0.3); unserved methods answer the spec's
   assert.equal((await call(a2a, "CreateTaskPushNotificationConfig", { taskId: "x", url: "https://cb" })).body.error!.code, -32003);
   assert.equal((await call(a2a, "GetExtendedAgentCard", {})).body.error!.code, -32004);
   assert.equal((await call(a2a, "message/send", {})).body.error!.code, -32601, "0.3's method names are not 1.0's");
+  // A name an object inherits is still an unknown method, not an internal error.
+  for (const m of ["toString", "constructor", "hasOwnProperty", "valueOf", "__proto__", "__defineGetter__"]) {
+    const r = await call(a2a, m, {});
+    assert.equal(r.body.error!.code, -32601, m);
+    assert.equal(r.body.error!.message, "Method not found", m);
+  }
   const ok = await call(a2a, "GetTask", { id: "nope" });
   assert.equal(ok.status, 200, "a JSON-RPC error rides a 200");
   assert.equal(ok.headers.get("a2a-version"), "1.0");

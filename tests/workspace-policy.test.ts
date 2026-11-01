@@ -155,3 +155,48 @@ test("a2a: on a flow — an editor's deploy may not publish, change or unpublish
   assert.deepEqual(changedFlowPublications("acme", "desk", [{ path: "AGENTS.md", content: POLICY }, AGENT], "replace"), [], "a flow the deploy removes is not a publication change");
   reset();
 });
+
+// remotes: cards at internal addresses (FOL-114): refused at save on an
+// install that guards untrusted URLs, for every role and every door; a card
+// the file already had is left to the run, which refuses it too.
+const { registerPlatform, platform } = await import("@/lib/platform");
+async function guarded(fn: () => Promise<void>) {
+  const before = platform.fetchUntrusted;
+  registerPlatform({ fetchUntrusted: (url, init) => fetch(url, init) });
+  try {
+    await fn();
+  } finally {
+    registerPlatform({ fetchUntrusted: before });
+  }
+}
+const withRemote = (card: string) => ({
+  path: "agents/caller/agent.md",
+  content: `---\nname: caller\ndescription: calls\nremotes:\n  - name: checker\n    card: ${card}\n---\n\nCall it.\n`,
+});
+
+test("remotes: a card at an internal address is refused at save on a guarded install — by PUT /source and a deploy, admin or not", () =>
+  guarded(async () => {
+    const callerFile = path.join(workspaceDir("acme", "desk"), "agents/caller/agent.md");
+    for (const card of ["https://127.0.0.1:3000/.well-known/agent-card.json", "https://169.254.169.254/latest/", "https://foldrun-web.foldrun.svc.cluster.local/x", "https://localhost/.well-known/agent-card.json"]) {
+      const put = await source.PUT(json("/api/workspaces/desk/source", "PUT", admin, withRemote(card)), ctx);
+      assert.equal(put.status, 400, card);
+      assert.match(((await put.json()) as { error: string }).error, /does not call private or internal addresses — remotes: agents\/caller\/agent\.md: checker/, card);
+      assert.equal(fs.existsSync(callerFile), false, `${card}: nothing written`);
+    }
+    const dep = await deployRoute.POST(json("/api/workspaces/desk/deploy", "POST", admin, { files: [...tree(POLICY), withRemote("https://10.0.0.7/card")] }), ctx);
+    assert.equal(dep.status, 400);
+    // A public card saves.
+    assert.equal((await source.PUT(json("/api/workspaces/desk/source", "PUT", editor, withRemote("https://agents.example.com/.well-known/agent-card.json")), ctx)).status, 200);
+    fs.rmSync(path.dirname(callerFile), { recursive: true, force: true });
+  }));
+
+test("remotes: a card the file already had does not block an unrelated edit; a laptop keeps its localhost card", async () => {
+  // Written before the check (or on a laptop): the file holds an internal card.
+  const legacy = withRemote("https://127.0.0.1:3000/.well-known/agent-card.json");
+  assert.equal((await source.PUT(json("/api/workspaces/desk/source", "PUT", admin, legacy), ctx)).status, 200, "not guarded: allowed");
+  await guarded(async () => {
+    const edited = { ...legacy, content: legacy.content.replace("Call it.", "Call it, politely.") };
+    assert.equal((await source.PUT(json("/api/workspaces/desk/source", "PUT", editor, edited), ctx)).status, 200);
+  });
+  fs.rmSync(path.join(workspaceDir("acme", "desk"), "agents/caller"), { recursive: true, force: true });
+});

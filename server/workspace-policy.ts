@@ -21,6 +21,10 @@ import { configMatter } from "@/lib/matter";
 import { workspaceDir } from "@/lib/store";
 import { WORKSPACE_PATCHABLE } from "@/components/defaults-model";
 import { can } from "@/platform/permissions.ts";
+import { refuseInternalUrl } from "@/platform/ssrf";
+import { guardsUntrustedUrls } from "@/lib/platform";
+import { schemaKindOf } from "@/lib/frontmatter-fields";
+import { readRemotes } from "@/lib/a2a-remotes";
 import { ApiError } from "./api.ts";
 import type { Actor } from "./auth.ts";
 
@@ -119,6 +123,7 @@ export function assertMayChangeWorkspacePolicy(
   files: { path: string; content: string }[],
   mode: "replace" | "merge",
 ): void {
+  assertRemoteCardsAllowed(tenant, workspace, files);
   if (can(actor.role, "workspace:manage")) return;
   // A flow's `a2a:` — whether outside agents may call it — is the
   // workspace's policy too (1 Nov 2026): publishing a flow opens it to every
@@ -178,4 +183,39 @@ export function changedFlowPublications(
     if (stable(a2aOf(before)) !== stable(a2aOf(content))) out.push(rel);
   }
   return out.sort();
+}
+
+/**
+ * Refuse (400) a write that adds or changes a `remotes:` card at a private,
+ * loopback or cluster address on an install that guards untrusted URLs — the
+ * same early refusal Settings → Model gives a provider's base URL. Whoever
+ * writes it: no role makes such a card callable. A card the file already had
+ * is left to the run, which refuses it too (platform checkUntrustedUrl), so a
+ * workspace saved before this check still deploys.
+ */
+export function assertRemoteCardsAllowed(tenant: string, workspace: string, files: { path: string; content: string }[]): void {
+  if (!guardsUntrustedUrls()) return;
+  const dir = workspaceDir(tenant, workspace);
+  const refused: string[] = [];
+  for (const [rel, content] of shippedMap(files)) {
+    if (schemaKindOf(rel) !== "agent") continue;
+    let before: string | null = null;
+    try {
+      before = fs.readFileSync(path.join(dir, rel), "utf8");
+    } catch {
+      before = null;
+    }
+    const had = new Set(readRemotes(keysOf(before).remotes).remotes.map((r) => r.card));
+    for (const r of readRemotes(keysOf(content).remotes).remotes) {
+      if (had.has(r.card)) continue;
+      const why = refuseInternalUrl(r.card);
+      if (why) refused.push(`${rel}: ${r.name} — ${why}`);
+    }
+  }
+  if (!refused.length) return;
+  console.warn(`[a2a] refused remotes: card in ${tenant}/${workspace}: ${refused.join("; ")}`);
+  throw new ApiError(
+    `this platform does not call private or internal addresses — remotes: ${refused.join("; ")}. Point card: at the remote agent's public https address`,
+    400,
+  );
 }
