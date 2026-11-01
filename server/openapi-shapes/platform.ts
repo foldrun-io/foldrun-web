@@ -278,6 +278,25 @@ export const SHAPES: Record<string, Shape> = {
     ),
     response: { type: "object", description: "200 with an empty body: the connection the token speaks for has ended (also for a token already unknown, RFC 7009 §2.2)" },
   },
+  "POST /api/mcp/clients": {
+    body: obj({
+      name: str("what the machine client is, as people will read it"),
+      role: str("viewer (default) | editor | admin | owner — never above yours"),
+      workspaces: { type: ["array", "null"], items: str(), description: "the workspaces it may open; null or absent for all you can open" },
+      access: str("read (default) | write"),
+      token_auth: str("client_secret_basic (default) | client_secret_post | private_key_jwt"),
+      jwks: { type: "object", additionalProperties: true, description: "private_key_jwt: { keys: [public JWKs] }" },
+      jwks_uri: str("private_key_jwt: an https URL of its JWKS"),
+    }, ["name"]),
+    status: "201",
+    response: obj({
+      client_id: str(),
+      client_secret: str("the secret methods only — shown once"),
+      grant: str("its connection id: DELETE /api/mcp/connections/<id> ends it"),
+      token_endpoint: str("POST grant_type=client_credentials here"),
+      token_endpoint_auth_method: str(),
+    }, ["client_id", "grant", "token_endpoint"]),
+  },
   "GET /api/mcp/connections": {
     response: obj({
       connections: arr(
@@ -293,6 +312,7 @@ export const SHAPES: Record<string, Shape> = {
           createdAt: str(),
           lastUsedAt: nstr(),
           revokedAt: nstr(),
+          machine: { type: "boolean", description: "a machine client (client credentials), not an app a person signed in" },
         }),
       ),
       everyone: { ...bool, description: "true: every connection in the account (keys:manage); false: your own" },

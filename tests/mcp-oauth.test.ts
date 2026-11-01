@@ -38,6 +38,7 @@ const register = (await import("../app/api/mcp/oauth/register/route.ts")) as { P
 const authorize = (await import("../app/api/mcp/oauth/authorize/route.ts")) as { GET: Handler; POST: Handler };
 const token = (await import("../app/api/mcp/oauth/token/route.ts")) as { POST: Handler };
 const revoke = (await import("../app/api/mcp/oauth/revoke/route.ts")) as { POST: Handler };
+const machineClients = (await import("../app/api/mcp/clients/route.ts")) as { POST: Handler };
 const mcp = (await import("../app/api/mcp/route.ts")) as { POST: Handler };
 const connections = (await import("../app/api/mcp/connections/route.ts")) as { GET: Handler };
 const connection = (await import("../app/api/mcp/connections/[id]/route.ts")) as { DELETE: (req: Req, ctx: { params: Promise<{ id: string }> }) => Promise<Response> };
@@ -416,6 +417,53 @@ test("private_key_jwt (RFC 7523): an app with a JWKS signs in with assertions; a
   // A fresh assertion refreshes; the issuer is an accepted aud too.
   const fresh = await postForm({ grant_type: "refresh_token", refresh_token: t.refresh_token, client_assertion_type: ASSERTION_TYPE, client_assertion: sign(ORIGIN) });
   assert.equal(fresh.status, 200, await fresh.clone().text());
+});
+
+test("machine clients (client credentials, part G): an admin registers one; it gets access tokens and no refresh token, lists tools, is held to read-only and its role, and a disconnected one is invalid_client", async () => {
+  const notAdmin = await postJson(machineClients.POST, `${ORIGIN}/api/mcp/clients`, { name: "nightly", role: "viewer" }, { cookie: memberCookie });
+  assert.equal(notAdmin.status, 403, "an editor cannot register one");
+  const reg = await postJson(machineClients.POST, `${ORIGIN}/api/mcp/clients`, { name: "Nightly report bot", role: "editor", workspaces: ["desk"], access: "read" }, { cookie: ownerCookie });
+  assert.equal(reg.status, 201, await reg.clone().text());
+  const m = (await reg.json()) as { client_id: string; client_secret: string; grant: string; token_endpoint: string };
+  assert.equal(m.token_endpoint, `${ORIGIN}/api/mcp/oauth/token`);
+  const basic = `Basic ${Buffer.from(`${m.client_id}:${m.client_secret}`).toString("base64")}`;
+  const tok = await postForm({ grant_type: "client_credentials" }, { authorization: basic });
+  assert.equal(tok.status, 200, await tok.clone().text());
+  const t = (await tok.json()) as { access_token: string; refresh_token?: string; scope: string };
+  assert.equal(t.refresh_token, undefined, "no refresh token for client credentials");
+  assert.equal(t.scope, "mcp:read");
+  const names = (await call(t.access_token, "tools/list")).body.result.tools.map((x: { name: string }) => x.name);
+  assert.ok(names.includes("get_run") && !names.includes("run_flow"), "read only: the acting tools are not offered");
+  assert.equal((await toolText(t.access_token, "run_flow", { workspace: "desk", flow: "weekly" })).isError, true);
+  const listed = (await (await get(connections.GET, `${ORIGIN}/api/mcp/connections`, { cookie: ownerCookie })).json()) as { connections: { id: string; machine: boolean; client: string }[] };
+  assert.ok(listed.connections.some((c) => c.id === m.grant && c.machine && c.client === "Nightly report bot"), "listed with the connected apps");
+  assert.equal((await postForm({ grant_type: "client_credentials", scope: "mcp:read mcp:write" }, { authorization: basic })).status, 400, "it cannot ask for more than it holds");
+  assert.equal((await postForm({ grant_type: "client_credentials" }, { authorization: `Basic ${Buffer.from(`${m.client_id}:wrong`).toString("base64")}` })).status, 401);
+  // An app a person signed in cannot use client credentials.
+  const person = await connect();
+  assert.equal((await postForm({ grant_type: "client_credentials", client_id: person.client.client_id })).status, 400);
+  const off = await connection.DELETE(new NextRequest(`${ORIGIN}/api/mcp/connections/${m.grant}`, { method: "DELETE", headers: { cookie: ownerCookie, origin: ORIGIN } }), { params: Promise.resolve({ id: m.grant }) });
+  assert.equal(off.status, 200);
+  assert.equal((await call(t.access_token, "tools/list")).status, 401, "its token stops at once");
+  const after = await postForm({ grant_type: "client_credentials" }, { authorization: basic });
+  assert.equal(after.status, 401);
+  assert.equal(((await after.json()) as { error: string }).error, "invalid_client");
+});
+
+test("a machine client can sign in with private_key_jwt and is capped by its admin's role at every use", async () => {
+  const { generateClientKey, signClientAssertion, ASSERTION_TYPE } = await import("../../foldrun-core/src/oauth-assertion.ts");
+  const { privateKey, publicJwk } = generateClientKey();
+  const reg = await postJson(machineClients.POST, `${ORIGIN}/api/mcp/clients`, { name: "Signed bot", role: "owner", access: "write", token_auth: "private_key_jwt", jwks: { keys: [publicJwk] } }, { cookie: ownerCookie });
+  assert.equal(reg.status, 201, await reg.clone().text());
+  const m = (await reg.json()) as { client_id: string; client_secret?: string };
+  assert.equal(m.client_secret, undefined);
+  const tok = await postForm({ grant_type: "client_credentials", client_assertion_type: ASSERTION_TYPE, client_assertion: signClientAssertion({ client_id: m.client_id, client_assertion_key: privateKey }, `${ORIGIN}/api/mcp/oauth/token`) });
+  assert.equal(tok.status, 200, await tok.clone().text());
+  const t = (await tok.json()) as { access_token: string };
+  assert.ok((await call(t.access_token, "tools/list")).body.result.tools.some((x: { name: string }) => x.name === "run_flow"), "read and act");
+  const tooHigh = await postJson(machineClients.POST, `${ORIGIN}/api/mcp/clients`, { name: "x", role: "owner" }, { cookie: (await (async () => { await setMemberRole("acme", member.id, "admin", owner.id); return cookieFor(member.id); })()) });
+  assert.equal(tooHigh.status, 403, "an admin cannot give a machine client more than they hold");
+  await setMemberRole("acme", member.id, "editor", owner.id);
 });
 
 test("the open registration endpoint is limited per address", async () => {

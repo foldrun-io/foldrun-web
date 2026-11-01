@@ -10,6 +10,7 @@
 //   /mcp/authorize  (page) → POST /api/mcp/oauth/authorize   a signed-in person approves
 //   POST /api/mcp/oauth/token                         code → tokens; refresh → new tokens
 //   POST /api/mcp/oauth/revoke                        RFC 7009: the app ends its own connection
+//   POST /api/mcp/clients                             an admin registers a machine client (client credentials)
 //
 // An app may also name itself by an https URL (a Client ID Metadata Document):
 // the document is fetched through the SSRF guard, and its redirect_uris are
@@ -73,8 +74,13 @@ export interface ClientRecord {
   createdAt: string;
   /** When a person last approved it — an app never approved is the first to go at the cap. */
   lastApprovedAt?: string;
-  /** "dcr": registered here; "cimd": described by the document at client_id. */
-  kind: "dcr" | "cimd";
+  /** "dcr": registered here; "cimd": described by the document at client_id;
+   *  "machine": registered by an admin for client credentials, with a
+   *  standing grant (part G) — no person approves each token. */
+  kind: "dcr" | "cimd" | "machine";
+  /** machine: the account and the grant its tokens speak for. */
+  tenant?: string;
+  grantId?: string;
   /** private_key_jwt: the app's public keys, inline or at an https URL. */
   jwks?: Jwk[];
   jwks_uri?: string;
@@ -99,6 +105,10 @@ export interface GrantRecord {
   lastUsedAt?: string;
   revokedAt?: string;
   revokedBy?: string;
+  /** A machine client's standing grant (client credentials): the person is
+   *  the admin who registered it — its role and workspaces are capped by
+   *  theirs at every use, as an API key's are. */
+  machine?: true;
 }
 
 interface TokenRecord {
@@ -176,7 +186,7 @@ export function authorizationServerMetadata(origin: string) {
     scopes_supported: [...SCOPES],
     response_types_supported: ["code"],
     response_modes_supported: ["query"],
-    grant_types_supported: ["authorization_code", "refresh_token"],
+    grant_types_supported: ["authorization_code", "refresh_token", "client_credentials"],
     token_endpoint_auth_methods_supported: [...AUTH_METHODS],
     token_endpoint_auth_signing_alg_values_supported: [...ASSERTION_ALGS],
     code_challenge_methods_supported: ["S256"],
@@ -251,7 +261,8 @@ export async function registerClient(body: unknown): Promise<Record<string, unkn
     // that are a day old — what a flood of registrations leaves behind —
     // rather than turning every new app away.
     const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
-    const stale = Object.values(all).filter((c) => !c.lastApprovedAt && Date.parse(c.createdAt) < dayAgo).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    // Only self-registered apps: an admin's machine client is never "stale".
+    const stale = Object.values(all).filter((c) => c.kind === "dcr" && !c.lastApprovedAt && Date.parse(c.createdAt) < dayAgo).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     for (const c of stale.slice(0, 100)) await clients.remove(INSTALL, c.client_id);
     if (!stale.length) throw new OAuthError("temporarily_unavailable", "this install holds as many registered apps as it takes", 503);
   }
@@ -554,20 +565,22 @@ export interface TokenAnswer {
   access_token: string;
   token_type: "Bearer";
   expires_in: number;
-  refresh_token: string;
+  /** Absent for client credentials: the client asks again (RFC 6749 §4.4.3). */
+  refresh_token?: string;
   scope: string;
 }
 
 let lastSweep = 0;
 
-async function mint(grant: GrantRecord, clientId: string, accessScope = grant.scope): Promise<TokenAnswer> {
+async function mint(grant: GrantRecord, clientId: string, accessScope = grant.scope, opts: { refresh?: boolean } = {}): Promise<TokenAnswer> {
   if (Date.now() - lastSweep > 60 * 60 * 1000) {
     lastSweep = Date.now();
     await sweepTokens().catch(() => undefined);
   }
   const access = random(ACCESS_PREFIX);
-  const refresh = random(REFRESH_PREFIX);
   await tokens.put(INSTALL, sha(access), { kind: "access", tenant: grant.tenant, clientId, grantId: grant.id, expiresAt: iso(ACCESS_SECONDS), ...(accessScope !== grant.scope ? { scope: accessScope } : {}) });
+  if (opts.refresh === false) return { access_token: access, token_type: "Bearer", expires_in: ACCESS_SECONDS, scope: accessScope };
+  const refresh = random(REFRESH_PREFIX);
   await tokens.put(INSTALL, sha(refresh), { kind: "refresh", tenant: grant.tenant, clientId, grantId: grant.id, expiresAt: iso(REFRESH_SECONDS) });
   return { access_token: access, token_type: "Bearer", expires_in: ACCESS_SECONDS, refresh_token: refresh, scope: accessScope };
 }
@@ -632,7 +645,66 @@ export async function tokenRequest(form: URLSearchParams, authorization: string 
     }
     return mint(grant, client.client_id, accessScope);
   }
-  throw new OAuthError("unsupported_grant_type", "grant_type is authorization_code or refresh_token");
+  if (type === "client_credentials") {
+    // A machine client's standing grant (part G): no person, no refresh token.
+    if (client.kind !== "machine" || !client.tenant || !client.grantId) throw new OAuthError("unauthorized_client", "client credentials are for machine clients an admin registers in Settings → API keys");
+    const grant = await grants.get(client.tenant, client.grantId);
+    if (!grant || grant.revokedAt) throw new OAuthError("invalid_client", "this machine client was disconnected", 401);
+    if (!resourceMatches(form.get("resource"), origin)) throw new OAuthError("invalid_target", `tokens here are for ${issuerOf(origin).resource} only`);
+    const held = grant.scope.split(" ");
+    const asked = (form.get("scope") ?? "").split(/\s+/).filter(Boolean);
+    if (asked.some((s) => !held.includes(s))) throw new OAuthError("invalid_scope", `this machine client holds ${grant.scope} — it can ask for less, not more`);
+    const accessScope = asked.length ? [...SCOPES].filter((s) => asked.includes(s)).join(" ") : grant.scope;
+    return mint(grant, client.client_id, accessScope, { refresh: false });
+  }
+  throw new OAuthError("unsupported_grant_type", "grant_type is authorization_code, refresh_token or client_credentials");
+}
+
+/**
+ * An admin registers a machine client (part G): a client id and either a
+ * secret (shown once) or its public keys (private_key_jwt), and a standing
+ * grant with the role, workspaces and access they chose — never more than
+ * their own, and capped by theirs again at every use. Listed with the
+ * connected apps; disconnecting it removes the client, so its next token
+ * request is invalid_client.
+ */
+export async function registerMachineClient(input: {
+  tenant: string; userId: string; email: string; origin: string;
+  name: string; role: Role; workspaces: string[] | null; readOnly: boolean;
+  auth: "client_secret_basic" | "client_secret_post" | "private_key_jwt";
+  jwks?: unknown; jwks_uri?: unknown;
+}): Promise<{ client_id: string; client_secret?: string; grant: string; token_endpoint_auth_method: AuthMethod }> {
+  const name = input.name.trim().slice(0, 100);
+  if (!name) throw new OAuthError("invalid_client_metadata", "a machine client needs a name");
+  const held = Object.values(await grants.all(input.tenant)).filter((g) => !g.revokedAt).length;
+  if (held >= MAX_GRANTS) throw new OAuthError("access_denied", `this account holds ${MAX_GRANTS} connected apps — disconnect one first`);
+  const keys = input.auth === "private_key_jwt" ? keysOf({ ...(input.jwks !== undefined ? { jwks: input.jwks } : {}), ...(input.jwks_uri !== undefined ? { jwks_uri: input.jwks_uri } : {}) }) : {};
+  const client_id = random(CLIENT_PREFIX);
+  const secret = input.auth === "private_key_jwt" ? undefined : random(SECRET_PREFIX);
+  const grant: GrantRecord = {
+    id: crypto.randomBytes(9).toString("base64url"),
+    tenant: input.tenant,
+    userId: input.userId,
+    email: input.email,
+    clientId: client_id,
+    clientName: name,
+    redirectHost: "client credentials",
+    role: input.role,
+    workspaces: input.workspaces,
+    readOnly: input.readOnly,
+    scope: input.readOnly ? "mcp:read" : "mcp:read mcp:write",
+    resource: issuerOf(input.origin).resource,
+    createdAt: new Date().toISOString(),
+    machine: true,
+  };
+  await clients.put(INSTALL, client_id, {
+    client_id, client_name: name, redirect_uris: [], token_endpoint_auth_method: input.auth,
+    ...(secret ? { secretHash: sha(secret) } : {}), ...keys,
+    createdAt: grant.createdAt, kind: "machine", tenant: input.tenant, grantId: grant.id,
+  });
+  await grants.put(input.tenant, grant.id, grant);
+  await audit("mcp.connected", { actor: input.email, tenant: input.tenant, subject: name, detail: { grant: grant.id, machine: true, role: input.role, access: input.readOnly ? "read" : "write", workspaces: input.workspaces } }).catch(() => undefined);
+  return { client_id, ...(secret ? { client_secret: secret } : {}), grant: grant.id, token_endpoint_auth_method: input.auth };
 }
 
 /**
@@ -705,6 +777,8 @@ export interface ConnectionView {
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
+  /** A machine client (client credentials), not an app a person signed in. */
+  machine: boolean;
 }
 
 export const connectionView = (g: GrantRecord): ConnectionView => ({
@@ -719,6 +793,7 @@ export const connectionView = (g: GrantRecord): ConnectionView => ({
   createdAt: g.createdAt,
   lastUsedAt: g.lastUsedAt ?? null,
   revokedAt: g.revokedAt ?? null,
+  machine: g.machine === true,
 });
 
 /** The account's connected apps, newest first — what Settings and the CLI list. */
@@ -739,6 +814,8 @@ export async function revokeGrant(tenant: string, id: string, by: string): Promi
   for (const [key, t] of Object.entries(all)) {
     if (t.tenant === tenant && t.grantId === id) await tokens.remove(INSTALL, key);
   }
+  // A machine client goes with its grant: its next token request is invalid_client.
+  if (done?.machine) await clients.remove(INSTALL, done.clientId).catch(() => false);
   if (done) await audit("mcp.revoked", { actor: by, tenant, subject: done.clientName, detail: { grant: id, person: done.email } }).catch(() => undefined);
   return done;
 }
