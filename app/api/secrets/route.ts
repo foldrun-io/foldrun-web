@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { oauthBefore, revokeReplaced } from "@/platform/oauth-revoke";
 import { generateClientKey, publicJwkOf } from "@/lib/oauth-assertion";
+import { generateDpopKey } from "@/lib/oauth-dpop";
 import { requireCaller, errorResponse, requirePermission, assertWorkspaceScope, refuse } from "@/server/api";
 import { assertMayWriteSecret } from "@/server/secret-writes";
 import { audit } from "@/server/audit";
@@ -102,7 +103,9 @@ async function putOnce(req: NextRequest) {
     // (EC P-256); its public JWK comes back for the provider to register.
     let publicJwk: Record<string, unknown> | undefined;
     if (body.oauth2) {
-      const { generate_key, ...recipe } = body.oauth2 as OAuth2Config & { generate_key?: unknown };
+      const { generate_key, dpop, ...recipe } = body.oauth2 as OAuth2Config & { generate_key?: unknown; dpop?: unknown };
+      // dpop: true — a DPoP key of the connection's own (RFC 9449), made here.
+      if (dpop === true && !recipe.dpop_key) recipe.dpop_key = generateDpopKey();
       if (generate_key === true && recipe.token_auth === "private_key_jwt" && !recipe.client_assertion_key) {
         const made = generateClientKey("ES256");
         Object.assign(recipe, { client_assertion_key: made.privateKey, client_assertion_kid: made.publicJwk.kid, client_assertion_alg: made.publicJwk.alg });

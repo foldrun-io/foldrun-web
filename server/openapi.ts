@@ -197,7 +197,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
     body: obj(
       {
         name: str(), value: str("write-only, never returned"), workspace: str("that workspace's own store; omitted, the account's"),
-        oauth2: { ...GENERIC, description: "a refresh recipe: { token_url, client_id, client_secret?, refresh_token?, grant_type? (refresh_token or client_credentials), extra?, token_auth? (client_secret_post, client_secret_basic, none or private_key_jwt; absent is the form body), client_assertion_key? / _kid? / _alg? / _cert? (private_key_jwt), generate_key? (private_key_jwt with no key: one is made and its public_jwk answered), revocation_url? }" },
+        oauth2: { ...GENERIC, description: "a refresh recipe: { token_url, client_id, client_secret?, refresh_token?, grant_type? (refresh_token or client_credentials), extra?, token_auth? (client_secret_post, client_secret_basic, none or private_key_jwt; absent is the form body), client_assertion_key? / _kid? / _alg? / _cert? (private_key_jwt), generate_key? (private_key_jwt with no key: one is made and its public_jwk answered), revocation_url?, dpop? (true: a DPoP key is made for it), dpop_key?, tls_client_cert? / tls_client_key? / tls_client_passphrase? (tls_client_auth) }" },
         service_account: GENERIC, ssh: GENERIC, api: GENERIC,
         client_cert: { ...GENERIC, description: "a client certificate for mutual TLS: { cert, key, passphrase?, export? }" },
         identity: { ...GENERIC, description: "a keyless cloud identity: { audience }" },

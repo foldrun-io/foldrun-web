@@ -444,6 +444,9 @@ export function Connections({
   }
   /** private_key_jwt: the key pasted (and its certificate), or a new one made. */
   const signedJwt = () => f.token_auth === "private_key_jwt";
+  /** tls_client_auth: the certificate and key pasted (RFC 8705). */
+  const certAuth = () => f.token_auth === "tls_client_auth";
+  const certFields = () => ({ tls_client_cert: (f.tls_client_cert ?? "").trim(), tls_client_key: (f.tls_client_key ?? "").trim() });
   const keyFields = () => f.client_assertion_key?.trim()
     ? { client_assertion_key: f.client_assertion_key.trim(), ...(f.client_assertion_cert?.trim() ? { client_assertion_cert: f.client_assertion_cert.trim() } : {}) }
     : { generate_key: true };
@@ -493,9 +496,10 @@ export function Connections({
         }});
       } else if (kind === "oauth_m2m") {
         const answer = await put({ oauth2: {
-          token_url: f.token_url, client_id: f.client_id, ...(signedJwt() ? keyFields() : { client_secret: f.client_secret }),
+          token_url: f.token_url, client_id: f.client_id, ...(signedJwt() ? keyFields() : certAuth() ? certFields() : { client_secret: f.client_secret }),
           grant_type: "client_credentials", ...(f.scope ? { extra: { scope: f.scope } } : {}),
-          ...(f.token_auth === "client_secret_basic" || signedJwt() ? { token_auth: f.token_auth } : {}),
+          ...(f.token_auth === "client_secret_basic" || signedJwt() || certAuth() ? { token_auth: f.token_auth } : {}),
+          ...(f.dpop === "on" ? { dpop: true } : {}),
         }});
         if (signedJwt() && !f.client_assertion_key?.trim() && answer.public_jwk) setJwk({ key: JSON.stringify(answer.public_jwk, null, 2) });
       } else {
@@ -513,7 +517,7 @@ export function Connections({
         // takes for an app like this one.
         let tokenAuth = f.token_auth;
         const hasSecret = !!f.client_secret?.trim();
-        if (!signedJwt() && f.discovered_secret && f.issuer?.trim() && f.discovered_secret !== (hasSecret ? "1" : "0")) {
+        if (!signedJwt() && !certAuth() && f.discovered_secret && f.issuer?.trim() && f.discovered_secret !== (hasSecret ? "1" : "0")) {
           tokenAuth = (await fetchDiscovery(f.issuer.trim(), hasSecret)).token_auth ?? "client_secret_post";
         }
         // Browser OAuth: save the client, then straight into consent.
@@ -521,8 +525,10 @@ export function Connections({
           method: "POST", headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
           body: JSON.stringify({ config: {
             authorize_url: f.authorize_url, token_url: f.token_url,
-            client_id: f.client_id, client_secret: signedJwt() ? "" : f.client_secret ?? "", scopes: f.scope ?? "",
+            client_id: f.client_id, client_secret: signedJwt() || certAuth() ? "" : f.client_secret ?? "", scopes: f.scope ?? "",
             ...(signedJwt() ? { token_auth: "private_key_jwt", ...keyFields() } : {}),
+            ...(certAuth() ? { token_auth: "tls_client_auth", ...certFields() } : {}),
+            ...(f.dpop === "on" ? { dpop: true } : {}),
             ...(Object.keys(authorize_extra).length ? { authorize_extra } : {}),
             ...(f.pkce === "off" ? { pkce: false } : {}),
             ...(f.issuer?.trim() ? { issuer: f.issuer.trim() } : {}),
@@ -533,7 +539,7 @@ export function Connections({
             ...(f.par_url ? { par_url: f.par_url } : {}),
             // Absent is the form body (or none, for a public app). A public
             // app sends no secret whatever was discovered.
-            ...(!signedJwt() && tokenAuth === "client_secret_basic" && hasSecret ? { token_auth: "client_secret_basic" } : {}),
+            ...(!signedJwt() && !certAuth() && tokenAuth === "client_secret_basic" && hasSecret ? { token_auth: "client_secret_basic" } : {}),
           }, name: clientNameFor(name) }),
         });
         const answer = (await saved.json().catch(() => ({}))) as { error?: string; public_jwk?: Record<string, unknown> };
@@ -908,7 +914,7 @@ export function Connections({
               {(kind === "oauth_m2m" || newApp) && <>
               <Field label="Token URL"><input value={f.token_url ?? ""} onChange={set("token_url")} placeholder="https://auth.example.com/token" className={inputClass(cred)} autoComplete="off" /></Field>
               <Field label="client_id"><input value={f.client_id ?? ""} onChange={set("client_id")} className={inputClass(cred)} autoComplete="off" /></Field>
-              {f.token_auth !== "private_key_jwt" && (
+              {f.token_auth !== "private_key_jwt" && f.token_auth !== "tls_client_auth" && (
                 <Field label={kind === "oauth" ? "client_secret (empty for a public app)" : "client_secret"}><input type="password" value={f.client_secret ?? ""} onChange={set("client_secret")} className={inputClass(cred)} autoComplete="new-password" /></Field>
               )}
               <Field label="Client authentication at the token URL">
@@ -916,8 +922,26 @@ export function Connections({
                   <option value="client_secret_post">in the form body (most providers)</option>
                   <option value="client_secret_basic">HTTP Basic (Notion, Spotify, Reddit, Zoom)</option>
                   <option value="private_key_jwt">signed JWT with a key (Entra certificates, Okta, FAPI)</option>
+                  <option value="tls_client_auth">client certificate — mutual TLS (banks, FAPI)</option>
                 </select>
               </Field>
+              <Field label="DPoP-bound tokens (Bluesky, Okta DPoP)">
+                <select value={f.dpop ?? "off"} onChange={set("dpop")} className={selectClass("w-56")}>
+                  <option value="off">off (most providers)</option>
+                  <option value="on">on — use it through a site binding</option>
+                </select>
+              </Field>
+              {f.token_auth === "tls_client_auth" && (
+                <div className="col-span-2">
+                  <Field label="Client certificate, PEM">
+                    <textarea value={f.tls_client_cert ?? ""} onChange={set("tls_client_cert")} rows={2} placeholder="-----BEGIN CERTIFICATE-----" className={inputClass(cred)} autoComplete="off" />
+                  </Field>
+                  <Field label="Its private key, PEM">
+                    <textarea value={f.tls_client_key ?? ""} onChange={set("tls_client_key")} rows={2} placeholder="-----BEGIN PRIVATE KEY-----" className={inputClass(cred)} autoComplete="off" />
+                  </Field>
+                  <p className="mt-1 text-xs text-fg-muted">Presented to the token URL instead of a secret, and on the calls the token is bound to — bind this connection to the API&apos;s sites. The key is sealed and never shown again.</p>
+                </div>
+              )}
               {f.token_auth === "private_key_jwt" && (
                 <div className="col-span-2">
                   <Field label="Private key, PEM or JWK — leave empty and foldrun makes one">
