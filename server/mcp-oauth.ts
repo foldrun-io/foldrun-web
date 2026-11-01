@@ -22,7 +22,7 @@
 // an access token opens /api/mcp and the routes its tools call, and nothing
 // else. The grant's role and workspaces are checked against the person's own
 // at every use, so a person removed from the account, or moved to viewer,
-// takes their apps with them. Revoking the grant ends every token it issued.
+// takes their apps with them. Revoking the grant ends every token it issued (a machine client handing back one token ends that token only).
 // Tokens are stored by SHA-256; refresh tokens rotate, and a rotated one used
 // again revokes the grant (OAuth 2.1 §4.3.1: someone has a copy).
 
@@ -710,9 +710,9 @@ export async function registerMachineClient(input: {
 /**
  * POST /api/mcp/oauth/revoke (RFC 7009): an app hands back one of its tokens.
  * The app authenticates as at the token endpoint. Revoking either token of a
- * connection ends the connection — every token its grant issued — since an
- * app that throws away its access token has no use for the refresh token
- * either. A token that is unknown, expired or already revoked is answered
+ * connection a person made ends the connection — every token its grant
+ * issued — since an app that throws away its access token has no use for the
+ * refresh token either. A machine client's token is ended alone. A token that is unknown, expired or already revoked is answered
  * 200 (§2.2); one issued to another app is refused.
  */
 export async function revokeRequest(form: URLSearchParams, authorization: string | null, origin: string): Promise<void> {
@@ -726,6 +726,15 @@ export async function revokeRequest(form: URLSearchParams, authorization: string
   const t = await tokens.get(INSTALL, sha(token));
   if (!t || (t.kind !== "access" && t.kind !== "refresh") || !t.grantId) return;
   if (t.clientId !== client.client_id) throw new OAuthError("unauthorized_client", "this token was issued to another app");
+  // A machine client's grant is its standing registration, which an admin
+  // made: handing back one access token (a bot tidying up on exit) ends that
+  // token only, and the client keeps working. Disconnecting it is the admin's
+  // act (Settings, `foldrun mcp disconnect`). Found live on dev, 1 Nov 2026.
+  const grant = await grants.get(t.tenant, t.grantId);
+  if (grant?.machine) {
+    await tokens.remove(INSTALL, sha(token));
+    return;
+  }
   await revokeGrant(t.tenant, t.grantId, `${client.client_name} (revocation endpoint)`);
 }
 

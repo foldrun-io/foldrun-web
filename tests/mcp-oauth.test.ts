@@ -439,6 +439,14 @@ test("machine clients (client credentials, part G): an admin registers one; it g
   assert.ok(listed.connections.some((c) => c.id === m.grant && c.machine && c.client === "Nightly report bot"), "listed with the connected apps");
   assert.equal((await postForm({ grant_type: "client_credentials", scope: "mcp:read mcp:write" }, { authorization: basic })).status, 400, "it cannot ask for more than it holds");
   assert.equal((await postForm({ grant_type: "client_credentials" }, { authorization: `Basic ${Buffer.from(`${m.client_id}:wrong`).toString("base64")}` })).status, 401);
+  // Handing back its access token (RFC 7009) ends that token only: the
+  // machine client stays registered and gets the next one (found live on dev).
+  const spare = (await (await postForm({ grant_type: "client_credentials" }, { authorization: basic })).json()) as { access_token: string };
+  const handedBack = await revoke.POST(new NextRequest(`${ORIGIN}/api/mcp/oauth/revoke`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", authorization: basic }, body: new URLSearchParams({ token: spare.access_token }).toString() }));
+  assert.equal(handedBack.status, 200);
+  assert.equal((await call(spare.access_token, "tools/list")).status, 401, "the handed-back token stops");
+  assert.equal((await call(t.access_token, "tools/list")).status, 200, "its other token still works");
+  assert.equal((await postForm({ grant_type: "client_credentials" }, { authorization: basic })).status, 200, "and it can still get a new one");
   // An app a person signed in cannot use client credentials.
   const person = await connect();
   assert.equal((await postForm({ grant_type: "client_credentials", client_id: person.client.client_id })).status, 400);
