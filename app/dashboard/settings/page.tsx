@@ -1,6 +1,7 @@
 import { scopeAllows } from "@/platform/scope";
 import { platform } from "@/lib/platform";
 import Link from "next/link";
+import { CopyField } from "@/components/copy-field";
 import { ScheduleInYourTime } from "./schedule-in-your-time";
 import { cookies } from "next/headers";
 import { listApiKeys } from "@/server/auth";
@@ -361,6 +362,30 @@ curl -X POST "$FOLDRUN_URL/api/workspaces/my-workspace/agents/writer/run?wait=tr
   -H "Authorization: Bearer $FOLDRUN_TOKEN" \\
   -d '{"task":"draft a reply"}'`}
             </pre>
+          </details>
+          <details id="mcp" className="mt-3 scroll-mt-20 rounded-xl border border-line bg-surface">
+            <summary className="cursor-pointer px-4 py-3 text-xs font-medium uppercase tracking-wide text-fg-muted">Connecting an AI app (MCP)</summary>
+            <div className="space-y-3 border-t border-line-faint p-4 text-sm text-fg-secondary">
+              <p>
+                Claude Code, Claude Desktop, Cursor and Codex can use this account as tools: your inbox, waiting approvals, runs and flows, and — with a key that may — approve, answer, message, start and stop. Each tool is an API call made with the key, so it can do no more than the key can. Add <span className="font-mono">?readonly=1</span> to offer only the tools that read.
+              </p>
+              <CopyField value={`${installOrigin() ?? "https://<this install's address>"}/api/mcp`} />
+              <pre className="overflow-x-auto rounded-lg border border-line-faint p-3 font-mono text-xs leading-relaxed">
+{`# with this machine's foldrun sign-in — no key to paste
+claude mcp add foldrun -- foldrun mcp
+codex mcp add foldrun -- foldrun mcp
+
+# straight to the platform, with a key from above
+claude mcp add --transport http foldrun ${installOrigin() ?? "https://<this install's address>"}/api/mcp \\
+  --header "Authorization: Bearer mda_..."
+
+# Claude Desktop, Cursor: in the app's MCP settings
+{ "mcpServers": { "foldrun": { "command": "foldrun", "args": ["mcp"] } } }`}
+              </pre>
+              <p className="text-xs text-fg-muted">
+                What a tool returns — run outputs, an agent&apos;s question, a file — is data from your runs, and the app is told so. <Link href={`/dashboard/docs/mcp${qs}`} className="text-accent hover:underline">MCP docs</Link>
+              </p>
+            </div>
           </details>
         </div>
 

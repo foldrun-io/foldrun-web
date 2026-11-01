@@ -114,6 +114,7 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   "POST /api/library/[kind]": SEEN("components/create.tsx (New in the library)"),
   "GET /api/library/gallery": SERVER("library/page.tsx → galleryDrift"),
   "GET /api/me": "who the caller is — the dashboard has the session itself",
+  "POST /api/mcp": "an MCP client's endpoint (Claude, Cursor, Codex), opened by a key and never a session; Settings → API keys shows how to connect one",
   "GET /api/me/onboarding": SERVER("dashboard/page.tsx → onboardingFor"),
   "GET /api/oauth/callback": CALLBACK + "an OAuth provider's redirect",
   "GET /api/oauth/clients": SERVER("settings/page.tsx → listOAuthClients"),

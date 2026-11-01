@@ -1,4 +1,4 @@
-// OpenAPI request/response schemas: everything else outside /api/workspaces: hooks, inbox, events, changelog, healthz, version, status, metrics, usage, issues, insights, schedule, search, openapi.json, /s/{token}.
+// OpenAPI request/response schemas: everything else outside /api/workspaces: hooks, inbox, events, changelog, healthz, version, status, metrics, usage, issues, insights, schedule, search, openapi.json, mcp, /s/{token}.
 // Written from what each handler validates and answers (30 Oct 2026).
 
 import { type Schema, type Shape, obj, str, bool, int, arr, nullable } from "./kit.ts";
@@ -171,6 +171,23 @@ export const SHAPES: Record<string, Shape> = {
       packages: obj({ core: nstr(), cli: nstr() }),
       browsers: { type: ["array", "null"], items: str(), description: "the browser engines the runner image has; null when the deploy did not say" },
       browser_versions: { type: ["object", "null"], additionalProperties: { type: "string" }, description: "engine → version where known" },
+    }),
+  },
+  "POST /api/mcp": {
+    body: obj(
+      {
+        jsonrpc: str('"2.0"'),
+        id: { type: ["string", "integer"], description: "left out on a notification, which is answered 202 with no body" },
+        method: str("initialize | ping | tools/list | tools/call | notifications/…"),
+        params: { type: "object", additionalProperties: true, description: "tools/call: { name, arguments }; initialize: { protocolVersion, capabilities, clientInfo }" },
+      },
+      ["jsonrpc", "method"],
+    ),
+    response: obj({
+      jsonrpc: str('"2.0"'),
+      id: { type: ["string", "integer", "null"] },
+      result: { type: "object", additionalProperties: true, description: "initialize: { protocolVersion, capabilities, serverInfo, instructions }; tools/list: { tools }; tools/call: { content: [{ type: text, text }], isError }" },
+      error: obj({ code: int, message: str() }),
     }),
   },
   "GET /s/{token}": {
