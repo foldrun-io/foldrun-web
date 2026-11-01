@@ -184,7 +184,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
         type: "array",
         items: obj({
           name: str(), scope: str("account | workspace"), updatedAt: str(),
-          kind: str("oauth2 | service_account | file | ssh | api | client_cert | identity — absent for a plain value"),
+          kind: str("oauth2 | service_account | file | ssh | api | client_cert | identity | token-exchange — absent for a plain value"),
           shadowed: { ...bool, description: "with ?workspace: this workspace's own entry hides an account secret of the same name" },
           health: { ...GENERIC, type: ["object", "null"], description: "how the credential fared where it was last used; null before anything used it" },
           sites: { type: "array", items: str(), description: "bound: filled by the egress proxy for these sites alone, never in a sandbox" },
@@ -201,6 +201,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
         service_account: GENERIC, ssh: GENERIC, api: GENERIC,
         client_cert: { ...GENERIC, description: "a client certificate for mutual TLS: { cert, key, passphrase?, export? }" },
         identity: { ...GENERIC, description: "a keyless cloud identity: { audience }" },
+        token_exchange: { ...GENERIC, description: "token exchange (RFC 8693): { token_url, client_id, client_secret?, token_auth?, subject_secret (another secret's name), subject_token_type?, requested_token_type?, audience?, resource?, scope? }" },
         file: str(),
         scopes: str("with oauth2: the scopes consented to, kept for reconnecting"),
         refresh_token_expires_in: { ...int, description: "with oauth2: seconds the refresh token lasts" },

@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { Badge, buttonClass, inputClass, selectClass, Card, SectionHeading, FIELD_LABEL_CLASS } from "@/components/ui";
 import { useConfirm } from "@/components/confirm";
 
-type Kind = "key" | "api" | "ssh" | "oauth" | "oauth_m2m" | "service_account" | "file" | "client_cert" | "identity";
+type Kind = "key" | "api" | "ssh" | "oauth" | "oauth_m2m" | "service_account" | "file" | "client_cert" | "identity" | "token_exchange";
 
 const KIND_LABEL: Record<string, string> = {
   key: "API key",
@@ -19,6 +19,7 @@ const KIND_LABEL: Record<string, string> = {
   ssh: "SSH",
   "client-cert": "Client certificate",
   identity: "Identity · keyless",
+  "token-exchange": "OAuth · token exchange",
   oauth2: "OAuth · auto-refresh",
   "service-account": "Service account",
   file: "File",
@@ -29,7 +30,7 @@ export interface ConnectionRow {
   updatedAt: string;
   scope: "account" | "workspace";
   shadowed?: boolean;
-  kind?: "oauth2" | "service-account" | "file" | "ssh" | "api" | "client-cert" | "identity";
+  kind?: "oauth2" | "service-account" | "file" | "ssh" | "api" | "client-cert" | "identity" | "token-exchange";
   /** The sites it is bound to: the egress proxy fills it for these alone,
    *  and it never enters a sandbox. Absent when unbound. */
   sites?: string[];
@@ -475,6 +476,18 @@ export function Connections({
       else if (kind === "identity") {
         await put({ identity: { audience: f.audience ?? "" } });
       }
+      else if (kind === "token_exchange") {
+        // RFC 8693: another secret's token traded for a narrower one.
+        await put({ token_exchange: {
+          token_url: f.token_url ?? "", client_id: f.client_id ?? "",
+          ...(f.client_secret ? { client_secret: f.client_secret } : {}),
+          ...(f.token_auth === "client_secret_basic" ? { token_auth: "client_secret_basic" } : {}),
+          subject_secret: (f.subject_secret ?? "").trim(),
+          ...(f.audience?.trim() ? { audience: f.audience.trim() } : {}),
+          ...(f.scope?.trim() ? { scope: f.scope.trim() } : {}),
+          ...(f.requested_token_type?.trim() ? { requested_token_type: f.requested_token_type.trim() } : {}),
+        } });
+      }
       else if (kind === "client_cert") {
         await put({ client_cert: {
           cert: f.cert ?? "", key: f.cert_key ?? "",
@@ -685,6 +698,7 @@ export function Connections({
                 <option value="ssh">SSH</option>
                 <option value="client_cert">Client certificate (mutual TLS)</option>
                 <option value="identity">Identity — keyless cloud access</option>
+                <option value="token_exchange">OAuth — token exchange</option>
                 {/* Browser OAuth needs a saved app, which is account-scoped (an
                     app belongs to the account): a workspace connects through one
                     the account saved, and saves none itself. The other two are
@@ -804,6 +818,24 @@ export function Connections({
             </Field>
           )}
 
+          {kind === "token_exchange" && (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Token URL"><input value={f.token_url ?? ""} onChange={set("token_url")} placeholder="https://auth.example.com/token" className={inputClass("font-mono")} autoComplete="off" /></Field>
+              <Field label="client_id"><input value={f.client_id ?? ""} onChange={set("client_id")} className={inputClass("font-mono")} autoComplete="off" /></Field>
+              <Field label="client_secret"><input type="password" value={f.client_secret ?? ""} onChange={set("client_secret")} className={inputClass("font-mono")} autoComplete="new-password" /></Field>
+              <Field label="Client authentication at the token URL">
+                <select value={f.token_auth ?? "client_secret_post"} onChange={set("token_auth")} className={selectClass("w-56")}>
+                  <option value="client_secret_post">in the form body</option>
+                  <option value="client_secret_basic">HTTP Basic</option>
+                </select>
+              </Field>
+              <Field label="Subject: the secret whose token is traded"><input value={f.subject_secret ?? ""} onChange={set("subject_secret")} placeholder="UPSTREAM_TOKEN" className={inputClass("font-mono")} autoComplete="off" /></Field>
+              <Field label="Audience (optional)"><input value={f.audience ?? ""} onChange={set("audience")} className={inputClass("font-mono")} autoComplete="off" /></Field>
+              <Field label="Scopes (optional, fewer than the subject's)"><input value={f.scope ?? ""} onChange={set("scope")} className={inputClass("font-mono")} autoComplete="off" /></Field>
+              <Field label="Requested token type (optional)"><input value={f.requested_token_type ?? ""} onChange={set("requested_token_type")} placeholder="urn:ietf:params:oauth:token-type:access_token" className={inputClass("font-mono")} autoComplete="off" /></Field>
+              <p className="col-span-2 text-xs text-fg-muted">Declare the subject secret beside this one in an agent&apos;s secrets:. Each use trades its live token for the narrower one (RFC 8693), cached until it expires.</p>
+            </div>
+          )}
           {kind === "identity" && <IdentityFields tenant={tenant} workspace={workspace} audience={f.audience ?? ""} onAudience={set("audience")} />}
 
           {kind === "client_cert" && (

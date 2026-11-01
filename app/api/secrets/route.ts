@@ -7,8 +7,8 @@ import { assertMayWriteSecret } from "@/server/secret-writes";
 import { audit } from "@/server/audit";
 import {
   listSecrets, setSecret, deleteSecret, setOAuth2Secret, setServiceAccountSecret, setFileSecret,
-  setSshSecret, setApiSecret, setClientCertSecret, setIdentitySecret, setSecretSites, setSecretWorkspaces,
-  type OAuth2Config, type ServiceAccountConfig, type SshConfig, type ApiConfig, type ClientCertConfig, type IdentityConfig,
+  setSshSecret, setApiSecret, setClientCertSecret, setIdentitySecret, setSecretSites, setSecretWorkspaces, setTokenExchangeSecret,
+  type OAuth2Config, type ServiceAccountConfig, type SshConfig, type ApiConfig, type ClientCertConfig, type IdentityConfig, type TokenExchangeConfig,
 } from "@/lib/secrets";
 import { secretHealth, forgetSecretHealth, healthKey } from "@/lib/secret-health";
 import { rememberConnection } from "@/platform/oauth-connections";
@@ -69,6 +69,8 @@ async function putOnce(req: NextRequest) {
       client_cert?: ClientCertConfig;
       /** A keyless cloud identity: { audience } — no credential at all. */
       identity?: IdentityConfig;
+      /** RFC 8693: { token_url, client_id, client_secret?, token_auth?, subject_secret, audience?, resource?, scope?, requested_token_type? }. */
+      token_exchange?: TokenExchangeConfig;
       workspace?: string;
       project?: string;
       /** With oauth2: the scopes consented to and how long the refresh
@@ -132,16 +134,17 @@ async function putOnce(req: NextRequest) {
     else if (body.api) setApiSecret(tenant, body.name, body.api, scope, limit);
     else if (body.client_cert) setClientCertSecret(tenant, body.name, body.client_cert, scope, limit);
     else if (body.identity) setIdentitySecret(tenant, body.name, body.identity, scope, limit);
+    else if (body.token_exchange) setTokenExchangeSecret(tenant, body.name, body.token_exchange, scope, limit);
     else if (typeof body.file === "string") setFileSecret(tenant, body.name, body.file, scope, limit);
     else if (typeof body.value === "string" && body.value !== "") setSecret(tenant, body.name, body.value, scope, undefined, limit);
-    else return refuse("expected a value, oauth2, service_account, ssh, api, client_cert, identity, or file", 400);
+    else return refuse("expected a value, oauth2, service_account, ssh, api, client_cert, identity, token_exchange, or file", 400);
     const sites = body.sites !== undefined ? setSecretSites(tenant, body.name, body.sites, scope) : undefined;
     // A rotation is a new credential under an old name. Carrying the old
     // one's refusals forward would show a freshly-fixed key as still broken,
     // which is the moment someone stops trusting the indicator.
     await forgetSecretHealth(tenant, healthKey(body.name, scope ? "workspace" : "account", scope));
     // The name and the kind, never the value.
-    const kind = body.oauth2 ? "oauth2" : body.service_account ? "service_account" : body.ssh ? "ssh" : body.api ? "api" : body.client_cert ? "client_cert" : body.identity ? "identity" : typeof body.file === "string" ? "file" : "value";
+    const kind = body.oauth2 ? "oauth2" : body.service_account ? "service_account" : body.ssh ? "ssh" : body.api ? "api" : body.client_cert ? "client_cert" : body.identity ? "identity" : body.token_exchange ? "token_exchange" : typeof body.file === "string" ? "file" : "value";
     const workspaces = body.workspaces !== undefined ? (listSecrets(tenant).find((x) => x.name === body.name)?.workspaces ?? null) : undefined;
     const revoked = await revokeReplaced(tenant, body.name, scope, before, body.oauth2);
     await audit("secret.set", { actor: actor.name, tenant, subject: body.name, detail: { name: body.name, kind, ...(scope ? { workspace: scope } : {}), ...(sites ? { sites } : {}), ...(workspaces !== undefined ? { workspaces } : {}), ...(revoked ? { revoked } : {}) } });
