@@ -335,6 +335,8 @@ export function Connections({
   const [kind, setKind] = useState<Kind>("key");
   const [f, setF] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  // What revoking a deleted connection at its provider came to.
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // A new account secret's workspaces: null is all (the default), a list is
   // only those — sent with the value in the same PUT, so it is never open
@@ -354,7 +356,53 @@ export function Connections({
     if (!callbackUrl) setRedirect(`${window.location.origin}/api/oauth/callback`);
   }, [callbackUrl]);
   // Any edit clears the last error: it was about what the form held then.
-  const set = (k: string) => (e: { target: { value: string } }) => { setError(null); setF({ ...f, [k]: e.target.value }); };
+  const set = (k: string) => (e: { target: { value: string } }) => {
+    setError(null);
+    // A new issuer: what the old one's metadata said (PAR, revocation, the
+    // iss rule) no longer applies — Discover again to fill it.
+    const stale: Record<string, string> = k === "issuer" ? { revocation_url: "", device_url: "", par_url: "", iss_parameter: "", discovered_secret: "" } : {};
+    setF((cur) => ({ ...cur, ...stale, [k]: e.target.value }));
+  };
+  // Discovery (POST /api/oauth/discover): the provider's own metadata fills
+  // the URLs and how the app signs in at the token URL; what it found about
+  // revocation, device sign-in and PAR is kept for the save.
+  const [discovering, setDiscovering] = useState(false);
+  type Discovered = { authorize_url?: string; token_url: string; token_auth?: string; revocation_url?: string; device_url?: string; par_url?: string; iss_parameter?: boolean };
+  const fetchDiscovery = async (issuer: string, hasSecret: boolean): Promise<Discovered> => {
+    const res = await fetch("/api/oauth/discover", {
+      method: "POST", headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
+      body: JSON.stringify({ issuer, has_secret: hasSecret, ...(f.pkce === "off" ? { pkce: false } : {}) }),
+    });
+    const j = (await res.json().catch(() => ({}))) as { config?: Discovered; error?: string };
+    if (!res.ok || !j.config) throw new Error(j.error ?? "discovery failed");
+    return j.config;
+  };
+  const discover = async () => {
+    setError(null);
+    setDiscovering(true);
+    const asked = (f.issuer ?? "").trim();
+    // Asked as the app is now — with a secret or a public one; Save asks
+    // again if that changes after (the token URL's sign-in depends on it).
+    const withSecret = !!f.client_secret?.trim();
+    try {
+      const c = await fetchDiscovery(asked, withSecret);
+      // Merged into the form as it is now, not as it was when Discover was
+      // pressed — and dropped if the issuer was changed meanwhile.
+      setF((cur) => (cur.issuer ?? "").trim() !== asked ? cur : {
+        ...cur,
+        ...(c.authorize_url ? { authorize_url: c.authorize_url } : {}),
+        token_url: c.token_url,
+        token_auth: c.token_auth === "client_secret_basic" ? "client_secret_basic" : "client_secret_post",
+        revocation_url: c.revocation_url ?? "", device_url: c.device_url ?? "", par_url: c.par_url ?? "",
+        iss_parameter: String(c.iss_parameter === true),
+        discovered_secret: withSecret ? "1" : "0",
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setDiscovering(false);
+    }
+  };
   const copyRedirect = async () => {
     try { await navigator.clipboard.writeText(redirect); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* no clipboard */ }
   };
@@ -447,6 +495,14 @@ export function Connections({
         }
         if (!newApp) throw new Error("choose an app — a saved one, or a new one");
         const authorize_extra = parseAuthorizeExtra(f.authorize_extra ?? "");
+        // Discovered before the secret was entered (or cleared after): ask
+        // again, so the app signs in at the token URL the way the server
+        // takes for an app like this one.
+        let tokenAuth = f.token_auth;
+        const hasSecret = !!f.client_secret?.trim();
+        if (f.discovered_secret && f.issuer?.trim() && f.discovered_secret !== (hasSecret ? "1" : "0")) {
+          tokenAuth = (await fetchDiscovery(f.issuer.trim(), hasSecret)).token_auth ?? "client_secret_post";
+        }
         // Browser OAuth: save the client, then straight into consent.
         const saved = await fetch("/api/oauth/clients", {
           method: "POST", headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
@@ -456,8 +512,14 @@ export function Connections({
             ...(Object.keys(authorize_extra).length ? { authorize_extra } : {}),
             ...(f.pkce === "off" ? { pkce: false } : {}),
             ...(f.issuer?.trim() ? { issuer: f.issuer.trim() } : {}),
-            // Absent is the form body (or none, for a public app).
-            ...(f.token_auth === "client_secret_basic" ? { token_auth: "client_secret_basic" } : {}),
+            // Found by Discover: the server's own facts, kept with the app.
+            ...(f.iss_parameter ? { iss_parameter: f.iss_parameter === "true" } : {}),
+            ...(f.revocation_url ? { revocation_url: f.revocation_url } : {}),
+            ...(f.device_url ? { device_url: f.device_url } : {}),
+            ...(f.par_url ? { par_url: f.par_url } : {}),
+            // Absent is the form body (or none, for a public app). A public
+            // app sends no secret whatever was discovered.
+            ...(tokenAuth === "client_secret_basic" && hasSecret ? { token_auth: "client_secret_basic" } : {}),
           }, name: clientNameFor(name) }),
         });
         if (!saved.ok) throw new Error(((await saved.json().catch(() => ({}))) as { error?: string }).error ?? "could not save the client");
@@ -487,15 +549,22 @@ export function Connections({
     if (
       !(await confirm({
         title: `Delete ${row.name}?`,
-        body: `It is removed from ${where}. Agents using it fail until it's replaced.`,
+        body: `It is removed from ${where}. Agents using it fail until it's replaced.${row.kind === "oauth2" ? " Its grant is also revoked at the provider, when the app has a revocation URL." : ""}`,
         confirmLabel: "Delete",
       }))
     )
       return;
-    await fetch("/api/secrets", {
+    setNotice(null);
+    const res = await fetch("/api/secrets", {
       method: "DELETE", headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
       body: JSON.stringify({ workspace: row.scope === "account" ? undefined : workspace, name: row.name }),
     });
+    // Revoked after the delete (RFC 7009): a failure is said, not hidden —
+    // the grant may still be live at the provider until revoked there.
+    const r = ((await res.json().catch(() => ({}))) as { revoked?: { skipped?: string; revoked: string[]; error?: string } }).revoked;
+    if (r?.error) setNotice(`${row.name} is deleted, but ${r.error}. Revoke the app's access in the provider's own settings.`);
+    else if (r?.revoked.length) setNotice(`${row.name} is deleted and its grant revoked at the provider.`);
+    else if (r?.skipped === "shared-grant") setNotice(`${row.name} is deleted; its grant was not revoked: another connection uses the same app, and the provider may revoke them together.`);
     // The app saved under this secret's name goes with it only when it is
     // this connection's alone: other connections may share it (a saved app
     // serves any number of them), and a workspace page never deletes an
@@ -747,6 +816,22 @@ export function Connections({
                 </div>
               )}
               {newApp && (
+                <div className="col-span-2">
+                  <Field label="Issuer — fills the URLs below from the provider's own metadata (optional)">
+                    <div className="flex items-center gap-2">
+                      <input value={f.issuer ?? ""} onChange={set("issuer")} placeholder="https://login.example.com" className={inputClass(cred)} autoComplete="off" />
+                      <button type="button" disabled={discovering || !f.issuer?.trim()} onClick={() => void discover()} className={buttonClass("secondary")}>{discovering ? "Reading…" : "Discover"}</button>
+                    </div>
+                  </Field>
+                  {f.iss_parameter && (
+                    <p className="mt-1 text-xs text-fg-muted">
+                      Found: {[f.revocation_url && "revocation", f.device_url && "device sign-in", f.par_url && "pushed requests (PAR)"].filter(Boolean).join(", ") || "authorize and token URLs"}
+                      {f.iss_parameter === "true" ? " · the provider says who it is on every answer (RFC 9207), so foldrun checks it" : ""}
+                    </p>
+                  )}
+                </div>
+              )}
+              {newApp && (
                 <Field label="Authorize URL"><input value={f.authorize_url ?? ""} onChange={set("authorize_url")} placeholder="https://auth.example.com/authorize" className={inputClass(cred)} autoComplete="off" /></Field>
               )}
               {(kind === "oauth_m2m" || newApp) && <>
@@ -768,9 +853,6 @@ export function Connections({
                 </Field>
               )}
               {kind === "oauth" && (
-                <Field label="Issuer (optional — when the provider sends iss)"><input value={f.issuer ?? ""} onChange={set("issuer")} placeholder="https://auth.example.com" className={inputClass(cred)} autoComplete="off" /></Field>
-              )}
-              {kind === "oauth" && (
                 <div className="col-span-2">
                   <Field label="Extra authorize parameters (optional) — one name=value per line, as the provider documents">
                     <textarea value={f.authorize_extra ?? ""} onChange={set("authorize_extra")} rows={2} placeholder="name=value" className={inputClass(cred)} />
@@ -790,6 +872,7 @@ export function Connections({
           )}
         </form>
         {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+        {notice && <p className="mt-2 text-xs text-fg-muted">{notice}</p>}
       </Card>
 
       <Card>

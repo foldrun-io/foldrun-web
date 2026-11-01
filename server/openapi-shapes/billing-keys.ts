@@ -81,6 +81,10 @@ const OAuthClientConfig = obj(
     pkce: { ...bool, description: "S256 PKCE, on unless false" },
     issuer: str("the authorization server's issuer; the callback's iss must equal it"),
     token_auth: { type: "string", enum: ["client_secret_post", "client_secret_basic", "none"], description: "how the app authenticates at the token endpoint: the form body (absent — the default), HTTP Basic (Notion, Spotify, Reddit, Zoom), or none for a public app" },
+    iss_parameter: { ...bool, description: "with issuer: whether the server sends iss on every authorization response (RFC 9207); false lets a callback without iss through, one with iss must still match" },
+    revocation_url: str("the provider's revocation endpoint (RFC 7009): a deleted or replaced connection's tokens are revoked there"),
+    device_url: str("the device authorization endpoint (RFC 8628)"),
+    par_url: str("the pushed authorization request endpoint (RFC 9126)"),
   },
   ["authorize_url", "token_url", "client_id"],
 );
@@ -320,7 +324,8 @@ export const SHAPES: Record<string, Shape> = {
       clients: arr(obj({
         name: str(), authorize_url: str(), token_url: str(), client_id: str(), scopes: str(),
         authorize_extra: { type: "object", additionalProperties: { type: "string" } },
-        pkce: bool, issuer: str(), token_auth: str("client_secret_post | client_secret_basic | none; absent is the form body"), createdAt: str(),
+        pkce: bool, issuer: str(), token_auth: str("client_secret_post | client_secret_basic | none; absent is the form body"),
+        iss_parameter: bool, revocation_url: str(), device_url: str(), par_url: str(), createdAt: str(),
       }), "metadata only — the client_secret never comes back"),
     }),
   },
@@ -370,6 +375,21 @@ export const SHAPES: Record<string, Shape> = {
         scopes: str("the scopes asked for, when known"),
       },
     },
+  },
+  "POST /api/oauth/discover": {
+    body: obj({
+      issuer: str("the provider's issuer URL (https, no query or fragment)"),
+      has_secret: { ...bool, description: "the app has a client secret (default true): picks token_auth" },
+      pkce: { ...bool, description: "false: do not refuse a server that lists PKCE methods without S256" },
+      token_auth: str("a token_auth already chosen, kept over the server's list"),
+    }, ["issuer"]),
+    response: obj({
+      config: obj({
+        issuer: str(), authorize_url: str(), token_url: str(), revocation_url: str(), device_url: str(), par_url: str(),
+        par_required: bool, iss_parameter: bool, token_auth: str("absent: the form body"), metadata_url: str("where the metadata was read"),
+        metadata: { type: "object", additionalProperties: true, description: "the server's metadata document as read" },
+      }, ["issuer", "token_url", "iss_parameter", "metadata_url"]),
+    }),
   },
   "POST /api/oauth/start": {
     body: obj(

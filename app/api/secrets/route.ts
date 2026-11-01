@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { oauthBefore, revokeReplaced } from "@/platform/oauth-revoke";
 import { requireCaller, errorResponse, requirePermission, assertWorkspaceScope, refuse } from "@/server/api";
 import { assertMayWriteSecret } from "@/server/secret-writes";
 import { audit } from "@/server/audit";
@@ -93,6 +94,9 @@ async function putOnce(req: NextRequest) {
     body.name = await assertMayWriteSecret(tenant, actor, body.name, scope);
     // The value and its limit in one locked write: never open in between.
     const limit = body.workspaces !== undefined ? { workspaces: body.workspaces as string[] | null, exists: workspaceExists(tenant) } : {};
+    // An oauth2 secret being replaced (a reconnect from the CLI, a rotation):
+    // its old grant is revoked at the provider once the new value is in.
+    const before = oauthBefore(tenant, body.name, scope);
     if (body.oauth2) {
       setOAuth2Secret(tenant, body.name, body.oauth2, scope, limit);
       if (body.oauth2.grant_type !== "client_credentials") {
@@ -121,11 +125,13 @@ async function putOnce(req: NextRequest) {
     // The name and the kind, never the value.
     const kind = body.oauth2 ? "oauth2" : body.service_account ? "service_account" : body.ssh ? "ssh" : body.api ? "api" : body.client_cert ? "client_cert" : body.identity ? "identity" : typeof body.file === "string" ? "file" : "value";
     const workspaces = body.workspaces !== undefined ? (listSecrets(tenant).find((x) => x.name === body.name)?.workspaces ?? null) : undefined;
-    await audit("secret.set", { actor: actor.name, tenant, subject: body.name, detail: { name: body.name, kind, ...(scope ? { workspace: scope } : {}), ...(sites ? { sites } : {}), ...(workspaces !== undefined ? { workspaces } : {}) } });
+    const revoked = await revokeReplaced(tenant, body.name, scope, before, body.oauth2);
+    await audit("secret.set", { actor: actor.name, tenant, subject: body.name, detail: { name: body.name, kind, ...(scope ? { workspace: scope } : {}), ...(sites ? { sites } : {}), ...(workspaces !== undefined ? { workspaces } : {}), ...(revoked ? { revoked } : {}) } });
     return NextResponse.json({
       ok: true,
       name: body.name,
       scope: scope ? "workspace" : "account",
+      ...(revoked ? { revoked } : {}),
       ...(sites ? { sites } : {}),
       ...(workspaces !== undefined ? { workspaces } : {}),
     });
@@ -142,10 +148,14 @@ export async function DELETE(req: NextRequest) {
     const scope = scopeOf(req, body);
     // Removing the mail sender chooses one too (the platform's own).
     body.name = await assertMayWriteSecret(tenant, actor, body.name, scope);
+    // Deleted first, revoked after (RFC 7009): a provider that is down or
+    // refuses never keeps a secret someone asked to remove; it is reported.
+    const before = oauthBefore(tenant, body.name, scope);
     deleteSecret(tenant, body.name, scope);
     await forgetSecretHealth(tenant, healthKey(body.name, scope ? "workspace" : "account", scope));
-    await audit("secret.deleted", { actor: actor.name, tenant, subject: body.name, detail: { name: body.name, ...(scope ? { workspace: scope } : {}) } });
-    return NextResponse.json({ ok: true });
+    const revoked = await revokeReplaced(tenant, body.name, scope, before);
+    await audit("secret.deleted", { actor: actor.name, tenant, subject: body.name, detail: { name: body.name, ...(scope ? { workspace: scope } : {}), ...(revoked ? { revoked } : {}) } });
+    return NextResponse.json({ ok: true, ...(revoked ? { revoked } : {}) });
   } catch (err) {
     return errorResponse(err);
   }

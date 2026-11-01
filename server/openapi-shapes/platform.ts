@@ -262,6 +262,18 @@ export const SHAPES: Record<string, Shape> = {
       scope: str("mcp:read, or mcp:read mcp:write"),
     }),
   },
+  "POST /api/mcp/oauth/revoke": {
+    body: obj(
+      {
+        token: str("an fmcp_at_ access token or fmcp_rt_ refresh token this app holds"),
+        token_type_hint: str("access_token | refresh_token"),
+        client_id: str(),
+        client_secret: str("or HTTP Basic"),
+      },
+      ["token"],
+    ),
+    response: { type: "object", description: "200 with an empty body: the connection the token speaks for has ended (also for a token already unknown, RFC 7009 §2.2)" },
+  },
   "GET /api/mcp/connections": {
     response: obj({
       connections: arr(

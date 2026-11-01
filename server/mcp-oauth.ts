@@ -9,6 +9,7 @@
 //   POST /api/mcp/oauth/register                      RFC 7591: an app registers itself
 //   /mcp/authorize  (page) → POST /api/mcp/oauth/authorize   a signed-in person approves
 //   POST /api/mcp/oauth/token                         code → tokens; refresh → new tokens
+//   POST /api/mcp/oauth/revoke                        RFC 7009: the app ends its own connection
 //
 // An app may also name itself by an https URL (a Client ID Metadata Document):
 // the document is fetched through the SSRF guard, and its redirect_uris are
@@ -163,6 +164,8 @@ export function authorizationServerMetadata(origin: string) {
     authorization_endpoint: `${issuer}/mcp/authorize`,
     token_endpoint: `${issuer}/api/mcp/oauth/token`,
     registration_endpoint: `${issuer}/api/mcp/oauth/register`,
+    revocation_endpoint: `${issuer}/api/mcp/oauth/revoke`,
+    revocation_endpoint_auth_methods_supported: ["none", "client_secret_post", "client_secret_basic"],
     scopes_supported: [...SCOPES],
     response_types_supported: ["code"],
     response_modes_supported: ["query"],
@@ -522,6 +525,28 @@ export async function tokenRequest(form: URLSearchParams, authorization: string 
     return mint(grant, client.client_id, accessScope);
   }
   throw new OAuthError("unsupported_grant_type", "grant_type is authorization_code or refresh_token");
+}
+
+/**
+ * POST /api/mcp/oauth/revoke (RFC 7009): an app hands back one of its tokens.
+ * The app authenticates as at the token endpoint. Revoking either token of a
+ * connection ends the connection — every token its grant issued — since an
+ * app that throws away its access token has no use for the refresh token
+ * either. A token that is unknown, expired or already revoked is answered
+ * 200 (§2.2); one issued to another app is refused.
+ */
+export async function revokeRequest(form: URLSearchParams, authorization: string | null): Promise<void> {
+  const client = await authenticateClient(form, authorization);
+  const token = form.get("token");
+  if (!token) throw new OAuthError("invalid_request", "token is required");
+  // token_type_hint is only a hint: an unknown one is ignored (§2.1).
+  // Only tokens of these two kinds are revocable here: an authorization code
+  // sent as a token is not looked up, so it cannot be used to probe.
+  if (!token.startsWith(ACCESS_PREFIX) && !token.startsWith(REFRESH_PREFIX)) return;
+  const t = await tokens.get(INSTALL, sha(token));
+  if (!t || (t.kind !== "access" && t.kind !== "refresh") || !t.grantId) return;
+  if (t.clientId !== client.client_id) throw new OAuthError("unauthorized_client", "this token was issued to another app");
+  await revokeGrant(t.tenant, t.grantId, `${client.client_name} (revocation endpoint)`);
 }
 
 // ------------------------------------------------------------------ the resource side

@@ -37,6 +37,7 @@ const asm = (await import("../app/.well-known/oauth-authorization-server/route.t
 const register = (await import("../app/api/mcp/oauth/register/route.ts")) as { POST: Handler };
 const authorize = (await import("../app/api/mcp/oauth/authorize/route.ts")) as { GET: Handler; POST: Handler };
 const token = (await import("../app/api/mcp/oauth/token/route.ts")) as { POST: Handler };
+const revoke = (await import("../app/api/mcp/oauth/revoke/route.ts")) as { POST: Handler };
 const mcp = (await import("../app/api/mcp/route.ts")) as { POST: Handler };
 const connections = (await import("../app/api/mcp/connections/route.ts")) as { GET: Handler };
 const connection = (await import("../app/api/mcp/connections/[id]/route.ts")) as { DELETE: (req: Req, ctx: { params: Promise<{ id: string }> }) => Promise<Response> };
@@ -81,14 +82,14 @@ function requestQuery(clientId: string, challenge: string, extra: Record<string,
 }
 
 /** The whole dance: register, approve as `cookie`, exchange — the tokens. */
-async function connect(opts: { cookie?: string; access?: "read" | "write"; workspaces?: string[] | null; client?: { client_id: string } } = {}) {
+async function connect(opts: { cookie?: string; access?: "read" | "write"; workspaces?: string[] | null; client?: { client_id: string; client_secret?: string } } = {}) {
   const client = opts.client ?? (await newClient());
   const { verifier, challenge } = pkce();
   const request = requestQuery(client.client_id, challenge);
   const ok = await postJson(authorize.POST, `${ORIGIN}/api/mcp/oauth/authorize`, { request, decision: "approve", access: opts.access ?? "write", workspaces: opts.workspaces ?? null }, { cookie: opts.cookie ?? ownerCookie });
   const { redirect } = (await ok.json()) as { redirect: string };
   const code = new URL(redirect).searchParams.get("code")!;
-  const res = await postForm({ grant_type: "authorization_code", code, redirect_uri: CALLBACK, client_id: client.client_id, code_verifier: verifier, resource: `${ORIGIN}/api/mcp` });
+  const res = await postForm({ grant_type: "authorization_code", code, redirect_uri: CALLBACK, client_id: client.client_id, ...(client.client_secret ? { client_secret: client.client_secret } : {}), code_verifier: verifier, resource: `${ORIGIN}/api/mcp` });
   assert.equal(res.status, 200, await res.clone().text());
   return { client, ...((await res.json()) as { access_token: string; refresh_token: string; scope: string; expires_in: number }) };
 }
@@ -338,6 +339,49 @@ test("connections: listed, and revoked by their person or an admin — at once",
   assert.equal(again.status, 404);
 });
 
+const postRevoke = (body: Record<string, string>, headers: Record<string, string> = {}) =>
+  revoke.POST(new NextRequest(`${ORIGIN}/api/mcp/oauth/revoke`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", ...headers }, body: new URLSearchParams(body).toString() }));
+
+test("revocation (RFC 7009): advertised; an app revoking its refresh token ends the connection and every token", async () => {
+  const as = (await (await get(asm.GET, `${ORIGIN}/.well-known/oauth-authorization-server`)).json()) as Record<string, unknown>;
+  assert.equal(as.revocation_endpoint, `${ORIGIN}/api/mcp/oauth/revoke`);
+  const c = await connect();
+  assert.equal((await call(c.access_token, "tools/list")).status, 200);
+  const res = await postRevoke({ token: c.refresh_token, token_type_hint: "refresh_token", client_id: c.client.client_id });
+  assert.equal(res.status, 200);
+  assert.equal((await call(c.access_token, "tools/list")).status, 401, "the access token went with the grant");
+  const again = await postForm({ grant_type: "refresh_token", refresh_token: c.refresh_token, client_id: c.client.client_id });
+  assert.equal(again.status, 400);
+  // Already gone, unknown, or not a token at all: 200, nothing to say (§2.2).
+  assert.equal((await postRevoke({ token: c.refresh_token, client_id: c.client.client_id })).status, 200);
+  assert.equal((await postRevoke({ token: "fmcp_at_nonsense", client_id: c.client.client_id })).status, 200);
+});
+
+test("revocation: an access token ends the connection too; another app's token is refused; the client must authenticate", async () => {
+  const c = await connect();
+  const other = await newClient();
+  const foreign = await postRevoke({ token: c.access_token, client_id: other.client_id });
+  assert.equal(foreign.status, 400);
+  assert.equal(((await foreign.json()) as { error: string }).error, "unauthorized_client");
+  assert.equal((await call(c.access_token, "tools/list")).status, 200, "another app cannot end it");
+
+  const confidential = await newClient({ token_endpoint_auth_method: "client_secret_basic" });
+  const cc = await connect({ client: confidential });
+  const noSecret = await postRevoke({ token: cc.access_token, client_id: confidential.client_id });
+  assert.equal(noSecret.status, 401, "a confidential app proves itself, as at the token endpoint");
+  const basic = `Basic ${Buffer.from(`${confidential.client_id}:${confidential.client_secret}`).toString("base64")}`;
+  assert.equal((await postRevoke({ token: cc.access_token, token_type_hint: "access_token" }, { authorization: basic })).status, 200);
+  assert.equal((await call(cc.access_token, "tools/list")).status, 401);
+  assert.equal((await postForm({ grant_type: "refresh_token", refresh_token: cc.refresh_token }, { authorization: basic })).status, 400, "the refresh token went with it");
+
+  assert.equal((await postRevoke({ client_id: c.client.client_id })).status, 400, "token is required");
+  // An unknown hint is ignored (§2.1): the token is still revoked.
+  const unknownHint = await postRevoke({ token: c.access_token, token_type_hint: "id_token", client_id: c.client.client_id });
+  assert.equal(unknownHint.status, 200);
+  assert.equal(unknownHint.headers.get("access-control-allow-origin"), "*", "a browser app reads the answer");
+  assert.equal((await call(c.access_token, "tools/list")).status, 401);
+});
+
 test("the open registration endpoint is limited per address", async () => {
   let last: Response | undefined;
   for (let i = 0; i < 40; i++) {
@@ -348,3 +392,4 @@ test("the open registration endpoint is limited per address", async () => {
   assert.ok(Number(last!.headers.get("retry-after")) > 0);
   assert.equal(((await last!.json()) as { error: string }).error, "slow_down");
 });
+

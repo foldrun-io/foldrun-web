@@ -16,6 +16,18 @@ import { billing, freeBilling } from "@/platform/billing";
 import { CURRENT_API_VERSION } from "./api-version.ts";
 
 import { type Schema, type Shape, obj, str, bool, int, arr, GENERIC, Issue, Run, EffectiveFlag } from "./openapi-shapes/kit.ts";
+
+/** What revoking a deleted or replaced oauth2 secret's tokens at its
+ *  provider came to (RFC 7009); absent when there was nothing to revoke. */
+const OAuthRevoked: Schema = {
+  type: "object",
+  description: "revoking the old oauth2 grant at the provider (RFC 7009): skipped (no-revocation-url, shared-grant, same-app, unreadable), revoked (token types the provider accepted), error (reported; the write still happened)",
+  properties: {
+    skipped: { type: "string", enum: ["no-revocation-url", "shared-grant", "same-app", "unreadable"] },
+    revoked: { type: "array", items: { type: "string", enum: ["refresh_token", "access_token"] } },
+    error: { type: "string" },
+  },
+};
 import { GROUP_SHAPES } from "./openapi-shapes/index.ts";
 
 /** Routes that carry their own proof (a token in the URL, a signature) or
@@ -201,6 +213,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       ok: bool, name: str(), scope: str("account | workspace"),
       sites: { type: "array", items: str(), description: "when sites was sent" },
       workspaces: { type: ["array", "null"], items: str(), description: "when workspaces was sent" },
+      revoked: OAuthRevoked,
     }),
   },
   "PATCH /api/secrets": {
@@ -223,7 +236,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       workspaces: { type: ["array", "null"], items: str(), description: "when workspaces was sent: the limit now; null is every workspace" },
     }),
   },
-  "DELETE /api/secrets": { body: obj({ name: str(), workspace: str() }, ["name"]), response: obj({ ok: bool }) },
+  "DELETE /api/secrets": { body: obj({ name: str(), workspace: str() }, ["name"]), response: obj({ ok: bool, revoked: OAuthRevoked }) },
   "POST /api/workspaces/{workspace}/runs/{runId}/rerun": {
     body: obj({
       step: { ...int, description: "1-based step to start from" },
