@@ -384,6 +384,30 @@ export const SHAPES: Record<string, Shape> = {
       },
     },
   },
+  "POST /api/oauth/device": {
+    body: obj({
+      client: str("a saved OAuth app with a device_url"),
+      secret: str("the secret the grant becomes, UPPER_SNAKE_CASE"),
+      workspace: str("omitted, the account's"),
+      scopes: str("space-separated, instead of the app's default"),
+    }, ["client", "secret"]),
+    response: obj({
+      id: str("poll POST /api/oauth/device/<id>"),
+      user_code: str("what the person types"),
+      verification_uri: str("where they type it"),
+      verification_uri_complete: str("the same page with the code in it, when the provider gives one"),
+      expires_in: { ...int, description: "seconds, at most 600" },
+      interval: { ...int, description: "seconds between polls; add 5 on slow_down" },
+    }, ["id", "user_code", "verification_uri", "expires_in", "interval"]),
+  },
+  "POST /api/oauth/device/{id}": {
+    noBody: "a poll needs nothing but the id in the path: one token request to the provider",
+    response: obj({
+      status: str("pending | slow_down | connected | denied | expired"),
+      name: str("connected: the secret"), workspace: str(), stored: str("connected: oauth2 | static"),
+      reason: str("denied or expired: why"),
+    }, ["status"]),
+  },
   "POST /api/oauth/discover": {
     body: obj({
       issuer: str("the provider's issuer URL (https, no query or fragment)"),

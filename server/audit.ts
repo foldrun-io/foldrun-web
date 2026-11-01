@@ -63,6 +63,8 @@ export type AuditAction =
   | "secret.sites"
   // An account secret limited to some workspaces, or opened to all again.
   | "secret.workspaces"
+  // A device-code connection begun (RFC 8628); its grant lands as secret.set.
+  | "oauth.device.started"
   | "model.key_set"
   | "model.key_removed"
   // What went live, and what went away.

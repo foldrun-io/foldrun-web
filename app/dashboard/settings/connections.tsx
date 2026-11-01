@@ -46,7 +46,7 @@ export interface ConnectionRow {
 }
 /** A saved OAuth app (never its secret): its default scopes prefill a new
  *  connection's, which may ask for others. */
-export interface SavedClientRow { name: string; scopes?: string }
+export interface SavedClientRow { name: string; scopes?: string; /** RFC 8628: the app can connect with a code. */ device_url?: string }
 /** An oauth2 secret's grant: which client reconnects it and whether it still works. */
 export interface OAuthConnectionRow {
   name: string;
@@ -340,6 +340,8 @@ export function Connections({
   // A signing key foldrun made (private_key_jwt): its public JWK, to register
   // with the provider before consent — and the connection that waits for it.
   const [jwk, setJwk] = useState<{ key: string; connect?: string } | null>(null);
+  // A device-code connection in progress (RFC 8628): the code to type and where.
+  const [device, setDevice] = useState<{ id: string; user_code: string; verification_uri: string; verification_uri_complete?: string } | null>(null);
   const [busy, setBusy] = useState(false);
   // A new account secret's workspaces: null is all (the default), a list is
   // only those — sent with the value in the same PUT, so it is never open
@@ -553,6 +555,53 @@ export function Connections({
     }
   }
 
+  /** Connect a saved app with a code instead of a redirect, polling until
+   *  the grant is stored (POST /api/oauth/device, then …/device/<id>). */
+  async function connectWithCode() {
+    if (!savedApp) return;
+    if (!f.scope?.trim()) { setError("type the scopes this connection needs, as the provider spells them"); return; }
+    setError(null); setBusy(true);
+    try {
+      const res = await fetch("/api/oauth/device", {
+        method: "POST", headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
+        body: JSON.stringify({ client: savedApp.name, secret: name, workspace, scopes: f.scope }),
+      });
+      const started = (await res.json().catch(() => ({}))) as { id?: string; user_code?: string; verification_uri?: string; verification_uri_complete?: string; interval?: number; error?: string };
+      if (!res.ok || !started.id) throw new Error(started.error ?? "could not start");
+      setDevice({ id: started.id, user_code: started.user_code!, verification_uri: started.verification_uri!, ...(started.verification_uri_complete ? { verification_uri_complete: started.verification_uri_complete } : {}) });
+      let interval = started.interval ?? 5;
+      const deadline = Date.now() + ((started as { expires_in?: number }).expires_in ?? 600) * 1000;
+      for (;;) {
+        await new Promise((r) => setTimeout(r, interval * 1000));
+        if (Date.now() > deadline) throw new Error("the code ran out before anyone approved it — try again");
+        // A dropped connection or a server hiccup is retried, less often; only
+        // the platform's own answer stops the wait (Codex review).
+        let p: Response;
+        try {
+          p = await fetch(`/api/oauth/device/${started.id}`, { method: "POST", headers: { "x-foldrun-tenant": tenant } });
+        } catch {
+          interval = interval >= 60 ? interval : Math.min(interval * 2, 60);
+          continue;
+        }
+        if (p.status >= 500) { interval = interval >= 60 ? interval : Math.min(interval * 2, 60); continue; }
+        const r = (await p.json().catch(() => ({}))) as { status?: string; reason?: string; error?: string; retry?: boolean };
+        if (!p.ok) throw new Error(r.error ?? "the connection stopped");
+        // The provider timed out on the platform's side: poll less often too.
+        if (r.retry) { interval = interval >= 60 ? interval : Math.min(interval * 2, 60); continue; }
+        if (r.status === "slow_down") interval += 5;
+        else if (r.status === "connected") break;
+        else if (r.status === "denied" || r.status === "expired") throw new Error(r.reason ?? r.status);
+      }
+      setDevice(null); setName(""); setF({});
+      router.refresh();
+    } catch (err) {
+      setDevice(null);
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function connect(secretName: string, client = clientNameFor(secretName), scopes?: string) {
     const res = await fetch("/api/oauth/start", {
       method: "POST", headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
@@ -643,6 +692,9 @@ export function Connections({
             <button type="submit" disabled={busy || !name || (oauthBrowser && !savedApp && !newApp)} className={buttonClass("primary")}>
               {oauthBrowser ? (savedApp ? "Connect →" : "Save & Connect →") : "Save"}
             </button>
+            {savedApp?.device_url && (
+              <button type="button" disabled={busy || !name} onClick={() => void connectWithCode()} className={buttonClass("secondary")}>Connect with a code</button>
+            )}
           </div>
 
           {!workspace && limitTo && !oauthBrowser && (
@@ -908,6 +960,13 @@ export function Connections({
         </form>
         {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
         {notice && <p className="mt-2 text-xs text-fg-muted">{notice}</p>}
+        {device && (
+          <div className="mt-3 rounded border border-line p-3 text-xs">
+            <div className="font-medium">On any device, open <a className="underline" href={device.verification_uri_complete ?? device.verification_uri} target="_blank" rel="noreferrer">{device.verification_uri}</a> and type this code:</div>
+            <div className="mt-2 font-mono text-lg tracking-widest">{device.user_code}</div>
+            <div className="mt-1 text-fg-muted">Waiting for the provider to say yes…</div>
+          </div>
+        )}
         {jwk && (
           <div className="mt-3 rounded border border-line p-3 text-xs">
             <div className="font-medium">Register this public key with the provider (as a JWK, or the JWKS it asks for). It is not secret.</div>

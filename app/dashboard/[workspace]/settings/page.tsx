@@ -196,7 +196,7 @@ export default async function WorkspaceSettingsPage({
         </SettingsSection>
 
         <SettingsSection wide id="secrets" title="Secrets" description="Credentials this workspace's agents read as ${NAME}. Account secrets are inherited and marked; one set here overrides it.">
-          <Connections tenant={tenant} secrets={secrets} clients={(await listOAuthClients(tenant)).map((c) => ({ name: c.name, scopes: c.scopes }))} connections={await connectionStatus(tenant)} workspace={workspace} heading={false} />
+          <Connections tenant={tenant} secrets={secrets} clients={(await listOAuthClients(tenant)).map((c) => ({ name: c.name, scopes: c.scopes, ...(c.device_url ? { device_url: c.device_url } : {}) }))} connections={await connectionStatus(tenant)} workspace={workspace} heading={false} />
         </SettingsSection>
 
         <SettingsSection

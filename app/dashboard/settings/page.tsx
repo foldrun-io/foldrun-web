@@ -404,7 +404,7 @@ claude mcp add --transport http foldrun ${installOrigin() ?? "https://<this inst
         </SettingsSection>
 
         <SettingsSection wide id="secrets" title="Secrets" description="Credentials every workspace can read as ${NAME} — or only the workspaces you select for one. A workspace can override one of these with its own.">
-          <Connections tenant={tenant} secrets={secrets} clients={(await listOAuthClients(tenant)).map((c) => ({ name: c.name, scopes: c.scopes }))} connections={await connectionStatus(tenant)} heading={false} callbackUrl={process.env.FOLDRUN_OAUTH_CALLBACK_URL ?? null}
+          <Connections tenant={tenant} secrets={secrets} clients={(await listOAuthClients(tenant)).map((c) => ({ name: c.name, scopes: c.scopes, ...(c.device_url ? { device_url: c.device_url } : {}) }))} connections={await connectionStatus(tenant)} heading={false} callbackUrl={process.env.FOLDRUN_OAUTH_CALLBACK_URL ?? null}
             limitTo={scope === null && (role === null || can(role, "secrets:write")) ? listWorkspaces(tenant).map((w) => w.name) : undefined} />
         </SettingsSection>
 
