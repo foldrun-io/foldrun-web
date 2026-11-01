@@ -5,6 +5,7 @@
 // with an empty body for success, and for a token already gone (§2.2).
 
 import { NextResponse, type NextRequest } from "next/server";
+import { publicOrigin } from "@/server/auth-flows";
 import { revokeRequest } from "@/server/mcp-oauth";
 import { OPEN_CORS, oauthError, openLimit, preflight } from "@/server/mcp-oauth-http";
 
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
     } else {
       form = new URLSearchParams(raw);
     }
-    await revokeRequest(form, req.headers.get("authorization"));
+    await revokeRequest(form, req.headers.get("authorization"), publicOrigin(req));
     // CORS on the answer too: a browser app on another origin reads it.
     return new NextResponse(null, { status: 200, headers: { ...OPEN_CORS, "cache-control": "no-store" } });
   } catch (err) {

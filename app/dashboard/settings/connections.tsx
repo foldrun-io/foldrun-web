@@ -337,6 +337,9 @@ export function Connections({
   const [error, setError] = useState<string | null>(null);
   // What revoking a deleted connection at its provider came to.
   const [notice, setNotice] = useState<string | null>(null);
+  // A signing key foldrun made (private_key_jwt): its public JWK, to register
+  // with the provider before consent — and the connection that waits for it.
+  const [jwk, setJwk] = useState<{ key: string; connect?: string } | null>(null);
   const [busy, setBusy] = useState(false);
   // A new account secret's workspaces: null is all (the default), a list is
   // only those — sent with the value in the same PUT, so it is never open
@@ -427,14 +430,21 @@ export function Connections({
   const clientNameFor = (n: string) => n.toLowerCase().replaceAll("_", "-");
   const hasClient = (n: string) => clients.some((c) => c.name === clientNameFor(n));
 
-  async function put(payload: object) {
+  async function put(payload: object): Promise<{ public_jwk?: Record<string, unknown> }> {
     const res = await fetch("/api/secrets", {
       method: "PUT",
       headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
       body: JSON.stringify({ workspace, ...payload, name, ...(!workspace && limitTo && newLimit !== null ? { workspaces: newLimit } : {}) }),
     });
-    if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "could not save");
+    const answer = (await res.json().catch(() => ({}))) as { error?: string; public_jwk?: Record<string, unknown> };
+    if (!res.ok) throw new Error(answer.error ?? "could not save");
+    return answer;
   }
+  /** private_key_jwt: the key pasted (and its certificate), or a new one made. */
+  const signedJwt = () => f.token_auth === "private_key_jwt";
+  const keyFields = () => f.client_assertion_key?.trim()
+    ? { client_assertion_key: f.client_assertion_key.trim(), ...(f.client_assertion_cert?.trim() ? { client_assertion_cert: f.client_assertion_cert.trim() } : {}) }
+    : { generate_key: true };
 
   async function submit() {
     setError(null); setBusy(true);
@@ -480,11 +490,12 @@ export function Connections({
           ...(f.subject?.trim() ? { subject: f.subject.trim() } : {}),
         }});
       } else if (kind === "oauth_m2m") {
-        await put({ oauth2: {
-          token_url: f.token_url, client_id: f.client_id, client_secret: f.client_secret,
+        const answer = await put({ oauth2: {
+          token_url: f.token_url, client_id: f.client_id, ...(signedJwt() ? keyFields() : { client_secret: f.client_secret }),
           grant_type: "client_credentials", ...(f.scope ? { extra: { scope: f.scope } } : {}),
-          ...(f.token_auth === "client_secret_basic" ? { token_auth: "client_secret_basic" } : {}),
+          ...(f.token_auth === "client_secret_basic" || signedJwt() ? { token_auth: f.token_auth } : {}),
         }});
+        if (signedJwt() && !f.client_assertion_key?.trim() && answer.public_jwk) setJwk({ key: JSON.stringify(answer.public_jwk, null, 2) });
       } else {
         // Browser OAuth from a saved app: only this connection's scopes,
         // asked for in so many words — an empty field would quietly mean the
@@ -500,7 +511,7 @@ export function Connections({
         // takes for an app like this one.
         let tokenAuth = f.token_auth;
         const hasSecret = !!f.client_secret?.trim();
-        if (f.discovered_secret && f.issuer?.trim() && f.discovered_secret !== (hasSecret ? "1" : "0")) {
+        if (!signedJwt() && f.discovered_secret && f.issuer?.trim() && f.discovered_secret !== (hasSecret ? "1" : "0")) {
           tokenAuth = (await fetchDiscovery(f.issuer.trim(), hasSecret)).token_auth ?? "client_secret_post";
         }
         // Browser OAuth: save the client, then straight into consent.
@@ -508,7 +519,8 @@ export function Connections({
           method: "POST", headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
           body: JSON.stringify({ config: {
             authorize_url: f.authorize_url, token_url: f.token_url,
-            client_id: f.client_id, client_secret: f.client_secret ?? "", scopes: f.scope ?? "",
+            client_id: f.client_id, client_secret: signedJwt() ? "" : f.client_secret ?? "", scopes: f.scope ?? "",
+            ...(signedJwt() ? { token_auth: "private_key_jwt", ...keyFields() } : {}),
             ...(Object.keys(authorize_extra).length ? { authorize_extra } : {}),
             ...(f.pkce === "off" ? { pkce: false } : {}),
             ...(f.issuer?.trim() ? { issuer: f.issuer.trim() } : {}),
@@ -519,10 +531,17 @@ export function Connections({
             ...(f.par_url ? { par_url: f.par_url } : {}),
             // Absent is the form body (or none, for a public app). A public
             // app sends no secret whatever was discovered.
-            ...(tokenAuth === "client_secret_basic" && hasSecret ? { token_auth: "client_secret_basic" } : {}),
+            ...(!signedJwt() && tokenAuth === "client_secret_basic" && hasSecret ? { token_auth: "client_secret_basic" } : {}),
           }, name: clientNameFor(name) }),
         });
-        if (!saved.ok) throw new Error(((await saved.json().catch(() => ({}))) as { error?: string }).error ?? "could not save the client");
+        const answer = (await saved.json().catch(() => ({}))) as { error?: string; public_jwk?: Record<string, unknown> };
+        if (!saved.ok) throw new Error(answer.error ?? "could not save the client");
+        // A key foldrun just made: the provider must know its public half
+        // before any consent can be signed for — shown, and Connect waits.
+        if (signedJwt() && !f.client_assertion_key?.trim() && answer.public_jwk) {
+          setJwk({ key: JSON.stringify(answer.public_jwk, null, 2), connect: name });
+          return;
+        }
         return connect(name);
       }
       setName(""); setF({});
@@ -837,13 +856,29 @@ export function Connections({
               {(kind === "oauth_m2m" || newApp) && <>
               <Field label="Token URL"><input value={f.token_url ?? ""} onChange={set("token_url")} placeholder="https://auth.example.com/token" className={inputClass(cred)} autoComplete="off" /></Field>
               <Field label="client_id"><input value={f.client_id ?? ""} onChange={set("client_id")} className={inputClass(cred)} autoComplete="off" /></Field>
-              <Field label={kind === "oauth" ? "client_secret (empty for a public app)" : "client_secret"}><input type="password" value={f.client_secret ?? ""} onChange={set("client_secret")} className={inputClass(cred)} autoComplete="new-password" /></Field>
+              {f.token_auth !== "private_key_jwt" && (
+                <Field label={kind === "oauth" ? "client_secret (empty for a public app)" : "client_secret"}><input type="password" value={f.client_secret ?? ""} onChange={set("client_secret")} className={inputClass(cred)} autoComplete="new-password" /></Field>
+              )}
               <Field label="Client authentication at the token URL">
                 <select value={f.token_auth ?? "client_secret_post"} onChange={set("token_auth")} className={selectClass("w-56")}>
                   <option value="client_secret_post">in the form body (most providers)</option>
                   <option value="client_secret_basic">HTTP Basic (Notion, Spotify, Reddit, Zoom)</option>
+                  <option value="private_key_jwt">signed JWT with a key (Entra certificates, Okta, FAPI)</option>
                 </select>
               </Field>
+              {f.token_auth === "private_key_jwt" && (
+                <div className="col-span-2">
+                  <Field label="Private key, PEM or JWK — leave empty and foldrun makes one">
+                    <textarea value={f.client_assertion_key ?? ""} onChange={set("client_assertion_key")} rows={3} placeholder="-----BEGIN PRIVATE KEY-----" className={inputClass(cred)} autoComplete="off" />
+                  </Field>
+                  <Field label="Its certificate, PEM (optional — Microsoft Entra names keys by it)">
+                    <textarea value={f.client_assertion_cert ?? ""} onChange={set("client_assertion_cert")} rows={2} placeholder="-----BEGIN CERTIFICATE-----" className={inputClass(cred)} autoComplete="off" />
+                  </Field>
+                  <p className="mt-1 text-xs text-fg-muted">
+                    The key signs a short JWT at the token URL instead of sending a secret. It is stored sealed, like a secret, and never shown again.
+                  </p>
+                </div>
+              )}
               {kind === "oauth" && (
                 <Field label="PKCE">
                   <select value={f.pkce ?? "on"} onChange={set("pkce")} className={selectClass("w-56")}>
@@ -873,6 +908,17 @@ export function Connections({
         </form>
         {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
         {notice && <p className="mt-2 text-xs text-fg-muted">{notice}</p>}
+        {jwk && (
+          <div className="mt-3 rounded border border-line p-3 text-xs">
+            <div className="font-medium">Register this public key with the provider (as a JWK, or the JWKS it asks for). It is not secret.</div>
+            <pre className="mt-2 overflow-x-auto font-mono text-[11px]">{jwk.key}</pre>
+            <div className="mt-2 flex gap-2">
+              <button type="button" onClick={() => void navigator.clipboard?.writeText(jwk.key)} className={buttonClass("secondary")}>Copy</button>
+              {jwk.connect && <button type="button" onClick={() => { const n = jwk.connect!; setJwk(null); void connect(n); }} className={buttonClass("primary")}>Registered — connect</button>}
+              {!jwk.connect && <button type="button" onClick={() => setJwk(null)} className={buttonClass("minimal")}>Done</button>}
+            </div>
+          </div>
+        )}
       </Card>
 
       <Card>

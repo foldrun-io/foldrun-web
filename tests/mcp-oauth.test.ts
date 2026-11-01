@@ -382,6 +382,42 @@ test("revocation: an access token ends the connection too; another app's token i
   assert.equal((await call(c.access_token, "tools/list")).status, 401);
 });
 
+test("private_key_jwt (RFC 7523): an app with a JWKS signs in with assertions; a replayed jti, a wrong aud, a secret beside it and a private key in jwks are refused", async () => {
+  const { generateClientKey, signClientAssertion, ASSERTION_TYPE } = await import("../../foldrun-core/src/oauth-assertion.ts");
+  const { privateKey, publicJwk } = generateClientKey();
+  const leaked = await postJson(register.POST, `${ORIGIN}/api/mcp/oauth/register`, { client_name: "x", redirect_uris: [CALLBACK], token_endpoint_auth_method: "private_key_jwt", jwks: { keys: [{ ...publicJwk, d: "secret" }] } });
+  assert.equal(leaked.status, 400, "a private key in jwks is refused at registration");
+  const reg = await postJson(register.POST, `${ORIGIN}/api/mcp/oauth/register`, { client_name: "Signed app", redirect_uris: [CALLBACK], token_endpoint_auth_method: "private_key_jwt", grant_types: ["authorization_code", "refresh_token"], jwks: { keys: [publicJwk] } });
+  assert.equal(reg.status, 201);
+  const app = (await reg.json()) as { client_id: string; client_secret?: string };
+  assert.equal(app.client_secret, undefined, "no secret is issued to a key-authenticated app");
+  const as = (await (await get(asm.GET, `${ORIGIN}/.well-known/oauth-authorization-server`)).json()) as { token_endpoint_auth_methods_supported: string[] };
+  assert.ok(as.token_endpoint_auth_methods_supported.includes("private_key_jwt"));
+
+  const sign = (aud = `${ORIGIN}/api/mcp/oauth/token`) => signClientAssertion({ client_id: app.client_id, client_assertion_key: privateKey }, aud);
+  const { verifier, challenge } = pkce();
+  const ok = await postJson(authorize.POST, `${ORIGIN}/api/mcp/oauth/authorize`, { request: requestQuery(app.client_id, challenge), decision: "approve", access: "read", workspaces: null }, { cookie: ownerCookie });
+  const code = new URL(((await ok.json()) as { redirect: string }).redirect).searchParams.get("code")!;
+  const first = sign();
+  const res = await postForm({ grant_type: "authorization_code", code, redirect_uri: CALLBACK, code_verifier: verifier, client_id: app.client_id, client_assertion_type: ASSERTION_TYPE, client_assertion: first });
+  assert.equal(res.status, 200, await res.clone().text());
+  const t = (await res.json()) as { access_token: string; refresh_token: string };
+  assert.equal((await call(t.access_token, "tools/list")).status, 200);
+
+  const replay = await postForm({ grant_type: "refresh_token", refresh_token: t.refresh_token, client_assertion_type: ASSERTION_TYPE, client_assertion: first });
+  assert.equal(replay.status, 401);
+  assert.match(((await replay.json()) as { error_description: string }).error_description, /already used/);
+  const wrongAud = await postForm({ grant_type: "refresh_token", refresh_token: t.refresh_token, client_assertion_type: ASSERTION_TYPE, client_assertion: sign("https://elsewhere.example/token") });
+  assert.equal(wrongAud.status, 401);
+  const both = await postForm({ grant_type: "refresh_token", refresh_token: t.refresh_token, client_secret: "x", client_assertion_type: ASSERTION_TYPE, client_assertion: sign() });
+  assert.equal(both.status, 400, "one method per request");
+  const noAssertion = await postForm({ grant_type: "refresh_token", refresh_token: t.refresh_token, client_id: app.client_id });
+  assert.equal(noAssertion.status, 401, "a key-authenticated app cannot fall back to no authentication");
+  // A fresh assertion refreshes; the issuer is an accepted aud too.
+  const fresh = await postForm({ grant_type: "refresh_token", refresh_token: t.refresh_token, client_assertion_type: ASSERTION_TYPE, client_assertion: sign(ORIGIN) });
+  assert.equal(fresh.status, 200, await fresh.clone().text());
+});
+
 test("the open registration endpoint is limited per address", async () => {
   let last: Response | undefined;
   for (let i = 0; i < 40; i++) {

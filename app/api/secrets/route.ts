@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { oauthBefore, revokeReplaced } from "@/platform/oauth-revoke";
+import { generateClientKey, publicJwkOf } from "@/lib/oauth-assertion";
 import { requireCaller, errorResponse, requirePermission, assertWorkspaceScope, refuse } from "@/server/api";
 import { assertMayWriteSecret } from "@/server/secret-writes";
 import { audit } from "@/server/audit";
@@ -97,6 +98,20 @@ async function putOnce(req: NextRequest) {
     // An oauth2 secret being replaced (a reconnect from the CLI, a rotation):
     // its old grant is revoked at the provider once the new value is in.
     const before = oauthBefore(tenant, body.name, scope);
+    // oauth2.generate_key: a private_key_jwt recipe with no key gets one
+    // (EC P-256); its public JWK comes back for the provider to register.
+    let publicJwk: Record<string, unknown> | undefined;
+    if (body.oauth2) {
+      const { generate_key, ...recipe } = body.oauth2 as OAuth2Config & { generate_key?: unknown };
+      if (generate_key === true && recipe.token_auth === "private_key_jwt" && !recipe.client_assertion_key) {
+        const made = generateClientKey("ES256");
+        Object.assign(recipe, { client_assertion_key: made.privateKey, client_assertion_kid: made.publicJwk.kid, client_assertion_alg: made.publicJwk.alg });
+        publicJwk = made.publicJwk;
+      } else if (recipe.token_auth === "private_key_jwt" && recipe.client_assertion_key) {
+        publicJwk = publicJwkOf(recipe.client_assertion_key, { ...(recipe.client_assertion_kid ? { kid: recipe.client_assertion_kid } : {}), ...(recipe.client_assertion_alg ? { alg: recipe.client_assertion_alg } : {}) });
+      }
+      body.oauth2 = recipe;
+    }
     if (body.oauth2) {
       setOAuth2Secret(tenant, body.name, body.oauth2, scope, limit);
       if (body.oauth2.grant_type !== "client_credentials") {
@@ -132,6 +147,7 @@ async function putOnce(req: NextRequest) {
       name: body.name,
       scope: scope ? "workspace" : "account",
       ...(revoked ? { revoked } : {}),
+      ...(publicJwk ? { public_jwk: publicJwk } : {}),
       ...(sites ? { sites } : {}),
       ...(workspaces !== undefined ? { workspaces } : {}),
     });

@@ -34,6 +34,7 @@ import { mcpOauthClients, mcpOauthGrants, mcpOauthTokens } from "@/platform/sche
 import { fetchPublic } from "@/platform/ssrf.ts";
 import { ROLES, type Role } from "@/platform/permissions.ts";
 import { audit } from "./audit.ts";
+import { ASSERTION_TYPE, ASSERTION_ALGS, verifyClientAssertion, type Jwk } from "@/lib/oauth-assertion.ts";
 
 export const SCOPES = ["mcp:read", "mcp:write"] as const;
 export type Scope = (typeof SCOPES)[number];
@@ -58,7 +59,8 @@ const INSTALL = "@install";
 
 // ------------------------------------------------------------------ records
 
-export type AuthMethod = "none" | "client_secret_post" | "client_secret_basic";
+export type AuthMethod = "none" | "client_secret_post" | "client_secret_basic" | "private_key_jwt";
+const AUTH_METHODS: AuthMethod[] = ["none", "client_secret_post", "client_secret_basic", "private_key_jwt"];
 
 export interface ClientRecord {
   client_id: string;
@@ -73,6 +75,9 @@ export interface ClientRecord {
   lastApprovedAt?: string;
   /** "dcr": registered here; "cimd": described by the document at client_id. */
   kind: "dcr" | "cimd";
+  /** private_key_jwt: the app's public keys, inline or at an https URL. */
+  jwks?: Jwk[];
+  jwks_uri?: string;
 }
 
 export interface GrantRecord {
@@ -97,7 +102,8 @@ export interface GrantRecord {
 }
 
 interface TokenRecord {
-  kind: "code" | "access" | "refresh";
+  /** "jti": a client assertion's id, kept until it expires so it is used once. */
+  kind: "code" | "access" | "refresh" | "jti";
   tenant: string;
   clientId: string;
   expiresAt: string;
@@ -165,12 +171,14 @@ export function authorizationServerMetadata(origin: string) {
     token_endpoint: `${issuer}/api/mcp/oauth/token`,
     registration_endpoint: `${issuer}/api/mcp/oauth/register`,
     revocation_endpoint: `${issuer}/api/mcp/oauth/revoke`,
-    revocation_endpoint_auth_methods_supported: ["none", "client_secret_post", "client_secret_basic"],
+    revocation_endpoint_auth_methods_supported: [...AUTH_METHODS],
+    revocation_endpoint_auth_signing_alg_values_supported: [...ASSERTION_ALGS],
     scopes_supported: [...SCOPES],
     response_types_supported: ["code"],
     response_modes_supported: ["query"],
     grant_types_supported: ["authorization_code", "refresh_token"],
-    token_endpoint_auth_methods_supported: ["none", "client_secret_post", "client_secret_basic"],
+    token_endpoint_auth_methods_supported: [...AUTH_METHODS],
+    token_endpoint_auth_signing_alg_values_supported: [...ASSERTION_ALGS],
     code_challenge_methods_supported: ["S256"],
     client_id_metadata_document_supported: true,
     authorization_response_iss_parameter_supported: true,
@@ -225,9 +233,10 @@ export async function registerClient(body: unknown): Promise<Record<string, unkn
     if (why) throw new OAuthError("invalid_redirect_uri", why);
   }
   const method = (b.token_endpoint_auth_method ?? "client_secret_basic") as string;
-  if (!["none", "client_secret_post", "client_secret_basic"].includes(method)) {
-    throw new OAuthError("invalid_client_metadata", "token_endpoint_auth_method is none, client_secret_post or client_secret_basic");
+  if (!(AUTH_METHODS as string[]).includes(method)) {
+    throw new OAuthError("invalid_client_metadata", `token_endpoint_auth_method is ${AUTH_METHODS.join(", ")}`);
   }
+  const keys = method === "private_key_jwt" ? keysOf(b) : {};
   const grantTypes = (b.grant_types ?? ["authorization_code"]) as unknown;
   if (!Array.isArray(grantTypes) || grantTypes.some((g) => g !== "authorization_code" && g !== "refresh_token")) {
     throw new OAuthError("invalid_client_metadata", "grant_types: authorization_code and refresh_token only");
@@ -247,7 +256,7 @@ export async function registerClient(body: unknown): Promise<Record<string, unkn
     if (!stale.length) throw new OAuthError("temporarily_unavailable", "this install holds as many registered apps as it takes", 503);
   }
   const client_id = random(CLIENT_PREFIX);
-  const secret = method === "none" ? undefined : random(SECRET_PREFIX);
+  const secret = method === "none" || method === "private_key_jwt" ? undefined : random(SECRET_PREFIX);
   const record: ClientRecord = {
     client_id,
     client_name: name,
@@ -255,6 +264,7 @@ export async function registerClient(body: unknown): Promise<Record<string, unkn
     token_endpoint_auth_method: method as AuthMethod,
     ...(secret ? { secretHash: sha(secret) } : {}),
     ...(clientUri ? { client_uri: clientUri } : {}),
+    ...keys,
     createdAt: new Date().toISOString(),
     kind: "dcr",
   };
@@ -268,8 +278,29 @@ export async function registerClient(body: unknown): Promise<Record<string, unkn
     response_types: ["code"],
     token_endpoint_auth_method: method,
     ...(clientUri ? { client_uri: clientUri } : {}),
+    ...(keys.jwks ? { jwks: { keys: keys.jwks } } : {}),
+    ...(keys.jwks_uri ? { jwks_uri: keys.jwks_uri } : {}),
     ...(secret ? { client_secret: secret, client_secret_expires_at: 0 } : {}),
   };
+}
+
+/** A private_key_jwt app's keys from its metadata: `jwks` ({ keys: [...] },
+ *  public keys only, at most 10) or an https `jwks_uri` — one, not both. */
+function keysOf(b: Record<string, unknown>): { jwks?: Jwk[]; jwks_uri?: string } {
+  const inline = b.jwks as { keys?: unknown } | undefined;
+  const uri = b.jwks_uri;
+  if (inline !== undefined && uri !== undefined) throw new OAuthError("invalid_client_metadata", "jwks or jwks_uri, not both");
+  if (uri !== undefined) {
+    if (typeof uri !== "string" || !/^https:\/\//.test(uri) || uri.length > 2000) throw new OAuthError("invalid_client_metadata", "jwks_uri is an https URL");
+    return { jwks_uri: uri };
+  }
+  const list = inline && typeof inline === "object" ? inline.keys : undefined;
+  if (!Array.isArray(list) || !list.length || list.length > 10) throw new OAuthError("invalid_client_metadata", "private_key_jwt needs jwks ({ keys: [...] }, one to ten) or jwks_uri");
+  for (const k of list) {
+    if (!k || typeof k !== "object" || typeof (k as Jwk).kty !== "string") throw new OAuthError("invalid_client_metadata", "each jwks key is a JWK");
+    if ("d" in (k as Jwk) || "p" in (k as Jwk) || "k" in (k as Jwk)) throw new OAuthError("invalid_client_metadata", "jwks holds public keys only — a private or symmetric key was sent");
+  }
+  return { jwks: list as Jwk[] };
 }
 
 const cimdCache = new Map<string, { at: number; record: ClientRecord }>();
@@ -308,12 +339,21 @@ export async function resolveClient(clientId: string): Promise<ClientRecord> {
   const uris = doc.redirect_uris;
   if (!Array.isArray(uris) || !uris.length || uris.some((u) => redirectProblem(u))) throw new OAuthError("invalid_client", "the metadata document's redirect_uris are missing or not allowed", 401);
   const method = (doc.token_endpoint_auth_method ?? "none") as string;
-  if (method !== "none") throw new OAuthError("invalid_client", "an app named by its metadata document authenticates with PKCE alone (token_endpoint_auth_method: none)", 401);
+  if (method !== "none" && method !== "private_key_jwt") throw new OAuthError("invalid_client", "an app named by its metadata document authenticates with PKCE alone or with private_key_jwt (token_endpoint_auth_method: none or private_key_jwt)", 401);
+  let docKeys: { jwks?: Jwk[]; jwks_uri?: string } = {};
+  if (method === "private_key_jwt") {
+    try {
+      docKeys = keysOf(doc);
+    } catch (err) {
+      throw new OAuthError("invalid_client", `the metadata document's keys: ${err instanceof Error ? err.message : String(err)}`, 401);
+    }
+  }
   const record: ClientRecord = {
     client_id: clientId,
     client_name: typeof doc.client_name === "string" && doc.client_name.trim() ? doc.client_name.trim().slice(0, 100) : new URL(clientId).host,
     redirect_uris: uris as string[],
-    token_endpoint_auth_method: "none",
+    token_endpoint_auth_method: method as AuthMethod,
+    ...docKeys,
     createdAt: new Date().toISOString(),
     kind: "cimd",
   };
@@ -421,8 +461,75 @@ export async function issueCode(req: AuthorizeRequest, who: { tenant: string; us
 
 // ------------------------------------------------------------------ token
 
+const jwksCache = new Map<string, { at: number; keys: Jwk[] }>();
+
+/** A private_key_jwt app's public keys: inline, or its jwks_uri through the
+ *  SSRF guard, cached five minutes and fetched again once on a kid it lacks. */
+async function clientKeys(client: ClientRecord, kid: string | undefined): Promise<Jwk[]> {
+  if (client.jwks) return client.jwks;
+  if (!client.jwks_uri) return [];
+  const hit = jwksCache.get(client.jwks_uri);
+  if (hit && Date.now() - hit.at < CIMD_TTL_MS && (!kid || hit.keys.some((k) => k.kid === kid))) return hit.keys;
+  try {
+    const res = await fetchPublic(client.jwks_uri, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(5000) }, { maxBytes: 64_000 });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const doc = (await res.json()) as { keys?: unknown };
+    const keys = Array.isArray(doc.keys) ? (doc.keys.filter((k) => k && typeof k === "object" && !("d" in k)) as Jwk[]) : [];
+    jwksCache.set(client.jwks_uri, { at: Date.now(), keys });
+    return keys;
+  } catch (err) {
+    throw new OAuthError("invalid_client", `could not read the app's keys at ${client.jwks_uri}: ${err instanceof Error ? err.message : String(err)}`, 401);
+  }
+}
+
+/** A signed client assertion (RFC 7523): verified against the app's keys,
+ *  for this server, short-lived, and its jti used once. */
+async function authenticateAssertion(form: URLSearchParams, origin: string): Promise<ClientRecord> {
+  if (form.get("client_assertion_type") !== ASSERTION_TYPE) throw new OAuthError("invalid_client", `client_assertion_type is ${ASSERTION_TYPE}`, 401);
+  const assertion = form.get("client_assertion") ?? "";
+  let iss: unknown;
+  let kid: string | undefined;
+  try {
+    const [h, c] = assertion.split(".");
+    kid = (JSON.parse(Buffer.from(h, "base64url").toString("utf8")) as { kid?: string }).kid;
+    iss = (JSON.parse(Buffer.from(c, "base64url").toString("utf8")) as { iss?: unknown }).iss;
+  } catch {
+    throw new OAuthError("invalid_client", "the client assertion is not a JWT", 401);
+  }
+  const given = form.get("client_id");
+  if (given && iss !== given) throw new OAuthError("invalid_client", "the client assertion's iss is not the client_id", 401);
+  const client = await resolveClient(given ?? (typeof iss === "string" ? iss : ""));
+  if (client.token_endpoint_auth_method !== "private_key_jwt") throw new OAuthError("invalid_client", "this app does not authenticate with private_key_jwt", 401);
+  const { issuer } = issuerOf(origin);
+  let verified;
+  try {
+    verified = verifyClientAssertion(assertion, {
+      clientId: client.client_id,
+      // The issuer, or the endpoint it was sent to (RFC 7523 §3; its successor names the issuer).
+      audiences: [issuer, `${issuer}/api/mcp/oauth/token`, `${issuer}/api/mcp/oauth/revoke`],
+      keys: await clientKeys(client, kid),
+    });
+  } catch (err) {
+    if (err instanceof OAuthError) throw err;
+    throw new OAuthError("invalid_client", err instanceof Error ? err.message : String(err), 401);
+  }
+  // Used once: the jti is claimed with an insert that only one of two racing
+  // requests can win (keyedStore.claim), and kept until the assertion
+  // expires; the hourly sweep drops it after.
+  const claimed = await tokens.claim(INSTALL, sha(`jti:${client.client_id}:${verified.jti}`), {
+    kind: "jti", tenant: "", clientId: client.client_id, expiresAt: new Date((verified.exp + 60) * 1000).toISOString(),
+  });
+  if (!claimed) throw new OAuthError("invalid_client", "this client assertion was already used — sign a new one (its jti is used once)", 401);
+  return client;
+}
+
 /** How the app proved itself at the token endpoint. */
-async function authenticateClient(form: URLSearchParams, authorization: string | null): Promise<ClientRecord> {
+async function authenticateClient(form: URLSearchParams, authorization: string | null, origin: string): Promise<ClientRecord> {
+  if (form.has("client_assertion") || form.has("client_assertion_type")) {
+    // One method per request (RFC 6749 §2.3).
+    if (form.has("client_secret") || (authorization && /^basic\s/i.test(authorization))) throw new OAuthError("invalid_request", "a client assertion and a client secret in one request — use one");
+    return authenticateAssertion(form, origin);
+  }
   let id = form.get("client_id");
   let secret = form.get("client_secret");
   if (authorization && /^basic\s/i.test(authorization)) {
@@ -434,6 +541,7 @@ async function authenticateClient(form: URLSearchParams, authorization: string |
   }
   if (!id) throw new OAuthError("invalid_client", "client_id is required", 401);
   const client = await resolveClient(id);
+  if (client.token_endpoint_auth_method === "private_key_jwt") throw new OAuthError("invalid_client", "this app authenticates with a signed client assertion (private_key_jwt)", 401);
   if (client.token_endpoint_auth_method !== "none") {
     if (!secret || !client.secretHash || !crypto.timingSafeEqual(Buffer.from(sha(secret)), Buffer.from(client.secretHash))) {
       throw new OAuthError("invalid_client", "the client secret did not match", 401);
@@ -466,7 +574,7 @@ async function mint(grant: GrantRecord, clientId: string, accessScope = grant.sc
 
 /** POST /api/mcp/oauth/token — a code for tokens, or a refresh token for new ones. */
 export async function tokenRequest(form: URLSearchParams, authorization: string | null, origin: string): Promise<TokenAnswer> {
-  const client = await authenticateClient(form, authorization);
+  const client = await authenticateClient(form, authorization, origin);
   const type = form.get("grant_type");
   if (type === "authorization_code") {
     const code = form.get("code") ?? "";
@@ -535,8 +643,8 @@ export async function tokenRequest(form: URLSearchParams, authorization: string 
  * either. A token that is unknown, expired or already revoked is answered
  * 200 (§2.2); one issued to another app is refused.
  */
-export async function revokeRequest(form: URLSearchParams, authorization: string | null): Promise<void> {
-  const client = await authenticateClient(form, authorization);
+export async function revokeRequest(form: URLSearchParams, authorization: string | null, origin: string): Promise<void> {
+  const client = await authenticateClient(form, authorization, origin);
   const token = form.get("token");
   if (!token) throw new OAuthError("invalid_request", "token is required");
   // token_type_hint is only a hint: an unknown one is ignored (§2.1).
@@ -650,4 +758,5 @@ export async function sweepTokens(): Promise<number> {
 /** For tests: forget the cached metadata documents. */
 export function _resetMcpOauthCaches(): void {
   cimdCache.clear();
+  jwksCache.clear();
 }
