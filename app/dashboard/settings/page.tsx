@@ -2,11 +2,13 @@ import { scopeAllows } from "@/platform/scope";
 import { platform } from "@/lib/platform";
 import Link from "next/link";
 import { CopyField } from "@/components/copy-field";
+import { McpConnections } from "./mcp-connections";
+import { connectionView, listGrants } from "@/server/mcp-oauth";
 import { ScheduleInYourTime } from "./schedule-in-your-time";
 import { cookies } from "next/headers";
 import { listApiKeys } from "@/server/auth";
 import { can } from "@/platform/permissions";
-import { verifySession, listMembers, listInvites, SESSION_COOKIE, viewerScope, viewerRole } from "@/server/users";
+import { verifySession, listMembers, listInvites, SESSION_COOKIE, viewerScope, viewerRole, viewerEmail } from "@/server/users";
 import { PauseCard } from "@/components/pause-card";
 import { TelemetryCard } from "@/components/telemetry-card";
 import { pauseView } from "@/server/pause";
@@ -106,6 +108,10 @@ export default async function SettingsPage({
   // only to workspace:manage (the rotate route), and so does this page.
   // No session — dev mode — is the owner.
   const role = await viewerRole();
+  // Connected AI apps (MCP over OAuth): an admin sees every one, anyone else their own.
+  const seesAllConnections = role === null || can(role, "keys:manage");
+  const me = (await viewerEmail())?.toLowerCase() ?? null;
+  const connections = (await listGrants(tenant)).filter((g) => seesAllConnections || g.email.toLowerCase() === me).map(connectionView);
   const managesWorkspaces = role === null || can(role, "workspace:manage");
   const halt = await pauseView(tenant, null, scope);
   const visibleWorkspaces = listWorkspaces(tenant).filter((w) => scopeAllows(scope, w.name));
@@ -383,10 +389,14 @@ claude mcp add --transport http foldrun ${installOrigin() ?? "https://<this inst
 { "mcpServers": { "foldrun": { "command": "foldrun", "args": ["mcp"] } } }`}
               </pre>
               <p className="text-xs text-fg-muted">
-                What a tool returns — run outputs, an agent&apos;s question, a file — is data from your runs, and the app is told so. <Link href={`/dashboard/docs/mcp${qs}`} className="text-accent hover:underline">MCP docs</Link>
+                claude.ai and other apps that sign in with OAuth need no key: add the address above as a custom connector, and you approve it here in foldrun. What a tool returns — run outputs, an agent&apos;s question, a file — is data from your runs, and the app is told so. <Link href={`/dashboard/docs/mcp${qs}`} className="text-accent hover:underline">MCP docs</Link>
               </p>
             </div>
           </details>
+          <div id="mcp-connections" className="mt-3 scroll-mt-20">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-fg-muted">Connected AI apps</p>
+            <McpConnections connections={connections} everyone={seesAllConnections} />
+          </div>
         </div>
 
         <SettingsSection wide id="api" title="API" description="How fast this account may call the API, which dated version answers it, and what it has called lately.">

@@ -80,7 +80,8 @@ test("a key and nothing else opens it", async () => {
   const none = await post({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }, { key: null });
   assert.equal(none.status, 401);
   assert.match(none.headers.get("www-authenticate") ?? "", /^Bearer /);
-  assert.match(((await none.json()) as Rpc).error!.message, /API key is required/);
+  assert.match(((await none.json()) as Rpc).error!.message, /send an API key/);
+  assert.match(none.headers.get("www-authenticate") ?? "", /resource_metadata="https:\/\/app\.example\.test\/\.well-known\/oauth-protected-resource\/api\/mcp"/);
 
   const cookie = await post({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }, { key: null, headers: { cookie: "foldrun_session=whatever" } });
   assert.equal(cookie.status, 401, "a session cookie never opens it");

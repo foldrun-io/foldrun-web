@@ -14,6 +14,9 @@ import { assertSafeName } from "@/lib/store.ts";
 import { verifySession, SESSION_COOKIE, roleOfUser , allowedWorkspaces } from "./users.ts";
 import { isRole, outranks, type Role } from "@/platform/permissions.ts";
 import { supportViewRefusal } from "./view-as.ts";
+import { ACCESS_PREFIX, resolveAccessToken, resourceMatches, lowerRole, intersectWorkspaces } from "./mcp-oauth.ts";
+import { isMcpInnerCall } from "./mcp-inner.ts";
+import { publicOrigin } from "./auth-flows.ts";
 import { databaseEnabled } from "@/platform/db.ts";
 import {
   insertApiKeyDb,
@@ -469,6 +472,9 @@ export interface Actor {
    *  sign-in on their machine, which owner-only acts accept (actsForOwner);
    *  absent for every other key. */
   origin?: "cli-login";
+  /** An AI app's OAuth connection to /api/mcp (server/mcp-oauth.ts): which
+   *  grant, which app, and whether the person made it read-only. */
+  mcp?: { grant: string; client: string; readOnly: boolean };
 }
 
 export type AuthResult =
@@ -511,12 +517,48 @@ export async function apiKeyFor(
   };
 }
 
+/**
+ * An AI app's OAuth access token (server/mcp-oauth.ts). It opens POST
+ * /api/mcp, and the routes a tool there calls in-process (marked by
+ * server/mcp-inner.ts) — nothing else. Bound to this install's /api/mcp
+ * (RFC 8707). It acts as the person who approved it, at the lower of the role
+ * they chose then and the one they hold now, in the workspaces both allow; a
+ * read-only connection is refused every write.
+ */
+async function resolveMcpAccessToken(req: NextRequest, presented: string): Promise<AuthResult> {
+  const inner = isMcpInnerCall(req.headers);
+  if (req.nextUrl.pathname !== "/api/mcp" && !inner) {
+    return { tenant: null, status: 403, message: "this is an AI app's connection to /api/mcp — it opens no other route; use an API key here" };
+  }
+  const got = await resolveAccessToken(presented);
+  if (!got.ok) return { tenant: null, status: 401, message: got.message };
+  const grant = got.grant;
+  if (!resourceMatches(grant.resource, publicOrigin(req))) return { tenant: null, status: 401, message: "this token was issued for another server" };
+  const now = await roleOfUser(grant.tenant, grant.userId);
+  if (!now) return { tenant: null, status: 401, message: `${grant.email} is no longer a member of this account` };
+  if (got.readOnly && inner && !["GET", "HEAD"].includes(req.method.toUpperCase())) {
+    return { tenant: null, status: 403, message: "this connection is read-only — it was approved for reading" };
+  }
+  return {
+    tenant: grant.tenant,
+    actor: {
+      kind: "key",
+      id: `mcp:${grant.id}`,
+      name: grant.email,
+      role: lowerRole(grant.role, now),
+      workspaces: intersectWorkspaces(grant.workspaces, await allowedWorkspaces(grant.tenant, grant.userId)),
+      mcp: { grant: grant.id, client: grant.clientName, readOnly: got.readOnly },
+    },
+  };
+}
+
 export async function resolveTenant(req: NextRequest): Promise<AuthResult> {
   const authz = req.headers.get("authorization");
   // `Bearer` however it is capitalised: a hand-written script that sends
   // `bearer` is not a different scheme.
   if (authz && /^bearer\s/i.test(authz)) {
     const presented = authz.replace(/^bearer\s+/i, "").trim();
+    if (presented.startsWith(ACCESS_PREFIX)) return resolveMcpAccessToken(req, presented);
     const record = await keyByHash(hash(presented));
     if (!record) return { tenant: null, status: 401, message: "invalid API key" };
     if (record.revokedAt) return { tenant: null, status: 401, message: "API key revoked" };

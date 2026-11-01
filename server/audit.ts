@@ -16,6 +16,10 @@ import { dataRoot } from "@/lib/paths.ts";
 
 export type AuditAction =
   | "login"
+  // An AI app connected to /api/mcp over OAuth, or its connection was
+  // revoked — by a person, or because a refresh token was used twice.
+  | "mcp.connected"
+  | "mcp.revoked"
   // The kill switch: a person or key paused or resumed runs (server/pause.ts).
   | "account.paused"
   | "account.resumed"

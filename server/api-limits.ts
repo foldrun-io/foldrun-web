@@ -29,6 +29,7 @@ import { recordApiCall } from "@/platform/api-usage";
 import { billing } from "@/platform/billing";
 import { adminState } from "@/platform/admin";
 import { apiKeyFor } from "./auth.ts";
+import { ACCESS_PREFIX as MCP_ACCESS_PREFIX, resolveAccessToken } from "./mcp-oauth.ts";
 import { verifySession, SESSION_COOKIE } from "./users.ts";
 import { supportExempt } from "./view-as.ts";
 import { resolveVersion, deprecationFor, deprecationHeaders, RESOLVED_VERSION_HEADER } from "./api-version.ts";
@@ -106,7 +107,12 @@ async function callerOf(req: NextRequest): Promise<Caller | null> {
   if (hit && hit.until > now) return hit.caller;
   let caller: Caller | null = null;
   try {
-    if (cacheKey.startsWith("b:")) {
+    if (cacheKey.startsWith("b:") && authz!.replace(/^bearer\s+/i, "").trim().startsWith(MCP_ACCESS_PREFIX)) {
+      // An AI app's OAuth token (server/mcp-oauth.ts): counted against its
+      // account, in a bucket of its own, the way a key is.
+      const got = await resolveAccessToken(authz!.replace(/^bearer\s+/i, "").trim());
+      if (got.ok) caller = { tenant: got.grant.tenant, credential: `key:mcp-${got.grant.id}`, who: `AI app "${got.grant.clientName}" (connection ${got.grant.id})` };
+    } else if (cacheKey.startsWith("b:")) {
       const k = await apiKeyFor(authz!.replace(/^bearer\s+/i, "").trim(), req.headers);
       // A deploy key is refused by the route; it still counts against its
       // account, by its hash, so a CI loop of refusals is throttled too.

@@ -20,6 +20,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { RESOLVED_VERSION_HEADER } from "./api-version.ts";
 import { versionInfo } from "./release.ts";
 import { publicOrigin } from "./auth-flows.ts";
+import { MCP_INNER_HEADER, mcpInnerSecret } from "./mcp-inner.ts";
 
 /** Protocol revisions this server speaks, newest first. */
 export const MCP_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"] as const;
@@ -336,6 +337,8 @@ export async function callTool(req: NextRequest, name: string, args: Args, readO
     if (v !== null) headers.set(h, v);
   }
   if (c.body) headers.set("content-type", "application/json");
+  // The mark that lets an AI app's OAuth token through to this one route.
+  headers.set(MCP_INNER_HEADER, mcpInnerSecret());
   const inner = new NextRequest(url, { method: c.method, headers, ...(c.body ? { body: JSON.stringify(c.body) } : {}) });
   const mod = await c.route();
   const handler = mod[c.method] as ((r: NextRequest, ctx: { params: Promise<Params> }) => Promise<Response>) | undefined;
