@@ -257,8 +257,9 @@ async function dispatch(ctx: Ctx, method: string, params: Record<string, unknown
     case "CancelTask":
       return cancelTask(ctx, params);
   }
-  const unserved = UNSERVED_METHODS[method];
-  if (unserved) throw unserved();
+  // Own keys only: a method named like an Object.prototype member
+  // (toString, constructor, __proto__) is not a method of ours.
+  if (Object.hasOwn(UNSERVED_METHODS, method)) throw UNSERVED_METHODS[method]!();
   throw new A2aError(RPC.METHOD_NOT_FOUND, "Method not found", { metadata: { method: method.slice(0, 100) } });
 }
 
