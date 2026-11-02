@@ -84,3 +84,6 @@ next-env.d.ts
 # The quality stack: its secrets and its reports (quality/run.sh)
 /quality/.state
 /quality/reports
+
+# SBOMs the security gate writes (.githooks/security.sh); CI keeps them as artifacts
+sbom/
