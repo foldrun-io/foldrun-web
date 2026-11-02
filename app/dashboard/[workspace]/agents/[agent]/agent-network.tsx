@@ -18,7 +18,7 @@ export interface AgentNetworkProps {
   /** What the agent's own `network:` says, read. */
   own: { level?: NetworkLevel; allow: string[]; defaults?: boolean } | null;
   /** The resolved policy, the way a run resolves it. */
-  resolved: { level: NetworkLevel; from: string; added: string[]; implied: string[]; defaults: boolean; readsWeb: boolean };
+  resolved: { level: NetworkLevel; from: string; added: string[]; implied: string[]; defaults: boolean; readsWeb: boolean; browses?: boolean };
   trustedCount: number;
   editable: boolean;
 }
@@ -86,6 +86,12 @@ export function AgentNetwork(p: AgentNetworkProps) {
           )}
           <li>A run also allows its MCP servers, web providers and the sites its secrets are bound to.</li>
         </ul>
+      )}
+      {r.browses && (
+        <p className="mt-2 rounded-md border border-warning-line bg-warning-soft px-2.5 py-1.5 text-xs text-warning">
+          This agent may browse, and a browsing step is not held to this list yet: its browser and its other programs reach sites directly.
+          To keep it inside the list, give it <code className="font-mono">web: {"{actions: [search, fetch]}"}</code>. Browsing comes under the list in a later release.
+        </p>
       )}
       {editing && (
         <form onSubmit={(e) => { e.preventDefault(); void save(); }} className="mt-3 flex flex-wrap items-end gap-2">
