@@ -54,7 +54,7 @@ export interface DraftResult {
   repaired: boolean;
   notes: string;
   /** Which supply answered: the workspace's provider or the platform's. */
-  supply: "provider" | "platform" | "mock";
+  supply: "provider" | "platform" | "foldrun" | "mock";
 }
 
 /** One completion. Injectable: the tests replace the model, and so does a
@@ -326,7 +326,7 @@ const modelCompleter: Completer = async ({ system, prompt, maxOutputTokens, tena
         costUsd = message.total_cost_usd ?? 0;
       }
     }
-  });
+  }, { kind: "draft", name: workspace });
   return { text, costUsd, supply: m.supply };
 };
 
