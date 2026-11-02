@@ -916,150 +916,13 @@ test("one place decides which clock a viewer reads", () => {
   );
 });
 
-// The secret is written in two places and read in a third. bootstrap.sh
-// creates it, token-refresh.sh REPLACES it every hour, and platform.yaml
-// mounts keys out of it — and `create secret --dry-run | apply` replaces the
-// whole object, so a key in bootstrap but not in token-refresh exists only
-// until the timer next fires.
-//
-// This is the bug this file was written for, in its most expensive form:
-// postgres-password was added to bootstrap.sh and not to token-refresh.sh, and
-// nothing failed for three days, because running pods keep the environment
-// they started with. The next pod created — a deploy, an eviction, a reboot —
-// died in CreateContainerConfigError, pointing at the deploy rather than at a
-// timer that had quietly emptied the key hours earlier.
+// The box's host scripts, timers, bootstrap and alert rules were checked here
+// against each other; they went with the box on 2 Nov 2026 (dev is the AWS
+// node, foldrun-infra's dev pipeline). Their tests went with them.
 
-/** Every --from-literal key a shell script writes into ONE named secret.
- *  Scoped to the block, because these scripts create more than one secret and
- *  the lists are only required to agree per-secret. */
-function secretKeysIn(rel: string, secret = "foldrun-keys"): Set<string> {
-  const source = read(rel);
-  const at = source.indexOf(`create secret generic ${secret}`);
-  if (at === -1) return new Set();
-  // The block runs to the --dry-run that terminates the pipeline.
-  const end = source.indexOf("--dry-run", at);
-  const block = source.slice(at, end === -1 ? undefined : end);
-  return new Set([...block.matchAll(/--from-literal=([a-zA-Z0-9_-]+)=/g)].map((m) => m[1]));
-}
 
-test("bootstrap and token-refresh write the same secret keys", { skip: needsInfra }, () => {
-  const bootstrap = secretKeysIn("../foldrun-infra/dev/bootstrap.sh");
-  const refresh = secretKeysIn("../foldrun-infra/dev/token-refresh.sh");
-  assert.ok(bootstrap.size > 5, "found the bootstrap key list at all");
-  const missing = [...bootstrap].filter((k) => !refresh.has(k));
-  assert.deepEqual(
-    missing,
-    [],
-    `token-refresh.sh replaces the whole secret, so these keys would be deleted ` +
-      `the next time the timer fires: ${missing.join(", ")}`,
-  );
-  const extra = [...refresh].filter((k) => !bootstrap.has(k));
-  assert.deepEqual(extra, [], `keys a fresh box would never get: ${extra.join(", ")}`);
-});
 
-test("every secret key the manifests read is one the scripts write", { skip: needsInfra }, () => {
-  const written = secretKeysIn("../foldrun-infra/dev/bootstrap.sh");
-  const manifest = read("../foldrun-infra/manifests/base/platform.yaml");
-  const referenced = [
-    ...manifest.matchAll(/secretKeyRef:\s*\{\s*name:\s*foldrun-keys,\s*key:\s*([a-z0-9-]+)([^}]*)\}/g),
-  ];
-  assert.ok(referenced.length > 5, "found the secretKeyRefs at all");
-  for (const [, key, rest] of referenced) {
-    // An optional key may be absent by design; a required one may not.
-    if (rest.includes("optional: true")) continue;
-    assert.ok(written.has(key), `platform.yaml requires ${key}, which bootstrap.sh never writes`);
-  }
-});
 
-test("the scripts restart deployments that exist", { skip: needsInfra }, () => {
-  // Every manifest, not just platform.yaml: the datastores are Deployments
-  // too, and token-refresh.sh reaches deploy/foldrun-postgres to ask the
-  // queue whether a run is in flight before it restarts the worker.
-  // Every YAML under manifests/ (27 Oct 2026: a component's Deployment, the
-  // console's, was missed when this read two named files).
-  const manifestFiles = (dir: string): string[] =>
-    fs.readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap((e) =>
-      e.isDirectory() ? manifestFiles(path.join(dir, e.name)) : /\.ya?ml$/.test(e.name) && e.name !== "kustomization.yaml" ? [path.join(dir, e.name)] : [],
-    );
-  const docs = manifestFiles("../foldrun-infra/manifests").flatMap((f) => (yaml.loadAll(read(f)) as any[]).filter((d) => d && typeof d === "object"));
-  const deployments = new Set(
-    docs.filter((d) => d?.kind === "Deployment").map((d) => d.metadata.name as string),
-  );
-  for (const rel of ["../foldrun-infra/dev/token-refresh.sh", "../foldrun-infra/dev/deploy.sh"]) {
-    for (const [, name] of read(rel).matchAll(/deploy\/([a-z0-9-]+)/g)) {
-      // deploy.sh deletes the pre-split deployment on purpose; it is the one
-      // name that is expected NOT to be in the manifests.
-      if (name === "foldrun-platform" && rel.endsWith("deploy.sh")) continue;
-      assert.ok(deployments.has(name), `${rel} names deploy/${name}, which no manifest creates`);
-    }
-  }
-});
-
-// The host scripts are the third place a change can land and not run. They
-// are systemd timers on the box, so deploy.sh's rollout never touches them —
-// install-host-scripts.sh is the one thing that does, and both bootstrap.sh
-// and deploy.sh call it. These tests keep its three lists agreeing with the
-// unit files beside it.
-
-const installer = () => read("../foldrun-infra/dev/install-host-scripts.sh");
-
-test("every unit file in the directory is one the installer installs", { skip: needsInfra }, () => {
-  const onDisk = fs
-    .readdirSync(path.join(root, "../foldrun-infra/dev"))
-    .filter((f) => f.endsWith(".service") || f.endsWith(".timer"))
-    .map((f) => f.replace(/\.(service|timer)$/, ""));
-  assert.ok(onDisk.length > 0, "found unit files at all");
-  // Two shapes. UNITS is a timer and its service, installed as a pair.
-  // SERVICES is a unit with no timer — something that runs continuously
-  // rather than on a schedule (the ssh tunnel's connector), installed via
-  // FILES and RESTARTED on change. Either list counts as installed.
-  const listOf = (name: string) =>
-    (installer().match(new RegExp(`^${name}="([^"]+)"`, "m"))?.[1] ?? "").split(/\s+/).filter(Boolean);
-  const listed = [...listOf("UNITS"), ...listOf("SERVICES")];
-  assert.ok(listed.length > 0, "found the UNITS list at all");
-  for (const unit of new Set(onDisk)) {
-    assert.ok(listed.includes(unit), `${unit} has unit files but the installer never installs it`);
-  }
-});
-
-test("a service with no timer is restarted, not just enabled", { skip: needsInfra }, () => {
-  // `systemctl enable --now` does NOT restart a unit that is already
-  // running. On 2026-09-09 that left a leftover quick tunnel serving under
-  // a replaced unit file, and the named tunnel never started.
-  const src = installer();
-  assert.match(src, /for svc in \$SERVICES; do[\s\S]*?systemctl restart "\$svc"/, "SERVICES must be restarted");
-});
-
-test("every ExecStart points at a path the installer writes, or at a system binary", { skip: needsInfra }, () => {
-  const installs = new Set(
-    [...installer().matchAll(/^[a-z-]+\.sh:(\S+)$/gm)].map((m) => m[1]),
-  );
-  assert.ok(installs.size > 0, "found the script map at all");
-  for (const f of fs.readdirSync(path.join(root, "../foldrun-infra/dev"))) {
-    if (!f.endsWith(".service")) continue;
-    const exec = read(`../foldrun-infra/dev/${f}`).match(/^ExecStart=(\S+)/m)?.[1];
-    assert.ok(exec, `${f} has no ExecStart`);
-    // A unit may run something this repo ships (the timers) or a binary the
-    // box installs from a package (cloudflared). What it may NOT do is run
-    // something from a path nobody puts anything at — that is the failure
-    // this catches, a unit pointing into a checkout or a temp directory.
-    const shipped = installs.has(exec!);
-    const system = /^\/usr\/(bin|sbin)\//.test(exec!);
-    assert.ok(shipped || system, `${f} runs ${exec}, which nothing installs and is not a system binary`);
-  }
-});
-
-test("only the installer installs host scripts — one definition, not three", { skip: needsInfra }, () => {
-  // bootstrap.sh used to do this itself, which is exactly why a fixed
-  // token-refresh.sh could sit unrun on the box for three days.
-  for (const rel of ["../foldrun-infra/dev/bootstrap.sh", "../foldrun-infra/dev/deploy.sh"]) {
-    assert.equal(
-      /install -m755[^\n]*\/usr\/local\/bin\/foldrun-/.test(read(rel)),
-      false,
-      `${rel} installs a host script directly instead of calling install-host-scripts.sh`,
-    );
-  }
-});
 
 // --------------------------------------------------------- cluster hardening
 //
@@ -1139,72 +1002,7 @@ test("the datastores may not open an outbound connection except DNS", { skip: ne
   }
 });
 
-// An alert on a metric nothing emits never fires, and a never-firing alert is
-// indistinguishable from a healthy system. So every foldrun_* metric named in
-// the rules has to be one something actually produces — the API endpoint or
-// the host collector.
-test("every foldrun_ metric an alert references is one we emit", { skip: needsInfra }, () => {
-  const emitted = new Set([
-    ...[...read("app/api/metrics/route.ts").matchAll(/^\s*"# HELP (foldrun_\w+)/gm)].map((m) => m[1]),
-    // The billing gauges are composed in the platform and spliced into the
-    // same response; their names live where they are produced.
-    ...[...read("../foldrun-platform/src/billing-metrics.ts").matchAll(/# HELP (foldrun_\w+)/g)].map((m) => m[1]),
-    // The room gauges (27 Oct 2026), composed the same way.
-    ...[...read("../foldrun-platform/src/room-metrics.ts").matchAll(/# HELP (foldrun_\w+)/g)].map((m) => m[1]),
-    ...[...read("../foldrun-infra/dev/node-metrics.sh").matchAll(/# HELP (foldrun_\w+)/g)].map((m) => m[1]),
-  ]);
-  assert.ok(emitted.size > 5, "found the emitted metric names at all");
-  const referenced = new Set(
-    [...read("../foldrun-infra/dev/observability/alerts.yaml").matchAll(/\b(foldrun_\w+)/g)].map((m) => m[1]),
-  );
-  assert.ok(referenced.size > 3, "found the alert expressions at all");
-  for (const metric of referenced) {
-    assert.ok(emitted.has(metric), `alerts.yaml watches ${metric}, which nothing emits`);
-  }
-});
 
-// dev.env.example is the only copy of the environment anyone can read —
-// the real file is gitignored, and rightly so. That makes it the fourth list in
-// this file that drifts: bootstrap.sh gained FOLDRUN_POSTGRES_PASSWORD as a
-// HARD requirement (${VAR:?}, so the script exits) and the example never
-// mentioned it, which means the documented way to build a fresh box stopped
-// working and nothing said so.
-test("every variable bootstrap.sh requires is documented in the example", { skip: needsInfra }, () => {
-  const example = read("../foldrun-infra/dev/dev.env.example");
-  // backup.sh left with the nightly backup (foldrun-infra 40b7f31, 11 Oct).
-  const scripts = ["bootstrap.sh", "token-refresh.sh", "node-metrics.sh"]
-    .map((f) => read(`../foldrun-infra/dev/${f}`))
-    .join("\n");
-
-  // ${VAR:?...} — the script refuses to run without it.
-  const required = new Set(
-    [...scripts.matchAll(/\$\{([A-Z][A-Z0-9_]*):\?/g)].map((m) => m[1]),
-  );
-  assert.ok(required.size > 2, "found the required-variable syntax at all");
-  for (const key of required) {
-    assert.ok(
-      new RegExp(`\\b${key}=`).test(example),
-      `bootstrap refuses to run without ${key}, and the example never mentions it`,
-    );
-  }
-
-  // ${VAR:-} with an EMPTY default — optional, but read from the env file, so
-  // it still needs a line or nobody knows it exists. A non-empty default
-  // (${K3S_CHANNEL:-stable}) is a knob with a built-in answer, not something
-  // anyone puts in the file, and SUDO_USER is handed to the script by sudo.
-  const FROM_THE_ENVIRONMENT = new Set(["SUDO_USER"]);
-  const optional = new Set(
-    [...scripts.matchAll(/\$\{([A-Z][A-Z0-9_]*):-\}/g)]
-      .map((m) => m[1])
-      .filter((k) => !FROM_THE_ENVIRONMENT.has(k)),
-  );
-  const undocumented = [...optional].filter((k) => !new RegExp(`\\b${k}=`).test(example));
-  assert.deepEqual(
-    undocumented,
-    [],
-    `read by the install scripts but documented nowhere: ${undocumented.join(", ")}`,
-  );
-});
 
 // The scaffolded CLAUDE.md is what a coding tool reads instead of guessing, so
 // a feature missing from it is a feature the author's tool does not know
@@ -1688,10 +1486,12 @@ test("every deploy sets the runner image in the same rollout as the platform ima
   // FOLDRUN_RUNNER_IMAGE is an env var, so kustomize's image edit never
   // reaches it. Setting it with `set env` after the apply rolled the pods
   // twice, and the first pod handed run pods localhost:5000/…:bootstrap.
+  // dev pins it with the images, in one commit the apply rolls at once
+  // (staging-pin.sh writes runner-size-patch.yaml); prod patches it into the
+  // render (prod-deploy.yml).
   for (const f of [
     "../foldrun-infra/.github/workflows/prod-deploy.yml",
-    "../foldrun-infra/.github/workflows/box-deploy.yml",
-    "../foldrun-infra/dev/deploy.sh",
+    "../foldrun-infra/dev/ci/staging-pin.sh",
   ]) {
     const src = read(f);
     assert.doesNotMatch(src, /set env[^\n]*FOLDRUN_RUNNER_IMAGE/, `${f}: FOLDRUN_RUNNER_IMAGE set in a separate rollout`);
