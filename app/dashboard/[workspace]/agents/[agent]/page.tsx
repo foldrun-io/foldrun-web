@@ -107,6 +107,7 @@ export default async function AgentPage({
         <div className="mt-2 flex flex-wrap gap-1.5">
           <Badge variant="info">{info.model}</Badge>
           {info.effort ? <Badge variant="info">effort: {info.effort}</Badge> : null}
+          {info.maxOutputTokens ? <Badge variant="info">longest reply: {info.maxOutputTokens} tokens</Badge> : null}
           {info.tools.length ? info.tools.map((t) => <Badge key={t}>{t}</Badge>) : <Badge>no tools</Badge>}
           {info.apis.map((a) => (
             <Badge key={a.name} variant="info">{a.name}</Badge>

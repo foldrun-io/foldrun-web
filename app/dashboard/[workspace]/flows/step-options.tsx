@@ -48,6 +48,7 @@ export function StepOptionsEditor({
   const router = useRouter();
   const [model, setModel] = useState(step.model ?? "");
   const [effort, setEffort] = useState(step.effort ?? "");
+  const [maxOut, setMaxOut] = useState(step.maxOutputTokens != null ? String(step.maxOutputTokens) : "");
   const [retry, setRetry] = useState(step.retry != null ? String(step.retry) : "");
   const [timeout_, setTimeout_] = useState(step.timeout != null ? String(step.timeout) : "");
   const [verify, setVerify] = useState(step.verify ?? "");
@@ -82,6 +83,7 @@ export function StepOptionsEditor({
         options: {
           model: opt(model),
           effort: opt(effort),
+          max_output_tokens: opt(maxOut),
           retry: opt(retry),
           timeout: opt(timeout_),
           verify: opt(verify),
@@ -120,6 +122,10 @@ export function StepOptionsEditor({
           placeholder="low · medium · high · xhigh · max"
           className={FIELD}
         />
+      </label>
+      <label>
+        <span className={LABEL}>Longest reply (tokens)</span>
+        <input value={maxOut} onChange={(e) => setMaxOut(e.target.value)} inputMode="numeric" placeholder="the agent's" className={FIELD} />
       </label>
       <label>
         <span className={LABEL}>Retries on failure</span>
