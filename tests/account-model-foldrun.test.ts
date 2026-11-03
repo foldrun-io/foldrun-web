@@ -26,6 +26,14 @@ const { setSupplyLeversForTest } = await import("@/platform/settings");
 const keys = await import("@/platform/model-keys");
 const { resetModelChoicesForTests } = await import("@/platform/model-choice");
 const { accountModelSupply } = await import("../server/account-model.ts");
+const { edition } = await import("@/platform/ledger");
+
+// foldrun's models are hosted-only, and a build without billing is
+// self-hosted whatever the environment says (ledger.ts edition()): there
+// these cases skip, and the hosted check (foldrun-admin scripts/check.sh)
+// runs them. The last case — nothing offered off the hosted platform —
+// runs in both.
+const hosted = { skip: edition() === "hosted" ? false : "a build without billing is self-hosted: foldrun's models are not offered (the hosted check runs this)" };
 
 const { key: owner } = await createApiKey("acme", "ci", "ci@acme.test", undefined, "admin", null);
 const { key: admin } = await createApiKey("acme", "ci2", "ci2@acme.test", undefined, "admin", null);
@@ -39,7 +47,7 @@ keys.resetModelKeysForTests();
 setSupplyLeversForTest([]);
 await keys.setModelKey("anthropic", ["sk", "ant", "platform", "xxxxxxxxxxxxxxxx"].join("-"), "operator:test");
 
-test("GET: offered, which providers are ready and why the others are not, today's spend", async () => {
+test("GET: offered, which providers are ready and why the others are not, today's spend", hosted, async () => {
   const r = await (await get()).json();
   assert.equal(r.source, "own");
   assert.equal(r.choiceVersion, 0);
@@ -54,11 +62,11 @@ test("GET: offered, which providers are ready and why the others are not, today'
   assert.doesNotMatch(JSON.stringify(r), /platform-xxxx/, "never the platform's key");
 });
 
-test("a viewer cannot choose", async () => {
+test("a viewer cannot choose", hosted, async () => {
   assert.equal((await put({ source: "foldrun", supply: "anthropic" }, viewer)).status, 403);
 });
 
-test("a provider the platform cannot serve is refused at the choice", async () => {
+test("a provider the platform cannot serve is refused at the choice", hosted, async () => {
   const r = await put({ source: "foldrun", supply: "openai" });
   assert.equal(r.status, 409);
   assert.match((await r.json()).error, /not available/);
@@ -66,7 +74,7 @@ test("a provider the platform cannot serve is refused at the choice", async () =
   assert.equal((await put({ source: "theirs" })).status, 400);
 });
 
-test("the owner chooses anthropic: runs on foldrun's models; a stale version is a 409", async () => {
+test("an admin chooses anthropic: runs on foldrun's models; a stale version is a 409", hosted, async () => {
   const r = await put({ source: "foldrun", supply: "anthropic", ifVersion: 0 });
   assert.equal(r.status, 200, JSON.stringify(await r.clone().json()));
   const b = await r.json();
@@ -75,7 +83,7 @@ test("the owner chooses anthropic: runs on foldrun's models; a stale version is 
   assert.equal((await put({ source: "own", ifVersion: 0 })).status, 409);
 });
 
-test("a key alone never changes the choice; source own goes back", async () => {
+test("a key alone never changes the choice; source own goes back", hosted, async () => {
   const k = await put({ provider: "openrouter", apiKey: ["sk", "or", "v1", "customer", "yyyyyyyy"].join("-") });
   assert.equal(k.status, 200);
   const b = await k.json();
@@ -84,14 +92,14 @@ test("a key alone never changes the choice; source own goes back", async () => {
   assert.deepEqual({ source: back.source, supply: back.supply, runsOn: back.runsOn }, { source: "own", supply: null, runsOn: "account" });
 });
 
-test("a key sent with a stale choice version is not stored either", async () => {
+test("a key sent with a stale choice version is not stored either", hosted, async () => {
   const before = (await (await get()).json()).keyHint;
   const r = await put({ provider: "openrouter", apiKey: ["sk", "or", "v1", "other", "zzzzzzzz"].join("-"), source: "own", ifVersion: 0 });
   assert.equal(r.status, 409);
   assert.equal((await (await get()).json()).keyHint, before, "the key is unchanged");
 });
 
-test("refused for this account by the operator: GET says why, and the choice is refused", async () => {
+test("refused for this account by the operator: GET says why, and the choice is refused", hosted, async () => {
   setSupplyLeversForTest(["acme"]);
   try {
     const r = await (await get()).json();
