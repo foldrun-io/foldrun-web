@@ -15,7 +15,7 @@ import path from "node:path";
 process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-model-foldrun-"));
 process.env.FOLDRUN_EDITION = "hosted";
 process.env.FOLDRUN_MODEL_SUPPLY = "1";
-process.env.FOLDRUN_MODEL_SUPPLY_PROVIDERS = "anthropic,openai,gemini,openrouter";
+process.env.FOLDRUN_MODEL_SUPPLY_PROVIDERS = "anthropic,openai,gemini,deepseek,moonshot";
 delete process.env.FOLDRUN_DEV_NO_AUTH;
 delete process.env.FOLDRUN_DATABASE_URL;
 fs.mkdirSync(path.join(process.env.FOLDRUN_DATA, "acme", "workspaces"), { recursive: true });

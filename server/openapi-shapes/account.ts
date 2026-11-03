@@ -107,7 +107,7 @@ const AccountModel = obj({
   runsOn: str("account | platform | foldrun | none — what a step with no provider: runs on today"),
   platformKeyAllowed: bool,
   source: str("own | foldrun — what the account chose: its own key, or foldrun's models"),
-  supply: nstr("with source foldrun: anthropic | openai | gemini | openrouter"),
+  supply: nstr("with source foldrun: anthropic | openai | gemini | deepseek | moonshot"),
   choiceVersion: { ...int, description: "the choice's version, for PUT's ifVersion (0: never chosen)" },
 });
 
@@ -247,7 +247,7 @@ export const SHAPES: Record<string, Shape> = {
       baseUrl: str("https://; required for custom and for a preset whose address is per account"),
       format: str("anthropic | openai"),
       source: str("own | foldrun — foldrun runs on foldrun's models, billed in credits; a key alone never changes it"),
-      supply: str("with source foldrun: anthropic | openai | gemini | openrouter"),
+      supply: str("with source foldrun: anthropic | openai | gemini | deepseek | moonshot"),
       ifVersion: { ...int, description: "the choiceVersion you read; a stale one is a 409" },
     }),
     response: { ...AccountModelView, properties: { ok: bool, ...(AccountModelView.properties as Record<string, Schema>) } },
