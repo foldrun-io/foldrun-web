@@ -7,6 +7,7 @@ import { providerPreset, PROVIDERS } from "@/lib/providers";
 import { platform } from "@/lib/platform";
 import { accountDir, parseProvider } from "@/lib/store";
 import { readAgentsMdKeys } from "@/lib/agents-md";
+import { modelChoiceOf } from "@/platform/model-choice";
 
 export interface AccountModel {
   set: boolean;
@@ -15,9 +16,17 @@ export interface AccountModel {
   format: string | null;
   /** The key's last four characters, so a person can tell which key it is. */
   keyHint: string | null;
-  /** What a step with no provider: block runs on today. */
-  runsOn: "account" | "platform" | "none";
+  /** What a step with no provider: block runs on today. "foldrun": the
+   *  platform's keys for `supply`, billed in credits (foldrunModels says
+   *  whether they stand for this account now). */
+  runsOn: "account" | "platform" | "foldrun" | "none";
   platformKeyAllowed: boolean;
+  /** What the account chose: its own key, or foldrun's models. */
+  source: "own" | "foldrun";
+  /** With source "foldrun": anthropic | openai | gemini | openrouter. */
+  supply: string | null;
+  /** The choice's version, for a PUT's ifVersion (0: never chosen). */
+  choiceVersion: number;
 }
 
 export function describeAccountModel(tenant: string): AccountModel {
@@ -27,26 +36,33 @@ export function describeAccountModel(tenant: string): AccountModel {
   const baseUrl = read(ACCOUNT_MODEL_SECRETS.baseUrl);
   const format = read(ACCOUNT_MODEL_SECRETS.format);
   const platformKey = platform.platformKeyAllowed(tenant);
+  const choice = modelChoiceOf(tenant);
+  const foldrun = choice.source === "foldrun" && choice.provider !== null;
   return {
     set: Boolean(key),
     provider: key ? provider ?? (baseUrl ? "custom" : null) : null,
     baseUrl: key ? baseUrl ?? providerPreset(provider)?.baseUrl ?? null : null,
     format: key ? format ?? providerPreset(provider)?.format ?? "anthropic" : null,
     keyHint: key ? `…${key.slice(-4)}` : null,
-    runsOn: key ? "account" : platformKey ? "platform" : "none",
+    runsOn: foldrun ? "foldrun" : key ? "account" : platformKey ? "platform" : "none",
     platformKeyAllowed: platformKey,
+    source: foldrun ? "foldrun" : "own",
+    supply: foldrun ? choice.provider : null,
+    choiceVersion: choice.version,
   };
 }
 
 /**
  * What a step that names no provider: of its own runs on, in the account's
  * terms: its own key, a provider: block in the account's AGENTS.md, the
- * platform's credential, or nothing — in which case the runner refuses the
- * step (runner.ts, model-env.ts). The onboarding step and the dashboard's
+ * platform's credential, foldrun's models (chosen in Settings), or nothing —
+ * in which case the runner refuses the step (runner.ts, model-env.ts). The onboarding step and the dashboard's
  * banner read this, so they say what the runner will do. A provider: in one
  * workspace's AGENTS.md covers that workspace alone and is not counted.
  */
-export function accountModelSupply(tenant: string): "account" | "provider" | "platform" | "none" {
+export function accountModelSupply(tenant: string): "account" | "provider" | "platform" | "foldrun" | "none" {
+  const choice = modelChoiceOf(tenant);
+  if (choice.source === "foldrun" && choice.provider) return "foldrun";
   if (getSecret(tenant, ACCOUNT_MODEL_SECRETS.key)?.value) return "account";
   if (parseProvider(readAgentsMdKeys(accountDir(tenant)).provider)?.baseUrl) return "provider";
   return platform.platformKeyAllowed(tenant) ? "platform" : "none";

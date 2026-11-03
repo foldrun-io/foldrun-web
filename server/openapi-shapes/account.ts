@@ -104,9 +104,22 @@ const AccountModel = obj({
   provider: nstr("a preset name, custom, or null when no key is set"),
   baseUrl: nstr(), format: nstr("anthropic | openai"),
   keyHint: nstr("…and the key's last four characters"),
-  runsOn: str("account | platform | none — what a step with no provider: runs on today"),
+  runsOn: str("account | platform | foldrun | none — what a step with no provider: runs on today"),
   platformKeyAllowed: bool,
+  source: str("own | foldrun — what the account chose: its own key, or foldrun's models"),
+  supply: nstr("with source foldrun: anthropic | openai | gemini | openrouter"),
+  choiceVersion: { ...int, description: "the choice's version, for PUT's ifVersion (0: never chosen)" },
 });
+
+const FoldrunModels = obj({
+  offered: { ...bool, description: "the platform offers foldrun's models: hosted, switched on, a provider ready" },
+  refused: nstr("why this account cannot run on them now; null when it can"),
+  providers: arr(obj({ name: str(), title: str(), available: bool, reason: nstr("why not, when not available"), tiers: { type: "object", additionalProperties: str(), description: "fast | default | max → the model id it runs; empty: the provider's own" } })),
+  prices: arr(obj({ provider: str(), model: str(), inputPerMTok: num, outputPerMTok: num, cacheReadPerMTok: nullable(num), cacheWritePerMTok: nullable(num) }), "USD per million tokens, as the account pays"),
+  dailyCapUsd: { ...nullable(num), description: "the day's cap (UTC) in what the account pays; null: none" },
+  spentTodayUsd: { ...num, description: "spent today (UTC) on foldrun's models, in what the account pays" },
+});
+const AccountModelView = { ...AccountModel, properties: { ...(AccountModel.properties as Record<string, Schema>), foldrunModels: FoldrunModels } };
 
 const ProviderCheck = obj({
   provider: str("its preset name, or its host"), model: str("the model id a run would send"),
@@ -226,20 +239,20 @@ export const SHAPES: Record<string, Shape> = {
       ),
     }),
   },
-  "GET /api/account/model": { response: AccountModel },
+  "GET /api/account/model": { response: AccountModelView },
   "PUT /api/account/model": {
-    body: obj(
-      {
-        provider: str("a preset name (anthropic, openrouter, openai, groq, …) or custom"),
-        apiKey: str("write-only; a Claude login token is refused unless the account may use the platform's credential"),
-        baseUrl: str("https://; required for custom and for a preset whose address is per account"),
-        format: str("anthropic | openai"),
-      },
-      ["apiKey"],
-    ),
-    response: { ...AccountModel, properties: { ok: bool, ...(AccountModel.properties as Record<string, Schema>) } },
+    body: obj({
+      provider: str("a preset name (anthropic, openrouter, openai, groq, …) or custom"),
+      apiKey: str("write-only; required unless source is given; a Claude login token is refused unless the account may use the platform's credential"),
+      baseUrl: str("https://; required for custom and for a preset whose address is per account"),
+      format: str("anthropic | openai"),
+      source: str("own | foldrun — foldrun runs on foldrun's models, billed in credits; a key alone never changes it"),
+      supply: str("with source foldrun: anthropic | openai | gemini | openrouter"),
+      ifVersion: { ...int, description: "the choiceVersion you read; a stale one is a 409" },
+    }),
+    response: { ...AccountModelView, properties: { ok: bool, ...(AccountModelView.properties as Record<string, Schema>) } },
   },
-  "DELETE /api/account/model": { response: { ...AccountModel, properties: { ok: bool, ...(AccountModel.properties as Record<string, Schema>) } } },
+  "DELETE /api/account/model": { response: { ...AccountModelView, properties: { ok: bool, ...(AccountModelView.properties as Record<string, Schema>) } } },
   "GET /api/account/pause": { response: PauseView },
   "POST /api/account/pause": {
     body: obj({ reason: str("at most 300 characters"), stop: { ...bool, description: "true also stops every running, queued or parked run (needs run:start)" } }),

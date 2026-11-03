@@ -67,6 +67,7 @@ export type AuditAction =
   | "oauth.device.started"
   | "model.key_set"
   | "model.key_removed"
+  | "model.source_set"
   // What went live, and what went away.
   | "workspace.deployed"
   | "workspace.deleted"

@@ -90,7 +90,7 @@ export function ProviderCheck({
           <p className="text-sm font-semibold text-fg">Provider check</p>
           <p className="mt-0.5 text-sm text-fg-tertiary">
             {configured.length === 0
-              ? "No agent here names its own provider, so every model call uses the platform's key — there is nothing of yours to check."
+              ? "No agent here names its own provider: every model call uses the account's choice above, so there is no provider: block to check."
               : last
                 ? <>Each provider your agents use is sent one tiny request a day. Last checked <LocalTime iso={last.checkedAt} />.</>
                 : "Each provider your agents use is sent one tiny request a day. None has run yet."}

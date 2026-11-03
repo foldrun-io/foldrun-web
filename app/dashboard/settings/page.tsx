@@ -46,6 +46,7 @@ import { effectiveFlags } from "@/platform/flags";
 import { providerFactsFor } from "@/server/provider-facts";
 import { ModelKey } from "./model-key";
 import { describeAccountModel, modelPresetChoices } from "@/server/account-model";
+import { foldrunModelsView } from "@/platform/model-choice";
 import { ProviderCheck } from "./provider-check";
 import { Email } from "@/components/email";
 import { installOrigin } from "@/server/auth-flows";
@@ -296,10 +297,10 @@ export default async function SettingsPage({
         </SettingsSection>
 
         <SettingsSection id="provider" title="Model provider" description="Where model calls go for every workspace that does not name its own provider.">
-          <ModelKey tenant={tenant} initial={describeAccountModel(tenant)} presets={modelPresetChoices()} mayEdit={role === null || can(role, "secrets:write")} />
+          <ModelKey tenant={tenant} initial={{ ...describeAccountModel(tenant), foldrunModels: await foldrunModelsView(tenant) }} presets={modelPresetChoices()} mayEdit={role === null || can(role, "secrets:write")} />
           <Card className="p-4">
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-              <code className="font-mono text-sm text-fg">{provider?.baseUrl ?? "Models included"}</code>
+              <code className="font-mono text-sm text-fg">{provider?.baseUrl ?? "Your own gateway"}</code>
               <span className="text-xs text-fg-subtle">{provider?.baseUrl ? "set by the account's AGENTS.md, which wins over the key above" : "no provider: block in the account's AGENTS.md"}</span>
             </div>
             {provider?.models && Object.keys(provider.models).length > 0 && (
