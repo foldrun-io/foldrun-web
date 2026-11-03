@@ -179,11 +179,13 @@ export function KeyManager({
   return (
     <section>
       {confirmDialog}
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-fg">API keys</h2>
         {manages && (
+          // Wraps on a phone: one line of five controls made the whole
+          // Settings page wider than the screen (3 Nov 2026).
           <form
-            className="flex items-center gap-2"
+            className="flex min-w-0 flex-wrap items-center gap-2"
             onSubmit={(e) => {
               e.preventDefault();
               void create();
@@ -193,7 +195,7 @@ export function KeyManager({
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="Key name (e.g. laptop, CI)"
-              className={inputClass("w-52")}
+              className={inputClass("w-full sm:w-52")}
             />
             {/* A key carries a role like a member does. Editor is the default
                 and the right answer for CI; admin is for a key that manages
