@@ -177,6 +177,7 @@ budget: 5                  # the most one run may spend, USD — checked between
             ["parallel: 3", "with each: — how many instances run at once (default: all)"],
             ["schema: {...} or schema: path.json", "with output: json — a JSON Schema the reply must satisfy, or the step fails"],
             ["max_turns: 20", "how many model turns the step may take before it is stopped"],
+            ["max_output_tokens: 16000", "the longest one model reply may be for this step, in tokens"],
             ["limits: {web.search: 10}", "how many calls the step may make, per tool or in all — over the agent's limits:, key by key"],
             ["when: READY", "run only if a line of the previous group's result begins with READY"],
             ["when: rows of workspace/storage/x.csv", "run only if that CSV has a data row — for the steps after a fan-out"],
