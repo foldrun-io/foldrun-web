@@ -110,6 +110,7 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   // platform's operator credits through the operator console's adjustment.
   "POST /api/billing": "answers 404 to every caller: credit by hand is the platform console's capped adjustment",
   "GET /api/billing/details": SERVER("billing/details/page.tsx → billingDetails"),
+  "GET /api/billing/invoices": SERVER("billing/invoices/page.tsx → listInvoices, receiptUrlFor (server/billing-invoices.ts)"),
   "GET /api/billing/plans": SERVER("billing/plans/page.tsx → PLANS"),
   "POST /api/billing/stripe": CALLBACK + "Stripe's signed webhook",
   "GET /api/billing/partner/topups/rate": CALLBACK + "foldrun.ir's signed storefront calls (Toman top-ups); people pay at foldrun.ir, linked from Billing",
@@ -149,6 +150,7 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   "GET /api/team/invites": SERVER("settings/page.tsx → listInvites"),
   "GET /api/usage": SERVER("usage/page.tsx → accountUsage"),
   "GET /api/usage/history": SERVER("usage/page.tsx → spendHistory"),
+  "GET /api/usage/budget": SERVER("limits/page.tsx → accountBudgetStanding, workspaceBudgetStanding"),
   "DELETE /api/workspaces/[workspace]": SEEN("[workspace]/settings/page.tsx (Delete workspace)"),
   "GET /api/workspaces/[workspace]/agents": SERVER("[workspace] pages → listAgents"),
   "POST /api/workspaces/[workspace]/assets": SEEN("components/create.tsx (New asset)"),

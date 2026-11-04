@@ -212,6 +212,32 @@ export const SHAPES: Record<string, Shape> = {
       overdraft: { ...obj({ limitUsd: { type: ["number", "null"] } }), type: ["object", "null"], description: "the platform's allowance to run past zero, when there is one" },
     }),
   },
+  "GET /api/billing/invoices": {
+    response: obj({
+      stripe: { ...bool, description: "Stripe is configured and the account has a customer there — false means no invoices to list" },
+      invoices: arr(
+        obj({
+          id: str(),
+          number: { type: ["string", "null"], description: "Stripe's invoice number; null on a draft" },
+          description: str("what it was for: its first line, or First month / Plan change / Monthly fee"),
+          createdAt: { type: ["string", "null"], description: "ISO time it was raised" },
+          amount: { ...num, description: "the total in the invoice's currency, major units" },
+          currency: { type: ["string", "null"] },
+          status: { type: ["string", "null"], description: "paid | open | void | uncollectible | draft" },
+          url: { type: ["string", "null"], description: "Stripe's hosted page for the invoice" },
+          pdfUrl: { type: ["string", "null"] },
+        }),
+        "the plan's tax invoices from Stripe, newest first, at most 24",
+      ),
+      receipts: arr(
+        obj({
+          t: str(), usd: num, label: str("the ledger line's description"),
+          receiptUrl: { type: ["string", "null"], description: "Stripe's hosted receipt; null for a credit not paid by card" },
+        }),
+        "every credit purchase (a topup line on the ledger), newest first",
+      ),
+    }),
+  },
   "GET /api/billing/statement": {
     query: [
       { name: "month", description: "YYYY-MM; default this month" },

@@ -60,6 +60,7 @@ next-env.d.ts
 /server/stripe.ts
 /server/stripe-webhook.ts
 /server/partner-topups.ts
+/server/billing-invoices.ts
 /components/billing-details-form.tsx
 /components/low-balance-banner.tsx
 /components/balance-pill.tsx
@@ -75,6 +76,7 @@ next-env.d.ts
 /tests/billing-notices-billing.test.ts
 /tests/consistency-billing.test.ts
 /tests/partner-topups-routes.test.ts
+/tests/billing-invoices.test.ts
 /tests/flags-routes.test.ts
 /tests/status-routes.test.ts
 /tests/stripe.test.ts

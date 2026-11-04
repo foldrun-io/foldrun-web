@@ -21,6 +21,7 @@ export const BILLING_FILES = [
   "server/stripe.ts",
   "server/stripe-webhook.ts",
   "server/partner-topups.ts",
+  "server/billing-invoices.ts",
   "components/billing-details-form.tsx",
   "components/low-balance-banner.tsx",
   "components/balance-pill.tsx",
@@ -139,6 +140,7 @@ export const STUBS: Record<string, string> = {
 export const BILLING_TESTS = [
   "console-access-keys.ts",
   "partner-topups-routes.test.ts",
+  "billing-invoices.test.ts",
   "admin-export.test.ts",
   "billing-admin.test.ts",
   "billing-checkout.test.ts",
