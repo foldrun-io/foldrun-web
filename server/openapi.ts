@@ -81,8 +81,12 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       { name: "model", description: "a step ran a model whose name contains this" },
       { name: "min_tokens", description: "input tokens, all steps together (50000 or 50k)" },
       { name: "min_secs", description: "the run took at least this long" },
+      { name: "before", description: "the next page: the `next` of the page before (a cursor, <startedAt>~<runId>), a time (runs that started before it) or a run id of this workspace (runs older than it); a cursor that is neither is a 400" },
     ],
-    response: obj({ runs: { type: "array", items: Run } }),
+    response: obj({
+      runs: { type: "array", items: Run },
+      next: { type: ["string", "null"], description: "pass as before= for the page after this one; null when no older run matches" },
+    }),
   },
   "GET /api/workspaces/{workspace}/runs/{runId}": {
     query: [{ name: "wait", description: "true blocks until the run stops or timeout" }, { name: "timeout", description: "seconds, default 300, max 900" }],

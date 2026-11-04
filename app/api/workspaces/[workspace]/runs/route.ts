@@ -5,6 +5,7 @@ import { listRunSummaries, runTokens, runDisplayStatus, runVerdict, runFailure, 
 import { outcomeOf } from "@/lib/outcome";
 import { intParam } from "@/server/query";
 import { runCharges } from "@/server/run-charges";
+import { byPosition, cursorOf, isAfter, parseBefore } from "@/server/runs-cursor";
 
 export async function GET(
   req: NextRequest,
@@ -20,8 +21,18 @@ export async function GET(
     const { filter, problems } = parseRunFilter(req.nextUrl.searchParams);
     if (problems.length) throw new ApiError(problems.join("; "), 400);
     // The index, not the records: a list never parses every run.
-    const all = listRunSummaries(tenant, workspace);
-    const runs = (isEmptyFilter(filter) ? all : all.filter((r) => matchesRunFilter(r, filter))).slice(0, limit);
+    // Newest first, a tie broken by id, so a page boundary has one place.
+    const all = listRunSummaries(tenant, workspace).sort(byPosition);
+    // Paging (5 Nov 2026): `before` is the `next` of the page before — or a
+    // time, or a run id — and the page is the matches older than it. Absent,
+    // the newest page, as before.
+    const before = parseBefore(req.nextUrl.searchParams.get("before"), all);
+    const matching = (isEmptyFilter(filter) ? all : all.filter((r) => matchesRunFilter(r, filter))).filter(
+      (r) => before === null || isAfter(r, before),
+    );
+    const runs = matching.slice(0, limit);
+    // The cursor for the page after this one; null when this is the last.
+    const next = matching.length > runs.length ? cursorOf(runs[runs.length - 1]) : null;
     const charges = await runCharges(tenant);
     // List view stays light: step results/events are on GET /runs/<id>.
     return NextResponse.json({
@@ -56,6 +67,7 @@ export async function GET(
         tokens: runTokens(r),
         steps: r.steps.map((s) => ({ agent: s.agent, status: s.status, costUsd: s.costUsd, tokens: s.tokens ?? null })),
       })),
+      next,
     });
   } catch (err) {
     return errorResponse(err);

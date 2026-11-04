@@ -43,6 +43,21 @@ export const SHAPES: Record<string, Shape> = {
         "One file a run archived, served inline as what it is and never as a page: text, code, HTML and SVG as text/plain; JSON, CSV, PDF, images, webm/mp4 by type; anything else application/octet-stream. Range requests answer 206 (416 for a bad range).",
     },
   },
+  "GET /api/workspaces/{workspace}/runs/{runId}/files": {
+    response: obj({
+      runId: str(),
+      files: arr(
+        obj({
+          agent: str("the agent whose outputs/ it was in"),
+          path: str("relative to that agent's archived outputs/ — the name the agent wrote"),
+          bytes: int,
+          href: str("where /archive serves it, as the run page links it"),
+        }),
+        "every file the run archived, by agent then path; empty when it archived none",
+      ),
+      totalBytes: int,
+    }),
+  },
   "GET /api/workspaces/{workspace}/runs/{runId}/live": {
     query: [
       {
