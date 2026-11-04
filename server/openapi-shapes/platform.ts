@@ -36,6 +36,54 @@ const SpendSeries = obj({
   change: { ...nullable(num), description: "the last complete period against the one before, as a fraction (0.5 is half again); null when there is nothing to compare" },
 });
 
+// ---------------------------------------------------------------- observe (account)
+
+/** server/account-observe.ts runRef: a run named inside the analysis — enough to open it. */
+const ObserveRunRef = obj({
+  workspace: str(), id: str(), what: str("the flow's name, or \"agent: x\" for a direct agent run"),
+  outcome: str("running | queued | waiting | good | done | quiet | blocked | bad | failed | stopped"),
+  startedAt: str(), finishedAt: nstr(),
+  failure: { type: ["object", "null"], description: "{ agent, reason } — the step that failed and its last error; null when none" },
+});
+const ObserveSampled = obj({ n: int, p50: nullable(num), p95: nullable(num), max: nullable(num) });
+const AccountObservation = obj({
+  days: int,
+  timezone: str("IANA zone the days are counted in: the one most of the account's schedules use, UTC when none say"),
+  window: obj({ from: str(), to: str() }),
+  previous: obj({ from: str(), to: str(), runs: { ...int, description: "runs started in the window before, of the same length" } }),
+  kpis: obj({
+    runs: int, finished: { ...int, description: "not still going (stopped included)" }, succeeded: int,
+    rate: { ...nullable(num), description: "completed / (completed + failed), 0..1; null with none finished" },
+    prevRate: { ...nullable(num), description: "the same for the window before" },
+    failed: int, platformFailures: int, deskFailures: int,
+    spendUsd: { ...num, description: "what was charged, USD (one credit is one cent)" }, prevSpendUsd: num,
+    medianSecs: { ...nullable(num), description: "median run, start to finish; null under five finished runs" },
+  }),
+  causes: arr(obj({
+    kind: str("platform | verify | timeout | error | blocked | bad | stopped"), key: str(), label: str(),
+    platform: { ...bool, description: "the platform's fault — no desk edit fixes it" },
+    count: int, desks: arr(str()), sample: nstr("what the newest such run said"), newest: ObserveRunRef,
+  }), "why runs went wrong, the platform's causes first, then by count"),
+  desks: arr(obj({
+    workspace: str(), runs: int, rate: nullable(num), prevRate: nullable(num),
+    deskFailures: int, platformFailures: int, spendUsd: num, medianSecs: nullable(num),
+    worst: { type: ["object", "null"], description: "{ what, count } — the flow with the most desk failures" },
+    lastBad: { ...nullable(ObserveRunRef), description: "the newest run that went wrong" },
+  }), "every workspace, worst first; one that did not run comes last"),
+  agents: arr(obj({
+    workspace: str(), agent: str(), steps: int, failed: int, retried: int, costUsd: num,
+    chargedUsd: nullable(num), seconds: ObserveSampled,
+  }), "agents to watch: most failures, then retries, then charged; at most 10"),
+  tools: arr(obj({
+    name: str(), calls: int, errors: int, workspaces: arr(str("the workspaces that called it")),
+    p95ms: { ...nullable(num), description: "the slowest p95 any workspace measured; null when none timed it" },
+  }), "tools across the account merged by name: errors first, then calls; at most 10"),
+  daily: arr(obj({
+    day: str("YYYY-MM-DD in timezone"), good: int, attention: { ...int, description: "finished BLOCKED or BAD" },
+    failed: int, platform: { ...int, description: "of failed, the platform's" }, other: int, spendUsd: num,
+  }), "one per day, oldest first, zero-filled; a week at least"),
+});
+
 export const SHAPES: Record<string, Shape> = {
   "GET /api/changelog": {
     query: [{ name: "limit", description: "releases, default 10, 1–50" }],
@@ -95,6 +143,10 @@ export const SHAPES: Record<string, Shape> = {
       schema: { type: "string", description: "Prometheus text exposition, version 0.0.4 (Content-Type: text/plain; version=0.0.4): foldrun_queue_*, run counts, room-wait and billing gauges" },
       description: "Every account's operational numbers, for a scraper. Only with Authorization: Bearer <FOLDRUN_METRICS_TOKEN> — no account key or session is taken; 404 while that token is unset or a wrong one is sent (wrong tokens are rate-limited)",
     },
+  },
+  "GET /api/observe": {
+    query: [{ name: "days", description: "the window in days, 1–365 (default 7)" }],
+    response: AccountObservation,
   },
   "GET /api/openapi.json": {
     response: { ...obj({ openapi: str("3.1.0"), info: { type: "object", additionalProperties: true }, paths: { type: "object", additionalProperties: true }, components: { type: "object", additionalProperties: true } }), additionalProperties: true, description: "this document" },
