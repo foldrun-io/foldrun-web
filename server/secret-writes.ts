@@ -16,23 +16,23 @@ export const MAIL_SENDER: ReadonlySet<string> = new Set(["RESEND_API_KEY", "EMAI
 
 /**
  * The one rule for an act only the owner may do through a key-or-session
- * route: the owner as a PERSON — their own signed-in session, or the key
- * their own `foldrun login` minted (origin "cli-login", minted by whoever
- * owns the account now). Any other key the owner minted — a CI key, an admin
- * key handed to a contractor — is an account credential, not the owner, and
- * is refused (owner decision, 30 Oct 2026: every key used to count, because
- * a key's actor name is its minter's address).
+ * route: the owner as a PERSON, signed in — their own browser session.
+ *
+ * No key counts, not even the one their own `foldrun login` minted (owner
+ * decision, 5 Nov 2026; on 30 Oct it did): the mail sender carries everyone's
+ * password-reset links, so a leaked laptop key that could repoint it would be
+ * an account takeover. Every other key the owner minted — CI, a contractor's
+ * admin key — was already refused.
  *
  * Role "owner" is only ever the owner's session or the local dev stand-in
  * (FOLDRUN_DEV_NO_AUTH): a key is never minted an owner. A support view
  * reads as the owner and acts for no one.
  */
 export async function actsForOwner(tenant: string, actor: Pick<Actor, "role" | "kind" | "name" | "id"> & Pick<Partial<Actor>, "origin" | "readOnly">): Promise<boolean> {
-  if (actor.readOnly) return false;
-  if (actor.role === "owner") return actor.kind === "user" || actor.id === "dev";
-  if (actor.kind !== "key" || actor.origin !== "cli-login") return false;
-  const owner = await ownerOf(tenant);
-  return Boolean(owner && actor.name.toLowerCase() === owner.email.toLowerCase());
+  if (actor.readOnly || actor.role !== "owner") return false;
+  // resolveTenant reads a session's role live, so "owner" here is the owner now.
+  if (actor.kind === "user") return (await ownerOf(tenant))?.id === actor.id;
+  return actor.id === "dev";
 }
 
 /**
@@ -52,7 +52,7 @@ export async function assertMayWriteSecret(tenant: string, actor: Actor, name: u
   // Only the owner chooses the mail sender: an admin who pointed it at their
   // own Resend account could read the owner's reset link and take the account.
   if (!scope && MAIL_SENDER.has(name) && !(await actsForOwner(tenant, actor))) {
-    throw new ApiError(`only the account's owner can set ${name} — it is the sender of everyone's sign-in mail`, 403);
+    throw new ApiError(`only the account's owner, signed in, can set ${name} — Settings → Secrets in the browser. It is the sender of everyone's sign-in and reset mail, so no API key can, not even your own \`foldrun login\``, 403);
   }
   return name;
 }

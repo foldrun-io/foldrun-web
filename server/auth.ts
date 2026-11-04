@@ -355,7 +355,7 @@ export async function rotateApiKey(
   const lifetime = old.expiresAt ? Date.parse(old.expiresAt) - Date.parse(old.createdAt) : null;
   const made = await createApiKey(tenant, old.label, by === undefined ? old.createdBy : by ?? undefined, old.scope, (old.role ?? "admin") === "owner" ? "admin" : (old.role ?? "admin"), old.workspaces ?? null, {
     expiresAt: lifetime && lifetime > 0 ? new Date(Date.now() + lifetime) : null,
-    // A `foldrun login` key is a person (requirePerson, actsForOwner), so
+    // A `foldrun login` key is a person (requirePerson, personOf), so
     // the mark goes on only when the rotation is that person's: the key
     // renewing itself, or them signed in. Rotated by anyone else — an admin
     // key, another member — the new key is an ordinary one, or a key made by
@@ -475,8 +475,10 @@ export interface Actor {
   /** A support view: reads as the owner, refused every write. */
   readOnly?: boolean;
   /** For a key: "cli-login" when `foldrun login` minted it — a person's own
-   *  sign-in on their machine, which owner-only acts accept (actsForOwner);
-   *  absent for every other key. */
+   *  sign-in on their machine, which team and profile routes take as that
+   *  person (requirePerson with cliLogin, personOf) — never as the owner:
+   *  the mail sender is the owner's session alone (actsForOwner); absent for
+   *  every other key. */
   origin?: "cli-login";
   /** A person acting through their `foldrun login` key (requirePerson with
    *  cliLogin, personOf): the key's id, for the audit trail. */

@@ -24,17 +24,18 @@ process.env.FOLDRUN_OPEN_SIGNUP = "1";
 
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
-const { createUser } = await import("../server/users.ts");
+const { createUser, mintSession, SESSION_COOKIE } = await import("../server/users.ts");
 const { listSecrets } = await import("../../foldrun-core/src/secrets.ts");
 const { saveOAuthClient, getOAuthClient } = await import("../../foldrun-platform/src/oauth-clients.ts");
 const secretsRoute = await import("../app/api/secrets/route.ts");
 const startRoute = await import("../app/api/oauth/start/route.ts");
 const reconnectRoute = await import("../app/api/oauth/reconnect/route.ts");
 
-await createUser("owner@acme.test", "correct horse battery staple 9", "acme");
+const owner = await createUser("owner@acme.test", "correct horse battery staple 9", "acme");
+const ownerCookie = `${SESSION_COOKIE}=${(await mintSession(owner)).value}`;
 fs.mkdirSync(path.join(process.env.FOLDRUN_DATA!, "acme", "workspaces", "desk"), { recursive: true });
-// The owner's own `foldrun login` key acts as the owner; a key the owner
-// minted for anything else (CI, a contractor) does not (30 Oct 2026).
+// Only the owner's session sets the mail sender (5 Nov 2026): no key, not
+// even their own `foldrun login` one, nor one minted for CI or a contractor.
 const { key: ownerKey } = await createApiKey("acme", "cli · owner's laptop", "owner@acme.test", undefined, "admin", null, { origin: "cli-login" });
 const { key: ownerCiKey } = await createApiKey("acme", "ci", "owner@acme.test", undefined, "admin");
 const { key: admin } = await createApiKey("acme", "ops", "admin@acme.test", undefined, "admin");
@@ -44,6 +45,12 @@ const call = (key: string, url: string, method: string, body: unknown) =>
   new NextRequest(`http://x${url}`, {
     method,
     headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+const asOwner = (url: string, method: string, body: unknown) =>
+  new NextRequest(`http://x${url}`, {
+    method,
+    headers: { cookie: ownerCookie, origin: "http://x", "content-type": "application/json" },
     body: JSON.stringify(body),
   });
 const accountNames = () => listSecrets("acme").filter((s) => s.scope === "account").map((s) => s.name);
@@ -62,7 +69,8 @@ test("only the owner sets, rebinds or removes the account's mail sender — thro
   const refused = await secretsRoute.PUT(call(admin, "/api/secrets", "PUT", { name: "RESEND_API_KEY", value: "re_attacker" }));
   assert.equal(refused.status, 403);
   assert.match(((await refused.json()) as { error: string }).error, /only the account's owner/);
-  assert.equal((await secretsRoute.PUT(call(ownerKey, "/api/secrets", "PUT", { name: "RESEND_API_KEY", value: "re_owner" }))).status, 200);
+  const signedIn = await secretsRoute.PUT(asOwner("/api/secrets", "PUT", { name: "RESEND_API_KEY", value: "re_owner" }));
+  assert.equal(signedIn.status, 200, await signedIn.clone().text());
   assert.equal((await secretsRoute.PATCH(call(admin, "/api/secrets", "PATCH", { name: "RESEND_API_KEY", sites: ["api.resend.com"] }))).status, 403);
   assert.equal((await secretsRoute.DELETE(call(admin, "/api/secrets", "DELETE", { name: "RESEND_API_KEY" }))).status, 403);
   assert.deepEqual(accountNames(), ["RESEND_API_KEY"]);
@@ -96,16 +104,22 @@ test("a workspace-scoped admin's oauth2 recipe does not rewrite the account's sa
   assert.deepEqual(await getOAuthClient("acme", "google"), before);
 });
 
-test("only the owner in person sets the mail sender: their session or their own `foldrun login` key, never another key they minted", async () => {
+test("only the owner, signed in, sets the mail sender: no key — not even their own `foldrun login` one", async () => {
   const { actsForOwner } = await import("../server/secret-writes.ts");
   const ci = await secretsRoute.PUT(call(ownerCiKey, "/api/secrets", "PUT", { name: "EMAIL_FROM", value: "ci@acme.test" }));
   assert.equal(ci.status, 403, "an admin CI key the owner minted is not the owner");
-  assert.equal((await secretsRoute.PUT(call(ownerKey, "/api/secrets", "PUT", { name: "EMAIL_FROM", value: "owner@acme.test" }))).status, 200);
+  const cli = await secretsRoute.PUT(call(ownerKey, "/api/secrets", "PUT", { name: "EMAIL_FROM", value: "laptop@acme.test" }));
+  assert.equal(cli.status, 403, "a leaked laptop key cannot repoint everyone's reset mail");
+  assert.match(((await cli.json()) as { error: string }).error, /signed in/);
+  assert.equal((await secretsRoute.PATCH(call(ownerKey, "/api/secrets", "PATCH", { name: "RESEND_API_KEY", sites: [] }))).status, 403);
+  assert.equal((await secretsRoute.DELETE(call(ownerKey, "/api/secrets", "DELETE", { name: "RESEND_API_KEY" }))).status, 403);
+  assert.equal((await secretsRoute.PUT(asOwner("/api/secrets", "PUT", { name: "EMAIL_FROM", value: "owner@acme.test" }))).status, 200);
   // The rule itself, for every kind of caller.
-  assert.equal(await actsForOwner("acme", { kind: "user", id: "u1", name: "owner@acme.test", role: "owner" }), true);
+  assert.equal(await actsForOwner("acme", { kind: "user", id: owner.id, name: "owner@acme.test", role: "owner" }), true);
+  assert.equal(await actsForOwner("acme", { kind: "user", id: "someone-else", name: "x@acme.test", role: "owner" }), false, "only the owner on record");
   assert.equal(await actsForOwner("acme", { kind: "user", id: "u1", name: "support:ops@foldrun.io", role: "owner", readOnly: true }), false, "a support view acts for no one");
   assert.equal(await actsForOwner("acme", { kind: "user", id: "u2", name: "admin@acme.test", role: "admin" }), false);
   assert.equal(await actsForOwner("acme", { kind: "key", id: "k1", name: "owner@acme.test", role: "admin" }), false, "a key with no origin");
-  assert.equal(await actsForOwner("acme", { kind: "key", id: "k2", name: "owner@acme.test", role: "admin", origin: "cli-login" }), true);
+  assert.equal(await actsForOwner("acme", { kind: "key", id: "k2", name: "owner@acme.test", role: "admin", origin: "cli-login" }), false, "the owner's own CLI is a key");
   assert.equal(await actsForOwner("acme", { kind: "key", id: "k3", name: "admin@acme.test", role: "admin", origin: "cli-login" }), false, "an admin's own CLI is not the owner's");
 });
