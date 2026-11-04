@@ -112,6 +112,13 @@ const ImportPlanProps: Record<string, Schema> = {
   needs: obj({ secrets: arr(str()), tools: arr(str()), skills: arr(str()), scripts: arr(str()), agents: arr(str()), flows: arr(str()) }),
 };
 
+/** core evals.ts EvalHistoryEntry: one eval run, stamped with the commit the workspace was running. */
+const EvalHistoryEntry = obj({
+  eval: str(), at: str(),
+  commit: nullable(str("a git sha, or a revision id (r-…); null when no change is on record")),
+  passed: int, failed: int, costUsd: num,
+});
+
 export const SHAPES: Record<string, Shape> = {
   "GET /api/workspaces": { response: obj({ workspaces: arr(WorkspaceSummary, "the ones the caller may see, most recently deployed first") }) },
   "POST /api/workspaces": {
@@ -203,6 +210,20 @@ export const SHAPES: Record<string, Shape> = {
   "POST /api/workspaces/{workspace}/evals": {
     body: obj({ name: str("evals/<name>.md") }, ["name"]),
     response: obj({ ok: bool, path: str() }),
+  },
+  "GET /api/workspaces/{workspace}/evals/trends": {
+    response: obj({
+      workspace: str(),
+      trends: arr(
+        obj({
+          eval: str(),
+          latest: EvalHistoryEntry,
+          previous: { ...nullable(EvalHistoryEntry), description: "the most recent run on a different commit; null when every run was on one commit" },
+          delta: { ...nullable(int), description: "passed now minus passed on the previous commit; null without one" },
+        }),
+        "per eval, biggest drop first",
+      ),
+    }),
   },
   "GET /api/workspaces/{workspace}/evals/{evalName}/compare": {
     query: [{ name: "run", description: "one comparison by id; omitted, who holds it now and the kept comparisons" }],

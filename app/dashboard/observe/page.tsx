@@ -11,29 +11,14 @@ import { cachedAccountInsights } from "@/server/insights";
 import { creditsShort } from "@/components/money";
 import Link from "next/link";
 import { viewerScope } from "@/server/users";
-import { scopeAllows } from "@/platform/scope";
-import { listAllRuns, listFlows, listWorkspaces } from "@/lib/store";
-import { observeWorkspace } from "@/platform/observe";
-import { runLite } from "@/server/run-lite";
-import { runCharges } from "@/server/run-charges";
+import { accountObservation } from "@/server/account-observe";
 import { runHref } from "@/components/run-href";
 import { OUTCOME } from "@/components/outcome-model";
 import { fmtSpan } from "@/components/mission-model";
 import { PageHeader } from "@/components/ui";
 import { Panel } from "@/components/mission-control";
 import { nowMs } from "@/components/overview-model";
-import {
-  accountTimezone,
-  agentsToWatch,
-  causes,
-  deskHealth,
-  kpis,
-  perDay,
-  toolsAcross,
-  windows,
-  type CauseRow,
-  type DayBucket,
-} from "@/components/account-observe-model";
+import { type CauseRow, type DayBucket } from "@/components/account-observe-model";
 
 export const dynamic = "force-dynamic";
 
@@ -165,32 +150,11 @@ export default async function AccountObservePage({ searchParams }: { searchParam
   const now = nowMs();
 
   // A member scoped to some workspaces sees only those, here as everywhere.
+  // The same analysis GET /api/observe answers (`foldrun observe`).
   const scope = await viewerScope();
-  const workspaces = listWorkspaces(tenant).filter((w) => scopeAllows(scope, w.name)).map((w) => w.name);
-  const charges = await runCharges(tenant);
-  const lite = listAllRuns(tenant)
-    .filter((r) => scopeAllows(scope, r.workspace))
-    .map((r) => runLite(r, charges));
-
-  const tz = accountTimezone(
-    workspaces.flatMap((w) => {
-      try {
-        return listFlows(tenant, w).map((f) => f.timezone);
-      } catch {
-        return [];
-      }
-    }),
-  );
-  const { cur, prev } = windows(lite, now, days);
-  const k = kpis(cur, prev);
-  const daily = perDay(cur, now, Math.max(days, 7), tz);
-  const why = causes(cur);
-  const desks = deskHealth(workspaces, cur, prev);
-  const per = workspaces.map((w) => observeWorkspace(tenant, w, days, undefined, charges));
+  const { timezone: tz, kpis: k, previous, daily, causes: why, desks, agents, tools } = await accountObservation(tenant, scope, days, now);
   // Recurring problems with their evidence and cost (FOL-72 step 8).
   const insights = cachedAccountInsights(tenant, scope, Math.min(days, 30), null, now);
-  const agents = agentsToWatch(per, 10);
-  const tools = toolsAcross(per, 10);
   const platformRows = why.filter((c) => c.platform);
 
   return (
@@ -253,7 +217,7 @@ export default async function AccountObservePage({ searchParams }: { searchParam
             </span>
           }
         />
-        <Tile label="Charged" value={money(k.spendUsd)} sub={<Delta now={k.spendUsd} before={prev.length ? k.prevSpendUsd : null} upIsGood={false} as="money" />} />
+        <Tile label="Charged" value={money(k.spendUsd)} sub={<Delta now={k.spendUsd} before={previous.runs ? k.prevSpendUsd : null} upIsGood={false} as="money" />} />
         <Tile label="Median run" value={secs(k.medianSecs)} sub={<span className="text-xs text-fg-muted">{k.medianSecs === null ? "fewer than 5 finished runs" : "start to finish"}</span>} />
       </div>
 
