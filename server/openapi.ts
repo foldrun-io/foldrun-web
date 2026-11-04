@@ -37,6 +37,8 @@ const OPEN = [
   /^\/api\/status(\/history)?$/,
   /^\/api\/hooks\//, /^\/api\/inbox\//, /^\/api\/events\//, /^\/api\/approve\//, /^\/api\/unsubscribe$/,
   /^\/api\/billing\/stripe$/, /^\/api\/billing\/confirm$/,
+  // A storefront's HMAC signature (X-Foldrun-Partner/Timestamp/Signature), never a key.
+  /^\/api\/billing\/partner\//,
   /^\/api\/auth\/(signup|login|forgot|reset|verify|mfa\/verify|session)$/, /^\/api\/cli\/login(\/\{id\})?$/, /^\/api\/oauth\/callback$/,
   /^\/s\//,
 ];

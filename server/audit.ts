@@ -114,6 +114,9 @@ export type AuditAction =
   | "billing.details"
   // A Stripe event re-processed by the platform's operator from the webhook log.
   | "billing.replay"
+  // Credit bought in Toman at a partner storefront (foldrun.ir), credited
+  // when the gateway verified the payment (partner-topups.ts).
+  | "billing.partner_topup"
   | "plan.ended"
   // A workspace's source rolled back to a point in its history, and a
   // customer asking the operator for a restore from a nightly backup.

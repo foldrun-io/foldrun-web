@@ -111,6 +111,40 @@ const ConsentStart = obj(
 
 const libraryKind = "tools | hooks | knowledge | memory | skills | scripts";
 
+
+// foldrun.ir's storefront calls (3 Nov 2026): HMAC-signed, not for people.
+// Every route here is signed by the storefront rather than keyed:
+// X-Foldrun-Partner, X-Foldrun-Timestamp, X-Foldrun-Signature (v1=HMAC-SHA256
+// over timestamp, method, path and body) — server/partner-topups.ts.
+const PartnerOrder = obj({
+  id: str("ptu_…"), label: str("the masked account line the customer confirmed"),
+  usd: num, toman: int, rial: { ...int, description: "toman × 10, the amount sent to the gateway" }, tomanPerUsd: int,
+  status: str("pending | credited | failed"),
+  authority: { type: ["string", "null"] }, refId: { type: ["string", "null"], description: "the gateway's receipt" },
+  expiresAt: str(), creditedAt: { type: ["string", "null"] },
+});
+const PARTNER_TOPUPS: Record<string, Shape> = {
+  "GET /api/billing/partner/topups/rate": {
+    response: obj({ tomanPerUsd: int, setAt: { type: ["string", "null"], description: "when the operator saved it" }, min: num, max: num }),
+  },
+  "POST /api/billing/partner/topups/quote": {
+    body: obj({ account: str("a sign-in email or the account id"), usd: num }, ["account", "usd"]),
+    response: obj({ account: obj({ label: str() }), usd: num, toman: int, rial: int, tomanPerUsd: int, setAt: { type: ["string", "null"] } }),
+  },
+  "POST /api/billing/partner/topups": {
+    status: "201",
+    body: obj({ account: str(), usd: num, toman: { ...int, description: "the figure the customer was shown; 409 with a new quote when the rate moved" } }, ["account", "usd", "toman"]),
+    response: obj({ order: PartnerOrder }),
+  },
+  "GET /api/billing/partner/topups/{id}": { response: obj({ order: PartnerOrder }) },
+  "POST /api/billing/partner/topups/{id}/authority": { body: obj({ authority: str("the gateway's session id") }, ["authority"]), response: obj({ order: PartnerOrder }) },
+  "POST /api/billing/partner/topups/{id}/paid": {
+    body: obj({ authority: str(), refId: str(), cardPan: str("masked by the gateway"), fee: { ...int, description: "Rial" } }, ["authority", "refId"]),
+    response: obj({ order: PartnerOrder, credited: { ...bool, description: "false when an earlier call already credited it" } }),
+  },
+  "POST /api/billing/partner/topups/{id}/failed": { body: obj({ reason: str() }), response: obj({ order: PartnerOrder }) },
+};
+
 export const SHAPES: Record<string, Shape> = {
   "POST /api/billing": {
     noBody: "refused with 404 for every caller since FOL-94 (28 Oct 2026): credit comes from a payment (POST /api/billing/checkout) or the platform team",
@@ -230,8 +264,10 @@ export const SHAPES: Record<string, Shape> = {
         amountDue: { ...int, description: "in the currency's minor unit" },
         currency: str(),
       }, ["status"]),
+      tomanTopUp: { ...obj({ url: str("foldrun.ir's charge page with this account filled in") }), type: ["object", "null"], description: "paying in Toman at foldrun.ir; null where it cannot sell now" },
     }),
   },
+  ...PARTNER_TOPUPS,
   "PUT /api/billing/wallet": {
     body: obj({
       autoTopUp: { ...AutoTopUp, type: ["object", "null"], description: "null turns auto top-up off; omitted, unchanged" },

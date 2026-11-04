@@ -20,6 +20,7 @@ export const BILLING_FILES = [
   "server/admin-api/",
   "server/stripe.ts",
   "server/stripe-webhook.ts",
+  "server/partner-topups.ts",
   "components/billing-details-form.tsx",
   "components/low-balance-banner.tsx",
   "components/balance-pill.tsx",
@@ -137,6 +138,7 @@ export const STUBS: Record<string, string> = {
  *  helpers. */
 export const BILLING_TESTS = [
   "console-access-keys.ts",
+  "partner-topups-routes.test.ts",
   "admin-export.test.ts",
   "billing-admin.test.ts",
   "billing-checkout.test.ts",
