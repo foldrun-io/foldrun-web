@@ -5,7 +5,7 @@
 // the older ones still pending.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireCaller, requirePerson, errorResponse, ApiError } from "@/server/api";
+import { requireCaller, requirePerson, errorResponse, ApiError, viaDetail } from "@/server/api";
 import { listMembers, mintInvite } from "@/server/users";
 import { listWorkspaces } from "@/lib/store";
 import { describeScope, scopeAllows } from "@/platform/scope";
@@ -34,7 +34,9 @@ export async function GET(req: NextRequest) {
 
 async function postOnce(req: NextRequest) {
   try {
-    const { tenant, actor } = await requirePerson(req, "team:manage");
+    // A person: signed in, or their own `foldrun login` key (at the lower
+    // of its role and theirs — an owner's key invites no admin).
+    const { tenant, actor } = await requirePerson(req, "team:manage", { cliLogin: true });
     const body = (await req.json().catch(() => ({}))) as { role?: unknown; workspaces?: unknown; email?: unknown; send?: unknown };
     const role = body.role ?? "editor";
     if (!isRole(role) || role === "owner") throw new ApiError("role must be viewer, editor or admin", 400);
@@ -67,9 +69,9 @@ async function postOnce(req: NextRequest) {
       sent = await sendInviteEmail(tenant, email, `${origin}${path}`, { from: actor.name, role, scope: describeScope(workspaces), expires: invite.expires });
     }
     if (invite.superseded.length) {
-      await audit("member.invite_revoked", { actor: actor.name, tenant, subject: email, detail: { invites: invite.superseded, reason: "superseded by a newer invite to the same address" } });
+      await audit("member.invite_revoked", { actor: actor.name, tenant, subject: email, detail: { invites: invite.superseded, reason: "superseded by a newer invite to the same address", ...viaDetail(actor) } });
     }
-    await audit("member.invited", { actor: actor.name, tenant, subject: email, detail: { inviteId: invite.id, role, workspaces, email, sent: sent?.ok ?? null, superseded: invite.superseded } });
+    await audit("member.invited", { actor: actor.name, tenant, subject: email, detail: { inviteId: invite.id, role, workspaces, email, sent: sent?.ok ?? null, superseded: invite.superseded, ...viaDetail(actor) } });
     return NextResponse.json({
       ok: true,
       id: invite.id,

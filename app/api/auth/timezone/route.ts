@@ -4,12 +4,13 @@
 // automatic, which is the default and covers almost everyone. Sending null
 // clears the override and goes back to automatic.
 
-import { errorResponse, sessionUser, refuse } from "@/server/api";
+import { errorResponse, personOf, refuse } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
 import { setUserTimezone } from "@/server/users";
 
 export async function POST(req: NextRequest) {
-  const user = await sessionUser(req);
+  // The signed-in person, or the one behind this machine's `foldrun login`.
+  const user = await personOf(req);
   if (user instanceof Response) return user;
   if (!user) return refuse("sign in first", 401);
 

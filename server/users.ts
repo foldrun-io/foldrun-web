@@ -917,12 +917,13 @@ export async function allowedWorkspaces(tenant: string, userId: string): Promise
 
 /** Set which workspaces a member may open. Null opens all. The owner is
  *  never scoped, and only someone who manages the team may do this. */
-export async function setMemberScope(tenant: string, id: string, workspaces: string[] | null, actorId: string): Promise<void> {
+export async function setMemberScope(tenant: string, id: string, workspaces: string[] | null, actorId: string, ceiling?: Role): Promise<void> {
   return mutateUsers((users) => {
   const target = users.find((u) => u.tenant === tenant && u.id === id);
   if (!target) throw Object.assign(new Error("no such member"), { status: 404 });
   if (ownerOfMembers(users, tenant)?.id === id) throw Object.assign(new Error("the owner sees every workspace"), { status: 400 });
-  const actorRole = roleOfMembers(users, tenant, actorId);
+  const actual = roleOfMembers(users, tenant, actorId);
+  const actorRole = actual && ceiling && outranks(actual, ceiling) ? ceiling : actual;
   if (!actorRole || !can(actorRole, "team:manage")) throw Object.assign(new Error("your role cannot change who sees what"), { status: 403 });
   if (id !== actorId && actorRole !== "owner") {
     // Strictly above them: an admin narrowing another admin to no
@@ -939,15 +940,34 @@ export async function setMemberScope(tenant: string, id: string, workspaces: str
 }
 
 
+/**
+ * The core rules (permissions.ts) read the actor's role from the members.
+ * A `foldrun login` key acts at the lower of its own role and that one —
+ * an owner's key is an admin — so its ceiling is checked here as well, in
+ * the same transaction: an owner's key cannot make, unmake or remove an
+ * admin. No ceiling, or one at or above the person's role: nothing to add.
+ */
+function assertWithinCeiling(users: UserRecord[], tenant: string, targetId: string, actorId: string, ceiling: Role | undefined, next?: Role): void {
+  if (!ceiling) return;
+  const actual = roleOfMembers(users, tenant, actorId);
+  if (!actual || !outranks(actual, ceiling)) return;
+  if (!can(ceiling, "team:manage")) throw Object.assign(new Error(`this sign-in acts as ${ceiling}, which cannot manage the team`), { status: 403 });
+  const target = roleOfMembers(users, tenant, targetId);
+  if ((next === "admin" || target === "admin") && !can(ceiling, "admins:manage")) {
+    throw Object.assign(new Error("making, changing or removing an admin is the owner's, in the browser — a `foldrun login` key acts as admin"), { status: 403 });
+  }
+}
+
 /** A member's effective role, or null for a non-member. */
 export async function roleOfUser(tenant: string, userId: string): Promise<Role | null> {
   return roleOfMembers(await readUsers(), tenant, userId);
 }
 
 /** Give a member a role, as somebody. The rules are in permissions.ts. */
-export async function setMemberRole(tenant: string, id: string, role: Role, actorId: string): Promise<void> {
+export async function setMemberRole(tenant: string, id: string, role: Role, actorId: string, ceiling?: Role): Promise<void> {
   return mutateUsers((users) => {
     assertCanChangeRole(users, tenant, id, role, actorId); // throws with a status
+    assertWithinCeiling(users, tenant, id, actorId, ceiling, role);
     const target = users.find((u) => u.tenant === tenant && u.id === id)!;
     target.role = role;
   });
@@ -992,11 +1012,12 @@ export async function isOwner(tenant: string, userId: string): Promise<boolean> 
  * future caller forgets to pass and silently skips, which is the shape of the
  * bug this is fixing.
  */
-export async function removeMember(tenant: string, id: string, actorId: string, by: string = actorId): Promise<false | { invitesRevoked: string[] }> {
+export async function removeMember(tenant: string, id: string, actorId: string, by: string = actorId, ceiling?: Role): Promise<false | { invitesRevoked: string[] }> {
   return mutateUsers(async (users, invites) => {
     const at = users.findIndex((u) => u.tenant === tenant && u.id === id);
     if (at < 0) return false;
     assertCanRemoveMember(users, tenant, id, actorId); // throws with a status
+    assertWithinCeiling(users, tenant, id, actorId, ceiling);
     const [gone] = users.splice(at, 1);
     // In the same transaction: every pending invite they made, and every
     // one still pending to their address. Done after, a removed person

@@ -73,7 +73,11 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ id: string }>
     // The new key acts as whoever rotated it — never as the old key's
     // minter on the word of a caller who is no person (rotateApiKey).
     const who = actor.kind === "user" || !actor.name.startsWith("key:") ? actor.name : null;
-    const { record, key, oldEndsAt } = await rotateApiKey(tenant, id, graceMs, who);
+    // A `foldrun login` key stays one only when its own person rotates it,
+    // signed in; rotated by any key, or by someone else, it becomes an
+    // ordinary key (it is no longer anybody's sign-in on their machine).
+    const keepCliLogin = actor.kind === "user" && !actor.readOnly && (target.createdBy ?? "").toLowerCase() === actor.name.toLowerCase();
+    const { record, key, oldEndsAt } = await rotateApiKey(tenant, id, graceMs, who, { keepCliLogin });
     await audit("apikey.rotated", {
       actor: actor.name,
       tenant,

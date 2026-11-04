@@ -4,7 +4,7 @@
 // core/src/permissions.ts, where they are unit-tested.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requirePerson, errorResponse, ApiError, refuse } from "@/server/api";
+import { requirePerson, errorResponse, ApiError, refuse, viaDetail } from "@/server/api";
 import { removeMember, setMemberRole, setMemberScope, listMembers, revokeInvitesBeyond } from "@/server/users";
 import { audit } from "@/server/audit";
 import { revokeKeysBeyond } from "@/server/auth";
@@ -13,7 +13,7 @@ import { jsonObject } from "@/server/body";
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
-    const { tenant, actor } = await requirePerson(req, "team:manage");
+    const { tenant, actor } = await requirePerson(req, "team:manage", { cliLogin: true });
     const { id } = await ctx.params;
     const body = await jsonObject(req, { optional: true });
     const before = (await listMembers(tenant)).find((m) => m.id === id);
@@ -28,15 +28,15 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       // POST /api/team/transfer, by the owner. Refused here, before the
       // permission table gets to reason about it.
       if (body.role === "owner") throw new ApiError("owner is not a role you can set — transfer ownership instead (POST /api/team/transfer)", 400);
-      await setMemberRole(tenant, id, body.role, actor.id); // throws with a status
-      await audit("member.role_changed", { actor: actor.name, tenant, subject: before?.email ?? id, detail: { from: before?.role ?? null, to: body.role } });
+      await setMemberRole(tenant, id, body.role, actor.id, actor.role); // throws with a status — actor.role caps a `foldrun login` key
+      await audit("member.role_changed", { actor: actor.name, tenant, subject: before?.email ?? id, detail: { from: before?.role ?? null, to: body.role, ...viaDetail(actor) } });
     }
     if (body.workspaces !== undefined) {
       const scope = body.workspaces === null ? null : Array.isArray(body.workspaces) ? body.workspaces.filter((w): w is string => typeof w === "string") : undefined;
       if (scope === undefined) throw new ApiError("expected { workspaces: [names] | null }", 400);
       if (actor.workspaces && (scope === null || scope.some((w) => !actor.workspaces!.includes(w)))) throw new ApiError("you can only share workspaces you can open", 403);
-      await setMemberScope(tenant, id, scope, actor.id); // throws with a status
-      await audit("member.scope_changed", { actor: actor.name, tenant, subject: before?.email ?? id, detail: { from: before?.workspaces ?? null, to: scope } });
+      await setMemberScope(tenant, id, scope, actor.id, actor.role); // throws with a status
+      await audit("member.scope_changed", { actor: actor.name, tenant, subject: before?.email ?? id, detail: { from: before?.workspaces ?? null, to: scope, ...viaDetail(actor) } });
     }
     if (body.role === undefined && body.workspaces === undefined) throw new ApiError("nothing to change — send role and/or workspaces", 400);
     } finally {
@@ -61,20 +61,21 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
-    // A signed-in person with team:manage; the core rule then decides whether
-    // THIS person may remove THIS member — an admin may not remove an admin.
-    const { tenant, actor } = await requirePerson(req, "team:manage");
+    // A person with team:manage — signed in, or their own `foldrun login`
+    // key; the core rule then decides whether THIS person may remove THIS
+    // member — an admin may not remove an admin, nor an owner's key.
+    const { tenant, actor } = await requirePerson(req, "team:manage", { cliLogin: true });
     const { id } = await ctx.params;
     const target = (await listMembers(tenant)).find((m) => m.id === id);
     assertWithinScope(actor.workspaces, target?.workspaces);
     // Their pending invites, and any to their address, go in the same
     // transaction (OWASP review, 29 Oct 2026): removal is not undone by a link.
-    const removed = await removeMember(tenant, id, actor.id, actor.name);
+    const removed = await removeMember(tenant, id, actor.id, actor.name, actor.role);
     if (!removed) return refuse("no such member", 404);
     // Every key they minted here stops with them (FOL-97) — a key is not a
     // way to stay on the team.
     const revoked = target?.email ? await revokeKeysBeyond(tenant, target.email, null) : [];
-    await audit("member.removed", { actor: actor.name, tenant, subject: target?.email ?? id, detail: { role: target?.role, keysRevoked: revoked, invitesRevoked: removed.invitesRevoked } });
+    await audit("member.removed", { actor: actor.name, tenant, subject: target?.email ?? id, detail: { role: target?.role, keysRevoked: revoked, invitesRevoked: removed.invitesRevoked, ...viaDetail(actor) } });
     return NextResponse.json({ ok: true });
   } catch (err) {
     return errorResponse(err);

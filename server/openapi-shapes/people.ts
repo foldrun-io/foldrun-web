@@ -296,6 +296,16 @@ export const SHAPES: Record<string, Shape> = {
         expiresAt: nstr("kind key: when it stops working; null for never"),
         origin: nstr("kind key: cli-login for a key `foldrun login` minted, else null"),
       }, ["kind"]),
+      person: {
+        ...obj({
+          email: str(),
+          firstName: nstr(),
+          lastName: nstr(),
+          timezone: nstr("an IANA zone; null: the browser's"),
+        }),
+        type: ["object", "null"],
+        description: "the person this credential is — a signed-in session, or the one behind a `foldrun login` key; null for any other key and support's view",
+      },
     }),
   },
   "GET /api/me/inbox": {

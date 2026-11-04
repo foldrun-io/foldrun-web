@@ -25,10 +25,10 @@ const NOT_IN_CLI: Record<string, string> = {
     [
       "POST /api/auth/email", "POST /api/auth/forgot", "POST /api/auth/login", "POST /api/auth/logout",
       "POST /api/auth/mfa/disable", "POST /api/auth/mfa/enable", "POST /api/auth/mfa/setup", "POST /api/auth/mfa/verify",
-      "POST /api/auth/name", "POST /api/auth/password", "POST /api/auth/reset", "GET /api/auth/session",
-      "GET /api/auth/sessions", "DELETE /api/auth/sessions", "POST /api/auth/signup", "POST /api/auth/timezone",
+      "POST /api/auth/password", "POST /api/auth/reset", "GET /api/auth/session",
+      "GET /api/auth/sessions", "DELETE /api/auth/sessions", "POST /api/auth/signup",
       "GET /api/auth/verify", "POST /api/auth/verify/resend",
-      "POST /api/team", "PATCH /api/team/members/[id]", "DELETE /api/team/members/[id]", "POST /api/team/transfer",
+      "POST /api/team/transfer",
       "PATCH /api/me/onboarding",
     ].map((op) => [op, SESSION]),
   ),

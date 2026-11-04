@@ -4,15 +4,21 @@
 // the role, because those are what decide what happens next.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireCaller, errorResponse } from "@/server/api";
+import { requireCaller, errorResponse, cliLoginPerson } from "@/server/api";
 import { listApiKeys } from "@/server/auth";
-import { ownerOf } from "@/server/users";
+import { ownerOf, findUserById } from "@/server/users";
 
 export async function GET(req: NextRequest) {
   try {
     const { tenant, actor } = await requireCaller(req);
     const key = actor.kind === "key" ? (await listApiKeys(tenant)).find((k) => k.id === actor.id) ?? null : null;
+    // The person this credential is: a signed-in session, or the one behind
+    // a `foldrun login` key — what `foldrun me` shows and changes. Null for
+    // a key made by hand, an AI app's connection and support's view.
+    const personId = actor.readOnly ? null : actor.kind === "user" ? actor.id : (await cliLoginPerson(tenant, actor))?.id ?? null;
+    const user = personId ? await findUserById(personId) : null;
     return NextResponse.json({
+      person: user ? { email: user.email, firstName: user.firstName ?? null, lastName: user.lastName ?? null, timezone: user.timezone ?? null } : null,
       account: tenant,
       owner: (await ownerOf(tenant))?.email ?? null,
       role: actor.role,

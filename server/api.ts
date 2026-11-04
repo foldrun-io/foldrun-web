@@ -3,8 +3,9 @@
 
 import { platform } from "@/lib/platform";
 import { NextResponse, type NextRequest } from "next/server";
-import { resolveTenant, type Actor } from "./auth.ts";
-import { isOwner, verifySession, SESSION_COOKIE, type UserRecord } from "./users.ts";
+import { resolveTenant, listApiKeys, type Actor } from "./auth.ts";
+import { isOwner, verifySession, findUser, roleOfUser, allowedWorkspaces, SESSION_COOKIE, type UserRecord } from "./users.ts";
+import { lowerRole, intersectWorkspaces } from "./mcp-oauth.ts";
 import { can, ACTIONS, type Action } from "@/platform/permissions.ts";
 import { scopeAllows } from "@/platform/scope.ts";
 import { supportViewRefusal } from "./view-as.ts";
@@ -115,14 +116,84 @@ export async function requirePermission(
  * Like requirePermission, but the caller must be a signed-in person, not a
  * key. For acts against a named member — inviting, re-roling, removing,
  * transferring — where "who did this" has to be somebody.
+ *
+ * `cliLogin: true` also takes a person's own `foldrun login` key as them
+ * (owner decision, 4 Nov 2026): the CLI can manage the team. It acts at the
+ * lower of the key's role and the person's now — an owner's key is admin,
+ * so making or removing an admin stays in the browser — in the workspaces
+ * both allow. Any other key (made by hand, CI, an AI app) is still refused.
  */
 export async function requirePerson(
   req: NextRequest,
   action: Action,
+  opts: { cliLogin?: boolean } = {},
 ): Promise<{ tenant: string; actor: Actor & { kind: "user" } }> {
   const { tenant, actor } = await requirePermission(req, action);
-  if (actor.kind !== "user") throw new ApiError("this action needs a signed-in person, not an API key", 401);
-  return { tenant, actor: actor as Actor & { kind: "user" } };
+  if (actor.kind === "user") return { tenant, actor: actor as Actor & { kind: "user" } };
+  if (opts.cliLogin && actor.origin === "cli-login") {
+    const person = await cliLoginPerson(tenant, actor);
+    if (!person) throw new ApiError("this machine's sign-in no longer names a member of this account — run `foldrun login` again", 401);
+    if (!can(person.role, action)) {
+      throw new ApiError(`your role (${person.role}) cannot do this — it needs ${ACTIONS[action]} or above`, 403);
+    }
+    return { tenant, actor: person };
+  }
+  throw new ApiError(
+    opts.cliLogin
+      ? "this action needs a person — signed in, or their own `foldrun login` on this machine — not an API key made by hand"
+      : "this action needs a signed-in person, not an API key",
+    401,
+  );
+}
+
+/**
+ * The person behind a `foldrun login` key, as an actor: their user id, at
+ * the lower of the key's role and theirs now, in the workspaces both allow.
+ * Null when the key's maker is no longer a member here, or the key is older
+ * than their user record — an address reused by a new account does not
+ * inherit a key made for the old one.
+ */
+export async function cliLoginPerson(tenant: string, actor: Actor): Promise<(Actor & { kind: "user" }) | null> {
+  if (actor.kind !== "key" || actor.origin !== "cli-login" || actor.readOnly || actor.mcp) return null;
+  const key = (await listApiKeys(tenant)).find((k) => k.id === actor.id);
+  if (!key?.createdBy || key.origin !== "cli-login") return null;
+  const user = await findUser(key.createdBy);
+  if (!user || user.tenant !== tenant) return null;
+  if (Date.parse(key.createdAt) < Date.parse(user.createdAt)) return null;
+  const now = await roleOfUser(tenant, user.id);
+  if (!now) return null;
+  return {
+    kind: "user",
+    id: user.id,
+    name: user.email,
+    role: lowerRole(actor.role, now),
+    workspaces: intersectWorkspaces(actor.workspaces, await allowedWorkspaces(tenant, user.id)),
+    via: { cliLoginKey: key.id },
+  };
+}
+
+/** What an audit entry adds for an act made through `foldrun login`. */
+export function viaDetail(actor: Actor): Record<string, string> {
+  return actor.via ? { via: "foldrun login", key: actor.via.cliLoginKey } : {};
+}
+
+/**
+ * The person a route about their own identity acts on — their name, their
+ * timezone: the signed-in session, or the person behind this request's
+ * `foldrun login` key. A request that carries a key is decided by the key
+ * alone, never by a cookie beside it; any key but a `foldrun login` one is
+ * refused. Password, email, second factor and sessions keep sessionUser:
+ * a key, even this one, never changes how a person signs in.
+ */
+export async function personOf(req: NextRequest): Promise<UserRecord | null | NextResponse> {
+  if (/^bearer\s/i.test(req.headers.get("authorization") ?? "")) {
+    const auth = await resolveTenant(req);
+    if (auth.tenant === null) return refuse(auth.message, auth.status);
+    const person = await cliLoginPerson(auth.tenant, auth.actor);
+    if (!person) return refuse("a key cannot change a person's profile — their own `foldrun login` can, or Settings → Profile in the browser", 401);
+    return findUser(person.name);
+  }
+  return sessionUser(req);
 }
 
 /**
