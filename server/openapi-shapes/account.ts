@@ -1,4 +1,4 @@
-// OpenAPI request/response schemas: /api/account*, /api/approvals, /api/approve/*, /api/assistant/*, /api/audit.
+// OpenAPI request/response schemas: /api/account*, /api/approvals, /api/approve/*, /api/assistant/*, /api/audit, /api/usage/budget.
 // Written from what each handler validates and answers (30 Oct 2026).
 
 import { type Schema, type Shape, obj, str, bool, int, arr, nullable, OK } from "./kit.ts";
@@ -10,6 +10,13 @@ const nstr = (description?: string): Schema => nullable(str(description));
 
 /** components/defaults-model.ts defaultsOf: the account's AGENTS.md keys a form edits. */
 const Budget = obj({ usd: num, period: str("day | week | month") }, ["usd", "period"]);
+/** platform limits.ts BudgetStanding: a cap, what is spent in ITS window, the window's name. */
+const BudgetStanding = obj({
+  budget: { ...Budget, type: ["object", "null"], description: "the cap; null is no limit" },
+  label: nstr("\"$60/day\", or null with no cap"),
+  spentUsd: { ...num, description: "spent in the cap's window — the month's with no cap" },
+  window: str("today | this week | this month"),
+});
 const Compute = obj({ vcpu: nullable(num), memGiB: nullable(num), diskGiB: nullable(num) });
 const Notify = obj({ url: str("an https:// webhook, or ${SECRET_NAME}"), email: str(), events: arr(str("failed | awaiting-approval | completed")) }, ["events"]);
 const Telemetry = obj({ endpoint: str("the collector's OTLP/HTTP traces URL"), headers: { type: "object", additionalProperties: { type: "string" }, description: "name → value as written; ${NAME} names a vault secret, never its value" } });
@@ -342,6 +349,20 @@ export const SHAPES: Record<string, Shape> = {
       entries: arr(AuditEntry, "newest first"),
       next: nstr("the cursor for the next page; null at the end"),
       retention: str("how long entries are kept"),
+    }),
+  },
+  "GET /api/usage/budget": {
+    response: obj({
+      account: {
+        ...BudgetStanding,
+        type: ["object", "null"],
+        description: "the account's own budget: and what every workspace together has spent in its window; null to a caller scoped to some workspaces",
+      },
+      accountHidden: { ...bool, description: "true when account is null because the caller is scoped to some workspaces" },
+      workspaces: arr(
+        obj({ workspace: str(), ...(BudgetStanding.properties as Record<string, Schema>) }),
+        "each workspace the caller may open, its budget: and what it has spent in that window — most spent first",
+      ),
     }),
   },
 };
