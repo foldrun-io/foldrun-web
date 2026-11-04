@@ -55,11 +55,8 @@ export function AssetRow({
 }) {
   const router = useRouter();
   const [confirm, confirmDialog] = useConfirm();
-  // Account entries live in a different store; everything below routes through
-  // these two so the row itself doesn't care which scope it is.
-  const readUrl = account
-    ? `/api/library/${kind}?path=${encodeURIComponent(path)}`
-    : `/api/workspaces/${workspace}/source?path=${encodeURIComponent(path)}`;
+  // Account entries live in a different store; deleting routes through this
+  // so the row itself doesn't care which scope it is.
   const writeUrl = account ? `/api/library/${kind}` : `/api/workspaces/${workspace}/source`;
 
   const [open, setOpen] = useState(false);
@@ -126,36 +123,18 @@ export function AssetRow({
     }))) return;
     setStatus({ text: "moving…" });
     try {
-      const body = await loadContent();
-      // A standard skill is a folder; the library keeps the same shape.
-      const rel = path.endsWith("/SKILL.md")
-        ? `${path.split("/").at(-2)}/SKILL.md`
-        : path.split("/").pop()!;
-      const put = await fetch(`/api/library/${kind}`, {
-        method: "PUT",
+      // One call, on the server (5 Nov 2026): a skill or folder tool moves as
+      // its whole folder and nothing is deleted until everything is copied.
+      // Done here it copied one file and deleted the folder, losing a
+      // skill's other files, and flattened a folder tool's path.
+      const res = await fetch(`/api/workspaces/${workspace}/source/share`, {
+        method: "POST",
         headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
-        body: JSON.stringify({ path: rel, content: body }),
+        body: JSON.stringify({ path }),
       });
-      if (!put.ok) {
-        const data = await put.json().catch(() => ({}));
-        throw new Error(data.error ?? `${put.status}`);
-      }
-      // Only remove the original once the copy is safely written.
-      const target = path.endsWith("/SKILL.md") ? path.replace(/\/SKILL\.md$/, "") : path;
-      const del = await fetch(`/api/workspaces/${workspace}/source`, {
-        method: "DELETE",
-        headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
-        body: JSON.stringify({ path: target }),
-      });
-      // The copy is already in the library at this point, so a failure here
-      // leaves the file in both scopes rather than losing it — say so, because
-      // silence would read as a clean move and the duplicate would be found
-      // later by whoever edits the wrong one.
-      if (!del.ok) {
-        const data = await del.json().catch(() => ({}));
-        throw new Error(
-          `copied to shared, but the original could not be removed — ${data.error ?? del.status}`,
-        );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? `${res.status}`);
       }
       setStatus(null);
       onDeleted?.();
@@ -166,12 +145,6 @@ export function AssetRow({
         failed: true,
       });
     }
-  };
-
-  const loadContent = async () => {
-    const res = await fetch(readUrl, { headers: { "x-foldrun-tenant": tenant } });
-    const data = await res.json();
-    return (data.content ?? "") as string;
   };
 
   const remove = async () => {

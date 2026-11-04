@@ -168,6 +168,23 @@ const LEGACY_SHAPES: Record<string, Shape> = {
     response: obj({ ok: bool, path: str("the new path") }),
   },
   "DELETE /api/workspaces/{workspace}/source": { body: obj({ path: str("a file or a folder") }, ["path"]), response: obj({ ok: bool }) },
+  "POST /api/workspaces/{workspace}/source/share": {
+    body: obj(
+      {
+        path: str("a skill, tool, script, knowledge or memory file; skills/x/SKILL.md or tools/x/tool.md (or the folder) moves the whole folder"),
+        overwrite: { ...bool, description: "replace library files already at those paths (refused otherwise)" },
+        dryRun: { ...bool, description: "answer what would move; nothing is written" },
+      },
+      ["path"],
+    ),
+    response: obj({
+      ok: bool,
+      kind: str("skills | tools | scripts | knowledge | memory"),
+      unit: str("what moved: the folder, or the one file"),
+      files: arr(obj({ from: str("its path in the workspace"), to: str("its path under the library's kind"), replaces: bool })),
+      moved: { ...bool, description: "false for a dry run" },
+    }),
+  },
   "PATCH /api/workspaces/{workspace}/agents/{agent}": {
     body: obj({
       list: obj({ key: str("subagents | agents | tools"), name: str(), action: str("add | remove") }),
@@ -526,6 +543,8 @@ const EXTRA_STATUSES: Record<string, string[]> = {
   "POST /api/workspaces/{workspace}/evals/{evalName}/improve": ["409"],
   // The file changed since it was loaded (body.ifMatch is not its sha256).
   "PUT /api/workspaces/{workspace}/source": ["409"],
+  // Not there (404); a file the library cannot hold, or one already there without overwrite (409).
+  "POST /api/workspaces/{workspace}/source/share": ["404", "409"],
   // No secret by that name.
   "PATCH /api/secrets": ["404", "409"],
   // Renaming onto a taken name, or a secret limited to this workspace that
