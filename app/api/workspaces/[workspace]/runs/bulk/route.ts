@@ -23,7 +23,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, reportError, requirePermission, refuse } from "@/server/api";
 import { rerunFrom, stopRun } from "@/platform/queue";
-import { listRunSummaries } from "@/lib/store";
+import { listRunSummaries, runDisplayStatus } from "@/lib/store";
 import { idempotent } from "@/server/idempotency";
 
 /** The most runs one call will touch. A bulk action is a recovery tool, not
@@ -136,7 +136,10 @@ function select(tenant: string, workspace: string, body: BulkBody): { id: string
   const found = listRunSummaries(tenant, workspace)
     .filter((r) => {
       if (ids && !ids.has(r.id)) return false;
-      if (statuses && !statuses.has(r.status)) return false;
+      // "stopped" is the status the runs list shows a run a person stopped;
+      // its record says "failed" (runDisplayStatus). Either name matches it,
+      // so `--status stopped` finds it and `--status failed` still does.
+      if (statuses && !statuses.has(r.status) && !statuses.has(runDisplayStatus(r))) return false;
       if (body.flow && r.flow !== body.flow) return false;
       const at = new Date(r.startedAt).getTime();
       if (since !== null && Number.isFinite(since) && at < since) return false;

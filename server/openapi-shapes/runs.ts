@@ -98,7 +98,7 @@ export const SHAPES: Record<string, Shape> = {
     body: obj(
       {
         action: str("stop | rerun"),
-        status: arr(str(), "only runs with one of these statuses"),
+        status: arr(str(), "only runs with one of these statuses; \"stopped\" also names a run a person stopped (stored as failed)"),
         flow: str("only this flow's runs"),
         since: str("ISO instant — runs that started at or after it"),
         until: str("ISO instant — runs that started at or before it"),

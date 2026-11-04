@@ -65,3 +65,25 @@ test("a dry run matches the same runs, newest first, and a second call parses no
   }
   assert.equal(reads, 0, "the index answered; no run record was read");
 });
+
+test('status "stopped" matches a run a person stopped (stored as failed), and "failed" still matches it', async () => {
+  const ws2 = "stops";
+  const dir = path.join(DATA, TENANT, "workspaces", ws2, "runs");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(DATA, TENANT, "workspaces", ws2, "AGENTS.md"), `---\nname: ${ws2}\n---\n`);
+  const at = (id: string, status: string, startedAt: string, extra = {}) =>
+    fs.writeFileSync(path.join(dir, `${id}.json`), JSON.stringify({ id, flow: "digest", status, startedAt, steps: [], ...extra }));
+  at("run-stopped", "failed", "2026-10-30T02:00:00Z", { stopRequested: true });
+  at("run-broke", "failed", "2026-10-30T01:00:00Z");
+  const call = async (status: string[]) =>
+    (await (await route.POST(
+      new NextRequest(`http://localhost/api/workspaces/${ws2}/runs/bulk`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+        body: JSON.stringify({ action: "rerun", status, dryRun: true }),
+      }),
+      { params: Promise.resolve({ workspace: ws2 }) },
+    )).json()).matched;
+  assert.deepEqual(await call(["stopped"]), ["run-stopped"]);
+  assert.deepEqual(await call(["failed"]), ["run-stopped", "run-broke"], "unchanged: failed still names both");
+});
