@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import { errorResponse, requirePermission, actorOf, refuse } from "@/server/api";
+import { assertMayChangeWorkspacePolicy, auditPolicyEvents } from "@/server/workspace-policy";
 import { workspaceDir, assertSafeName, writeWorkspaceFile } from "@/lib/store";
 import { editFrontmatterList, setFrontmatterScalar, TEAM_LIST_KEYS } from "@/lib/flow-patterns";
 import { readNetwork, setNetworkSetting } from "@/lib/network";
@@ -29,7 +30,7 @@ const SCALAR_VALUES: Record<string, readonly string[]> = { sandbox: ["own", "par
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace: string; agent: string }> }) {
   try {
     const { workspace, agent } = await ctx.params;
-    const tenant = (await requirePermission(req, "workspace:write")).tenant;
+    const { tenant, actor } = await requirePermission(req, "workspace:write");
     assertSafeName(agent, "agent");
     const body = (await req.json().catch(() => ({}))) as {
       list?: { key?: string; name?: string; action?: string };
@@ -100,7 +101,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
       expect = body.network === null ? { network: null } : {};
     }
     next = guardEdit(raw, next, Object.keys(expect).length ? Object.keys(expect) : ["network"], expect);
-    if (next !== raw) writeWorkspaceFile(tenant, workspace, rel, next, { by: await actorOf(req), message });
+    if (next !== raw) {
+      // A tool, sub-agent, network or `sandbox: own` added here widens an
+      // agent behind a published flow as surely as a save (FOL-112).
+      const by = await actorOf(req);
+      const policyEvents = assertMayChangeWorkspacePolicy(actor, tenant, workspace, [{ path: rel, content: next }], "merge");
+      writeWorkspaceFile(tenant, workspace, rel, next, { by, message });
+      await auditPolicyEvents(policyEvents, actor.name, tenant);
+    }
     return NextResponse.json({ ok: true, changed: next !== raw });
   } catch (err) {
     return errorResponse(err);

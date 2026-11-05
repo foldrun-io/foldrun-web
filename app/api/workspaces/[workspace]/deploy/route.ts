@@ -16,7 +16,7 @@ import { audit } from "@/server/audit";
 import { deployWorkspace, planDeploy } from "@/lib/deploy";
 import { workspaceDir, type DeployFile } from "@/lib/store";
 import { workspaceCapRefusal } from "@/server/workspace-cap";
-import { assertMayChangeWorkspacePolicy } from "@/server/workspace-policy";
+import { assertMayChangeWorkspacePolicy, auditPolicyEvents } from "@/server/workspace-policy";
 import fs from "node:fs";
 import { idempotent } from "@/server/idempotency";
 
@@ -80,7 +80,21 @@ async function postOnce(
     // shape a CI check wants before it decides whether to merge.
     if (body.dryRun === true) {
       const plan = planDeploy(tenant, workspace, files);
-      return NextResponse.json({ ok: plan.issues.length === 0, applied: false, ...plan, files: undefined });
+      // What the real deploy would be refused for by the workspace's policy
+      // (an editor's policy key or a2a: change, a widened agent behind a
+      // published flow, a secret-and-code agent with no accept_risk), so a
+      // dry run that passes predicts a deploy that does (FOL-112).
+      let policy: { status: number; code?: string; error: string } | undefined;
+      if (fs.existsSync(workspaceDir(tenant, workspace))) {
+        try {
+          assertMayChangeWorkspacePolicy(actor, tenant, workspace, files, "replace");
+        } catch (err) {
+          const e = err as { status?: unknown; code?: unknown; message?: unknown };
+          if (typeof e.status !== "number" || typeof e.message !== "string") throw err;
+          policy = { status: e.status, ...(typeof e.code === "string" ? { code: e.code } : {}), error: e.message };
+        }
+      }
+      return NextResponse.json({ ok: plan.issues.length === 0 && !policy, applied: false, ...plan, ...(policy ? { policy } : {}), files: undefined });
     }
 
     // A deploy to a name that does not exist yet MAKES a workspace, so it
@@ -93,12 +107,13 @@ async function postOnce(
       await requirePermission(req, "workspace:manage");
       const overCap = await workspaceCapRefusal(tenant, workspace);
       if (overCap) return refuse(overCap, 402);
-    } else {
-      // The deployed AGENTS.md may not change the workspace's policy keys
-      // past an editor (server/workspace-policy.ts, 30 Oct 2026); a deploy
-      // that makes the workspace already needed workspace:manage above.
-      assertMayChangeWorkspacePolicy(actor, tenant, workspace, files, "replace");
     }
+    // The deployed AGENTS.md may not change the workspace's policy keys
+    // past an editor (server/workspace-policy.ts, 30 Oct 2026); a deploy
+    // that makes the workspace already needed workspace:manage above, and
+    // still meets the published-flow checks (FOL-112): a new workspace's
+    // published flow with a secret-and-code agent needs accept_risk too.
+    const policyEvents = assertMayChangeWorkspacePolicy(actor, tenant, workspace, files, "replace");
 
     const result = deployWorkspace(tenant, workspace, files, {
       commit,
@@ -118,6 +133,7 @@ async function postOnce(
         subject: workspace,
         detail: { workspace, commit: result.commit ?? null, added: result.added.length, updated: result.updated.length, removed: result.removed.length },
       });
+      await auditPolicyEvents(policyEvents, actor.name, tenant);
       void evaluateDeployed(tenant, workspace, result.commit).catch(() => {});
     }
 

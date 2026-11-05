@@ -29,7 +29,7 @@ import { patchFrontmatter } from "@/lib/agents-md";
 import { computePatch } from "@/components/defaults-model";
 import { a2aPatch } from "@/components/a2a-model";
 import { jsonObject } from "@/server/body";
-import { assertMayChangeWorkspacePolicy } from "@/server/workspace-policy";
+import { assertMayChangeWorkspacePolicy, auditPolicyEvents } from "@/server/workspace-policy";
 
 /** A plain JSON object — what an edit, a trigger or step options must be. */
 const isObject = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v);
@@ -42,8 +42,10 @@ async function saveFlow(req: NextRequest, tenant: string, workspace: string, fil
   // `a2a:` — publishing to outside agents — is an admin's, here as on every
   // other door into the file (server/workspace-policy.ts).
   const { actor } = await requirePermission(req, "workspace:write");
-  assertMayChangeWorkspacePolicy(actor, tenant, workspace, [{ path: rel, content }], "merge");
-  writeWorkspaceFile(tenant, workspace, rel, content, { by: await actorOf(req), message });
+  const by = await actorOf(req);
+  const policyEvents = assertMayChangeWorkspacePolicy(actor, tenant, workspace, [{ path: rel, content }], "merge");
+  writeWorkspaceFile(tenant, workspace, rel, content, { by, message });
+  await auditPolicyEvents(policyEvents, actor.name, tenant);
 }
 
 function flowFile(tenant: string, workspace: string, flow: string) {

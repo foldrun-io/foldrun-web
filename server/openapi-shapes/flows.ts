@@ -100,6 +100,7 @@ const EDIT_FLOW: Shape = {
       examples: nullable(arr(str(), "example requests the card lists; null removes them")),
       public_card: nullable({ ...bool, description: "the card is readable without a key (calling it never is)" }),
       input: { description: "a JSON Schema the request's data part must satisfy; null removes it" },
+      accept_risk: nullable(arr(str(), "the agents of this flow an admin accepts holding a secret while they can run code (their answer goes to the caller); null or [] removes it")),
     }), description: "merged over the flow's a2a: — a key sent replaces it, null removes it, the rest is kept; null removes the block. Admin only (workspace:manage)" }),
     trigger: obj({
       trigger: str("manual | schedule | webhook (default manual)"),
@@ -162,7 +163,12 @@ export const SHAPES: Record<string, Shape> = {
         name: str("the agent card's name"), description: nullable(str()),
         hasInputSchema: { ...bool, description: "the flow's a2a: input: — a JSON Schema the request's data part must match" },
         card: str("the agent card's URL"), url: str("the A2A JSON-RPC endpoint"),
+        acceptRisk: arr(str(), "the flow's a2a: accept_risk — agents an admin accepted holding a secret while they can run code"),
       }), "every flow whose frontmatter says a2a:, published or not"),
+      risks: arr(obj({
+        flow: str(), agent: str(), secrets: arr(str(), "the secrets that reach its sandbox"),
+        accepted: { ...bool, description: "the flow's accept_risk names it" },
+      }), "every flow's agents (published or not) that hold a secret and can run code: a published one is refused new A2A tasks, and publishing is refused, until accepted"),
       keys: nullable(arr(obj({ id: str(), label: str(), prefix: str(), flows: arr(str()), maxTasks: nullable(int), expiresAt: nullable(str()) }), "the workspace's live A2A keys; null unless the caller may manage keys")),
       tasks: arr(obj({
         id: str("the A2A task id"), flow: str(), state: str("TASK_STATE_SUBMITTED | WORKING | COMPLETED | FAILED | CANCELED | …"),

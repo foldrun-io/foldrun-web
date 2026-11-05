@@ -4,7 +4,7 @@ import { audit } from "@/server/audit";
 import { readPackage, planImport, applyImport, PackageError } from "@/lib/package";
 import { idempotent } from "@/server/idempotency";
 import { workspaceCapRefusal } from "@/server/workspace-cap";
-import { assertMayChangeWorkspacePolicy } from "@/server/workspace-policy";
+import { assertMayChangeWorkspacePolicy, auditPolicyEvents } from "@/server/workspace-policy";
 
 // Import a package (what …/export downloads) into this workspace — or, for
 // a workspace package, make this workspace from it. The body is the .zip.
@@ -38,17 +38,18 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
       // The plan's workspace count, as POST /api/workspaces checks it.
       const overCap = await workspaceCapRefusal(tenant, workspace);
       if (overCap) return refuse(overCap, 402);
-    } else {
-      // Into a workspace that exists: what the import would write over its
-      // AGENTS.md (or add beside a project.md) may not change the policy
-      // keys past an editor (server/workspace-policy.ts, 30 Oct 2026).
-      const written = new Set([...plan.added, ...(flag("overwrite") ? plan.overwritten : [])]);
-      assertMayChangeWorkspacePolicy(actor, tenant, workspace, pkg.files.filter((f) => written.has(f.path)), "merge");
     }
     const by = await actorOf(req);
+    // What the import would write over its AGENTS.md (or add beside a
+    // project.md) may not change the policy keys past an editor
+    // (server/workspace-policy.ts, 30 Oct 2026); a new workspace's published
+    // flows meet the published-flow checks too (FOL-112).
+    const written = new Set([...plan.added, ...(flag("overwrite") ? plan.overwritten : [])]);
+    const policyEvents = assertMayChangeWorkspacePolicy(actor, tenant, workspace, pkg.files.filter((f) => written.has(f.path)), "merge");
     // `expect`: the permission and plan checks above were for this answer to
     // "is it new?" — if that changed since, applyImport refuses.
     const result = applyImport(tenant, workspace, pkg, { overwrite: flag("overwrite"), expect: plan.creates ? "create" : "merge", ...(by ? { by } : {}) });
+    await auditPolicyEvents(policyEvents, actor.name, tenant);
     await audit("workspace.imported", {
       actor: actor.name,
       tenant,

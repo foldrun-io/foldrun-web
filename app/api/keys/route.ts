@@ -7,6 +7,7 @@ import { clientIp } from "@/server/limits";
 import { can, isRole, type Role } from "@/platform/permissions";
 import { withinMinter, keyWithin } from "@/server/key-scope";
 import { listWorkspaces, listFlows } from "@/lib/store";
+import { isA2aPublished } from "@/lib/a2a-publish";
 import { errorResponse, ApiError, refuse } from "@/server/api";
 import { idempotent } from "@/server/idempotency";
 
@@ -134,9 +135,10 @@ const A2A_MAX_TASKS = 100;
 /**
  * Mint an A2A key: one workspace, the flows it may call. An admin of that
  * workspace (keys:manage, and the workspace inside their scope — the same
- * rule as any key, read through withinMinter). The flows must exist; whether
- * each is published is read on every call, so unpublishing one closes it to
- * every key at once and this list need not change.
+ * rule as any key, read through withinMinter). The flows must exist and be
+ * published now (5 Nov 2026); whether each still is, is read on every call,
+ * so unpublishing one closes it to every key at once and this list need not
+ * change.
  */
 async function mintA2aKey(
   req: NextRequest,
@@ -165,9 +167,18 @@ async function mintA2aKey(
   }
   const flows = [...new Set(body.flows as string[])];
   if (flows.length > 50) return refuse("an A2A key names at most 50 flows", 400);
-  const have = new Set(listFlows(tenant, workspace).map((f) => f.name));
+  const listed = listFlows(tenant, workspace);
+  const have = new Set(listed.map((f) => f.name));
   const unknown = flows.filter((f) => !have.has(f));
   if (unknown.length) return refuse(`no such flow in ${workspace}: ${unknown.join(", ")}`, 400);
+  // Published first (FOL-112 N6, 5 Nov 2026): a key for a flow nobody has
+  // published is a key waiting for whoever publishes it next. Unpublishing
+  // later still closes the flow to every key at once (read on every call).
+  const published = new Set(listed.filter((f) => isA2aPublished(f.a2a)).map((f) => f.name));
+  const unpublished = flows.filter((f) => !published.has(f));
+  if (unpublished.length) {
+    return refuse(`${unpublished.join(", ")} ${unpublished.length === 1 ? "is" : "are"} not published over A2A in ${workspace} — publish ${unpublished.length === 1 ? "it" : "them"} first (\`foldrun a2a publish <flow> --to ${workspace}\`, or the flow's Publish over A2A control), then mint the key`, 400);
+  }
   const maxTasks = body.maxTasks === undefined ? A2A_DEFAULT_TASKS : Number(body.maxTasks);
   if (!Number.isInteger(maxTasks) || maxTasks < 1 || maxTasks > A2A_MAX_TASKS) return refuse(`maxTasks must be a whole number from 1 to ${A2A_MAX_TASKS}`, 400);
   const expiresAt = parseKeyExpiry(body.expires);

@@ -6,13 +6,19 @@
 // same file everything else edits — and shows where the card is served, with
 // a curl to try it. Publishing is an admin's (workspace:manage); the server
 // refuses anyone else, and the control says so before they try.
+//
+// FOL-112: an agent of the flow that holds a secret and can run code is
+// named here before the first publish — its answer goes back to the caller,
+// who can ask for the secret in it — and the flow is not published (nor
+// served new tasks) until an admin ticks "accept" for it, which writes
+// `a2a: accept_risk: [<agent>]`.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { buttonClass, chipButtonClass, inputClass, FIELD_LABEL_CLASS } from "@/components/ui";
 import { CopyField } from "@/components/copy-field";
 import { useCan } from "@/components/role";
-import { a2aBodyOf, a2aCurl, a2aFormOf, type A2aForm } from "@/components/a2a-model";
+import { a2aBodyOf, a2aCurl, a2aFormOf, a2aRiskState, type A2aForm, type A2aRisk } from "@/components/a2a-model";
 
 interface Published {
   publish: boolean;
@@ -21,6 +27,7 @@ interface Published {
   examples: string[];
   publicCard: boolean;
   input?: unknown;
+  acceptRisk?: string[];
 }
 
 interface Where {
@@ -35,6 +42,7 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
   const [form, setForm] = useState<A2aForm>(a2aFormOf(initial));
   const [saved, setSaved] = useState<A2aForm>(a2aFormOf(initial));
   const [where, setWhere] = useState<Where | null>(null);
+  const [risks, setRisks] = useState<A2aRisk[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const headers: Record<string, string> = { "content-type": "application/json", ...(tenant !== "default" ? { "x-foldrun-tenant": tenant } : {}) };
@@ -43,9 +51,10 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
   // address (never this browser's), read when the panel opens.
   async function locate() {
     const res = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/a2a`, { headers }).catch(() => null);
-    const d = res && res.ok ? ((await res.json().catch(() => null)) as { flows?: { flow: string; card: string; url: string }[] } | null) : null;
+    const d = res && res.ok ? ((await res.json().catch(() => null)) as { flows?: { flow: string; card: string; url: string }[]; risks?: A2aRisk[] } | null) : null;
     const hit = d?.flows?.find((f) => f.flow === flow);
     setWhere(hit ? { card: hit.card, url: hit.url } : null);
+    setRisks(Array.isArray(d?.risks) ? d.risks : []);
   }
 
   async function save() {
@@ -69,6 +78,8 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
 
   const dirty = JSON.stringify(form) !== JSON.stringify(saved);
   const set = <K extends keyof A2aForm>(k: K, v: A2aForm[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const risk = a2aRiskState(flow, risks, form);
+  const accept = (agent: string, on: boolean) => set("acceptRisk", on ? [...new Set([...form.acceptRisk, agent])].sort() : form.acceptRisk.filter((a) => a !== agent));
 
   if (!open) {
     return (
@@ -121,8 +132,36 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
           <textarea value={form.examples} onChange={(e) => set("examples", e.target.value)} rows={2} className={inputClass("w-full font-mono text-xs")} />
         </label>
       </fieldset>
+      {risk.items.length > 0 && (
+        <div role="alert" className="mt-3 rounded-md border border-warning-line bg-warning-soft p-3 text-xs text-fg-secondary">
+          <p className="font-medium text-warning">The answer goes back to the caller</p>
+          <p className="mt-1">
+            {risk.items.length === 1 ? "This agent holds" : "These agents hold"} a secret and can run code (Bash), so a caller can ask for the secret in the answer. Take Bash or the secret away
+            from {risk.items.length === 1 ? "it" : "them"} (or bind the secret to its sites), or accept the risk — until then the flow is not published and takes no new tasks.
+          </p>
+          <ul className="mt-2 space-y-1">
+            {risk.items.map((r) => (
+              <li key={r.agent}>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={r.accepted} disabled={!mayManage || busy} onChange={(e) => accept(r.agent, e.target.checked)} />
+                  <span>
+                    Accept for <span className="font-mono">{r.agent}</span> — holds <span className="font-mono">{r.secrets.slice(0, 3).join(", ")}{r.secrets.length > 3 ? ", …" : ""}</span>
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-fg-subtle">Written as a2a: accept_risk in the flow and in the audit log.</p>
+        </div>
+      )}
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={save} disabled={!mayManage || busy || !dirty} className={buttonClass("primary")} title={mayManage ? undefined : "Publishing a flow needs the admin role (workspace:manage)"}>
+        <button
+          type="button"
+          onClick={save}
+          disabled={!mayManage || busy || !dirty || risk.blocks}
+          className={buttonClass("primary")}
+          title={!mayManage ? "Publishing a flow needs the admin role (workspace:manage)" : risk.blocks ? "Accept the risk for each agent above, or take Bash or the secret away from it" : undefined}
+        >
           {busy ? "Saving…" : "Save"}
         </button>
         <button type="button" onClick={() => { setForm(saved); setError(null); setOpen(false); }} className={buttonClass("minimal")}>

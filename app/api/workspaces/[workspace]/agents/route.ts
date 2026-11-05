@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, errorResponse, requirePermission, actorOf, refuse } from "@/server/api";
+import { assertMayChangeWorkspacePolicy, auditPolicyEvents } from "@/server/workspace-policy";
 import fs from "node:fs";
 import path from "node:path";
 import { workspaceDir, assertSafeName, writeWorkspaceFile, AGENT_TEMPLATE } from "@/lib/store";
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
 async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: string }> }) {
   try {
     const { workspace } = await ctx.params;
-    const tenant = (await requirePermission(req, "workspace:write")).tenant;
+    const { tenant, actor } = await requirePermission(req, "workspace:write");
     // description and model are optional: the canvas's "New agent" asks
     // for them, so the file lands answering the two questions a template
     // otherwise leaves as placeholders.
@@ -39,7 +40,12 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
       description: typeof body.description === "string" ? body.description : undefined,
       model: typeof body.model === "string" ? body.model : undefined,
     });
-    writeWorkspaceFile(tenant, workspace, rel, content, { by: await actorOf(req) });
+    const by = await actorOf(req);
+    // A published flow that names this agent before it exists gains it now:
+    // a new agent behind the flow (FOL-112).
+    const policyEvents = assertMayChangeWorkspacePolicy(actor, tenant, workspace, [{ path: rel, content }], "merge");
+    writeWorkspaceFile(tenant, workspace, rel, content, { by });
+    await auditPolicyEvents(policyEvents, actor.name, tenant);
     return NextResponse.json({ ok: true, path: rel });
   } catch (err) {
     return errorResponse(err);

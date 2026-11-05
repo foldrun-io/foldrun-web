@@ -3,6 +3,10 @@ import { requireCaller, errorResponse, requirePermission, assertWorkspaceScope, 
 import { scopeAllows } from "@/platform/scope";
 import { listWorkspaces, listAgents } from "@/lib/store";
 import { importAgent, AgentImportError } from "@/lib/agent-import";
+import { assertMayChangeWorkspacePolicy, auditPolicyEvents } from "@/server/workspace-policy";
+import { workspaceDir, isOneSegment } from "@/lib/store";
+import fs from "node:fs";
+import path from "node:path";
 import { idempotent } from "@/server/idempotency";
 
 // Bring an agent you already have into this workspace — copied from another
@@ -42,10 +46,25 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     }
     assertWorkspaceScope(actor, body.from);
     const by = await actorOf(req);
+    // The copy arrives as a new agent here: one a published flow already
+    // names is a new agent behind that flow (FOL-112). Read from where
+    // importAgent copies it; a name it would refuse is its to refuse.
+    const as = typeof body.as === "string" && body.as.trim() ? body.as.trim() : body.agent;
+    let policyEvents: ReturnType<typeof assertMayChangeWorkspacePolicy> = [];
+    if (isOneSegment(body.agent) && isOneSegment(as) && listWorkspaces(tenant).some((w) => w.name === body.from)) {
+      let content: string | null = null;
+      try {
+        content = fs.readFileSync(path.join(workspaceDir(tenant, body.from), "agents", body.agent, "agent.md"), "utf8");
+      } catch {
+        content = null;
+      }
+      if (content !== null) policyEvents = assertMayChangeWorkspacePolicy(actor, tenant, workspace, [{ path: `agents/${as}/agent.md`, content }], "merge");
+    }
     const result = importAgent(tenant, body.from, body.agent, workspace, {
       ...(typeof body.as === "string" && body.as.trim() ? { as: body.as.trim() } : {}),
       ...(by ? { by } : {}),
     });
+    await auditPolicyEvents(policyEvents, actor.name, tenant);
     return NextResponse.json({ ok: true, from: body.from, ...result });
   } catch (err) {
     if (err instanceof AgentImportError) return refuse(err.message, err.status);
