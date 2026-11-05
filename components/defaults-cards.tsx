@@ -157,7 +157,10 @@ export type RoomWaitRow = { workspace: string; runId: string; flow: string; step
 /** What a level's running steps hold (GET /api/usage/compute). */
 export type HeldRow = { vcpu: number; memGiB: number; diskGiB?: number; steps: number };
 /** The figures a level allows; null is no cap at that level. */
-export type PoolRow = { vcpu: number | null; memGiB: number | null; diskGiB?: number | null; stepVcpu?: number | null; stepMemGiB?: number | null; stepDiskGiB?: number | null; source?: string | null };
+export type PoolRow = { vcpu: number | null; memGiB: number | null; diskGiB?: number | null; stepVcpu?: number | null; stepMemGiB?: number | null; stepDiskGiB?: number | null; source?: string | null; stepDefault?: string[] };
+/** The account's runs waiting for their turn and the most before a new one
+ *  is refused (GET /api/usage/compute `runsWaiting`, FOL-100). */
+export type RunsWaitingRow = { waiting: number | null; limit: number | null };
 
 const LEVEL_WORDS = {
   account: { own: "Your own cap", help: "Cores, GiB and disk all your running steps may hold together, lower than the plan's. A step that would pass it waits for another to finish — as long as it takes, in turn — and you hear of it after an hour; one bigger than the whole cap fails with a message. Empty is the plan's." },
@@ -176,6 +179,7 @@ export function ComputeCard({
   pool,
   inUse,
   waiting = [],
+  runsWaiting,
   level = "account",
   outer,
 }: {
@@ -185,6 +189,8 @@ export function ComputeCard({
   pool: PoolRow;
   inUse: HeldRow;
   waiting?: RoomWaitRow[];
+  /** The account's: shown on the account level only. */
+  runsWaiting?: RunsWaitingRow;
   /** Which level this card sets. */
   level?: "account" | "workspace" | "flow";
   /** The account's pool, shown beside a narrower level's own. */
@@ -193,7 +199,7 @@ export function ComputeCard({
   const str = (n: number | null | undefined) => (n === null || n === undefined ? "" : String(n));
   // The pool and what is held, as the server last said: refetched after a
   // save, so a lowered cap shows as the figure now enforced.
-  const [live, setLive] = useState({ pool, inUse, waiting });
+  const [live, setLive] = useState({ pool, inUse, waiting, runsWaiting });
   // "waiting 3 min" is read off the browser's clock after hydration, never
   // rendered on the server — the two would disagree (Codex review).
   const [now, setNow] = useState<number | null>(null);
@@ -209,8 +215,8 @@ export function ComputeCard({
     if (!res0.ok) throw new Error(d.error ?? `${res0.status}`);
     if (level === "account") {
       const res = await fetch("/api/usage/compute", { headers: { "x-foldrun-tenant": tenant } }).catch(() => null);
-      const fresh = res && res.ok ? ((await res.json().catch(() => null)) as { compute?: PoolRow; inUse?: HeldRow; waiting?: RoomWaitRow[] } | null) : null;
-      if (fresh?.compute && fresh.inUse) setLive({ pool: fresh.compute, inUse: fresh.inUse, waiting: fresh.waiting ?? [] });
+      const fresh = res && res.ok ? ((await res.json().catch(() => null)) as { compute?: PoolRow; inUse?: HeldRow; waiting?: RoomWaitRow[]; runsWaiting?: RunsWaitingRow } | null) : null;
+      if (fresh?.compute && fresh.inUse) setLive({ pool: fresh.compute, inUse: fresh.inUse, waiting: fresh.waiting ?? [], runsWaiting: fresh.runsWaiting ?? runsWaiting });
     }
     // The flow route answers the flow; the settings routes, the defaults.
     const c = (d.defaults?.compute ?? d.flow?.compute ?? null) as Defaults["compute"] | null;
@@ -236,7 +242,20 @@ export function ComputeCard({
         )}
         {(live.pool.stepVcpu || live.pool.stepMemGiB || live.pool.stepDiskGiB) && (
           <span className="text-fg-subtle">
-            One step may hold up to {live.pool.stepVcpu ?? "any"} vCPU · {live.pool.stepMemGiB ?? "any"} GiB · {live.pool.stepDiskGiB ?? "any"} GiB disk.
+            One step may hold up to {live.pool.stepVcpu ?? "any"} vCPU · {live.pool.stepMemGiB ?? "any"} GiB · {live.pool.stepDiskGiB ?? "any"} GiB disk
+            {live.pool.stepDefault?.length ? " — the most for an account without a plan of its own" : ""}.
+          </span>
+        )}
+        {level === "account" && live.runsWaiting && live.runsWaiting.limit !== null && (
+          <span className="text-fg-subtle">
+            {live.runsWaiting.waiting !== null ? (
+              <>
+                <span className="tabular-nums text-fg">{live.runsWaiting.waiting} of {live.runsWaiting.limit}</span> runs waiting for their turn
+              </>
+            ) : (
+              <>Up to <span className="tabular-nums text-fg">{live.runsWaiting.limit}</span> runs may wait for their turn</>
+            )}
+            {" "}— while {live.runsWaiting.limit} wait, a new run is refused at once rather than lined up.
           </span>
         )}
         {live.waiting.length > 0 && (

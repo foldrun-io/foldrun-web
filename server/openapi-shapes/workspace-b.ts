@@ -191,7 +191,7 @@ const Preview = open(
 
 // ---------------------------------------------------------------- triggers
 
-const TriggerOutcome = "started | duplicate | throttled | debounced | quarantined | paused | halted | overlap-skipped | missed | filtered | failed";
+const TriggerOutcome = "started | duplicate | throttled | debounced | quarantined | paused | halted | overlap-skipped | missed | filtered | queue-full | failed";
 
 export const SHAPES: Record<string, Shape> = {
   "GET /api/workspaces/{workspace}": {

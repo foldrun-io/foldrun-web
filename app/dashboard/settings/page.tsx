@@ -17,7 +17,7 @@ import { accountDir, parseProvider } from "@/lib/store";
 import { readAgentsMdKeys } from "@/lib/agents-md";
 import { defaultsOf, accountDefaultsFor } from "@/components/defaults-model";
 import { TimezoneCard, NotifyCard, ConcurrencyCard, ComputeCard, DeployBlockCard, NetworkEnforceCard, OwnerCard, AlertsCard, JudgeCard } from "@/components/defaults-cards";
-import { accountCompute, computeInUse, roomWaiting } from "@/platform/limits";
+import { accountCompute, computeInUse, roomWaiting, waitingRunCount, waitingRunsCap } from "@/platform/limits";
 import { billing } from "@/platform/billing";
 import { AvatarEditor } from "@/components/avatar";
 import { avatarUrl } from "@/platform/avatars";
@@ -229,7 +229,7 @@ export default async function SettingsPage({
             <OwnerCard endpoint="/api/account" tenant={tenant} initial={defaults.owner} />
             {/* The plan's number, not the install's alone: until 26 Oct 2026 this read only FOLDRUN_PLAN_CONCURRENCY, so a customer on a plan saw the wrong figure. */}
             <ConcurrencyCard endpoint="/api/account" tenant={tenant} initial={defaults.concurrency} plan={(await billing().plan(tenant))?.concurrency ?? (Number(settingText("FOLDRUN_PLAN_CONCURRENCY")) > 0 ? Number(settingText("FOLDRUN_PLAN_CONCURRENCY")) : null)} />
-            <ComputeCard endpoint="/api/account" tenant={tenant} initial={defaults.compute} pool={await accountCompute(tenant)} inUse={computeInUse(tenant, scope)} waiting={roomWaiting(tenant, scope)} />
+            <ComputeCard endpoint="/api/account" tenant={tenant} initial={defaults.compute} pool={await accountCompute(tenant)} inUse={computeInUse(tenant, scope)} waiting={roomWaiting(tenant, scope)} runsWaiting={{ waiting: scope ? null : waitingRunCount(tenant), limit: (await waitingRunsCap(tenant)).limit }} />
             <DeployBlockCard endpoint="/api/account" tenant={tenant} initial={defaults.deployBlock} />
           <PauseCard
             tenant={tenant}

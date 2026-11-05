@@ -51,6 +51,7 @@ const REASON: Record<TriggerOutcome, { label: string; key: string; tone: string 
   "overlap-skipped": { label: "previous run still live", key: "overlap: skip", tone: "text-amber-700 bg-amber-50" },
   missed: { label: "missed while down", key: "catchup: none", tone: "text-amber-700 bg-amber-50" },
   filtered: { label: "did not match the filter", key: "filter:", tone: "text-fg-tertiary bg-muted" },
+  "queue-full": { label: "too many runs waiting", key: "Settings → Governance → Compute", tone: "text-amber-700 bg-amber-50" },
   failed: { label: "could not start", key: "", tone: "text-red-700 bg-red-50" },
 };
 

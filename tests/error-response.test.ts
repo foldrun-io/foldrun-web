@@ -6,7 +6,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ApiError, errorStatus, errorResponse } from "../server/api.ts";
+import { ApiError, errorStatus, errorResponse, busyDelivery } from "../server/api.ts";
 
 test("an ApiError and a core error with a status keep both", () => {
   assert.deepEqual(errorStatus(new ApiError("sign in first", 401)), { status: 401, message: "sign in first", internal: false });
@@ -52,4 +52,20 @@ test("errorResponse sends the status and only the safe message, and logs the res
   } finally {
     console.error = original;
   }
+});
+
+test("a refusal's own code and figures ride beside its sentence; a delivery at the waiting cap is a 503 to retry (FOL-100)", async () => {
+  const cap = Object.assign(new Error("this account already has 50 runs waiting for their turn"), { status: 409, code: "waiting_cap", limit: 50, waiting: 50 });
+  const res = errorResponse(cap);
+  assert.equal(res.status, 409);
+  assert.deepEqual(await res.json(), { error: "this account already has 50 runs waiting for their turn", code: "waiting_cap", limit: 50, waiting: 50 });
+  // No status of its own, or an errno: no code on the wire.
+  assert.deepEqual(await errorResponse(Object.assign(new Error("x"), { code: "waiting_cap" })).json(), { error: "x" });
+  const enoent = Object.assign(new Error("ENOENT: /data/x"), { code: "ENOENT", syscall: "open", status: 404 });
+  assert.equal("code" in (await errorResponse(enoent).json()), false);
+  const busy = busyDelivery(cap)!;
+  assert.equal(busy.status, 503);
+  assert.equal(busy.headers.get("retry-after"), "60");
+  assert.equal((await busy.json()).code, "waiting_cap");
+  assert.equal(busyDelivery(new Error("out of credit")), null);
 });
