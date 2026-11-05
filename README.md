@@ -42,6 +42,22 @@ npx tsc --noEmit
 npm run lint
 ```
 
+A few tests run against a real Postgres when one is offered — invites, MFA
+and console sessions, key rotation, the audit read, the masking of a failed
+query — and skip without one. CI offers one on every push and pull request;
+on a laptop:
+
+```sh
+docker run -d --rm --name t-pg -e POSTGRES_USER=foldrun -e POSTGRES_PASSWORD=test \
+  -e POSTGRES_DB=foldrun -p 55432:5432 postgres:17-alpine
+FOLDRUN_TEST_DATABASE_URL=postgres://foldrun:test@localhost:55432/foldrun npm test
+docker rm -f t-pg
+```
+
+The platform's tests that need Postgres, Redis or KMS are in
+[foldrun-platform's README](https://github.com/foldrun-io/foldrun-platform#tests-that-need-postgres-redis-or-kms). CI re-runs here
+against core's main too: when core's main passes, and nightly.
+
 The git hooks in `.githooks/` (turned on by `npm install`) run gitleaks,
 eslint, the API guard, the typecheck and the tests before a push, and refuse
 billing files (below).
