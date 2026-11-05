@@ -11,6 +11,7 @@ import { errorResponse, ApiError } from "@/server/api";
 import { accountQueueTop, CLAIM_RENEW_MS, queueStats } from "@/platform/queue";
 import { roomMetricsText } from "@/platform/room-metrics";
 import { billingMetricsText } from "@/platform/billing-metrics";
+import { runEventMetricsText } from "@/platform/run-events";
 import { listTenants, listWorkspaces, listRunSummaries } from "@/lib/store";
 import { clientIp, refuseWhenLimited, sameToken, BAD_CALLBACK_TOKENS } from "@/server/limits";
 
@@ -112,6 +113,11 @@ export async function GET(req: NextRequest) {
       // Steps waiting for room (27 Oct 2026): parked ones count as
       // "scheduled" above, and waits in a driver did not count at all.
       ...roomMetricsText(),
+      // The run SLIs over fixed windows, from the runs' wide events
+      // (FOL-122, platform run-events.ts): success ratio, queue wait p95,
+      // pod ready → first output p95, and finished runs by class. Absent
+      // without a database.
+      ...(await runEventMetricsText()),
     ];
     return new NextResponse(lines.join("\n") + "\n", {
       headers: { "content-type": "text/plain; version=0.0.4" },
