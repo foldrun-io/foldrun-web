@@ -18,7 +18,11 @@ export interface AgentNetworkProps {
   /** What the agent's own `network:` says, read. */
   own: { level?: NetworkLevel; allow: string[]; defaults?: boolean } | null;
   /** The resolved policy, the way a run resolves it. */
-  resolved: { level: NetworkLevel; from: string; added: string[]; implied: string[]; defaults: boolean; readsWeb: boolean; browses?: boolean };
+  resolved: { level: NetworkLevel; from: string; added: string[]; implied: string[]; defaults: boolean; readsWeb: boolean; browses?: boolean; browseVendor?: string | null };
+  /** How a browsing step of this agent is held here (core browseVerdict):
+   *  hosted, refused (a vendor's browser), or legacy — not held. Null when
+   *  it does not browse. */
+  browse?: "hosted" | "refuse" | "legacy" | null;
   trustedCount: number;
   editable: boolean;
 }
@@ -87,10 +91,21 @@ export function AgentNetwork(p: AgentNetworkProps) {
           <li>A run also allows its MCP servers, web providers and the sites its secrets are bound to.</li>
         </ul>
       )}
-      {r.browses && (
+      {r.browses && p.browse === "hosted" && (
+        <p className="mt-2 rounded-md border border-success-line bg-success-soft px-2.5 py-1.5 text-xs text-success">
+          Browsing is held to this list: the browser runs inside the step&apos;s sandbox, whose network reaches only the egress proxy and DNS. DNS lookups themselves are not restricted.
+        </p>
+      )}
+      {r.browses && p.browse === "refuse" && (
         <p className="mt-2 rounded-md border border-warning-line bg-warning-soft px-2.5 py-1.5 text-xs text-warning">
-          This agent may browse, and a browsing step is not held to this list yet: its browser and its other programs reach sites directly.
-          To keep it inside the list, give it <code className="font-mono">web: {"{actions: [search, fetch]}"}</code>. Browsing comes under the list in a later release.
+          This agent browses with <code className="font-mono">{r.browseVendor}</code>, which browses from its own network, so this list cannot hold it: its steps are refused before they connect.
+          Drop <code className="font-mono">browse: {r.browseVendor}</code> to use foldrun&apos;s own browser, which is held to the list.
+        </p>
+      )}
+      {r.browses && r.level !== "open" && p.browse !== "hosted" && p.browse !== "refuse" && (
+        <p className="mt-2 rounded-md border border-warning-line bg-warning-soft px-2.5 py-1.5 text-xs text-warning">
+          This agent may browse, and here a browsing step is not held to this list: its browser and its other programs reach sites directly.
+          Browsing is held where the platform confines it and the list is enforced; until then, to keep it inside the list, give it <code className="font-mono">web: {"{actions: [search, fetch]}"}</code>.
         </p>
       )}
       {editing && (
