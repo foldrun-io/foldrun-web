@@ -83,6 +83,7 @@ next-env.d.ts
 /tests/support-view.test.ts
 /tests/admin-api-contract.test.ts
 /tests/admin-op.ts
+/tests/admin-run-health.test.ts
 /.foldrun-admin-laid
 
 # The quality stack: its secrets and its reports (quality/run.sh)
