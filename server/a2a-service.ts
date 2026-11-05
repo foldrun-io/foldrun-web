@@ -42,7 +42,7 @@ import { resolveA2aKey, listApiKeys, type A2aCaller } from "./auth.ts";
 import { publicOrigin } from "./auth-flows.ts";
 import { reportError } from "./api.ts";
 import { opsLog } from "@/lib/ops-log.ts";
-import { unacceptedExposures, workspaceA2aTree } from "./workspace-policy.ts";
+import { sandboxSecrets, unacceptedExposures, workspaceA2aTree } from "./workspace-policy.ts";
 import { secretCodeExposures } from "@/lib/a2a-reach";
 import { clientIp } from "./limits.ts";
 import { rateLimit } from "@/platform/cache";
@@ -571,7 +571,10 @@ export async function workspaceA2a(req: NextRequest, tenant: string, workspace: 
   // the first publish. `accepted`: its a2a: accept_risk names the agent.
   const tree = workspaceA2aTree(tenant, workspace);
   const risks = [...tree.flows.entries()].flatMap(([name, f]) =>
-    secretCodeExposures(tree.agentsOf(name), tree.reachOf, f.info.a2a?.acceptRisk ?? []).map((e) => ({ flow: name, agent: e.agent, secrets: e.secrets, accepted: e.accepted })),
+    secretCodeExposures(tree.agentsOf(name), tree.reachOf, f.info.a2a?.acceptRisk ?? [])
+      // A secret bound to sites never enters the sandbox (workspace-policy.ts sandboxSecrets).
+      .map((e) => ({ flow: name, agent: e.agent, secrets: sandboxSecrets(tenant, workspace, e.secrets), accepted: e.accepted }))
+      .filter((e) => e.secrets.length),
   );
   return {
     flows,

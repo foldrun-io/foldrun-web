@@ -326,3 +326,29 @@ test("N2: the agent editor's PATCH (a tool, a network, sandbox: own) is a door t
   assert.equal((await patch(admin, { list: { key: "tools", name: "write", action: "add" } })).status, 200);
   resetPublished();
 });
+
+test("N1: a secret bound to sites never enters the sandbox — publishing goes through; unbound again, it is refused", async () => {
+  const { setSecret, setSecretSites } = await import("@/lib/secrets");
+  setSecret("acme", "BOUND_TOKEN", "v");
+  setSecretSites("acme", "BOUND_TOKEN", ["api.example.com"]);
+  const bound = writer("tools: [read, code]\nsecrets: [BOUND_TOKEN]\n");
+  assert.ok(deployWorkspace("acme", "desk", [{ path: "AGENTS.md", content: POLICY }, bound, FLOW], { by: "admin@acme.test", message: "reset" }).applied);
+  assert.equal((await sourceRoutes.PUT(json("/api/workspaces/desk/source", "PUT", admin, PUB_FLOW), ctx)).status, 200, "bound: not in the sandbox");
+  const { unacceptedExposures } = await import("../server/workspace-policy.ts");
+  assert.deepEqual(unacceptedExposures("acme", "desk", "publish"), [], "served");
+  setSecretSites("acme", "BOUND_TOKEN", []);
+  assert.deepEqual(unacceptedExposures("acme", "desk", "publish").map((e) => e.agent), ["writer"], "unbound later, through no write door: the serve path refuses it");
+  reset();
+});
+
+test("N1: a new workspace's deploy meets the check too — the dry run says so, the deploy refuses", async () => {
+  const fresh = { params: Promise.resolve({ workspace: "fresh" }) };
+  const files = [{ path: "AGENTS.md", content: "---\nname: fresh\n---\n" }, writer("tools: [read, code]\nsecrets: [CRM_TOKEN]\n"), PUB_FLOW];
+  const dry = await deployRoute.POST(json("/api/workspaces/fresh/deploy", "POST", admin, { files, dryRun: true }), fresh);
+  const plan = (await dry.json()) as { ok: boolean; policy?: { code?: string } };
+  assert.equal(plan.ok, false);
+  assert.equal(plan.policy?.code, "a2a_secret_code");
+  const real = await deployRoute.POST(json("/api/workspaces/fresh/deploy", "POST", admin, { files }), fresh);
+  assert.equal(real.status, 400);
+  assert.equal(fs.existsSync(workspaceDir("acme", "fresh")), false, "nothing made");
+});

@@ -22,6 +22,7 @@ import { configMatter } from "@/lib/matter";
 import { accountDir, workspaceDir } from "@/lib/store";
 import { libraryDir } from "@/lib/library";
 import { readAgentsMdKeys } from "@/lib/agents-md";
+import { secretSites } from "@/lib/secrets";
 import { a2aTree, a2aWriteEffect, flowSecretCode, secretCodeSentence, type A2aTree, type TreeFile } from "@/lib/a2a-reach";
 import { audit, type AuditAction } from "./audit.ts";
 import { WORKSPACE_PATCHABLE } from "@/components/defaults-model";
@@ -209,6 +210,24 @@ function readText(file: string): string | null {
   }
 }
 
+/**
+ * The secrets of `names` that reach a sandbox: one bound to sites in the
+ * vault (`foldrun secrets sites`) never does — the egress proxy fills it for
+ * those sites alone — so it is no secret the answer can carry. Read from
+ * the vault at each check: core's pure tree cannot see binding and counts
+ * every secret, and an unbinding later goes through no write door, which
+ * is why the serve path asks again before every task it starts.
+ */
+export function sandboxSecrets(tenant: string, workspace: string, names: string[]): string[] {
+  let bound: Record<string, string[]> = {};
+  try {
+    bound = secretSites(tenant, names, workspace);
+  } catch {
+    bound = {}; // a vault that cannot be read binds nothing: count them all
+  }
+  return names.filter((n) => !bound[n]?.length);
+}
+
 /** The A2A-relevant files under `dir`, workspace-relative. Bounded: a
  *  folder, not a recursive walk. */
 function relevantOnDisk(dir: string, prefix = ""): Map<string, string> {
@@ -309,6 +328,7 @@ export function assertPublishedFlowsKept(
       "a2a_accept_risk",
     );
   }
+  effect.unaccepted = effect.unaccepted.map((e) => ({ ...e, secrets: sandboxSecrets(tenant, workspace, e.secrets) })).filter((e) => e.secrets.length);
   if (effect.unaccepted.length) {
     const said = effect.unaccepted.slice(0, 3).map((e) => secretCodeSentence(e.flow, e));
     const first = effect.unaccepted[0]!;
@@ -329,7 +349,10 @@ export function assertPublishedFlowsKept(
 /** The secret-and-code exposures of one published flow as it stands — what
  *  the serve path refuses new tasks for until an admin accepts them. */
 export function unacceptedExposures(tenant: string, workspace: string, flow: string) {
-  return flowSecretCode(workspaceA2aTree(tenant, workspace), flow).filter((e) => !e.accepted);
+  return flowSecretCode(workspaceA2aTree(tenant, workspace), flow)
+    .filter((e) => !e.accepted)
+    .map((e) => ({ ...e, secrets: sandboxSecrets(tenant, workspace, e.secrets) }))
+    .filter((e) => e.secrets.length);
 }
 
 /** Write what an admin's write did to the audit log — after the write, so

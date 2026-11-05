@@ -84,15 +84,14 @@ async function postOnce(
       // (an editor's policy key or a2a: change, a widened agent behind a
       // published flow, a secret-and-code agent with no accept_risk), so a
       // dry run that passes predicts a deploy that does (FOL-112).
+      // A new workspace too: the real deploy checks its files the same way.
       let policy: { status: number; code?: string; error: string } | undefined;
-      if (fs.existsSync(workspaceDir(tenant, workspace))) {
-        try {
-          assertMayChangeWorkspacePolicy(actor, tenant, workspace, files, "replace");
-        } catch (err) {
-          const e = err as { status?: unknown; code?: unknown; message?: unknown };
-          if (typeof e.status !== "number" || typeof e.message !== "string") throw err;
-          policy = { status: e.status, ...(typeof e.code === "string" ? { code: e.code } : {}), error: e.message };
-        }
+      try {
+        assertMayChangeWorkspacePolicy(actor, tenant, workspace, files, "replace");
+      } catch (err) {
+        const e = err as { status?: unknown; code?: unknown; message?: unknown };
+        if (typeof e.status !== "number" || typeof e.message !== "string") throw err;
+        policy = { status: e.status, ...(typeof e.code === "string" ? { code: e.code } : {}), error: e.message };
       }
       return NextResponse.json({ ok: plan.issues.length === 0 && !policy, applied: false, ...plan, ...(policy ? { policy } : {}), files: undefined });
     }
