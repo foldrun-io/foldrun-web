@@ -1,7 +1,7 @@
 // OpenAPI request/response schemas: everything else outside /api/workspaces: hooks, inbox, events, changelog, healthz, version, status, metrics, usage, issues, insights, schedule, search, openapi.json, mcp, /s/{token}.
 // Written from what each handler validates and answers (30 Oct 2026).
 
-import { type Schema, type Shape, obj, str, bool, int, arr, nullable } from "./kit.ts";
+import { type Schema, type Shape, obj, str, bool, int, arr, nullable, Failure } from "./kit.ts";
 
 const num: Schema = { type: "number" };
 const nstr = (description?: string): Schema => nullable(str(description));
@@ -43,7 +43,7 @@ const ObserveRunRef = obj({
   workspace: str(), id: str(), what: str("the flow's name, or \"agent: x\" for a direct agent run"),
   outcome: str("running | queued | waiting | good | done | quiet | blocked | bad | failed | stopped"),
   startedAt: str(), finishedAt: nstr(),
-  failure: { type: ["object", "null"], description: "{ agent, reason } — the step that failed and its last error; null when none" },
+  failure: { ...Failure, type: ["object", "null"], description: "why it failed (FOL-124): the step, its last error, class, kind, message and fix; null when it did not" },
 });
 const ObserveSampled = obj({ n: int, p50: nullable(num), p95: nullable(num), max: nullable(num) });
 const AccountObservation = obj({

@@ -112,7 +112,7 @@ export const SHAPES: Record<string, Shape> = {
   "POST /api/workspaces/{workspace}/runs/bulk": {
     body: obj(
       {
-        action: str("stop | rerun | delete — delete is DELETE …/runs/{runId} run by run (a live run stopped first) and needs workspace:manage"),
+        action: str("stop | rerun | delete — delete needs workspace:manage (dry runs too): runIds alone erase those runs as DELETE …/runs/{runId} does (a live run stopped first); a filter (until, since, status, flow) erases finished runs only, 100 a call"),
         status: arr(str(), "only runs with one of these statuses; \"stopped\" also names a run a person stopped (stored as failed)"),
         flow: str("only this flow's runs"),
         since: str("ISO instant — runs that started at or after it"),
@@ -127,10 +127,11 @@ export const SHAPES: Record<string, Shape> = {
       ok: bool,
       dryRun: { ...bool, description: "present on a dry run" },
       action: str("stop | rerun | delete"),
+      remaining: { ...int, description: "delete only: finished runs that still match after this call's share of 100 — ask again" },
       matched: {
         type: ["integer", "array"],
         items: str(),
-        description: "how many runs matched (at most 100 — more is a 422); on a dry run, their ids, newest first",
+        description: "how many runs matched (at most 100 — more is a 422, except for delete, which takes 100 and answers remaining); on a dry run, their ids, newest first",
       },
       succeeded: int,
       failed: int,

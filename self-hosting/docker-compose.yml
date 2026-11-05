@@ -124,7 +124,8 @@ services:
       ANTHROPIC_DEFAULT_HAIKU_MODEL: ${ANTHROPIC_DEFAULT_HAIKU_MODEL:-}
       ANTHROPIC_DEFAULT_SONNET_MODEL: ${ANTHROPIC_DEFAULT_SONNET_MODEL:-}
       ANTHROPIC_DEFAULT_OPUS_MODEL: ${ANTHROPIC_DEFAULT_OPUS_MODEL:-}
-      # Finished runs older than this many days are pruned. Unset: kept.
+      # Finished runs older than this many days are deleted. Unset: 90
+      # (since 5 Nov 2026; before, kept for ever). 0: kept for ever.
       FOLDRUN_RETENTION_DAYS: ${FOLDRUN_RETENTION_DAYS:-}
 
 volumes:

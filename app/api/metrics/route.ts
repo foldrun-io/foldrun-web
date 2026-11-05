@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, ApiError } from "@/server/api";
-import { CLAIM_RENEW_MS, queueStats } from "@/platform/queue";
+import { accountQueueTop, CLAIM_RENEW_MS, queueStats } from "@/platform/queue";
 import { roomMetricsText } from "@/platform/room-metrics";
 import { billingMetricsText } from "@/platform/billing-metrics";
 import { listTenants, listWorkspaces, listRunSummaries } from "@/lib/store";
@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
       throw new ApiError("not found", 404);
     }
     const q = await queueStats();
+    const top = await accountQueueTop(5);
     let running = 0;
     let awaiting = 0;
     for (const tenant of listTenants()) {
@@ -91,6 +92,19 @@ export async function GET(req: NextRequest) {
       "# HELP foldrun_runs_running Runs executing now.",
       "# TYPE foldrun_runs_running gauge",
       `foldrun_runs_running ${running}`,
+      // The busiest accounts (FOL-123), by rank and never by name: a metric
+      // label is fixed (FOL-121), and an account's name is not one. Each list
+      // is ranked on its own — rank 1 of one need not be rank 1 of another,
+      // and a rank is not one account over time. Who it is, the console says.
+      "# HELP foldrun_queue_account_pending Ready jobs of the accounts with the most, by rank (1 = most; each gauge ranked on its own, no account named).",
+      "# TYPE foldrun_queue_account_pending gauge",
+      ...top.pending.map((n, i) => `foldrun_queue_account_pending{rank="${i + 1}"} ${n}`),
+      "# HELP foldrun_queue_account_claimed Jobs being driven of the accounts with the most, by rank (each gauge ranked on its own, no account named).",
+      "# TYPE foldrun_queue_account_claimed gauge",
+      ...top.claimed.map((n, i) => `foldrun_queue_account_claimed{rank="${i + 1}"} ${n}`),
+      "# HELP foldrun_queue_account_oldest_pending_seconds Age of each account's oldest ready job, the longest by rank: an account starved by the rest shows here (each gauge ranked on its own, no account named).",
+      "# TYPE foldrun_queue_account_oldest_pending_seconds gauge",
+      ...top.oldestPendingSecs.map((n, i) => `foldrun_queue_account_oldest_pending_seconds{rank="${i + 1}"} ${n}`),
       "# HELP foldrun_runs_awaiting_approval Runs parked on a human.",
       "# TYPE foldrun_runs_awaiting_approval gauge",
       `foldrun_runs_awaiting_approval ${awaiting}`,

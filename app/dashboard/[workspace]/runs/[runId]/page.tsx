@@ -169,7 +169,12 @@ export default async function RunPage({
             <span className="mt-0.5 font-bold text-red-600">✗</span>
             <span className="min-w-0 flex-1">
               <span className="font-medium text-red-800">{failedStep >= 0 ? `Step ${failedStep + 1} · ` : ""}{failure.agent}</span>
-              <span className="block break-words font-mono text-[12px] text-red-700">{failure.reason}</span>
+              {/* Why, for the customer (core failure.ts, FOL-124): the same
+                  sentence and fix the API and `foldrun report` give. The
+                  step's own words stay below when they say something else. */}
+              <span className="block break-words text-red-800">{failure.message}</span>
+              {failure.fix && <span className="block break-words text-[13px] text-red-700">{failure.fix}</span>}
+              {failure.reason !== failure.message && <span className="mt-0.5 block break-words font-mono text-[12px] text-red-700/80">{failure.reason}</span>}
             </span>
             {failedStep >= 0 && <span className="shrink-0 text-xs font-medium text-red-700">go to step →</span>}
           </a>

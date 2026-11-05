@@ -254,9 +254,9 @@ export function RunsTable({
                     <Link
                       href={`/dashboard/${r.workspace}/runs/${r.id}${tenantParam.replace("&", "?")}`}
                       className="absolute inset-x-0 top-0 block truncate font-mono text-[11px] leading-relaxed text-red-600/90 hover:text-red-700"
-                      title={`${failure.agent}: ${failure.reason}`}
+                      title={`${failure.agent}: ${failure.message}${failure.fix ? ` — ${failure.fix}` : ""}${failure.reason !== failure.message ? `\n${failure.reason}` : ""}`}
                     >
-                      ✗ {failure.agent}: {failure.reason}
+                      ✗ {failure.agent}: {failure.message}
                     </Link>
                     </div>
                   </td>
@@ -293,7 +293,7 @@ export function RunsTable({
  *  it concluded, and why it failed — the columns, plus the two sentences. */
 export function runSearchText(r: RunRow): string {
   const failure = runFailure(r);
-  return [r.id, whatRan(r.flow), r.workspace, runDisplayStatus(r), runVerdict(r) ?? "", r.summary ?? "", failure ? `${failure.agent} ${failure.reason}` : ""].join(" ");
+  return [r.id, whatRan(r.flow), r.workspace, runDisplayStatus(r), runVerdict(r) ?? "", r.summary ?? "", failure ? `${failure.agent} ${failure.reason} ${failure.message}` : ""].join(" ");
 }
 
 /** The windows people actually reach for. Buckets, not a date-picker: a

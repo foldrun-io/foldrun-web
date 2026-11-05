@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, errorResponse, requirePermission, refuse } from "@/server/api";
-import { readRun } from "@/lib/store";
+import { readRun, runFailure } from "@/lib/store";
 import { eraseRun } from "@/server/run-erase";
 import { wantsWait, waitAndRespond } from "@/server/wait";
 
@@ -20,7 +20,8 @@ export async function GET(
     // flow can run for many minutes; `foldrun invoke --wait` asks in
     // 25-second pieces and comes back here for each one.
     if (wantsWait(req)) return waitAndRespond(req, tenant, workspace, run);
-    return NextResponse.json(run);
+    // Why it failed, as the runs list and the run page say it (FOL-124).
+    return NextResponse.json({ ...run, failure: runFailure(run) });
   } catch (err) {
     return errorResponse(err);
   }

@@ -1,7 +1,7 @@
 // OpenAPI request/response schemas: /api/workspaces, and /api/workspaces/{workspace}/<agents|assets|assistant|check|deploy|evals|export|import|… up to 'l'>.
 // Written from what each handler validates and answers (30 Oct 2026).
 
-import { type Shape, type Schema, obj, str, bool, int, arr, nullable, Proposal } from "./kit.ts";
+import { type Shape, type Schema, obj, str, bool, int, arr, nullable, Proposal, Failure } from "./kit.ts";
 
 const num: Schema = { type: "number" };
 
@@ -150,7 +150,7 @@ export const SHAPES: Record<string, Shape> = {
     response: obj({
       ok: bool, runId: str(), test: bool,
       status: str("with wait: the run's status"), result: nullable(str("with wait: what it produced")),
-      failure: nullable(obj({ agent: str(), reason: str() })), costUsd: num,
+      failure: nullable(Failure), costUsd: num,
       steps: arr(obj({ agent: str(), status: str(), skipReason: nullable(str()) })),
       timedOut: bool, awaitingApproval: bool,
     }),

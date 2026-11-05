@@ -55,12 +55,28 @@ export const Issue = obj({
   history: { type: "array", items: IssueEvent },
 });
 
+/** core store.ts runFailure (failure.ts, FOL-124): why a failed run failed —
+ *  the step, its last error, and what it means for the customer. */
+export const Failure = obj({
+  agent: str("the step that failed (for a run that failed between groups, the last step that ran)"),
+  reason: str("its last error, as the trail has it; for a security stop, the generic sentence and nothing else"),
+  class: str("the ops log's class: policy_denied | timeout | oom | disk_full | model_error | network_error | user_code_error | not_found | cancelled | platform_error"),
+  kind: str("memory | cpu | disk | timeout | network | security | budget | check | model | credential | stopped | code | platform | other"),
+  message: str("what happened, for the customer, in one sentence: a limit's figures, a refused site's name; generic for a security stop"),
+  fix: { type: ["string", "null"], description: "what to do about it — a lighter or larger setting, a plan that allows more, the site to add; null when there is nothing to do" },
+  used: { type: ["number", "null"], description: "a limit's: what the step used or asked for (null when it could not be read)" },
+  allowed: { type: "number", description: "a limit's: what it may hold, in unit" },
+  unit: str("GiB | vCPU | s"),
+  scope: str("a limit's owner: step | run | workspace | account | install | node"),
+  host: str("a network refusal's site"),
+});
+
 export const Run = obj({
   id: str(), flow: str(), status: str("queued | running | awaiting-approval | completed | failed | stopped"),
   startedAt: str(), finishedAt: str(), test: bool,
   verdict: { type: ["string", "null"], description: "GOOD | QUIET | BLOCKED | BAD, the word the run's summary leads with; null for none" },
   outcome: str("in the runs list: running | queued | waiting | good | done | quiet | blocked | bad | failed | stopped — the one outcome every surface shows"),
-  failure: { type: ["object", "null"], description: "in the runs list: { agent, reason } — the step that failed and its last error; null when none" },
+  failure: { ...Failure, type: ["object", "null"], description: "why it failed (FOL-124) — in the runs list and on one run; null when it did not" },
   chargedUsd: { type: ["number", "null"], description: "in the runs list: what the account was charged for the run, in USD (one credit is one cent); null until the ledger settles it. costUsd is the token cost at the model's list price" },
   tokens: Tokens,
   steps: { type: "array", items: { ...obj({ tokens: Tokens }), additionalProperties: true } },
