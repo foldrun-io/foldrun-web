@@ -26,6 +26,13 @@ export interface AgentNetworkProps {
   /** Whether a walled sandbox here has no DNS of its own either
    *  (FOLDRUN_RUN_DNS_WALL, platform run-dns.ts — FOL-128). */
   dnsWalled?: boolean;
+  /** How its web search goes when a step is walled to this list (core
+   *  search-egress.ts, FOL-128): through the egress proxy's search door, or
+   *  not offered because the list is narrow on purpose and web: names no
+   *  actions. Null when that does not apply here. */
+  search?: "door" | "unnamed" | null;
+  /** The engines the search door lets answer (platform search-door.ts). */
+  searchEngines?: string[];
   trustedCount: number;
   editable: boolean;
 }
@@ -112,6 +119,19 @@ export function AgentNetwork(p: AgentNetworkProps) {
         <p className="mt-2 rounded-md border border-warning-line bg-warning-soft px-2.5 py-1.5 text-xs text-warning">
           This agent may browse, and here a browsing step is not held to this list: its browser and its other programs reach sites directly.
           Browsing is held where the platform confines it and the list is enforced; until then, to keep it inside the list, give it <code className="font-mono">web: {"{actions: [search, fetch]}"}</code>.
+        </p>
+      )}
+      {p.search === "door" && (
+        <p className="mt-2 rounded-md border border-info-line bg-info-soft px-2.5 py-1.5 text-xs text-info">
+          Web search goes through the egress proxy: the account&apos;s search engine answers from a fixed set of engines
+          {p.searchEngines?.length ? <> ({p.searchEngines.join(", ")})</> : null}. A query&apos;s words reach those engines, and each query is on the run&apos;s trace.
+          Results are data: opening one is held to this list.
+        </p>
+      )}
+      {p.search === "unnamed" && (
+        <p className="mt-2 rounded-md border border-warning-line bg-warning-soft px-2.5 py-1.5 text-xs text-warning">
+          Web search is not offered under this list: it is narrow on purpose ({r.level === "none" ? "network: none" : "no trusted list"}), and the agent&apos;s web: block names no actions.
+          Write <code className="font-mono">web: {"{actions: [search, …]}"}</code> to let it search through the egress proxy.
         </p>
       )}
       {editing && (

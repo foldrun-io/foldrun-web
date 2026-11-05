@@ -22,7 +22,9 @@ import { configMatter } from "@/lib/matter";
 import { readNetwork, TRUSTED_SITES } from "@/lib/network";
 import { AgentNetwork } from "./agent-network";
 import { browseVerdict } from "@/lib/browse-egress";
-import { confinesBrowsing } from "@/platform/browse-confine";
+import { confinesBrowsing, wallsRestrictedSteps } from "@/platform/browse-confine";
+import { searchDoorWanted } from "@/lib/search-egress";
+import { DOOR_CATEGORIES } from "@/platform/search-door";
 import { dnsWallEnabled } from "@/platform/run-dns";
 
 export const dynamic = "force-dynamic";
@@ -82,6 +84,17 @@ export default async function AgentPage({
         confines: confinesBrowsing(process.env.FOLDRUN_RUN_ISOLATION ?? ""),
       }).kind
     : null;
+  // How its web search goes when a step is walled to its list (FOL-128):
+  // through the egress proxy's search door, or not offered — the runner's
+  // own rule (core search-egress.ts), with this server's switches. Null when
+  // no step of it is walled here, or it does not search our engine.
+  const enforce = n.enforceWanted || process.env.FOLDRUN_NETWORK_ENFORCE === "1";
+  const searchDoor =
+    n.level !== "open" && enforce && wallsRestrictedSteps(process.env.FOLDRUN_RUN_ISOLATION ?? "")
+      ? searchDoorWanted({ level: n.level, defaults: n.defaults, enforce, web: n.search.web, actions: n.search.actions, provided: n.search.provided })
+      : null;
+  const search = !searchDoor || (!searchDoor.door && !searchDoor.line) ? null : searchDoor.door ? "door" : "unnamed";
+  const searchEngines = Object.values(DOOR_CATEGORIES).flat();
   const spend = steps.reduce((sum, s) => sum + (s.costUsd ?? 0), 0);
   const failed = steps.filter((s) => s.stepStatus === "failed").length;
 
@@ -158,6 +171,8 @@ export default async function AgentPage({
         resolved={info.network}
         browse={browse}
         dnsWalled={dnsWallEnabled()}
+        search={search}
+        searchEngines={searchEngines}
         trustedCount={TRUSTED_SITES.length}
         // The agent PATCH refuses a viewer's write; the page does not guess the role.
         editable
