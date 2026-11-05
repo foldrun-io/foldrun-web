@@ -2,6 +2,7 @@
 // changes. Through platformMail — the account's own sender when it set one
 // (RESEND_API_KEY + EMAIL_FROM), the platform's otherwise.
 
+import { opsError } from "@/lib/ops-log.ts";
 import { platformMail } from "@/lib/notify";
 import { sendMail, type MailCategory } from "@/lib/mail";
 
@@ -196,5 +197,5 @@ export function sendSecurityNotice(tenant: string, to: string, what: string, ip:
     `${what[0].toUpperCase()}${what.slice(1)} on the foldrun account ${to}${ip ? ` (from ${ip})` : ""}, at ${new Date().toUTCString()}.\n\n` +
     `If this was you, there is nothing to do.\n` +
     `If it was not, reset your password now from the sign-in page ("Forgot password"), then check Profile → Sessions and Settings → API keys.\n`)
-    .catch((err) => console.error("security notice failed:", err instanceof Error ? err.message : err));
+    .catch((err) => opsError("email.security_notice_failed", err));
 }

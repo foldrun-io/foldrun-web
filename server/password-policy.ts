@@ -8,6 +8,7 @@
 // network error — a sign-up that cannot complete because a third party is
 // down is worse than one that skipped this check, and the failure is logged.
 
+import { opsError } from "@/lib/ops-log.ts";
 import crypto from "node:crypto";
 
 export const MIN_PASSWORD = 10;
@@ -48,7 +49,7 @@ async function breached(password: string): Promise<boolean> {
       return suf === suffix && Number(count) > 0;
     });
   } catch (err) {
-    console.warn("[password] breach check unavailable:", err instanceof Error ? err.message : err);
+    opsError("password.breach_check_unavailable", err, {}, "warn");
     return false;
   }
 }

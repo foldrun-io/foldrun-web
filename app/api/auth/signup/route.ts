@@ -2,6 +2,7 @@
 // install signs up freely (there is no one to ask); after that the install
 // must opt in to strangers with FOLDRUN_OPEN_SIGNUP=1.
 
+import { opsLog } from "@/lib/ops-log.ts";
 import { sendVerifyEmail } from "@/server/email";
 import { billing } from "@/platform/billing";
 import { platform } from "@/lib/platform";
@@ -95,7 +96,7 @@ export async function POST(req: NextRequest) {
     // they are told about it — see the grant in api/auth/verify.
     const trialCredits = !joined && platform.edition() === "hosted" ? billing().trialCredits() : undefined;
     void sendVerifyEmail(user.tenant, user.email, verifyLink(publicOrigin(req), user), { trialCredits }).then((r) => {
-      if (!r.ok) console.warn("[signup] verification mail not sent:", r.error);
+      if (!r.ok) opsLog("warn", "auth.verification_mail_not_sent");
     });
 
     // A brand-new account gets a working workspace so the first thing its

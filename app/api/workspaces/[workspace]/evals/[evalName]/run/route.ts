@@ -12,6 +12,7 @@
 // 524 after its read timeout (125 s by default) while the eval goes on, and
 // the caller learned nothing. server/eval-runs.ts has the run records.
 
+import { opsError } from "@/lib/ops-log.ts";
 import { NextRequest, NextResponse, after } from "next/server";
 import { requireTenant, errorResponse, requirePermission, refuse } from "@/server/api";
 import { listEvals, runEval, writeEvalResult, readEvalResult } from "@/lib/evals";
@@ -65,7 +66,7 @@ async function postOnce(
     if (wantsAsync) {
       // after(): tracked by the server, so a graceful shutdown lets it finish
       // (Next.js self-hosting docs) — a bare promise would not be waited for.
-      after(() => run().catch((err) => console.error(`[foldrun] eval ${tenant}/${workspace}/${evalName} failed:`, err)));
+      after(() => run().catch((err) => opsError("eval.run_failed", err, { tenant, workspace, eval: evalName })));
       return NextResponse.json({ started: true, eval: evalName, runId: claim.runId, startedAt: claim.startedAt }, { status: 202 });
     }
     return NextResponse.json(await run());

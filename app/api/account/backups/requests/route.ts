@@ -11,6 +11,7 @@
 // opens the archive's sealed half is not on the server). So this records the
 // ask, mails the operator and audit-logs it; it restores nothing.
 
+import { opsLog } from "@/lib/ops-log.ts";
 import { NextRequest, NextResponse } from "next/server";
 import { requireCaller, requirePermission, actorOf, errorResponse, ApiError, assertWorkspaceScope } from "@/server/api";
 import { createRestoreRequest, listRestoreRequests, markRestoreRequestNotified } from "@/platform/backups";
@@ -70,7 +71,7 @@ async function requestPost(req: NextRequest) {
     const mail = admin?.email
       ? await sendRestoreRequestNotice(platformAccount(), admin.email, { ...request })
       : ({ ok: false, error: "no operator to tell" } as const);
-    if (!mail.ok) console.error(`[foldrun] restore request ${request.id} for ${tenant}: operator not mailed — ${mail.error}`);
+    if (!mail.ok) opsLog("error", "backups.restore_request_not_mailed", { tenant, jobId: request.id });
     await markRestoreRequestNotified(request.id, mail.ok);
     return NextResponse.json({ ok: true, request: { ...request, notified: mail.ok } }, { status: 201 });
   } catch (err) {

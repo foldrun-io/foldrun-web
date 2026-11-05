@@ -3,6 +3,7 @@
 // the person is sent to the dashboard. No session is minted — verifying an
 // address is not signing in.
 
+import { opsLog } from "@/lib/ops-log.ts";
 import { NextRequest, NextResponse } from "next/server";
 import { readToken, hashFingerprint } from "@/server/auth-tokens";
 import { findUserById, setEmailVerified, changeEmail, sessionIdOf, SESSION_COOKIE, type UserRecord } from "@/server/users";
@@ -51,7 +52,7 @@ async function moveLogin(req: NextRequest, claims: Record<string, string>) {
   const ended = await revokeSessions(user.id, sessionIdOf(req.cookies.get(SESSION_COOKIE)?.value) ?? undefined);
   await audit("email.changed", { actor: moved.from, tenant: user.tenant, subject: user.id, detail: { from: moved.from, to: moved.to, otherSessionsEnded: ended } });
   void sendEmailChangedNotice(user.tenant, moved.from, moved.to).then((r) => {
-    if (!r.ok) console.warn("[email-change] notice to the old address not sent:", r.error);
+    if (!r.ok) opsLog("warn", "auth.email_change_notice_not_sent");
   });
   return verified(req, { ...user, email: moved.to });
 }

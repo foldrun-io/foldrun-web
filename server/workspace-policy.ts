@@ -15,6 +15,7 @@
 // The account's AGENTS.md has one writer, PATCH /api/account, which already
 // needs workspace:manage over every workspace (requireAccountWide).
 
+import { opsLog } from "@/lib/ops-log.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { configMatter } from "@/lib/matter";
@@ -213,7 +214,7 @@ export function assertRemoteCardsAllowed(tenant: string, workspace: string, file
     }
   }
   if (!refused.length) return;
-  console.warn(`[a2a] refused remotes: card in ${tenant}/${workspace}: ${refused.join("; ")}`);
+  opsLog("warn", "a2a.remotes_refused", { tenant, workspace, count: refused.length });
   throw new ApiError(
     `this platform does not call private or internal addresses — remotes: ${refused.join("; ")}. Point card: at the remote agent's public https address`,
     400,

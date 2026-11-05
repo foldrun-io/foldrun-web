@@ -4,6 +4,7 @@
 // calls, with who calls it and when it stops. One function so the page, the
 // route and `foldrun api version` cannot disagree.
 
+import { opsError } from "@/lib/ops-log.ts";
 import { adminState } from "@/platform/admin";
 import { apiUsageFor } from "@/platform/api-usage";
 import { accountProfile, limitsFor } from "./api-limits.ts";
@@ -21,7 +22,7 @@ export async function apiUsageFacts(tenant: string, deprecations: Deprecation[] 
       }),
     };
   } catch (err) {
-    console.error("[api-usage] read failed:", err);
+    opsError("api_usage.read_failed", err);
     return null; // the page and the route still answer; the numbers say they are missing
   }
 }

@@ -4,6 +4,7 @@
 // install-wide on the mail it sends — each caller to a share of it. If there is an account, a reset link goes to it; if the platform
 // cannot send mail, foldrun's hosted operator can hand the link over instead.
 
+import { opsError } from "@/lib/ops-log.ts";
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/platform/cache";
 import { clientIp } from "@/server/limits";
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
         }
         const sent = await sendResetEmail(user.tenant, user.email, link, ip);
         await audit("password.reset_requested", { actor: user.email, tenant: user.tenant, detail: { sent: sent.ok, ...(sent.ok ? {} : { error: sent.error }) } });
-      })().catch((err) => console.error("forgot: reset mail failed", err instanceof Error ? err.message : err));
+      })().catch((err) => opsError("auth.reset_mail_failed", err));
     }
     return NextResponse.json(SAME);
   } catch (err) {

@@ -1,6 +1,7 @@
 // Exchange a password for a session cookie. One generic refusal for a wrong
 // password and an unknown email — the difference is nobody's business.
 
+import { opsError } from "@/lib/ops-log.ts";
 import { NextRequest, NextResponse } from "next/server";
 import { clientIp } from "@/server/limits";
 import { verifyPassword, findUser, mintSession, sessionCookieOptions, SESSION_COOKIE } from "@/server/users";
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest) {
           if (!who) return;
           await audit("login.throttled", { actor: who.email, tenant: who.tenant, detail: { after: PER_ACCOUNT_ALL_CALLERS.limit } });
           sendSecurityNotice(who.tenant, who.email, `${PER_ACCOUNT_ALL_CALLERS.limit} sign-ins with a wrong password were tried in a quarter hour from several addresses, so password sign-in is paused for up to fifteen minutes`, ip);
-        })().catch((err) => console.error("login: throttle notice failed", err instanceof Error ? err.message : err));
+        })().catch((err) => opsError("auth.throttle_notice_failed", err));
       }
       return refuse("wrong email or password", 401);
     }

@@ -3,7 +3,7 @@
 // and errorStatus used to hand any plain Error's message back as a 400 — the
 // schema and the values (an email, a salt, a hash) to whoever made the
 // request. Now it is a 500 with the generic sentence, and the log keeps the
-// query text and the SQLSTATE, never the values.
+// SQLSTATE and our frames, never the values or the query (FOL-121).
 //
 // The first tests build the real classes (drizzle's and pg's, from the
 // platform's dependencies) and need nothing running. The last races two
@@ -67,8 +67,10 @@ test("a DrizzleQueryError is a 500 with the generic sentence: no SQL, no values 
   const body = await res.text();
   assert.deepEqual(JSON.parse(body), { error: "something went wrong on our side" });
   for (const v of [...SECRET_VALUES, "insert", "users_email_idx", "Failed query"]) assert.ok(!body.includes(v), `answer leaked ${v}`);
-  // The log says what failed — query text and SQLSTATE — and never the values.
-  assert.match(log, /database error 23505 in: insert into "users"/);
+  // The log says what failed — the SQLSTATE and where in our code — and
+  // never the values, nor the query text (FOL-121: safe only by convention).
+  assert.match(log, /api\.database_error .*code=23505/);
+  assert.ok(!log.includes("insert into"), "no query text in the log");
   for (const v of SECRET_VALUES) assert.ok(!log.includes(v), `log leaked ${v}`);
   assert.ok(!log.includes("params"), "no params line in the log");
 });

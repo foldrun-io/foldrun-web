@@ -13,6 +13,7 @@
 // typed back: this is the one request in the product that cannot be undone
 // by the person who made it.
 
+import { opsLog } from "@/lib/ops-log.ts";
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner, requireHosted, errorResponse, ApiError } from "@/server/api";
 import { adminState, updateAdminState, platformAccount } from "@/platform/admin";
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
     await audit("account.close_requested", { actor: by, tenant, detail: { reason, billing: billed.outcome } });
     const admin = await ownerOf(platformAccount());
     const mail = admin?.email ? await sendCloseRequestNotice(platformAccount(), admin.email, tenant, by, reason ? `${reason}\n\nBilling: ${billed.outcome}` : `Billing: ${billed.outcome}`) : { ok: false as const, error: "no operator to tell" };
-    if (!mail.ok) console.error(`[foldrun] close request for ${tenant}: operator not mailed — ${mail.error}`);
+    if (!mail.ok) opsLog("error", "account.close_request_not_mailed", { tenant });
     return NextResponse.json({ ok: true, suspended: true, notified: mail.ok, billing: billed.outcome });
   } catch (err) {
     return errorResponse(err);
