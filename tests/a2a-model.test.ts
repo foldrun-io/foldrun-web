@@ -3,7 +3,7 @@
 // label on runs.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { a2aBodyOf, a2aCurl, a2aFormOf, a2aKeyLabels, a2aPatch, a2aRunLabel, a2aStateWord } from "../components/a2a-model.ts";
+import { a2aBodyOf, a2aCurl, a2aFormOf, a2aKeyLabels, a2aPatch, a2aRiskState, a2aRunLabel, a2aStateWord } from "../components/a2a-model.ts";
 
 test("a2aPatch: a key sent replaces, null removes, the rest is kept", () => {
   const current = { publish: true, name: "Lead finder", description: "Finds leads.", examples: ["a"], input: { type: "object" } };
@@ -24,10 +24,10 @@ test("a2aPatch: a fresh block without publish is a draft; a block that would not
 
 test("the form reads the parsed block and writes every key it owns, never input", () => {
   const form = a2aFormOf({ publish: true, name: null, description: "D", examples: ["one", "two"], publicCard: false });
-  assert.deepEqual(form, { publish: true, name: "", description: "D", examples: "one\ntwo", publicCard: false });
-  assert.deepEqual(a2aFormOf(null), { publish: false, name: "", description: "", examples: "", publicCard: false });
+  assert.deepEqual(form, { publish: true, name: "", description: "D", examples: "one\ntwo", publicCard: false, acceptRisk: [] });
+  assert.deepEqual(a2aFormOf(null), { publish: false, name: "", description: "", examples: "", publicCard: false, acceptRisk: [] });
   const body = a2aBodyOf({ ...form, examples: " one \n\n three ", publicCard: true });
-  assert.deepEqual(body, { publish: true, name: null, description: "D", examples: ["one", "three"], public_card: true });
+  assert.deepEqual(body, { publish: true, name: null, description: "D", examples: ["one", "three"], public_card: true, accept_risk: null });
   assert.ok(!("input" in body), "the input schema is not the form's; the merge keeps it");
   assert.equal(a2aBodyOf({ ...form, publicCard: false }).public_card, null);
 });
@@ -59,4 +59,20 @@ test("a run an outside agent started reads A2A · <key label>; every other run, 
   assert.equal(a2aRunLabel({ trigger: "a2a", a2a: { key: "gone" } }, labels), "A2A · an outside agent");
   assert.equal(a2aRunLabel({}, labels), null);
   assert.equal(a2aStateWord("TASK_STATE_INPUT_REQUIRED"), "input required");
+});
+
+// FOL-112: the form owns accept_risk — the agents an admin accepts holding a
+// secret while they can run code — and says when saving would be refused.
+test("accept_risk: the form reads, writes and merges it; the risk state says what blocks a publish", () => {
+  const form = a2aFormOf({ publish: true, name: null, description: null, examples: [], publicCard: false, acceptRisk: ["worker"] });
+  assert.deepEqual(form.acceptRisk, ["worker"]);
+  assert.deepEqual(a2aBodyOf(form).accept_risk, ["worker"]);
+  const merged = a2aPatch({ accept_risk: ["worker"] }, { publish: true, name: "N" });
+  assert.deepEqual(merged, { value: { publish: true, name: "N", accept_risk: ["worker"] } });
+  assert.deepEqual(a2aPatch({ accept_risk: [] }, { publish: true, accept_risk: ["worker"] }), { value: { publish: true } }, "an empty list removes it");
+  assert.ok("error" in a2aPatch({ publish: true, accept_risk: "worker" }, undefined), "a list of names, as core reads it");
+  const risks = [{ flow: "leads", agent: "worker", secrets: ["T"], accepted: false }, { flow: "other", agent: "x", secrets: ["U"], accepted: false }];
+  assert.deepEqual(a2aRiskState("leads", risks, { publish: true, acceptRisk: [] }), { items: [{ agent: "worker", secrets: ["T"], accepted: false }], blocks: true });
+  assert.equal(a2aRiskState("leads", risks, { publish: true, acceptRisk: ["worker"] }).blocks, false);
+  assert.equal(a2aRiskState("leads", risks, { publish: false, acceptRisk: [] }).blocks, false, "not published: nothing to refuse");
 });

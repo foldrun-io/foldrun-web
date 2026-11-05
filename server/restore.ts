@@ -20,7 +20,7 @@ import { diffLines, headRevision, resolveRevision, snapshotAt, type DiffOp } fro
 import { workspaceDir } from "@/lib/store";
 import { ApiError } from "./api.ts";
 import type { Actor } from "./auth.ts";
-import { assertMayChangeWorkspacePolicy } from "./workspace-policy.ts";
+import { assertMayChangeWorkspacePolicy, type PolicyEvent } from "./workspace-policy.ts";
 
 export interface RestoreFile {
   path: string;
@@ -114,14 +114,14 @@ export function applyRestore(
   workspace: string,
   to: string,
   opts: { by: string; expectRemoved?: string[]; actor?: Pick<Actor, "role"> },
-): { applied: boolean; plan: RestorePlan; main: string | null; unexpectedRemovals?: string[]; issues?: unknown[] } {
+): { applied: boolean; plan: RestorePlan; main: string | null; unexpectedRemovals?: string[]; issues?: unknown[]; policyEvents?: PolicyEvent[] } {
   const plan = planRestore(tenant, workspace, to, { diffs: false });
   if (plan.noop) return { applied: false, plan, main: plan.from };
   const tree = treeOf(tenant, workspace, plan.to.id);
   // A restore is a deploy of an older tree: going back to before an admin
   // set a budget or network_enforce changes those keys, so it needs what
   // changing them needs (server/workspace-policy.ts, 30 Oct 2026).
-  if (opts.actor) assertMayChangeWorkspacePolicy(opts.actor, tenant, workspace, tree, "replace");
+  const policyEvents = opts.actor ? assertMayChangeWorkspacePolicy(opts.actor, tenant, workspace, tree, "replace") : [];
   const result = deployWorkspace(tenant, workspace, tree, {
     commit: null,
     force: false,
@@ -136,5 +136,6 @@ export function applyRestore(
     main: headRevision(tenant, workspace)?.id ?? null,
     ...(result.unexpectedRemovals ? { unexpectedRemovals: result.unexpectedRemovals } : {}),
     ...(result.issues?.length ? { issues: result.issues } : {}),
+    ...(result.applied && policyEvents.length ? { policyEvents } : {}),
   };
 }

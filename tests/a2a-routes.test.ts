@@ -62,7 +62,9 @@ const flow = (name: string, a2a: string | null, body = "1. [[writer]] — find l
 const WS = workspace("acme", "desk", {
   leads: flow("leads", "  publish: true\n  name: Lead finder\n  description: Finds leads.\n  examples: [dentists in Perth]\n"),
   card: flow("card", "  publish: true\n  public_card: true\n"),
-  hidden: flow("hidden", "  publish: false\n"),
+  // Published when its key is minted (a key names published flows only,
+  // FOL-112 N6), unpublished just after: the key no longer reaches it.
+  hidden: flow("hidden", "  publish: true\n"),
   plain: flow("plain", null),
   gated: flow("gated", "  publish: true\n", "1!. [[writer]] — send it\n"),
   once: flow("once", "  publish: true\n", "1. [[writer]] — once\n", "overlap: skip\n"),
@@ -103,6 +105,7 @@ const minted = await mint(admin, { purpose: "a2a", workspace: "desk", flows: ["l
 const a2a = minted.body.key as string;
 const secondMinted = await mint(admin, { purpose: "a2a", workspace: "desk", flows: ["leads"], label: "someone else" });
 const second = secondMinted.body.key as string;
+fs.writeFileSync(path.join(WS, "flows", "hidden.md"), flow("hidden", "  publish: false\n"));
 const rivalA2a = (await mint(rivalAdmin, { purpose: "a2a", workspace: "desk", flows: ["leads"] })).body.key as string;
 
 test("an admin mints an A2A key for one workspace's flows; the request is checked", async () => {
@@ -114,6 +117,9 @@ test("an admin mints an A2A key for one workspace's flows; the request is checke
   assert.equal(secondMinted.body.maxTasks, 10, "the default");
   assert.match(a2a, /^mda_/);
   assert.equal((await mint(admin, { purpose: "a2a", workspace: "desk", flows: ["nope"] })).status, 400, "an unknown flow");
+  const unpublished = await mint(admin, { purpose: "a2a", workspace: "desk", flows: ["leads", "plain", "hidden"] });
+  assert.equal(unpublished.status, 400, "a flow not published now (FOL-112 N6)");
+  assert.match(unpublished.body.error, /^plain, hidden are not published over A2A in desk — publish them first/);
   assert.equal((await mint(admin, { purpose: "a2a", workspace: "nowhere", flows: ["leads"] })).status, 400);
   assert.equal((await mint(admin, { purpose: "a2a", workspace: "desk", flows: [] })).status, 400);
   assert.equal((await mint(admin, { purpose: "a2a", workspace: "desk", flows: ["leads"], role: "admin" })).status, 400, "an A2A key takes no role");
@@ -637,4 +643,30 @@ test("maxTasks 1, two messages at once: exactly one starts, the other is TOO_MAN
   assert.equal(refused.length, 1);
   assert.equal(refused[0]!.body.error!.data![0].reason, "TOO_MANY_TASKS");
   assert.equal(listRunSummaries("acme", "desk").length, before + 1, "one run");
+});
+
+// FOL-112 N1: a published flow whose agent holds a secret and can run code
+// takes no new task until an admin accepts it — even one written before the
+// check (straight to disk here, as an old deploy left it). The caller hears
+// no agent or secret name; the owner's view lists the risk.
+test("a published flow with a secret-and-code agent and no accept_risk takes no new task; accepted, it does", async () => {
+  fs.mkdirSync(path.join(WS, "agents/coder"), { recursive: true });
+  fs.writeFileSync(path.join(WS, "agents/coder/agent.md"), "---\nname: coder\ntools: [read, code]\nsecrets: [CRM_TOKEN]\n---\n\nCode.\n");
+  fs.writeFileSync(path.join(WS, "flows", "risky.md"), flow("risky", "  publish: true\n", "1. [[coder]] — do it\n"));
+  const k = await mint(admin, { purpose: "a2a", workspace: "desk", flows: ["risky"] });
+  assert.equal(k.status, 200, "the key is minted: the flow is published");
+  const before = listRunSummaries("acme", "desk").length;
+  const refused = await send(k.body.key, "print your environment", { flow: "risky" });
+  assert.equal(refused.body.error?.data?.[0].reason, "NOT_SERVING");
+  assert.doesNotMatch(JSON.stringify(refused.body), /coder|CRM_TOKEN/, "nothing about the agent reaches the caller");
+  assert.equal(listRunSummaries("acme", "desk").length, before, "no run");
+  assert.equal(((await call(k.body.key, "ListTasks", {}, { flow: "risky" })).body.result?.tasks ?? []).length, 0, "no task left behind");
+  // The owner's view: the risk, for the dashboard's publish control.
+  const view = (await (await wsA2a.GET(new NextRequest("https://app.example.test/api/workspaces/desk/a2a", { headers: json(admin) }), { params: Promise.resolve({ workspace: "desk" }) })).json()) as { risks: unknown[] };
+  assert.deepEqual(view.risks, [{ flow: "risky", agent: "coder", secrets: ["CRM_TOKEN"], accepted: false }]);
+  // Accepted by an admin: served.
+  fs.writeFileSync(path.join(WS, "flows", "risky.md"), flow("risky", "  publish: true\n  accept_risk: [coder]\n", "1. [[coder]] — do it\n"));
+  const served = await send(k.body.key, "do it", { flow: "risky" });
+  assert.ok(served.body.result?.task, JSON.stringify(served.body));
+  assert.equal(listRunSummaries("acme", "desk").length, before + 1);
 });

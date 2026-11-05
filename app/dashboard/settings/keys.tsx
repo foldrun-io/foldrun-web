@@ -245,7 +245,8 @@ export function KeyManager({
       {manages && kind === "a2a" && (
         <div className="mb-3 space-y-2 text-xs text-fg-muted">
           {/* An outside agent's key: it opens /a2a/<account>/<workspace>/…
-              for the flows named here (each also published with a2a:), and
+              for the flows named here (each published with a2a: — a flow
+              not published cannot be chosen, FOL-112), and
               no /api route — not runs, approvals, source or keys. */}
           <p>
             An A2A key lets an outside agent call published flows of one workspace over A2A — nothing else: every /api route refuses it, and it can never approve a gate or answer a question.
@@ -274,9 +275,10 @@ export function KeyManager({
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             {(a2aFlows[a2aWs] ?? []).map((f) => (
-              <label key={f.name} className="inline-flex items-center gap-1.5 font-mono text-fg-secondary" title={f.published ? "Published over A2A" : "Not published — the key opens it once the flow says a2a: { publish: true }"}>
+              <label key={f.name} className="inline-flex items-center gap-1.5 font-mono text-fg-secondary" title={f.published ? "Published over A2A" : "Not published — publish it first (the flow's Publish over A2A control); a key names published flows only"}>
                 <input
                   type="checkbox"
+                  disabled={!f.published}
                   checked={a2aChosen.includes(f.name)}
                   onChange={(e) => setA2aChosen((c) => (e.target.checked ? [...c, f.name] : c.filter((x) => x !== f.name)))}
                 />

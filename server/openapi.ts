@@ -118,6 +118,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       blockedBy: { type: "array", items: str(), description: "dry run: runs in flight that would block the swap" },
       commit: { type: ["string", "null"], description: "applied: the commit the workspace now runs, when known" },
       preserved: { ...int, description: "applied: files kept that the deploy does not own (state, memory, storage)" },
+      policy: { ...obj({ status: int, code: str("a2a_widening | a2a_secret_code | a2a_accept_risk, when the refusal has one"), error: str() }), description: "dry run: why the real deploy would be refused by the workspace's policy — a policy key or a2a: past an editor, an agent widened behind a published flow, a secret-and-code agent with no accept_risk. Absent when it would not be" },
     }),
   },
   "GET /api/workspaces/{workspace}/check": {

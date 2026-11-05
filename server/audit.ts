@@ -122,7 +122,12 @@ export type AuditAction =
   // A workspace's source rolled back to a point in its history, and a
   // customer asking the operator for a restore from a nightly backup.
   | "workspace.restored"
-  | "backup.restore_requested";
+  | "backup.restore_requested"
+  // A flow published over A2A (FOL-112, 5 Nov 2026): an admin widened what
+  // an agent behind it may reach, or accepted that one holds a secret while
+  // it can run code (a2a: accept_risk). Editors are refused both.
+  | "a2a.agent_widened"
+  | "a2a.risk_accepted";
 
 // Without a database the log is a file per account, appended a line at a
 // time — the same shape the platform operator's own audit has kept without one

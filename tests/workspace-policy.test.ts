@@ -200,3 +200,155 @@ test("remotes: a card the file already had does not block an unrelated edit; a l
   });
   fs.rmSync(path.join(workspaceDir("acme", "desk"), "agents/caller"), { recursive: true, force: true });
 });
+
+// ── FOL-112: the agents behind a flow published over A2A ───────────────────
+// N2: an editor may not widen what they may reach (tools, secrets, network,
+// hooks, a new agent behind the flow), by any door; an admin may, audited.
+// N1: nobody publishes a flow whose agent holds a secret and runs code
+// unless an admin names it in a2a: accept_risk, audited.
+
+const sourceRoutes = (await import("../app/api/workspaces/[workspace]/source/route.ts")) as unknown as { PUT: Handler; DELETE: Handler; PATCH: Handler };
+const auditLines = (): { action: string; actor: string; detail: Record<string, unknown> }[] => {
+  const file = path.join(process.env.FOLDRUN_DATA!, "audit", "acme.jsonl");
+  return fs.existsSync(file) ? fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)) : [];
+};
+const PUB_FLOW = { path: "flows/publish.md", content: "---\nname: publish\ntrigger: manual\na2a:\n  publish: true\n---\n\n1. [[writer]] — write it\n" };
+const writer = (front: string) => ({ path: "agents/writer/agent.md", content: `---\nname: writer\ndescription: writes\n${front}---\n\nWrite.\n` });
+const POLICY_HOOKED = POLICY.replace("budget: 50\n", "budget: 50\nhooks: [guard]\n");
+const publishedTree = (agent = writer("tools: [read]\n"), agentsMd = POLICY_HOOKED) => [{ path: "AGENTS.md", content: agentsMd }, agent, PUB_FLOW];
+const resetPublished = (agent?: { path: string; content: string }, agentsMd?: string) =>
+  assert.ok(deployWorkspace("acme", "desk", publishedTree(agent, agentsMd), { by: "admin@acme.test", message: "reset" }).applied);
+const errorOf = async (res: Response) => (await res.json()) as { error: string; code?: string };
+
+test("N2: an editor's save that widens an agent of a published flow is refused, naming it; an admin's goes through and is audited", async () => {
+  resetPublished();
+  const wider = writer("tools: [read, write]\n");
+  const refused = await sourceRoutes.PUT(json("/api/workspaces/desk/source", "PUT", editor, wider), ctx);
+  assert.equal(refused.status, 403);
+  const body = await errorOf(refused);
+  assert.equal(body.code, "a2a_widening");
+  assert.match(body.error, /widen what writer behind publish \(tools Edit, Write\) may reach/);
+  assert.match(body.error, /your role is editor/);
+  // Prose, and a narrower agent, are an editor's still.
+  const reworded = writer("tools: [read]\n");
+  assert.equal((await sourceRoutes.PUT(json("/api/workspaces/desk/source", "PUT", editor, { ...reworded, content: reworded.content.replace("Write.", "Write well.") }), ctx)).status, 200, "prose");
+  assert.equal((await sourceRoutes.PUT(json("/api/workspaces/desk/source", "PUT", editor, writer("")), ctx)).status, 200, "narrower");
+  const before = auditLines().length;
+  assert.equal((await sourceRoutes.PUT(json("/api/workspaces/desk/source", "PUT", admin, wider), ctx)).status, 200);
+  const line = auditLines().slice(before).find((l) => l.action === "a2a.agent_widened");
+  assert.ok(line, "audited");
+  assert.equal(line!.actor, "admin@acme.test");
+  assert.deepEqual(line!.detail, { workspace: "desk", flow: "publish", agent: "writer", widened: ["tools Edit, Glob, Grep, Read, Write"] });
+  resetPublished();
+});
+
+test("N2: by a deploy too — and a new agent behind the flow, the workspace's network: or a dropped hook all count", async () => {
+  resetPublished();
+  const deploy = (key: string, files: { path: string; content: string }[], extra: Record<string, unknown> = {}) =>
+    deployRoute.POST(json("/api/workspaces/desk/deploy", "POST", key, { files, ...extra }), ctx);
+  const secret = await deploy(editor, publishedTree(writer("tools: [read]\nsecrets: [CRM_TOKEN]\n")));
+  assert.equal(secret.status, 403);
+  assert.match((await errorOf(secret)).error, /writer behind publish \(secrets CRM_TOKEN\)/);
+  const step = await deploy(editor, [...publishedTree(), { path: "agents/poster/agent.md", content: "---\nname: poster\n---\n\nPost.\n" }, { ...PUB_FLOW, content: PUB_FLOW.content + "2. [[poster]] — post it\n" }].filter((f, i, all) => all.findLastIndex((g) => g.path === f.path) === i));
+  assert.equal(step.status, 403, "a step with another agent widens the published flow");
+  assert.match((await errorOf(step)).error, /poster behind publish/);
+  const net = await deploy(editor, publishedTree(undefined, POLICY_HOOKED.replace("name: desk\n", "name: desk\nnetwork: open\n")));
+  assert.equal(net.status, 403, "the workspace's network: reaches every agent");
+  assert.match((await errorOf(net)).error, /network trusted → open/);
+  const unhooked = await deploy(editor, publishedTree(undefined, POLICY));
+  assert.equal(unhooked.status, 403);
+  assert.match((await errorOf(unhooked)).error, /hooks removed: guard/);
+  // The dry run says so before anything is sent for real.
+  const dry = await deploy(editor, publishedTree(writer("tools: [read, code]\n")), { dryRun: true });
+  assert.equal(dry.status, 200);
+  const plan = (await dry.json()) as { ok: boolean; policy?: { status: number; code: string } };
+  assert.equal(plan.ok, false);
+  assert.deepEqual([plan.policy?.status, plan.policy?.code], [403, "a2a_widening"]);
+  // A deploy that leaves the agents as they are is not refused.
+  assert.equal((await deploy(editor, publishedTree())).status, 200);
+  resetPublished();
+});
+
+test("N2: removing AGENTS.md (its hooks:) widens; removing the flow does not", async () => {
+  resetPublished();
+  const del = (key: string, p: string) => sourceRoutes.DELETE(json("/api/workspaces/desk/source", "DELETE", key, { path: p }), ctx);
+  const gone = await del(editor, "AGENTS.md");
+  assert.equal(gone.status, 403);
+  assert.match((await errorOf(gone)).error, /hooks removed: guard/);
+  assert.equal((await del(editor, "flows/publish.md")).status, 200, "unpublishing by removal is less open, never more");
+  resetPublished();
+});
+
+test("N1: publishing a flow whose agent holds a secret and runs code is refused without accept_risk — admin or not; with it, audited", async () => {
+  const risky = writer("tools: [read, code]\nsecrets: [CRM_TOKEN]\n");
+  assert.ok(deployWorkspace("acme", "desk", [{ path: "AGENTS.md", content: POLICY }, risky, FLOW], { by: "admin@acme.test", message: "reset" }).applied);
+  const refused = await sourceRoutes.PUT(json("/api/workspaces/desk/source", "PUT", admin, PUB_FLOW), ctx);
+  assert.equal(refused.status, 400);
+  const body = await errorOf(refused);
+  assert.equal(body.code, "a2a_secret_code");
+  assert.match(body.error, /writer holds CRM_TOKEN and can run code \(Bash\), and publish is published over A2A — its answer goes back to the outside caller/);
+  assert.match(body.error, /a2a: accept_risk: \[writer\] in publish/);
+  const stale = await sourceRoutes.PUT(json("/api/workspaces/desk/source", "PUT", admin, { ...PUB_FLOW, content: PUB_FLOW.content.replace("publish: true\n", "publish: true\n  accept_risk: [writer, ghost]\n") }), ctx);
+  assert.equal(stale.status, 400);
+  assert.equal((await errorOf(stale)).code, "a2a_accept_risk");
+  const before = auditLines().length;
+  const accepted = { ...PUB_FLOW, content: PUB_FLOW.content.replace("publish: true\n", "publish: true\n  accept_risk: [writer]\n") };
+  assert.equal((await sourceRoutes.PUT(json("/api/workspaces/desk/source", "PUT", admin, accepted), ctx)).status, 200);
+  const line = auditLines().slice(before).find((l) => l.action === "a2a.risk_accepted");
+  assert.deepEqual(line?.detail, { workspace: "desk", flow: "publish", agent: "writer", secrets: ["CRM_TOKEN"], runsCode: true });
+  // The admin's ack does not let an editor widen the agent further.
+  assert.equal((await sourceRoutes.PUT(json("/api/workspaces/desk/source", "PUT", editor, writer("tools: [read, code, write]\nsecrets: [CRM_TOKEN]\n")), ctx)).status, 403);
+  reset();
+});
+
+test("DELETE /source of AGENTS.md drops its policy keys: an editor is refused, as team-and-access.md says", async () => {
+  reset();
+  const gone = await sourceRoutes.DELETE(json("/api/workspaces/desk/source", "DELETE", editor, { path: "AGENTS.md" }), ctx);
+  assert.equal(gone.status, 403);
+  assert.match((await errorOf(gone)).error, /this would change budget:, notify:, network_enforce: in desk's AGENTS\.md/);
+  assert.equal(agentsMd(), POLICY, "nothing removed");
+  assert.equal((await sourceRoutes.DELETE(json("/api/workspaces/desk/source", "DELETE", editor, { path: "knowledge/nothing.md" }), ctx)).status !== 403, true, "another file is not policy");
+  reset();
+});
+
+test("N2: the agent editor's PATCH (a tool, a network, sandbox: own) is a door too", async () => {
+  resetPublished();
+  type AgentHandler = (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string; agent: string }> }) => Promise<Response>;
+  const agentRoute = (await import("../app/api/workspaces/[workspace]/agents/[agent]/route.ts")) as unknown as { PATCH: AgentHandler };
+  const actx = { params: Promise.resolve({ workspace: "desk", agent: "writer" }) };
+  const patch = (key: string, body: unknown) => agentRoute.PATCH(json("/api/workspaces/desk/agents/writer", "PATCH", key, body), actx);
+  const tool = await patch(editor, { list: { key: "tools", name: "code", action: "add" } });
+  assert.equal(tool.status, 403);
+  assert.match((await errorOf(tool)).error, /writer behind publish \(tools Bash\)/);
+  assert.equal((await patch(editor, { network: { level: "open" } })).status, 403);
+  assert.equal((await patch(editor, { set: { key: "sandbox", value: "own" } })).status, 403);
+  assert.equal((await patch(editor, { list: { key: "tools", name: "read", action: "remove" } })).status, 200, "narrowing is an editor's");
+  assert.equal((await patch(admin, { list: { key: "tools", name: "write", action: "add" } })).status, 200);
+  resetPublished();
+});
+
+test("N1: a secret bound to sites never enters the sandbox — publishing goes through; unbound again, it is refused", async () => {
+  const { setSecret, setSecretSites } = await import("@/lib/secrets");
+  setSecret("acme", "BOUND_TOKEN", "v");
+  setSecretSites("acme", "BOUND_TOKEN", ["api.example.com"]);
+  const bound = writer("tools: [read, code]\nsecrets: [BOUND_TOKEN]\n");
+  assert.ok(deployWorkspace("acme", "desk", [{ path: "AGENTS.md", content: POLICY }, bound, FLOW], { by: "admin@acme.test", message: "reset" }).applied);
+  assert.equal((await sourceRoutes.PUT(json("/api/workspaces/desk/source", "PUT", admin, PUB_FLOW), ctx)).status, 200, "bound: not in the sandbox");
+  const { unacceptedExposures } = await import("../server/workspace-policy.ts");
+  assert.deepEqual(unacceptedExposures("acme", "desk", "publish"), [], "served");
+  setSecretSites("acme", "BOUND_TOKEN", []);
+  assert.deepEqual(unacceptedExposures("acme", "desk", "publish").map((e) => e.agent), ["writer"], "unbound later, through no write door: the serve path refuses it");
+  reset();
+});
+
+test("N1: a new workspace's deploy meets the check too — the dry run says so, the deploy refuses", async () => {
+  const fresh = { params: Promise.resolve({ workspace: "fresh" }) };
+  const files = [{ path: "AGENTS.md", content: "---\nname: fresh\n---\n" }, writer("tools: [read, code]\nsecrets: [CRM_TOKEN]\n"), PUB_FLOW];
+  const dry = await deployRoute.POST(json("/api/workspaces/fresh/deploy", "POST", admin, { files, dryRun: true }), fresh);
+  const plan = (await dry.json()) as { ok: boolean; policy?: { code?: string } };
+  assert.equal(plan.ok, false);
+  assert.equal(plan.policy?.code, "a2a_secret_code");
+  const real = await deployRoute.POST(json("/api/workspaces/fresh/deploy", "POST", admin, { files }), fresh);
+  assert.equal(real.status, 400);
+  assert.equal(fs.existsSync(workspaceDir("acme", "fresh")), false, "nothing made");
+});

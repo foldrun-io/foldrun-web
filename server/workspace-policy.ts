@@ -19,7 +19,12 @@ import { opsLog } from "@/lib/ops-log.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { configMatter } from "@/lib/matter";
-import { workspaceDir } from "@/lib/store";
+import { accountDir, workspaceDir } from "@/lib/store";
+import { libraryDir } from "@/lib/library";
+import { readAgentsMdKeys } from "@/lib/agents-md";
+import { secretSites } from "@/lib/secrets";
+import { a2aTree, a2aWriteEffect, flowSecretCode, secretCodeSentence, type A2aTree, type TreeFile } from "@/lib/a2a-reach";
+import { audit, type AuditAction } from "./audit.ts";
 import { WORKSPACE_PATCHABLE } from "@/components/defaults-model";
 import { can } from "@/platform/permissions.ts";
 import { refuseInternalUrl } from "@/platform/ssrf";
@@ -71,6 +76,12 @@ export function changedPolicyKeys(before: string | null, after: string | null, k
   return keys.filter((k) => stable(a[k]) !== stable(b[k]));
 }
 
+/** Is `rel` the path `removed` names, or inside it (a folder removed)? */
+function isUnder(rel: string, removed: string): boolean {
+  const g = path.normalize(removed).replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+$/, "");
+  return g === "." || g === "" || rel === g || rel.startsWith(`${g}/`);
+}
+
 /** A file list as a deploy writes it: paths normalised, the last of two
  *  entries for one path winning. */
 function shippedMap(files: { path: string; content: string }[]): Map<string, string> {
@@ -90,6 +101,7 @@ export function configBeforeAfter(
   workspace: string,
   files: { path: string; content: string }[],
   mode: "replace" | "merge",
+  removed: string[] = [],
 ): { before: string | null; after: string | null } {
   const dir = workspaceDir(tenant, workspace);
   const onDisk = (rel: string): string | null => {
@@ -108,7 +120,10 @@ export function configBeforeAfter(
     return null;
   };
   const before = pick(onDisk);
-  const after = mode === "replace" ? pick((rel) => shipped.get(rel)) : pick((rel) => shipped.get(rel) ?? onDisk(rel));
+  // A path a delete or a rename removes is gone in a merge, as a deploy's
+  // missing file is in a replace (5 Nov 2026: DELETE /source had no check).
+  const gone = (rel: string) => removed.some((r) => isUnder(rel, r));
+  const after = mode === "replace" ? pick((rel) => shipped.get(rel)) : pick((rel) => shipped.get(rel) ?? (gone(rel) ? null : onDisk(rel)));
   return { before, after };
 }
 
@@ -123,23 +138,31 @@ export function assertMayChangeWorkspacePolicy(
   workspace: string,
   files: { path: string; content: string }[],
   mode: "replace" | "merge",
-): void {
+  opts: { removed?: string[] } = {},
+): PolicyEvent[] {
   assertRemoteCardsAllowed(tenant, workspace, files);
-  if (can(actor.role, "workspace:manage")) return;
+  const admin = can(actor.role, "workspace:manage");
   // A flow's `a2a:` — whether outside agents may call it — is the
   // workspace's policy too (1 Nov 2026): publishing a flow opens it to every
   // A2A key that names it, an admin's decision, by every door into the file.
-  const published = changedFlowPublications(tenant, workspace, files, mode);
-  if (published.length) {
-    throw new ApiError(
-      `this would change a2a: in ${published.join(", ")} — whether outside agents may call ${published.length === 1 ? "that flow" : "those flows"} over A2A is the workspace's policy, ` +
-        `and changing it needs the admin role (workspace:manage); your role is ${actor.role}. Leave a2a: as it is and the rest of the change goes through, or ask an admin to make it.`,
-      403,
-    );
+  if (!admin) {
+    const published = changedFlowPublications(tenant, workspace, files, mode);
+    if (published.length) {
+      throw new ApiError(
+        `this would change a2a: in ${published.join(", ")} — whether outside agents may call ${published.length === 1 ? "that flow" : "those flows"} over A2A is the workspace's policy, ` +
+          `and changing it needs the admin role (workspace:manage); your role is ${actor.role}. Leave a2a: as it is and the rest of the change goes through, or ask an admin to make it.`,
+        403,
+      );
+    }
   }
-  const { before, after } = configBeforeAfter(tenant, workspace, files, mode);
+  // What the agents behind published flows may reach (FOL-112, 5 Nov 2026):
+  // an editor may not widen them, and nobody may make a published flow
+  // whose agent holds a secret and runs code without an admin's accept_risk.
+  const events = assertPublishedFlowsKept(actor, tenant, workspace, files, mode, opts.removed ?? []);
+  if (admin) return events;
+  const { before, after } = configBeforeAfter(tenant, workspace, files, mode, opts.removed ?? []);
   const changed = changedPolicyKeys(before, after);
-  if (!changed.length) return;
+  if (!changed.length) return events;
   const list = changed.map((k) => `${k}:`).join(", ");
   throw new ApiError(
     `this would change ${list} in ${workspace}'s AGENTS.md, and ${changed.length === 1 ? "that is" : "those are"} the workspace's policy — ` +
@@ -147,6 +170,197 @@ export function assertMayChangeWorkspacePolicy(
       `Leave ${changed.length === 1 ? "that key" : "those keys"} as ${changed.length === 1 ? "it is" : "they are"} and the rest of the change goes through, or ask an admin to make it.`,
     403,
   );
+}
+
+// ── flows published over A2A: what their agents may reach (FOL-112) ────────
+
+/** Something an admin's write did that the audit log records: an agent of a
+ *  published flow widened, a risk accepted. The caller writes them once its
+ *  write has gone through (auditPolicyEvents). */
+export interface PolicyEvent {
+  action: Extract<AuditAction, "a2a.agent_widened" | "a2a.risk_accepted">;
+  subject: string;
+  detail: Record<string, unknown>;
+}
+
+/** A refusal a program can branch on: `code` rides the answer beside the
+ *  sentence (api.ts refusalFields). */
+function refusal(message: string, status: number, code: string): ApiError {
+  return Object.assign(new ApiError(message, status), { code });
+}
+
+/** The files A2A reads of a workspace: its config, flows, agents (both
+ *  layouts) and tools. Everything else is prose to this check. */
+export function isA2aRelevant(rel: string): boolean {
+  return (
+    rel === "AGENTS.md" ||
+    rel === "project.md" ||
+    /^flows\/[^/]+\.md$/.test(rel) ||
+    /^agents\/[^/]+\/agent\.md$/.test(rel) ||
+    /^\.(?:claude|agents)\/agents\/[^/]+\.md$/.test(rel) ||
+    /^tools\/(?:[^/]+\/tool|[^/]+)\.md$/.test(rel)
+  );
+}
+
+function readText(file: string): string | null {
+  try {
+    return fs.readFileSync(file, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The secrets of `names` that reach a sandbox: one bound to sites in the
+ * vault (`foldrun secrets sites`) never does — the egress proxy fills it for
+ * those sites alone — so it is no secret the answer can carry. Read from
+ * the vault at each check: core's pure tree cannot see binding and counts
+ * every secret, and an unbinding later goes through no write door, which
+ * is why the serve path asks again before every task it starts.
+ */
+export function sandboxSecrets(tenant: string, workspace: string, names: string[]): string[] {
+  let bound: Record<string, string[]> = {};
+  try {
+    bound = secretSites(tenant, names, workspace);
+  } catch {
+    bound = {}; // a vault that cannot be read binds nothing: count them all
+  }
+  return names.filter((n) => !bound[n]?.length);
+}
+
+/** The A2A-relevant files under `dir`, workspace-relative. Bounded: a
+ *  folder, not a recursive walk. */
+function relevantOnDisk(dir: string, prefix = ""): Map<string, string> {
+  const out = new Map<string, string>();
+  const add = (rel: string) => {
+    const t = readText(path.join(dir, rel));
+    if (t !== null) out.set(prefix + rel, t);
+  };
+  const names = (sub: string): fs.Dirent[] => {
+    try {
+      return fs.readdirSync(path.join(dir, sub), { withFileTypes: true });
+    } catch {
+      return [];
+    }
+  };
+  if (!prefix) {
+    add("AGENTS.md");
+    add("project.md");
+    for (const e of names("flows")) if (e.isFile() && e.name.endsWith(".md")) add(`flows/${e.name}`);
+    for (const e of names("agents")) if (e.isDirectory()) add(`agents/${e.name}/agent.md`);
+    for (const sub of [".claude/agents", ".agents/agents"]) for (const e of names(sub)) if (e.isFile() && e.name.endsWith(".md")) add(`${sub}/${e.name}`);
+  }
+  for (const e of names("tools")) {
+    if (e.isFile() && e.name.endsWith(".md")) add(`tools/${e.name}`);
+    else if (e.isDirectory()) add(`tools/${e.name}/tool.md`);
+  }
+  return out;
+}
+
+/** A workspace's A2A facts as they stand, with the account's library tools
+ *  and network — what the serve path and the dashboard read. */
+export function workspaceA2aTree(tenant: string, workspace: string): A2aTree {
+  return a2aTree(a2aTreeFiles(tenant, relevantOnDisk(workspaceDir(tenant, workspace))), { accountNetwork: readAgentsMdKeys(accountDir(tenant)).network });
+}
+
+function a2aTreeFiles(tenant: string, ws: Map<string, string>): TreeFile[] {
+  let lib = new Map<string, string>();
+  try {
+    lib = relevantOnDisk(libraryDir(tenant), "library/");
+  } catch {
+    // no library: nothing shared
+  }
+  return [...lib, ...ws].map(([p, content]) => ({ path: p, content }));
+}
+
+/**
+ * The published-flow half of the policy check. Before and after are the
+ * whole workspace as A2A reads it — so a change elsewhere (AGENTS.md's
+ * network: or hooks:, a tool's secrets:, a Claude Code agent file that
+ * becomes the one in use) counts as much as one to the agent's own file.
+ *
+ *   403 a2a_widening      a caller who is not an admin widens an agent of a
+ *                         flow that was published (more tools, secrets,
+ *                         network, a new agent behind it…);
+ *   400 a2a_secret_code   anyone makes a published flow whose agent holds a
+ *                         secret and runs code, with no accept_risk for it;
+ *   400 a2a_accept_risk   accept_risk gains a name no agent of the flow has.
+ *
+ * An admin's widening and every new accept_risk come back as audit events.
+ */
+export function assertPublishedFlowsKept(
+  actor: Pick<Actor, "role">,
+  tenant: string,
+  workspace: string,
+  files: { path: string; content: string }[],
+  mode: "replace" | "merge",
+  removed: string[] = [],
+): PolicyEvent[] {
+  const shipped = shippedMap(files);
+  // Nothing A2A reads is touched, and nothing is removed: the common save
+  // (knowledge, a skill, prose) costs no reading.
+  if (mode === "merge" && !removed.length && ![...shipped.keys()].some(isA2aRelevant)) return [];
+  const dir = workspaceDir(tenant, workspace);
+  const disk = relevantOnDisk(dir);
+  const isGone = (rel: string) => removed.some((r) => isUnder(rel, r));
+  const next = new Map<string, string>();
+  if (mode === "merge") for (const [rel, text] of disk) if (!isGone(rel)) next.set(rel, text);
+  for (const [rel, text] of shipped) if (isA2aRelevant(rel)) next.set(rel, text);
+  const accountNetwork = readAgentsMdKeys(accountDir(tenant)).network;
+  const effect = a2aWriteEffect(a2aTree(a2aTreeFiles(tenant, disk), { accountNetwork }), a2aTree(a2aTreeFiles(tenant, next), { accountNetwork }));
+
+  if (effect.widened.length && !can(actor.role, "workspace:manage")) {
+    const said = effect.widened.slice(0, 3).map((w) => `${w.agent} behind ${w.flow} (${w.what.join("; ")})`);
+    opsLog("warn", "a2a.widening_refused", { tenant, workspace, count: effect.widened.length });
+    throw refusal(
+      `this would widen what ${said.join(", ")}${effect.widened.length > 3 ? `, and ${effect.widened.length - 3} more` : ""} may reach — ` +
+        `${effect.widened.length === 1 ? "that flow is" : "those flows are"} published over A2A, and an admin approved what ${effect.widened.length === 1 ? "its agents" : "their agents"} could do when publishing. ` +
+        `Widening that needs the admin role (workspace:manage); your role is ${actor.role}. Leave those agents' tools, secrets, network, hooks and steps as they are and the rest of the change goes through, or ask an admin to make it.`,
+      403,
+      "a2a_widening",
+    );
+  }
+  if (effect.stale.length) {
+    const s = effect.stale[0]!;
+    throw refusal(
+      `a2a: accept_risk in ${s.flow} names ${s.agents.join(", ")}, which no step of ${s.flow} runs — an acceptance names an agent of the flow, so it never waits to cover whatever is given that name next. Take ${s.agents.length === 1 ? "it" : "them"} out`,
+      400,
+      "a2a_accept_risk",
+    );
+  }
+  effect.unaccepted = effect.unaccepted.map((e) => ({ ...e, secrets: sandboxSecrets(tenant, workspace, e.secrets) })).filter((e) => e.secrets.length);
+  if (effect.unaccepted.length) {
+    const said = effect.unaccepted.slice(0, 3).map((e) => secretCodeSentence(e.flow, e));
+    const first = effect.unaccepted[0]!;
+    throw refusal(
+      `${said.join("; ")}${effect.unaccepted.length > 3 ? `; and ${effect.unaccepted.length - 3} more` : ""}. ` +
+        `Take Bash away from ${first.agent} (disallowedTools: [Bash]) or the secret (or bind it to its sites so it never enters the sandbox), ` +
+        `or have an admin accept the risk: a2a: accept_risk: [${first.agent}] in ${first.flow} — \`foldrun a2a publish ${first.flow} --accept-risk ${first.agent}\`, or the flow's Publish over A2A control.`,
+      400,
+      "a2a_secret_code",
+    );
+  }
+  const events: PolicyEvent[] = [];
+  for (const w of effect.widened) events.push({ action: "a2a.agent_widened", subject: `${workspace}/${w.flow}`, detail: { workspace, flow: w.flow, agent: w.agent, widened: w.what } });
+  for (const a of effect.accepted) events.push({ action: "a2a.risk_accepted", subject: `${workspace}/${a.flow}`, detail: { workspace, flow: a.flow, agent: a.agent, secrets: a.secrets, runsCode: true } });
+  return events;
+}
+
+/** The secret-and-code exposures of one published flow as it stands — what
+ *  the serve path refuses new tasks for until an admin accepts them. */
+export function unacceptedExposures(tenant: string, workspace: string, flow: string) {
+  return flowSecretCode(workspaceA2aTree(tenant, workspace), flow)
+    .filter((e) => !e.accepted)
+    .map((e) => ({ ...e, secrets: sandboxSecrets(tenant, workspace, e.secrets) }))
+    .filter((e) => e.secrets.length);
+}
+
+/** Write what an admin's write did to the audit log — after the write, so
+ *  the log never says something happened that did not. Best-effort like
+ *  every audit() line: the durable record is the flow and agent files'
+ *  own revisions (who, when, the diff), which the write itself made. */
+export async function auditPolicyEvents(events: PolicyEvent[], by: string, tenant: string): Promise<void> {
+  for (const e of events) await audit(e.action, { actor: by, tenant, subject: e.subject, detail: e.detail });
 }
 
 /** A flow file, workspace-relative: flows/<name>.md, the one place a flow

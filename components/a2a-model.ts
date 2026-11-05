@@ -6,7 +6,7 @@
 import { a2aPublishProblems } from "@/lib/a2a-publish";
 
 /** The `a2a:` keys a PATCH may set, as the file spells them. */
-const KEYS = ["publish", "name", "description", "examples", "public_card", "input"] as const;
+const KEYS = ["publish", "name", "description", "examples", "public_card", "input", "accept_risk"] as const;
 
 /**
  * An `a2a` edit merged over what the flow's `a2a:` says now: a key the
@@ -18,7 +18,7 @@ const KEYS = ["publish", "name", "description", "examples", "public_card", "inpu
  */
 export function a2aPatch(given: unknown, current: unknown): { value: Record<string, unknown> | null } | { error: string } {
   if (given === null) return { value: null };
-  if (typeof given !== "object" || Array.isArray(given)) return { error: "a2a must be { publish, name?, description?, examples?, public_card?, input? } or null" };
+  if (typeof given !== "object" || Array.isArray(given)) return { error: "a2a must be { publish, name?, description?, examples?, public_card?, input?, accept_risk? } or null" };
   const o = given as Record<string, unknown>;
   const unknown = Object.keys(o).filter((k) => !(KEYS as readonly string[]).includes(k));
   if (unknown.length) return { error: `a2a: ${unknown.map((k) => `\`${k}\``).join(", ")} is not one of ${KEYS.join(", ")}` };
@@ -26,7 +26,7 @@ export function a2aPatch(given: unknown, current: unknown): { value: Record<stri
   for (const k of KEYS) {
     if (!(k in o)) continue;
     const v = o[k];
-    if (v === null || v === "" || (k === "examples" && Array.isArray(v) && v.length === 0)) delete out[k];
+    if (v === null || v === "" || ((k === "examples" || k === "accept_risk") && Array.isArray(v) && v.length === 0)) delete out[k];
     else out[k] = typeof v === "string" ? v.trim() : v;
   }
   // A new block with nothing said about publishing is a draft, not a publish.
@@ -44,15 +44,19 @@ export interface A2aForm {
   /** One example request per line. */
   examples: string;
   publicCard: boolean;
+  /** The agents an admin accepts holding a secret while they can run code
+   *  (a2a: accept_risk, FOL-112). */
+  acceptRisk: string[];
 }
 
-export function a2aFormOf(pub: { publish: boolean; name: string | null; description: string | null; examples: string[]; publicCard: boolean } | null | undefined): A2aForm {
+export function a2aFormOf(pub: { publish: boolean; name: string | null; description: string | null; examples: string[]; publicCard: boolean; acceptRisk?: string[] } | null | undefined): A2aForm {
   return {
     publish: pub?.publish ?? false,
     name: pub?.name ?? "",
     description: pub?.description ?? "",
     examples: (pub?.examples ?? []).join("\n"),
     publicCard: pub?.publicCard ?? false,
+    acceptRisk: [...(pub?.acceptRisk ?? [])].sort(),
   };
 }
 
@@ -66,7 +70,25 @@ export function a2aBodyOf(f: A2aForm): Record<string, unknown> {
     description: f.description.trim() || null,
     examples: examples.length ? examples : null,
     public_card: f.publicCard ? true : null,
+    accept_risk: f.acceptRisk.length ? [...f.acceptRisk].sort() : null,
   };
+}
+
+/** One agent of a flow that holds a secret and can run code (GET …/a2a
+ *  `risks`). */
+export interface A2aRisk {
+  flow: string;
+  agent: string;
+  secrets: string[];
+  accepted: boolean;
+}
+
+/** What the publish control says about a flow's risks with the form as it
+ *  stands: each agent, whether the form accepts it, and whether saving it
+ *  published would be refused (an agent the form does not accept). */
+export function a2aRiskState(flow: string, risks: A2aRisk[], form: Pick<A2aForm, "publish" | "acceptRisk">): { items: { agent: string; secrets: string[]; accepted: boolean }[]; blocks: boolean } {
+  const items = risks.filter((r) => r.flow === flow).map((r) => ({ agent: r.agent, secrets: r.secrets, accepted: form.acceptRisk.includes(r.agent) }));
+  return { items, blocks: form.publish && items.some((r) => !r.accepted) };
 }
 
 /** A shell-safe single-quoted string. */

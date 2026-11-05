@@ -3,7 +3,7 @@ import { requireTenant, errorResponse, actorOf, requirePermission, refuse } from
 import { createHash } from "node:crypto";
 import { readWorkspaceFile, writeWorkspaceFile, deleteWorkspacePath, listWorkspaceFiles, renameWorkspaceFile, assertEditablePath } from "@/lib/store";
 import { saveCheck } from "@/server/checks";
-import { assertMayChangeWorkspacePolicy } from "@/server/workspace-policy";
+import { assertMayChangeWorkspacePolicy, auditPolicyEvents } from "@/server/workspace-policy";
 
 /** The bytes a reader saw, as a short name: what `ifMatch` on a write
  *  compares against, so a restore or a save from a stale page is refused
@@ -38,10 +38,12 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ workspace: 
       return refuse("expected { path, content, message?, ifMatch?, check? }", 400);
     }
     const { tenant, actor } = await requirePermission(req, "workspace:write");
+    // Every await before the check, so nothing lands between the check and
+    // the synchronous write below (Codex review, FOL-112).
+    const by = await actorOf(req);
     // AGENTS.md's policy keys (budget, notify, network_enforce…) are an
     // admin's on this path too — server/workspace-policy.ts (30 Oct 2026).
-    assertMayChangeWorkspacePolicy(actor, tenant, workspace, [{ path: body.path, content: body.content }], "merge");
-    const by = await actorOf(req);
+    const policyEvents = assertMayChangeWorkspacePolicy(actor, tenant, workspace, [{ path: body.path, content: body.content }], "merge");
     // ifMatch: the sha256 GET answered when the caller read the file. Checked
     // and written with nothing in between (both synchronous), so a change
     // that landed after the read is refused, not silently overwritten.
@@ -86,6 +88,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ workspace: 
       by,
       ...(message ? { message } : {}),
     });
+    await auditPolicyEvents(policyEvents, actor.name, tenant);
     return NextResponse.json({ ok: true, path: body.path, sha256: sha256(body.content), issues });
   } catch (err) {
     return errorResponse(err);
@@ -116,6 +119,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
     } catch {
       dest = null; // not a path the rename takes: it refuses with the reason
     }
+    const by = await actorOf(req);
+    let policyEvents: ReturnType<typeof assertMayChangeWorkspacePolicy> = [];
     if (dest !== null) {
       let content: string | null = null;
       try {
@@ -123,9 +128,13 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
       } catch {
         content = null; // nothing there: the rename says so itself
       }
-      if (content !== null) assertMayChangeWorkspacePolicy(actor, tenant, workspace, [{ path: dest, content }], "merge");
+      // The source goes as the destination arrives: moving AGENTS.md (its
+      // hooks:, its network:) or an agent file away changes what the agents
+      // behind a published flow may reach as surely as a write (FOL-112).
+      if (content !== null) policyEvents = assertMayChangeWorkspacePolicy(actor, tenant, workspace, [{ path: dest, content }], "merge", { removed: [body.from] });
     }
-    renameWorkspaceFile(tenant, workspace, body.from, body.to, { by: await actorOf(req) });
+    renameWorkspaceFile(tenant, workspace, body.from, body.to, { by });
+    await auditPolicyEvents(policyEvents, actor.name, tenant);
     return NextResponse.json({ ok: true, path: body.to });
   } catch (err) {
     return errorResponse(err);
@@ -140,7 +149,13 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ workspac
     const { workspace } = await ctx.params;
     const body = (await req.json()) as { path?: string };
     if (!body.path) return refuse("expected { path }", 400);
-    deleteWorkspacePath((await requirePermission(req, "workspace:write")).tenant, workspace, body.path, { by: await actorOf(req) });
+    const { tenant, actor } = await requirePermission(req, "workspace:write");
+    const by = await actorOf(req);
+    // Removing a file can widen too: AGENTS.md's hooks: or network:, or an
+    // agent file that leaves its Claude Code twin in use (FOL-112).
+    const policyEvents = assertMayChangeWorkspacePolicy(actor, tenant, workspace, [], "merge", { removed: [body.path] });
+    deleteWorkspacePath(tenant, workspace, body.path, { by });
+    await auditPolicyEvents(policyEvents, actor.name, tenant);
     return NextResponse.json({ ok: true });
   } catch (err) {
     return errorResponse(err);

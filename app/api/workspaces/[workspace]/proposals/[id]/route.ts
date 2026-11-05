@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, requirePermission, errorResponse, ApiError, actorOf } from "@/server/api";
 import { idempotent } from "@/server/idempotency";
 import { getProposal, settleProposal, applyProposal, dismissProposal, isProposalId } from "@/platform/improve";
-import { assertMayChangeWorkspacePolicy } from "@/server/workspace-policy";
+import { assertMayChangeWorkspacePolicy, auditPolicyEvents } from "@/server/workspace-policy";
 import { requireWorkspace } from "@/lib/storage";
 import { jsonObject } from "@/server/body";
 
@@ -47,8 +47,10 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
       // agents is an admin's decision, never a proposal's for an editor to
       // wave through (server/workspace-policy.ts).
       const proposal = await getProposal(tenant, workspace, id);
-      if (proposal) assertMayChangeWorkspacePolicy(actor, tenant, workspace, proposal.files.map((f) => ({ path: f.path, content: f.content })), "merge");
-      return NextResponse.json(await applyProposal(tenant, workspace, id, by));
+      const policyEvents = proposal ? assertMayChangeWorkspacePolicy(actor, tenant, workspace, proposal.files.map((f) => ({ path: f.path, content: f.content })), "merge") : [];
+      const applied = await applyProposal(tenant, workspace, id, by);
+      await auditPolicyEvents(policyEvents, actor.name, tenant);
+      return NextResponse.json(applied);
     }
     if (body.action === "dismiss") return NextResponse.json(await dismissProposal(tenant, workspace, id, by));
     throw new ApiError('expected { action: "apply" | "dismiss" }', 400);

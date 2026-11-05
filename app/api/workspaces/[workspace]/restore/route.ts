@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermission, actorOf, errorResponse, ApiError } from "@/server/api";
 import { applyRestore, planRestore } from "@/server/restore";
+import { auditPolicyEvents } from "@/server/workspace-policy";
 import { audit } from "@/server/audit";
 import { idempotent } from "@/server/idempotency";
 
@@ -58,6 +59,7 @@ async function restorePost(req: NextRequest, ctx: Ctx) {
         { status: 409 },
       );
     }
+    await auditPolicyEvents(result.policyEvents ?? [], by, tenant);
     await audit("workspace.restored", {
       actor: by,
       tenant,

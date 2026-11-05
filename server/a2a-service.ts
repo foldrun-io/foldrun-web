@@ -41,6 +41,9 @@ import {
 import { resolveA2aKey, listApiKeys, type A2aCaller } from "./auth.ts";
 import { publicOrigin } from "./auth-flows.ts";
 import { reportError } from "./api.ts";
+import { opsLog } from "@/lib/ops-log.ts";
+import { sandboxSecrets, unacceptedExposures, workspaceA2aTree } from "./workspace-policy.ts";
+import { secretCodeExposures } from "@/lib/a2a-reach";
 import { clientIp } from "./limits.ts";
 import { rateLimit } from "@/platform/cache";
 import {
@@ -412,6 +415,24 @@ async function sendMessage(ctx: Ctx, params: Record<string, unknown>): Promise<{
   }
   let task = decided.admit;
 
+  // FOL-112: a published flow whose agent holds a secret and can run code
+  // answers the caller with whatever that agent writes — the secret too, if
+  // the caller asks. Until an admin accepts it (a2a: accept_risk) or takes
+  // a leg away, no new task starts, whatever the files said when it was
+  // published: read from disk now, with the library's tools, so a change
+  // that never went through a write door (a library tool's secrets:) counts
+  // too. Every task that admission starts passes here — a new claim and a
+  // dead one this retry took over alike. Tasks already running are not
+  // touched; GetTask, ListTasks and CancelTask still answer. The caller
+  // hears no agent or secret name: that is for the owner (the ops log, and
+  // `foldrun check`'s security/published-flow-secret-code).
+  const exposed = unacceptedExposures(tenant, workspace, flow.name);
+  if (exposed.length) {
+    await dropA2aTask(tenant, task.id).catch(() => {});
+    opsLog("warn", "a2a.exposure_refused", { tenant, workspace, flow: flow.name, agent: exposed[0]!.agent, count: exposed.length });
+    throw new A2aError(RPC.SERVER_ERROR, "this agent is not taking tasks until its owner reviews what it may share — try again later", { reason: "NOT_SERVING" });
+  }
+
   const steps = flow.steps.map((s, i) => (i === 0 ? { ...s, instruction: `${s.instruction}\n\n${requestInstruction(sent)}` } : s));
   let run: RunRecord;
   try {
@@ -533,6 +554,7 @@ export async function workspaceA2a(req: NextRequest, tenant: string, workspace: 
         name: pub.name ?? f.name,
         description: pub.description ?? f.description ?? null,
         hasInputSchema: pub.input !== null,
+        acceptRisk: pub.acceptRisk ?? [],
         card: urls.card,
         url: urls.endpoint,
       };
@@ -544,8 +566,19 @@ export async function workspaceA2a(req: NextRequest, tenant: string, workspace: 
     return live ? { id: live.id, label: live.label, prefix: live.prefix, revoked: Boolean(live.revokedAt) } : { id: principal, label: null, prefix: null, revoked: true };
   };
   const { tasks } = await listA2aTasks({ tenant, workspace, limit: 50 });
+  // FOL-112: every flow's agents that hold a secret and can run code — for
+  // a flow not published yet too, so the publish control can say so before
+  // the first publish. `accepted`: its a2a: accept_risk names the agent.
+  const tree = workspaceA2aTree(tenant, workspace);
+  const risks = [...tree.flows.entries()].flatMap(([name, f]) =>
+    secretCodeExposures(tree.agentsOf(name), tree.reachOf, f.info.a2a?.acceptRisk ?? [])
+      // A secret bound to sites never enters the sandbox (workspace-policy.ts sandboxSecrets).
+      .map((e) => ({ flow: name, agent: e.agent, secrets: sandboxSecrets(tenant, workspace, e.secrets), accepted: e.accepted }))
+      .filter((e) => e.secrets.length),
+  );
   return {
     flows,
+    risks,
     keys: keys.filter((k) => !k.revokedAt).map((k) => ({ id: k.id, label: k.label, prefix: k.prefix, flows: k.a2a?.flows ?? [], maxTasks: k.a2a?.maxTasks ?? null, expiresAt: k.expiresAt ?? null })),
     tasks: tasks.map((t) => {
       const shown = projectTask(t, runOf(t), { artifacts: "never", historyLength: 0 });
