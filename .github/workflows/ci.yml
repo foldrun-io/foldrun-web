@@ -14,17 +14,34 @@ name: ci
 # site are private: the checks that read them run on trusted runs only (see
 # the App step below). The box deploy also runs this repository's tests, with
 # foldrun-admin laid over it, before every rollout.
+#
+# Against core's main as well (FOL-92): foldrun-core's ci sends a
+# `core-main` repository_dispatch when its main passes, a nightly schedule
+# catches a dispatch that never came, and workflow_dispatch runs it by hand
+# against any core ref. The tests that need a real Postgres run here too,
+# on the image dev runs (foldrun-infra manifests/base/datastores.yaml).
 on:
   push:
     branches: [main]
   pull_request:
+  repository_dispatch:
+    types: [core-main]
+  schedule:
+    - cron: "43 15 * * *"   # nightly, against core's main
+  workflow_dispatch:
+    inputs:
+      core_ref:
+        description: "foldrun-core ref to test against (empty: main)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
 
 # One run per ref; a newer push/PR update cancels the older one (FOL-62, box runner).
+# A run against core's main has its own group, so it never cancels a push's.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}${{ (github.event_name == 'repository_dispatch' || github.event_name == 'schedule') && '-core' || '' }}
   cancel-in-progress: true
 
 jobs:
@@ -33,6 +50,8 @@ jobs:
   # and registry signatures, a CycloneDX SBOM kept as an artifact. No secrets
   # here, so a fork's pull request runs it too.
   security:
+    # This repository's own changes: not re-run when only core moved.
+    if: github.event_name != 'repository_dispatch' && github.event_name != 'schedule'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -64,6 +83,19 @@ jobs:
     # a fork would run its code there. Hosted minutes are free for public repos.
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # What FOLDRUN_TEST_DATABASE_URL points at; health-checked, so the job
+    # starts only once it answers.
+    services:
+      postgres:
+        image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+        env:
+          POSTGRES_USER: foldrun
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: foldrun
+        ports: ["55432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U foldrun -d foldrun"
+          --health-interval 2s --health-timeout 5s --health-retries 30
     steps:
       # foldrun-infra and foldrun-site stay private; the consistency checks
       # that read them run only on a trusted run (a push here, or a pull
@@ -72,7 +104,7 @@ jobs:
       # gets no secrets: it runs every other check and skips those.
       - name: a read token for the private siblings, from the App
         id: app
-        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         continue-on-error: true
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
@@ -91,6 +123,9 @@ jobs:
         with:
           repository: foldrun-io/foldrun-core
           path: foldrun-core
+          # The commit core's ci dispatched, or the ref asked for by hand;
+          # empty is core's main.
+          ref: ${{ github.event.client_payload.sha || inputs.core_ref || '' }}
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: foldrun-io/foldrun-platform
@@ -149,3 +184,4 @@ jobs:
           # that reads one must fail when it is missing, not skip. On a fork's
           # pull request the private two are not here and their checks skip.
           FOLDRUN_REQUIRE_SIBLINGS: ${{ steps.app.outputs.token != '' && '1' || '' }}
+          FOLDRUN_TEST_DATABASE_URL: postgres://foldrun:test@127.0.0.1:55432/foldrun
