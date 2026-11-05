@@ -414,8 +414,15 @@ const LEGACY_SHAPES: Record<string, Shape> = {
         diskGiB: { type: ["number", "null"], description: "GiB of disk (ephemeral-storage limits) all running steps may be allowed together; null is no cap" },
         stepDiskGiB: { type: ["number", "null"], description: "the most disk one step may be allowed, in GiB" },
         source: { type: ["string", "null"], description: "plan | account | install, or null with no pool" },
+        stepDefault: { type: "array", items: { type: "string" }, description: "the step figures (stepVcpu, stepMemGiB, stepDiskGiB) that are the default for an account whose plan sets none — on the hosted platform the entry plan's; absent when none is" },
       }),
       inUse: obj({ vcpu: { type: "number" }, memGiB: { type: "number" }, diskGiB: { type: "number" }, steps: { type: "integer" } }),
+      runsWaiting: obj({
+        waiting: { type: ["integer", "null"], description: "the account's runs waiting for their turn now — lined up, back for room, or out of a gate and waiting for a worker (not those asleep on a wait: timer); null for a caller scoped to some workspaces" },
+        limit: { type: ["integer", "null"], description: "new runs are refused (409, code waiting_cap) while this many wait; null is no limit" },
+        source: { type: ["string", "null"], description: "install (FOLDRUN_MAX_WAITING_RUNS) | derived (20 × slots, at least 50) | null" },
+        slots: { type: "integer", description: "with derived: the runs at once the limit was worked from" },
+      }, ["limit", "source"]),
       workspaces: {
         type: "array",
         description: "each workspace the caller sees: its own pool (its AGENTS.md compute:, null figures for none) and what its running steps hold",
@@ -559,6 +566,15 @@ const EXTRA_STATUSES: Record<string, string[]> = {
   "POST /api/cli/authorize": ["410"],
   // The install sends no mail (code mail_not_configured), or it is already your address.
   "POST /api/auth/email": ["409"],
+  // A new run while the account has its most runs waiting (code
+  // waiting_cap, FOL-100); a flow start also for overlap: skip.
+  "POST /api/workspaces/{workspace}/flows/{flow}/run": ["409"],
+  "POST /api/workspaces/{workspace}/agents/{agent}/run": ["409"],
+  "POST /api/workspaces/{workspace}/runs/{runId}/rerun": ["409"],
+  // The same refusal to a delivery is a 503 with Retry-After, which a
+  // sender retries.
+  "POST /api/hooks/{tenant}/{workspace}/{flow}": ["503"],
+  "POST /api/inbox/{tenant}/{workspace}/{flow}": ["503"],
 };
 
 export function openapiDocument(origin?: string): Schema {
@@ -641,8 +657,10 @@ export function openapiDocument(origin?: string): Schema {
         Error: obj(
           {
             error: str(),
-            code: str("Where a caller can act on it: `unknown_api_version` (this server does not answer that Foldrun-Version) or `bad_api_version` (not a YYYY-MM-DD date)"),
+            code: str("Where a caller can act on it: `unknown_api_version` (this server does not answer that Foldrun-Version), `bad_api_version` (not a YYYY-MM-DD date), or `waiting_cap` (409: the account already has its most runs waiting for their turn — nothing was started)"),
             known: { type: "array", items: { type: "string" }, description: "With an API-version refusal: the versions this server answers" },
+            limit: { type: "integer", description: "With `waiting_cap`: the most runs this account may have waiting at once" },
+            waiting: { type: "integer", description: "With `waiting_cap`: how many are waiting now" },
           },
           ["error"],
         ),

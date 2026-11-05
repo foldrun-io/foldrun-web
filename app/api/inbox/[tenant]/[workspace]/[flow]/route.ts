@@ -8,7 +8,7 @@
 // address and an agent handles it" exists without the platform becoming a
 // mail client.
 
-import { errorResponse, refuse } from "@/server/api";
+import { busyDelivery, errorResponse, refuse } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
 import { loadFlow } from "@/lib/runner";
 import { enqueueFlowRun } from "@/platform/queue";
@@ -16,6 +16,7 @@ import { webhookToken, recordDelivery } from "@/lib/webhook";
 import { clientIp, refuseWhenLimited, sameToken, BAD_CALLBACK_TOKENS } from "@/server/limits";
 import { normaliseInboundEmail, emailTask, withTask, deliveryKey } from "@/lib/triggers";
 import { platform } from "@/lib/platform";
+import { refusalCode } from "@/lib/trigger-log";
 
 /** Wrong tokens one caller may present in a window before a 429 — shared
  *  with the inbox and event URLs (server/limits.ts). */
@@ -86,7 +87,15 @@ export async function POST(
       await platform.rollbackTrigger(tenant, workspace, flow, {
         deliveryKey: deliveryKey(flow.idempotency, (n) => req.headers.get(n), raw),
         reason: err instanceof Error ? err.message : String(err),
+        // The account's waiting cap is logged as queue-full (FOL-100).
+        code: refusalCode(err),
       });
+      // Too many runs waiting: a 503 the sender retries, written down here.
+      const busy = busyDelivery(err);
+      if (busy) {
+        log("dropped", { detail: `queue-full: ${err instanceof Error ? err.message : String(err)}`.slice(0, 500), bytes: raw.length });
+        return busy;
+      }
       throw err;
     }
     log("accepted", { runId: run.id, bytes: raw.length, detail: `from ${mail.from}: ${mail.subject}`.slice(0, 200) });

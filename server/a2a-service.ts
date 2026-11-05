@@ -322,6 +322,10 @@ function notAdmitted(err: unknown): A2aError {
   if (err instanceof AdmissionRefused && err.code === "overlap") {
     return new A2aError(RPC.SERVER_ERROR, "this agent is busy with another request — send the message again later (a new messageId is not needed)", { reason: "BUSY" });
   }
+  // The owner's account already has its most runs waiting (FOL-100).
+  if ((err as { code?: unknown })?.code === "waiting_cap") {
+    return new A2aError(RPC.SERVER_ERROR, "this agent has too much work waiting — send the message again later (a new messageId is not needed)", { reason: "BUSY" });
+  }
   if (status === 423) return new A2aError(RPC.SERVER_ERROR, "this agent is paused by its owner — try again later", { reason: "PAUSED" });
   if (status === 402) return new A2aError(RPC.SERVER_ERROR, "this agent cannot take work now — its owner's account is out of budget or funds", { reason: "UNAVAILABLE" });
   if (status === 429) return new A2aError(RPC.SERVER_ERROR, "this agent is at its limit for now — try again later", { reason: "RATE_LIMITED" });

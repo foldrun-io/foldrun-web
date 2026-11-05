@@ -354,6 +354,31 @@ export function refuse(message: string, status: number) {
 }
 
 export function errorResponse(err: unknown) {
-  const { status, message } = reportError(err);
-  return NextResponse.json({ error: message }, { status });
+  const { status, message, internal } = reportError(err);
+  return NextResponse.json({ error: message, ...(internal ? {} : refusalFields(err)) }, { status });
+}
+
+/** A delivery (a webhook, an inbound email) refused because the account
+ *  already has its most runs waiting (code waiting_cap, FOL-100): 503 with
+ *  Retry-After, not the 409 a person or a key gets, because a sender
+ *  retries a 503 and the delivery was handed back (rollbackTrigger) so its
+ *  retry is a fresh event. Null for any other error. */
+export function busyDelivery(err: unknown) {
+  if ((err as { code?: unknown } | null)?.code !== "waiting_cap" || !(err instanceof Error)) return null;
+  return NextResponse.json({ error: err.message, ...refusalFields(err) }, { status: 503, headers: { "retry-after": "60" } });
+}
+
+/** What a refusal from the engine says beside its sentence (5 Nov 2026):
+ *  its `code`, a lowercase word a program can branch on (`waiting_cap`,
+ *  `overlap`), and for the account's waiting cap the figures — `limit`,
+ *  `waiting`. Only from an error that carries its own HTTP status, so a
+ *  system errno (`ENOENT`) or a database SQLSTATE never leaks out. */
+function refusalFields(err: unknown): { code?: string; limit?: number; waiting?: number } {
+  const o = err as { status?: unknown; code?: unknown; limit?: unknown; waiting?: unknown } | null;
+  if (!(err instanceof Error) || typeof o?.status !== "number" || typeof o.code !== "string" || !/^[a-z][a-z0-9_]*$/.test(o.code)) return {};
+  return {
+    code: o.code,
+    ...(typeof o.limit === "number" ? { limit: o.limit } : {}),
+    ...(typeof o.waiting === "number" ? { waiting: o.waiting } : {}),
+  };
 }

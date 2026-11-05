@@ -5,11 +5,12 @@
 // enforces (platform limits.ts, pod-room.ts). A step past the pool waits —
 // with no time limit, in the queue once nothing else of its run is running —
 // and starts in turn; a step bigger than the pool or the step maximum fails
-// at once.
+// at once. `runsWaiting`: how many runs wait for their turn and the most
+// that may before a new one is refused (FOL-100).
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireCaller, errorResponse } from "@/server/api";
-import { accountCompute, computeHeld, roomWaiting, workspaceCompute } from "@/platform/limits";
+import { accountCompute, computeHeld, roomWaiting, waitingRunCount, waitingRunsCap, workspaceCompute } from "@/platform/limits";
 import { listWorkspaces } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -24,12 +25,22 @@ export async function GET(req: NextRequest) {
     // own or anything held.
     const held = computeHeld(tenant, actor.workspaces);
     const names = listWorkspaces(tenant).map((w) => w.name).filter((n) => !actor.workspaces || actor.workspaces.includes(n));
+    // The account's limit on runs waiting for their turn (FOL-100): new runs
+    // are refused while this many wait. The count is the account's, so a
+    // caller scoped to some workspaces gets the limit and not the count.
+    const cap = await waitingRunsCap(tenant);
     return NextResponse.json({
       compute: await accountCompute(tenant),
       inUse: held.total,
       workspaces: names.map((workspace) => ({ workspace, pool: workspaceCompute(tenant, workspace), inUse: held.workspaces[workspace] ?? { vcpu: 0, memGiB: 0, diskGiB: 0, steps: 0 } })),
       runs: held.runs,
       waiting: roomWaiting(tenant, actor.workspaces),
+      runsWaiting: {
+        waiting: actor.workspaces ? null : waitingRunCount(tenant),
+        limit: cap.limit,
+        source: cap.source,
+        ...(cap.slots !== undefined ? { slots: cap.slots } : {}),
+      },
     });
   } catch (err) {
     return errorResponse(err);
