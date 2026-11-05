@@ -16,6 +16,13 @@
 //   POST { action: "stop",  status: ["running", "queued"] }
 //   POST { action: "rerun", status: ["failed"], since: "2026-09-03T14:00:00Z" }
 //   POST { action: "rerun", runIds: ["run-x", "run-y"], from: 2 }
+//   POST { action: "delete", runIds: ["run-x", "run-y"] }
+//
+// Delete is the one DELETE …/runs/<id> does, run by run: a run still going
+// is stopped first, its record and archived outputs go, the ledger line
+// stays. It takes workspace:manage, as that route does — erasing a trail is
+// an admin's, not whoever may start runs (FOL-75, 5 Nov 2026: the runs
+// list's bar and `foldrun runs rm <id>…` looped one DELETE per run).
 //
 // Nothing is implicit: a request naming no filter at all is refused rather
 // than treated as "everything".
@@ -24,6 +31,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, reportError, requirePermission, refuse } from "@/server/api";
 import { rerunFrom, stopRun } from "@/platform/queue";
 import { listRunSummaries, runDisplayStatus } from "@/lib/store";
+import { eraseRun } from "@/server/run-erase";
 import { idempotent } from "@/server/idempotency";
 
 /** The most runs one call will touch. A bulk action is a recovery tool, not
@@ -33,7 +41,7 @@ import { idempotent } from "@/server/idempotency";
 const MAX = 100;
 
 interface BulkBody {
-  action?: "stop" | "rerun";
+  action?: "stop" | "rerun" | "delete";
   status?: string[];
   flow?: string;
   /** ISO instant — only runs that started at or after it. */
@@ -50,11 +58,17 @@ interface BulkBody {
 async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: string }> }) {
   try {
     const { workspace } = await ctx.params;
-    const { tenant, actor } = await requirePermission(req, "run:start");
     const body = (await req.json().catch(() => ({}))) as BulkBody;
+    // Each action takes its single route's permission: stop and rerun
+    // run:start, delete workspace:manage (as DELETE …/runs/<id>) — erasing a
+    // trail is an admin's, not whoever may start runs.
+    const { tenant, actor } = await requirePermission(req, body.action === "delete" ? "workspace:manage" : "run:start");
 
-    if (body.action !== "stop" && body.action !== "rerun") {
-      return refuse('expected { action: "stop" | "rerun" }', 400);
+    if (body.action !== "stop" && body.action !== "rerun" && body.action !== "delete") {
+      return refuse('expected { action: "stop" | "rerun" | "delete" }', 400);
+    }
+    if (body.from !== undefined && body.action === "delete") {
+      return refuse("from is a rerun's — the step to start from; a delete takes none", 400);
     }
     if (body.from !== undefined && !(Number.isInteger(body.from) && body.from >= 1)) {
       return refuse("from is a step's number in the trace, a whole number from 1", 400);
@@ -99,6 +113,9 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
         if (body.action === "stop") {
           stopRun(tenant, workspace, run.id);
           done.push({ runId: run.id, ok: true });
+        } else if (body.action === "delete") {
+          // DELETE …/runs/<id>'s own erase: stopped first when still going.
+          done.push(eraseRun(tenant, workspace, run.id) ? { runId: run.id, ok: true } : { runId: run.id, ok: false, error: "run not found" });
         } else {
           const fresh = await rerunFrom(tenant, workspace, run.id, { step: body.from ?? 1 }, actor.kind === "user" ? actor.name : null);
           done.push({ runId: run.id, ok: true, newRunId: fresh.id });

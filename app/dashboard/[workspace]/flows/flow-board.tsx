@@ -152,22 +152,14 @@ export function FlowBoard({
 
   // Add and remove change the number of steps, so the board's indices are
   // stale afterwards — re-render from the server rather than patching state.
-  // Add appends at the end and names no index, so it needs no `expect`.
-  const mutate = async (method: "POST" | "DELETE", body: Record<string, unknown>) => {
+  // Both are the canvas's own edit, PATCH { edit } (FOL-75, 5 Nov 2026): an
+  // insert on the last rail (the end of the flow) and a remove. The board
+  // used POST and DELETE for them, the canvas and the CLI PATCH — the same
+  // change through two doors. `expect` as on every other write here.
+  const mutate = async (edit: Record<string, unknown>) => {
     setStatus("saving…");
     try {
-      if (method === "DELETE") await write("DELETE", body);
-      else {
-        const res = await fetch(`/api/workspaces/${workspace}/flows/${flow}`, {
-          method: "POST",
-          headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error ?? `${res.status}`);
-        }
-      }
+      await write("PATCH", { edit });
       setStatus("saved");
       setTimeout(() => setStatus(null), 1500);
       router.refresh();
@@ -425,7 +417,7 @@ export function FlowBoard({
                                   confirmLabel: "Remove",
                                 })
                               ) {
-                                void mutate("DELETE", { step: index });
+                                void mutate({ op: "remove", step: index });
                               }
                             }}
                           >
@@ -506,7 +498,7 @@ export function FlowBoard({
       <AddStep
         knownAgents={knownAgents}
         knownFlows={knownFlows.filter((f) => f !== flow)} // a flow can't call itself
-        onAdd={(target, subflow, instruction) => mutate("POST", { target, subflow, instruction })}
+        onAdd={(target, subflow, instruction) => mutate({ op: "insert", target, subflow, instruction, at: { rail: groups.length } })}
       />
 
       {/* The board covers arrangement; the file covers everything else —

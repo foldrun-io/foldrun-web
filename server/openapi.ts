@@ -13,7 +13,7 @@
 
 import { ROUTES as ALL_ROUTES } from "./openapi-routes.ts";
 import { billing, freeBilling } from "@/platform/billing";
-import { CURRENT_API_VERSION } from "./api-version.ts";
+import { CURRENT_API_VERSION, deprecationFor } from "./api-version.ts";
 
 import { type Schema, type Shape, obj, str, bool, int, arr, GENERIC, Issue, Run, EffectiveFlag } from "./openapi-shapes/kit.ts";
 
@@ -548,8 +548,6 @@ const IDEMPOTENT_ROUTES = new Set(ROUTES.flatMap((r) => (r.idempotent ?? []).map
 const EXTRA_STATUSES: Record<string, string[]> = {
   // An unknown or spent sign-in code.
   "GET /api/cli/authorize": ["404"],
-  // Closed (404) while FOLDRUN_METRICS_TOKEN is unset.
-  "GET /api/metrics": ["404"],
   // Nothing to fix, a proposal for that eval already open, or paused.
   "POST /api/workspaces/{workspace}/evals/{evalName}/improve": ["409"],
   // The file changed since it was loaded (body.ifMatch is not its sha256).
@@ -577,6 +575,17 @@ const EXTRA_STATUSES: Record<string, string[]> = {
   "POST /api/inbox/{tenant}/{workspace}/{flow}": ["503"],
 };
 
+/** Operations whose credential is not the general rule's (a bearer API key
+ *  or a session, refused 401/403): the credential it takes, and the
+ *  refusals it gives instead (FOL-75, 5 Nov 2026 — the document said
+ *  bearer and 401/403 for /api/metrics, which takes neither). */
+const OP_AUTH: Record<string, { security: Schema[]; refusals: string[] }> = {
+  // The scraper's token (FOLDRUN_METRICS_TOKEN), never an account's key or a
+  // session; no token, a wrong one, or none configured is a 404 — the route
+  // does not say it is there — and too many wrong ones a 429.
+  "GET /api/metrics": { security: [{ metricsToken: [] }], refusals: ["404"] },
+};
+
 export function openapiDocument(origin?: string): Schema {
   const paths: Record<string, Record<string, Schema>> = {};
   for (const r of ROUTES) {
@@ -586,6 +595,10 @@ export function openapiDocument(origin?: string): Schema {
       if (method === "HEAD") continue;
       const shape = SHAPES[`${method} ${r.path}`];
       const open = isOpen(r.path, method);
+      const auth = OP_AUTH[`${method} ${r.path}`];
+      // A route in DEPRECATIONS (api-version.ts) still answers, with
+      // Deprecation headers; the document says so too.
+      const deprecated = deprecationFor(method, r.path.replace(/\{[a-zA-Z]+\}/g, "x")) !== null;
       const parameters: Schema[] = [
         ...params,
         ...(shape?.query ?? []).map((q) => ({ name: q.name, in: "query", required: false, description: q.description, schema: { type: "string" } })),
@@ -598,12 +611,14 @@ export function openapiDocument(origin?: string): Schema {
         ...(r.summary ? { description: r.summary } : {}),
         tags: [tagOf(r.path)],
         parameters,
-        ...(open ? { security: [] } : {}),
+        ...(open ? { security: [] } : auth ? { security: auth.security } : {}),
+        ...(deprecated ? { deprecated: true } : {}),
         ...(shape?.body && method !== "GET" ? { requestBody: { required: true, content: { "application/json": { schema: shape.body } } } } : {}),
         responses: {
           ...successOf(shape),
           "400": { $ref: "#/components/responses/Error" },
-          ...(open ? {} : { "401": { $ref: "#/components/responses/Error" }, "403": { $ref: "#/components/responses/Error" } }),
+          ...(open || auth ? {} : { "401": { $ref: "#/components/responses/Error" }, "403": { $ref: "#/components/responses/Error" } }),
+          ...Object.fromEntries((auth?.refusals ?? []).map((c) => [c, { $ref: "#/components/responses/Error" }])),
           // A route that names something in its path can find nothing there
           // (27 Oct 2026: the API fuzz found 26 undocumented 404s).
           ...(params.length ? { "404": { $ref: "#/components/responses/Error" } } : {}),
@@ -634,6 +649,7 @@ export function openapiDocument(origin?: string): Schema {
     components: {
       securitySchemes: {
         bearer: { type: "http", scheme: "bearer", description: "An API key from Settings → API keys (mda_…)" },
+        metricsToken: { type: "http", scheme: "bearer", description: "The install's Prometheus scrape token (FOLDRUN_METRICS_TOKEN) — not an API key; only GET /api/metrics takes it" },
       },
       parameters: {
         FoldrunVersion: {

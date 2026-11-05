@@ -4,10 +4,10 @@
 // bulk-select kit. A selected run is `<workspace>/<runId>`, because the
 // account-wide list spans workspaces and the API is per workspace.
 //
-// Stop and Rerun go through POST /api/workspaces/<ws>/runs/bulk, the same
-// route the CLI uses, once per workspace in the selection
-// (runs-bulk-model.ts). Delete has no bulk route, so it stays one DELETE per
-// run.
+// Stop, Rerun and Delete go through POST /api/workspaces/<ws>/runs/bulk,
+// the same route the CLI uses, once per workspace in the selection
+// (runs-bulk-model.ts). Delete looped one DELETE per run until it was a bulk
+// action too (FOL-75, 5 Nov 2026).
 
 import { type ReactNode } from "react";
 import { BulkActionBar, SelectionProvider, type BulkAction } from "@/components/bulk-select";
@@ -28,19 +28,8 @@ const STOPPABLE = new Set(["running", "queued", "awaiting-approval"]);
  *  someone stopped). */
 const RERUNNABLE = new Set(["completed", "failed", "stopped"]);
 
-async function call(endpoint: string, tenant: string, method: string) {
-  const res = await fetch(endpoint, {
-    method,
-    headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? `${res.status}`);
-  }
-}
-
 /** One runs/bulk call per workspace; the refusals across all of them. */
-async function bulk(action: "stop" | "rerun", runs: RunSelectable[], tenant: string): Promise<string[]> {
+async function bulk(action: "stop" | "rerun" | "delete", runs: RunSelectable[], tenant: string): Promise<string[]> {
   const refused: string[] = [];
   for (const c of bulkCalls(runs)) {
     try {
@@ -73,15 +62,12 @@ export function RunsSelection({
   tenant: string;
   children: ReactNode;
 }) {
-  // Stopping, rerunning and deleting all need run:start, as their routes do;
-  // a viewer gets no checkboxes at all rather than a selection with nothing
-  // to do.
+  // Stopping and rerunning need run:start, as the route does; a viewer gets
+  // no checkboxes at all rather than a selection with nothing to do.
+  // Deleting is an admin's (workspace:manage), as DELETE …/runs/<id> is: an
+  // editor's delete comes back refused, run by run, in the bar.
   const mayWrite = useCan("run:start");
   const byKey = new Map(runs.map((r) => [runKey(r), r]));
-  const endpoint = (key: string) => {
-    const r = byKey.get(key)!;
-    return `/api/workspaces/${r.workspace}/runs/${r.id}`;
-  };
   const picked = (keys: string[]) => keys.map((k) => byKey.get(k)).filter((r): r is RunSelectable => !!r);
   const actions: BulkAction[] = [
     {
@@ -110,7 +96,7 @@ export function RunsSelection({
         title: `Delete ${n} run${n === 1 ? "" : "s"}?`,
         body: "Their records and outputs go. Anything still running is stopped first. Ledger entries they were charged on stay.",
       }),
-      perform: (key) => call(endpoint(key), tenant, "DELETE"),
+      performAll: (keys) => bulk("delete", picked(keys), tenant),
     },
   ];
   return (

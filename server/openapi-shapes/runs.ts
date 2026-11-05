@@ -112,13 +112,13 @@ export const SHAPES: Record<string, Shape> = {
   "POST /api/workspaces/{workspace}/runs/bulk": {
     body: obj(
       {
-        action: str("stop | rerun"),
+        action: str("stop | rerun | delete — delete is DELETE …/runs/{runId} run by run (a live run stopped first) and needs workspace:manage"),
         status: arr(str(), "only runs with one of these statuses; \"stopped\" also names a run a person stopped (stored as failed)"),
         flow: str("only this flow's runs"),
         since: str("ISO instant — runs that started at or after it"),
         until: str("ISO instant — runs that started at or before it"),
         runIds: arr(str()),
-        from: { ...int, description: "rerun only: the step to start from, as the trace numbers them, from 1" },
+        from: { ...int, description: "rerun only: the step to start from, as the trace numbers them, from 1; refused on a delete" },
         dryRun: { ...bool, description: "answer with what would be touched, and touch nothing" },
       },
       ["action"],
@@ -126,7 +126,7 @@ export const SHAPES: Record<string, Shape> = {
     response: obj({
       ok: bool,
       dryRun: { ...bool, description: "present on a dry run" },
-      action: str("stop | rerun"),
+      action: str("stop | rerun | delete"),
       matched: {
         type: ["integer", "array"],
         items: str(),

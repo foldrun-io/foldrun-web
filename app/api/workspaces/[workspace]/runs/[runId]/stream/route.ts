@@ -8,7 +8,7 @@
 
 import { NextRequest } from "next/server";
 import fs from "node:fs";
-import { requireTenant, errorStatus } from "@/server/api";
+import { requireTenant, errorResponse, refuse } from "@/server/api";
 import { runFilePath } from "@/lib/store";
 import { isRunTerminal, sseFrame } from "@/components/live-run-model";
 
@@ -46,8 +46,10 @@ export async function GET(
   } catch (err) {
     // 401 for no credential, 403 for a scope that does not include this
     // workspace — the same answer the JSON routes give, not one for both.
-    const { status, message } = errorStatus(err);
-    return new Response(message, { status });
+    // A refusal is `{ error }` JSON here too, as on every other route and as
+    // the OpenAPI document says (FOL-75, 5 Nov 2026): it was plain text, so
+    // a client reading `error` from it got nothing. Only a 200 is a stream.
+    return errorResponse(err);
   }
 
   // A name the store refuses (control characters, a path) cannot be a run:
@@ -56,9 +58,9 @@ export async function GET(
   try {
     file = runFilePath(tenant, workspace, runId);
   } catch {
-    return new Response("run not found", { status: 404 });
+    return refuse("run not found", 404);
   }
-  if (!fs.existsSync(file)) return new Response("run not found", { status: 404 });
+  if (!fs.existsSync(file)) return refuse("run not found", 404);
 
   const encoder = new TextEncoder();
   let timer: ReturnType<typeof setTimeout> | undefined;

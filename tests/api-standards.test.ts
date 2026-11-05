@@ -371,3 +371,24 @@ test("openapi.json is OpenAPI 3.1 with bearer auth, the common headers, and an o
   assert.deepEqual(doc.paths["/api/healthz"].get.security, [], "open routes need no key");
   assert.ok(doc.paths["/api/workspaces/{workspace}/deploy"].post, "deploy is there");
 });
+
+// FOL-75: /api/metrics takes the scraper's token, never a key or a session,
+// and hides behind a 404 — the document said bearer auth and 401/403.
+test("openapi: /api/metrics says its own credential and its 404, not the bearer key's 401/403", () => {
+  const doc = openapiDocument("https://example.test") as {
+    paths: Record<string, Record<string, { security?: unknown[]; responses: Record<string, unknown>; deprecated?: boolean }>>;
+    components: { securitySchemes: Record<string, { scheme: string; description?: string }> };
+  };
+  const m = doc.paths["/api/metrics"].get;
+  assert.deepEqual(m.security, [{ metricsToken: [] }]);
+  assert.match(doc.components.securitySchemes.metricsToken.description ?? "", /FOLDRUN_METRICS_TOKEN/);
+  assert.ok(m.responses["404"]);
+  assert.equal(m.responses["401"], undefined);
+  assert.equal(m.responses["403"], undefined);
+  // A route in DEPRECATIONS is marked deprecated in the document.
+  const flow = doc.paths["/api/workspaces/{workspace}/flows/{flow}"];
+  assert.equal(flow.post.deprecated, true);
+  assert.equal(flow.delete.deprecated, true);
+  assert.equal(flow.patch.deprecated, undefined, "PATCH { edit } is the one mechanism");
+  assert.equal(doc.paths["/api/workspaces/{workspace}/flows/draft"].post.deprecated, undefined, "drafting a flow is not deprecated");
+});

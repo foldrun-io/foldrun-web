@@ -77,3 +77,15 @@ test("an idle run is not re-read on every tick; a change is sent; a finished run
     (fs as { readFileSync: typeof fs.readFileSync }).readFileSync = real;
   }
 });
+
+// FOL-75: a refusal is `{ error }` JSON, as on every JSON route and as the
+// OpenAPI document says — it was plain text. Only a 200 is a stream.
+test("a stream that cannot start answers { error } JSON, not plain text", async () => {
+  const res = await route.GET(
+    new NextRequest(`http://x/api/workspaces/${WS}/runs/no-such-run/stream`, { headers: { "x-foldrun-tenant": TENANT } }),
+    { params: Promise.resolve({ workspace: WS, runId: "no-such-run" }) },
+  );
+  assert.equal(res.status, 404);
+  assert.match(res.headers.get("content-type") ?? "", /application\/json/);
+  assert.deepEqual(await res.json(), { error: "run not found" });
+});

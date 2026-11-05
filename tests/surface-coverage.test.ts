@@ -160,7 +160,10 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   "POST /api/workspaces/[workspace]/evals": SEEN("components/create.tsx (New eval)"),
   "GET /api/workspaces/[workspace]/flows": SERVER("[workspace] pages → listFlows"),
   "POST /api/workspaces/[workspace]/flows": SEEN("components/create.tsx (New flow)"),
-  "DELETE /api/workspaces/[workspace]/flows/[flow]": SEEN("[workspace]/flows/flow-board.tsx (remove a step)"),
+  // Deprecated (FOL-75, 5 Nov 2026): the board, the canvas and the CLI all
+  // add and remove a step through PATCH { edit }, one mechanism.
+  "POST /api/workspaces/[workspace]/flows/[flow]": "deprecated — adding a step is PATCH { edit: { op: \"insert\" } }, which the board and the canvas send",
+  "DELETE /api/workspaces/[workspace]/flows/[flow]": "deprecated — removing a step is PATCH { edit: { op: \"remove\" } }, which the board and the canvas send",
   "PATCH /api/workspaces/[workspace]/flows/draft": "an alias so a flow named draft stays editable",
   "DELETE /api/workspaces/[workspace]/flows/draft": "an alias so a flow named draft stays editable",
   "GET /api/workspaces/[workspace]/hooks/[flow]": SERVER("[workspace]/settings/page.tsx → webhookPath"),

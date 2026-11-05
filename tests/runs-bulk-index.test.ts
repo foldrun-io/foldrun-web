@@ -87,3 +87,42 @@ test('status "stopped" matches a run a person stopped (stored as failed), and "f
   assert.deepEqual(await call(["stopped"]), ["run-stopped"]);
   assert.deepEqual(await call(["failed"]), ["run-stopped", "run-broke"], "unchanged: failed still names both");
 });
+
+// FOL-75: delete is a bulk action too — the runs list's bar and
+// `foldrun runs rm <id>…` used to loop one DELETE per run. Same permission
+// as that DELETE (workspace:manage), each run its own outcome.
+test("delete: an editor is refused; an admin erases the named runs, and one not there is its own refusal", async () => {
+  const ws3 = "erase";
+  const dir = path.join(DATA, TENANT, "workspaces", ws3, "runs");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(DATA, TENANT, "workspaces", ws3, "AGENTS.md"), `---\nname: ${ws3}\n---\n`);
+  for (const id of ["run-x", "run-y", "run-z"]) {
+    fs.writeFileSync(path.join(dir, `${id}.json`), JSON.stringify({ id, flow: "digest", status: "completed", startedAt: "2026-10-30T01:00:00Z", finishedAt: "2026-10-30T01:05:00Z", steps: [] }));
+  }
+  const { key: admin } = await createApiKey(TENANT, "admin", "owner@acme.test", undefined, "admin");
+  const call = async (k: string, body: unknown) => {
+    const res = await route.POST(
+      new NextRequest(`http://localhost/api/workspaces/${ws3}/runs/bulk`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${k}`, "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+      { params: Promise.resolve({ workspace: ws3 }) },
+    );
+    return { status: res.status, body: await res.json() };
+  };
+  const editor = await call(key, { action: "delete", runIds: ["run-x"] });
+  assert.equal(editor.status, 403, "erasing a trail is workspace:manage, as DELETE …/runs/<id>");
+  assert.ok(fs.existsSync(path.join(dir, "run-x.json")));
+  assert.equal((await call(admin, { action: "delete", runIds: ["run-x"], from: 2 })).status, 400, "from is a rerun's");
+  const dry = await call(admin, { action: "delete", runIds: ["run-x", "run-y"], dryRun: true });
+  assert.deepEqual(dry.body.matched.sort(), ["run-x", "run-y"]);
+  assert.ok(fs.existsSync(path.join(dir, "run-x.json")), "a dry run touches nothing");
+  const done = await call(admin, { action: "delete", runIds: ["run-x", "run-y", "run-gone"] });
+  assert.equal(done.status, 200);
+  assert.equal(done.body.action, "delete");
+  assert.equal(done.body.succeeded, 2);
+  assert.deepEqual(done.body.runs.find((r: { runId: string }) => r.runId === "run-gone"), { runId: "run-gone", ok: false, error: "run not found" });
+  assert.ok(!fs.existsSync(path.join(dir, "run-x.json")) && !fs.existsSync(path.join(dir, "run-y.json")));
+  assert.ok(fs.existsSync(path.join(dir, "run-z.json")), "only the runs named");
+});

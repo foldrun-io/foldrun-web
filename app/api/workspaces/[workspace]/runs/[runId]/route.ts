@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, errorResponse, requirePermission, refuse } from "@/server/api";
-import { deleteRun, readRun } from "@/lib/store";
-import { stopRun } from "@/platform/queue";
+import { readRun } from "@/lib/store";
+import { eraseRun } from "@/server/run-erase";
 import { wantsWait, waitAndRespond } from "@/server/wait";
 
 export async function GET(
@@ -40,12 +40,8 @@ export async function DELETE(
     // admin), not run:start — an editor could wipe the trail of a run they
     // started that sent mail or made a bad change (30 Oct 2026).
     const tenant = (await requirePermission(req, "workspace:manage")).tenant;
-    const run = readRun(tenant, workspace, runId);
-    if (!run) return refuse("run not found", 404);
-    if (run.status !== "completed" && run.status !== "failed") {
-      stopRun(tenant, workspace, runId);
-    }
-    deleteRun(tenant, workspace, runId);
+    // The same erase POST …/runs/bulk { action: "delete" } does (run-erase.ts).
+    if (!eraseRun(tenant, workspace, runId)) return refuse("run not found", 404);
     return NextResponse.json({ ok: true, deleted: runId });
   } catch (err) {
     return errorResponse(err);

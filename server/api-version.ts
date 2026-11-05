@@ -171,6 +171,13 @@ export const DEPRECATIONS: Deprecation[] = [
   { method: "GET", path: /^\/api\/workspaces\/[^/]+\/repo$/, route: "GET /api/workspaces/<ws>/repo", deprecatedAt: "2026-10-17", sunsetAt: "2026-10-17", link: "https://docs.foldrun.io/backups-and-restore" },
   { method: "POST", path: /^\/api\/workspaces\/[^/]+\/repo$/, route: "POST /api/workspaces/<ws>/repo", deprecatedAt: "2026-10-17", sunsetAt: "2026-10-17", link: "https://docs.foldrun.io/backups-and-restore" },
   { method: "POST", path: /^\/api\/git\/[^/]+\/[^/]+$/, route: "POST /api/git/<account>/<ws>", deprecatedAt: "2026-10-17", sunsetAt: "2026-10-17", link: "https://docs.foldrun.io/deploying" },
+  // One mechanism per flow edit (FOL-75, 5 Nov 2026): adding and removing a
+  // step are PATCH { edit: { op: "insert" | "remove" } } — what the canvas,
+  // the list view's board and the CLI all send. The older POST (a step at
+  // the end) and DELETE ({ step }) make the same edits and still answer; no
+  // sunset yet — the owner sets one. Not /flows/draft, whose POST drafts.
+  { method: "POST", path: /^\/api\/workspaces\/[^/]+\/flows\/(?!draft$)[^/]+$/, route: "POST /api/workspaces/<ws>/flows/<flow>", deprecatedAt: "2026-11-05", link: "https://docs.foldrun.io/api" },
+  { method: "DELETE", path: /^\/api\/workspaces\/[^/]+\/flows\/(?!draft$)[^/]+$/, route: "DELETE /api/workspaces/<ws>/flows/<flow>", deprecatedAt: "2026-11-05", link: "https://docs.foldrun.io/api" },
 ];
 
 /**
