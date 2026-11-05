@@ -172,13 +172,25 @@ function deleteMatched(tenant: string, workspace: string, matched: { id: string;
       done.push({ runId: r.id, ok: false, error: reportError(err).message });
     }
   }
+  // A run this call could not delete still matches if its record is there:
+  // it counts in `remaining`, so a caller paging on it does not stop early
+  // (one that deletes nothing in a call stops — `foldrun runs rm --until`).
+  // A record that cannot be read is counted as still there: it may be.
+  const stillThere = (id: string) => {
+    try {
+      return Boolean(readRun(tenant, workspace, id));
+    } catch {
+      return true;
+    }
+  };
+  const left = done.filter((d) => !d.ok && stillThere(d.runId)).length;
   return NextResponse.json({
     ok: true,
     action: "delete",
     matched: share.length,
     succeeded: done.filter((d) => d.ok).length,
     failed: done.filter((d) => !d.ok).length,
-    remaining,
+    remaining: remaining + left,
     runs: done,
   });
 }
