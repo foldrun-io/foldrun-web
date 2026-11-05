@@ -90,7 +90,9 @@ export default async function AgentPage({
   // no step of it is walled here, or it does not search our engine.
   const enforce = n.enforceWanted || process.env.FOLDRUN_NETWORK_ENFORCE === "1";
   const searchDoor =
-    n.level !== "open" && enforce && wallsRestrictedSteps(process.env.FOLDRUN_RUN_ISOLATION ?? "")
+    // A browsing step is walled only when browsing is confined (the runner
+    // gives it the forward door only then).
+    n.level !== "open" && enforce && wallsRestrictedSteps(process.env.FOLDRUN_RUN_ISOLATION ?? "") && (!n.browses || browse === "hosted")
       ? searchDoorWanted({ level: n.level, defaults: n.defaults, enforce, web: n.search.web, actions: n.search.actions, provided: n.search.provided })
       : null;
   const search = !searchDoor || (!searchDoor.door && !searchDoor.line) ? null : searchDoor.door ? "door" : "unnamed";
