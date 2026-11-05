@@ -174,10 +174,11 @@ export const DEPRECATIONS: Deprecation[] = [
   // One mechanism per flow edit (FOL-75, 5 Nov 2026): adding and removing a
   // step are PATCH { edit: { op: "insert" | "remove" } } — what the canvas,
   // the list view's board and the CLI all send. The older POST (a step at
-  // the end) and DELETE ({ step }) make the same edits and still answer; no
-  // sunset yet — the owner sets one. Not /flows/draft, whose POST drafts.
-  { method: "POST", path: /^\/api\/workspaces\/[^/]+\/flows\/(?!draft$)[^/]+$/, route: "POST /api/workspaces/<ws>/flows/<flow>", deprecatedAt: "2026-11-05", link: "https://docs.foldrun.io/api" },
-  { method: "DELETE", path: /^\/api\/workspaces\/[^/]+\/flows\/(?!draft$)[^/]+$/, route: "DELETE /api/workspaces/<ws>/flows/<flow>", deprecatedAt: "2026-11-05", link: "https://docs.foldrun.io/api" },
+  // the end) and DELETE ({ step }) made the same edits; sunset the same day
+  // (owner, 5 Nov 2026: "deprecate now" — no paying customers, and no client
+  // of ours calls them). Not /flows/draft, whose POST drafts.
+  { method: "POST", path: /^\/api\/workspaces\/[^/]+\/flows\/(?!draft$)[^/]+$/, route: "POST /api/workspaces/<ws>/flows/<flow>", deprecatedAt: "2026-11-05", sunsetAt: "2026-11-05", link: "https://docs.foldrun.io/api" },
+  { method: "DELETE", path: /^\/api\/workspaces\/[^/]+\/flows\/(?!draft$)[^/]+$/, route: "DELETE /api/workspaces/<ws>/flows/<flow>", deprecatedAt: "2026-11-05", sunsetAt: "2026-11-05", link: "https://docs.foldrun.io/api" },
 ];
 
 /**
