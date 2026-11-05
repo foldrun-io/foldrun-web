@@ -12,6 +12,7 @@
 // file (evals/.results/compare/<eval>/<id>.json), never the eval's latest
 // result. One comparison of an eval at a time; a second is a 409.
 
+import { opsError } from "@/lib/ops-log.ts";
 import { NextRequest, NextResponse, after } from "next/server";
 import { requireTenant, errorResponse, requirePermission, ApiError, refuse } from "@/server/api";
 import { adminState, pauseOf } from "@/platform/admin";
@@ -48,7 +49,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
         const result = await compareEval(tenant, workspace, info, plan, { onProgress: (done, total) => claim.progress(done, total) });
         await claim.finish({ result });
       } catch (err) {
-        console.error(`[foldrun] comparison ${tenant}/${workspace}/${evalName} failed:`, err);
+        opsError("eval.compare_failed", err, { tenant, workspace, eval: evalName });
         await claim.finish({ error: err instanceof Error ? err.message : String(err) });
       }
     });

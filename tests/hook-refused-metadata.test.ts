@@ -67,8 +67,8 @@ test("a workspace no hook has reached: bad tokens leave deployedAt, the record a
     assert.deepEqual(fs.readdirSync(dir).sort(), before.entries, "nothing created in the workspace");
     assert.equal(fs.statSync(dir).mtime.toISOString(), LONG_AGO.toISOString());
     // The refusal is not lost: one server line a minute per workspace.
-    assert.equal(warnings.filter((w) => w.includes("acme/fresh")).length, 1);
-    assert.match(warnings[0], /refused a delivery to acme\/fresh\/intake: invalid-token/);
+    assert.equal(warnings.filter((w) => w.includes("tenant=acme workspace=fresh")).length, 1);
+    assert.match(warnings[0], /webhook\.delivery_refused tenant=acme workspace=fresh flow=intake outcome=invalid-token/);
   }));
 
 test("a workspace with a delivery log: the refusals still show there, collapsed, and deployedAt does not move", () =>

@@ -24,6 +24,7 @@
 // compare/<eval>/, core eval-compare.ts). Each eval has one of each at a
 // time; a comparison never writes the eval's latest result.
 
+import { opsError } from "@/lib/ops-log.ts";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -169,7 +170,7 @@ function lane<R>(kind: "eval-run" | "eval-compare", subdir: "runs" | "compare", 
     const timer = setInterval(() => {
       // A beat that cannot be written is logged, never thrown from a timer.
       own((l) => ({ ...l, beat: new Date().toISOString() })).catch((err) =>
-        console.error(`[foldrun] ${noun} ${workspace}/${name}: heartbeat not written —`, err instanceof Error ? err.message : err),
+        opsError("eval.heartbeat_not_written", err, { workspace, eval: name, kind: noun }),
       );
     }, BEAT_MS);
     timer.unref?.();
@@ -198,7 +199,7 @@ function lane<R>(kind: "eval-run" | "eval-compare", subdir: "runs" | "compare", 
             saved = true;
             break;
           } catch (err) {
-            console.error(`[foldrun] ${noun} ${workspace}/${name}: outcome of ${runId} not saved yet —`, err instanceof Error ? err.message : err);
+            opsError("eval.outcome_not_saved", err, { workspace, eval: name, runId, kind: noun, retrying: true });
           }
         }
         if (!saved) {
@@ -213,7 +214,7 @@ function lane<R>(kind: "eval-run" | "eval-compare", subdir: "runs" | "compare", 
             await own((l) => ({ ...l, ended: true }));
             break;
           } catch (err) {
-            console.error(`[foldrun] ${noun} ${workspace}/${name}: lease not freed yet —`, err instanceof Error ? err.message : err);
+            opsError("eval.lease_not_freed", err, { workspace, eval: name, kind: noun, retrying: true });
           }
         }
         clearInterval(timer);

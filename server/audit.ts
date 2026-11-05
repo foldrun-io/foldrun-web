@@ -9,6 +9,7 @@
 // describing. Refusing a login because the audit insert failed would turn an
 // observability outage into an authentication outage.
 
+import { opsError } from "@/lib/ops-log.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { orm, auditLog, and, desc, eq, gte, lt, lte, sql } from "@/platform/orm";
@@ -146,7 +147,7 @@ export async function audit(
     }
     await q.insert(auditLog).values({ tenant: opts.tenant ?? null, actor: opts.actor, action, subject: opts.subject ?? null, detail: opts.detail ?? {} });
   } catch (err) {
-    console.error("[audit] could not record", action, err instanceof Error ? err.message : err);
+    opsError("audit.not_recorded", err, { op: action.replace(/\W+/g, "_").toLowerCase() });
   }
 }
 

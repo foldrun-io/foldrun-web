@@ -1,6 +1,7 @@
 // Shared route helpers: resolve the caller's workspace (API key first, dev
 // header fallback) and turn thrown errors into the right status code.
 
+import { opsLog, opsError, errorFields } from "@/lib/ops-log.ts";
 import { platform } from "@/lib/platform";
 import { NextResponse, type NextRequest } from "next/server";
 import { resolveTenant, listApiKeys, type Actor } from "./auth.ts";
@@ -333,15 +334,18 @@ export function reportError(err: unknown): { status: number; message: string; in
   if (parts.internal) {
     const db = databaseFault(err);
     if (db) {
-      // Not the message, not the stack: both carry the parameters. The
-      // query text and the SQLSTATE say what failed; the values stay out
-      // of the log as they stay out of the answer.
-      console.error(`[foldrun] api ${parts.status}: database error ${db.code ?? "(no code)"}${db.query ? ` in: ${db.query}` : ""}`);
+      // Not the message, not the stack's words, not the query: they carry
+      // the parameters, and the query is only safe by convention (FOL-121).
+      // The SQLSTATE and where in our code say what failed; the values stay
+      // out of the log as they stay out of the answer.
+      opsLog("error", "api.database_error", { ...errorFields(err), status: parts.status, code: db.code ?? undefined });
       return parts;
     }
-    // The detail the caller does not get. Stack when there is one: a 500
-    // with no stack is a bug report with no bug in it.
-    console.error(`[foldrun] api ${parts.status}: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`);
+    // The detail the caller does not get: its class, name, code and our
+    // stack frames — a 500 with no frames is a bug report with no bug in
+    // it. Never its message: a parse error quotes the body it read, a
+    // model process's error carries its stderr (FOL-107, FOL-121).
+    opsError("api.internal_error", err, { status: parts.status });
   }
   return parts;
 }

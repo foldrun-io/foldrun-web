@@ -3,6 +3,7 @@
 // going, or just finished) is shown at its list price and marked estimated —
 // never as the provider's token cost, which is not what anyone is billed.
 
+import { opsError } from "@/lib/ops-log.ts";
 import { readLedger, attributeToAgents } from "@/platform/ledger";
 import { platform } from "@/lib/platform";
 import type { RunRecord } from "@/lib/store";
@@ -24,7 +25,7 @@ export async function runCharges(tenant: string): Promise<RunCharges> {
     }
   } catch (err) {
     // An unreadable ledger is not a page error: every run reads as estimated.
-    console.error(`[foldrun] run charges for ${tenant}:`, err instanceof Error ? err.message : err);
+    opsError("billing.run_charges_failed", err, { tenant });
   }
   return out;
 }

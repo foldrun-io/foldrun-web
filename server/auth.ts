@@ -5,6 +5,7 @@
 // Without a key the request is refused. `FOLDRUN_DEV_NO_AUTH=1` opts out and
 // falls back to the x-foldrun-tenant header, which is what `next dev` sets.
 
+import { opsError } from "@/lib/ops-log.ts";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -412,7 +413,7 @@ async function noteKeyUse(record: ApiKeyRecord, headers: Headers, now = Date.now
       }
     }
   } catch (err) {
-    console.error("[keys] could not record last use:", err instanceof Error ? err.message : err);
+    opsError("keys.last_use_not_recorded", err);
   }
 }
 

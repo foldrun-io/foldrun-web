@@ -17,6 +17,7 @@
 // platform credential. On the platform credential the account pays for it:
 // the balance gate first, then one ledger line, as for a run.
 
+import { opsError } from "@/lib/ops-log.ts";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -458,7 +459,7 @@ export async function draftFlow(
       // flow that does not exist yet. A ledger that blinks here must not
       // turn a finished draft into an error.
       await recordRunCost(tenant, workspace, `draft-${Date.now().toString(36)}-${crypto.randomBytes(3).toString("hex")}`, { tokenCostUsd: cost, steps: 0, computeSecs: 0 }, { flow: "ai-draft", pricing }).catch(
-        (err) => console.error(`[foldrun] ai draft: could not record $${cost.toFixed(4)} for ${tenant}: ${err instanceof Error ? err.message : String(err)}`),
+        (err) => opsError("flow_draft.cost_not_recorded", err, { tenant, usd: cost }),
       );
     }
   }

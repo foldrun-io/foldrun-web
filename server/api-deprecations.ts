@@ -21,6 +21,7 @@
 // marks make it once even if two replicas both ran). Required mail, the
 // `account` category: a thing the account relies on is about to stop.
 
+import { opsError } from "@/lib/ops-log.ts";
 import { platformMail } from "@/lib/notify";
 import { sendMail } from "@/lib/mail";
 import { callersOf, markNoticesSent, noticesSent, pruneApiUsage, type AccountUsage } from "@/platform/api-usage";
@@ -104,6 +105,6 @@ export async function warnDeprecatedCallers(now = Date.now(), send: Send = resen
       }
     }
   }
-  await pruneApiUsage(new Date(now)).catch((err) => console.error("[api-usage] prune failed:", err));
+  await pruneApiUsage(new Date(now)).catch((err) => opsError("api_usage.prune_failed", err));
   return sent;
 }

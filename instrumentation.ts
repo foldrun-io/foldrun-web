@@ -6,12 +6,21 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
+  // First, the log boundary (FOL-121): from here on this server's stdout and
+  // stderr carry only lines core's ops writer builds from shaped fields —
+  // Next.js' own error logging included — never an account's prompts,
+  // replies, files, tool arguments or error text. Off under `next dev`.
+  const { installOpsBoundary, opsLog, opsError } = await import("@/lib/ops-log.ts");
+  installOpsBoundary();
+
   // Before anything boots: never serve with the auth bypass on where it would
   // be a cross-tenant hole (production, or a non-loopback public URL).
   const { devAuthStartupError } = await import("@/server/dev-auth-guard.ts");
   const devAuthError = devAuthStartupError(process.env);
   if (devAuthError) {
-    console.error(`[foldrun] ${devAuthError}`);
+    // FOLDRUN_DEV_NO_AUTH where it would be a cross-tenant hole (the
+    // sentence: server/dev-auth-guard.ts).
+    opsLog("error", "web.dev_auth_bypass_refused");
     process.exit(1);
   }
 
@@ -28,9 +37,9 @@ export async function register() {
     try {
       const { importUsersFromFile } = await import("@/server/users.ts");
       const n = await importUsersFromFile();
-      if (n) console.log(`[db] imported ${n} users from users.json`);
+      if (n) opsLog("info", "db.users_imported", { count: n });
     } catch (err) {
-      console.error("[db] users import failed:", err);
+      opsError("db.users_import_failed", err);
     }
     // API keys: keys.json into rows, once, then renamed aside (hashes only;
     // it is what a rollback to files would read). A key already in the table
@@ -38,9 +47,9 @@ export async function register() {
     try {
       const { importApiKeys } = await import("@/server/auth.ts");
       const n = await importApiKeys();
-      if (n) console.log(`[db] imported ${n} API keys from keys.json`);
+      if (n) opsLog("info", "db.api_keys_imported", { count: n });
     } catch (err) {
-      console.error("[db] API key import failed:", err);
+      opsError("db.api_keys_import_failed", err);
     }
   }
 
@@ -49,13 +58,13 @@ export async function register() {
   if (process.env.FOLDRUN_DISABLE_SCHEDULER !== "1") {
     const { withHousekeeping } = await import("@/platform/housekeeping.ts");
     const { warnExpiringKeys } = await import("@/server/key-expiry.ts");
-    const tick = () => void withHousekeeping("key-expiry", () => warnExpiringKeys()).catch((err) => console.error("[keys] expiry notices failed:", err));
+    const tick = () => void withHousekeeping("key-expiry", () => warnExpiringKeys()).catch((err) => opsError("keys.expiry_notices_failed", err));
     setTimeout(tick, 60_000).unref();
     setInterval(tick, 3_600_000).unref();
     // Warnings to accounts still calling a deprecated API route, and the
     // usage rows past keeping (server/api-deprecations.ts). Hourly, same lease.
     const { warnDeprecatedCallers } = await import("@/server/api-deprecations.ts");
-    const deprecations = () => void withHousekeeping("api-deprecations", () => warnDeprecatedCallers()).catch((err) => console.error("[api] deprecation warnings failed:", err));
+    const deprecations = () => void withHousekeeping("api-deprecations", () => warnDeprecatedCallers()).catch((err) => opsError("api.deprecation_warnings_failed", err));
     setTimeout(deprecations, 90_000).unref();
     setInterval(deprecations, 3_600_000).unref();
   }
