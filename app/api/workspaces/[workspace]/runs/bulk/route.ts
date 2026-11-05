@@ -16,6 +16,14 @@
 //   POST { action: "stop",  status: ["running", "queued"] }
 //   POST { action: "rerun", status: ["failed"], since: "2026-09-03T14:00:00Z" }
 //   POST { action: "rerun", runIds: ["run-x", "run-y"], from: 2 }
+//   POST { action: "delete", until: "2026-08-01T00:00:00Z" }
+//
+// Delete (FOL-124) is the customer's own way to erase run content sooner
+// than the retention window: finished runs only, an admin's
+// (workspace:manage, dry runs too — a preview lists what exists), each
+// run's status read again right before it goes. More than a call's share
+// is not refused: the call deletes its share and says how many still
+// match (`remaining`), and the caller asks again.
 //
 // Nothing is implicit: a request naming no filter at all is refused rather
 // than treated as "everything".
@@ -23,7 +31,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, reportError, requirePermission, refuse } from "@/server/api";
 import { rerunFrom, stopRun } from "@/platform/queue";
-import { listRunSummaries, runDisplayStatus } from "@/lib/store";
+import { deleteRun, listRunSummaries, readRun, runDisplayStatus } from "@/lib/store";
 import { idempotent } from "@/server/idempotency";
 
 /** The most runs one call will touch. A bulk action is a recovery tool, not
@@ -33,7 +41,7 @@ import { idempotent } from "@/server/idempotency";
 const MAX = 100;
 
 interface BulkBody {
-  action?: "stop" | "rerun";
+  action?: "stop" | "rerun" | "delete";
   status?: string[];
   flow?: string;
   /** ISO instant — only runs that started at or after it. */
@@ -50,12 +58,15 @@ interface BulkBody {
 async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: string }> }) {
   try {
     const { workspace } = await ctx.params;
-    const { tenant, actor } = await requirePermission(req, "run:start");
     const body = (await req.json().catch(() => ({}))) as BulkBody;
+    // Erasing what happened is not running things: deleting is an admin's,
+    // as one run's DELETE is (workspace:manage, 30 Oct 2026).
+    const { tenant, actor } = await requirePermission(req, body.action === "delete" ? "workspace:manage" : "run:start");
 
-    if (body.action !== "stop" && body.action !== "rerun") {
-      return refuse('expected { action: "stop" | "rerun" }', 400);
+    if (body.action !== "stop" && body.action !== "rerun" && body.action !== "delete") {
+      return refuse('expected { action: "stop" | "rerun" | "delete" }', 400);
     }
+    if (body.action === "delete" && body.from !== undefined) return refuse("from is rerun's; a delete takes the whole run", 400);
     if (body.from !== undefined && !(Number.isInteger(body.from) && body.from >= 1)) {
       return refuse("from is a step's number in the trace, a whole number from 1", 400);
     }
@@ -76,6 +87,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
       }
     }
     const matched = select(tenant, workspace, body);
+    if (body.action === "delete") return deleteMatched(tenant, workspace, matched, body.dryRun === true);
     if (matched.length > MAX) {
       return NextResponse.json(
         {
@@ -123,12 +135,48 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
   }
 }
 
+/** Delete (FOL-124): the first MAX of the finished runs matched, each read
+ *  again first — one that is live after all is skipped, never stopped. */
+function deleteMatched(tenant: string, workspace: string, matched: { id: string; status?: string }[], dryRun: boolean) {
+  const finished = matched.filter((r) => r.status === undefined || r.status === "completed" || r.status === "failed");
+  const share = finished.slice(0, MAX);
+  const remaining = finished.length - share.length;
+  if (dryRun) return NextResponse.json({ ok: true, dryRun: true, action: "delete", matched: share.map((r) => r.id), remaining });
+  const done: { runId: string; ok: boolean; error?: string }[] = [];
+  for (const r of share) {
+    try {
+      const run = readRun(tenant, workspace, r.id);
+      if (!run) {
+        done.push({ runId: r.id, ok: false, error: "run not found" });
+        continue;
+      }
+      if (run.status !== "completed" && run.status !== "failed") {
+        done.push({ runId: r.id, ok: false, error: `${run.status} — only a finished run is deleted here; stop it first` });
+        continue;
+      }
+      deleteRun(tenant, workspace, r.id);
+      done.push({ runId: r.id, ok: true });
+    } catch (err) {
+      done.push({ runId: r.id, ok: false, error: reportError(err).message });
+    }
+  }
+  return NextResponse.json({
+    ok: true,
+    action: "delete",
+    matched: share.length,
+    succeeded: done.filter((d) => d.ok).length,
+    failed: done.filter((d) => !d.ok).length,
+    remaining,
+    runs: done,
+  });
+}
+
 /** The runs a filter names, newest first. Every clause is an AND, and an
  *  absent clause constrains nothing. Read off the runs index, as the list
  *  route is (30 Oct 2026): listRuns JSON-parsed every record in the
  *  workspace on every call, dry runs included, and only id, flow, status and
  *  startedAt are needed here. */
-function select(tenant: string, workspace: string, body: BulkBody): { id: string }[] {
+function select(tenant: string, workspace: string, body: BulkBody): { id: string; status?: string }[] {
   const ids = body.runIds?.length ? new Set(body.runIds) : null;
   const statuses = body.status?.length ? new Set(body.status) : null;
   const since = body.since ? new Date(body.since).getTime() : null;
@@ -153,7 +201,7 @@ function select(tenant: string, workspace: string, body: BulkBody): { id: string
   // status or date clause cannot be judged without the summary.
   if (ids && !statuses && !body.flow && since === null && until === null) {
     const have = new Set(found.map((r) => r.id));
-    const picked: { id: string }[] = [...found];
+    const picked: { id: string; status?: string }[] = [...found];
     for (const id of ids) if (!have.has(id)) picked.push({ id });
     return picked;
   }

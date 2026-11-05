@@ -6,8 +6,9 @@
 //
 // Stop and Rerun go through POST /api/workspaces/<ws>/runs/bulk, the same
 // route the CLI uses, once per workspace in the selection
-// (runs-bulk-model.ts). Delete has no bulk route, so it stays one DELETE per
-// run.
+// (runs-bulk-model.ts). Delete stays one DELETE per run: that route stops a
+// run still going first, which the bulk route's delete (finished runs only,
+// for "everything older than…", FOL-124) does not.
 
 import { type ReactNode } from "react";
 import { BulkActionBar, SelectionProvider, type BulkAction } from "@/components/bulk-select";
