@@ -23,6 +23,9 @@ export interface AgentNetworkProps {
    *  hosted, refused (a vendor's browser), or legacy — not held. Null when
    *  it does not browse. */
   browse?: "hosted" | "refuse" | "legacy" | null;
+  /** Whether a walled sandbox here has no DNS of its own either
+   *  (FOLDRUN_RUN_DNS_WALL, platform run-dns.ts — FOL-128). */
+  dnsWalled?: boolean;
   trustedCount: number;
   editable: boolean;
 }
@@ -93,7 +96,10 @@ export function AgentNetwork(p: AgentNetworkProps) {
       )}
       {r.browses && p.browse === "hosted" && (
         <p className="mt-2 rounded-md border border-success-line bg-success-soft px-2.5 py-1.5 text-xs text-success">
-          Browsing is held to this list: the browser runs inside the step&apos;s sandbox, whose network reaches only the egress proxy and DNS. DNS lookups themselves are not restricted.
+          Browsing is held to this list: the browser runs inside the step&apos;s sandbox, whose network reaches only the egress proxy.{" "}
+          {p.dnsWalled
+            ? "It has no DNS of its own either: every name goes to the proxy, which looks up only sites on the list."
+            : "Its DNS lookups are not held to the list on this install."}
         </p>
       )}
       {r.browses && p.browse === "refuse" && (

@@ -23,6 +23,7 @@ import { readNetwork, TRUSTED_SITES } from "@/lib/network";
 import { AgentNetwork } from "./agent-network";
 import { browseVerdict } from "@/lib/browse-egress";
 import { confinesBrowsing } from "@/platform/browse-confine";
+import { dnsWallEnabled } from "@/platform/run-dns";
 
 export const dynamic = "force-dynamic";
 
@@ -156,6 +157,7 @@ export default async function AgentPage({
         own={ownNetwork}
         resolved={info.network}
         browse={browse}
+        dnsWalled={dnsWallEnabled()}
         trustedCount={TRUSTED_SITES.length}
         // The agent PATCH refuses a viewer's write; the page does not guess the role.
         editable
