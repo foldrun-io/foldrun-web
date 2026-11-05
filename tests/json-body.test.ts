@@ -91,7 +91,6 @@ test("flow PATCH: edits [null], a numeric schedule, bad groups are 400 and the f
   // A cron that names no real date would silently never run.
   await is400(await flowRoute.PATCH(req("PATCH", `/api/workspaces/${WS}/flows/morning`, JSON.stringify({ trigger: { trigger: "schedule", schedule: "0 0 30 2 *" } })), p));
   await is400(await flowRoute.PATCH(req("PATCH", `/api/workspaces/${WS}/flows/morning`, JSON.stringify({ groups: [["a"]] })), p));
-  await is400(await flowRoute.POST(req("POST", `/api/workspaces/${WS}/flows/morning`, "null"), p));
   assert.equal(fs.readFileSync(flowFile, "utf8"), FLOW);
 });
 

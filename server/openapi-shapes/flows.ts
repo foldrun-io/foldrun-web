@@ -73,19 +73,6 @@ const PatternEdit: Schema = obj(
 
 const EXPECT = str("the text the caller read the file as, or its sha256; refused with 409 (and the current text) when the file no longer reads it");
 
-/** POST …/flows/{flow}: append a step. */
-const ADD_STEP: Shape = {
-  body: obj(
-    {
-      target: str("the agent the step runs, or the flow with subflow: true"),
-      subflow: { ...bool, description: "target is a flow ([[flow:name]])" },
-      instruction: str(),
-    },
-    ["target"],
-  ),
-  response: obj({ ok: bool, flow: Flow }),
-};
-
 /** PATCH …/flows/{flow}: one of the shapes, checked in this order: restore, edits, edit, compute, trigger, step+instruction, step+options, groups. */
 const EDIT_FLOW: Shape = {
   body: obj({
@@ -183,9 +170,7 @@ export const SHAPES: Record<string, Shape> = {
     body: obj({ name: str("the new flow's name; flows/<name>.md"), pattern: str("pipeline | review-loop | fan-out | debate | router (anything else is pipeline)") }, ["name"]),
     response: obj({ ok: bool, path: str("flows/<name>.md"), pattern: str() }),
   },
-  "POST /api/workspaces/{workspace}/flows/{flow}": ADD_STEP,
   "PATCH /api/workspaces/{workspace}/flows/{flow}": EDIT_FLOW,
-  "DELETE /api/workspaces/{workspace}/flows/{flow}": REMOVE_STEP,
   "POST /api/workspaces/{workspace}/flows/{flow}/filter": {
     body: obj({ payload: { description: "the delivery to test: a webhook's JSON body (a string is read as one), an email's { from, to, subject, text }, a chained run's { run, flow, status, ending, verdict, summary }, a storage event's { by, paths }" } }, ["payload"]),
     response: obj({

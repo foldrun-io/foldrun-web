@@ -69,8 +69,6 @@ const NOT_IN_CLI: Record<string, string> = {
   "POST /api/workspaces/[workspace]/agents": "`foldrun agent new --platform`: platformScaffold, `/api/workspaces/${ws}/${kind}`",
   "POST /api/workspaces/[workspace]/flows": "`foldrun flow new --platform`: platformScaffold, `/api/workspaces/${ws}/${kind}`",
   "POST /api/workspaces/[workspace]/deploy": "`foldrun deploy`: the URL is built from the platform's origin",
-  "POST /api/workspaces/[workspace]/flows/[flow]": "`foldrun flow add` makes the same edit through PATCH { edit }",
-  "DELETE /api/workspaces/[workspace]/flows/[flow]": "`foldrun flow rm-step` makes the same edit through PATCH { edit }",
   "PATCH /api/workspaces/[workspace]/flows/draft": "an alias so a flow named draft stays editable; `flow set` reaches it as /flows/${flow}",
   "DELETE /api/workspaces/[workspace]/flows/draft": "an alias so a flow named draft stays editable; `flow rm` reaches it as /flows/${flow}",
 };
@@ -160,10 +158,6 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   "POST /api/workspaces/[workspace]/evals": SEEN("components/create.tsx (New eval)"),
   "GET /api/workspaces/[workspace]/flows": SERVER("[workspace] pages → listFlows"),
   "POST /api/workspaces/[workspace]/flows": SEEN("components/create.tsx (New flow)"),
-  // Deprecated (FOL-75, 5 Nov 2026): the board, the canvas and the CLI all
-  // add and remove a step through PATCH { edit }, one mechanism.
-  "POST /api/workspaces/[workspace]/flows/[flow]": "deprecated — adding a step is PATCH { edit: { op: \"insert\" } }, which the board and the canvas send",
-  "DELETE /api/workspaces/[workspace]/flows/[flow]": "deprecated — removing a step is PATCH { edit: { op: \"remove\" } }, which the board and the canvas send",
   "PATCH /api/workspaces/[workspace]/flows/draft": "an alias so a flow named draft stays editable",
   "DELETE /api/workspaces/[workspace]/flows/draft": "an alias so a flow named draft stays editable",
   "GET /api/workspaces/[workspace]/hooks/[flow]": SERVER("[workspace]/settings/page.tsx → webhookPath"),

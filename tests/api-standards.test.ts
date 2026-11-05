@@ -174,7 +174,6 @@ test("every side-effect POST the brief names answers through idempotent()", () =
     "POST /api/billing/subscribe",
     "POST /api/billing/card",
     "POST /api/billing/portal",
-    "POST /api/workspaces/{workspace}/flows/{flow}",
     "POST /api/workspaces/{workspace}/flows/draft",
     "POST /api/workspaces/{workspace}/hooks/{flow}/rotate",
     "POST /api/workspaces/{workspace}/notify/test",
@@ -385,10 +384,10 @@ test("openapi: /api/metrics says its own credential and its 404, not the bearer 
   assert.ok(m.responses["404"]);
   assert.equal(m.responses["401"], undefined);
   assert.equal(m.responses["403"], undefined);
-  // A route in DEPRECATIONS is marked deprecated in the document.
+  // The old step POST and DELETE are gone (sunset 5 Nov 2026), not just marked.
   const flow = doc.paths["/api/workspaces/{workspace}/flows/{flow}"];
-  assert.equal(flow.post.deprecated, true);
-  assert.equal(flow.delete.deprecated, true);
+  assert.equal(flow.post, undefined);
+  assert.equal(flow.delete, undefined);
   assert.equal(flow.patch.deprecated, undefined, "PATCH { edit } is the one mechanism");
   assert.equal(doc.paths["/api/workspaces/{workspace}/flows/draft"].post.deprecated, undefined, "drafting a flow is not deprecated");
 });

@@ -7,9 +7,10 @@
 // source PUT after a person confirms. See server/flow-draft.ts.
 //
 // `draft` is a static segment beside flows/[flow], so it would shadow a flow
-// that happens to be named "draft". Anything that is not a draft request —
-// a POST without `description`, a PATCH, a DELETE — is handed to the
-// [flow] route as that flow's edit, so such a flow stays editable.
+// that happens to be named "draft". A PATCH is handed to the [flow] route as
+// that flow's edit, so such a flow stays editable. The older step POST and
+// DELETE went on 5 Nov 2026 (FOL-75): a DELETE here answers 410, pointing at
+// PATCH { edit }.
 
 import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, requirePermission, refuse } from "@/server/api";
@@ -22,14 +23,6 @@ export const dynamic = "force-dynamic";
 type Ctx = { params: Promise<{ workspace: string }> };
 
 const asFlow = async (ctx: Ctx) => ({ params: Promise.resolve({ ...(await ctx.params), flow: "draft" }) });
-// The draft POST already answers once per Idempotency-Key; the [flow] edit it
-// hands on to must not claim the same key again (it would find it pending).
-const again = (req: NextRequest, body: string) => {
-  const headers = new Headers(req.headers);
-  headers.delete("idempotency-key");
-  return new NextRequest(req.url, { method: req.method, headers, body: body || undefined });
-};
-
 async function postOnce(req: NextRequest, ctx: Ctx) {
   try {
     // Drafting reads the workspace and proposes writes to it: an editor's
@@ -39,7 +32,7 @@ async function postOnce(req: NextRequest, ctx: Ctx) {
     const text = await req.text();
     const parsed: unknown = text ? JSON.parse(text) : {};
     const body = (parsed && typeof parsed === "object" ? parsed : {}) as { description?: unknown; flow?: unknown };
-    if (body.description === undefined) return flowRoute.POST(again(req, text), await asFlow(ctx));
+    if (body.description === undefined) return refuse('expected { description, flow? } — adding a step to a flow named draft is PATCH { edit: { op: "insert" } }', 400);
 
     const { workspace } = await ctx.params;
     if (typeof body.description !== "string") return refuse("expected { description, flow? }", 400);
@@ -57,8 +50,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   return flowRoute.PATCH(req, await asFlow(ctx));
 }
 
-export async function DELETE(req: NextRequest, ctx: Ctx) {
-  return flowRoute.DELETE(req, await asFlow(ctx));
+// Gone (FOL-75, sunset 5 Nov 2026): removing a step is PATCH { edit }.
+export async function DELETE() {
+  return refuse('removing a step is PATCH { edit: { op: "remove", step } } — this DELETE went on 5 Nov 2026', 410);
 }
 
 /** At most once per Idempotency-Key — server/idempotency.ts. */

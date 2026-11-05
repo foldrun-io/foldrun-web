@@ -71,17 +71,9 @@ test("remove: the step and its options go, the groups renumber, the agent file s
   assert.equal(fs.readFileSync(path.join(ws, "agents/watchdog/agent.md"), "utf8"), AGENT);
 });
 
-test("DELETE { step } is the same edit: prose after the last step survives", async () => {
-  const del = route as unknown as { DELETE: typeof route.PATCH };
+test("removing the last step keeps the prose after it (the old DELETE { step } went on 5 Nov 2026)", async () => {
   fs.writeFileSync(file, `${FLOW}\nNotes below stay.\n`);
-  const res = await del.DELETE(
-    new NextRequest(`http://localhost/api/workspaces/${WS}/flows/morning`, {
-      method: "DELETE",
-      headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-      body: JSON.stringify({ step: 2 }),
-    }),
-    { params: Promise.resolve({ workspace: WS, flow: "morning" }) },
-  );
+  const res = await patch({ edit: { op: "remove", step: 2 } });
   assert.equal(res.status, 200, await res.clone().text());
   const out = fs.readFileSync(file, "utf8");
   assert.doesNotMatch(out, /\[\[writer\]\]/);

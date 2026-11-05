@@ -26,7 +26,7 @@ const { resetIdempotencyMemory } = await import("../server/idempotency.ts");
 const { hookGeneration } = await import("@/lib/webhook");
 type Handler = (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
 const rotate = (await import("../app/api/workspaces/[workspace]/hooks/[flow]/rotate/route.ts")) as unknown as { POST: Handler };
-const draft = (await import("../app/api/workspaces/[workspace]/flows/draft/route.ts")) as unknown as { POST: Handler };
+const draft = (await import("../app/api/workspaces/[workspace]/flows/draft/route.ts")) as unknown as { POST: Handler; DELETE: () => Promise<Response> };
 const triggers = (await import("../app/api/workspaces/[workspace]/triggers/route.ts")) as unknown as { GET: Handler };
 const observe = (await import("../app/api/workspaces/[workspace]/observe/route.ts")) as unknown as { GET: Handler };
 const usage = (await import("../app/api/usage/route.ts")) as unknown as { GET: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
@@ -72,18 +72,16 @@ test("rotating a webhook twice with one Idempotency-Key rotates once, and the re
   assert.equal(hookGeneration(TENANT, "desk", "hooked"), 1);
 });
 
-test("a step appended through flows/draft (a flow named draft) is appended once per key, not refused as in flight", async () => {
+test("flows/draft no longer takes a step: a POST with no description is 400, a DELETE 410, and the flow named draft is untouched (FOL-75)", async () => {
   resetIdempotencyMemory();
   const before = fs.readFileSync(DRAFT_FLOW, "utf8");
-  const send = () => draft.POST(req("POST", "/api/workspaces/desk/flows/draft", admin, { target: "writer", instruction: "Again." }, { "idempotency-key": "step-1" }), ctx({ workspace: "desk" }));
-  const first = await send();
-  assert.equal(first.status, 200, await first.clone().text());
-  const after = fs.readFileSync(DRAFT_FLOW, "utf8");
-  assert.notEqual(after, before);
-  const again = await send();
-  assert.equal(again.status, 200);
-  assert.equal(again.headers.get("idempotent-replayed"), "true");
-  assert.equal(fs.readFileSync(DRAFT_FLOW, "utf8"), after, "the replay wrote nothing");
+  const res = await draft.POST(req("POST", "/api/workspaces/desk/flows/draft", admin, { target: "writer", instruction: "Again." }), ctx({ workspace: "desk" }));
+  assert.equal(res.status, 400);
+  assert.match(((await res.json()) as { error: string }).error, /PATCH \{ edit/);
+  const gone = await draft.DELETE();
+  assert.equal(gone.status, 410);
+  assert.match(((await gone.json()) as { error: string }).error, /PATCH \{ edit/);
+  assert.equal(fs.readFileSync(DRAFT_FLOW, "utf8"), before);
 });
 
 test("a draft without a credential is 401 before its body is read, even a malformed one", async () => {

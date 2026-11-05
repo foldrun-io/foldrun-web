@@ -553,6 +553,8 @@ const EXTRA_STATUSES: Record<string, string[]> = {
   "POST /api/workspaces/{workspace}/evals/{evalName}/improve": ["409"],
   // The file changed since it was loaded (body.ifMatch is not its sha256).
   "PUT /api/workspaces/{workspace}/source": ["409"],
+  // Gone (FOL-75): removing a step is PATCH { edit }.
+  "DELETE /api/workspaces/{workspace}/flows/draft": ["410"],
   // Not there (404); a file the library cannot hold, or one already there without overwrite (409).
   "POST /api/workspaces/{workspace}/source/share": ["404", "409"],
   // No secret by that name.

@@ -15,15 +15,13 @@ import {
   workspaceDir,
   parseFlow,
   reorderFlowSteps,
-  addFlowStep,
   setFlowTrigger,
   updateFlowStep,
   updateFlowStepInstruction,
   assertSafeName,
   writeWorkspaceFile,
 } from "@/lib/store";
-import { applyPatternEdit, removeStep, type PatternEdit } from "@/lib/flow-patterns";
-import { idempotent } from "@/server/idempotency";
+import { applyPatternEdit, type PatternEdit } from "@/lib/flow-patterns";
 import { configMatter } from "@/lib/matter";
 import { patchFrontmatter } from "@/lib/agents-md";
 import { computePatch } from "@/components/defaults-model";
@@ -61,71 +59,14 @@ function flowFile(tenant: string, workspace: string, flow: string) {
   return null;
 }
 
-// Add a step to the end of a flow: { target, subflow?, instruction? }.
+// Adding and removing a step are PATCH { edit: { op: "insert" | "remove" } }
+// — the older POST and DELETE went on 5 Nov 2026 (FOL-75: one mechanism per
+// action; sunset the same day, owner's call).
 
 /** Whether the file reads `expect`: the text itself, or its sha256 (what
  *  GET …/source answers, and what the CLI sends). */
 const readsAs = (text: string, expect: string) =>
   text === expect || createHash("sha256").update(text, "utf8").digest("hex") === expect;
-async function postOnce(
-  req: NextRequest,
-  ctx: { params: Promise<{ workspace: string; flow: string }> },
-) {
-  try {
-    const { workspace, flow } = await ctx.params;
-    const tenant = (await requirePermission(req, "workspace:write")).tenant;
-    const body = (await jsonObject(req, { optional: true })) as {
-      target?: string;
-      subflow?: boolean;
-      instruction?: string;
-    };
-    if (typeof body.target !== "string" || !body.target) return refuse("expected { target }", 400);
-
-    const file = flowFile(tenant, workspace, flow);
-    if (!file) return refuse("flow not found", 404);
-
-    const rewritten = addFlowStep(fs.readFileSync(file, "utf8"), {
-      target: body.target,
-      subflow: body.subflow,
-      instruction: body.instruction,
-    });
-    await saveFlow(req, tenant, workspace, file, rewritten, "flow edited from the dashboard");
-    return NextResponse.json({ ok: true, flow: parseFlow(path.basename(file), rewritten) });
-  } catch (err) {
-    return errorResponse(err);
-  }
-}
-
-// Remove one step by its index in the flow's parsed steps — core's removeStep,
-// the same edit as PATCH { edit: { op: "remove" } }: the step line and its
-// options go, prose after it stays, groups renumber.
-export async function DELETE(
-  req: NextRequest,
-  ctx: { params: Promise<{ workspace: string; flow: string }> },
-) {
-  try {
-    const { workspace, flow } = await ctx.params;
-    const tenant = (await requirePermission(req, "workspace:write")).tenant;
-    const body = (await jsonObject(req, { optional: true })) as { step?: number; expect?: string };
-    if (typeof body.step !== "number") {
-      return refuse("expected { step, expect? }", 400);
-    }
-
-    const file = flowFile(tenant, workspace, flow);
-    if (!file) return refuse("flow not found", 404);
-
-    const before = fs.readFileSync(file, "utf8");
-    if (typeof body.expect === "string" && !readsAs(before, body.expect)) {
-      return NextResponse.json({ error: `${flow} changed since it was loaded — reload to see the change, then try again`, text: before }, { status: 409 });
-    }
-    const rewritten = removeStep(before, body.step);
-    await saveFlow(req, tenant, workspace, file, rewritten, "flow edited from the dashboard");
-    return NextResponse.json({ ok: true, flow: parseFlow(path.basename(file), rewritten) });
-  } catch (err) {
-    return errorResponse(err);
-  }
-}
-
 // PATCH shapes: { groups } rearranges steps (the board), { trigger }
 // rewrites how the flow starts (the trigger picker), { step, options }
 // rewrites one step's options (the step editor), { edit } is one canvas
@@ -311,9 +252,4 @@ export async function PATCH(
   } catch (err) {
     return errorResponse(err);
   }
-}
-
-/** At most once per Idempotency-Key — server/idempotency.ts. */
-export async function POST(...args: Parameters<typeof postOnce>) {
-  return idempotent(args[0], () => postOnce(...args));
 }

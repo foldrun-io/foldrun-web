@@ -22,7 +22,7 @@ const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 type Ctx = { params: Promise<{ workspace: string; flow: string }> };
 type Handler = (req: InstanceType<typeof NextRequest>, ctx: Ctx) => Promise<Response>;
-const route = (await import("../app/api/workspaces/[workspace]/flows/[flow]/route.ts")) as { PATCH: Handler; DELETE: Handler };
+const route = (await import("../app/api/workspaces/[workspace]/flows/[flow]/route.ts")) as { PATCH: Handler };
 const { flowWrite, STALE_FLOW } = await import("../components/flow-write.ts");
 
 const TENANT = "acme";
@@ -41,8 +41,7 @@ const viaRoute: typeof fetch = async (input, init) => {
     headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
     body: init?.body as string,
   });
-  const handler = init?.method === "DELETE" ? route.DELETE : route.PATCH;
-  return handler(req, { params: Promise.resolve({ workspace: WS, flow: "daily" }) });
+  return route.PATCH(req, { params: Promise.resolve({ workspace: WS, flow: "daily" }) });
 };
 const URL_ = `/api/workspaces/${WS}/flows/daily`;
 
@@ -50,7 +49,7 @@ for (const [name, method, body] of [
   ["groups (board drag)", "PATCH", { groups: [[1], [0], [2]] }],
   ["step instruction (board)", "PATCH", { step: 0, instruction: "changed" }],
   ["step options (options editor)", "PATCH", { step: 0, options: { retry: "2" } }],
-  ["remove a step (board ✕)", "DELETE", { step: 0 }],
+  ["remove a step (board ✕)", "PATCH", { edit: { op: "remove", step: 0 } }],
 ] as const) {
   test(`${name}: a stale board is refused and says reload; the file is untouched`, async () => {
     fs.writeFileSync(FILE, ORIGINAL);
