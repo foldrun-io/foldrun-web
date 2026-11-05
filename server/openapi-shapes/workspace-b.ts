@@ -283,7 +283,14 @@ export const SHAPES: Record<string, Shape> = {
       flows: arr(obj({ flow: str(), runs: int, failed: int, seconds: Sampled, costUsd: num, chargedUsd: num })),
       days: arr(obj({ day: str("YYYY-MM-DD"), runs: int, failed: int, costUsd: num, chargedUsd: num })),
       failures: arr(obj({ runId: str(), flow: str(), agent: str(), at: str(), attempts: int, text: str("the last error the step recorded") })),
-      startup: arr(obj({ phase: str(), took: Sampled, at: Sampled }), "where steps' first seconds went, phase by phase"),
+      startup: arr(obj({
+        phase: str(),
+        took: { ...Sampled, description: "the phase's own share, from when it could begin to when it ended" },
+        at: { ...Sampled, description: "when it ended, counted from the step's start" },
+        from: { ...Sampled, description: "when it began, counted from the step's start — services booting beside the step pod begin at 0" },
+        parallel: { ...int, description: "of took.n steps, how many ran this phase alongside the step pod (services since FOL-46)" },
+        waited: { ...Sampled, description: "how long the phase was held for a parallel lane — go behind services still booting; 0 otherwise" },
+      }), "where steps' first seconds went, phase by phase"),
     }),
   },
   "GET /api/workspaces/{workspace}/pause": {

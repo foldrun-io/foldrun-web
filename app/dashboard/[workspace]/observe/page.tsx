@@ -361,23 +361,41 @@ export default async function ObservePage({
 
           {/* Start-up: where a step's first seconds go before the model
               speaks, phase by phase (FOL-29). Each phase's own share, and
-              when it ended counted from the step's start. */}
+              when it began and ended counted from the step's start. A
+              services phase that booted beside the step pod is its own lane
+              (FOL-74): it starts at 0, and go starts when it was up. */}
           {o.startup.length > 0 && (
             <Card className="mb-6 overflow-x-auto">
-              <table className="w-full min-w-[480px]">
+              <table className="w-full min-w-[560px]">
                 <thead>
                   <tr className="border-b border-line-faint">
                     <th className={TH} title="in the order a step goes through them">Start-up phase</th>
-                    <th className={TH} title="this phase's own share: the gap since the phase before it">Took</th>
+                    <th className={TH} title="this phase's own share: from when it could begin to when it ended">Took</th>
+                    <th className={TH} title="when it began, counted from the moment the step started — the services pods boot alongside the step pod, from 0">Started</th>
                     <th className={TH} title="counted from the moment the step started">Done by</th>
                   </tr>
                 </thead>
                 <tbody>
                   {o.startup.map((p) => (
                     <tr key={p.phase} className="border-b border-gray-50 last:border-0">
-                      <td className={`${TD} font-mono text-xs text-fg`}>{p.phase}</td>
+                      <td className={`${TD} font-mono text-xs text-fg`}>
+                        {p.phase}
+                        {p.parallel > 0 && (
+                          <span className="ml-1.5 font-sans text-[11px] text-fg-muted" title="booted alongside the step pod, not before it">
+                            in parallel{p.parallel < p.took.n ? ` on ${p.parallel} of ${p.took.n}` : ""}
+                          </span>
+                        )}
+                        {(p.waited.max ?? 0) > 0 && (
+                          <span className="ml-1.5 font-sans text-[11px] text-fg-muted" title="how long it was held for the services pods, before its own share">
+                            held for services <Spread s={p.waited} unit={fine} />
+                          </span>
+                        )}
+                      </td>
                       <td className={TD}>
                         <Spread s={p.took} unit={fine} />
+                      </td>
+                      <td className={TD}>
+                        <Spread s={p.from} unit={fine} />
                       </td>
                       <td className={TD}>
                         <Spread s={p.at} unit={fine} />

@@ -87,6 +87,18 @@ test("the start-up chip runs to the model's first word and gives each phase its 
   assert.equal(stepStartup({ startup: null }), null);
 });
 
+test("FOL-74: a search pod booting beside the step pod is its own lane in the chip, and go says what held it", () => {
+  // services lands after ready and files on a cold pool
+  const up = stepStartup({ startup: { services: 8, room: 0.1, applied: 0.5, ready: 3, files: 4, go: 8.1, shim: 8.2, model: 11 } });
+  assert.equal(up?.label, "start-up 11.0s");
+  assert.equal(
+    up?.title,
+    "until the model's first word: services 8.00s alongside the pod · room +0.10s · applied +0.40s · ready +2.50s · files +1.00s · go +0.10s (held 4.00s for services) · shim +0.10s · model +2.80s",
+  );
+  // no phase the services overlapped reads +0.00s
+  assert.doesNotMatch(up!.title, /\+0\.00s/);
+});
+
 test("what a step held reads as numbers, with the class and the agent's resources: behind it", () => {
   assert.equal(stepHeld({}), null, "a record from before sizes");
   const plain = stepHeld({ size: "large", reserved: { cpus: 3, memGiB: 6 } })!;

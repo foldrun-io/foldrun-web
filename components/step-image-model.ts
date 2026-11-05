@@ -9,6 +9,7 @@
 
 import type { StepRecord } from "@/lib/store";
 import { browserPodLine, podTriesLine } from "@/lib/browser-pod";
+import { startupBreakdown } from "@/lib/startup";
 
 export interface StepImageView {
   /** The header chip: "slim · browser pod", "full", "slim". */
@@ -56,30 +57,27 @@ export function stepHeld(step: Pick<StepRecord, "reserved" | "size" | "resources
   return { label, title };
 }
 
-/** The order a step's start-up happens in — core run-container.ts
- *  #STARTUP_PHASES, repeated here as words because the dashboard imports
- *  only what a page needs. */
-const STARTUP_ORDER = ["services", "room", "applied", "ready", "files", "go", "shim", "system", "driver", "imports", "tools", "model"] as const;
-
 /**
  * How long the step took to start, and where it went: the chip says until
  * the model's first word (or the last phase marked), the title gives each
  * phase's own share — what FOL-29's cold-start work reads. Null on a step
  * from before 17 Oct 2026, or an in-process one, which marks nothing.
+ *
+ * Overlap-aware (FOL-74, core startup.ts#startupBreakdown, as the Observe
+ * page): a search or browser pod that booted beside the step pod reads as
+ * its own lane — "services 8.00s alongside the pod" — the pod's phases keep
+ * their own shares, and `go` says how long it was held for the services.
  */
 export function stepStartup(step: Pick<StepRecord, "startup">): StepImageView | null {
   const ph = step.startup;
-  if (!ph) return null;
-  const seen = STARTUP_ORDER.filter((p) => typeof ph[p] === "number");
-  if (!seen.length) return null;
-  const end = ph.model ?? Math.max(...seen.map((p) => ph[p]!));
-  let prev = 0;
-  const parts = seen.map((p) => {
-    const at = ph[p]!;
-    const took = Math.max(0, at - prev);
-    prev = Math.max(prev, at);
-    return `${p} +${took.toFixed(2)}s`;
-  });
+  const spans = startupBreakdown(ph);
+  if (!ph || !spans.length) return null;
+  const end = ph.model ?? Math.max(...spans.map((x) => x.at));
+  const parts = spans.map((x) =>
+    x.parallel
+      ? `${x.phase} ${x.took.toFixed(2)}s alongside the pod`
+      : `${x.phase} +${x.took.toFixed(2)}s${x.waited > 0 ? ` (held ${x.waited.toFixed(2)}s for services)` : ""}`,
+  );
   return {
     label: `start-up ${end.toFixed(1)}s`,
     title: `${ph.model != null ? "until the model's first word" : "start-up so far"}: ${parts.join(" · ")}`,
