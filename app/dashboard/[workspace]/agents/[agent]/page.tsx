@@ -21,6 +21,8 @@ import path from "node:path";
 import { configMatter } from "@/lib/matter";
 import { readNetwork, TRUSTED_SITES } from "@/lib/network";
 import { AgentNetwork } from "./agent-network";
+import { browseVerdict } from "@/lib/browse-egress";
+import { confinesBrowsing } from "@/platform/browse-confine";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +69,18 @@ export default async function AgentPage({
   // The agent's network: what its file says, and what a run resolves it to.
   const agentFile = path.join(workspaceDir(tenant, workspace), "agents", agent, "agent.md");
   const ownNetwork = readNetwork(configMatter(fs.readFileSync(agentFile, "utf8")).data.network).setting;
+  // Whether a browsing step of this agent is held to that list here (FOL-110
+  // phase 3): the folder's half from listAgents, the install's switches from
+  // this server's environment — the same rule the runner applies per step.
+  const n = info.network;
+  const browse = n.browses
+    ? browseVerdict({
+        level: n.level,
+        enforce: n.enforceWanted || process.env.FOLDRUN_NETWORK_ENFORCE === "1",
+        vendor: n.browseVendor,
+        confines: confinesBrowsing(process.env.FOLDRUN_RUN_ISOLATION ?? ""),
+      }).kind
+    : null;
   const spend = steps.reduce((sum, s) => sum + (s.costUsd ?? 0), 0);
   const failed = steps.filter((s) => s.stepStatus === "failed").length;
 
@@ -141,6 +155,7 @@ export default async function AgentPage({
         agent={agent}
         own={ownNetwork}
         resolved={info.network}
+        browse={browse}
         trustedCount={TRUSTED_SITES.length}
         // The agent PATCH refuses a viewer's write; the page does not guess the role.
         editable
