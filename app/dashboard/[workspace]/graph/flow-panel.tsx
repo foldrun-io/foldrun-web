@@ -5,7 +5,11 @@
 // above) and ? (optional), then save — the flow's markdown is regenerated.
 
 import { useState } from "react";
-import { Badge, buttonClass, inputClass, selectClass, dashedButtonClass } from "@/components/ui";
+import { GripVertical, Plus, X } from "lucide-react";
+import { Button } from "@/components/kit/button";
+import { Input, inputBase } from "@/components/kit/input";
+import { Chip } from "@/components/kit/page";
+import { cn } from "@/components/kit/cn";
 import type { FlowInfo, FlowStep } from "@/lib/store";
 
 interface EditableStep {
@@ -36,31 +40,32 @@ function toMarkdown(flow: FlowInfo, steps: EditableStep[]): string {
   return `---\n${front.join("\n")}\n---\n\n${lines.join("\n")}\n`;
 }
 
+const selectBase = cn(inputBase, "h-8 py-1 pr-7 text-[13px]");
+
 export function FlowPanel({
   workspace,
   tenant,
   flows,
   agents,
   onSaved,
+  initial,
 }: {
   workspace: string;
   tenant: string;
   flows: FlowInfo[];
   agents: string[];
   onSaved: () => void;
+  /** The flow to open on; the first one when absent. */
+  initial?: string;
 }) {
-  const [flowName, setFlowName] = useState(flows[0]?.name ?? "");
+  const [flowName, setFlowName] = useState(() => (initial && flows.some((f) => f.name === initial) ? initial : flows[0]?.name ?? ""));
   const flow = flows.find((f) => f.name === flowName) ?? flows[0];
   const [steps, setSteps] = useState<EditableStep[]>(() => toEditable(flow?.steps ?? []));
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
   if (!flow) {
-    return (
-      <div className="rounded-xl border border-line bg-surface/95 p-4 text-sm text-fg-muted shadow-lg backdrop-blur">
-        No flows in this workspace yet.
-      </div>
-    );
+    return <p className="text-sm text-fg-muted">No flows in this workspace yet.</p>;
   }
 
   const switchFlow = (name: string) => {
@@ -98,21 +103,19 @@ export function FlowPanel({
 
   // Group numbers as the file will have them — shown so the panel and the
   // markdown never disagree.
-  let group = 0;
-  const groupOf = steps.map((s) => {
-    if (!s.parallelWithPrev) group += 1;
-    return group;
-  });
+  const groupOf = steps.reduce<number[]>((acc, s, i) => [...acc, (acc[i - 1] ?? 0) + (s.parallelWithPrev ? 0 : 1)], []);
+
+  const toggle = (on: boolean, tone: "good" | "warn") =>
+    cn(
+      "flex size-7 shrink-0 items-center justify-center rounded-md text-[13px] transition-colors",
+      on ? (tone === "good" ? "bg-success-soft font-semibold text-success" : "bg-warning-soft font-semibold text-warning") : "text-fg-subtle hover:bg-muted hover:text-fg",
+    );
 
   return (
-    <div className="rounded-xl border border-line bg-surface/95 p-4 shadow-lg backdrop-blur">
-      <div className="mb-3 flex items-center justify-between gap-2">
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
         {flows.length > 1 ? (
-          <select
-            value={flowName}
-            onChange={(e) => switchFlow(e.target.value)}
-            className={selectClass("min-w-0 flex-1 truncate font-mono font-semibold")}
-          >
+          <select value={flowName} onChange={(e) => switchFlow(e.target.value)} aria-label="Flow" className={cn(selectBase, "h-9 min-w-0 flex-1 font-medium")}>
             {flows.map((f) => (
               <option key={f.name} value={f.name}>
                 {f.name}
@@ -120,14 +123,12 @@ export function FlowPanel({
             ))}
           </select>
         ) : (
-          <span className="truncate font-mono text-sm font-semibold text-fg">{flow.name}</span>
+          <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg">{flow.name}</span>
         )}
-        <div className="flex shrink-0 items-center gap-2">
-          {status && <Badge variant={status === "save failed" ? "error" : "success"}>{status}</Badge>}
-          <button onClick={save} className={buttonClass("primary")}>
-            Save
-          </button>
-        </div>
+        {status && <Chip tone={status === "save failed" ? "bad" : status === "saved" ? "good" : "default"}>{status}</Chip>}
+        <Button variant="primary" size="md" onClick={save}>
+          Save
+        </Button>
       </div>
 
       <ul className="space-y-1.5">
@@ -141,76 +142,81 @@ export function FlowPanel({
               if (dragIndex !== null) move(dragIndex, i);
               setDragIndex(null);
             }}
-            className="flex items-center gap-1.5 rounded-md border border-line bg-sunken px-2 py-1.5"
+            className="space-y-1.5 rounded-md border border-line bg-sunken p-2"
           >
-            <span className="cursor-grab select-none text-fg-subtle" title="drag to reorder">
-              ⠿
-            </span>
-            <span className="w-4 shrink-0 text-center font-mono text-[10px] text-fg-subtle">
-              {groupOf[i]}
-            </span>
-            <select
-              value={s.agent}
-              onChange={(e) => update(i, { agent: e.target.value })}
-              className={selectClass("shrink-0 font-mono")}
-            >
-              {agents.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </select>
-            <input
+            <div className="flex items-center gap-1">
+              <span className="cursor-grab text-fg-subtle" title="drag to reorder">
+                <GripVertical className="size-4" aria-hidden />
+              </span>
+              <span className="w-5 shrink-0 text-center text-xs tabular-nums text-fg-muted">{groupOf[i]}</span>
+              <select value={s.agent} onChange={(e) => update(i, { agent: e.target.value })} aria-label={`Agent for step ${i + 1}`} className={cn(selectBase, "min-w-0 flex-1")}>
+                {agents.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+              {i > 0 && (
+                <button
+                  type="button"
+                  title="run in parallel with the step above"
+                  aria-pressed={s.parallelWithPrev}
+                  onClick={() => update(i, { parallelWithPrev: !s.parallelWithPrev })}
+                  className={toggle(s.parallelWithPrev, "good")}
+                >
+                  ∥
+                </button>
+              )}
+              <button
+                type="button"
+                title="optional — failure won't fail the flow"
+                aria-pressed={s.optional}
+                onClick={() => update(i, { optional: !s.optional })}
+                className={toggle(s.optional, "warn")}
+              >
+                ?
+              </button>
+              <button
+                type="button"
+                title="remove step"
+                aria-label="Remove step"
+                onClick={() =>
+                  setSteps(
+                    steps
+                      .filter((_, j) => j !== i)
+                      .map((x, j) => (j === 0 ? { ...x, parallelWithPrev: false } : x)),
+                  )
+                }
+                className="flex size-7 shrink-0 items-center justify-center rounded-md text-fg-subtle transition-colors hover:bg-danger-soft hover:text-danger"
+              >
+                <X className="size-4" aria-hidden />
+              </button>
+            </div>
+            <Input
               value={s.instruction}
               onChange={(e) => update(i, { instruction: e.target.value })}
               placeholder="instruction"
-              className={inputClass("min-w-0")}
+              aria-label={`Instruction for step ${i + 1}`}
+              className="h-8 text-[13px]"
             />
-            {i > 0 && (
-              <button
-                title="run in parallel with the step above"
-                onClick={() => update(i, { parallelWithPrev: !s.parallelWithPrev })}
-                className={`px-1 text-xs ${s.parallelWithPrev ? "font-bold text-emerald-600" : "text-gray-300 hover:text-fg-muted"}`}
-              >
-                ∥
-              </button>
-            )}
-            <button
-              title="optional — failure won't fail the flow"
-              onClick={() => update(i, { optional: !s.optional })}
-              className={`px-1 text-xs ${s.optional ? "font-bold text-amber-600" : "text-gray-300 hover:text-fg-muted"}`}
-            >
-              ?
-            </button>
-            <button
-              title="remove step"
-              onClick={() =>
-                setSteps(
-                  steps
-                    .filter((_, j) => j !== i)
-                    .map((x, j) => (j === 0 ? { ...x, parallelWithPrev: false } : x)),
-                )
-              }
-              className="px-1 text-xs text-gray-300 hover:text-red-600"
-            >
-              ✕
-            </button>
           </li>
         ))}
       </ul>
 
-      <button
+      <Button
+        variant="secondary"
+        className="w-full border-dashed"
         onClick={() =>
           setSteps([
             ...steps,
             { agent: agents[0] ?? "", instruction: "", parallelWithPrev: false, optional: false },
           ])
         }
-        className={dashedButtonClass("mt-2")}
       >
-        + Add step
-      </button>
-      <p className="mt-2 text-[10px] leading-relaxed text-fg-subtle">
+        <Plus aria-hidden />
+        Add step
+      </Button>
+      <p className="text-xs leading-relaxed text-fg-muted">
         Steps sharing a number run in parallel · ∥ joins the step above · ? makes it optional
       </p>
     </div>

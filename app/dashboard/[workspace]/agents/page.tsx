@@ -2,20 +2,19 @@
 // scanning the Overview list, which put them below memory files in the
 // navigation. A workspace is made of agents; they get their own page.
 
-import Link from "next/link";
-import { WorkspaceHeader } from "@/components/workspace-header";
 import fs from "node:fs";
 import { notFound } from "next/navigation";
 import { workspaceDir, listFlows, agentAssets } from "@/lib/store";
 import { agentsWithActivity, staleDaysOf } from "@/server/agent-activity";
 import { fmtAgo, nowMs } from "@/components/overview-model";
 import { CreateButton } from "@/components/create";
-import { ListSearch } from "@/components/list-search";
-import { Badge, Card, EmptyScreen, PageHeader } from "@/components/ui";
 import { Email } from "@/components/email";
-import { AgentRow } from "./agent-row";
 import { ImportAgentButton } from "./import-agent";
 import { ImportPackageButton } from "@/components/package-buttons";
+import { RunButton } from "../../run-button";
+import { BookOpen, Bot, User, Workflow, Wrench } from "lucide-react";
+import { Page, PageHeader, ResourceCard, EmptyState, Tag, Chip } from "@/components/kit/page";
+import { ResourceList, type Row } from "@/components/kit/list";
 
 export const dynamic = "force-dynamic";
 
@@ -48,121 +47,86 @@ export default async function AgentsPage({
     }
   }
 
-  return (
-    <main className="mx-auto max-w-7xl px-6 py-8">
-      <WorkspaceHeader workspace={workspace} qs={qs} />
+  const rows: Row[] = agents.map((a) => {
+    const assets = agentAssets(tenant, workspace, a.name);
+    const callers = usedBy.get(a.name) ?? [];
+    const href = `/dashboard/${workspace}/agents/${encodeURIComponent(a.name)}${qs}`;
+    const ran = a.lastRunAt ? `ran ${fmtAgo(now - Date.parse(a.lastRunAt))}` : "never ran";
+    const tools = a.tools.length ? a.tools.join(", ") : "no tools";
+    return {
+      key: a.name,
+      search: [a.name, a.description, a.owner ?? "", a.model, ...a.tools, ...callers].join(" "),
+      href,
+      icon: <Bot />,
+      name: a.name,
+      sub: a.description || "No description",
+      cells: {
+        model: <Tag mono>{a.model}</Tag>,
+        tools: <span title={tools}>{tools}</span>,
+        flows: callers.length ? callers.join(", ") : <span className="text-fg-subtle">no flow</span>,
+        last: a.stale ? <Chip tone="warn">not run in {staleDays}+ days</Chip> : <span title={a.lastRunAt ?? undefined}>{ran}</span>,
+      },
+      action: <RunButton endpoint={`/api/workspaces/${workspace}/agents/${a.name}/run`} tenant={tenant} label="Run" withTask={false} />,
+      card: (
+        <ResourceCard
+          href={href}
+          icon={<Bot />}
+          name={a.name}
+          sub={a.model}
+          status={a.stale ? "idle" : a.lastRunAt ? "live" : "idle"}
+          statusLabel={ran}
+          lines={[
+            <span key="d" className="truncate">{a.description || "No description"}</span>,
+            <><Wrench /><span className="truncate">{tools}</span></>,
+            <><Workflow /><span className="truncate">{callers.length ? `in ${callers.join(", ")}` : "in no flow"}</span></>,
+            ...(assets.skills.length || assets.memory.length ? [<><BookOpen /><span className="truncate">{assets.skills.length} own skills · {assets.memory.length} memory</span></>] : []),
+            ...(a.owner ? [<><User /><span className="truncate"><Email value={a.owner} /></span></>] : []),
+          ]}
+        />
+      ),
+    };
+  });
 
+  return (
+    <Page>
       <PageHeader
         title="Agents"
-        subtitle="One folder, one agent.md. Its frontmatter is the whole contract: model, granted tools, secrets."
-      >
-        <div className="flex items-center gap-2">
-          <ImportAgentButton tenant={tenant} workspace={workspace} />
-          <ImportPackageButton tenant={tenant} workspace={workspace} />
-          <CreateButton kind="agents" tenant={tenant} workspace={workspace} />
-        </div>
-      </PageHeader>
-
-      {agents.length === 0 ? (
-        <EmptyScreen
-          icon={
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="8" width="18" height="12" rx="3" />
-              <path d="M12 8V4M8 14h.01M16 14h.01" />
-            </svg>
-          }
-          title="No agents in this workspace yet"
-          description="An agent is a folder under agents/ with an agent.md inside. Bring in one you already have from another workspace, create a new one, or push it with the CLI."
-        >
-          <ImportAgentButton tenant={tenant} workspace={workspace} color="primary" />
-        </EmptyScreen>
-      ) : (
-        <>
-        <ListSearch listId="agents-list" placeholder="Search agents…" total={agents.length} noun="agents" />
-        <Card>
-          <ul id="agents-list" className="divide-y divide-line-faint">
-            {agents.map((a) => {
-              const assets = agentAssets(tenant, workspace, a.name);
-              const callers = usedBy.get(a.name) ?? [];
-              return (
-                <AgentRow
-                  key={a.name}
-                  search={[a.name, a.description, a.owner ?? "", a.model, ...a.tools].join(" ")}
-                  workspace={workspace}
-                  tenant={tenant}
-                  name={a.name}
-                  description={a.description}
-                  badges={
-                    <>
-                      <Badge variant="info">{a.model}</Badge>
-                      {a.stale && <Badge variant="warning">not run in {staleDays}+ days</Badge>}
-                      {a.tools.length > 0 ? (
-                        a.tools.map((t) => <Badge key={t}>{t}</Badge>)
-                      ) : (
-                        <Badge>no tools</Badge>
-                      )}
-                      {a.apis.map((api) => (
-                        <Badge key={api.name} variant="info">{api.name}</Badge>
-                      ))}
-                      {a.legacyUse.map((t) => (
-                        <Badge key={t} variant="warning">use: {t} — not granted</Badge>
-                      ))}
-                      {a.secrets.map((s) => (
-                        <Badge key={s} variant="warning">{s}</Badge>
-                      ))}
-                    </>
-                  }
-                  footer={
-                    <span className="flex flex-wrap gap-x-4 gap-y-1">
-                      {/* Who answers for it — its own owner:, else the
-                          workspace's, else the account's. */}
-                      <span>
-                        <span className="text-fg-subtle">owner</span>{" "}
-                        {a.owner ? (
-                          <span className="font-medium text-fg-secondary" title={a.ownerFrom !== "agent" ? `from the ${a.ownerFrom}'s AGENTS.md` : undefined}>
-                            <Email value={a.owner} />
-                          </span>
-                        ) : (
-                          <span className="text-fg-subtle">none</span>
-                        )}
-                      </span>
-                      <span>
-                        <span className="text-fg-subtle">last run</span>{" "}
-                        {a.lastRunAt ? (
-                          <span title={a.lastRunAt}>{fmtAgo(now - Date.parse(a.lastRunAt))}</span>
-                        ) : (
-                          <span className="text-fg-subtle">never, in the runs kept</span>
-                        )}
-                      </span>
-                      <span><span className="text-fg-subtle">own skills</span> {assets.skills.length}</span>
-                      <span><span className="text-fg-subtle">own memory</span> {assets.memory.length}</span>
-                      <span className="truncate">
-                        <span className="text-fg-subtle">used by</span>{" "}
-                        {callers.length === 0 ? (
-                          <span className="text-fg-subtle">no flow</span>
-                        ) : (
-                          callers.map((f, i) => (
-                            <span key={f}>
-                              {i > 0 && ", "}
-                              <Link
-                                href={`/dashboard/${workspace}/flows${qs}`}
-                                className="font-medium text-fg-secondary hover:underline"
-                              >
-                                {f}
-                              </Link>
-                            </span>
-                          ))
-                        )}
-                      </span>
-                    </span>
-                  }
-                />
-              );
-            })}
-          </ul>
-        </Card>
-        </>
-      )}
-    </main>
+        description="One folder, one agent.md: its frontmatter is the whole contract — model, tools, secrets."
+        actions={
+          <>
+            <ImportAgentButton tenant={tenant} workspace={workspace} />
+            <ImportPackageButton tenant={tenant} workspace={workspace} label="Import .zip" />
+            <CreateButton kind="agents" tenant={tenant} workspace={workspace} />
+          </>
+        }
+      />
+      <ResourceList
+        id="agents"
+        search="Search agents…"
+        nameHeader="Agent"
+        columns={[
+          { key: "model", header: "Model", hide: "md" },
+          { key: "tools", header: "Tools", hide: "lg" },
+          { key: "flows", header: "Used by", hide: "lg" },
+          { key: "last", header: "Last run", hide: "sm" },
+        ]}
+        rows={rows}
+        empty={
+          <EmptyState
+            icon={<Bot />}
+            title="No agents in this workspace yet"
+            description="An agent is a folder under agents/ with an agent.md inside. Bring in one you already have from another workspace, create a new one, or push it with the CLI."
+            action={
+              <>
+                {/* Only Import here: the header's New agent is always on the page,
+                    and a second CreateButton would open a second dialog for
+                    ?create=agents. */}
+                <ImportAgentButton tenant={tenant} workspace={workspace} color="primary" />
+              </>
+            }
+          />
+        }
+      />
+    </Page>
   );
 }

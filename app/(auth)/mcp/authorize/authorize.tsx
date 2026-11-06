@@ -91,13 +91,13 @@ export function McpAuthorize() {
         {canWrite ? ", and — if you allow it — to start and stop runs, approve gates and answer agents" : ""}.
       </p>
 
-      <div className="mb-4 rounded-xl border border-line bg-surface p-3 text-sm">
+      <div className="mb-4 rounded-md border border-line bg-sunken p-3 text-sm">
         <p className="text-fg-secondary">
           Your answer goes to <span className="font-mono font-medium">{ask.redirectHost}</span>
           {ask.client.kind === "cimd" ? <> · described at <span className="font-mono">{new URL(ask.client.id).host}</span></> : null}
         </p>
         {ask.loopback && (
-          <p className="mt-1 text-xs text-amber-600">
+          <p className="mt-1 text-xs text-warning">
             That is an app on this computer. Approve only if you just started it yourself.
           </p>
         )}

@@ -4,7 +4,7 @@
 // records and file stores at render time; there is no second counter to
 // drift from the facts.
 
-import { PageHeader, Card, SectionHeading, StatCard } from "@/components/ui";
+import { Page, PageHeader, SectionTitle, StatGrid, Stat } from "@/components/kit/page";
 import { accountUsage, spendHistory, type UsageBucket, type SpendSeries } from "@/platform/usage";
 import { LocalTime } from "@/components/local-time";
 import { credits, usd, usdExact } from "@/components/money";
@@ -27,7 +27,7 @@ const fmtTokens = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)
 const fmtHit = (b: UsageBucket) => (b.cacheHitRate == null ? null : `${Math.round(b.cacheHitRate * 100)}%`);
 const fmtMins = (secs: number) => (secs >= 3600 ? `${(secs / 3600).toFixed(1)} h` : `${(secs / 60).toFixed(1)} min`);
 
-const dim = <span className="text-gray-300">—</span>;
+const dim = <span className="text-fg-subtle">—</span>;
 
 const BUCKET_COLUMNS = [
   { label: "\u00a0" },
@@ -90,7 +90,7 @@ function SpendTable({ title, rows, unit }: { title: string; rows: SpendSeries[];
           s.change === null ? (
             <span key="c" className="text-fg-subtle">—</span>
           ) : (
-            <span key="c" className={s.change > 0.15 ? "text-red-600" : s.change < -0.15 ? "text-emerald-700" : "text-fg-muted"}>
+            <span key="c" className={s.change > 0.15 ? "text-danger" : s.change < -0.15 ? "text-success" : "text-fg-muted"}>
               {s.change > 0 ? "+" : ""}
               {Math.round(s.change * 100)}%
             </span>
@@ -117,13 +117,12 @@ export default async function UsagePage({
   const history = await spendHistory(tenant, 56, { workspaces: scope });
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-8">
+    <Page className="pb-16">
       <PageHeader
         title={platform.edition() === "hosted" ? "Billing" : "Usage"}
-        subtitle={
+        description={
           <>
-            Everything this account has consumed, from the run records themselves. Generated{" "}
-            <LocalTime iso={u.generatedAt} />.
+            Everything this account has consumed, from the run records themselves. Generated <LocalTime iso={u.generatedAt} />.
           </>
         }
       />
@@ -137,49 +136,49 @@ export default async function UsagePage({
         </Banner>
       )}
 
-      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-8">
-        <StatCard label="Runs" value={u.totals.runs} />
-        <StatCard label="Tokens in / out" value={`${fmtTokens(u.totals.inputTokens)} / ${fmtTokens(u.totals.outputTokens)}`} />
-        <StatCard label="Cache hit rate" value={fmtHit(u.totals) ?? "—"} />
-        <StatCard label="Sandbox time" value={fmtMins(u.totals.computeSecs)} />
-        <StatCard label="Models" value={credits(u.totals.modelUsd)} />
-        <StatCard label="Platform" value={credits(u.totals.platformUsd)} />
-        <StatCard label="Storage" value={fmtBytes(u.totals.storageBytes)} />
+      <StatGrid className="mb-10 md:grid-cols-4 xl:grid-cols-4">
+        <Stat label="Runs" value={u.totals.runs} />
+        <Stat label="Tokens in / out" value={`${fmtTokens(u.totals.inputTokens)} / ${fmtTokens(u.totals.outputTokens)}`} />
+        <Stat label="Cache hit rate" value={fmtHit(u.totals) ?? "—"} />
+        <Stat label="Sandbox time" value={fmtMins(u.totals.computeSecs)} />
+        <Stat label="Models" value={credits(u.totals.modelUsd)} />
+        <Stat label="Platform" value={credits(u.totals.platformUsd)} />
+        <Stat label="Storage" value={fmtBytes(u.totals.storageBytes)} />
         {/* The wallet is the whole account's: not shown to a member limited
             to some workspaces (ledger: null, 30 Oct 2026). */}
-        <StatCard label="Credit balance" value={u.ledger ? credits(u.ledger.balanceUsd) : "—"} />
-      </div>
+        <Stat label="Credit balance" value={u.ledger ? credits(u.ledger.balanceUsd) : "—"} />
+      </StatGrid>
 
       {/* What each desk and each agent costs, and whether that is moving.
           The question this page previously could not answer: not "what did
           we spend" but "which of these is worth keeping". */}
       {history.totalUsd > 0 && (
-        <section className="mb-8">
-          <SectionHeading>
-            What it costs, by {history.bucket}
-            <span className="ml-2 font-normal normal-case text-fg-subtle">
-              charged spend from the ledger, last {history.periods.length} {history.bucket}
-              {history.periods.length === 1 ? "" : "s"}
-              {history.unattributedUsd > 0
-                ? ` · ${usd(history.unattributedUsd)} from before charges recorded which flow they were`
-                : ""}
-            </span>
-          </SectionHeading>
+        <section className="mb-10">
+          <SectionTitle
+            title={`What it costs, by ${history.bucket}`}
+            description={
+              <>
+                Charged spend from the ledger, last {history.periods.length} {history.bucket}
+                {history.periods.length === 1 ? "" : "s"}
+                {history.unattributedUsd > 0 ? ` · ${usd(history.unattributedUsd)} from before charges recorded which flow they were` : ""}
+              </>
+            }
+          />
           {(history.modelUsd > 0 || history.platformUsd > 0) && (
-            <Card className="mb-4 p-5">
-              <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">Where the money went, this window</p>
+            <div className="mb-4 rounded-lg border border-line bg-surface p-5">
+              <p className="text-sm font-medium text-fg">Where the money went, this window</p>
               <div className="mt-3 flex h-3 w-full overflow-hidden rounded-full bg-muted" role="img" aria-label="models against platform">
-                <span className="bg-gray-800" style={{ width: `${(history.modelUsd / Math.max(0.000001, history.modelUsd + history.platformUsd)) * 100}%` }} />
-                <span className="bg-emerald-500" style={{ width: `${(history.platformUsd / Math.max(0.000001, history.modelUsd + history.platformUsd)) * 100}%` }} />
+                <span className="bg-fg" style={{ width: `${(history.modelUsd / Math.max(0.000001, history.modelUsd + history.platformUsd)) * 100}%` }} />
+                <span className="bg-success" style={{ width: `${(history.platformUsd / Math.max(0.000001, history.modelUsd + history.platformUsd)) * 100}%` }} />
               </div>
-              <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-1 text-xs">
+              <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-1 text-sm">
                 <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-gray-800" aria-hidden />
+                  <span className="size-2 rounded-full bg-fg" aria-hidden />
                   <dt className="text-fg-muted">Models</dt>
                   <dd className="tabular-nums font-medium text-fg">{credits(history.modelUsd)}</dd>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+                  <span className="size-2 rounded-full bg-success" aria-hidden />
                   <dt className="text-fg-muted">Platform</dt>
                   <dd className="tabular-nums font-medium text-fg">{credits(history.platformUsd)}</dd>
                 </div>
@@ -190,7 +189,7 @@ export default async function UsagePage({
                   </div>
                 )}
               </dl>
-            </Card>
+            </div>
           )}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <SpendTable title="By flow" rows={history.byFlow} unit="Flow" />
@@ -200,10 +199,7 @@ export default async function UsagePage({
       )}
 
       {u.workspaces.length > 1 && (
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <SectionHeading>By workspace</SectionHeading>
-          <CollapseAll scope="usage" />
-        </div>
+        <SectionTitle title="By workspace" description="Each workspace, with its flows and agents broken out." actions={<CollapseAll scope="usage" />} />
       )}
       <div className="mb-8 space-y-3">
       {u.workspaces.map((ws) => (
@@ -222,7 +218,7 @@ export default async function UsagePage({
               {fmtBytes(ws.storage.filesBytes)} · run history {fmtBytes(ws.storage.runsBytes)}
             </span>
           }
-          bodyClassName="border-t border-line-faint p-3"
+          bodyClassName="border-t border-line p-3"
         >
           <DataTable
             columns={BUCKET_COLUMNS}
@@ -256,10 +252,10 @@ export default async function UsagePage({
       ))}
       </div>
 
-      <p className="mt-2 text-xs text-fg-subtle">
-<strong>Models</strong> is what the model calls list at — the provider&apos;s price with the
+      <p className="max-w-3xl px-1 text-sm leading-relaxed text-fg-muted">
+        <strong className="font-medium text-fg">Models</strong> is what the model calls list at — the provider&apos;s price with the
         platform&apos;s margin. On your own model key it is zero: those tokens are billed to your
-        provider account, never through us. <strong>Platform</strong> is everything underneath —
+        provider account, never through us. <strong className="font-medium text-fg">Platform</strong> is everything underneath —
         the sandbox each step reserved and the network it moved. Hover either for the dollars and
         the reservations behind it.
         <br />
@@ -269,6 +265,6 @@ export default async function UsagePage({
         whole runs; agent rows attribute each step to the agent that ran it, so the two views sum
         to the same totals by different cuts.
       </p>
-    </main>
+    </Page>
   );
 }

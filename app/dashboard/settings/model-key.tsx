@@ -9,7 +9,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, Card, buttonClass } from "@/components/ui";
+import { Badge, buttonClass } from "@/components/ui";
+import { SettingsCard } from "@/components/kit/page";
 import type { AccountModel } from "@/server/account-model";
 import type { FoldrunModelsView } from "@/platform/model-choice";
 
@@ -93,10 +94,15 @@ export function ModelKey({
         : { label: "No key", variant: "error" as const, text: "Runs on this account are refused until you add an API key." };
 
   return (
-    <Card className="p-4">
-      <div className="flex flex-wrap items-baseline gap-2">
+    <SettingsCard
+      id="model-key"
+      title="Model key"
+      description="What every step on this account runs on."
+      hint={error ? <span role="alert" className="text-danger">{error}</span> : <>An agent, workspace or AGENTS.md may name its own <code className="font-mono text-xs">provider:</code>.</>}
+    >
+      <div className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-sunken px-3 py-2">
         <Badge variant={status.variant}>{status.label}</Badge>
-        <span className="font-mono text-xs text-fg-muted">{status.text}</span>
+        <span className="min-w-0 break-all font-mono text-xs text-fg-muted">{status.text}</span>
       </div>
       {fm.offered && (
         <div className="mt-3 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="What this account runs on">
@@ -112,11 +118,11 @@ export function ModelKey({
               role="radio"
               aria-checked={mode === o.id}
               onClick={() => setMode(o.id)}
-              className={`rounded border p-3 text-left ${mode === o.id ? "border-accent bg-accent-soft" : "border-line bg-surface hover:bg-muted"}`}
+              className={`rounded-lg border p-3 text-left transition-colors ${mode === o.id ? "border-fg bg-sunken" : "border-line bg-surface hover:border-line-strong"}`}
             >
               <span className="block text-sm font-medium text-fg">
                 {o.title}
-                {(o.id === "foldrun" ? model.runsOn === "foldrun" : model.runsOn === "account") && <span className="ml-2 text-xs font-normal text-fg-subtle">in use</span>}
+                {(o.id === "foldrun" ? model.runsOn === "foldrun" : model.runsOn === "account") && <span className="ml-2 text-xs font-normal text-success">in use</span>}
               </span>
               <span className="mt-0.5 block text-xs text-fg-muted">{o.text}</span>
             </button>
@@ -135,7 +141,7 @@ export function ModelKey({
         />
       ) : (
         <>
-          <p className="mt-3 text-sm text-fg-tertiary">
+          <p className="mt-4 text-sm text-fg-muted">
             Every step runs on this key unless an agent, workspace or the account&apos;s AGENTS.md names its own <code className="font-mono text-xs">provider:</code>.
             Use an <strong>API key</strong> from your provider; Claude login tokens are not accepted.
           </p>
@@ -147,29 +153,29 @@ export function ModelKey({
               void send("PUT");
             }}
           >
-            <label className="grid gap-1 text-xs text-fg-secondary">
+            <label className="grid gap-1.5 text-sm font-medium text-fg">
               Provider
-              <select className="rounded border border-line bg-surface px-2 py-1.5 text-sm text-fg" value={provider} onChange={(e) => setProvider(e.target.value)}>
+              <select className="h-9 rounded-md border border-line bg-surface px-3 py-1.5 font-normal text-sm text-fg" value={provider} onChange={(e) => setProvider(e.target.value)}>
                 {presets.map((p) => (
                   <option key={p.name} value={p.name}>{p.title}</option>
                 ))}
                 <option value="custom">Custom endpoint…</option>
               </select>
             </label>
-            <label className="grid gap-1 text-xs text-fg-secondary">
+            <label className="grid gap-1.5 text-sm font-medium text-fg">
               API key
-              <input type="password" autoComplete="off" required className="rounded border border-line bg-surface px-2 py-1.5 font-mono text-sm text-fg" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={model.set ? "replace the current key" : "paste your API key"} />
+              <input type="password" autoComplete="off" required className="h-9 rounded-md border border-line bg-surface px-3 py-1.5 font-normal font-mono text-sm text-fg" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={model.set ? "replace the current key" : "paste your API key"} />
             </label>
             {showBaseUrl && (
-              <label className="grid gap-1 text-xs text-fg-secondary sm:col-span-2">
+              <label className="grid gap-1.5 text-sm font-medium text-fg sm:col-span-2">
                 Base URL
-                <input type="url" required className="rounded border border-line bg-surface px-2 py-1.5 font-mono text-sm text-fg" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://…" />
+                <input type="url" required className="h-9 rounded-md border border-line bg-surface px-3 py-1.5 font-normal font-mono text-sm text-fg" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://…" />
               </label>
             )}
             {custom && (
-              <label className="grid gap-1 text-xs text-fg-secondary">
+              <label className="grid gap-1.5 text-sm font-medium text-fg">
                 Format
-                <select className="rounded border border-line bg-surface px-2 py-1.5 text-sm text-fg" value={format} onChange={(e) => setFormat(e.target.value)}>
+                <select className="h-9 rounded-md border border-line bg-surface px-3 py-1.5 font-normal text-sm text-fg" value={format} onChange={(e) => setFormat(e.target.value)}>
                   <option value="anthropic">Anthropic Messages</option>
                   <option value="openai">OpenAI Chat Completions</option>
                 </select>
@@ -190,8 +196,7 @@ export function ModelKey({
           )}
         </>
       )}
-      {error && <p className="mt-2 text-sm text-danger">{error}</p>}
-    </Card>
+    </SettingsCard>
   );
 }
 
@@ -220,9 +225,9 @@ function FoldrunPanel({
   return (
     <div className="mt-3 grid min-w-0 gap-3">
       {fm.refused && <p className="text-sm text-danger">{fm.refused}</p>}
-      <label className="grid gap-1 text-xs text-fg-secondary sm:w-64">
+      <label className="grid gap-1.5 text-sm font-medium text-fg sm:w-64">
         Provider
-        <select className="rounded border border-line bg-surface px-2 py-1.5 text-sm text-fg" value={supply} onChange={(e) => setSupply(e.target.value)}>
+        <select className="h-9 rounded-md border border-line bg-surface px-3 py-1.5 font-normal text-sm text-fg" value={supply} onChange={(e) => setSupply(e.target.value)}>
           {fm.providers.map((x) => (
             <option key={x.name} value={x.name} disabled={!x.available}>
               {x.title}

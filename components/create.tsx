@@ -26,8 +26,8 @@
 // above it. It uses CreateForm directly. That is the split doing its job:
 // sharing the interaction without claiming a workspace is a kind of document.
 
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { buttonClass, inputClass, selectClass, FIELD_LABEL_CLASS } from "@/components/ui";
 import { KINDS, type Kind } from "@/lib/kinds";
@@ -142,10 +142,21 @@ export function CreateForm({
   // Adjusting state to a prop, the React way: during render, once, rather
   // than in an effect that would paint closed and then open.
   const [openedFor, setOpenedFor] = useState(false);
+  // The dialog is a portal into document.body, which exists only in the
+  // browser: a page loaded with ?create= opens it on the first client paint,
+  // not during the server render (that threw "document is not defined").
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   if (autoOpen && !openedFor) {
     setOpenedFor(true);
     setOpen(true);
   }
+  // Closing strips ?create=; the next "Create new" link puts it back on the
+  // same mounted page, so the latch resets once the param is gone.
+  if (!autoOpen && openedFor) setOpenedFor(false);
   const close = () => {
     setOpen(false);
     if (autoOpen) {
@@ -231,6 +242,7 @@ export function CreateForm({
       )}
 
       {open &&
+        mounted &&
         createPortal(
           // A portal to <body>: the trigger lives inside page headers whose
           // ancestors are free to clip or transform, and a fixed overlay
@@ -459,6 +471,8 @@ export function CreateButton({
   // Creating is a write. Hidden for a viewer: an "Add" that always refuses
   // is worse than none.
   const mayWrite = useCan("workspace:write");
+  // The top bar's "New" menu links here with ?create=<kind>: open at once.
+  const autoOpen = useSearchParams().get("create") === kind;
   const choices: Where[] =
     scopes ??
     (workspace && meta.scopes.includes("agent")
@@ -470,6 +484,7 @@ export function CreateButton({
   if (!mayWrite) return null;
   return (
     <CreateForm
+      autoOpen={autoOpen}
       noun={meta.one}
       hint={meta.hint}
       placeholder={meta.placeholder}

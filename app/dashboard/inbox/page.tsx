@@ -3,8 +3,10 @@
 // Three tabs that never mix: assigned to you, runs you started, and the rest
 // of what waits in your workspaces; a fourth for what you set aside.
 
-import Link from "next/link";
-import { PageHeader, EmptyScreen } from "@/components/ui";
+import { Inbox as InboxIcon, LogIn } from "lucide-react";
+import { Page, PageHeader, EmptyState } from "@/components/kit/page";
+import { PageTabs } from "@/components/kit/page-tabs";
+import { Segmented } from "@/components/kit/inspect-extra";
 import { viewerEmail, viewerRole, viewerScope } from "@/server/users";
 import { inboxFor, type InboxItem, type InboxKind } from "@/server/inbox";
 import { InboxList } from "@/components/inbox-list";
@@ -35,10 +37,10 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
 
   if (!person) {
     return (
-      <main className="mx-auto max-w-7xl px-6 py-8">
-        <PageHeader title="Inbox" subtitle="What is waiting on you, across your workspaces." />
-        <EmptyScreen title="Sign in to see your inbox" description="An inbox is a person's: what you approve, what you own, what you started. Nobody is signed in here." />
-      </main>
+      <Page>
+        <PageHeader title="Inbox" description="What is waiting on you, across your workspaces." />
+        <EmptyState icon={<LogIn />} title="Sign in to see your inbox" description="An inbox is a person's: what you approve, what you own, what you started. Nobody is signed in here." />
+      </Page>
     );
   }
 
@@ -57,31 +59,22 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
   const hint = TABS.find((t) => t.key === tab)!.hint;
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-8">
-      <PageHeader title="Inbox" subtitle="What is waiting on you, across your workspaces. An item leaves on its own when it is done where it lives — a gate decided, an issue resolved, a fix applied." />
-      <nav className="mb-2 flex flex-wrap gap-1 text-sm">
-        {TABS.map((t) => (
-          <Link key={t.key} href={href(t.key, kind)} className={`rounded-md px-3 py-1.5 ${t.key === tab ? "bg-muted font-medium text-fg" : "text-fg-muted hover:bg-sunken hover:text-fg"}`}>
-            {t.label} <span className="tabular-nums text-fg-subtle">{count(t.key)}</span>
-          </Link>
-        ))}
-      </nav>
-      <p className="mb-3 text-xs text-fg-muted">{hint}</p>
-      <nav className="mb-4 flex flex-wrap gap-1 text-xs">
-        <Link href={href(tab, null)} className={`rounded-full px-2.5 py-1 ${!kind ? "bg-fg text-paper" : "bg-sunken text-fg-muted hover:text-fg"}`}>All</Link>
-        {KINDS.map((k) => (
-          <Link key={k.key} href={href(tab, k.key)} className={`rounded-full px-2.5 py-1 ${kind === k.key ? "bg-fg text-paper" : "bg-sunken text-fg-muted hover:text-fg"}`}>
-            {k.label}
-          </Link>
-        ))}
-      </nav>
+    <Page>
+      <PageHeader title="Inbox" description="What is waiting on you, across your workspaces. An item leaves on its own once it is done where it lives." />
+      <PageTabs tabs={TABS.map((t) => ({ label: t.label, href: href(t.key, kind), badge: count(t.key), active: t.key === tab }))} className="mb-4" />
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <Segmented
+          label="Kind"
+          value={kind ?? "all"}
+          items={[{ key: "all", label: "All", href: href(tab, null) }, ...KINDS.map((k) => ({ key: k.key, label: k.label, href: href(tab, k.key) }))]}
+        />
+        <p className="text-[13px] text-fg-muted">{hint}</p>
+      </div>
       {items.length === 0 ? (
-        <p className="rounded-xl border border-line bg-surface px-4 py-8 text-center text-sm text-fg-muted">
-          {tab === "dismissed" ? "Nothing set aside." : "Nothing waiting here."}
-        </p>
+        <EmptyState icon={<InboxIcon />} title={tab === "dismissed" ? "Nothing set aside" : "Nothing waiting here"} description={tab === "dismissed" ? undefined : "You are all caught up."} />
       ) : (
         <InboxList items={items} tenant={tenant} dismissedView={tab === "dismissed"} />
       )}
-    </main>
+    </Page>
   );
 }

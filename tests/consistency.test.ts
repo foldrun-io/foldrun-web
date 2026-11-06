@@ -75,7 +75,7 @@ test("every account-level directory is a known account segment", () => {
     .filter((e) => e.isDirectory() && !e.name.startsWith("["))
     .map((e) => e.name);
 
-  const declared = new Set(listIn(read("components/sidebar.tsx"), "ACCOUNT_SEGMENTS"));
+  const declared = new Set(listIn(read("components/nav-model.ts"), "ACCOUNT_SEGMENTS"));
 
   for (const route of routes) {
     assert.ok(
@@ -105,7 +105,7 @@ test("the library cannot hold anything that executes", () => {
   }
 });
 
-test("noun order is the same in the library, the asset pages and the sidebar", () => {
+test("noun order is the same in the library, the asset pages and the navigation", async () => {
   // The assets page derives its list from KINDS rather than restating it, so
   // the order under test is the table's own.
   const page = read("app/dashboard/[workspace]/assets/page.tsx");
@@ -124,25 +124,21 @@ test("noun order is the same in the library, the asset pages and the sidebar", (
     "the account library lists the nouns in a different order than the asset pages",
   );
 
-  // The sidebar links each noun by ?kind=, so its order is readable from
-  // source. It navigates every kind except scripts: a script tool carries
-  // its own code inside its folder, so code is material a tool holds rather
-  // than a shelf anyone picks from. The directory still exists and still
-  // works — it just isn't a decision, so it isn't a door.
+  // The navigation (components/nav-model.ts, UI refactor Nov 2026) shows
+  // the nouns as tabs: the Library's tabs, and a workspace's Tools & hooks
+  // tabs followed by its Files tabs. It navigates every kind except scripts:
+  // a script tool carries its own code inside its folder, so code is
+  // material a tool holds rather than a shelf anyone picks from.
   const navigated = assetKinds.filter((k) => k !== "scripts");
-  const sidebar = read("components/sidebar.tsx");
-  // Knowledge, memory and skills open as a scoped file tree (?scope=), the
-  // rest as cards (?kind=); either way the noun is in the link. State is a
-  // scope with no cards, so it is not one of the asset nouns.
-  const navOrder = [...sidebar.matchAll(/(?:kind|scope)=([a-z]+)\$\{accountQuery\}/g)].map((m) => m[1]).filter((k) => k !== "state");
-  assert.ok(
-    !navOrder.includes("scripts"),
-    "scripts is not a shelf any more — a tool folder holds its own code",
-  );
+  const nav = await import("../components/nav-model.ts");
+  assert.ok(!(nav.NOUN_ORDER as readonly string[]).includes("scripts"), "scripts is not a shelf any more — a tool folder holds its own code");
+  assert.deepEqual([...nav.NOUN_ORDER], navigated, "the navigation's noun order differs from the asset pages");
+  const nouns = (tabs: { label: string }[]) => tabs.map((t) => t.label.toLowerCase()).filter((l) => (navigated as string[]).includes(l));
+  assert.deepEqual(nouns(nav.libraryTabs("default")), navigated, "the Library's tabs list the nouns in a different order");
   assert.deepEqual(
-    navOrder.slice(0, navigated.length),
+    [...nouns(nav.toolsTabs("w", "default")), ...nouns(nav.filesTabs("w", "default"))],
     navigated,
-    "the sidebar lists the nouns in a different order than the asset pages",
+    "a workspace's Tools & hooks and Files tabs list the nouns in a different order",
   );
 });
 
@@ -429,11 +425,14 @@ test("nothing asks for confirmation through the browser", () => {
   assert.deepEqual(offenders, [], "use useConfirm() from components/confirm.tsx");
 });
 
-test("every workspace subpage reaches up through WorkspaceHeader", () => {
+test("every workspace subpage draws the one page header", () => {
+  // UI refactor (Nov 2026): the way up is the sidebar's "All workspaces" and
+  // the bar's workspace switcher, so a page draws only its own title — the
+  // kit's PageHeader — never a hand-rolled header or a link to the old list.
   const subpages = ["agents", "flows", "runs", "evals", "assets", "storage", "settings"];
   for (const p of subpages) {
     const src = fs.readFileSync(path.join(WEB, `app/dashboard/[workspace]/${p}/page.tsx`), "utf8");
-    assert.ok(src.includes("WorkspaceHeader"), `${p} hand-rolls its header`);
+    assert.ok(src.includes("PageHeader"), `${p} hand-rolls its header`);
     assert.ok(!src.includes("← Workspaces"), `${p} still points at the account list`);
   }
 });

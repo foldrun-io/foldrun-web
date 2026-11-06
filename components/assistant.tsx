@@ -14,6 +14,7 @@
 // Opened by the button at the bottom right, or by any control that
 // dispatches `foldrun:assistant` with an optional `{ prompt }` to start from.
 
+import { Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Badge, buttonClass, inputClass } from "@/components/ui";
@@ -195,8 +196,9 @@ export function AssistantDock({ tenant }: { tenant: string }) {
           disabled={!mayWrite}
           title={mayWrite ? "Ask how foldrun works, or have agents, flows, tools and skills written" : needs("workspace:write")}
           onClick={() => setOpen(true)}
-          className={buttonClass("primary", "fixed bottom-6 right-6 z-30 px-4 py-2 text-sm shadow-lg disabled:opacity-60")}
+          className={buttonClass("primary", "fixed bottom-5 right-5 z-30 h-9 gap-1.5 rounded-full px-3.5 py-0 text-[13px] shadow-overlay disabled:opacity-60 max-md:bottom-20 max-md:right-4")}
         >
+          <Sparkles className="size-3.5" aria-hidden />
           Ask AI
         </button>
       )}

@@ -16,6 +16,8 @@ import { buttonClass, inputClass, Badge } from "@/components/ui";
 import { useConfirm } from "@/components/confirm";
 import { useCan, needs } from "@/components/role";
 import { foldDiff, lineDiff } from "@/components/flow-history-model";
+import { buttonVariants } from "@/components/kit/button";
+import { Sparkles } from "lucide-react";
 import { DiffView } from "@/components/flow-history";
 
 interface DraftFile {
@@ -61,8 +63,9 @@ export function FlowAiDraft({
         disabled={!mayWrite}
         title={mayWrite ? (flow ? `Describe a change and get a redrafted ${flow}` : "Describe a flow and get its markdown") : needs("workspace:write")}
         onClick={() => setOpen(true)}
-        className={buttonClass(variant, variant === "minimal" ? "px-2 py-1 text-xs" : "")}
+        className={variant === "minimal" ? buttonVariants({ variant: "ghost", size: "sm" }) : buttonClass(variant)}
       >
+        {variant === "minimal" && <Sparkles aria-hidden />}
         {label ?? (flow ? "Redraft with AI" : "Draft with AI")}
       </button>
       {open && <DraftDialog workspace={workspace} tenant={tenant} flow={flow} onClose={() => setOpen(false)} />}
@@ -160,7 +163,7 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
   return (
     <>
       <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-ink/30 p-4 sm:p-8" role="presentation">
-        <div role="dialog" aria-label={flow ? `Redraft ${flow} with AI` : "Draft a flow with AI"} className="w-full max-w-3xl rounded-xl border border-line bg-surface text-left shadow-xl">
+        <div role="dialog" aria-label={flow ? `Redraft ${flow} with AI` : "Draft a flow with AI"} className="w-full max-w-3xl rounded-lg border border-line bg-surface text-left shadow-menu">
           <header className="flex items-center gap-3 border-b border-line px-4 py-3">
             <div>
               <h2 className="text-sm font-semibold text-fg">{flow ? `Redraft ${flow} with AI` : "Draft a flow with AI"}</h2>
@@ -173,7 +176,7 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
 
           <div className="space-y-3 px-4 py-3">
             <div>
-              <label htmlFor="draft-description" className="block text-[10px] font-medium uppercase tracking-wide text-fg-subtle">
+              <label htmlFor="draft-description" className="block text-xs font-medium text-fg-muted">
                 {flow ? "What should change" : "What should the flow do"}
               </label>
               <textarea
@@ -205,7 +208,7 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
             </div>
 
             {error && (
-              <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+              <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-xs text-danger">
                 {error}
               </p>
             )}
@@ -233,7 +236,7 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
                     {draft.issues.map((i, k) => (
                       <li
                         key={k}
-                        className={`rounded-md border px-2 py-1 text-xs ${i.level === "error" ? "border-red-200 bg-red-50 text-red-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}
+                        className={`rounded-md border px-2 py-1 text-xs ${i.level === "error" ? "border-danger-line bg-danger-soft text-danger" : "border-warning-line bg-warning-soft text-warning"}`}
                       >
                         <span className="font-mono">{i.where}</span> — {i.message}
                       </li>
@@ -243,7 +246,7 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
                 {draft.files.map((f) => (
                   <section key={f.path} className="overflow-hidden rounded-lg border border-line">
                     <header className="flex items-center gap-2 border-b border-line-faint bg-sunken px-3 py-1.5">
-                      <span className="font-mono text-xs text-gray-800">{f.path}</span>
+                      <span className="font-mono text-xs text-fg-secondary">{f.path}</span>
                       <Badge variant={f.before === null ? "success" : "warning"}>{f.before === null ? "new" : "changed"}</Badge>
                     </header>
                     <div className="max-h-80 overflow-auto">

@@ -11,7 +11,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Badge, buttonClass } from "@/components/ui";
+import { Button } from "@/components/kit/button";
+import { Chip } from "@/components/kit/page";
 import { useCan } from "@/components/role";
 import { SmartTextarea } from "@/components/smart-textarea";
 import { CodeEditor, isCodePath } from "@/components/code-editor";
@@ -37,7 +38,10 @@ export function InlineEditor({
   onDirtyChange,
   hideSibling = false,
   toolbarTarget = null,
+  bare = false,
 }: {
+  /** No rule and gap above it — the host already frames it (a drawer tab). */
+  bare?: boolean;
   /** Where the view switch, Save and status render when a host has a header
    *  for them — the editor shell. Null keeps them on the editor itself. */
   toolbarTarget?: HTMLElement | null;
@@ -253,7 +257,7 @@ export function InlineEditor({
     // `loadedPath !== path` is the just-switched, not-yet-loaded window — the
     // buffer still holds the previous file, which must not render as this one.
     return (
-      <div className="mt-3 border-t border-line-faint pt-3">
+      <div className={bare ? "" : "mt-3 border-t border-line-faint pt-3"}>
         <div
           className="flex items-center justify-center rounded-lg border border-line bg-sunken/60 text-xs text-fg-subtle"
           style={{ minHeight: `${(rows ?? 16) * 1.6 * 12.5 + 16}px` }}
@@ -277,7 +281,7 @@ export function InlineEditor({
         ? {
             label: "Read",
             node: (
-              <div className="rounded-lg border border-line bg-surface p-4 text-sm text-gray-800">
+              <div className="rounded-lg border border-line bg-surface p-4 text-sm text-fg-secondary">
                 <Frontmatter raw={content} />
                 <Markdown text={content.replace(/^---[\s\S]*?\n---\n?/, "")} />
               </div>
@@ -287,11 +291,11 @@ export function InlineEditor({
   const altNode = alt && "node" in alt ? alt.node : null;
 
   return (
-    <div className={toolbarTarget ? "pt-3" : "mt-3 border-t border-line-faint pt-3"}>
+    <div className={toolbarTarget ? "pt-3" : bare ? "" : "mt-3 border-t border-line-faint pt-3"}>
       {siblingHref && sibling && !hideSibling && (
         <p className="mb-2 text-xs text-fg-muted">
           {sibling.label === "tool.md" ? "The definition for this program: " : "The program this tool runs: "}
-          <a href={siblingHref} className="font-medium text-fg underline underline-offset-2 hover:text-black">
+          <a href={siblingHref} className="font-medium text-fg underline underline-offset-2 hover:text-fg-secondary">
             {sibling.label}
           </a>
         </p>
@@ -302,11 +306,11 @@ export function InlineEditor({
           beside it. In the shell the header carries all of this. */}
       {alt && !toolbarTarget && (
         <div className="mb-2 flex items-center justify-center gap-3">
-          <div className="inline-flex rounded-md border border-line bg-surface p-0.5">
+          <div className="inline-flex h-8 items-center rounded-md border border-line bg-sunken p-0.5">
             <button
               type="button"
               onClick={() => chooseView(false)}
-              className={`rounded px-2.5 py-0.5 text-xs font-medium transition-colors ${!showAlt ? "bg-ink text-on-ink shadow-sm" : "text-fg-muted hover:text-fg"}`}
+              className={`h-full rounded-sm px-2.5 text-xs font-medium transition-colors ${!showAlt ? "bg-surface text-fg shadow-[0_1px_2px_rgb(0_0_0/0.06)]" : "text-fg-muted hover:text-fg"}`}
             >
               Edit
             </button>
@@ -314,7 +318,7 @@ export function InlineEditor({
               type="button"
               onClick={() => altNode && chooseView(true)}
               disabled={!altNode}
-              className={`rounded px-2.5 py-0.5 text-xs font-medium transition-colors ${!altNode ? "cursor-not-allowed text-gray-300" : showAlt ? "bg-ink text-on-ink shadow-sm" : "text-fg-muted hover:text-fg"}`}
+              className={`h-full rounded-sm px-2.5 text-xs font-medium transition-colors ${!altNode ? "cursor-not-allowed text-fg-subtle opacity-60" : showAlt ? "bg-surface text-fg shadow-[0_1px_2px_rgb(0_0_0/0.06)]" : "text-fg-muted hover:text-fg"}`}
             >
               {alt.label}
             </button>
@@ -355,11 +359,11 @@ export function InlineEditor({
         const bar = (
           <div className={toolbarTarget ? "flex flex-wrap items-center gap-2" : "mt-2 flex flex-wrap items-center gap-2"}>
             {toolbarTarget && alt && (
-              <div className="inline-flex rounded-md border border-line bg-surface p-0.5">
+              <div className="inline-flex h-8 items-center rounded-md border border-line bg-sunken p-0.5">
                 <button
                   type="button"
                   onClick={() => chooseView(false)}
-                  className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${!showAlt ? "bg-ink text-on-ink shadow-sm" : "text-fg-muted hover:text-fg"}`}
+                  className={`h-full rounded-sm px-2.5 text-xs font-medium transition-colors ${!showAlt ? "bg-surface text-fg shadow-[0_1px_2px_rgb(0_0_0/0.06)]" : "text-fg-muted hover:text-fg"}`}
                 >
                   Edit
                 </button>
@@ -368,42 +372,45 @@ export function InlineEditor({
                   onClick={() => altNode && chooseView(true)}
                   disabled={!altNode}
                   title={!altNode && "why" in alt ? alt.why : undefined}
-                  className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${!altNode ? "cursor-not-allowed text-gray-300" : showAlt ? "bg-ink text-on-ink shadow-sm" : "text-fg-muted hover:text-fg"}`}
+                  className={`h-full rounded-sm px-2.5 text-xs font-medium transition-colors ${!altNode ? "cursor-not-allowed text-fg-subtle opacity-60" : showAlt ? "bg-surface text-fg shadow-[0_1px_2px_rgb(0_0_0/0.06)]" : "text-fg-muted hover:text-fg"}`}
                 >
                   {alt.label}
                 </button>
               </div>
             )}
-            <button
+            <Button
+              variant="primary"
+              size="sm"
               onClick={() => void save()}
               disabled={!dirty || !mayWrite}
               title={mayWrite ? "⌘S" : "Your role is viewer — saving needs editor or above"}
-              className={buttonClass("primary", toolbarTarget ? "!px-3 !py-1 !text-xs" : "")}
             >
               Save
-            </button>
-            {dirty && <Badge variant="warning">unsaved</Badge>}
-            {status && <Badge variant="success">{status}</Badge>}
-            {error && <Badge variant="error">{error}</Badge>}
+            </Button>
+            {dirty && <Chip tone="warn">unsaved</Chip>}
+            {status && <Chip tone="good">{status}</Chip>}
+            {error && <Chip tone="bad" className="max-w-full whitespace-normal">{error}</Chip>}
             {refused !== null && refused === `${path}\n${content}` && mayWrite && (
               <button
                 type="button"
                 onClick={() => void save(true)}
-                className="text-xs font-medium text-red-700 underline hover:text-red-900"
+                className="text-xs font-medium text-danger underline underline-offset-2 hover:opacity-80"
                 title="Save with the errors: the file goes live as it is, and runs that read it may fail"
               >
                 Save anyway
               </button>
             )}
             {workspace && !libraryKind && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setShowHistory((v) => !v)}
-                className={`text-xs font-medium ${showHistory ? "text-fg" : "text-fg-subtle hover:text-fg"}`}
+                aria-pressed={showHistory}
+                className={showHistory ? "bg-muted text-fg" : undefined}
                 title="Every saved version of this file, with diffs"
               >
                 History
-              </button>
+              </Button>
             )}
             {!toolbarTarget && <span className="ml-auto font-mono text-xs text-fg-subtle">{path}</span>}
           </div>

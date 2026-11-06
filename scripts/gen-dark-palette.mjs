@@ -42,15 +42,19 @@ const NEUTRALS = Object.keys(palette).filter((f) => Number(palette[f]["500"].mat
 const HUES = Object.keys(palette).filter((f) => !NEUTRALS.includes(f));
 
 // The dark card every tint is mixed into, and the grounds around it.
-const CARD_L = 20.5;
-const GROUND = { background: 16.5, paper: 17.5, "paper-deep": 15.5 };
+const CARD_L = 14.5;
+const GROUND = { background: 14.5, paper: 0, "paper-deep": 0 };
 // The dark ladder, lightness in %. 400 is the "subtle" text (light mode's
 // 400 on white is 2.5:1; this is better than that), 500 the muted text (AA).
-const LADDER = { 50: 23.5, 100: 26, 200: 31, 300: 37.5, 400: 60, 500: 70, 600: 77.5, 700: 84, 800: 89.5, 900: 93.5, 950: 96.5 };
+const LADDER = { 50: 18, 100: 21.5, 200: 26, 300: 34, 400: 58, 500: 71.5, 600: 78, 700: 85, 800: 90, 900: 94.5, 950: 97 };
 const TINT = { 50: 14, 100: 22, 200: 32, 300: 48 };
 const MIRROR = { 600: "400", 700: "300", 800: "200", 900: "100", 950: "50" };
 
+// gray is the dashboard's grey and is drawn pure neutral in both themes (the
+// light side re-points it to neutral in globals.css), the way Vercel's is.
+const PURE = new Set(["gray"]);
 const chromaHue = (fam) => {
+  if (PURE.has(fam)) return { c: 0, h: 0 };
   const [, , c, h] = palette[fam]["500"].match(/oklch\(([\d.]+)%\s+([\d.]+)\s+([\d.a-z]+)\)/);
   return { c: Math.min(Number(c), 0.02), h: h === "none" ? 0 : Number(h) };
 };

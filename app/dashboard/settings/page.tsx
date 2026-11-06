@@ -23,8 +23,12 @@ import { AvatarEditor } from "@/components/avatar";
 import { avatarUrl } from "@/platform/avatars";
 import { listWorkspaces, listFlows } from "@/lib/store";
 import { parseCron, cronMatches } from "@/platform/scheduler";
-import { Badge, Card, buttonClass } from "@/components/ui";
 import { SettingsShell, SettingsSection, StatusRow } from "@/components/settings-shell";
+import { SettingsCard, EmptyState, Chip, Tag } from "@/components/kit/page";
+import { buttonVariants } from "@/components/kit/button";
+import { CalendarClock, ScrollText, Webhook } from "lucide-react";
+import { settingsTabs, SETTINGS_TABS, type SettingsTab } from "./tabs";
+import { SettingsAnchor } from "./anchor";
 import { KeyManager, TickButton } from "./keys";
 import { listSecrets } from "@/lib/secrets";
 import { secretHealth, healthKey } from "@/lib/secret-health";
@@ -95,11 +99,20 @@ const FLAG_SOURCE: Record<string, string> = {
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tenant?: string; connected?: string; connect_error?: string }>;
+  searchParams: Promise<{ tenant?: string; connected?: string; connect_error?: string; tab?: string }>;
 }) {
-  const { tenant = "default", connected, connect_error } = await searchParams;
-  const keys = await listApiKeys(tenant);
+  const { tenant = "default", connected, connect_error, tab: tabParam } = await searchParams;
   const qs = tenant !== "default" ? `?tenant=${tenant}` : "";
+  const amp = tenant !== "default" ? `&tenant=${tenant}` : "";
+
+  // Who is signed in (nobody, under dev no-auth).
+  const session = await verifySession((await cookies()).get(SESSION_COOKIE)?.value);
+  // The tab: one of the account's settings pages. An OAuth consent comes
+  // back here with ?connected= — that answer is about a secret, so it opens
+  // on Secrets.
+  const asked = SETTINGS_TABS.includes(tabParam as SettingsTab) ? (tabParam as SettingsTab) : null;
+  const tab: SettingsTab = asked === "team" && !session ? "general" : (asked ?? (connected || connect_error ? "secrets" : "general"));
+  const tabs = settingsTabs(tenant, { team: Boolean(session), active: tab });
 
   // A member scoped to some workspaces sees only those, here as everywhere:
   // schedules, repositories, hooks and the invite form all list workspaces.
@@ -109,257 +122,315 @@ export default async function SettingsPage({
   // only to workspace:manage (the rotate route), and so does this page.
   // No session — dev mode — is the owner.
   const role = await viewerRole();
-  // Connected AI apps (MCP over OAuth): an admin sees every one, anyone else their own.
-  const seesAllConnections = role === null || can(role, "keys:manage");
-  const me = (await viewerEmail())?.toLowerCase() ?? null;
-  const connections = (await listGrants(tenant)).filter((g) => seesAllConnections || g.email.toLowerCase() === me).map(connectionView);
   const managesWorkspaces = role === null || can(role, "workspace:manage");
-  const halt = await pauseView(tenant, null, scope);
   const visibleWorkspaces = listWorkspaces(tenant).filter((w) => scopeAllows(scope, w.name));
-  const scheduled = visibleWorkspaces.flatMap((p) =>
-    listFlows(tenant, p.name)
-      .filter((f) => f.trigger === "schedule" && f.schedule)
-      .map((f) => ({
-        workspace: p.name,
-        flow: f.name,
-        file: f.file,
-        schedule: f.schedule!,
-        timezone: f.timezone ?? "UTC",
-        valid: parseCron(f.schedule!) !== null,
-        ...(() => {
-          const fires = nextFires(f.schedule!, f.timezone ?? "UTC");
-          return { next: fires.local, nextIso: fires.iso };
-        })(),
-        zone: f.timezone ?? "UTC",
-      })),
-  );
-
-  // With each secret's health, as GET /api/secrets answers it: the vault
-  // knows a name, only the places that used it know whether it still works.
-  const health = await secretHealth(tenant);
-  const secrets = listSecrets(tenant).map((s) => ({
-    ...s,
-    health: health[healthKey(s.name, s.scope === "workspace" ? "workspace" : "account")] ?? null,
-  }));
-
-  const hooks = visibleWorkspaces.flatMap((p) => {
-    const deliveries = readDeliveries(tenant, p.name, 5);
-    return listFlows(tenant, p.name)
-      .filter((f) => f.trigger === "webhook")
-      .map((f) => ({
-        workspace: p.name,
-        flow: f.name,
-        path: managesWorkspaces ? webhookPath(tenant, p.name, f.name) : null,
-        deliveries: deliveries.filter((d) => d.flow === f.name),
-      }));
-  });
-
-  const authRequired = process.env.FOLDRUN_DEV_NO_AUTH !== "1";
-  // Where the key that decrypts every secret on this server is kept.
-  const keySource = masterKeySource();
-
-  // Who is signed in (nobody, under dev no-auth) and what the account's
-  // credit tank holds.
-  const session = await verifySession((await cookies()).get(SESSION_COOKIE)?.value);
-
-  const members = session ? (await listMembers(session.tenant)).map((m) => ({ ...m, avatar: avatarUrl(session.tenant, "user", m.id) })) : [];
-  const teamWorkspaces = visibleWorkspaces.map((w) => w.name);
-  // The links still out, for those who may take one back (GET
-  // /api/team/invites answers the same, through the same function).
-  const invites = session && (role === null || can(role, "team:manage")) ? await listInvites(session.tenant, { scope }) : [];
+  const isOwner = role === null || role === "owner";
   const fm = readAgentsMdKeys(accountDir(tenant));
   // As GET /api/account answers this person: limited to some workspaces,
   // notify's URL and telemetry are "set", never shown (30 Oct 2026).
   const defaults = accountDefaultsFor(defaultsOf(fm), scope);
+
+  const connectedNote =
+    connected || connect_error ? (
+      <div role={connected ? "status" : "alert"} className={`rounded-lg border px-4 py-3 text-sm ${connected ? "border-success-line bg-success-soft" : "border-danger-line bg-danger-soft"}`}>
+        <p className={`font-medium ${connected ? "text-success" : "text-danger"}`}>{connected ? "Connected" : "Connect failed"}</p>
+        <p className="mt-0.5 text-fg-secondary">
+          {connected ? (
+            <>
+              The credential landed in the secret <code className="font-mono">{connected}</code>.
+            </>
+          ) : (
+            connect_error
+          )}
+        </p>
+      </div>
+    ) : undefined;
+
+  return (
+    <SettingsShell
+      title="Settings"
+      subtitle={
+        <>
+          Account <span className="font-mono text-fg-secondary">{tenant}</span> — who you are, keys, secrets, and everything that starts a run without a person.
+        </>
+      }
+      tabs={tabs}
+      above={connectedNote}
+    >
+      <SettingsAnchor tenant={tenant} current={tab} tabs={tabs.map((t) => new URL(t.href, "http://x").searchParams.get("tab") ?? "general")} />
+      {tab === "general" && (await GeneralTab({ tenant, qs, session, isOwner }))}
+      {tab === "team" && session && (await TeamTab({ session, role, scope, workspaces: visibleWorkspaces.map((w) => w.name) }))}
+      {tab === "policies" && (await PoliciesTab({ tenant, scope, defaults, managesWorkspaces }))}
+      {tab === "models" && (await ModelsTab({ tenant, qs, scope, role, fm }))}
+      {tab === "api" && (await ApiTab({ tenant, qs, scope, role, workspaces: visibleWorkspaces.map((w) => w.name) }))}
+      {tab === "secrets" && (await SecretsTab({ tenant, scope, role, managesWorkspaces, workspaces: visibleWorkspaces.map((w) => w.name) }))}
+      {tab === "schedules" && <SchedulesTab tenant={tenant} qs={qs} amp={amp} workspaces={visibleWorkspaces.map((w) => w.name)} />}
+      {tab === "security" && <SecurityTab tenant={tenant} qs={qs} />}
+    </SettingsShell>
+  );
+}
+
+type Session = Awaited<ReturnType<typeof verifySession>>;
+
+/** Who is signed in, the account's face, its defaults, the build, and the way out. */
+async function GeneralTab({ tenant, qs, session, isOwner }: { tenant: string; qs: string; session: Session; isOwner: boolean }) {
+  const fm = readAgentsMdKeys(accountDir(tenant));
+  const defaults = accountDefaultsFor(defaultsOf(fm), await viewerScope());
+  const flags = await effectiveFlags(tenant);
+  const closeRequestedAt = platform.edition() === "hosted" ? ((await adminState(tenant)).closeRequested?.at ?? null) : null;
+  const info = versionInfo();
+  return (
+    <>
+      <SettingsSection id="account">
+        <SettingsCard title="Account picture" description="Shown beside the account's name in the sidebar and on invites.">
+          <AvatarEditor kind="account" id={tenant} name={tenant} src={avatarUrl(tenant, "account", tenant)} tenant={tenant} />
+        </SettingsCard>
+        <SettingsCard
+          title="Signed in"
+          description={
+            <>
+              {session?.email ? <Email value={session.email} /> : "No one signed in (dev mode)"} · account <span className="font-mono">{tenant}</span>
+            </>
+          }
+          hint="Your own name, password and sessions are on your profile."
+          footer={
+            <>
+              <Link href={`/dashboard/usage${qs}`} className={buttonVariants({ variant: "secondary" })}>
+                Usage
+              </Link>
+              {platform.edition() === "hosted" && (
+                <Link href={`/dashboard/wallet${qs}`} className={buttonVariants({ variant: "secondary" })}>
+                  Wallet
+                </Link>
+              )}
+              <Link href={`/dashboard/profile${qs}`} className={buttonVariants({ variant: "primary" })}>
+                Profile
+              </Link>
+            </>
+          }
+        />
+      </SettingsSection>
+
+      <SettingsSection id="defaults">
+        <TimezoneCard endpoint="/api/account" tenant={tenant} initial={defaults.timezone} />
+      </SettingsSection>
+
+      <SettingsSection id="about">
+        <SettingsCard
+          title="About"
+          description="The version of foldrun this install runs, and the commit of each part behind it."
+          footer={
+            <Link href={`/dashboard/whats-new${qs}`} className={buttonVariants({ variant: "secondary" })}>
+              What&apos;s new
+            </Link>
+          }
+        >
+          <div className="space-y-6">
+            <VersionFacts info={info} />
+            <ComponentTable info={info} />
+          </div>
+        </SettingsCard>
+      </SettingsSection>
+
+      <SettingsSection id="flags">
+        <SettingsCard title="Feature flags" description="Features the platform turns on account by account. Read-only: the platform team decides them." hint={<code className="font-mono text-xs">foldrun flags</code>} flush>
+          <ul className="divide-y divide-line">
+            {flags.map((f) => (
+              <li key={f.name} className="flex flex-wrap items-start justify-between gap-3 px-5 py-3 sm:px-6">
+                <div className="min-w-0">
+                  <p className="font-mono text-sm text-fg">{f.name}</p>
+                  <p className="mt-0.5 text-sm text-fg-muted">{f.description}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-xs text-fg-muted">{FLAG_SOURCE[f.source]}</span>
+                  <Chip tone={f.on ? "good" : "default"}>{f.on ? "on" : "off"}</Chip>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </SettingsCard>
+      </SettingsSection>
+
+      <SettingsSection id="data">
+        <AccountData account={tenant} owner={isOwner} hosted={platform.edition() === "hosted"} closeRequestedAt={closeRequestedAt} />
+      </SettingsSection>
+    </>
+  );
+}
+
+/** Who can open this account, and what each person may do. */
+async function TeamTab({ session, role, scope, workspaces }: { session: NonNullable<Session>; role: Awaited<ReturnType<typeof viewerRole>>; scope: Awaited<ReturnType<typeof viewerScope>>; workspaces: string[] }) {
+  const members = (await listMembers(session.tenant)).map((m) => ({ ...m, avatar: avatarUrl(session.tenant, "user", m.id) }));
+  // The links still out, for those who may take one back (GET
+  // /api/team/invites answers the same, through the same function).
+  const invites = role === null || can(role, "team:manage") ? await listInvites(session.tenant, { scope }) : [];
+  return (
+    <SettingsSection id="team">
+      <TeamManager members={members} invites={invites} self={session.email} workspaces={workspaces} />
+    </SettingsSection>
+  );
+}
+
+/** The four jobs (frontmatter-fields.ts JOBS): governance, guardrail, observability, evaluation. */
+async function PoliciesTab({
+  tenant,
+  scope,
+  defaults,
+  managesWorkspaces,
+}: {
+  tenant: string;
+  scope: Awaited<ReturnType<typeof viewerScope>>;
+  defaults: ReturnType<typeof accountDefaultsFor>;
+  managesWorkspaces: boolean;
+}) {
+  const halt = await pauseView(tenant, null, scope);
+  const pause = <PauseCard tenant={tenant} scope="account" own={halt.account} mayManage={managesWorkspaces && scope === null} />;
+  const pausedOnTheirOwn = Object.keys(halt.workspaces ?? {});
+  return (
+    <>
+      <SettingsSection id="governance" title="Governance" description="Who answers for the agents, what they may run at once, and what a deploy refuses. In AGENTS.md: governance:.">
+        {halt.account && pause}
+        <OwnerCard endpoint="/api/account" tenant={tenant} initial={defaults.owner} />
+        {/* The plan's number, not the install's alone: until 26 Oct 2026 this read only FOLDRUN_PLAN_CONCURRENCY, so a customer on a plan saw the wrong figure. */}
+        <ConcurrencyCard
+          endpoint="/api/account"
+          tenant={tenant}
+          initial={defaults.concurrency}
+          plan={(await billing().plan(tenant))?.concurrency ?? (Number(settingText("FOLDRUN_PLAN_CONCURRENCY")) > 0 ? Number(settingText("FOLDRUN_PLAN_CONCURRENCY")) : null)}
+        />
+        <ComputeCard
+          endpoint="/api/account"
+          tenant={tenant}
+          initial={defaults.compute}
+          pool={await accountCompute(tenant)}
+          inUse={computeInUse(tenant, scope)}
+          waiting={roomWaiting(tenant, scope)}
+          runsWaiting={{ waiting: scope ? null : waitingRunCount(tenant), limit: (await waitingRunsCap(tenant)).limit }}
+        />
+        <DeployBlockCard endpoint="/api/account" tenant={tenant} initial={defaults.deployBlock} />
+        <p className="px-1 text-sm text-fg-muted">Also governance: the account budget (Billing), roles and keys (Team, API keys), and each agent&apos;s own owner.</p>
+      </SettingsSection>
+
+      <SettingsSection id="guardrail" title="Guardrail" description="What the agents may reach and call. In AGENTS.md: guardrail: — limits, network and hooks every agent here starts from.">
+        <NetworkEnforceCard endpoint="/api/account" tenant={tenant} initial={defaults.networkEnforce} />
+        <p className="px-1 text-sm text-fg-muted">Each agent&apos;s own limits, network and hooks are on its page; foldrun check --security lists what reaches too far.</p>
+      </SettingsSection>
+
+      <SettingsSection id="observability" title="Observability" description="What runs record, and who is told when something crosses a line. In AGENTS.md: observability:.">
+        <NotifyCard endpoint="/api/account" tenant={tenant} initial={defaults.notify} scopeNote="Every workspace inherits this until it sets its own notify:, which replaces it whole." />
+        <AlertsCard endpoint="/api/account" tenant={tenant} initial={defaults.alerts} />
+        <TelemetryCard tenant={tenant} initial={defaults.telemetry} mayEdit={managesWorkspaces && scope === null} />
+      </SettingsSection>
+
+      <SettingsSection id="evaluation" title="Evaluation" description="How the agents' work is judged. In AGENTS.md: evaluation:. Each workspace's evals are on its Evals page.">
+        <JudgeCard endpoint="/api/account" tenant={tenant} initial={defaults.judge} />
+      </SettingsSection>
+
+      {!halt.account && (
+        <SettingsSection id="pause-runs" title="Danger zone" danger>
+          {pause}
+          {pausedOnTheirOwn.length > 0 && <p className="px-1 text-sm text-fg-muted">Paused on their own: {pausedOnTheirOwn.join(", ")} — each resumes from its own Settings.</p>}
+        </SettingsSection>
+      )}
+      {halt.account && pausedOnTheirOwn.length > 0 && <p className="px-1 text-sm text-fg-muted">Paused on their own: {pausedOnTheirOwn.join(", ")} — each resumes from its own Settings.</p>}
+    </>
+  );
+}
+
+/** Where model calls go for every workspace that does not name its own provider. */
+async function ModelsTab({
+  tenant,
+  qs,
+  scope,
+  role,
+  fm,
+}: {
+  tenant: string;
+  qs: string;
+  scope: Awaited<ReturnType<typeof viewerScope>>;
+  role: Awaited<ReturnType<typeof viewerRole>>;
+  fm: ReturnType<typeof readAgentsMdKeys>;
+}) {
   const provider = parseProvider(fm.provider);
-  // The four jobs first (frontmatter-fields.ts JOBS), then the setup pages.
-  const JOB = "The four jobs";
-  const SETUP = "Setup";
-  const nav = [
-    { id: "governance", label: "Governance", group: JOB },
-    { id: "guardrail", label: "Guardrail", group: JOB },
-    { id: "observability", label: "Observability", group: JOB },
-    { id: "evaluation", label: "Evaluation", group: JOB },
-    { id: "account", label: "Account", group: SETUP },
-    ...(session ? [{ id: "team", label: "Team", group: SETUP }] : []),
-    { id: "defaults", label: "Defaults", group: SETUP },
-    { id: "provider", label: "Model provider", group: SETUP },
-    { id: "security", label: "Security", group: SETUP },
-    { id: "api-keys", label: "API keys", group: SETUP },
-    { id: "api", label: "API", group: SETUP },
-    { id: "secrets", label: "Secrets", group: SETUP },
-    ...(hooks.length > 0 ? [{ id: "webhooks", label: "Webhooks", group: SETUP }] : []),
-    { id: "schedules", label: "Schedules", group: SETUP },
-    { id: "about", label: "About", group: SETUP },
-    { id: "flags", label: "Feature flags", group: SETUP },
-    { id: "backups", label: "Backups", group: SETUP },
-    { id: "data", label: "Your data", group: SETUP },
-  ];
-  const isOwner = role === null || role === "owner";
   // The provider check, as GET /api/account/providers answers it — for a
   // scoped member, the account's blocks and its own workspaces' only.
   const { configured: providerConfigured, lastCheck: providerLast } = await providerFactsFor(tenant, scope);
-  const apiFacts = await apiFactsFor(tenant, scope);
-  const flags = await effectiveFlags(tenant);
-  const closeRequestedAt = platform.edition() === "hosted" ? ((await adminState(tenant)).closeRequested?.at ?? null) : null;
-
   return (
-    <main>
-      <SettingsShell
-        nav={nav}
-        title="Settings"
-        subtitle={
+    <SettingsSection id="provider">
+      <ModelKey tenant={tenant} initial={{ ...describeAccountModel(tenant), foldrunModels: await foldrunModelsView(tenant) }} presets={modelPresetChoices()} mayEdit={role === null || can(role, "secrets:write")} />
+      <SettingsCard
+        id="gateway"
+        title="Your own gateway"
+        description={
           <>
-            Account <span className="font-mono text-fg-secondary">{tenant}</span> — who you are, keys, secrets, and everything that starts a run without a person.
+            To bring your own gateway, add a <code className="font-mono text-xs">provider:</code> block to the account&apos;s AGENTS.md — it wins over the key above.
           </>
         }
-        above={
-          (connected || connect_error) ? (
-            <Card className={`p-4 ${connected ? "border-green-300 bg-green-50" : "border-red-300 bg-red-50"}`}>
-              <p className="text-sm font-semibold text-fg">{connected ? "Connected" : "Connect failed"}</p>
-              <p className="mt-1 text-sm text-fg-tertiary">
-                {connected ? <>The credential landed in the secret <code className="font-mono">{connected}</code>.</> : connect_error}
-              </p>
-            </Card>
-          ) : undefined
+        hint={
+          <Link href={`/dashboard/docs/providers${qs}`} className="text-link hover:underline">
+            Providers reference
+          </Link>
         }
       >
-        <SettingsSection id="governance" title="Governance" description="Who answers for the agents, what they may spend and run at once, what a deploy refuses, and the switch that stops them. In AGENTS.md: governance: (or the same keys at the top).">
-          <div className="grid gap-3">
-            <OwnerCard endpoint="/api/account" tenant={tenant} initial={defaults.owner} />
-            {/* The plan's number, not the install's alone: until 26 Oct 2026 this read only FOLDRUN_PLAN_CONCURRENCY, so a customer on a plan saw the wrong figure. */}
-            <ConcurrencyCard endpoint="/api/account" tenant={tenant} initial={defaults.concurrency} plan={(await billing().plan(tenant))?.concurrency ?? (Number(settingText("FOLDRUN_PLAN_CONCURRENCY")) > 0 ? Number(settingText("FOLDRUN_PLAN_CONCURRENCY")) : null)} />
-            <ComputeCard endpoint="/api/account" tenant={tenant} initial={defaults.compute} pool={await accountCompute(tenant)} inUse={computeInUse(tenant, scope)} waiting={roomWaiting(tenant, scope)} runsWaiting={{ waiting: scope ? null : waitingRunCount(tenant), limit: (await waitingRunsCap(tenant)).limit }} />
-            <DeployBlockCard endpoint="/api/account" tenant={tenant} initial={defaults.deployBlock} />
-          <PauseCard
-            tenant={tenant}
-            scope="account"
-            own={halt.account}
-            mayManage={managesWorkspaces && scope === null}
-          />
-          {Object.keys(halt.workspaces ?? {}).length > 0 && (
-            <p className="mt-2 text-sm text-fg-tertiary">
-              Paused on their own: {Object.keys(halt.workspaces ?? {}).join(", ")} — each resumes from its own Settings.
+        <div className="rounded-md border border-line bg-sunken px-3 py-2">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <code className="break-all font-mono text-sm text-fg">{provider?.baseUrl ?? "none"}</code>
+            <span className="text-xs text-fg-muted">{provider?.baseUrl ? "set by the account's AGENTS.md" : "no provider: block in the account's AGENTS.md"}</span>
+          </div>
+          {provider?.models && Object.keys(provider.models).length > 0 && (
+            <p className="mt-1.5 font-mono text-xs text-fg-muted">
+              {Object.entries(provider.models)
+                .map(([tier, id]) => `${tier} → ${id}`)
+                .join(" · ")}
             </p>
           )}
-          </div>
-          <p className="mt-2 text-xs text-fg-subtle">Also governance: the account budget (Billing), roles and keys (Team, API keys), and each agent&apos;s own owner.</p>
-        </SettingsSection>
+        </div>
+      </SettingsCard>
+      <ProviderCheck tenant={tenant} configured={providerConfigured} initial={providerLast} mayCheck={(role === null || can(role, "run:start")) && scope === null} />
+    </SettingsSection>
+  );
+}
 
-        <SettingsSection id="guardrail" title="Guardrail" description="What the agents may reach and call, and what stops them mid-run. In AGENTS.md: guardrail: — limits, network and hooks every agent here starts from.">
-          <div className="grid gap-3">
-            <NetworkEnforceCard endpoint="/api/account" tenant={tenant} initial={defaults.networkEnforce} />
-          </div>
-          <p className="mt-2 text-xs text-fg-subtle">Each agent&apos;s own limits, network and hooks are on its page; foldrun check --security lists what reaches too far.</p>
-        </SettingsSection>
+/** API keys, connecting an AI app over MCP, and the API's version and limits. */
+async function ApiTab({
+  tenant,
+  qs,
+  scope,
+  role,
+  workspaces,
+}: {
+  tenant: string;
+  qs: string;
+  scope: Awaited<ReturnType<typeof viewerScope>>;
+  role: Awaited<ReturnType<typeof viewerRole>>;
+  workspaces: string[];
+}) {
+  const keys = await listApiKeys(tenant);
+  // Connected AI apps (MCP over OAuth): an admin sees every one, anyone else their own.
+  const seesAllConnections = role === null || can(role, "keys:manage");
+  const me = (await viewerEmail())?.toLowerCase() ?? null;
+  const connections = (await listGrants(tenant)).filter((g) => seesAllConnections || g.email.toLowerCase() === me).map(connectionView);
+  const apiFacts = await apiFactsFor(tenant, scope);
+  const origin = installOrigin() ?? "https://<this install's address>";
+  return (
+    <>
+      {/* KeyManager carries its own create card and list. */}
+      <SettingsSection id="api-keys">
+        <KeyManager
+          tenant={tenant}
+          keys={keys}
+          workspaces={workspaces}
+          scoped={scope !== null}
+          // For an A2A key: each workspace's flows, and which are published.
+          a2aFlows={Object.fromEntries(workspaces.map((w) => [w, listFlows(tenant, w).map((f) => ({ name: f.name, published: f.a2a?.publish === true }))]))}
+        />
+      </SettingsSection>
 
-        <SettingsSection id="observability" title="Observability" description="What runs record, and who is told when something crosses a line. In AGENTS.md: observability: — notify, alerts, telemetry, capture.">
-          <div className="grid gap-3">
-            <NotifyCard endpoint="/api/account" tenant={tenant} initial={defaults.notify} scopeNote="Every workspace inherits this until it sets its own notify:, which replaces it whole." />
-            <AlertsCard endpoint="/api/account" tenant={tenant} initial={defaults.alerts} />
-            <TelemetryCard tenant={tenant} initial={defaults.telemetry} mayEdit={managesWorkspaces && scope === null} />
-          </div>
-        </SettingsSection>
-
-        <SettingsSection id="evaluation" title="Evaluation" description="How the agents' work is judged: the model every judge grades with. In AGENTS.md: evaluation: — judge. Each workspace's evals are on its Evals page.">
-          <div className="grid gap-3">
-            <JudgeCard endpoint="/api/account" tenant={tenant} initial={defaults.judge} />
-          </div>
-        </SettingsSection>
-
-        <SettingsSection id="account" title="Account" description="Who is signed in, and where the people and money pages are.">
-          <Card className="mb-3 p-5">
-            <AvatarEditor kind="account" id={tenant} name={tenant} src={avatarUrl(tenant, "account", tenant)} tenant={tenant} />
-          </Card>
-          <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
-            <div>
-              <p className="text-sm font-semibold text-fg">{session?.email ? <Email value={session.email} /> : "No one signed in (dev mode)"}</p>
-              <p className="mt-0.5 text-sm text-fg-tertiary">Account <span className="font-mono">{tenant}</span></p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Link href={`/dashboard/profile${qs}`} className={buttonClass("secondary")}>Profile &amp; team</Link>
-              {platform.edition() === "hosted" && <Link href={`/dashboard/wallet${qs}`} className={buttonClass("secondary")}>Wallet</Link>}
-              <Link href={`/dashboard/usage${qs}`} className={buttonClass("secondary")}>Usage</Link>
-            </div>
-          </Card>
-        </SettingsSection>
-
-        {session && (
-          <SettingsSection wide id="team" title="Team" description="Who can open this account, and what each person may do. An invite is a link that works once, for seven days, and can be revoked until it is used.">
-            <TeamManager members={members} invites={invites} self={session.email} workspaces={teamWorkspaces} />
-          </SettingsSection>
-        )}
-
-        <SettingsSection id="defaults" title="Defaults" description="What every workspace inherits unless it sets its own: the timezone its schedules read in. The four jobs above hold the rest.">
-          <div className="grid gap-3">
-            <TimezoneCard endpoint="/api/account" tenant={tenant} initial={defaults.timezone} />
-          </div>
-        </SettingsSection>
-
-        <SettingsSection id="provider" title="Model provider" description="Where model calls go for every workspace that does not name its own provider.">
-          <ModelKey tenant={tenant} initial={{ ...describeAccountModel(tenant), foldrunModels: await foldrunModelsView(tenant) }} presets={modelPresetChoices()} mayEdit={role === null || can(role, "secrets:write")} />
-          <Card className="p-4">
-            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-              <code className="font-mono text-sm text-fg">{provider?.baseUrl ?? "Your own gateway"}</code>
-              <span className="text-xs text-fg-subtle">{provider?.baseUrl ? "set by the account's AGENTS.md, which wins over the key above" : "no provider: block in the account's AGENTS.md"}</span>
-            </div>
-            {provider?.models && Object.keys(provider.models).length > 0 && (
-              <p className="mt-1.5 font-mono text-xs text-fg-muted">{Object.entries(provider.models).map(([tier, id]) => `${tier} → ${id}`).join(" · ")}</p>
-            )}
-            <p className="mt-2 text-sm text-fg-tertiary">
-              To bring your own gateway, add a <code className="font-mono text-xs">provider:</code> block to the account&apos;s AGENTS.md — the{" "}
-              <Link href={`/dashboard/docs/providers${qs}`} className="font-medium text-fg-secondary underline">providers reference</Link> lists the shapes for about thirty vendors.
-            </p>
-          </Card>
-          <ProviderCheck tenant={tenant} configured={providerConfigured} initial={providerLast} mayCheck={(role === null || can(role, "run:start")) && scope === null} />
-        </SettingsSection>
-
-        <SettingsSection wide id="security" title="Security" description="Two facts about this install that decide whether it is safe to expose.">
-          <Card className="divide-y divide-line-faint p-0">
-            <StatusRow
-              ok={authRequired}
-              title={authRequired ? "Every API request needs a key" : "Auth is disabled for local development"}
-              detail={
-                authRequired
-                  ? "The x-foldrun-tenant header alone is rejected."
-                  : "FOLDRUN_DEV_NO_AUTH=1 is set, so requests without a key fall back to the x-foldrun-tenant header. Never set it on a server anyone else can reach."
-              }
-            />
-            <StatusRow
-              ok={keySource.source === "env"}
-              title={keySource.source === "env" ? "The master key comes from the environment" : "The master key is stored on disk"}
-              detail={
-                keySource.source === "env"
-                  ? "FOLDRUN_SECRET_KEY is set, so the key that decrypts every secret is not stored beside the secrets themselves."
-                  : <>The key that decrypts every secret sits next to them, so one filesystem read gets both. Before exposing this server, move it: <code className="font-mono">node scripts/rotate-secret-key.mjs {tenant} --to &quot;$(openssl rand -hex 32)&quot;</code>, then set <code className="font-mono">FOLDRUN_SECRET_KEY</code>.</>
-              }
-            />
-          </Card>
-          <Card className="mt-3 flex flex-wrap items-center justify-between gap-3 p-4">
-            <div>
-              <p className="text-sm font-semibold text-fg">Audit log</p>
-              <p className="mt-0.5 text-sm text-fg-tertiary">Sign-ins, keys, invites, secrets by name, deploys, plan changes — and every time support viewed this account.</p>
-            </div>
-            <Link href={`/dashboard/settings/audit${qs}`} className={buttonClass("secondary")}>Open audit log</Link>
-          </Card>
-        </SettingsSection>
-
-        {/* KeyManager carries its own title row — the create form sits in it. */}
-        <div id="api-keys" className="scroll-mt-20">
-          <KeyManager
-            tenant={tenant}
-            keys={keys}
-            workspaces={visibleWorkspaces.map((w) => w.name)}
-            scoped={scope !== null}
-            // For an A2A key: each workspace's flows, and which are published.
-            a2aFlows={Object.fromEntries(visibleWorkspaces.map((w) => [w.name, listFlows(tenant, w.name).map((f) => ({ name: f.name, published: f.a2a?.publish === true }))]))}
-          />
-          <p className="mt-2 text-xs text-fg-muted">A key is you, on a machine: the CLI and the HTTP API. It carries a role no higher than yours and opens no workspace you cannot — narrow it further above.</p>
-          <details className="mt-3 rounded-xl border border-line bg-surface">
-            <summary className="cursor-pointer px-4 py-3 text-xs font-medium uppercase tracking-wide text-fg-muted">Using a key</summary>
-            <pre className="overflow-x-auto border-t border-line-faint p-4 font-mono text-xs leading-relaxed text-fg-secondary">
-{`export FOLDRUN_TOKEN=mda_...
-export FOLDRUN_URL=${installOrigin() ?? "https://<this install's address>"}
+      <SettingsSection id="using-a-key">
+        <SettingsCard title="Using a key" description="Set it in the shell, then deploy and call agents from the CLI or over HTTP." flush>
+          <pre className="overflow-x-auto bg-sunken px-5 py-4 font-mono text-xs leading-relaxed text-fg-secondary sm:px-6">
+            {`export FOLDRUN_TOKEN=mda_...
+export FOLDRUN_URL=${origin}
 
 # deploy a folder of markdown — checked before it goes live
 foldrun deploy ./my-workspace --to my-workspace
@@ -368,156 +439,258 @@ foldrun deploy ./my-workspace --to my-workspace
 curl -X POST "$FOLDRUN_URL/api/workspaces/my-workspace/agents/writer/run?wait=true" \\
   -H "Authorization: Bearer $FOLDRUN_TOKEN" \\
   -d '{"task":"draft a reply"}'`}
-            </pre>
-          </details>
-          <details id="mcp" className="mt-3 scroll-mt-20 rounded-xl border border-line bg-surface">
-            <summary className="cursor-pointer px-4 py-3 text-xs font-medium uppercase tracking-wide text-fg-muted">Connecting an AI app (MCP)</summary>
-            <div className="space-y-3 border-t border-line-faint p-4 text-sm text-fg-secondary">
-              <p>
-                Claude Code, Claude Desktop, Cursor and Codex can use this account as tools: your inbox, waiting approvals, runs and flows, and — with a key that may — approve, answer, message, start and stop. Each tool is an API call made with the key, so it can do no more than the key can. Add <span className="font-mono">?readonly=1</span> to offer only the tools that read.
-              </p>
-              <CopyField value={`${installOrigin() ?? "https://<this install's address>"}/api/mcp`} />
-              <pre className="overflow-x-auto rounded-lg border border-line-faint p-3 font-mono text-xs leading-relaxed">
-{`# with this machine's foldrun sign-in — no key to paste
+          </pre>
+        </SettingsCard>
+      </SettingsSection>
+
+      <SettingsSection id="mcp">
+        <SettingsCard
+          title="Connect an AI app (MCP)"
+          description={
+            <>
+              Claude Code, Claude Desktop, Cursor and Codex can use this account as tools: your inbox, approvals, runs and flows — and, with a key that may, approve, answer, start and stop. Each tool is an API call made with the key. Add{" "}
+              <span className="font-mono">?readonly=1</span> to offer only the tools that read.
+            </>
+          }
+          hint={
+            <Link href={`/dashboard/docs/mcp${qs}`} className="text-link hover:underline">
+              MCP docs
+            </Link>
+          }
+        >
+          <div className="space-y-3">
+            <CopyField value={`${origin}/api/mcp`} />
+            <pre className="overflow-x-auto rounded-md border border-line bg-sunken p-3 font-mono text-xs leading-relaxed text-fg-secondary">
+              {`# with this machine's foldrun sign-in — no key to paste
 claude mcp add foldrun -- foldrun mcp
 codex mcp add foldrun -- foldrun mcp
 
 # straight to the platform, with a key from above
-claude mcp add --transport http foldrun ${installOrigin() ?? "https://<this install's address>"}/api/mcp \\
+claude mcp add --transport http foldrun ${origin}/api/mcp \\
   --header "Authorization: Bearer mda_..."
 
 # Claude Desktop, Cursor: in the app's MCP settings
 { "mcpServers": { "foldrun": { "command": "foldrun", "args": ["mcp"] } } }`}
-              </pre>
-              <p className="text-xs text-fg-muted">
-                claude.ai and other apps that sign in with OAuth need no key: add the address above as a custom connector, and you approve it here in foldrun. What a tool returns — run outputs, an agent&apos;s question, a file — is data from your runs, and the app is told so. <Link href={`/dashboard/docs/mcp${qs}`} className="text-accent hover:underline">MCP docs</Link>
-              </p>
-            </div>
-          </details>
-          <div id="mcp-connections" className="mt-3 scroll-mt-20">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-fg-muted">Connected AI apps</p>
-            <McpConnections connections={connections} everyone={seesAllConnections} />
-          </div>
-        </div>
-
-        <SettingsSection wide id="api" title="API" description="How fast this account may call the API, which dated version answers it, and what it has called lately.">
-          <ApiSettings facts={apiFacts} qs={qs} />
-        </SettingsSection>
-
-        <SettingsSection wide id="secrets" title="Secrets" description="Credentials every workspace can read as ${NAME} — or only the workspaces you select for one. A workspace can override one of these with its own.">
-          <Connections tenant={tenant} secrets={secrets} clients={(await listOAuthClients(tenant)).map((c) => ({ name: c.name, scopes: c.scopes, ...(c.device_url ? { device_url: c.device_url } : {}) }))} connections={await connectionStatus(tenant)} heading={false} callbackUrl={process.env.FOLDRUN_OAUTH_CALLBACK_URL ?? null}
-            limitTo={scope === null && (role === null || can(role, "secrets:write")) ? listWorkspaces(tenant).map((w) => w.name) : undefined} />
-        </SettingsSection>
-
-        {hooks.length > 0 && (
-          <SettingsSection wide id="webhooks" title="Webhook triggers" description="Flows that start when something POSTs their URL. The body becomes the run's input." action={<span className="text-xs text-fg-subtle">{hooks.length}</span>}>
-            <Card>
-              <ul className="divide-y divide-line-faint">
-                {hooks.map((h) => (
-                  <li key={`${h.workspace}/${h.flow}`} className="px-5 py-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-fg">
-                        {h.workspace} <span className="text-fg-subtle">/</span> {h.flow}
-                      </p>
-                      <RotateHookButton workspace={h.workspace} flow={h.flow} />
-                    </div>
-                    <code className="mt-1 block overflow-x-auto rounded-md bg-sunken px-2 py-1.5 font-mono text-[11px] text-fg-tertiary">{h.path ? `POST ${h.path}` : "webhook URL — visible to admins"}</code>
-                    {h.deliveries.length > 0 && (
-                      <ul className="mt-2 space-y-0.5">
-                        {h.deliveries.map((d, i) => (
-                          <li key={i} className="font-mono text-[11px] text-fg-muted">
-                            <LocalTime iso={d.t} /> — <span className={d.outcome === "accepted" ? "text-green-700" : "text-red-600"}>{d.outcome}</span>
-                            {d.count && d.count > 1 ? ` ×${d.count}` : ""}
-                            {d.runId ? ` → ${d.runId}` : ""}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </Card>
-            <p className="mt-2 text-xs text-fg-muted">
-              Rotate one URL above, or rotate <code className="font-mono">FOLDRUN_SECRET_KEY</code> to invalidate every URL at once.
+            </pre>
+            <p className="text-sm text-fg-muted">
+              claude.ai and other apps that sign in with OAuth need no key: add the address above as a custom connector, and you approve it here in foldrun. What a tool returns is data from your runs, and the app is told so.
             </p>
-          </SettingsSection>
-        )}
+          </div>
+        </SettingsCard>
+      </SettingsSection>
 
-        <SettingsSection wide id="schedules" title="Scheduled flows" description="Every cron in every workspace, with its next two fires. The scheduler checks every 30 seconds." action={<TickButton />}>
-          {scheduled.length === 0 ? (
-            <Card className="p-5">
-              <p className="text-sm text-fg-muted">
-                No scheduled flows. Add <code className="font-mono text-xs">trigger: schedule</code> and <code className="font-mono text-xs">schedule: &quot;0 8 * * MON&quot;</code> to a flow&apos;s frontmatter.
-              </p>
-            </Card>
-          ) : (
-            <Card>
-              <ul className="divide-y divide-line-faint">
-                {scheduled.map((s) => (
-                  <li key={`${s.workspace}/${s.flow}`} className="flex items-center gap-4 px-5 py-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-fg">
-                        <Link href={`/dashboard/${s.workspace}${qs}`} className="hover:underline">{s.workspace}</Link>
-                        <span className="text-fg-subtle"> / </span>
-                        <Link href={`/dashboard/${s.workspace}/edit?path=${encodeURIComponent(`flows/${s.file}`)}${tenant !== "default" ? `&tenant=${tenant}` : ""}`} className="hover:underline">{s.flow}</Link>
-                      </p>
-                      <p className="mt-0.5 text-xs text-fg-muted">
-                        {s.next.length > 0 ? (
-                          <>
-                            {`next: ${s.next.join(" · ")} (${s.zone})`}
-                            <ScheduleInYourTime iso={s.nextIso} zone={s.zone} />
-                          </>
-                        ) : (
-                          "no upcoming fire times"
-                        )}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <Badge variant={s.valid ? "info" : "error"}><span className="font-mono">{s.schedule}</span></Badge>
-                      <Badge>{s.timezone}</Badge>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
+      <SettingsSection id="mcp-connections">
+        <McpConnections connections={connections} everyone={seesAllConnections} />
+      </SettingsSection>
+
+      <SettingsSection id="api" title="API" description="How fast this account may call the API, which dated version answers it, and what it has called lately.">
+        <ApiSettings facts={apiFacts} qs={qs} />
+      </SettingsSection>
+    </>
+  );
+}
+
+/** Credentials, and the flows that start when something POSTs their URL. */
+async function SecretsTab({
+  tenant,
+  scope,
+  role,
+  managesWorkspaces,
+  workspaces,
+}: {
+  tenant: string;
+  scope: Awaited<ReturnType<typeof viewerScope>>;
+  role: Awaited<ReturnType<typeof viewerRole>>;
+  managesWorkspaces: boolean;
+  workspaces: string[];
+}) {
+  // With each secret's health, as GET /api/secrets answers it: the vault
+  // knows a name, only the places that used it know whether it still works.
+  const health = await secretHealth(tenant);
+  const secrets = listSecrets(tenant).map((s) => ({
+    ...s,
+    health: health[healthKey(s.name, s.scope === "workspace" ? "workspace" : "account")] ?? null,
+  }));
+  const hooks = workspaces.flatMap((w) => {
+    const deliveries = readDeliveries(tenant, w, 5);
+    return listFlows(tenant, w)
+      .filter((f) => f.trigger === "webhook")
+      .map((f) => ({
+        workspace: w,
+        flow: f.name,
+        path: managesWorkspaces ? webhookPath(tenant, w, f.name) : null,
+        deliveries: deliveries.filter((d) => d.flow === f.name),
+      }));
+  });
+  return (
+    <>
+      <SettingsSection id="secrets">
+        <Connections
+          tenant={tenant}
+          secrets={secrets}
+          clients={(await listOAuthClients(tenant)).map((c) => ({ name: c.name, scopes: c.scopes, ...(c.device_url ? { device_url: c.device_url } : {}) }))}
+          connections={await connectionStatus(tenant)}
+          heading={false}
+          callbackUrl={process.env.FOLDRUN_OAUTH_CALLBACK_URL ?? null}
+          limitTo={scope === null && (role === null || can(role, "secrets:write")) ? listWorkspaces(tenant).map((w) => w.name) : undefined}
+        />
+      </SettingsSection>
+
+      {hooks.length > 0 && (
+        <SettingsSection id="webhooks" title="Webhook triggers" description="Flows that start when something POSTs their URL. The body becomes the run's input." action={<span className="text-sm tabular-nums text-fg-muted">{hooks.length}</span>}>
+          <div className="overflow-hidden rounded-lg border border-line bg-surface">
+            <ul className="divide-y divide-line">
+              {hooks.map((h) => (
+                <li key={`${h.workspace}/${h.flow}`} className="px-5 py-3.5 sm:px-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="flex min-w-0 items-center gap-2 text-sm font-medium text-fg">
+                      <Webhook aria-hidden className="size-4 shrink-0 text-fg-muted" />
+                      <span className="truncate">
+                        {h.workspace} <span className="text-fg-subtle">/</span> {h.flow}
+                      </span>
+                    </p>
+                    <RotateHookButton workspace={h.workspace} flow={h.flow} />
+                  </div>
+                  <code className="mt-2 block overflow-x-auto rounded-md border border-line bg-sunken px-2.5 py-1.5 font-mono text-xs text-fg-secondary">{h.path ? `POST ${h.path}` : "webhook URL — visible to admins"}</code>
+                  {h.deliveries.length > 0 && (
+                    <ul className="mt-2 space-y-0.5">
+                      {h.deliveries.map((d, i) => (
+                        <li key={i} className="font-mono text-xs text-fg-muted">
+                          <LocalTime iso={d.t} /> — <span className={d.outcome === "accepted" ? "text-success" : "text-danger"}>{d.outcome}</span>
+                          {d.count && d.count > 1 ? ` ×${d.count}` : ""}
+                          {d.runId ? ` → ${d.runId}` : ""}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <p className="mt-3 px-1 text-sm text-fg-muted">
+            Rotate one URL above, or rotate <code className="font-mono">FOLDRUN_SECRET_KEY</code> to invalidate every URL at once.
+          </p>
         </SettingsSection>
+      )}
+    </>
+  );
+}
 
-        <SettingsSection wide id="about" title="About" description="The version of foldrun this install runs, and the commit of each part behind it." action={<Link href={`/dashboard/whats-new${qs}`} className="text-xs text-accent hover:underline">What&apos;s new</Link>}>
-          <Card className="grid gap-6 p-5 lg:grid-cols-2">
-            <VersionFacts info={versionInfo()} />
-            <ComponentTable info={versionInfo()} />
-          </Card>
-        </SettingsSection>
-
-        <SettingsSection id="flags" title="Feature flags" description="Features the platform turns on account by account. Read-only: the platform team decides them, and foldrun flags lists the same.">
-          <Card className="divide-y divide-line-faint p-0">
-            {flags.map((f) => (
-              <div key={f.name} className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
-                <div className="min-w-0">
-                  <p className="font-mono text-sm text-fg">{f.name}</p>
-                  <p className="mt-0.5 text-sm text-fg-tertiary">{f.description}</p>
+/** Every cron in every workspace, with its next two fires. */
+function SchedulesTab({ tenant, qs, amp, workspaces }: { tenant: string; qs: string; amp: string; workspaces: string[] }) {
+  const scheduled = workspaces.flatMap((w) =>
+    listFlows(tenant, w)
+      .filter((f) => f.trigger === "schedule" && f.schedule)
+      .map((f) => {
+        const fires = nextFires(f.schedule!, f.timezone ?? "UTC");
+        return {
+          workspace: w,
+          flow: f.name,
+          file: f.file,
+          schedule: f.schedule!,
+          timezone: f.timezone ?? "UTC",
+          valid: parseCron(f.schedule!) !== null,
+          next: fires.local,
+          nextIso: fires.iso,
+          zone: f.timezone ?? "UTC",
+        };
+      }),
+  );
+  return (
+    <SettingsSection id="schedules" title="Scheduled flows" description="Every cron in every workspace, with its next two fires. The scheduler checks every 30 seconds." action={<TickButton />}>
+      {scheduled.length === 0 ? (
+        <EmptyState
+          icon={<CalendarClock />}
+          title="No scheduled flows"
+          description={
+            <>
+              Add <code className="font-mono text-xs">trigger: schedule</code> and <code className="font-mono text-xs">schedule: &quot;0 8 * * MON&quot;</code> to a flow&apos;s frontmatter.
+            </>
+          }
+        />
+      ) : (
+        <div className="overflow-hidden rounded-lg border border-line bg-surface">
+          <ul className="divide-y divide-line">
+            {scheduled.map((s) => (
+              <li key={`${s.workspace}/${s.flow}`} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 sm:px-6">
+                <div className="min-w-0 flex-1 basis-64">
+                  <p className="truncate text-sm font-medium text-fg">
+                    <Link href={`/dashboard/${s.workspace}${qs}`} className="hover:underline">
+                      {s.workspace}
+                    </Link>
+                    <span className="text-fg-subtle"> / </span>
+                    <Link href={`/dashboard/${s.workspace}/edit?path=${encodeURIComponent(`flows/${s.file}`)}${amp}`} className="hover:underline">
+                      {s.flow}
+                    </Link>
+                  </p>
+                  <p className="mt-0.5 text-sm text-fg-muted">
+                    {s.next.length > 0 ? (
+                      <>
+                        {`next ${s.next.join(" · ")} (${s.zone})`}
+                        <ScheduleInYourTime iso={s.nextIso} zone={s.zone} />
+                      </>
+                    ) : (
+                      "no upcoming fire times"
+                    )}
+                  </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <span className="text-xs text-fg-subtle">{FLAG_SOURCE[f.source]}</span>
-                  <Badge variant={f.on ? "success" : "default"}>{f.on ? "on" : "off"}</Badge>
+                  {s.valid ? <Tag mono>{s.schedule}</Tag> : <Chip tone="bad">{s.schedule}</Chip>}
+                  <Tag>{s.timezone}</Tag>
                 </div>
-              </div>
+              </li>
             ))}
-          </Card>
-        </SettingsSection>
+          </ul>
+        </div>
+      )}
+    </SettingsSection>
+  );
+}
 
-        <SettingsSection id="backups" title="Backups" description="Nightly snapshots of the account, restoring a workspace to an earlier point, and asking for a restore of runs, state or storage.">
-          <Card className="flex flex-wrap items-center gap-3 p-4 text-sm text-fg-secondary">
-            <span className="flex-1">What is backed up and how often, the snapshots this account is in, and the ways to get something back.</span>
-            <Link href={`/dashboard/settings/backups${qs}`} className={buttonClass("secondary")}>Open Backups</Link>
-          </Card>
-        </SettingsSection>
-
-        <SettingsSection id="data" title="Your data" description="A copy of everything the platform holds about this account, and the way out.">
-          <AccountData account={tenant} owner={isOwner} hosted={platform.edition() === "hosted"} closeRequestedAt={closeRequestedAt} />
-        </SettingsSection>
-      </SettingsShell>
-    </main>
+/** Two facts about this install that decide whether it is safe to expose, and the audit log. */
+function SecurityTab({ tenant, qs }: { tenant: string; qs: string }) {
+  const authRequired = process.env.FOLDRUN_DEV_NO_AUTH !== "1";
+  // Where the key that decrypts every secret on this server is kept.
+  const keySource = masterKeySource();
+  return (
+    <SettingsSection id="security">
+      <SettingsCard title="This install" description="Two facts that decide whether it is safe to expose." flush>
+        <div className="divide-y divide-line">
+          <StatusRow
+            ok={authRequired}
+            title={authRequired ? "Every API request needs a key" : "Auth is disabled for local development"}
+            detail={
+              authRequired
+                ? "The x-foldrun-tenant header alone is rejected."
+                : "FOLDRUN_DEV_NO_AUTH=1 is set, so requests without a key fall back to the x-foldrun-tenant header. Never set it on a server anyone else can reach."
+            }
+          />
+          <StatusRow
+            ok={keySource.source === "env"}
+            title={keySource.source === "env" ? "The master key comes from the environment" : "The master key is stored on disk"}
+            detail={
+              keySource.source === "env" ? (
+                "FOLDRUN_SECRET_KEY is set, so the key that decrypts every secret is not stored beside the secrets themselves."
+              ) : (
+                <>
+                  The key that decrypts every secret sits next to them, so one filesystem read gets both. Before exposing this server, move it:{" "}
+                  <code className="break-all font-mono">node scripts/rotate-secret-key.mjs {tenant} --to &quot;$(openssl rand -hex 32)&quot;</code>, then set <code className="font-mono">FOLDRUN_SECRET_KEY</code>.
+                </>
+              )
+            }
+          />
+        </div>
+      </SettingsCard>
+      <SettingsCard
+        title="Audit log"
+        description="Sign-ins, keys, invites, secrets by name, deploys, plan changes — and every time support viewed this account."
+        footer={
+          <Link href={`/dashboard/settings/audit${qs}`} className={buttonVariants({ variant: "secondary" })}>
+            <ScrollText aria-hidden />
+            Open audit log
+          </Link>
+        }
+      />
+    </SettingsSection>
   );
 }

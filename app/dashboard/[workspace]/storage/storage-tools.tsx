@@ -1,8 +1,8 @@
 "use client";
 
-// The storage page's upload zone. The file list, previews and the
-// download and share actions are components/file-browser.tsx.
-//
+// The storage page's upload button and its usage meter. The file list,
+// previews, drag-and-drop onto the list and the download and share actions
+// are components/file-browser.tsx.
 //
 // Uploads go to the bucket directly wherever the deployment has one: the
 // browser hashes the file, asks for a presigned PUT, sends the bytes there,
@@ -13,17 +13,19 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Badge } from "@/components/ui";
-
+import { Upload } from "lucide-react";
+import { Button } from "@/components/kit/button";
+import { Chip, RingProgress } from "@/components/kit/page";
 import { fmtBytes as humanSize } from "@/components/step-io-model";
 import { uploadFile } from "@/components/upload";
 
-export function UploadZone({ workspace, tenant, maxMb, used, quotaMb, count, driver }: { workspace: string; tenant: string; maxMb: number; used: number; quotaMb: number; count: number; driver: "fs" | "s3" }) {
+/** The header's Upload: a file picker that checks each file against the
+ *  size limit before sending it. Drop files on the list to upload too. */
+export function UploadZone({ workspace, tenant, maxMb }: { workspace: string; tenant: string; maxMb: number; used?: number; quotaMb?: number; count?: number; driver?: "fs" | "s3" }) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [dragging, setDragging] = useState(false);
 
   const upload = async (chosen: FileList | File[]) => {
     setError(null);
@@ -44,27 +46,31 @@ export function UploadZone({ workspace, tenant, maxMb, used, quotaMb, count, dri
     router.refresh();
   };
 
-  const pct = Math.min(100, Math.round((used / (quotaMb * 1024 * 1024)) * 100));
   return (
-    <div className="space-y-2">
-      <div
-        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => { e.preventDefault(); setDragging(false); void upload(e.dataTransfer.files); }}
-        onClick={() => input.current?.click()}
-        role="button"
-        className={`cursor-pointer rounded-lg border border-dashed px-3 py-3 text-center text-xs transition-colors ${dragging ? "border-gray-500 bg-sunken" : "border-line-strong hover:border-gray-400 hover:bg-sunken/60"}`}
-      >
-        <span className="text-fg-tertiary">Drop files here, or <span className="font-medium text-fg underline underline-offset-2">browse</span></span>
-        <span className="mt-0.5 block text-[11px] text-fg-subtle">up to {maxMb} MB each</span>
-        <input ref={input} type="file" multiple hidden onClick={(e) => e.stopPropagation()} onChange={(e) => e.target.files && void upload(e.target.files)} />
-      </div>
-      {busy && <Badge variant="info">uploading {busy}…</Badge>}
-      {error && <Badge variant="error">{error}</Badge>}
-      <div className="flex items-center gap-2 text-[11px] text-fg-subtle">
-        <div className="h-1 w-20 overflow-hidden rounded-full bg-muted"><div className={`h-full ${pct > 90 ? "bg-red-400" : "bg-gray-400"}`} style={{ width: `${pct}%` }} /></div>
-        <span>{humanSize(used)} of {quotaMb} MB · {count} file{count === 1 ? "" : "s"} · {driver === "s3" ? "object storage" : "this server"}</span>
-      </div>
-    </div>
+    <>
+      {busy && <Chip tone="info">Uploading {busy}…</Chip>}
+      {error && (
+        <span role="alert" className="max-w-xs truncate text-[13px] text-danger" title={error}>
+          {error}
+        </span>
+      )}
+      <Button variant="primary" size="md" onClick={() => input.current?.click()} disabled={!!busy} title={`Any file, up to ${maxMb} MB each — or drop files on the list`}>
+        <Upload /> Upload
+      </Button>
+      <input ref={input} type="file" multiple hidden onChange={(e) => e.target.files && void upload(e.target.files)} />
+    </>
+  );
+}
+
+/** How much of the desk's quota is used, for the header's meta row. */
+export function StorageUsage({ used, quotaMb, count, driver }: { used: number; quotaMb: number; count: number; driver: "fs" | "s3" }) {
+  const share = used / (quotaMb * 1024 * 1024);
+  return (
+    <span className="inline-flex min-w-0 items-center gap-2">
+      <RingProgress value={share} label={`${Math.round(share * 100)}% of the quota`} />
+      <span className="min-w-0 truncate tabular-nums">
+        {humanSize(used)} of {quotaMb} MB · {count} file{count === 1 ? "" : "s"} · {driver === "s3" ? "object storage" : "this server"}
+      </span>
+    </span>
   );
 }

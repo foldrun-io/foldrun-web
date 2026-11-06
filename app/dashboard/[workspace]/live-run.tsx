@@ -15,7 +15,7 @@ import { OperatorPanel } from "@/components/operator-panel";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { announceDecision } from "@/components/pending-approvals";
-import { Badge, StatusBadge, TestBadge, VerdictBadge, buttonClass } from "@/components/ui";
+import { StatusBadge, TestBadge, VerdictBadge } from "@/components/ui";
 import type { RunRecord } from "@/lib/store";
 import { testEffects, testEffectSummary } from "@/components/test-run-model";
 
@@ -38,6 +38,15 @@ import { RunCompare } from "@/components/run-compare";
 import { TraceView } from "@/components/trace-view";
 import { EventWaitBox } from "@/components/event-wait-box";
 import { LocalTime } from "@/components/local-time";
+import { AskAiButton } from "@/components/assistant";
+import { outcomeOf, type Outcome } from "@/components/outcome-model";
+import { PageHeader, SummaryCard, SectionTitle, Tag, EmptyState } from "@/components/kit/page";
+import { Status, StatusDot } from "@/components/kit/status";
+import { Button } from "@/components/kit/button";
+import { Menu, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "@/components/kit/menu";
+import { Textarea, inputBase } from "@/components/kit/input";
+import { cn } from "@/components/kit/cn";
+import { AlertTriangle, ChevronRight, CircleHelp, Code2, Ellipsis, FlaskConical, Hand, Pencil, RotateCcw, Square, Trash2, Webhook, XCircle } from "lucide-react";
 // Mirrored from store.ts#runVerdict, for the same reason.
 const runVerdict = (r: Pick<RunRecord, "verdict" | "summary">) => {
   if (r.verdict !== undefined) return r.verdict;
@@ -62,13 +71,49 @@ function elapsed(run: RunRecord, now: number) {
   return (end - new Date(run.startedAt).getTime()) / 1000;
 }
 
+/** What the run's own page hands the panel to draw around the live run: the
+ *  header's fixed parts, the facts only the server knows (the charge, the
+ *  tokens), why it failed (core failure.ts) and the graders' and history's
+ *  lines. The outcome, the actions and the callout are drawn here, from the
+ *  stream, so they change the moment the run does. */
+export interface RunPageHead {
+  back: { href: string; label: string };
+  icon: React.ReactNode;
+  title: React.ReactNode;
+  /** Beside the outcome: an A2A key's label. */
+  tags?: React.ReactNode;
+  description?: React.ReactNode;
+  meta?: React.ReactNode;
+  /** Older / newer. */
+  nav?: React.ReactNode;
+  facts: { label: React.ReactNode; value: React.ReactNode }[];
+  failure: { agent: string; message: string; fix?: string | null; reason: string } | null;
+  /** The graders' lines and this flow's recent runs. */
+  extra?: React.ReactNode;
+}
+
+// A step's status, drawn with the outcome dot that means the same.
+const STEP_OUTCOME: Record<string, Outcome> = {
+  completed: "done",
+  failed: "failed",
+  "awaiting-approval": "waiting",
+  running: "running",
+  skipped: "quiet",
+  pending: "queued",
+  stopped: "stopped",
+  "waiting for room": "queued",
+};
+
 export function LiveRun({
   workspace,
   tenant,
   initial,
   outputs = [],
   compactHeader = false,
+  page,
 }: {
+  /** On the run's own page: draw the header, the callout and the facts. */
+  page?: RunPageHead;
   /** On the run's own page the answer is already above: keep only the live
    *  signal and the actions here. */
   compactHeader?: boolean;
@@ -439,97 +484,239 @@ export function LiveRun({
     }
   };
 
+  // The run as its outcome says it — the same word as the list's row.
+  const outcome = outcomeOf(runDisplayStatus(run), run.status === "completed" ? runVerdict(run) : null);
+  const failedAt = run.steps.findIndex((st) => st.status === "failed");
+  // What waits on a person right now: a gate, an event, a question.
+  const gates = run.steps.flatMap((st, i) => (st.status === "awaiting-approval" ? [{ st, i }] : []));
+  const asks = run.steps.flatMap((st, i) =>
+    st.status === "running" ? (st.questions ?? []).filter((q) => q.answer === undefined && !q.unanswered).map((q) => ({ q, i, agent: st.agent })) : [],
+  );
+  const wentWrongOutcome = outcome === "failed" || outcome === "blocked" || outcome === "bad";
+  const doctor = wentWrongOutcome ? (
+    <AskAiButton
+      label="Doctor"
+      title="The run doctor: open Ask AI with this run"
+      prompt={`Doctor: why did run ${run.id} ${page?.failure || outcome === "failed" ? "fail" : `end ${runVerdict(run)}`}, and how do I fix it?`}
+    />
+  ) : null;
+  const liveDot = live ? (
+    <button
+      type="button"
+      onClick={() => { const i = activeStep(run); if (i >= 0) showStep(i); }}
+      title={
+        link === "live" ? "Live — updates arrive as the run writes them. Click to jump to the active step."
+        : link === "reconnecting" ? "Stream dropped — reconnecting. The run is still going; the page catches up when it does."
+        : link === "connecting" ? "Connecting to the run…"
+        : "Stream closed"
+      }
+      className="inline-flex items-center gap-1.5 rounded text-[13px] text-fg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+    >
+      <span
+        className={cn(
+          "inline-block size-2 rounded-full",
+          link === "live" ? "animate-pulse bg-success" : link === "reconnecting" ? "bg-warning" : link === "connecting" ? "animate-pulse bg-muted-strong" : "bg-muted-strong",
+        )}
+      />
+      {link === "live" ? "live" : link === "reconnecting" ? "reconnecting" : link === "connecting" ? "connecting" : "closed"}
+    </button>
+  ) : null;
+  const elapsedText = run.finishedAt || hydrated ? fmtDur(elapsed(run, clock) * 1000) : "…";
+  const doneSteps = run.steps.filter((st) => st.status === "completed" || st.status === "skipped").length;
+  const editHref = (rel: string) => `/dashboard/${workspace}/edit?path=${encodeURIComponent(rel)}${tenant !== "default" ? `&tenant=${tenant}` : ""}`;
+
+  // The actions, by what the run is now: stop what runs; for what is over,
+  // rerun (from the step that failed, when one did), keep it as a test, and
+  // the rest in the menu.
+  const actions = (
+    <>
+      {page?.nav}
+      {!finished && (
+        <Button size="md" variant="danger-outline" onClick={() => void stop()} disabled={busy}>
+          <Square aria-hidden />
+          Stop run
+        </Button>
+      )}
+      {run.status === "completed" && !wentWrong && (
+        <Button size="md" onClick={() => void promote()} disabled={busy} title="Write this run's task and conclusion into evals/ as a regression case">
+          <FlaskConical aria-hidden />
+          Save as eval
+        </Button>
+      )}
+      {finished && wentWrong && (
+        <Button
+          size="md"
+          onClick={() => setShouldOpen((v) => !v)}
+          disabled={busy}
+          aria-expanded={shouldOpen}
+          title="Write this run's task into evals/ with what it should have done, so the fix stays fixed"
+        >
+          <FlaskConical aria-hidden />
+          Turn into a test
+        </Button>
+      )}
+      {finished && run.steps.length > 0 && (
+        <Button
+          size="md"
+          variant="primary"
+          onClick={() => void rerun(failedAt > 0 ? failedAt : 0)}
+          disabled={busy}
+          title={failedAt > 0 ? "Start a new run: the steps before the failed one carried as context, it and later ones run again" : "Start this run again as a new run"}
+        >
+          <RotateCcw aria-hidden />
+          {failedAt > 0 ? `Rerun from step ${failedAt + 1}` : "Rerun"}
+        </Button>
+      )}
+      <Menu>
+        <MenuTrigger asChild>
+          <Button size="icon" variant="secondary" aria-label="More actions">
+            <Ellipsis aria-hidden />
+          </Button>
+        </MenuTrigger>
+        <MenuContent>
+          <MenuItem asChild>
+            <a href={`/api/workspaces/${encodeURIComponent(workspace)}/runs/${run.id}`} target="_blank" rel="noreferrer" title="The run record as the runner wrote it — every event, every stamp">
+              <Code2 aria-hidden />
+              Run record (JSON)
+            </a>
+          </MenuItem>
+          {finished && mayErase && (
+            <>
+              <MenuSeparator />
+              <MenuItem tone="danger" disabled={busy} onSelect={() => void remove()}>
+                <Trash2 aria-hidden />
+                Delete run
+              </MenuItem>
+            </>
+          )}
+        </MenuContent>
+      </Menu>
+    </>
+  );
+
   return (
-    <div ref={rootRef} className="scroll-mt-4 space-y-3">
+    <div ref={rootRef} className={cn("scroll-mt-4", page ? "space-y-8" : "space-y-3")}>
       {confirmDialog}
+      {page ? (
+        <div className="space-y-4">
+          <PageHeader
+            className="mb-6"
+            back={page.back}
+            icon={page.icon}
+            title={page.title}
+            badge={
+              <>
+                <Status outcome={outcome} className="text-sm" />
+                {run.test && (
+                  <span title="A test run: every step ran, nothing outward happened, state/ and storage/ were left alone">
+                    <Tag>test</Tag>
+                  </span>
+                )}
+                {page.tags}
+                {liveDot}
+              </>
+            }
+            description={page.description}
+            meta={page.meta}
+            actions={actions}
+          />
+
+          {/* The answer first: if it went wrong, where and why, and what to
+              do about it; if it waits on a person, who and for what. */}
+          {page.failure && run.status === "failed" ? (
+            <Callout
+              tone="danger"
+              icon={<XCircle />}
+              title={failedAt >= 0 ? `Step ${failedAt + 1} · ${page.failure.agent} failed` : `${page.failure.agent} failed`}
+              actions={
+                <>
+                  {failedAt >= 0 && (
+                    <Button size="sm" onClick={() => showStep(failedAt)}>
+                      Go to step
+                    </Button>
+                  )}
+                  {doctor}
+                </>
+              }
+            >
+              {/* Why, for the customer (core failure.ts, FOL-124): the same
+                  sentence and fix the API and `foldrun report` give. The
+                  step's own words stay below when they say something else. */}
+              <p className="break-words text-fg">{page.failure.message}</p>
+              {page.failure.fix && <p className="mt-1 break-words text-fg-secondary">{page.failure.fix}</p>}
+              {page.failure.reason !== page.failure.message && <p className="mt-1.5 break-words font-mono text-xs text-fg-muted">{page.failure.reason}</p>}
+            </Callout>
+          ) : outcome === "failed" ? (
+            // A run can fail with no failed step (a budget hit between
+            // groups), and that one needs the doctor too.
+            <Callout tone="danger" icon={<XCircle />} title="The run failed" actions={doctor}>
+              <p className="text-fg-secondary">No step failed on its own; the run was ended between steps. The run doctor reads its record and says why.</p>
+            </Callout>
+          ) : outcome === "blocked" || outcome === "bad" ? (
+            <Callout tone="warning" icon={<AlertTriangle />} title={`The run completed, and the agent reported ${runVerdict(run)}`} actions={doctor}>
+              {run.summary?.trim() ? <p className="line-clamp-4 break-words text-fg-secondary">{run.summary.trim()}</p> : <p className="text-fg-secondary">The last step says why, below.</p>}
+            </Callout>
+          ) : null}
+          {gates.map(({ st, i }) =>
+            st.waitFor === "event" ? (
+              <Callout key={`g${i}`} tone="info" icon={<Webhook />} title={`Step ${i + 1} · ${st.agent} is waiting for an external event`} actions={<Button size="sm" variant="primary" onClick={() => showStep(i)}>Release or reject</Button>}>
+                <p className="text-fg-secondary">Whatever POSTs its event URL releases it. You can also release it from the step.</p>
+              </Callout>
+            ) : (
+              <Callout
+                key={`g${i}`}
+                tone="warning"
+                icon={<Hand />}
+                title={`Step ${i + 1} · ${st.agent} is waiting for you`}
+                actions={<Button size="sm" variant="primary" onClick={() => showStep(i)}>{st.ask ? "Answer" : "Review and decide"}</Button>}
+              >
+                <p className="break-words text-fg-secondary">{st.ask ? `It asks: ${st.ask}` : "Approve it to run, or reject it with a reason. What it will act on is shown on the step."}</p>
+              </Callout>
+            ),
+          )}
+          {asks.map(({ q, i, agent }) => (
+            <Callout key={q.id} tone="info" icon={<CircleHelp />} title={`Step ${i + 1} · ${agent} is asking you`} actions={<Button size="sm" variant="primary" onClick={() => showStep(i)}>Answer</Button>}>
+              <p className="break-words text-fg-secondary">{q.question}</p>
+            </Callout>
+          ))}
+
+          <SummaryCard
+            items={[
+              { label: live ? "Running for" : "Took", value: <span className="tabular-nums">{elapsedText}</span> },
+              { label: "Steps", value: <span className="tabular-nums">{doneSteps} of {run.steps.length}</span> },
+              ...page.facts,
+            ]}
+          />
+          {page.extra}
+        </div>
+      ) : (
       <div className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
         {!compactHeader && (<>
           <span className="font-mono">{run.id}</span>
-          <span className="text-gray-300">·</span>
+          <span className="text-fg-subtle">·</span>
           <span className="font-medium text-fg-secondary">{run.flow}</span>
           <StatusBadge status={runDisplayStatus(run)} />
           {run.status === "completed" && <VerdictBadge verdict={runVerdict(run)} />}
         </>)}
         {run.test && <TestBadge />}
-        {live && (
-          <button
-            type="button"
-            onClick={() => { const i = activeStep(run); if (i >= 0) showStep(i); }}
-            title={
-              link === "live" ? "Live — updates arrive as the run writes them. Click to jump to the active step."
-              : link === "reconnecting" ? "Stream dropped — reconnecting. The run is still going; the page catches up when it does."
-              : link === "connecting" ? "Connecting to the run…"
-              : "Stream closed"
-            }
-            className="flex items-center gap-1 rounded text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-line-strong"
-          >
-            <span
-              className={`inline-block h-1.5 w-1.5 rounded-full ${
-                link === "live" ? "animate-pulse bg-emerald-500"
-                : link === "reconnecting" ? "bg-amber-500"
-                : link === "connecting" ? "animate-pulse bg-gray-300"
-                : "bg-gray-300"
-              }`}
-            />
-            <span className="text-fg-subtle">{link === "live" ? "live" : link === "reconnecting" ? "reconnecting" : link === "connecting" ? "connecting" : "closed"}</span>
-          </button>
-        )}
+        {liveDot}
         {(!compactHeader || live) && <span className="tabular-nums">{run.finishedAt || hydrated ? `${elapsed(run, clock).toFixed(1)}s` : "…"}</span>}
         {!compactHeader && totalCost > 0 && <span className="tabular-nums">${totalCost.toFixed(4)}</span>}
-        <a
-          href={`/api/workspaces/${encodeURIComponent(workspace)}/runs/${run.id}`}
-          target="_blank"
-          rel="noreferrer"
-          title="The run record as the runner wrote it — every event, every stamp"
-          className="font-mono text-fg-subtle hover:text-fg-secondary hover:underline"
-        >
-          json
-        </a>
-        <span className="ml-auto flex items-center gap-2">
-          {!finished && (
-            <button onClick={() => void stop()} disabled={busy} className={buttonClass("destructive")}>
-              Stop run
-            </button>
-          )}
-          {run.status === "completed" && !wentWrong && (
-            <button
-              onClick={() => void promote()}
-              disabled={busy}
-              title="Write this run's task and conclusion into evals/ as a regression case"
-              className={buttonClass("secondary")}
-            >
-              Save as eval
-            </button>
-          )}
-          {finished && wentWrong && (
-            <button
-              onClick={() => setShouldOpen((v) => !v)}
-              disabled={busy}
-              aria-expanded={shouldOpen}
-              title="Write this run's task into evals/ with what it should have done, so the fix stays fixed"
-              className={buttonClass("secondary")}
-            >
-              Turn into a test
-            </button>
-          )}
-          {finished && mayErase && (
-            <button onClick={() => void remove()} disabled={busy} className={buttonClass("minimal")}>
-              Delete
-            </button>
-          )}
-        </span>
+        <span className="ml-auto flex items-center gap-2">{actions}</span>
       </div>
+      )}
       {shouldOpen && wentWrong && (
-        <div className="rounded-lg border border-line bg-sunken p-2">
-          <label htmlFor="should" className="block text-[11px] text-fg-muted">
-            What should it have done? A judge holds the next run of this task to it — the case goes into evals/.
+        <div className="rounded-lg border border-line bg-surface p-4">
+          <label htmlFor="should" className="block text-sm font-medium text-fg">
+            What should it have done?
           </label>
-          <textarea id="should" value={should} onChange={(e) => setShould(e.target.value)} rows={3} placeholder="e.g. finds the two newest filings and quotes their dates" className="mt-1 w-full rounded border border-line bg-surface p-1.5 text-xs text-fg" />
-          <div className="mt-1 flex items-center gap-2">
-            <button onClick={() => void promote(should.trim())} disabled={busy || !should.trim()} className={buttonClass("primary", "px-2.5 py-1 text-xs disabled:opacity-50")}>
-              save the test
-            </button>
-            <button onClick={() => setShouldOpen(false)} className="text-xs text-fg-muted hover:text-fg">cancel</button>
+          <p className="mt-0.5 text-[13px] text-fg-muted">A judge holds the next run of this task to it — the case goes into evals/.</p>
+          <Textarea id="should" value={should} onChange={(e) => setShould(e.target.value)} rows={3} placeholder="e.g. finds the two newest filings and quotes their dates" className="mt-3" />
+          <div className="mt-3 flex items-center justify-end gap-2">
+            <Button onClick={() => setShouldOpen(false)} variant="ghost">Cancel</Button>
+            <Button onClick={() => void promote(should.trim())} disabled={busy || !should.trim()} variant="primary">
+              Save the test
+            </Button>
           </div>
         </div>
       )}
@@ -540,18 +727,16 @@ export function LiveRun({
         // without the checkbox.
         const effects = testEffects(run);
         return (
-          <section className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
-            <p className="font-medium">
-              Test run — {testEffectSummary(effects)}.{" "}
-              <span className="font-normal text-blue-800">
-                Every step ran against the real files and real read APIs; nothing outward happened, and state/ and storage/ were left as they were.
-              </span>
+          <section className="rounded-lg border border-info-line bg-info-soft px-4 py-3 text-[13px] text-fg-secondary">
+            <p>
+              <span className="font-medium text-info">Test run — {testEffectSummary(effects)}.</span>{" "}
+              Every step ran against the real files and real read APIs; nothing outward happened, and state/ and storage/ were left as they were.
             </p>
             {effects.length > 0 && (
-              <ul className="mt-1.5 space-y-0.5 font-mono text-[11px]">
+              <ul className="mt-2 space-y-0.5 font-mono text-xs">
                 {effects.map((e, i) => (
                   <li key={i}>
-                    <span className="text-blue-500">step {e.step} · {e.agent} · {e.kind}</span>{" "}
+                    <span className="text-info">step {e.step} · {e.agent} · {e.kind}</span>{" "}
                     {e.method && e.host ? `${e.method} ${e.host}${e.path ?? ""} — ` : ""}
                     {e.summary}
                   </li>
@@ -562,15 +747,12 @@ export function LiveRun({
         );
       })()}
       {run.memoryWrites && run.memoryWrites.length > 0 && (
-        <p className="text-xs text-fg-muted">
+        <p className="text-[13px] text-fg-muted">
           Remembered:{" "}
           {run.memoryWrites.map((rel, i) => (
             <span key={rel}>
               {i > 0 && ", "}
-              <a
-                href={`/dashboard/${workspace}/edit?path=${encodeURIComponent(rel)}${tenant !== "default" ? `&tenant=${tenant}` : ""}`}
-                className="font-mono text-fg-secondary hover:underline"
-              >
+              <a href={editHref(rel)} className="font-mono text-fg-secondary hover:underline">
                 {rel}
               </a>
             </span>
@@ -578,16 +760,13 @@ export function LiveRun({
         </p>
       )}
       {promoted && (
-        <p className={`text-xs ${"error" in promoted ? "text-red-600" : "text-fg-muted"}`}>
+        <p className={cn("text-[13px]", "error" in promoted ? "text-danger" : "text-fg-muted")}>
           {"error" in promoted ? (
             promoted.error
           ) : (
             <>
               {promoted.created ? "Created " : "Added a case to "}
-              <a
-                href={`/dashboard/${workspace}/edit?path=${encodeURIComponent(promoted.file)}${tenant !== "default" ? `&tenant=${tenant}` : ""}`}
-                className="font-mono text-fg-secondary hover:underline"
-              >
+              <a href={editHref(promoted.file)} className="font-mono text-fg-secondary hover:underline">
                 {promoted.file}
               </a>
             </>
@@ -595,26 +774,43 @@ export function LiveRun({
         </p>
       )}
 
-      {run.steps.length > 0 && <RunTimeline run={run} now={clock} onSelect={showStep} />}
+      {run.steps.length > 0 && (
+        <section>
+          <SectionTitle title="Timeline" description="Drag across it to zoom; click a bar to open its step." />
+          <RunTimeline run={run} now={clock} onSelect={showStep} />
+        </section>
+      )}
 
-      {run.steps.length > 0 && <RunTree run={run} workspace={workspace} tenant={tenant} now={clock} />}
-      {finished && run.steps.length > 0 && <RunCompare workspace={workspace} runId={run.id} tenant={tenant} />}
-
-      {run.steps.length > 1 && (
-        <div className="flex items-center gap-2 text-xs text-fg-subtle">
-          <span>{run.steps.length} steps</span>
-          <span className="text-gray-300">·</span>
-          <button type="button" onClick={() => foldAll(false)} className="rounded hover:text-fg-secondary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-line-strong">
-            expand all
-          </button>
-          <span className="text-gray-300">·</span>
-          <button type="button" onClick={() => foldAll(true)} className="rounded hover:text-fg-secondary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-line-strong">
-            collapse all
-          </button>
-          {live && (
-            <span className="text-gray-300"> — the step that starts next opens on its own</span>
+      {run.steps.length > 0 && (
+        <section>
+          <SectionTitle
+            title="Trace"
+            description="Run, step, model call, tool call — opened on the first thing that went wrong."
+          />
+          <RunTree run={run} workspace={workspace} tenant={tenant} now={clock} />
+          {finished && (
+            <div className="mt-3">
+              <RunCompare workspace={workspace} runId={run.id} tenant={tenant} />
+            </div>
           )}
-        </div>
+        </section>
+      )}
+
+      <section className="space-y-3">
+      {run.steps.length > 0 && (
+        <SectionTitle
+          className="mb-0"
+          title="Steps"
+          description={`${run.steps.length} step${run.steps.length === 1 ? "" : "s"}${live ? " — the step that starts next opens on its own" : ""}`}
+          actions={
+            run.steps.length > 1 ? (
+              <>
+                <Button size="sm" variant="ghost" onClick={() => foldAll(false)}>Expand all</Button>
+                <Button size="sm" variant="ghost" onClick={() => foldAll(true)}>Collapse all</Button>
+              </>
+            ) : undefined
+          }
+        />
       )}
 
       {run.steps.map((step, i) => {
@@ -622,33 +818,45 @@ export function LiveRun({
         const foldedHeadline = unfolded ? null : stepOutputs(step).headline ?? null;
         const span = stepSpan(step, clock);
         const tokens = step.tokens ? step.tokens.input + step.tokens.output : 0;
+        const shownStatus = step.skipReason === "run stopped" ? "stopped" : (step.status === "pending" || step.status === "running") && step.roomWait ? "waiting for room" : step.status;
+        const chip = (c: { label: string; title: string } | null | undefined) =>
+          c ? (
+            <span title={c.title} className="shrink-0">
+              <Tag className="h-5 tabular-nums">{c.label}</Tag>
+            </span>
+          ) : null;
         return (
-        <div key={i} id={`step-${run.id}-${i}`} className="scroll-mt-4 rounded-xl border border-line bg-surface p-4">
-          <div className={`flex items-center justify-between gap-2 text-sm ${unfolded ? "mb-2" : ""}`}>
+        <div
+          key={i}
+          id={`step-${run.id}-${i}`}
+          className={cn(
+            "scroll-mt-20 rounded-lg border bg-surface",
+            step.status === "failed" ? "border-danger-line" : step.status === "awaiting-approval" ? "border-warning-line" : "border-line",
+          )}
+        >
+          <div className="flex items-center gap-2 px-3 py-2.5 sm:px-4">
             <button
               type="button"
               onClick={() => toggleFold(i)}
               aria-expanded={unfolded}
               title={unfolded ? "Fold this step" : "Unfold this step"}
-              className="flex min-w-0 flex-1 items-center gap-1.5 rounded text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-line-strong"
+              className="flex min-w-0 flex-1 items-center gap-2.5 rounded text-left text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
-              <span className={`inline-block w-3 shrink-0 text-[10px] text-fg-subtle transition-transform ${unfolded ? "rotate-90" : ""}`} aria-hidden>
-                ▶
-              </span>
-              <span className="min-w-0 truncate">
-                <span className="text-fg-subtle">step {i + 1}</span>
-                <span className="text-gray-300"> · </span>
-                <span className="font-medium text-fg">{step.agent}</span>
+              <ChevronRight className={cn("size-4 shrink-0 text-fg-muted transition-transform", unfolded && "rotate-90")} aria-hidden />
+              <StatusDot outcome={STEP_OUTCOME[shownStatus] ?? "quiet"} label={shownStatus} />
+              <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="shrink-0 text-fg-muted">Step {i + 1}</span>
+                <span className="shrink-0 font-medium text-fg">{step.agent}</span>
                 {/* sandbox: own — a job another step handed this agent; it ran
                     in its own sandbox and only its reply went back. */}
                 {step.subagentOf && (
-                  <span className="ml-1.5 text-xs text-fg-subtle" title="a sub-agent with sandbox: own — its own sandbox, tools, secrets and network; only its reply went back">
+                  <span className="text-xs text-fg-muted" title="a sub-agent with sandbox: own — its own sandbox, tools, secrets and network; only its reply went back">
                     ↳ job from {step.subagentOf} · own sandbox
                   </span>
                 )}
-                {step.optional && !step.subagentOf && <span className="ml-1.5 text-xs text-fg-subtle">optional</span>}
+                {step.optional && !step.subagentOf && <span className="text-xs text-fg-muted">optional</span>}
                 {step.delegations?.length ? (
-                  <span className="ml-1.5 text-xs text-fg-subtle" title="jobs this step handed to sub-agents with sandbox: own">
+                  <span className="text-xs text-fg-muted" title="jobs this step handed to sub-agents with sandbox: own">
                     handed{" "}
                     {step.delegations
                       .map((d) => {
@@ -658,125 +866,80 @@ export function LiveRun({
                       .join(", ")}
                   </span>
                 ) : null}
-                {step.approve && <span className="ml-1.5 text-xs text-amber-600">needs approval</span>}
-                {(step.attempts ?? 0) > 1 && (
-                  <span className="ml-1.5 text-xs text-fg-subtle">attempt {step.attempts}</span>
-                )}
+                {step.approve && <span className="text-xs text-warning">needs approval</span>}
+                {(step.attempts ?? 0) > 1 && <span className="text-xs text-fg-muted">attempt {step.attempts}</span>}
                 {/* Which runner image the step ran on — "slim · browser pod"
-                    when it browsed through the account's pod from slim. */}
-                {(() => {
-                  const im = stepImage(step);
-                  return im ? (
-                    <span className="ml-1.5 rounded bg-sunken px-1.5 py-0.5 text-[11px] text-fg-subtle" title={im.title}>
-                      {im.label}
-                    </span>
-                  ) : null;
-                })()}
-                {(() => {
-                  const held = stepHeld(step);
-                  return held ? (
-                    <span className="ml-1.5 rounded bg-sunken px-1.5 py-0.5 text-[11px] tabular-nums text-fg-subtle" title={held.title}>
-                      {held.label}
-                    </span>
-                  ) : null;
-                })()}
-                {(() => {
-                  const up = stepStartup(step);
-                  return up ? (
-                    <span className="ml-1.5 rounded bg-sunken px-1.5 py-0.5 text-[11px] tabular-nums text-fg-subtle" title={up.title}>
-                      {up.label}
-                    </span>
-                  ) : null;
-                })()}
-                {(() => {
-                  const cred = stepCredential(step);
-                  return cred ? (
-                    <span className="ml-1.5 rounded bg-sunken px-1.5 py-0.5 text-[11px] text-fg-subtle" title={cred.title}>
-                      {cred.label}
-                    </span>
-                  ) : null;
-                })()}
-                {foldedHeadline && (
-                  <span className="ml-2 text-xs text-fg-muted">{foldedHeadline}</span>
-                )}
+                    when it browsed through the account's pod from slim — how
+                    long it was held, how long it took to start, and which
+                    credential it used. */}
+                {chip(stepImage(step))}
+                {chip(stepHeld(step))}
+                {chip(stepStartup(step))}
+                {chip(stepCredential(step))}
+                {foldedHeadline && <span className="min-w-0 basis-full truncate text-[13px] text-fg-muted sm:basis-auto sm:flex-1">{foldedHeadline}</span>}
               </span>
             </button>
-            <span className="flex shrink-0 items-center gap-2">
+            <span className="flex shrink-0 items-center gap-3">
               {/* The header is the summary: how long, how many tokens, how
                   much — so a folded column still answers "where did the
                   time and the money go" without opening a card. */}
-              {span && (
-                <span className="tabular-nums text-xs text-fg-subtle" title={span.live ? "running for" : "took"}>
-                  {span.live && !hydrated ? "…" : fmtDur(span.end - span.start)}
-                </span>
-              )}
-              {tokens > 0 && (
-                <span className="tabular-nums text-xs text-fg-subtle" title={fmtTokenDetail(step.tokens) ?? undefined}>
-                  {fmtTokens(tokens)} tok{fmtCached(step.tokens) ? ` · ${fmtCached(step.tokens)}` : ""}
-                </span>
-              )}
-              {step.costUsd != null && (
-                <span className="tabular-nums text-xs text-fg-subtle">
-                  ${step.costUsd.toFixed(4)}
-                </span>
-              )}
+              <span className="hidden items-center gap-3 text-xs tabular-nums text-fg-muted md:flex">
+                {span && (
+                  <span title={span.live ? "running for" : "took"}>{span.live && !hydrated ? "…" : fmtDur(span.end - span.start)}</span>
+                )}
+                {tokens > 0 && (
+                  <span title={fmtTokenDetail(step.tokens) ?? undefined}>
+                    {fmtTokens(tokens)} tok{fmtCached(step.tokens) ? ` · ${fmtCached(step.tokens)}` : ""}
+                  </span>
+                )}
+                {step.costUsd != null && <span>${step.costUsd.toFixed(4)}</span>}
+              </span>
+              <Status outcome={STEP_OUTCOME[shownStatus] ?? "quiet"} label={shownStatus} className="max-sm:hidden" />
               {/* Steps before this one are carried with their results; this
                   one and everything after runs again — later steps consumed
                   the earlier results, so a partial re-run would ship stale
                   work. Only on a finished run: a live one is still deciding. */}
               {finished && (
-                <button
-                  onClick={() => void rerun(i)}
-                  disabled={busy}
-                  title="Start a new run: earlier steps carried as context, this step and later ones run again"
-                  className="rounded-md px-2 py-0.5 text-xs font-medium text-fg-subtle ring-1 ring-inset ring-line transition-colors hover:bg-sunken hover:text-fg-secondary"
-                >
-                  re-run from here
-                </button>
+                <Menu>
+                  <MenuTrigger asChild>
+                    <Button size="icon-xs" variant="ghost" aria-label={`Step ${i + 1} actions`} disabled={busy}>
+                      <Ellipsis aria-hidden />
+                    </Button>
+                  </MenuTrigger>
+                  <MenuContent>
+                    <MenuItem onSelect={() => void rerun(i)} title="Start a new run: earlier steps carried as context, this step and later ones run again">
+                      <RotateCcw aria-hidden />
+                      Re-run from here
+                    </MenuItem>
+                    <MenuItem
+                      onSelect={() => {
+                        setDraft(step.instruction ?? "");
+                        setEditing(editing === i ? null : i);
+                      }}
+                      title="Re-run from here with a different instruction for this step, this once — the flow file is not changed"
+                    >
+                      <Pencil aria-hidden />
+                      Edit &amp; re-run
+                    </MenuItem>
+                  </MenuContent>
+                </Menu>
               )}
-              {finished && (
-                <button
-                  onClick={() => {
-                    setDraft(step.instruction ?? "");
-                    setEditing(editing === i ? null : i);
-                  }}
-                  disabled={busy}
-                  aria-expanded={editing === i}
-                  title="Re-run from here with a different instruction for this step, this once — the flow file is not changed"
-                  className="rounded-md px-2 py-0.5 text-xs font-medium text-fg-subtle ring-1 ring-inset ring-line transition-colors hover:bg-sunken hover:text-fg-secondary"
-                >
-                  edit &amp; re-run
-                </button>
-              )}
-              <StatusBadge
-                status={step.skipReason === "run stopped" ? "stopped" : (step.status === "pending" || step.status === "running") && step.roomWait ? "waiting for room" : step.status}
-              />
             </span>
           </div>
 
           {editing === i && (
-            <div className="mx-3 mb-2 rounded-lg border border-line bg-sunken p-2">
-              <label className="block text-[11px] text-fg-muted" htmlFor={`edit-${i}`}>
+            <div className="mx-3 mb-3 rounded-lg border border-line bg-sunken p-3 sm:mx-4">
+              <label className="block text-[13px] text-fg-muted" htmlFor={`edit-${i}`}>
                 This step&apos;s instruction for one re-run — the flow file is not changed. Earlier steps are carried as context.
               </label>
-              <textarea
-                id={`edit-${i}`}
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                rows={5}
-                className="mt-1 w-full rounded border border-line bg-surface p-1.5 font-mono text-xs text-fg"
-              />
-              <div className="mt-1 flex items-center gap-2">
-                <button
-                  onClick={() => void rerun(i, draft)}
-                  disabled={busy || !draft.trim()}
-                  className={buttonClass("primary", "px-2.5 py-1 text-xs disabled:opacity-50")}
-                >
-                  re-run with this
-                </button>
-                <button onClick={() => setEditing(null)} className="text-xs text-fg-muted hover:text-fg">
-                  cancel
-                </button>
+              <Textarea id={`edit-${i}`} value={draft} onChange={(e) => setDraft(e.target.value)} rows={5} className="mt-2 font-mono text-xs" />
+              <div className="mt-2 flex items-center justify-end gap-2">
+                <Button variant="ghost" onClick={() => setEditing(null)}>
+                  Cancel
+                </Button>
+                <Button variant="primary" onClick={() => void rerun(i, draft)} disabled={busy || !draft.trim()}>
+                  Re-run with this
+                </Button>
               </div>
             </div>
           )}
@@ -786,7 +949,7 @@ export function LiveRun({
               without knowing the height. */}
           <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${unfolded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
           <div className="min-h-0 overflow-hidden">
-          {(unfolded || closing.has(i)) && (<>
+          {(unfolded || closing.has(i)) && (<div className="border-t border-line px-3 pb-4 pt-4 sm:px-4">
           <OperatorPanel workspace={workspace} tenant={tenant} runId={run.id} step={step} stepIndex={i} />
           {/* The account's browser pod under a slim step: its reconnects,
               and — when it was lost — the re-run on full or why not. */}
@@ -796,9 +959,9 @@ export function LiveRun({
             // even when the last attempt left no pod note (a retry on full).
             const pod = browserPodPanel(step);
             if (!pod) return null;
-            const tone = pod.tone === "bad" ? "border-red-200 bg-red-50 text-red-800" : pod.tone === "warn" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-line bg-sunken text-fg-secondary";
+            const tone = pod.tone === "bad" ? "border-danger-line bg-danger-soft text-fg" : pod.tone === "warn" ? "border-warning-line bg-warning-soft text-fg" : "border-line bg-sunken text-fg-secondary";
             return (
-              <p className={`mb-3 rounded-md border px-3 py-1.5 text-xs ${tone}`}>
+              <p className={`mb-3 rounded-md border px-3 py-2 text-[13px] ${tone}`}>
                 {pod.line && (
                   <span className="block">
                     <span className="font-medium">Browser pod:</span> {pod.line}
@@ -818,7 +981,7 @@ export function LiveRun({
             const refused = stepRefused(step);
             if (!refused) return null;
             return (
-              <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-900">
+              <div className="mb-3 rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-[13px] text-fg">
                 <span className="block"><span className="font-medium">Not kept:</span> {refused.line}</span>
                 <span className="mt-0.5 block font-mono">{refused.paths.join(", ")}</span>
               </div>
@@ -827,7 +990,7 @@ export function LiveRun({
           {/* Waiting for room to start (27 Oct 2026): no time limit, its
               place in line kept, nothing charged meanwhile. */}
           {(step.status === "pending" || step.status === "running") && step.roomWait && (
-            <div className="mb-3 rounded-lg border border-info-line bg-info-soft px-3 py-2 text-xs text-fg-secondary">
+            <div className="mb-3 rounded-lg border border-info-line bg-info-soft px-3 py-2.5 text-[13px] text-fg-secondary">
               <span className="block font-medium text-info">
                 Waiting for room to start{run.status === "queued" ? " — the run waits in the queue" : ""}, since <LocalTime iso={step.roomWait.since} />
               </span>
@@ -842,12 +1005,13 @@ export function LiveRun({
             <EventWaitBox workspace={workspace} tenant={tenant} runId={run.id} index={i} step={step} />
           )}
           {step.status === "awaiting-approval" && step.waitFor !== "event" && (
-            <div className="mb-3 space-y-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2">
-              <span className="block text-xs font-medium text-amber-900">
+            <div className="mb-4 space-y-3 rounded-lg border border-warning-line bg-warning-soft p-3 sm:p-4">
+              <span className="flex items-center gap-2 text-sm font-medium text-fg">
+                <Hand className="size-4 shrink-0 text-warning" aria-hidden />
                 {step.ask ? `This step asks you: ${step.ask}` : "Waiting for you before this step runs."}
               </span>
               {run.test && (
-                <span className="block text-xs text-amber-800">
+                <span className="block text-[13px] text-fg-secondary">
                   This is a test run: approving lets the step run, but nothing it sends will go out and nothing it writes to state/ will be kept.
                 </span>
               )}
@@ -889,20 +1053,18 @@ export function LiveRun({
                 const imageSrc = (rel: string) =>
                   `/api/workspaces/${encodeURIComponent(workspace)}/storage/download?path=${encodeURIComponent(rel)}&inline=1`;
                 return (
-                  <div className="rounded-md border border-amber-200 bg-surface px-3 py-2">
-                    <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-amber-800">
-                      What this step will act on
-                    </div>
+                  <div className="rounded-md border border-line bg-surface p-3">
+                    <div className="mb-1.5 text-[13px] font-medium text-fg">What this step will act on</div>
                     {gate.instruction && (
-                      <p className="mb-2 text-xs italic text-fg-tertiary">{gate.instruction}</p>
+                      <p className="mb-2 text-[13px] italic text-fg-tertiary">{gate.instruction}</p>
                     )}
                     {images.length > 0 && (
                       <div className="mb-3 flex flex-wrap gap-3">
                         {images.map((rel) => (
                           <figure key={rel} className="max-w-xs">
                             {/* eslint-disable-next-line @next/next/no-img-element -- a workspace file, not a static asset */}
-                            <img src={imageSrc(rel)} alt={rel} className="rounded border border-line" />
-                            <figcaption className="mt-1 font-mono text-[11px] text-fg-muted">{rel}</figcaption>
+                            <img src={imageSrc(rel)} alt={rel} className="rounded-md border border-line" />
+                            <figcaption className="mt-1 font-mono text-xs text-fg-muted">{rel}</figcaption>
                           </figure>
                         ))}
                       </div>
@@ -911,17 +1073,17 @@ export function LiveRun({
                       <GateDocument key={rel} workspace={workspace} tenant={tenant} rel={rel} src={imageSrc(rel)} />
                     ))}
                     {material.length === 0 ? (
-                      <p className="text-xs text-fg-subtle">No earlier result reaches this step; it runs on its instruction alone.</p>
+                      <p className="text-[13px] text-fg-muted">No earlier result reaches this step; it runs on its instruction alone.</p>
                     ) : (
                       <div className="space-y-3">
                         {material.map(({ ref, text }) => (
                           <div key={ref.index}>
-                            <div className="mb-1 text-[11px] text-fg-muted">
-                              step {ref.index + 1} · {ref.agent}
+                            <div className="mb-1 text-xs text-fg-muted">
+                              Step {ref.index + 1} · {ref.agent}
                               {ref.item && <span className="text-fg-subtle"> ({ref.item.slice(0, 60)})</span>}
                             </div>
-                            <div className="max-h-[32rem] overflow-y-auto rounded border border-line-faint bg-sunken px-3 py-2">
-                              <Markdown text={text} className="text-sm text-gray-800" />
+                            <div className="max-h-[32rem] overflow-y-auto rounded-md border border-line bg-sunken px-3 py-2">
+                              <Markdown text={text} className="text-sm text-fg" />
                             </div>
                           </div>
                         ))}
@@ -949,23 +1111,15 @@ export function LiveRun({
                 onChange={(next) => setNotes((n) => ({ ...n, [i]: next }))}
                 placeholder={step.ask ? "Your answer — it reaches the step as its instruction" : "Optional: guidance for this step if you approve — or why, if you reject"}
                 rows={2}
-                className="w-full rounded-md border border-amber-200 bg-surface px-2 py-1.5 text-xs text-fg placeholder:text-fg-subtle focus:border-amber-400 focus:outline-none"
+                className={cn(inputBase, "py-2 text-[13px]")}
               />
               <span className="flex items-center justify-end gap-2">
-                <button
-                  onClick={() => decide("approve", i)}
-                  disabled={busy}
-                  className={buttonClass("primary")}
-                >
-                  Approve
-                </button>
-                <button
-                  onClick={() => decide("reject", i)}
-                  disabled={busy}
-                  className={buttonClass("destructive")}
-                >
+                <Button size="md" variant="danger-outline" onClick={() => decide("reject", i)} disabled={busy}>
                   Reject
-                </button>
+                </Button>
+                <Button size="md" variant="primary" onClick={() => decide("approve", i)} disabled={busy}>
+                  Approve
+                </Button>
               </span>
             </div>
           )}
@@ -1018,7 +1172,7 @@ export function LiveRun({
             const cacheNote = promptCacheNote(run.steps, i);
             return (
               <div>
-                <div className="mb-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+                <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2">
                 <IoPanel label="In">
                   <IoRow k="instruction">
                     {io.instruction ? (
@@ -1061,7 +1215,7 @@ export function LiveRun({
                   {out.skipReason && <IoRow k="skipped">{out.skipReason}</IoRow>}
                   {stepLive && (
                     <IoRow k="headline">
-                      <span className="text-amber-600">working…</span>
+                      <span className="text-info">working…</span>
                     </IoRow>
                   )}
                   {notYet && !out.skipReason && (
@@ -1082,15 +1236,15 @@ export function LiveRun({
                         </button>
                       )}
                       {out.answer && answerOpen && (
-                        <div className="mt-1.5 max-h-72 overflow-auto rounded border border-line-faint bg-sunken px-2 py-1.5">
-                          <Markdown text={out.answer} className="text-gray-800" />
+                        <div className="mt-1.5 max-h-72 overflow-auto rounded-md border border-line bg-surface px-2 py-1.5">
+                          <Markdown text={out.answer} className="text-fg" />
                         </div>
                       )}
                     </IoRow>
                   )}
                   {jsonText && (
                     <IoRow k="data">
-                      <pre className="max-h-72 overflow-auto rounded border border-line-faint bg-sunken px-2 py-1.5 font-mono text-[11px] leading-snug text-gray-800">
+                      <pre className="max-h-72 overflow-auto rounded-md border border-line bg-surface px-2 py-1.5 font-mono text-[11px] leading-snug text-fg">
                         {jsonOpen || jsonLines.length <= 12 ? jsonText : jsonLines.slice(0, 12).join("\n")}
                       </pre>
                       {jsonLines.length > 12 && (
@@ -1117,7 +1271,7 @@ export function LiveRun({
                             >
                               {f.path}
                             </a>
-                            <span className="ml-1.5 text-[10px] tabular-nums text-fg-subtle">{fmtBytes(f.bytes)}</span>
+                            <span className="ml-1.5 text-xs tabular-nums text-fg-muted">{fmtBytes(f.bytes)}</span>
                           </li>
                         ))}
                       </ul>
@@ -1125,7 +1279,7 @@ export function LiveRun({
                   )}
                   {out.error && (
                     <IoRow k="error">
-                      <span className="text-red-600">{out.error}</span>
+                      <span className="text-danger">{out.error}</span>
                     </IoRow>
                   )}
                   {usage.length > 0 && (
@@ -1188,16 +1342,39 @@ export function LiveRun({
               boxStuck.current.set(i, el.scrollHeight - el.scrollTop - el.clientHeight < 40);
             }}
           />
-          </>)}
+          </div>)}
           </div>
           </div>
         </div>
         );
       })}
 
-      {run.steps.length === 0 && <Badge>no steps</Badge>}
+      {run.steps.length === 0 && <EmptyState compact title="No steps" description="This run has no steps on record." />}
+      </section>
       <div ref={bottomRef} />
     </div>
+  );
+}
+
+/** What needs a person, at the top of the run page: a failure, a gate, a
+ *  question — the title says what, the body why, the actions what to do. */
+function Callout({ tone, icon, title, actions, children }: { tone: "danger" | "warning" | "info"; icon: React.ReactNode; title: React.ReactNode; actions?: React.ReactNode; children?: React.ReactNode }) {
+  const t = {
+    danger: { box: "border-danger-line bg-danger-soft", icon: "text-danger" },
+    warning: { box: "border-warning-line bg-warning-soft", icon: "text-warning" },
+    info: { box: "border-info-line bg-info-soft", icon: "text-info" },
+  }[tone];
+  return (
+    <section role={tone === "info" ? "status" : "alert"} className={cn("flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-start", t.box)}>
+      <span className={cn("mt-0.5 shrink-0 [&_svg]:size-5", t.icon)} aria-hidden>
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1 text-sm">
+        <h2 className="font-medium text-fg">{title}</h2>
+        {children && <div className="mt-1">{children}</div>}
+      </div>
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+    </section>
   );
 }
 
@@ -1206,8 +1383,8 @@ export function LiveRun({
 // read as a list and not as a paragraph.
 function IoPanel({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="min-w-0 rounded-lg border border-line-faint bg-sunken/60 px-3 py-2">
-      <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-fg-subtle">{label}</div>
+    <div className="min-w-0 rounded-lg border border-line bg-sunken px-3 py-2.5">
+      <div className="mb-1.5 text-[13px] font-medium text-fg-secondary">{label}</div>
       <dl className="space-y-1">{children}</dl>
     </div>
   );
@@ -1221,7 +1398,7 @@ function fmtCount(n: number): string {
 function IoRow({ k, children }: { k: string; children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2 text-xs leading-relaxed">
-      <dt className="truncate text-fg-subtle">{k}</dt>
+      <dt className="truncate text-fg-muted">{k}</dt>
       <dd className="min-w-0 break-words text-fg-secondary">{children}</dd>
     </div>
   );
@@ -1252,15 +1429,15 @@ function GateDocument({ workspace, tenant, rel, src }: { workspace: string; tena
   const isMarkdown = /\.mdx?$/i.test(rel);
   return (
     <div className="mb-3">
-      <button type="button" onClick={() => setOpen((o) => !o)} className="mb-1 font-mono text-[11px] text-fg-muted hover:text-gray-800">
-        {open ? "▾" : "▸"} {rel}
-        {failed && <span className="ml-2 text-amber-700">({failed})</span>}
+      <button type="button" onClick={() => setOpen((o) => !o)} className="mb-1 inline-flex items-center gap-1 font-mono text-xs text-fg-muted hover:text-fg">
+        <ChevronRight className={cn("size-3.5 transition-transform", open && "rotate-90")} aria-hidden /> {rel}
+        {failed && <span className="ml-2 text-warning">({failed})</span>}
       </button>
       {open && text !== null && (
-        <div className="max-h-[32rem] overflow-y-auto rounded border border-line-faint bg-sunken px-3 py-2">
+        <div className="max-h-[32rem] overflow-y-auto rounded-md border border-line bg-sunken px-3 py-2">
           {isMarkdown
-            ? <Markdown text={text} className="text-sm text-gray-800" />
-            : <pre className="whitespace-pre-wrap break-words text-xs text-gray-800">{text}</pre>}
+            ? <Markdown text={text} className="text-sm text-fg" />
+            : <pre className="whitespace-pre-wrap break-words text-xs text-fg">{text}</pre>}
         </div>
       )}
     </div>

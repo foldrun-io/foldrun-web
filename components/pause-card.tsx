@@ -7,8 +7,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { buttonClass, inputClass, Card, FIELD_LABEL_CLASS } from "@/components/ui";
-import { Banner } from "@/components/banner";
+import { inputClass } from "@/components/ui";
+import { SettingsCard } from "@/components/kit/page";
+import { Button } from "@/components/kit/button";
 import { WithEmails } from "@/components/email";
 import { useConfirm } from "@/components/confirm";
 
@@ -18,8 +19,7 @@ export interface PauseMarkView {
   reason?: string;
 }
 
-const since = (m: PauseMarkView) =>
-  `${m.at.slice(0, 16).replace("T", " ")} UTC by ${m.by}${m.reason ? ` — ${m.reason}` : ""}`;
+const since = (m: PauseMarkView) => `${m.at.slice(0, 16).replace("T", " ")} UTC by ${m.by}${m.reason ? ` — ${m.reason}` : ""}`;
 
 export function PauseCard({
   workspace,
@@ -63,20 +63,41 @@ export function PauseCard({
     setError(null);
     setNote(null);
     try {
-      const headers = { "content-type": "application/json", "x-foldrun-tenant": tenant };
-      const body = JSON.stringify({ ...(reason.trim() ? { reason: reason.trim() } : {}), ...(stop ? { stop: true } : {}) });
+      const headers = {
+        "content-type": "application/json",
+        "x-foldrun-tenant": tenant,
+      };
+      const body = JSON.stringify({
+        ...(reason.trim() ? { reason: reason.trim() } : {}),
+        ...(stop ? { stop: true } : {}),
+      });
       // One literal call per route and method, so the surface check
       // (scripts/surface-coverage.mjs) can see what this card reaches.
       const ws = encodeURIComponent(workspace ?? "");
       const res =
         method === "POST"
           ? scope === "account"
-            ? await fetch("/api/account/pause", { method: "POST", headers, body })
-            : await fetch(`/api/workspaces/${ws}/pause`, { method: "POST", headers, body })
+            ? await fetch("/api/account/pause", {
+                method: "POST",
+                headers,
+                body,
+              })
+            : await fetch(`/api/workspaces/${ws}/pause`, {
+                method: "POST",
+                headers,
+                body,
+              })
           : scope === "account"
             ? await fetch("/api/account/pause", { method: "DELETE", headers })
-            : await fetch(`/api/workspaces/${ws}/pause`, { method: "DELETE", headers });
-      const answer = (await res.json().catch(() => ({}))) as { error?: string; stopped?: string[]; failed?: unknown[] };
+            : await fetch(`/api/workspaces/${ws}/pause`, {
+                method: "DELETE",
+                headers,
+              });
+      const answer = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        stopped?: string[];
+        failed?: unknown[];
+      };
       if (!res.ok) setError(answer.error ?? `HTTP ${res.status}`);
       else {
         if (method === "POST" && stop) {
@@ -95,57 +116,94 @@ export function PauseCard({
     setBusy(false);
   };
 
-  return (
-    <Card className="space-y-3 p-4 text-sm">
-      {dialog}
-      {note && <Banner tone="ok">{note}</Banner>}
-      {error && <Banner tone="error">{error}</Banner>}
+  const notes = (
+    <>
+      {note && (
+        <p role="status" className="rounded-md border border-success-line bg-success-soft px-3 py-2 text-sm text-success">
+          {note}
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger">
+          {error}
+        </p>
+      )}
       {heldByAccount && (
-        <Banner tone="warn">
+        <p className="rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-sm text-warning">
           The account is paused, so nothing here runs either — <WithEmails text={since(heldByAccount)} />. Resume it in the account&apos;s Settings.
-        </Banner>
+        </p>
       )}
-      {own ? (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="font-semibold text-fg">Paused</p>
-            <p className="mt-0.5 text-fg-tertiary">
-              No new run starts in {what}. Since <WithEmails text={since(own)} />.
-            </p>
-          </div>
-          {mayManage && (
-            <button disabled={busy} onClick={() => send("DELETE")} className={buttonClass("primary")}>
-              {busy ? "Resuming…" : "Resume"}
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-2">
-          <div>
-            <p className="font-semibold text-fg">Pause runs</p>
-            <p className="mt-0.5 text-fg-tertiary">
-              Stops {what} starting anything — schedules, webhooks, chained flows and the Run button — until someone resumes it. A fire while paused is logged on Triggers as &ldquo;paused by a person&rdquo; and is not run later.
-            </p>
-          </div>
-          {mayManage ? (
+    </>
+  );
+
+  const hasNotes = Boolean(note || error || heldByAccount);
+  if (own) {
+    return (
+      <>
+        {dialog}
+        <SettingsCard
+          id="pause"
+          title="Paused"
+          description={
             <>
-              <label className="block">
-                <span className={FIELD_LABEL_CLASS}>Why (optional — shown to everyone who opens it)</span>
-                <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} className={inputClass("w-full")} />
-              </label>
-              <label className="flex items-center gap-2 text-fg-secondary">
-                <input type="checkbox" checked={stop} onChange={(e) => setStop(e.target.checked)} />
-                Also stop the runs going now
-              </label>
-              <button disabled={busy} onClick={() => send("POST")} className={buttonClass("destructive")}>
-                {busy ? "Pausing…" : scope === "account" ? "Pause the account" : "Pause this workspace"}
-              </button>
+              No new run starts in {what}. Since <WithEmails text={since(own)} />.
             </>
-          ) : (
-            <p className="text-fg-tertiary">An admin of this account can pause it.</p>
-          )}
-        </div>
-      )}
-    </Card>
+          }
+          hint={mayManage ? "Resuming lets schedules, webhooks and Run start again." : "An admin of this account can resume it."}
+          footer={
+            mayManage && (
+              <Button variant="primary" disabled={busy} onClick={() => send("DELETE")}>
+                {busy ? "Resuming…" : "Resume"}
+              </Button>
+            )
+          }
+        >
+          {hasNotes && <div className="space-y-2">{notes}</div>}
+        </SettingsCard>
+      </>
+    );
+  }
+
+  return (
+    <>
+      {dialog}
+      <SettingsCard
+        id="pause"
+        danger
+        title="Pause runs"
+        description={
+          <>
+            Stops {what} starting anything — schedules, webhooks, chained flows and the Run button — until someone resumes it. A fire while paused is logged on Triggers as &ldquo;paused by a
+            person&rdquo; and is not run later.
+          </>
+        }
+        hint={mayManage ? undefined : "An admin of this account can pause it."}
+        footer={
+          mayManage && (
+            <Button variant="danger" disabled={busy} onClick={() => send("POST")}>
+              {busy ? "Pausing…" : scope === "account" ? "Pause the account" : "Pause this workspace"}
+            </Button>
+          )
+        }
+      >
+        {(hasNotes || mayManage) && (
+          <div className="space-y-4">
+            {notes}
+            {mayManage && (
+              <>
+                <label className="block max-w-md">
+                  <span className="block text-sm font-medium text-fg">Why</span>
+                  <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} placeholder="Optional — shown to everyone who opens it" className={inputClass("mt-1.5 w-full")} />
+                </label>
+                <label className="flex items-center gap-2 text-sm text-fg">
+                  <input type="checkbox" checked={stop} onChange={(e) => setStop(e.target.checked)} className="size-4 rounded border-line-strong accent-fg" />
+                  Also stop the runs going now
+                </label>
+              </>
+            )}
+          </div>
+        )}
+      </SettingsCard>
+    </>
   );
 }

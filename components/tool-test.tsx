@@ -12,7 +12,9 @@
 // Never their values.
 
 import { useState } from "react";
-import { buttonClass, inputClass } from "@/components/ui";
+import { Check, Play, X } from "lucide-react";
+import { Button } from "@/components/kit/button";
+import { Input } from "@/components/kit/input";
 
 interface Result {
   ok: boolean;
@@ -79,17 +81,17 @@ export function ToolTest({
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {transport === "script" && scriptArgs.length > 0 && (
-        <div className="flex flex-wrap items-end gap-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {scriptArgs.map((a) => (
-            <label key={a} className="block">
-              <span className="mb-1 block font-mono text-xs text-fg-muted">--{a}</span>
-              <input
+            <label key={a} className="flex flex-col gap-1.5">
+              <span className="font-mono text-xs text-fg-muted">--{a}</span>
+              <Input
                 value={args[a] ?? ""}
                 onChange={(e) => setArgs((prev) => ({ ...prev, [a]: e.target.value }))}
                 spellCheck={false}
-                className={inputClass("w-44 font-mono")}
+                className="font-mono text-[13px]"
               />
             </label>
           ))}
@@ -98,37 +100,41 @@ export function ToolTest({
 
       <div className="flex flex-wrap items-center gap-2">
         {transport === "http" && (
-          <input
+          <Input
             value={probePath}
             onChange={(e) => setProbePath(e.target.value)}
             placeholder="/path to try"
+            aria-label="Path to try"
             spellCheck={false}
-            className={inputClass("w-56 font-mono")}
+            className="w-56 font-mono text-[13px]"
           />
         )}
-        <button
+        <Button
+          variant="primary"
+          size="md"
           onClick={run}
           disabled={busy || stale}
           title={stale ? "Save first — a test runs the file on disk, not the text on screen" : undefined}
-          className={buttonClass("secondary")}
         >
-          {busy ? "Calling…" : "Test"}
-        </button>
+          <Play /> {busy ? "Calling…" : "Test"}
+        </Button>
         {stale && (
-          <span className="text-xs text-amber-700">Save first — the test runs what is on disk.</span>
-        )}
-        {result && (
-          <span
-            className={`text-xs font-medium ${result.ok ? "text-green-700" : "text-red-600"}`}
-          >
-            {result.ok ? "✓" : "✕"} {result.summary}
-            <span className="ml-1.5 font-normal text-fg-subtle">{result.ms}ms</span>
-          </span>
+          <span className="text-xs text-warning">Save first — the test runs what is on disk.</span>
         )}
       </div>
 
+      {result && (
+        <p className={`flex items-start gap-1.5 text-sm font-medium ${result.ok ? "text-success" : "text-danger"}`}>
+          {result.ok ? <Check className="mt-0.5 size-4 shrink-0" aria-hidden /> : <X className="mt-0.5 size-4 shrink-0" aria-hidden />}
+          <span className="min-w-0 break-words">
+            {result.summary}
+            <span className="ml-1.5 font-normal text-fg-subtle">{result.ms}ms</span>
+          </span>
+        </p>
+      )}
+
       {result?.missingSecrets.length ? (
-        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        <p className="rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-xs text-warning">
           Unset secret{result.missingSecrets.length === 1 ? "" : "s"}:{" "}
           <span className="font-mono">{result.missingSecrets.join(", ")}</span> — the call went out
           without {result.missingSecrets.length === 1 ? "it" : "them"}.
@@ -136,7 +142,7 @@ export function ToolTest({
       ) : null}
 
       {result?.detail ? (
-        <pre className="max-h-56 overflow-auto rounded-md border border-line bg-sunken p-3 font-mono text-xs leading-relaxed text-fg-secondary">
+        <pre className="max-h-80 overflow-auto rounded-md border border-line bg-sunken p-3 font-mono text-xs leading-relaxed text-fg-secondary">
           {result.detail}
         </pre>
       ) : null}

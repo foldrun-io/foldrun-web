@@ -15,7 +15,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { buttonClass, chipButtonClass, inputClass, FIELD_LABEL_CLASS } from "@/components/ui";
+import { buttonClass, inputClass, FIELD_LABEL_CLASS } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
+import { Globe } from "lucide-react";
 import { CopyField } from "@/components/copy-field";
 import { useCan } from "@/components/role";
 import { a2aBodyOf, a2aCurl, a2aFormOf, a2aRiskState, type A2aForm, type A2aRisk } from "@/components/a2a-model";
@@ -89,16 +91,17 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
           setOpen(true);
           void locate();
         }}
-        className={chipButtonClass()}
+        className={buttonVariants({ variant: "secondary" })}
         title={initial?.publish ? "Published over A2A — outside agents with an A2A key naming this flow may call it" : "Let outside agents call this flow over A2A"}
       >
-        {initial?.publish ? "A2A: published…" : "Publish over A2A…"}
+        <Globe aria-hidden />
+        {initial?.publish ? "Change publishing" : "Publish over A2A…"}
       </button>
     );
   }
 
   return (
-    <div className="w-full rounded-md border border-line bg-sunken p-3">
+    <div className="w-full rounded-lg border border-line bg-sunken p-4">
       <p className="text-xs text-fg-muted">
         A published flow can be called by an outside agent over A2A 1.0 — only with an A2A key that names it (Settings → API keys). A person still approves every gate.
         {!mayManage && <span className="ml-1 font-medium text-fg-secondary">Publishing needs the admin role.</span>}
@@ -167,7 +170,7 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
         <button type="button" onClick={() => { setForm(saved); setError(null); setOpen(false); }} className={buttonClass("minimal")}>
           Close
         </button>
-        {error && <span className="text-xs text-red-600">{error}</span>}
+        {error && <span role="alert" className="text-xs text-danger">{error}</span>}
         <span className="ml-auto text-xs text-fg-subtle">a2a: in the flow</span>
       </div>
       {where && saved.publish && (

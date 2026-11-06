@@ -41,15 +41,15 @@ export function MfaSection({ enabled }: { enabled: boolean }) {
         const f = new FormData(e.currentTarget);
         if (await post("/api/auth/mfa/disable", { password: f.get("password"), code: f.get("code") })) router.refresh();
       }}>
-        <p className="text-fg-secondary">Two-factor authentication is <span className="font-medium text-emerald-700">on</span>. Every sign-in asks for a code from your app.</p>
+        <p className="text-fg-secondary">Two-factor authentication is <span className="font-medium text-success">on</span>. Every sign-in asks for a code from your app.</p>
         <details className="rounded-lg border border-line p-3">
           <summary className="cursor-pointer text-fg-secondary">Turn it off</summary>
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <input name="password" type="password" required placeholder="your password" autoComplete="current-password" className={inputClass()} />
             <input name="code" required placeholder="code from the app, or a backup code" inputMode="numeric" className={inputClass()} />
           </div>
-          {err && <p className="mt-2 text-red-700">{err}</p>}
-          <button disabled={busy} className={`${buttonClass("secondary")} mt-3 !text-red-700`}>Turn off two-factor</button>
+          {err && <p className="mt-2 text-danger">{err}</p>}
+          <button disabled={busy} className={`${buttonClass("secondary")} mt-3 !text-danger`}>Turn off two-factor</button>
         </details>
       </form>
     );
@@ -76,7 +76,7 @@ export function MfaSection({ enabled }: { enabled: boolean }) {
               <code className="mt-1 block break-all rounded bg-sunken p-2 font-mono text-fg">{setup.secret}</code>
             </details>
             <input name="code" required autoFocus inputMode="numeric" autoComplete="one-time-code" placeholder="6-digit code" className={inputClass("w-40 text-center tracking-widest")} />
-            {err && <p className="text-red-700">{err}</p>}
+            {err && <p className="text-danger">{err}</p>}
             <div className="flex gap-2">
               <button disabled={busy} className={buttonClass("primary")}>Turn on two-factor</button>
               <button type="button" className={buttonClass("secondary")} onClick={() => setSetup(null)}>Cancel</button>
@@ -90,7 +90,7 @@ export function MfaSection({ enabled }: { enabled: boolean }) {
   return (
     <div className="space-y-3 text-sm">
       <p className="text-fg-secondary">Two-factor authentication is <span className="font-medium">off</span>. Turn it on and every sign-in needs a code from an authenticator app as well as your password.</p>
-      {err && <p className="text-red-700">{err}</p>}
+      {err && <p className="text-danger">{err}</p>}
       <button disabled={busy} className={buttonClass("primary")} onClick={async () => { const j = await post("/api/auth/mfa/setup", {}); if (j) setSetup(j as { secret: string; qr: string; enrol: string }); }}>Set up two-factor</button>
     </div>
   );

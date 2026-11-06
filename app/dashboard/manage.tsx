@@ -28,12 +28,15 @@ export function DeleteButton({
   confirmText,
   redirectTo,
   action = "workspace:write",
+  variant = "link",
 }: {
   endpoint: string;
   tenant: string;
   body?: Record<string, unknown>;
   confirmText: string;
   redirectTo?: string;
+  /** "button" in a Danger zone card; "link" (quiet text) inside a row. */
+  variant?: "link" | "button";
   /** The permission the DELETE asks for — a run's record is erased by
    *  workspace:manage, not by whoever may write. */
   action?: Action;
@@ -55,7 +58,11 @@ export function DeleteButton({
           if (redirectTo) router.push(redirectTo);
           else router.refresh();
         }}
-        className="text-xs font-medium text-fg-subtle transition-colors hover:text-red-600"
+        className={
+          variant === "button"
+            ? "inline-flex h-8 items-center rounded-md border border-transparent bg-red-600 px-3 text-[13px] font-medium text-white transition-colors hover:bg-red-700"
+            : "text-xs font-medium text-fg-subtle transition-colors hover:text-red-600"
+        }
       >
         Delete
       </button>

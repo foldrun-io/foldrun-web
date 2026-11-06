@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Badge } from "@/components/ui";
+import { Chip, Tag } from "@/components/kit/page";
 
 /**
  * The badge beside a library tool that came from the gallery: current, or
@@ -14,13 +14,17 @@ export function GalleryDrift({ tenant, name, status }: { tenant: string; name: s
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   if (status === "current") {
-    return <Badge title="Installed from the gallery, and identical to the version the platform ships now">gallery · current</Badge>;
+    return (
+      <span title="Installed from the gallery, and identical to the version the platform ships now">
+        <Tag>gallery · current</Tag>
+      </span>
+    );
   }
   return (
     <span className="inline-flex items-center gap-1.5">
-      <Badge variant="warning" title="Installed from the gallery, but not identical to the version the platform ships now — either the gallery moved on, or this copy was edited">
-        gallery · differs
-      </Badge>
+      <span title="Installed from the gallery, but not identical to the version the platform ships now — either the gallery moved on, or this copy was edited">
+        <Chip tone="warn">gallery · differs</Chip>
+      </span>
       <button
         disabled={busy}
         onClick={async (e) => {
@@ -35,7 +39,7 @@ export function GalleryDrift({ tenant, name, status }: { tenant: string; name: s
           setBusy(false);
           router.refresh();
         }}
-        className="text-xs font-medium text-blue-600 hover:underline disabled:opacity-50"
+        className="text-xs font-medium text-link hover:underline disabled:opacity-50"
         title="Replace this copy with the gallery's current version. The previous content stays one revision back."
       >
         {busy ? "updating…" : "update to gallery version"}

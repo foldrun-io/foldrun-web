@@ -6,9 +6,8 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, PageHeader } from "@/components/ui";
+import { Page, PageHeader, Card } from "@/components/kit/page";
 import { Markdown } from "@/components/markdown";
 import { allDocs, docsDir, docTitle, docSummary } from "@/docs-index";
 
@@ -28,14 +27,11 @@ export default async function DocPage({ params }: { params: Promise<{ doc: strin
   const body = raw.replace(/^#\s+.+$/m, "").trimStart();
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-8">
-      <Link href="/dashboard/docs" className="text-sm text-fg-muted hover:text-fg">
-        ← Docs
-      </Link>
-      <PageHeader title={docTitle(raw, doc)} subtitle={docSummary(raw)} />
-      <Card className="p-6">
+    <Page width="narrow" className="pb-16">
+      <PageHeader back={{ href: "/dashboard/docs", label: "Docs" }} title={docTitle(raw, doc)} description={docSummary(raw)} />
+      <Card className="p-5 sm:p-8">
         <Markdown text={body} document />
       </Card>
-    </main>
+    </Page>
   );
 }

@@ -8,7 +8,8 @@ import path from "node:path";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { WithEmails } from "@/components/email";
-import { Card, PageHeader } from "@/components/ui";
+import { Page, PageHeader, Panel } from "@/components/kit/page";
+import { ChevronRight } from "lucide-react";
 import { designNotes, docsDir, noteTitle, noteSummary } from "./design-notes";
 
 // Per request, not prerendered (28 Oct 2026): the enforced CSP's nonce is
@@ -17,7 +18,7 @@ import { designNotes, docsDir, noteTitle, noteSummary } from "./design-notes";
 export const dynamic = "force-dynamic";
 
 const Code = ({ children }: { children: ReactNode }) => (
-  <code className="rounded bg-muted px-1 py-0.5 font-mono text-[12px] text-gray-800">{children}</code>
+  <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-fg">{children}</code>
 );
 
 function Table({ rows, head }: { head: [string, string]; rows: [string, string][] }) {
@@ -25,14 +26,14 @@ function Table({ rows, head }: { head: [string, string]; rows: [string, string][
     <div className="overflow-x-auto">
       <table className="mt-2 w-full text-sm">
         <thead>
-          <tr className="text-left text-xs uppercase tracking-wide text-fg-subtle">
+          <tr className="text-left text-[13px] text-fg-muted">
             <th className="py-1 pr-4 font-medium">{head[0]}</th>
             <th className="py-1 font-medium">{head[1]}</th>
           </tr>
         </thead>
         <tbody>
           {rows.map(([a, b]) => (
-            <tr key={a} className="border-t border-line-faint align-top">
+            <tr key={a} className="border-t border-line align-top">
               <td className="whitespace-nowrap py-1.5 pr-4">
                 <Code>
                   <WithEmails text={a} />
@@ -55,15 +56,14 @@ export default function HelpPage() {
   });
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-8">
+    <Page width="narrow" className="space-y-8 pb-16">
       <PageHeader
         title="How foldrun reads your files"
-        subtitle="Folders are agents, a flow is a numbered list of links, and every capability is a file the agent names in its frontmatter. This page is the whole grammar."
+        description="Folders are agents, a flow is a numbered list of links, and every capability is a file the agent names in its frontmatter. This page is the whole grammar."
       />
 
-      <Card className="p-4">
-        <h2 className="text-sm font-semibold text-fg">The workspace, on disk</h2>
-        <pre className="mt-2 overflow-x-auto rounded-lg bg-sunken p-3 font-mono text-xs leading-relaxed text-fg-secondary">{`my-workspace/
+      <Panel title="The workspace, on disk">
+        <pre className="overflow-x-auto rounded-md border border-line bg-sunken p-3 font-mono text-xs leading-relaxed text-fg-secondary">{`my-workspace/
   AGENTS.md              workspace-wide rules · notify: · budget:
   agents/<name>/agent.md one folder per agent — the folder IS the agent
   flows/<name>.md        orchestration: a numbered list of [[agent]] links
@@ -76,11 +76,10 @@ export default function HelpPage() {
   state/                 the workspace's own memory between runs — small,
                          inspectable, travels with the workspace
   evals/                 graded checks for your agents`}</pre>
-      </Card>
+      </Panel>
 
-      <Card className="mt-4 p-4">
-        <h2 className="text-sm font-semibold text-fg">A flow file</h2>
-        <pre className="mt-2 overflow-x-auto rounded-lg bg-sunken p-3 font-mono text-xs leading-relaxed text-fg-secondary">{`---
+      <Panel title="A flow file">
+        <pre className="overflow-x-auto rounded-md border border-line bg-sunken p-3 font-mono text-xs leading-relaxed text-fg-secondary">{`---
 name: extract-and-send
 trigger: schedule          # manual | schedule | once | webhook | email | flow | storage | watch
 schedule: "0 8 * * *"      # 5-field cron…
@@ -139,7 +138,7 @@ budget: 5                  # the most one run may spend, USD — checked between
           Each step receives the previous group&rsquo;s results automatically. Big artifacts ride{" "}
           <Code>storage/</Code>. A step can run another flow with <Code>[[flow:name]]</Code>.
         </p>
-        <h3 className="mt-4 text-xs font-semibold uppercase tracking-wide text-fg-subtle">Triggers</h3>
+        <h3 className="mt-6 text-sm font-medium text-fg">Triggers</h3>
         <Table
           head={["trigger:", "starts when"]}
           rows={[
@@ -153,7 +152,7 @@ budget: 5                  # the most one run may spend, USD — checked between
             ["watch + url: + every:", "the page at the URL changes, polled every 15m by default — the new content becomes the task"],
           ]}
         />
-        <h3 className="mt-4 text-xs font-semibold uppercase tracking-wide text-fg-subtle">Step markers</h3>
+        <h3 className="mt-6 text-sm font-medium text-fg">Step markers</h3>
         <Table
           head={["marker", "meaning"]}
           rows={[
@@ -163,7 +162,7 @@ budget: 5                  # the most one run may spend, USD — checked between
             ["[[flow:weekly]]", "a whole flow as one step"],
           ]}
         />
-        <h3 className="mt-4 text-xs font-semibold uppercase tracking-wide text-fg-subtle">
+        <h3 className="mt-6 text-sm font-medium text-fg">
           Step options — indented lines under the step
         </h3>
         <Table
@@ -201,10 +200,9 @@ budget: 5                  # the most one run may spend, USD — checked between
           <Code>until:</Code>, a line that is the word). No model decides them. Write the verdict as
           a headline and they agree with what the agent meant.
         </p>
-      </Card>
+      </Panel>
 
-      <Card className="mt-4 p-4">
-        <h2 className="text-sm font-semibold text-fg">When a run waits for you</h2>
+      <Panel title="When a run waits for you">
         <p className="mt-2 text-sm text-fg-tertiary">
           A step with <Code>ask:</Code> (or a <Code>2!</Code> marker) parks the run until a person
           answers. Parking is durable — the run survives restarts and waits days if it has to — and
@@ -231,8 +229,10 @@ budget: 5                  # the most one run may spend, USD — checked between
           the run history keeps the question and your reason.
         </p>
 
-        <h2 className="text-sm font-semibold text-fg">An agent file</h2>
-        <pre className="mt-2 overflow-x-auto rounded-lg bg-sunken p-3 font-mono text-xs leading-relaxed text-fg-secondary">{`---
+      </Panel>
+
+      <Panel title="An agent file">
+        <pre className="overflow-x-auto rounded-md border border-line bg-sunken p-3 font-mono text-xs leading-relaxed text-fg-secondary">{`---
 name: extractor
 description: Builds the NSW conveyancer list
 model: sonnet              # tier, alias, or full model id
@@ -292,11 +292,10 @@ and skip what we already have…          ← the prompt; the link
           that still has one gets an error quoting the <Code>tools:</Code> line to write, and{" "}
           <Code>node scripts/migrate-use-to-tools.mjs .</Code> rewrites every agent in a folder.
         </p>
-      </Card>
+      </Panel>
 
-      <Card className="mt-4 p-4">
-        <h2 className="text-sm font-semibold text-fg">A tool file</h2>
-        <pre className="mt-2 overflow-x-auto rounded-lg bg-sunken p-3 font-mono text-xs leading-relaxed text-fg-secondary">{`---
+      <Panel title="A tool file">
+        <pre className="overflow-x-auto rounded-md border border-line bg-sunken p-3 font-mono text-xs leading-relaxed text-fg-secondary">{`---
 transport: script          # script | http | mcp
 name: crm-upload
 description: Upload a lead CSV to the CRM
@@ -318,10 +317,9 @@ Prose for the agent, then the implementation:
           run&rsquo;s sandbox with <Code>FOLDRUN_RUN_ID</Code>, <Code>FOLDRUN_AGENT</Code> and{" "}
           <Code>FOLDRUN_DATE</Code> in their environment for stamping provenance.
         </p>
-      </Card>
+      </Panel>
 
-      <Card className="mt-4 p-4">
-        <h2 className="text-sm font-semibold text-fg">Skills, knowledge, memory</h2>
+      <Panel title="Skills, knowledge, memory">
         <Table
           head={["kind", "what it is"]}
           rows={[
@@ -330,10 +328,9 @@ Prose for the agent, then the implementation:
             ["memory/*.md", "the same format, written by agents as they learn"],
           ]}
         />
-      </Card>
+      </Panel>
 
-      <Card className="mt-4 p-4">
-        <h2 className="text-sm font-semibold text-fg">Workspace frontmatter (AGENTS.md)</h2>
+      <Panel title="Workspace frontmatter (AGENTS.md)">
         <Table
           head={["key", "what it does"]}
           rows={[
@@ -346,30 +343,29 @@ Prose for the agent, then the implementation:
           Everything on this page is plain markdown in your workspace — editable here in the
           dashboard, or in any editor, and every change is an ordinary git diff.
         </p>
-      </Card>
+      </Panel>
 
       {notes.length > 0 && (
-        <Card className="mt-4 p-4">
-          <h2 className="text-sm font-semibold text-fg">Design notes</h2>
+        <Panel title="Design notes">
           <p className="mt-1 text-sm text-fg-tertiary">
             Why the format is shaped this way, and where it deliberately stops. The rest of this
             page is what the grammar <em>is</em>; these are the decisions behind it.
           </p>
-          <ul className="mt-3 space-y-3">
+          <ul className="-mx-5 -mb-5 mt-4 divide-y divide-line border-t border-line">
             {notes.map(({ slug, title, summary }) => (
               <li key={slug}>
-                <Link
-                  href={`/dashboard/help/notes/${slug}`}
-                  className="text-sm font-medium text-fg hover:underline"
-                >
-                  {title}
+                <Link href={`/dashboard/help/notes/${slug}`} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-sunken">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-fg">{title}</span>
+                    {summary && <span className="mt-0.5 block text-sm text-fg-muted">{summary}…</span>}
+                  </span>
+                  <ChevronRight aria-hidden className="size-4 shrink-0 text-fg-subtle" />
                 </Link>
-                {summary && <p className="mt-0.5 text-sm text-fg-tertiary">{summary}…</p>}
               </li>
             ))}
           </ul>
-        </Card>
+        </Panel>
       )}
-    </main>
+    </Page>
   );
 }

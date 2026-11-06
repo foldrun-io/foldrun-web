@@ -8,6 +8,8 @@ import { useState } from "react";
 import Link from "next/link";
 import type { RunComparison } from "@/lib/compare";
 import { runHref } from "@/components/run-href";
+import { Button } from "@/components/kit/button";
+import { GitCompare, X } from "lucide-react";
 
 export function RunCompare({ workspace, runId, tenant }: { workspace: string; runId: string; tenant: string }) {
   const [state, setState] = useState<{ comparison: RunComparison; chosen: string } | string | null>(null);
@@ -26,23 +28,26 @@ export function RunCompare({ workspace, runId, tenant }: { workspace: string; ru
   };
   if (state === null) {
     return (
-      <button type="button" onClick={() => void load()} disabled={loading} className="rounded-md px-2.5 py-1 text-xs font-medium text-fg-muted ring-1 ring-inset ring-line hover:bg-sunken hover:text-fg disabled:opacity-50">
-        {loading ? "comparing…" : "compare with the last good run"}
-      </button>
+      <Button onClick={() => void load()} disabled={loading}>
+        <GitCompare aria-hidden />
+        {loading ? "Comparing…" : "Compare with the last good run"}
+      </Button>
     );
   }
-  if (typeof state === "string") return <p className="text-xs text-fg-muted">{state}</p>;
+  if (typeof state === "string") return <p className="text-[13px] text-fg-muted">{state}</p>;
   const c = state.comparison;
   const changed = c.steps.filter((s) => s.changes.length);
   return (
-    <section className="rounded-xl border border-line bg-surface p-3 shadow-sm">
-      <header className="flex flex-wrap items-baseline gap-2 text-xs">
-        <span className="font-medium uppercase tracking-wide text-fg-subtle">compared with</span>
+    <section className="rounded-lg border border-line bg-surface p-4 text-[13px]">
+      <header className="flex flex-wrap items-center gap-2">
+        <span className="font-medium text-fg">Compared with</span>
         <Link href={runHref(workspace, c.base.id, tenant)} className="font-mono text-fg hover:underline">{c.base.id}</Link>
-        <span className="text-fg-subtle">({state.chosen}, {c.base.status})</span>
-        <button type="button" onClick={() => setState(null)} className="ml-auto text-fg-muted hover:text-fg">close</button>
+        <span className="text-fg-muted">({state.chosen}, {c.base.status})</span>
+        <Button size="icon-xs" variant="ghost" onClick={() => setState(null)} aria-label="Close" className="ml-auto">
+          <X aria-hidden />
+        </Button>
       </header>
-      <p className="mt-1.5 text-xs text-fg-secondary">
+      <p className="mt-2 text-fg-secondary">
         {c.revisionChanged
           ? c.changedFiles === null
             ? "They ran different versions of the files (the history does not say which files)."
@@ -52,13 +57,13 @@ export function RunCompare({ workspace, runId, tenant }: { workspace: string; ru
           : "Both ran the same version of the files."}
       </p>
       {changed.length === 0 ? (
-        <p className="mt-1.5 text-xs text-fg-muted">No step differs in status, instruction, model, tools, errors, time or tokens.</p>
+        <p className="mt-2 text-fg-muted">No step differs in status, instruction, model, tools, errors, time or tokens.</p>
       ) : (
-        <ul className="mt-2 space-y-1.5">
+        <ul className="mt-3 space-y-2">
           {changed.map((s) => (
-            <li key={`${s.step}/${s.agent}`} className="text-xs">
-              <span className="font-medium text-fg">step {s.step} · {s.agent}</span>
-              <ul className="ml-4 mt-0.5 list-disc text-fg-tertiary">
+            <li key={`${s.step}/${s.agent}`}>
+              <span className="font-medium text-fg">Step {s.step} · {s.agent}</span>
+              <ul className="ml-4 mt-0.5 list-disc text-fg-secondary">
                 {s.changes.map((ch) => (
                   <li key={ch} className={/^(status|new error|tool errors)/.test(ch) ? "text-danger" : ""}>{ch}</li>
                 ))}

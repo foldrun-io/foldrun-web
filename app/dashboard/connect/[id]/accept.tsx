@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { buttonClass } from "@/components/ui";
+import { Button, buttonVariants } from "@/components/kit/button";
 
 /** Accept: the hand-off becomes a consent bound to this browser. */
 export function HandoffAccept({ id, tenant }: { id: string; tenant: string }) {
@@ -20,10 +20,14 @@ export function HandoffAccept({ id, tenant }: { id: string; tenant: string }) {
     }
   }
   return (
-    <div className="mt-5 flex items-center gap-3">
-      <button onClick={accept} disabled={busy} className={buttonClass("primary")}>Accept and continue →</button>
-      <Link href="/dashboard/settings" className={buttonClass("secondary")}>Cancel</Link>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      <Link href="/dashboard/settings?tab=secrets" className={buttonVariants({ variant: "secondary" })}>
+        Cancel
+      </Link>
+      <Button variant="primary" onClick={accept} disabled={busy}>
+        Accept and continue →
+      </Button>
     </div>
   );
 }

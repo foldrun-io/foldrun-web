@@ -22,10 +22,9 @@ import { avatarUrl } from "@/platform/avatars";
 import { CreateForm } from "@/components/create";
 import { DemoButton } from "./demo-button";
 import { alertsFor, nowMs } from "@/components/overview-model";
-import { AttentionPanel, NowNext, StatusStrip } from "@/components/mission-control";
-import { DesksTable } from "@/components/desks-table";
+import { AttentionPanel, Cells, NowNext, SpendPanel, outcomeRing } from "@/components/mission-control";
 import { deskRows } from "@/components/desks-model";
-import { needsList, heartbeats, nowBoard, spendWithin, DAY_MS } from "@/components/mission-model";
+import { needsList, heartbeats, nowBoard, spendWithin, fmtSpan, DAY_MS } from "@/components/mission-model";
 import { accountIssues } from "@/server/issues";
 import { runLite } from "@/server/run-lite";
 import { runCharges } from "@/server/run-charges";
@@ -35,6 +34,17 @@ import { cookies } from "next/headers";
 import { verifySession, SESSION_COOKIE } from "@/server/users";
 import { onboardingFor, ONBOARDING_PREF } from "@/server/onboarding";
 import { OnboardingCard, OnboardingReopen } from "@/components/onboarding-card";
+import Link from "next/link";
+import { Boxes, CircleDashed, Clock3, Plus } from "lucide-react";
+import { Avatar } from "@/components/avatar";
+import { OUTCOME } from "@/components/outcome-model";
+import { fmtIn } from "@/components/workspace-overview-model";
+import { creditsShort } from "@/components/money";
+import { Page, ResourceCard, EmptyState } from "@/components/kit/page";
+import { SplitOverview } from "@/components/kit/overview";
+import { Status } from "@/components/kit/status";
+import { buttonVariants } from "@/components/kit/button";
+import type { Row } from "@/components/kit/list";
 
 export const dynamic = "force-dynamic";
 
@@ -90,10 +100,64 @@ export default async function Dashboard({
   const person = await verifySession((await cookies()).get(SESSION_COOKIE)?.value);
   const onboardingHidden = Boolean(person?.prefs?.[ONBOARDING_PREF]);
 
+  const spendHref = `/dashboard/usage${qs}`;
+  const rows: Row[] = desks.map((d) => {
+    const last = d.beat.last;
+    const ring = outcomeRing(last?.outcome);
+    const href = `/dashboard/${d.name}${qs}`;
+    const mark = <Avatar name={d.name} src={d.avatar ?? null} size="lg" square />;
+    const lastLine = last ? (
+      <>
+        <span className={`size-2 shrink-0 rounded-full ${OUTCOME[last.outcome].dot}`} />
+        <span className="truncate">
+          {last.what} · {OUTCOME[last.outcome].label} {fmtSpan(now - Date.parse(last.startedAt))} ago
+        </span>
+      </>
+    ) : (
+      <>
+        <CircleDashed />
+        <span className="truncate">No runs yet</span>
+      </>
+    );
+    const nextLine = d.next ? (
+      <>
+        <Clock3 />
+        <span className="truncate">
+          {d.next.flow} {fmtIn(Math.max(0, Date.parse(d.next.at) - now))}
+        </span>
+      </>
+    ) : null;
+    return {
+      key: d.name,
+      search: [d.name, d.description, last?.what, last?.headline, d.next?.flow].filter(Boolean).join(" "),
+      href,
+      icon: <Avatar name={d.name} src={d.avatar ?? null} size="sm" square />,
+      name: d.name,
+      sub: d.description || `${d.agents} agents · ${d.flows} flows`,
+      cells: {
+        status: <Status outcome={last?.outcome ?? "quiet"} label={last ? undefined : "No runs"} />,
+        runs: <Cells beat={d.beat} n={12} tenant={tenant} />,
+        next: d.next ? `${d.next.flow} ${fmtIn(Math.max(0, Date.parse(d.next.at) - now))}` : undefined,
+        spend: creditsShort(d.beat.spend7dUsd),
+      },
+      card: (
+        <ResourceCard
+          href={href}
+          mark={mark}
+          name={d.name}
+          sub={`${d.agents} agent${d.agents === 1 ? "" : "s"} · ${d.flows} flow${d.flows === 1 ? "" : "s"}`}
+          status={d.beat.live ? "busy" : ring}
+          statusLabel={d.beat.live ? `${d.beat.live} running` : last ? OUTCOME[last.outcome].hint : "no runs yet"}
+          lines={[lastLine, ...(nextLine ? [nextLine] : [])]}
+        />
+      ),
+    };
+  });
+
   return (
-    <main className="mx-auto max-w-7xl px-6 py-6">
-      {/* The create dialog has no button of its own on this page — Add New
-          and the workspace switcher open it through ?create=workspace. */}
+    <Page>
+      {/* The create dialog has no button of its own on this page — Create
+          new and the workspace switcher open it through ?create=workspace. */}
       <CreateForm
         noun="workspace"
         placeholder="marketing"
@@ -103,7 +167,7 @@ export default async function Dashboard({
         trigger={false}
         autoOpen={create === "workspace"}
       />
-      {/* Same idea for a package: Add New → Import workspace opens it through ?import=workspace. */}
+      {/* Same idea for a package: Create new → Import workspace opens it through ?import=workspace. */}
       {importing === "workspace" && (
         <div className="hidden">
           <ImportPackageButton tenant={tenant} newWorkspace autoOpen />
@@ -111,36 +175,62 @@ export default async function Dashboard({
       )}
       {/* Live rows repaint themselves; the timer is for the board around them. */}
       <AutoRefresh active={board.length > 0} />
-      <StatusStrip
-        now={now}
-        facts={{
-          running: board.length,
-          attention: needs.length + money.length,
-          platform: needs.filter((a) => a.kind === "platform").length,
-          next: upcoming[0] ? { flow: upcoming[0].flow, at: upcoming[0].at, workspace: upcoming[0].workspace } : null,
-          spendDayUsd: spendWithin(lite, now, DAY_MS),
-          spend7dUsd: spendWithin(lite, now, 7 * DAY_MS),
-          balanceUsd: wallet?.balanceUsd ?? null,
-          links: {
-            attention: needs.length + money.length ? "#attention" : `/dashboard/runs${qs}`,
-            running: `/dashboard/runs?status=running${rest}`,
-            next: `/dashboard/settings${qs}#schedules`,
-            spend: `/dashboard/usage${qs}`,
-            balance: `/dashboard/billing${qs}`,
-          },
-        }}
-      />
-      {!onboardingHidden && <OnboardingCard data={onboarding} qs={qs} canDismiss={Boolean(person)} />}
-      <AttentionPanel items={needs} alerts={money} tenant={tenant} issuesHref={`/dashboard/issues${qs}`} accountWide={scope === null} />
-      <NowNext board={board} upcoming={upcoming} now={now} tenant={tenant} runsHref={`/dashboard/runs?status=running${rest}`} />
-      <DesksTable rows={desks} tenant={tenant} now={now} />
-      {workspaces.length === 0 && (
-        <div className="mt-4 rounded-xl border border-dashed border-line p-4 text-center">
-          <p className="mb-2 text-xs text-fg-muted">New here? A four-step pipeline you can run in a minute.</p>
-          <DemoButton tenant={tenant} exists={false} />
+      <h1 className="sr-only">Workspaces</h1>
+      {!onboardingHidden && !onboarding.complete && (
+        <div className="mb-6">
+          <OnboardingCard data={onboarding} qs={qs} canDismiss={Boolean(person)} />
         </div>
       )}
-      {onboardingHidden && !onboarding.complete && <OnboardingReopen done={onboarding.done} total={onboarding.total} />}
-    </main>
+      <SplitOverview
+        search="Search workspaces…"
+        title="Workspaces"
+        actions={
+          <Link href={`/dashboard?create=workspace${rest}`} className={buttonVariants({ variant: "secondary" })}>
+            <Plus aria-hidden />
+            New workspace
+          </Link>
+        }
+        columns={[
+          { key: "status", header: "Last run" },
+          { key: "runs", header: "Recent runs", hide: "lg" },
+          { key: "next", header: "Next", hide: "md" },
+          { key: "spend", header: "7 days", align: "end", hide: "sm" },
+        ]}
+        rows={rows}
+        empty={
+          <EmptyState
+            icon={<Boxes />}
+            title="No workspaces yet"
+            description="A workspace holds its own agents, flows, secrets and runs. Start with the demo: a four-step pipeline you can run in a minute."
+            action={
+              <>
+                <DemoButton tenant={tenant} exists={false} />
+                <Link href={`/dashboard?create=workspace${rest}`} className={buttonVariants({ variant: "secondary" })}>
+                  New workspace
+                </Link>
+              </>
+            }
+          />
+        }
+        left={
+          <>
+            <SpendPanel
+              dayUsd={spendWithin(lite, now, DAY_MS)}
+              weekUsd={spendWithin(lite, now, 7 * DAY_MS)}
+              balanceUsd={wallet?.balanceUsd ?? null}
+              href={spendHref}
+              balanceHref={`/dashboard/billing${qs}`}
+            />
+            <AttentionPanel items={needs} alerts={money} tenant={tenant} issuesHref={`/dashboard/issues${qs}`} accountWide={scope === null} />
+            <NowNext board={board} upcoming={upcoming} now={now} tenant={tenant} runsHref={`/dashboard/runs?status=running${rest}`} />
+          </>
+        }
+      />
+      {onboardingHidden && !onboarding.complete && (
+        <div className="mt-8">
+          <OnboardingReopen done={onboarding.done} total={onboarding.total} />
+        </div>
+      )}
+    </Page>
   );
 }

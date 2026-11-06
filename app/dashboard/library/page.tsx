@@ -1,7 +1,6 @@
 import Link from "next/link";
 import fs from "node:fs";
 import path from "node:path";
-import { AssetRow } from "../[workspace]/assets/asset-row";
 import {
   listLibrary,
   libraryUsage,
@@ -12,13 +11,18 @@ import {
   type LibraryKind,
   type LibraryUse,
 } from "@/lib/library";
-import { Badge, Card, EmptyScreen, PageHeader } from "@/components/ui";
-import { ListSearch } from "@/components/list-search";
-import { DeleteLibraryItem } from "./manage";
+import { Page, PageHeader, EmptyState, Tag, Chip, Panel } from "@/components/kit/page";
+import { PageTabs } from "@/components/kit/page-tabs";
+import { ResourceList, type Row } from "@/components/kit/list";
+import { libraryTabs } from "@/components/nav-model";
+import { BookOpen, Brain, FileCode, Sparkles, Webhook, Wrench } from "lucide-react";
 import { CreateButton } from "@/components/create";
 import { startFrom } from "@/server/starters";
 import { galleryDrift } from "@/platform/gallery";
 import { GalleryDrift } from "./gallery-drift";
+import { AssetMenu } from "../[workspace]/assets/asset-row";
+import { AssetBrowser } from "@/components/asset-drawer";
+import { assetOpenId, type AssetItem } from "@/components/asset-fields";
 
 export const dynamic = "force-dynamic";
 
@@ -35,36 +39,67 @@ export const dynamic = "force-dynamic";
  *               is *not* what runs there. Nearest-wins makes that silent, so
  *               it is called out rather than left to be discovered.
  */
-function UsedBy({ uses, kind }: { uses: LibraryUse[]; kind: LibraryKind }) {
-  const where = (u: LibraryUse) => (u.agent ? `${u.workspace}/${u.agent}` : u.workspace);
+const where = (u: LibraryUse) => (u.agent ? `${u.workspace}/${u.agent}` : u.workspace);
+
+/** The row's one line: who uses it, and how many places override it. */
+function UsedByLine({ uses, kind }: { uses: LibraryUse[]; kind: LibraryKind }) {
   const used = uses.filter((u) => u.relation === "use");
   const shadowed = uses.filter((u) => u.relation === "shadowed");
-
   // Only tools have an opt-in, so only tools can be unused. For every other
   // kind, in-scope means available — saying "used by nobody" would be false.
-  if (!used.length && !shadowed.length) {
-    return kind === "tools" ? (
-      <p className="mt-1.5 text-xs text-fg-subtle">No agent has granted it with `tools:` yet</p>
-    ) : null;
-  }
-
+  const head = used.length ? used.map(where).join(", ") : kind === "tools" ? <span className="text-fg-subtle">No agent yet</span> : "Every workspace";
   return (
-    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-      {used.length > 0 && (
-        <>
-          <span className="text-xs text-fg-subtle">Used by</span>
-          {used.map((u) => (
-            <Badge key={`u-${where(u)}`} variant="info">
-              {where(u)}
-            </Badge>
-          ))}
-        </>
+    <span className="inline-flex items-center gap-2">
+      <span className="truncate">{head}</span>
+      {shadowed.length > 0 && <Chip tone="warn">overridden in {shadowed.length}</Chip>}
+    </span>
+  );
+}
+
+/** The drawer's Used by tab: the same facts, each one a link. */
+function UsedByPanel({ uses, kind, tenant }: { uses: LibraryUse[]; kind: LibraryKind; tenant: string }) {
+  const used = uses.filter((u) => u.relation === "use");
+  const shadowed = uses.filter((u) => u.relation === "shadowed");
+  const qs = tenant !== "default" ? `?tenant=${tenant}` : "";
+  const href = (u: LibraryUse) => (u.agent ? `/dashboard/${u.workspace}/agents/${u.agent}${qs}` : `/dashboard/${u.workspace}${qs}`);
+  return (
+    <div className="space-y-6 text-sm">
+      <section className="space-y-2">
+        <h3 className="font-medium text-fg">{kind === "tools" ? "Granted to" : "Available to"}</h3>
+        {kind !== "tools" ? (
+          <p className="text-fg-muted">Every agent in every workspace of this account — the nearest file of the same name wins.</p>
+        ) : used.length === 0 ? (
+          <p className="text-fg-muted">No agent has granted it with <span className="font-mono">tools:</span> yet.</p>
+        ) : (
+          <ul className="divide-y divide-line rounded-lg border border-line">
+            {used.map((u) => (
+              <li key={where(u)}>
+                <Link href={href(u)} className="flex items-center justify-between gap-3 px-3 py-2.5 hover:bg-sunken">
+                  <span className="truncate font-medium text-fg">{u.agent}</span>
+                  <span className="truncate text-xs text-fg-muted">{u.workspace}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        {kind === "tools" && <p className="text-xs text-fg-muted">Rotate a credential it uses and exactly these agents are affected.</p>}
+      </section>
+      {shadowed.length > 0 && (
+        <section className="space-y-2">
+          <h3 className="font-medium text-fg">Overridden in</h3>
+          <p className="text-fg-muted">A nearer file of the same name runs there instead of this one.</p>
+          <ul className="divide-y divide-line rounded-lg border border-warning-line">
+            {shadowed.map((u) => (
+              <li key={`s-${where(u)}`}>
+                <Link href={href(u)} className="flex items-center justify-between gap-3 px-3 py-2.5 hover:bg-sunken">
+                  <span className="truncate font-medium text-fg">{where(u)}</span>
+                  <Chip tone="warn">overridden</Chip>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
-      {shadowed.map((u) => (
-        <Badge key={`s-${where(u)}`} variant="warning">
-          overridden in {where(u)}
-        </Badge>
-      ))}
     </div>
   );
 }
@@ -82,9 +117,9 @@ const BLURB: Record<LibraryKind, string> = {
   hooks: "Your own code at every tool call, step start or step end, on every model — one folder each, hook.md beside run.mjs. Turned on by name with `hooks: [name]`, or for every agent from an AGENTS.md.",
 };
 
-const PAGE_TITLE: Partial<Record<LibraryKind, string>> = { scripts: "Code" };
+const KIND_ICON = { tools: Wrench, hooks: Webhook, skills: Sparkles, memory: Brain, knowledge: BookOpen, scripts: FileCode } as const;
 
-/** Every file in a library folder tool, definition first — the rows' tabs. */
+/** Every file in a library folder tool, definition first — the Source tab's files. */
 function folderFiles(tenant: string, manifest: string): string[] {
   const folder = manifest.slice(0, manifest.lastIndexOf("/"));
   const dir = path.join(libraryDir(tenant, "tools"), folder);
@@ -118,122 +153,94 @@ export default async function LibraryPage({
   );
   const tenantParam = tenant !== "default" ? `&tenant=${tenant}` : "";
 
+  const Icon = KIND_ICON[kind];
+
+  const items: AssetItem[] = entries.map((e) => {
+    const d = drift.get(e.path);
+    return {
+      path: e.path,
+      name: e.name,
+      description: e.description,
+      kind,
+      account: true,
+      transport: e.transport,
+      // A folder tool or hook is one thing with several files; Source edits them all.
+      files: kind === "tools" && e.path.endsWith("/tool.md") ? folderFiles(tenant, e.path) : kind === "hooks" ? e.files : undefined,
+      usedBy: <UsedByPanel uses={usage.get(e.name) ?? []} kind={kind} tenant={tenant} />,
+      notice: d ? <GalleryDrift tenant={tenant} name={d.entry.name} status={d.status} /> : undefined,
+    };
+  });
+
+  const rows: Row[] = entries.map((e) => {
+    const d = drift.get(e.path);
+    return {
+      key: e.path,
+      search: [e.name, e.description, e.path, e.transport ?? ""].join(" "),
+      href: `/dashboard/library?kind=${kind}${tenantParam}&open=${encodeURIComponent(assetOpenId({ path: e.path, account: true }))}`,
+      icon: <Icon />,
+      name: e.name,
+      sub: e.description || "No description",
+      cells: {
+        // Which of the three transports this is. A page of tool names whose
+        // kinds are invisible is what makes "tool" and "script" read as
+        // rival concepts.
+        type: (
+          <span className="inline-flex items-center gap-1.5">
+            {e.transport && <Tag>{e.transport === "http" ? "API" : e.transport}</Tag>}
+            {e.hasScripts && <Tag>bundles scripts</Tag>}
+            {e.runs && <Tag mono>runs {e.runs}</Tag>}
+            {d && (d.status === "current" ? <Tag>gallery</Tag> : <Chip tone="warn">gallery · differs</Chip>)}
+          </span>
+        ),
+        used: <UsedByLine uses={usage.get(e.name) ?? []} kind={kind} />,
+      },
+      action: <AssetMenu item={{ path: e.path, name: e.name, kind, account: true }} workspace="" tenant={tenant} />,
+    };
+  });
+
   return (
-    <main className="mx-auto max-w-7xl px-6 py-8">
+    <Page>
       <PageHeader
-        title={PAGE_TITLE[kind] ?? kind[0].toUpperCase() + kind.slice(1)}
-        subtitle={BLURB[kind]}
-      >
-        <CreateButton
-          kind={kind}
-          tenant={tenant}
-          scopes={["account"]}
-          // "From scratch, or from one of these." A blank tool file is a
-          // name and nothing else; a working definition to edit is a much
-          // better starting point, and the shelf below already has five.
-          variants={startFrom(kind)}
+        title="Library"
+        description={BLURB[kind]}
+        actions={
+          <CreateButton
+            kind={kind}
+            tenant={tenant}
+            scopes={["account"]}
+            // "From scratch, or from one of these." A blank tool file is a
+            // name and nothing else; a working definition to edit is a much
+            // better starting point, and the shelf below already has five.
+            variants={startFrom(kind)}
+          />
+        }
+        className="mb-6"
+      />
+      <PageTabs tabs={libraryTabs(tenant)} />
+
+      <AssetBrowser items={items} workspace="" tenant={tenant}>
+        <ResourceList
+          id={`library-${kind}`}
+          search={`Search shared ${kind}…`}
+          nameHeader={kind === "memory" || kind === "knowledge" ? "Document" : kind[0].toUpperCase() + kind.slice(1, -1)}
+          columns={[
+            { key: "type", header: "Type", hide: "sm" },
+            { key: "used", header: kind === "tools" ? "Used by" : "Reaches", hide: "md" },
+          ]}
+          rows={rows}
+          empty={<EmptyState icon={<Icon />} title={`No shared ${kind} yet`} description={BLURB[kind]} />}
         />
-      </PageHeader>
+      </AssetBrowser>
 
-
-
-
-      {entries.length === 0 ? (
-        <EmptyScreen
-          icon={
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
-            </svg>
-          }
-          title={`No shared ${kind} yet`}
-          description={BLURB[kind]}
-        />
-      ) : (
-        <>
-        <ListSearch listId="library-list" placeholder={`Search shared ${kind}…`} total={entries.length} noun={kind} />
-        <Card>
-          <ul id="library-list" className="divide-y divide-line-faint">
-            {entries.map((e) => kind === "tools" ? (
-              // The same workbench the workspace Tools page has: expand to
-              // edit the definition and the program on tabs. The library used
-              // to link out to a bare file editor, so a shared tool's code
-              // was two pages away from its definition.
-              <AssetRow
-                key={e.path}
-                search={[e.name, e.description, e.path].join(" ")}
-                workspace=""
-                tenant={tenant}
-                path={e.path}
-                name={e.name}
-                description={e.description}
-                kind="tools"
-                account
-                transport={e.transport}
-                files={e.path.endsWith("/tool.md") ? folderFiles(tenant, e.path) : undefined}
-                extra={
-                  <>
-                    {e.transport && <Badge>{e.transport === "http" ? "API" : e.transport}</Badge>}
-                    {drift.get(e.path) && (
-                      <GalleryDrift tenant={tenant} name={drift.get(e.path)!.entry.name} status={drift.get(e.path)!.status} />
-                    )}
-                    <UsedBy uses={usage.get(e.name) ?? []} kind={kind} />
-                  </>
-                }
-              />
-            ) : (
-              <li key={e.path} data-search={[e.name, e.description, e.path].join(" ")} className="group flex items-center gap-4 px-5 py-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <Link
-                      href={`/dashboard/library/edit?kind=${kind}&path=${encodeURIComponent(e.path)}${tenantParam}`}
-                      className="truncate text-sm font-semibold text-fg hover:underline"
-                    >
-                      {e.name}
-                    </Link>
-                    {e.hasScripts && <Badge variant="info">bundles scripts</Badge>}
-                    {/* Which of the three transports this is. A page of tool
-                        names whose kinds are invisible is what makes "tool"
-                        and "script" read as rival concepts. */}
-                    {e.transport && <Badge>{e.transport === "http" ? "API" : e.transport}</Badge>}
-                    {e.runs && (
-                      <span className="font-mono text-[11px] text-fg-subtle">runs {e.runs}</span>
-                    )}
-                  </div>
-                  <p className="mt-0.5 truncate text-sm text-fg-muted">
-                    {e.description || "No description"}
-                  </p>
-                  <p className="mt-1 font-mono text-xs text-fg-subtle">{e.path}</p>
-                  <UsedBy uses={usage.get(e.name) ?? []} kind={kind} />
-                </div>
-                <span className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100">
-                  <DeleteLibraryItem
-                    kind={kind}
-                    tenant={tenant}
-                    path={e.path}
-                    name={e.name}
-                    wholeFolder={kind === "skills" && e.path.endsWith("/SKILL.md")}
-                  />
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-        </>
-      )}
-
-      <Card className="mt-4 p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">
-          How agents reach these
-        </p>
-        <pre className="mt-2 overflow-x-auto rounded-md bg-sunken p-3 font-mono text-xs leading-relaxed text-fg-secondary">
+      <Panel title="How agents reach these" className="mt-10" bodyClassName="p-0">
+        <pre className="overflow-x-auto bg-sunken p-4 font-mono text-xs leading-relaxed text-fg-secondary">
 {`# in an agent's agent.md
 tools: [google-ads]      # a library tool becomes a callable tool
 
 # resolution order for skills, scripts and memory
 agent's own  →  the workspace's  →  this shared layer   (nearest wins)`}
         </pre>
-      </Card>
-    </main>
+      </Panel>
+    </Page>
   );
 }

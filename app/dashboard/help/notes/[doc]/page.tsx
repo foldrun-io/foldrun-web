@@ -11,9 +11,8 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, PageHeader } from "@/components/ui";
+import { Page, PageHeader, Card } from "@/components/kit/page";
 import { Markdown } from "@/components/markdown";
 import { designNotes, docsDir, noteTitle } from "../../design-notes";
 
@@ -31,14 +30,11 @@ export default async function NotePage({ params }: { params: Promise<{ doc: stri
   const raw = fs.readFileSync(path.join(docsDir(), `${doc}.md`), "utf8");
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-8">
-      <PageHeader title={noteTitle(raw, doc)} subtitle="A design note from the repo — why, not how." />
-      <Link href="/dashboard/help" className="text-sm text-fg-muted hover:text-fg">
-        ← Back to help
-      </Link>
-      <Card className="mt-4 p-6">
+    <Page width="narrow" className="pb-16">
+      <PageHeader back={{ href: "/dashboard/help", label: "Help" }} title={noteTitle(raw, doc)} description="A design note from the repo — why, not how." />
+      <Card className="p-5 sm:p-8">
         <Markdown text={raw} />
       </Card>
-    </main>
+    </Page>
   );
 }

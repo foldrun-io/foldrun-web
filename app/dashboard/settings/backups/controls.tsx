@@ -6,7 +6,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { buttonClass, inputClass, selectClass, Card, FIELD_LABEL_CLASS, Badge } from "@/components/ui";
+import { buttonClass, inputClass, selectClass, Card, Badge } from "@/components/ui";
 import { Banner } from "@/components/banner";
 import { LocalTime } from "@/components/local-time";
 import { useViewerTime } from "@/components/viewer-time";
@@ -43,14 +43,14 @@ function Diff({ ops }: { ops: DiffOp[] }) {
       folded = 0;
     }
     out.push(
-      <div key={i} className={o.kind === "add" ? "bg-emerald-50 text-emerald-800" : o.kind === "del" ? "bg-red-50 text-red-800" : "text-fg-muted"}>
+      <div key={i} className={o.kind === "add" ? "bg-success-soft text-success" : o.kind === "del" ? "bg-danger-soft text-danger" : "text-fg-muted"}>
         {o.kind === "add" ? "+ " : o.kind === "del" ? "- " : "  "}
         {o.text}
       </div>,
     );
   });
   if (folded) out.push(<div key="tail" className="text-fg-subtle">⋯ {folded} unchanged</div>);
-  return <pre className="max-h-72 overflow-auto whitespace-pre-wrap border-t border-line-faint p-2 font-mono text-[11px] leading-4">{out}</pre>;
+  return <pre className="max-h-72 overflow-auto whitespace-pre-wrap border-t border-line p-2 font-mono text-xs leading-5">{out}</pre>;
 }
 
 export function RestoreWorkspace({
@@ -69,8 +69,8 @@ export function RestoreWorkspace({
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
 
-  if (!canWrite) return <Card className="p-4 text-sm text-fg-tertiary">Restoring a workspace needs the editor role or above.</Card>;
-  if (!workspaces.some((w) => w.history)) return <Card className="p-4 text-sm text-fg-tertiary">No workspace has any history to restore from yet.</Card>;
+  if (!canWrite) return <Card className="p-5 text-sm text-fg-muted sm:p-6">Restoring a workspace needs the editor role or above.</Card>;
+  if (!workspaces.some((w) => w.history)) return <Card className="p-5 text-sm text-fg-muted sm:p-6">No workspace has any history to restore from yet.</Card>;
 
   const preview = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,13 +101,13 @@ export function RestoreWorkspace({
 
   const current = workspaces.find((w) => w.name === ws);
   return (
-    <Card className="space-y-3 p-4">
+    <Card className="space-y-4 p-5 sm:p-6">
       {done && <Banner tone="ok">{done}</Banner>}
       {error && <Banner tone="error">{error}</Banner>}
       <form onSubmit={preview} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto] sm:items-end">
         <label className="block">
-          <span className={FIELD_LABEL_CLASS}>Workspace</span>
-          <select className={selectClass("mt-1 w-full")} value={ws} onChange={(e) => { setWs(e.target.value); setPlan(null); }}>
+          <span className="block text-sm font-medium text-fg">Workspace</span>
+          <select className={selectClass("mt-1.5 w-full")} value={ws} onChange={(e) => { setWs(e.target.value); setPlan(null); }}>
             {workspaces.map((w) => (
               <option key={w.name} value={w.name} disabled={!w.history}>
                 {w.name}{w.history ? "" : " (no history)"}
@@ -116,8 +116,8 @@ export function RestoreWorkspace({
           </select>
         </label>
         <label className="block">
-          <span className={FIELD_LABEL_CLASS}>Back to</span>
-          <input className={inputClass("mt-1 w-full")} value={to} onChange={(e) => { setTo(e.target.value); setPlan(null); }} placeholder="2026-09-28 14:00 · 3d · a commit" required />
+          <span className="block text-sm font-medium text-fg">Back to</span>
+          <input className={inputClass("mt-1.5 w-full")} value={to} onChange={(e) => { setTo(e.target.value); setPlan(null); }} placeholder="2026-09-28 14:00 · 3d · a commit" required />
         </label>
         <button type="submit" disabled={busy || !ws || !to.trim()} className={buttonClass("secondary")}>
           Preview
@@ -129,7 +129,7 @@ export function RestoreWorkspace({
         </p>
       )}
       {plan && (
-        <div className="space-y-3 border-t border-line-faint pt-3">
+        <div className="space-y-3 border-t border-line pt-3">
           <p className="text-sm text-fg-secondary">
             Restoring to <code className="font-mono text-xs">{plan.to.sha.slice(0, 7)}</code> — <LocalTime iso={plan.to.at} />, “{plan.to.message}” by {plan.to.by}.
           </p>
@@ -139,11 +139,11 @@ export function RestoreWorkspace({
             <>
               <p className="text-sm text-fg-secondary">
                 {plan.updated.length} changed, {plan.added.length} brought back, {plan.removed.length} removed.
-                {plan.blockedBy.length > 0 && <span className="text-amber-700"> Runs in flight ({plan.blockedBy.length}) — it will be refused until they finish.</span>}
+                {plan.blockedBy.length > 0 && <span className="text-warning"> Runs in flight ({plan.blockedBy.length}) — it will be refused until they finish.</span>}
               </p>
               <ul className="space-y-1.5">
                 {plan.files.map((f) => (
-                  <li key={f.path} className="rounded border border-line">
+                  <li key={f.path} className="rounded-md border border-line">
                     <details>
                       <summary className="flex cursor-pointer items-center gap-2 px-2 py-1.5 text-xs">
                         <Badge variant={f.change === "removed" ? "error" : f.change === "added" ? "success" : "info"}>{f.change}</Badge>
@@ -156,8 +156,8 @@ export function RestoreWorkspace({
               </ul>
               <div className="flex flex-wrap items-end gap-2">
                 <label className="block">
-                  <span className={FIELD_LABEL_CLASS}>Type {ws} to confirm</span>
-                  <input className={inputClass("mt-1 w-56")} value={typed} onChange={(e) => setTyped(e.target.value)} />
+                  <span className="block text-sm font-medium text-fg">Type {ws} to confirm</span>
+                  <input className={inputClass("mt-1.5 w-56 max-w-full")} value={typed} onChange={(e) => setTyped(e.target.value)} />
                 </label>
                 <button type="button" onClick={restore} disabled={busy || typed !== ws} className={buttonClass("primary")}>
                   Restore {ws}
@@ -226,14 +226,14 @@ export function RequestRestore({
   };
 
   return (
-    <Card className="space-y-3 p-4">
+    <Card className="space-y-4 p-5 sm:p-6">
       {done && <Banner tone="ok">{done}</Banner>}
       {error && <Banner tone="error">{error}</Banner>}
       {canAsk ? (
         <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
           <label className="block">
-            <span className={FIELD_LABEL_CLASS}>What</span>
-            <select className={selectClass("mt-1 w-full")} value={what} onChange={(e) => setWhat(e.target.value)}>
+            <span className="block text-sm font-medium text-fg">What</span>
+            <select className={selectClass("mt-1.5 w-full")} value={what} onChange={(e) => setWhat(e.target.value)}>
               <option value="runs">Run records</option>
               <option value="state">state/ files</option>
               <option value="storage">Storage files</option>
@@ -241,26 +241,26 @@ export function RequestRestore({
             </select>
           </label>
           <label className="block">
-            <span className={FIELD_LABEL_CLASS}>Workspace</span>
-            <select className={selectClass("mt-1 w-full")} value={workspace} onChange={(e) => setWorkspace(e.target.value)}>
+            <span className="block text-sm font-medium text-fg">Workspace</span>
+            <select className={selectClass("mt-1.5 w-full")} value={workspace} onChange={(e) => setWorkspace(e.target.value)}>
               <option value="">All of them</option>
               {workspaces.map((w) => <option key={w} value={w}>{w}</option>)}
             </select>
           </label>
           <label className="block">
-            <span className={FIELD_LABEL_CLASS}>As it was at</span>
-            <input className={inputClass("mt-1 w-full")} value={target} onChange={(e) => setTarget(e.target.value)} placeholder="2026-09-28 14:00 Sydney" required />
+            <span className="block text-sm font-medium text-fg">As it was at</span>
+            <input className={inputClass("mt-1.5 w-full")} value={target} onChange={(e) => setTarget(e.target.value)} placeholder="2026-09-28 14:00 Sydney" required />
           </label>
           <label className="block">
-            <span className={FIELD_LABEL_CLASS}>Snapshot (optional)</span>
-            <select className={selectClass("mt-1 w-full")} value={backupId} onChange={(e) => setBackupId(e.target.value)}>
+            <span className="block text-sm font-medium text-fg">Snapshot (optional)</span>
+            <select className={selectClass("mt-1.5 w-full")} value={backupId} onChange={(e) => setBackupId(e.target.value)}>
               <option value="">The nearest before that time</option>
               {backups.map((b) => <SnapshotOption key={b.id} id={b.id} at={b.at} />)}
             </select>
           </label>
           <label className="block sm:col-span-2">
-            <span className={FIELD_LABEL_CLASS}>Note</span>
-            <textarea className={inputClass("mt-1 w-full")} rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="What went wrong, and what you need back" />
+            <span className="block text-sm font-medium text-fg">Note</span>
+            <textarea className={inputClass("mt-1.5 w-full")} rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="What went wrong, and what you need back" />
           </label>
           <div className="sm:col-span-2">
             <button type="submit" disabled={busy || !target.trim()} className={buttonClass("primary")}>Send request</button>
@@ -270,9 +270,9 @@ export function RequestRestore({
         <p className="text-sm text-fg-tertiary">Asking for a restore needs the admin role and access to every workspace.</p>
       )}
       {requests.length > 0 && (
-        <div className="border-t border-line-faint pt-3">
-          <p className="mb-1.5 text-xs font-medium text-fg-muted">Earlier requests</p>
-          <ul className="space-y-1 text-xs text-fg-tertiary">
+        <div className="border-t border-line pt-3">
+          <p className="mb-1.5 text-sm font-medium text-fg">Earlier requests</p>
+          <ul className="space-y-1 text-sm text-fg-muted">
             {requests.map((r) => (
               <li key={r.id} className="flex flex-wrap gap-x-2">
                 <LocalTime iso={r.at} />

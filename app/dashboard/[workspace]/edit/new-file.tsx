@@ -5,7 +5,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { buttonClass, inputClass, dashedButtonClass } from "@/components/ui";
+import { Button } from "@/components/kit/button";
+import { Input } from "@/components/kit/input";
+import { Plus } from "lucide-react";
 import { KINDS } from "@/lib/kinds";
 
 // A path decides a document's kind, so a new file at that path starts as that
@@ -44,18 +46,15 @@ export function NewFile({ workspace, tenant, scope }: { workspace: string; tenan
 
   if (!open) {
     return (
-      <button
-        onClick={() => setOpen(true)}
-        className={dashedButtonClass("mt-2")}
-      >
-        + New file
-      </button>
+      <Button variant="secondary" size="sm" onClick={() => setOpen(true)} className="w-full">
+        <Plus /> New file
+      </Button>
     );
   }
 
   return (
     <form
-      className="mt-2 space-y-2"
+      className="space-y-2"
       onSubmit={async (e) => {
         e.preventDefault();
         setError(null);
@@ -78,20 +77,20 @@ export function NewFile({ workspace, tenant, scope }: { workspace: string; tenan
         }
       }}
     >
-      <input
+      <Input
         autoFocus
         value={path}
         onChange={(e) => setPath(e.target.value)}
         placeholder={scope === "skills" ? "skills/<name>/SKILL.md" : scope ? `${scope}/<name>.md` : "agents/writer/skills/tone.md"}
-        className={inputClass("font-mono")}
+        className="h-8 font-mono text-xs"
       />
       <div className="flex items-center gap-2">
-        <button className={buttonClass("primary")}>Create</button>
-        <button type="button" onClick={() => setOpen(false)} className={buttonClass("minimal")}>
+        <Button type="submit" variant="primary" size="sm">Create</Button>
+        <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
           Cancel
-        </button>
+        </Button>
       </div>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
     </form>
   );
 }

@@ -11,8 +11,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { buttonClass, inputClass, Card, FIELD_LABEL_CLASS } from "@/components/ui";
-import { Banner } from "@/components/banner";
+import { inputClass } from "@/components/ui";
+import { Download } from "lucide-react";
+import { SettingsCard } from "@/components/kit/page";
+import { Button, buttonVariants } from "@/components/kit/button";
 
 export function AccountData({ account, owner, hosted, closeRequestedAt }: { account: string; owner: boolean; hosted: boolean; closeRequestedAt: string | null }) {
   const router = useRouter();
@@ -25,9 +27,11 @@ export function AccountData({ account, owner, hosted, closeRequestedAt }: { acco
 
   if (!owner) {
     return (
-      <Card className="p-4 text-sm text-fg-tertiary">
-        Only the account&apos;s owner can take a copy of its data or ask to close it — the copy includes the billing ledger and everyone&apos;s email.
-      </Card>
+      <SettingsCard
+        id="data"
+        title="Your data"
+        description="Only the account's owner can take a copy of its data or ask to close it — the copy includes the billing ledger and everyone's email."
+      />
     );
   }
 
@@ -59,58 +63,74 @@ export function AccountData({ account, owner, hosted, closeRequestedAt }: { acco
   };
 
   return (
-    <Card className="space-y-4 p-4 text-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="font-semibold text-fg">Take a copy</p>
-          <p className="mt-0.5 text-fg-tertiary">Workspaces, members, an index of every run, and the whole billing ledger, as one JSON file.</p>
-        </div>
-        <a href="/api/account/export" download className={buttonClass("secondary")}>
-          Download export
-        </a>
-      </div>
+    <>
+      <SettingsCard
+        id="data"
+        title="Take a copy"
+        description="Workspaces, members, an index of every run, and the whole billing ledger, as one JSON file."
+        hint="Owner only."
+        footer={
+          <a href="/api/account/export" download className={buttonVariants({ variant: "secondary" })}>
+            <Download aria-hidden />
+            Download export
+          </a>
+        }
+      />
 
       {hosted && (
-        <div className="border-t border-line-faint pt-4">
-          <p className="font-semibold text-fg">Close this account</p>
-          {done && <Banner tone="ok" className="mt-2">{done}</Banner>}
-          {closeRequestedAt ? (
-            <p className="mt-0.5 text-fg-tertiary">You asked to close it on {closeRequestedAt.slice(0, 10)}. It is suspended while the platform team settles the last invoice; take a copy above before the data goes.</p>
-          ) : open ? (
-            <form onSubmit={close} className="mt-2 space-y-2">
-              <p className="text-fg-tertiary">
-                New runs stop at once and schedules no longer fire. Nothing is deleted yet — people can still sign in and take a copy — and the platform team will be in touch about the last invoice and any refund.
-              </p>
-              <label className="block">
-                <span className={FIELD_LABEL_CLASS}>Why are you leaving? (optional)</span>
-                <input value={reason} onChange={(e) => setReason(e.target.value)} className={inputClass("w-full")} />
-              </label>
-              <label className="block">
-                <span className={FIELD_LABEL_CLASS}>
-                  Type <span className="font-mono text-gray-800">{account}</span> to confirm
-                </span>
-                <input value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" className={inputClass("w-full max-w-xs font-mono")} />
-              </label>
-              {error && <Banner tone="error">{error}</Banner>}
-              <div className="flex items-center gap-2">
-                <button disabled={busy || typed !== account} className={`${buttonClass("primary")} !bg-red-600 hover:!bg-red-700`}>
-                  {busy ? "Asking…" : "Suspend and ask to close"}
-                </button>
-                <button type="button" onClick={() => setOpen(false)} className={buttonClass("secondary")}>
-                  Keep the account
-                </button>
+        <form onSubmit={close}>
+          <SettingsCard
+            id="close"
+            danger
+            title="Close this account"
+            description={
+              closeRequestedAt
+                ? `You asked to close it on ${closeRequestedAt.slice(0, 10)}. It is suspended while the platform team settles the last invoice; take a copy above before the data goes.`
+                : open
+                  ? "New runs stop at once and schedules no longer fire. Nothing is deleted yet — people can still sign in and take a copy — and the platform team will be in touch about the last invoice and any refund."
+                  : "Suspends the account and asks the platform team to close it. Not a delete — you can still sign in and take a copy."
+            }
+            hint={open && !closeRequestedAt ? "This cannot be undone from here." : undefined}
+            footer={
+              closeRequestedAt ? undefined : open ? (
+                <>
+                  <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+                    Keep the account
+                  </Button>
+                  <Button type="submit" variant="danger" disabled={busy || typed !== account}>
+                    {busy ? "Asking…" : "Suspend and ask to close"}
+                  </Button>
+                </>
+              ) : (
+                <Button type="button" variant="danger-outline" onClick={() => setOpen(true)}>
+                  Close account…
+                </Button>
+              )
+            }
+          >
+            {(done || (open && !closeRequestedAt)) && (
+              <div className="space-y-4">
+                {done && <p role="status" className="rounded-md border border-success-line bg-success-soft px-3 py-2 text-sm text-success">{done}</p>}
+                {open && !closeRequestedAt && (
+                  <>
+                    <label className="block max-w-md">
+                      <span className="block text-sm font-medium text-fg">Why are you leaving? (optional)</span>
+                      <input value={reason} onChange={(e) => setReason(e.target.value)} className={inputClass("mt-1.5 w-full")} />
+                    </label>
+                    <label className="block max-w-xs">
+                      <span className="block text-sm font-medium text-fg">
+                        Type <span className="font-mono">{account}</span> to confirm
+                      </span>
+                      <input value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" className={inputClass("mt-1.5 w-full font-mono")} />
+                    </label>
+                    {error && <p role="alert" className="rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
+                  </>
+                )}
               </div>
-            </form>
-          ) : (
-            <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-fg-tertiary">Suspends the account and asks the platform team to close it. Not a delete — you can still sign in and take a copy.</p>
-              <button onClick={() => setOpen(true)} className={`${buttonClass("secondary")} !text-red-700`}>
-                Close account…
-              </button>
-            </div>
-          )}
-        </div>
+            )}
+          </SettingsCard>
+        </form>
       )}
-    </Card>
+    </>
   );
 }

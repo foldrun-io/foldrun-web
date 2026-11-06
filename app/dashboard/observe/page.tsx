@@ -13,12 +13,14 @@ import Link from "next/link";
 import { viewerScope } from "@/server/users";
 import { accountObservation } from "@/server/account-observe";
 import { runHref } from "@/components/run-href";
-import { OUTCOME } from "@/components/outcome-model";
 import { fmtSpan } from "@/components/mission-model";
-import { PageHeader } from "@/components/ui";
-import { Panel } from "@/components/mission-control";
+import { Panel, PanelLink } from "@/components/mission-control";
 import { nowMs } from "@/components/overview-model";
 import { type CauseRow, type DayBucket } from "@/components/account-observe-model";
+import { ArrowDownRight, ArrowUpRight, ServerCrash } from "lucide-react";
+import { Page, PageHeader, PanelList, Stat, StatGrid, Chip, Tag, type Tone } from "@/components/kit/page";
+import { Table, THead, TBody, TR, TH, TD } from "@/components/kit/table";
+import { Segmented, ChartLegend } from "@/components/kit/inspect-extra";
 
 export const dynamic = "force-dynamic";
 
@@ -33,32 +35,26 @@ const WINDOWS = [
 const money = (v: number) => creditsShort(v);
 const pctOf = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)}%`);
 const secs = (v: number | null) => (v === null ? "—" : fmtSpan(v * 1000));
-const TH = "px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wide text-fg-subtle";
-const TD = "px-3 py-2 align-top";
+const none = <span className="text-fg-subtle">—</span>;
 
 /** A change against the previous window, coloured by whether it is good. */
 const FMT = { pts: (v: number) => `${Math.round(v * 100)} pts`, money };
 
 function Delta({ now, before, upIsGood, as }: { now: number | null; before: number | null; upIsGood: boolean; as: keyof typeof FMT }) {
   const fmt = FMT[as];
-  if (now === null || before === null) return <span className="text-xs text-fg-subtle">no earlier window to compare</span>;
+  if (now === null || before === null) return <span className="text-fg-subtle">no earlier window to compare</span>;
   const d = now - before;
-  if (Math.abs(d) < 1e-9) return <span className="text-xs text-fg-muted">same as the window before</span>;
+  if (Math.abs(d) < 1e-9) return <span>same as the window before</span>;
   const good = d > 0 === upIsGood;
+  const Arrow = d > 0 ? ArrowUpRight : ArrowDownRight;
   return (
-    <span className={`text-xs font-medium ${good ? "text-emerald-700" : "text-red-700"}`}>
-      {d > 0 ? "▲" : "▼"} {fmt(Math.abs(d))} <span className="font-normal text-fg-muted">vs the window before</span>
+    <span className="inline-flex items-center gap-1">
+      <span className={`inline-flex items-center gap-0.5 font-medium ${good ? "text-success" : "text-danger"}`}>
+        <Arrow className="size-3.5" aria-label={d > 0 ? "up" : "down"} />
+        {fmt(Math.abs(d))}
+      </span>
+      vs before
     </span>
-  );
-}
-
-function Tile({ label, value, sub, tone }: { label: string; value: React.ReactNode; sub?: React.ReactNode; tone?: "bad" | "good" }) {
-  return (
-    <div className="min-w-0 rounded-xl border border-line bg-surface p-4 shadow-sm">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-fg-muted">{label}</p>
-      <p className={`mt-1 font-cal text-2xl font-semibold tabular-nums tracking-tight ${tone === "bad" ? "text-red-700" : tone === "good" ? "text-emerald-700" : "text-fg"}`}>{value}</p>
-      {sub && <div className="mt-1">{sub}</div>}
-    </div>
   );
 }
 
@@ -76,32 +72,22 @@ function OutcomeChart({ days, tz }: { days: DayBucket[]; tz: string }) {
   const dense = days.length > 14;
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-fg-tertiary">
-        {SERIES.map((s) => (
-          <span key={s.key} className="inline-flex items-center gap-1.5">
-            <span className={`h-2.5 w-2.5 rounded-sm ${s.cls}`} />
-            {s.label}
-          </span>
-        ))}
-        <span className="ml-auto text-fg-subtle">runs per day · {tz}</span>
-      </div>
-      <div className="flex h-40 items-end gap-1 border-b border-line">
+      <ChartLegend className="mb-4" items={SERIES.map((s) => ({ key: s.key, label: s.label, swatch: s.cls }))} aside={`runs per day · ${tz}`} />
+      <div className="flex h-44 items-end gap-1 border-b border-line">
         {days.map((d) => {
           const parts = { good: d.good, attention: d.attention, desk: d.failed - d.platform, platform: d.platform };
           const total = d.good + d.attention + d.failed + d.other;
           const title = `${d.day}: ${total} run${total === 1 ? "" : "s"} — ${d.good} succeeded, ${d.attention} blocked/bad, ${d.failed - d.platform} failed (desk), ${d.platform} failed (platform) · ${money(d.spendUsd)}`;
           return (
-            <div key={d.day} title={title} className="group flex h-full min-w-0 flex-1 flex-col-reverse gap-[2px] rounded-t hover:bg-sunken">
+            <div key={d.day} title={title} className="flex h-full min-w-0 flex-1 flex-col-reverse gap-[2px] rounded-t hover:bg-sunken">
               {SERIES.map((s) =>
-                parts[s.key] > 0 ? (
-                  <div key={s.key} className={`w-full rounded-[3px] ${s.cls}`} style={{ height: `${(parts[s.key] / max) * 100}%` }} />
-                ) : null,
+                parts[s.key] > 0 ? <div key={s.key} className={`w-full rounded-[3px] ${s.cls}`} style={{ height: `${(parts[s.key] / max) * 100}%` }} /> : null,
               )}
             </div>
           );
         })}
       </div>
-      <div className="mt-1 flex gap-1 text-[10px] tabular-nums text-fg-subtle">
+      <div className="mt-1.5 flex gap-1 text-xs tabular-nums text-fg-subtle">
         {days.map((d, i) => (
           <div key={d.day} className="min-w-0 flex-1 truncate text-center">
             {!dense || i % 5 === 0 || i === days.length - 1 ? d.day.slice(5).replace("-", "/") : ""}
@@ -117,11 +103,12 @@ function SpendChart({ days }: { days: DayBucket[] }) {
   const peak = days.reduce((a, b) => (b.spendUsd > a.spendUsd ? b : a), days[0]);
   return (
     <div>
-      <div className="mb-3 flex items-center text-[11px] text-fg-muted">
-        spend per day
-        {peak && peak.spendUsd > 0 && <span className="ml-auto text-fg-subtle">peak {money(peak.spendUsd)} on {peak.day.slice(5).replace("-", "/")}</span>}
-      </div>
-      <div className="flex h-24 items-end gap-1 border-b border-line">
+      <ChartLegend
+        className="mb-4"
+        items={[{ key: "spend", label: "spend per day", swatch: "bg-sky-500" }]}
+        aside={peak && peak.spendUsd > 0 ? `peak ${money(peak.spendUsd)} on ${peak.day.slice(5).replace("-", "/")}` : undefined}
+      />
+      <div className="flex h-36 items-end gap-1 border-b border-line">
         {days.map((d) => (
           <div key={d.day} title={`${d.day}: ${money(d.spendUsd)}`} className="flex h-full min-w-0 flex-1 items-end hover:bg-sunken">
             {d.spendUsd > 0 && <div className="w-full rounded-t-[3px] bg-sky-500" style={{ height: `${(d.spendUsd / max) * 100}%` }} />}
@@ -132,15 +119,13 @@ function SpendChart({ days }: { days: DayBucket[] }) {
   );
 }
 
-const CAUSE_TONE: Record<CauseRow["kind"], string> = {
-  platform: "bg-slate-800 text-white ring-slate-800",
-  verify: "bg-red-50 text-red-700 ring-red-200",
-  timeout: "bg-red-50 text-red-700 ring-red-200",
-  error: "bg-red-50 text-red-700 ring-red-200",
-  blocked: OUTCOME.blocked.pill,
-  bad: OUTCOME.bad.pill,
-  stopped: OUTCOME.stopped.pill,
-};
+/** Whose a cause is: the platform's, a person's (stopped), or the desk's. */
+function causeOwner(c: CauseRow): { label: string; tone: Tone } {
+  if (c.platform) return { label: "platform", tone: "info" };
+  if (c.kind === "stopped") return { label: "person", tone: "default" };
+  if (c.kind === "blocked" || c.kind === "bad") return { label: "desk", tone: "warn" };
+  return { label: "desk", tone: "bad" };
+}
 
 export default async function AccountObservePage({ searchParams }: { searchParams: Promise<{ tenant?: string; days?: string }> }) {
   const { tenant = "default", days: daysParam } = await searchParams;
@@ -156,282 +141,282 @@ export default async function AccountObservePage({ searchParams }: { searchParam
   // Recurring problems with their evidence and cost (FOL-72 step 8).
   const insights = cachedAccountInsights(tenant, scope, Math.min(days, 30), null, now);
   const platformRows = why.filter((c) => c.platform);
+  const wrong = k.deskFailures + k.platformFailures;
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-6">
+    <Page width="wide">
       <PageHeader
         title="Observe"
-        subtitle={`Every desk in the account, over the last ${WINDOWS.find((w) => w.days === days)!.label}, compared with the ${days === 1 ? "day" : `${days} days`} before.`}
-      >
-        <div role="group" aria-label="Window" className="inline-flex overflow-hidden rounded-md ring-1 ring-inset ring-line">
-          {WINDOWS.map((w) => (
-            <Link
-              key={w.days}
-              href={`/dashboard/observe?days=${w.days}${amp}`}
-              aria-current={w.days === days ? "page" : undefined}
-              className={`px-3 py-1.5 text-xs font-medium ${w.days === days ? "bg-gray-800 text-white" : "bg-surface text-fg-tertiary hover:bg-sunken"}`}
-            >
-              {w.label}
-            </Link>
-          ))}
-        </div>
-      </PageHeader>
+        description={`Every desk in the account over the last ${WINDOWS.find((w) => w.days === days)!.label}, against the ${days === 1 ? "day" : `${days} days`} before.`}
+        actions={<Segmented label="Window" value={String(days)} items={WINDOWS.map((w) => ({ key: String(w.days), label: w.label, href: `/dashboard/observe?days=${w.days}${amp}` }))} />}
+      />
 
-      {/* The one question first: is it the platform? */}
-      {platformRows.length > 0 && (
-        <div className="mb-4 rounded-xl border border-slate-300 bg-slate-50 px-4 py-3">
-          <p className="text-sm font-semibold text-slate-900">
-            {k.platformFailures} run{k.platformFailures === 1 ? "" : "s"} failed because of the platform, not the desks
-          </p>
-          <ul className="mt-1 space-y-0.5 text-sm text-slate-700">
-            {platformRows.map((c) => (
-              <li key={c.key}>
-                <Link href={runHref(c.newest.workspace, c.newest.id, tenant)} className="hover:underline">
-                  {c.label}
-                </Link>{" "}
-                <span className="text-slate-500">
-                  — {c.count} run{c.count === 1 ? "" : "s"} on {c.desks.length} desk{c.desks.length === 1 ? "" : "s"}, last {fmtSpan(now - Date.parse(c.newest.startedAt))} ago
-                </span>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-1 text-xs text-slate-500">No desk edit fixes these; once the platform is right, rerun them.</p>
-        </div>
-      )}
-
-      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <Tile
-          label="Completed"
-          value={pctOf(k.rate)}
-          tone={k.rate !== null && k.rate < 0.8 ? "bad" : undefined}
-          sub={<Delta now={k.rate} before={k.prevRate} upIsGood as="pts" />}
-        />
-        <Tile label="Runs" value={k.runs} sub={<span className="text-xs text-fg-muted">{k.finished} finished · {k.runs - k.finished} going</span>} />
-        <Tile
-          label="Went wrong"
-          value={k.deskFailures + k.platformFailures}
-          tone={k.deskFailures + k.platformFailures > 0 ? "bad" : "good"}
-          sub={
-            <span className="text-xs text-fg-tertiary">
-              <span className="font-medium">{k.deskFailures}</span> desk · <span className="font-medium">{k.platformFailures}</span> platform
-            </span>
-          }
-        />
-        <Tile label="Charged" value={money(k.spendUsd)} sub={<Delta now={k.spendUsd} before={previous.runs ? k.prevSpendUsd : null} upIsGood={false} as="money" />} />
-        <Tile label="Median run" value={secs(k.medianSecs)} sub={<span className="text-xs text-fg-muted">{k.medianSecs === null ? "fewer than 5 finished runs" : "start to finish"}</span>} />
-      </div>
-
-      <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <Panel title="What each day looked like">
-          <div className="p-4">
-            <OutcomeChart days={daily} tz={tz} />
-          </div>
-        </Panel>
-        <Panel title="Cost" action={<Link href={`/dashboard/usage${qs}`} className="text-[11px] font-medium text-fg-muted hover:text-fg">Usage →</Link>}>
-          <div className="p-4">
-            <SpendChart days={daily} />
-          </div>
-        </Panel>
-      </div>
-
-      {insights.length > 0 && (
-        <Panel title="Insights — what keeps costing you" count={insights.length} className="mb-4">
-          <ul className="divide-y divide-line-faint">
-            {insights.slice(0, 8).map((i) => (
-              <li key={i.id} className="px-4 py-2.5">
-                <div className="flex flex-wrap items-baseline gap-2 text-sm">
-                  <span className="font-medium text-fg">{i.title}</span>
-                  <span className="rounded bg-muted px-1.5 text-[10px] text-fg-muted">{i.workspace}</span>
-                  <span className="ml-auto shrink-0 text-xs tabular-nums text-fg-tertiary">
-                    {i.credits !== null && i.credits > 0 ? `about ${creditsShort(i.credits / 100)} · ` : ""}
-                    {i.steps} step{i.steps === 1 ? "" : "s"}
-                  </span>
-                </div>
-                <p className="mt-0.5 text-xs text-fg-tertiary">{i.why}</p>
-                <p className="mt-0.5 text-xs text-fg"><span className="text-fg-muted">Fix:</span> {i.fix}</p>
-                <p className="mt-0.5 flex flex-wrap gap-x-2 text-[11px]">
-                  {i.evidence.map((e) => (
-                    <Link key={`${e.runId}/${e.step}`} href={runHref(e.workspace, e.runId, tenant)} className="font-mono text-fg-muted hover:text-fg hover:underline">
-                      {e.runId} · step {e.step}
-                    </Link>
-                  ))}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      )}
-
-      <Panel title="Why runs went wrong" count={why.length} className="mb-4">
-        {why.length === 0 ? (
-          <p className="px-4 py-6 text-center text-sm text-fg-muted">Nothing went wrong in this window.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr>
-                  <th className={TH}>Cause</th>
-                  <th className={`${TH} text-right`}>Runs</th>
-                  <th className={TH}>Desks</th>
-                  <th className={TH}>Latest, in its own words</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line-faint">
-                {why.map((c) => (
-                  <tr key={`${c.kind}:${c.key}`} className="hover:bg-sunken/60">
-                    <td className={`${TD} whitespace-nowrap`}>
-                      <span className={`mr-2 rounded px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset ${CAUSE_TONE[c.kind]}`}>{c.platform ? "platform" : c.kind === "stopped" ? "person" : "desk"}</span>
-                      <span className="font-medium text-fg">{c.label}</span>
-                    </td>
-                    <td className={`${TD} text-right tabular-nums text-fg`}>{c.count}</td>
-                    <td className={TD}>
-                      <div className="flex max-w-[16rem] flex-wrap gap-1">
-                        {c.desks.map((d) => (
-                          <Link key={d} href={`/dashboard/${d}/observe${qs}`} className="rounded bg-muted px-1.5 text-[10px] text-fg-tertiary hover:bg-muted-strong">
-                            {d}
-                          </Link>
-                        ))}
-                      </div>
-                    </td>
-                    <td className={`${TD} max-w-[34rem]`}>
-                      <Link href={runHref(c.newest.workspace, c.newest.id, tenant)} className="line-clamp-2 text-xs text-fg-tertiary hover:text-fg hover:underline" title={c.sample ?? ""}>
-                        {c.sample ?? "—"}
-                      </Link>
-                      <span className="text-[11px] text-fg-subtle">{c.newest.workspace} · {fmtSpan(now - Date.parse(c.newest.startedAt))} ago</span>
-                    </td>
-                  </tr>
+      <div className="space-y-8">
+        {/* The one question first: is it the platform? */}
+        {platformRows.length > 0 && (
+          <section className="flex gap-3 rounded-lg border border-info-line bg-info-soft px-4 py-3">
+            <ServerCrash className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
+            <div className="min-w-0 space-y-1 text-sm">
+              <p className="font-medium text-fg">
+                {k.platformFailures} run{k.platformFailures === 1 ? "" : "s"} failed because of the platform, not the desks
+              </p>
+              <ul className="space-y-0.5 text-fg-secondary">
+                {platformRows.map((c) => (
+                  <li key={c.key}>
+                    <Link href={runHref(c.newest.workspace, c.newest.id, tenant)} className="font-medium hover:underline">
+                      {c.label}
+                    </Link>{" "}
+                    <span className="text-fg-muted">
+                      · {c.count} run{c.count === 1 ? "" : "s"} on {c.desks.length} desk{c.desks.length === 1 ? "" : "s"}, last {fmtSpan(now - Date.parse(c.newest.startedAt))} ago
+                    </span>
+                  </li>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </ul>
+              <p className="text-xs text-fg-muted">No desk edit fixes these; once the platform is right, rerun them.</p>
+            </div>
+          </section>
         )}
-      </Panel>
 
-      <Panel title="Desks, worst first" count={desks.length} className="mb-4">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
+        <StatGrid className="xl:grid-cols-5">
+          <Stat label="Completed" value={pctOf(k.rate)} tone={k.rate !== null && k.rate < 0.8 ? "danger" : undefined} sub={<Delta now={k.rate} before={k.prevRate} upIsGood as="pts" />} />
+          <Stat label="Runs" value={k.runs} sub={`${k.finished} finished · ${k.runs - k.finished} going`} />
+          <Stat label="Went wrong" value={wrong} tone={wrong > 0 ? "danger" : "success"} sub={`${k.deskFailures} desk · ${k.platformFailures} platform`} />
+          <Stat label="Charged" value={money(k.spendUsd)} sub={<Delta now={k.spendUsd} before={previous.runs ? k.prevSpendUsd : null} upIsGood={false} as="money" />} />
+          <Stat label="Median run" value={secs(k.medianSecs)} sub={k.medianSecs === null ? "fewer than 5 finished runs" : "start to finish"} />
+        </StatGrid>
+
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <Panel title="What each day looked like" flush={false}>
+            <OutcomeChart days={daily} tz={tz} />
+          </Panel>
+          <Panel title="Cost" flush={false}>
+            <SpendChart days={daily} />
+            <div className="mt-3 flex justify-end">
+              <PanelLink href={`/dashboard/usage${qs}`}>Usage</PanelLink>
+            </div>
+          </Panel>
+        </div>
+
+        {insights.length > 0 && (
+          <Panel title="What keeps costing you" count={insights.length}>
+            <PanelList>
+              {insights.slice(0, 8).map((i) => (
+                <li key={i.id} className="space-y-1 px-5 py-3">
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="font-medium text-fg">{i.title}</span>
+                    <Tag>{i.workspace}</Tag>
+                    <span className="ml-auto shrink-0 text-[13px] tabular-nums text-fg-muted">
+                      {i.credits !== null && i.credits > 0 ? `about ${creditsShort(i.credits / 100)} · ` : ""}
+                      {i.steps} step{i.steps === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  <p className="text-sm text-fg-muted">{i.why}</p>
+                  <p className="text-sm text-fg">
+                    <span className="text-fg-muted">Fix:</span> {i.fix}
+                  </p>
+                  <p className="flex flex-wrap gap-x-3 text-xs">
+                    {i.evidence.map((e) => (
+                      <Link key={`${e.runId}/${e.step}`} href={runHref(e.workspace, e.runId, tenant)} className="font-mono text-fg-muted hover:text-fg hover:underline">
+                        {e.runId} · step {e.step}
+                      </Link>
+                    ))}
+                  </p>
+                </li>
+              ))}
+            </PanelList>
+          </Panel>
+        )}
+
+        <Panel title="Why runs went wrong" count={why.length}>
+          {why.length === 0 ? (
+            <p className="px-5 py-8 text-center text-sm text-fg-muted">Nothing went wrong in this window.</p>
+          ) : (
+            <Table className="min-w-[640px]">
+              <THead>
+                <tr>
+                  <TH>Cause</TH>
+                  <TH className="text-right">Runs</TH>
+                  <TH>Desks</TH>
+                  <TH>Latest, in its own words</TH>
+                </tr>
+              </THead>
+              <TBody>
+                {why.map((c) => {
+                  const owner = causeOwner(c);
+                  return (
+                    <TR key={`${c.kind}:${c.key}`}>
+                      <TD className="align-top">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <Chip tone={owner.tone}>{owner.label}</Chip>
+                          <span className="font-medium text-fg">{c.label}</span>
+                        </span>
+                      </TD>
+                      <TD className="text-right align-top tabular-nums text-fg">{c.count}</TD>
+                      <TD className="align-top">
+                        <div className="flex max-w-[16rem] flex-wrap gap-1">
+                          {c.desks.map((d) => (
+                            <Link key={d} href={`/dashboard/${d}/observe${qs}`} className="hover:underline">
+                              <Tag>{d}</Tag>
+                            </Link>
+                          ))}
+                        </div>
+                      </TD>
+                      <TD className="max-w-[34rem] align-top">
+                        <Link href={runHref(c.newest.workspace, c.newest.id, tenant)} className="line-clamp-2 text-fg-secondary hover:text-fg hover:underline" title={c.sample ?? ""}>
+                          {c.sample ?? "—"}
+                        </Link>
+                        <span className="text-xs text-fg-subtle">
+                          {c.newest.workspace} · {fmtSpan(now - Date.parse(c.newest.startedAt))} ago
+                        </span>
+                      </TD>
+                    </TR>
+                  );
+                })}
+              </TBody>
+            </Table>
+          )}
+        </Panel>
+
+        <Panel title="Desks, worst first" count={desks.length}>
+          <Table className="min-w-[760px]">
+            <THead>
               <tr>
-                <th className={TH}>Desk</th>
-                <th className={`${TH} text-right`}>Runs</th>
-                <th className={`${TH} text-right`} title="Ran to the end without failing, of completed + failed runs (stopped left out)">Completed</th>
-                <th className={TH}>Trend</th>
-                <th className={`${TH} text-right`}>Went wrong</th>
-                <th className={TH}>Worst flow</th>
-                <th className={`${TH} text-right`}>Median run</th>
-                <th className={`${TH} text-right`} title="Credits charged">Credits</th>
+                <TH>Desk</TH>
+                <TH className="text-right">Runs</TH>
+                <TH className="text-right" title="Ran to the end without failing, of completed + failed runs (stopped left out)">Completed</TH>
+                <TH>Trend</TH>
+                <TH className="text-right">Went wrong</TH>
+                <TH>Worst flow</TH>
+                <TH className="text-right">Median run</TH>
+                <TH className="text-right" title="Credits charged">Credits</TH>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-line-faint">
+            </THead>
+            <TBody>
               {desks.map((d) => {
                 const trend = d.rate !== null && d.prevRate !== null ? d.rate - d.prevRate : null;
                 return (
-                  <tr key={d.workspace} className={`hover:bg-sunken/60 ${d.runs === 0 ? "text-fg-subtle" : ""}`}>
-                    <td className={`${TD} whitespace-nowrap`}>
-                      <Link href={`/dashboard/${d.workspace}/observe${qs}`} className="font-medium text-fg hover:underline">{d.workspace}</Link>
-                    </td>
-                    <td className={`${TD} text-right tabular-nums`}>{d.runs || "—"}</td>
-                    <td className={`${TD} text-right tabular-nums ${d.rate === null ? "" : d.rate >= 0.8 ? "text-emerald-700" : d.rate >= 0.5 ? "text-amber-700" : "text-red-700"}`}>{pctOf(d.rate)}</td>
-                    <td className={`${TD} whitespace-nowrap text-xs`}>
+                  <TR key={d.workspace} className={d.runs === 0 ? "text-fg-subtle" : ""}>
+                    <TD className="whitespace-nowrap">
+                      <Link href={`/dashboard/${d.workspace}/observe${qs}`} className="font-medium text-fg hover:underline">
+                        {d.workspace}
+                      </Link>
+                    </TD>
+                    <TD className="text-right tabular-nums">{d.runs || "—"}</TD>
+                    <TD className={`text-right tabular-nums ${d.rate === null ? "" : d.rate >= 0.8 ? "text-success" : d.rate >= 0.5 ? "text-warning" : "text-danger"}`}>{pctOf(d.rate)}</TD>
+                    <TD className="whitespace-nowrap">
                       {trend === null ? (
-                        <span className="text-gray-300">—</span>
+                        none
                       ) : Math.abs(trend) < 0.005 ? (
                         <span className="text-fg-muted">steady</span>
                       ) : (
-                        <span className={trend > 0 ? "text-emerald-700" : "text-red-700"}>
-                          {trend > 0 ? "▲" : "▼"} {Math.round(Math.abs(trend) * 100)} pts
+                        <span className={`inline-flex items-center gap-0.5 ${trend > 0 ? "text-success" : "text-danger"}`}>
+                          {trend > 0 ? <ArrowUpRight className="size-3.5" aria-label="up" /> : <ArrowDownRight className="size-3.5" aria-label="down" />}
+                          {Math.round(Math.abs(trend) * 100)} pts
                         </span>
                       )}
-                    </td>
-                    <td className={`${TD} whitespace-nowrap text-right tabular-nums`}>
-                      {d.deskFailures + d.platformFailures === 0 ? (
-                        <span className="text-gray-300">0</span>
+                    </TD>
+                    <TD className="whitespace-nowrap text-right tabular-nums">
+                      {wrongOf(d) === 0 ? (
+                        <span className="text-fg-subtle">0</span>
                       ) : (
                         <Link href={d.lastBad ? runHref(d.workspace, d.lastBad.id, tenant) : `/dashboard/${d.workspace}/runs${qs}`} className="hover:underline">
-                          <span className="font-medium text-red-700">{d.deskFailures}</span>
-                          {d.platformFailures > 0 && <span className="text-slate-500"> +{d.platformFailures} platform</span>}
+                          <span className="font-medium text-danger">{d.deskFailures}</span>
+                          {d.platformFailures > 0 && <span className="text-fg-muted"> +{d.platformFailures} platform</span>}
                         </Link>
                       )}
-                    </td>
-                    <td className={`${TD} text-xs`}>{d.worst ? <span className="text-fg-secondary">{d.worst.what} <span className="text-fg-subtle">×{d.worst.count}</span></span> : <span className="text-gray-300">—</span>}</td>
-                    <td className={`${TD} text-right tabular-nums text-xs text-fg-tertiary`}>{secs(d.medianSecs)}</td>
-                    <td className={`${TD} text-right tabular-nums text-xs text-fg-tertiary`}>{d.spendUsd ? money(d.spendUsd) : "—"}</td>
-                  </tr>
+                    </TD>
+                    <TD>
+                      {d.worst ? (
+                        <span className="text-fg-secondary">
+                          {d.worst.what} <span className="text-fg-subtle">×{d.worst.count}</span>
+                        </span>
+                      ) : (
+                        none
+                      )}
+                    </TD>
+                    <TD className="text-right tabular-nums text-fg-muted">{secs(d.medianSecs)}</TD>
+                    <TD className="text-right tabular-nums text-fg-muted">{d.spendUsd ? money(d.spendUsd) : "—"}</TD>
+                  </TR>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
+            </TBody>
+          </Table>
+        </Panel>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Panel title="Agents to watch" count={agents.length}>
-          {agents.length === 0 ? (
-            <p className="px-4 py-6 text-center text-sm text-fg-muted">No agent ran in this window.</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr>
-                  <th className={TH}>Agent</th>
-                  <th className={`${TH} text-right`}>Failed</th>
-                  <th className={`${TH} text-right`}>Retried</th>
-                  <th className={`${TH} text-right`}>p50</th>
-                  <th className={`${TH} text-right`} title="Credits charged">Credits</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line-faint">
-                {agents.map((a) => (
-                  <tr key={`${a.workspace}/${a.agent}`} className="hover:bg-sunken/60">
-                    <td className={TD}>
-                      <Link href={`/dashboard/${a.workspace}/observe${qs}`} className="font-medium text-fg hover:underline">{a.agent}</Link>
-                      <span className="ml-1.5 text-[11px] text-fg-subtle">{a.workspace}</span>
-                    </td>
-                    <td className={`${TD} text-right tabular-nums ${a.failed ? "font-medium text-red-700" : "text-gray-300"}`}>
-                      {a.failed}<span className="font-normal text-fg-subtle">/{a.steps}</span>
-                    </td>
-                    <td className={`${TD} text-right tabular-nums ${a.retried ? "text-amber-700" : "text-gray-300"}`}>{a.retried}</td>
-                    <td className={`${TD} text-right tabular-nums text-xs text-fg-tertiary`}>{secs(a.seconds.p50)}</td>
-                    <td className={`${TD} text-right tabular-nums text-xs text-fg-tertiary`}>{money(a.chargedUsd ?? 0)}</td>
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+          <Panel title="Agents to watch" count={agents.length}>
+            {agents.length === 0 ? (
+              <p className="px-5 py-8 text-center text-sm text-fg-muted">No agent ran in this window.</p>
+            ) : (
+              <Table>
+                <THead>
+                  <tr>
+                    <TH>Agent</TH>
+                    <TH className="text-right">Failed</TH>
+                    <TH className="text-right">Retried</TH>
+                    <TH className="text-right">p50</TH>
+                    <TH className="text-right" title="Credits charged">Credits</TH>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </Panel>
-        <Panel title="Tools" count={tools.length}>
-          {tools.length === 0 ? (
-            <p className="px-4 py-6 text-center text-sm text-fg-muted">No tool calls in this window.</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr>
-                  <th className={TH}>Tool</th>
-                  <th className={`${TH} text-right`}>Calls</th>
-                  <th className={`${TH} text-right`}>Errors</th>
-                  <th className={`${TH} text-right`}>Slowest p95</th>
-                  <th className={TH}>Used by</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line-faint">
-                {tools.map((t) => (
-                  <tr key={t.name} className="hover:bg-sunken/60">
-                    <td className={`${TD} font-mono text-xs text-fg`}>{t.name}</td>
-                    <td className={`${TD} text-right tabular-nums text-fg-tertiary`}>{t.calls}</td>
-                    <td className={`${TD} text-right tabular-nums ${t.errors ? "font-medium text-red-700" : "text-gray-300"}`}>
-                      {t.errors}
-                      {t.errors > 0 && <span className="font-normal text-fg-subtle"> · {Math.round((t.errors / t.calls) * 100)}%</span>}
-                    </td>
-                    <td className={`${TD} text-right tabular-nums text-xs text-fg-tertiary`} title="Only tools that time themselves report a latency">
-                      {t.p95ms === null ? "—" : t.p95ms >= 1000 ? `${(t.p95ms / 1000).toFixed(1)}s` : `${Math.round(t.p95ms)}ms`}
-                    </td>
-                    <td className={`${TD} text-[11px] text-fg-muted`}>{t.workspaces.length === 1 ? t.workspaces[0] : `${t.workspaces.length} desks`}</td>
+                </THead>
+                <TBody>
+                  {agents.map((a) => (
+                    <TR key={`${a.workspace}/${a.agent}`}>
+                      <TD>
+                        <Link href={`/dashboard/${a.workspace}/observe${qs}`} className="font-medium text-fg hover:underline">
+                          {a.agent}
+                        </Link>
+                        <span className="block text-xs text-fg-subtle">{a.workspace}</span>
+                      </TD>
+                      <TD className={`text-right tabular-nums ${a.failed ? "font-medium text-danger" : "text-fg-subtle"}`}>
+                        {a.failed}
+                        <span className="font-normal text-fg-subtle">/{a.steps}</span>
+                      </TD>
+                      <TD className={`text-right tabular-nums ${a.retried ? "text-warning" : "text-fg-subtle"}`}>{a.retried}</TD>
+                      <TD className="text-right tabular-nums text-fg-muted">{secs(a.seconds.p50)}</TD>
+                      <TD className="text-right tabular-nums text-fg-muted">{money(a.chargedUsd ?? 0)}</TD>
+                    </TR>
+                  ))}
+                </TBody>
+              </Table>
+            )}
+          </Panel>
+          <Panel title="Tools" count={tools.length}>
+            {tools.length === 0 ? (
+              <p className="px-5 py-8 text-center text-sm text-fg-muted">No tool calls in this window.</p>
+            ) : (
+              <Table>
+                <THead>
+                  <tr>
+                    <TH>Tool</TH>
+                    <TH className="text-right">Calls</TH>
+                    <TH className="text-right">Errors</TH>
+                    <TH className="text-right">Slowest p95</TH>
+                    <TH>Used by</TH>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </Panel>
+                </THead>
+                <TBody>
+                  {tools.map((t) => (
+                    <TR key={t.name}>
+                      <TD className="font-mono text-xs text-fg">{t.name}</TD>
+                      <TD className="text-right tabular-nums">{t.calls}</TD>
+                      <TD className={`whitespace-nowrap text-right tabular-nums ${t.errors ? "font-medium text-danger" : "text-fg-subtle"}`}>
+                        {t.errors}
+                        {t.errors > 0 && <span className="font-normal text-fg-subtle"> · {Math.round((t.errors / t.calls) * 100)}%</span>}
+                      </TD>
+                      <TD className="text-right tabular-nums text-fg-muted" title="Only tools that time themselves report a latency">
+                        {t.p95ms === null ? "—" : t.p95ms >= 1000 ? `${(t.p95ms / 1000).toFixed(1)}s` : `${Math.round(t.p95ms)}ms`}
+                      </TD>
+                      <TD className="text-xs text-fg-muted">{t.workspaces.length === 1 ? t.workspaces[0] : `${t.workspaces.length} desks`}</TD>
+                    </TR>
+                  ))}
+                </TBody>
+              </Table>
+            )}
+          </Panel>
+        </div>
       </div>
-    </main>
+    </Page>
   );
 }
+
+const wrongOf = (d: { deskFailures: number; platformFailures: number }) => d.deskFailures + d.platformFailures;

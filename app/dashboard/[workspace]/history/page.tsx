@@ -13,9 +13,9 @@ import { paginate, pageFrom } from "@/components/paging";
 import { notFound } from "next/navigation";
 import { workspaceDir } from "@/lib/store";
 import { ensureBaseline, hasSnapshot, listRevisions } from "@/lib/history";
-import { WorkspaceHeader } from "@/components/workspace-header";
-import { Card, EmptyScreen, PageHeader } from "@/components/ui";
-import { ListSearch } from "@/components/list-search";
+import { History as HistoryIcon } from "lucide-react";
+import { Page, PageHeader, EmptyState } from "@/components/kit/page";
+import { UrlSearch } from "@/components/kit/inspect-search";
 import { filterByQuery } from "@/components/list-search-model";
 import { HistoryList } from "./history-list";
 
@@ -41,24 +41,28 @@ export default async function HistoryPage({
   const qs = tenant !== "default" ? `?tenant=${tenant}` : "";
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-8">
-      <WorkspaceHeader workspace={workspace} qs={qs} />
-      <PageHeader
-        title="History"
-        subtitle="Every change to this workspace — saves, deploys, deletions — newest first. Open one to see the diff."
-      />
-      {revisions.length > 0 && <ListSearch mode="url" value={q} placeholder="Search changes — message, path, author…" total={found.length} noun="changes" />}
+    <Page>
+      <PageHeader title="History" description="Every change to this workspace — saves, deploys, deletions — newest first. Open one to see its diff; roll back to any of them." />
       {revisions.length === 0 ? (
-        <EmptyScreen
+        <EmptyState
+          icon={<HistoryIcon />}
           title="No changes recorded yet"
-          description="History starts with the next save. Everything from now on is kept: what changed, from what, by whom."
+          description="History starts with the next save. From then on every change is kept: what changed, from what, by whom."
         />
       ) : (
-        <Card className="overflow-hidden">
-          <HistoryList workspace={workspace} tenant={tenant} revisions={rows} />
-        </Card>
+        <div className="min-w-0 space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <UrlSearch value={q} placeholder="Search changes — message, path, author…" className="min-w-48 flex-1" />
+            {q && (
+              <span className="text-[13px] tabular-nums text-fg-muted">
+                {found.length} {found.length === 1 ? "change" : "changes"}
+              </span>
+            )}
+          </div>
+          <HistoryList workspace={workspace} tenant={tenant} revisions={rows} page={page} />
+        </div>
       )}
       <Pager base={`/dashboard/${workspace}/history${q ? `?q=${encodeURIComponent(q)}` : ""}`} page={page} pages={pages} total={total} tenantParam={qs.replace("?", "&")} labels={["← Newer", "Older →"]} />
-    </main>
+    </Page>
   );
 }

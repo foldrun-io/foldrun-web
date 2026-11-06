@@ -12,7 +12,9 @@
 
 import { useState } from "react";
 import type { StepRecord } from "@/lib/store";
-import { buttonClass } from "./ui";
+import { Button } from "./kit/button";
+import { Input } from "./kit/input";
+import { Tag } from "./kit/page";
 
 export function OperatorPanel({
   workspace,
@@ -90,26 +92,24 @@ export function OperatorPanel({
   const onTheWay = pending.filter((t) => !messages.some((m) => m.text === t && !m.from && !m.to));
 
   return (
-    <div className="mb-3 space-y-2">
+    <div className="mb-4 space-y-3">
       {questions.map((q) => {
         const open = q.answer === undefined && !q.unanswered;
         const given = sent[q.id];
         return (
-          <div key={q.id} className={`space-y-2 rounded-lg border px-3 py-2 ${open && !given ? "border-violet-300 bg-violet-50" : "border-line bg-surface"}`}>
-            <div className="text-xs font-medium text-fg">
-              <span className="mr-1.5 rounded bg-violet-100 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-violet-800">
-                {step.agent} asks
-              </span>
+          <div key={q.id} className={`space-y-2.5 rounded-lg border p-3 text-[13px] ${open && !given ? "border-info-line bg-info-soft" : "border-line bg-surface"}`}>
+            <div className="font-medium text-fg">
+              <span className="mr-1.5 font-normal text-fg-muted">{step.agent} asks:</span>
               {q.question}
             </div>
             {q.answer !== undefined ? (
-              <div className="text-xs text-fg-secondary">
+              <div className="text-fg-secondary">
                 <span className="text-fg-muted">answered{q.by ? ` by ${q.by}` : ""}:</span> {q.answer}
               </div>
             ) : q.unanswered ? (
-              <div className="text-xs text-fg-muted">No one answered in time; the agent was told to decide or stop.</div>
+              <div className="text-fg-muted">No one answered in time; the agent was told to decide or stop.</div>
             ) : given ? (
-              <div className="text-xs text-fg-secondary">
+              <div className="text-fg-secondary">
                 <span className="text-fg-muted">sent:</span> {given} <span className="text-fg-subtle">— reaching the agent</span>
               </div>
             ) : running ? (
@@ -117,14 +117,14 @@ export function OperatorPanel({
                 {q.options?.length ? (
                   <div className="flex flex-wrap gap-1.5">
                     {q.options.map((o) => (
-                      <button key={o} disabled={busy} onClick={() => void answer(q.id, o)} className={buttonClass("secondary", "!px-2 !py-1 !text-xs")}>
+                      <Button key={o} disabled={busy} onClick={() => void answer(q.id, o)}>
                         {o}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 ) : null}
                 <div className="flex gap-2">
-                  <input
+                  <Input
                     value={drafts[q.id] ?? ""}
                     onChange={(e) => setDrafts((d) => ({ ...d, [q.id]: e.target.value }))}
                     onKeyDown={(e) => {
@@ -132,15 +132,15 @@ export function OperatorPanel({
                     }}
                     placeholder={q.options?.length ? "…or answer in your own words" : "Your answer"}
                     aria-label="Your answer"
-                    className="h-8 flex-1 rounded-md border border-line bg-surface px-2 text-xs text-fg focus:border-gray-400 focus:outline-none"
+                    className="flex-1 text-[13px]"
                   />
-                  <button disabled={busy || !(drafts[q.id] ?? "").trim()} onClick={() => void answer(q.id, drafts[q.id] ?? "")} className={buttonClass("primary", "!px-3 !py-1 !text-xs")}>
+                  <Button size="md" variant="primary" disabled={busy || !(drafts[q.id] ?? "").trim()} onClick={() => void answer(q.id, drafts[q.id] ?? "")}>
                     Answer
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : (
-              <div className="text-xs text-fg-muted">The step ended before it was answered.</div>
+              <div className="text-fg-muted">The step ended before it was answered.</div>
             )}
           </div>
         );
@@ -149,15 +149,15 @@ export function OperatorPanel({
       {messages.length > 0 && (
         <ul className="space-y-1">
           {messages.map((m, i) => (
-            <li key={`${m.at}-${i}`} className="text-xs text-fg-tertiary">
+            <li key={`${m.at}-${i}`} className="flex flex-wrap items-center gap-x-1.5 text-[13px] text-fg-secondary">
               {m.to ? (
                 <>
-                  <span className="mr-1 rounded bg-sky-100 px-1 py-px text-[10px] font-semibold uppercase tracking-wide text-sky-800">{step.agent} → {m.to.join(", ") || "nobody"}</span>
+                  <Tag className="h-5">{step.agent} → {m.to.join(", ") || "nobody"}</Tag>
                   {m.text}
                 </>
               ) : m.from ? (
                 <>
-                  <span className="mr-1 rounded bg-sky-100 px-1 py-px text-[10px] font-semibold uppercase tracking-wide text-sky-800">{m.from} → {step.agent}</span>
+                  <Tag className="h-5">{m.from} → {step.agent}</Tag>
                   {m.text} <span className="text-fg-subtle">— delivered</span>
                 </>
               ) : (
@@ -171,14 +171,14 @@ export function OperatorPanel({
         </ul>
       )}
       {onTheWay.map((t, i) => (
-        <div key={`p-${i}`} className="text-xs text-fg-muted">
+        <div key={`p-${i}`} className="text-[13px] text-fg-muted">
           <span className="text-fg-subtle">you said:</span> {t} <span className="text-fg-subtle">— reaches it after its next tool call</span>
         </div>
       ))}
 
       {running && (
         <div className="flex gap-2">
-          <input
+          <Input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={(e) => {
@@ -187,14 +187,14 @@ export function OperatorPanel({
             placeholder={`Message ${step.agent} while it works`}
             aria-label="Message the agent"
             maxLength={4000}
-            className="h-8 flex-1 rounded-md border border-line bg-surface px-2 text-xs text-fg focus:border-gray-400 focus:outline-none"
+            className="flex-1 text-[13px]"
           />
-          <button disabled={busy || !message.trim()} onClick={() => void send()} className={buttonClass("secondary", "!px-3 !py-1 !text-xs")}>
+          <Button size="md" disabled={busy || !message.trim()} onClick={() => void send()}>
             Send
-          </button>
+          </Button>
         </div>
       )}
-      {error && <div className="text-xs text-red-600">{error}</div>}
+      {error && <div className="text-[13px] text-danger">{error}</div>}
     </div>
   );
 }

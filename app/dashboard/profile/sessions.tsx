@@ -105,7 +105,7 @@ export function SessionList() {
             {!s.isCurrent && (
               <button
                 type="button"
-                className="shrink-0 text-xs text-red-600 hover:underline disabled:opacity-50"
+                className="shrink-0 text-xs text-danger hover:underline disabled:opacity-50"
                 disabled={busy === s.id}
                 onClick={() => end({ id: s.id }, s.id)}
               >
@@ -116,7 +116,7 @@ export function SessionList() {
         ))}
       </ul>
 
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
 
       <button
         type="button"

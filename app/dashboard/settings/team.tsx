@@ -13,7 +13,10 @@ import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
 import { Avatar } from "@/components/avatar";
 import { Email } from "@/components/email";
-import { buttonClass, inputClass, selectClass } from "@/components/ui";
+import { inputClass, selectClass } from "@/components/ui";
+import { Mail } from "lucide-react";
+import { Button } from "@/components/kit/button";
+import { IconBox, Tag } from "@/components/kit/page";
 import { useConfirm } from "@/components/confirm";
 import { useRole } from "@/components/role";
 import { ASSIGNABLE, can, type Role } from "@/platform/permissions";
@@ -55,11 +58,11 @@ function ScopePicker({ all, value, onChange, disabled = false }: { all: string[]
     <div className="space-y-1.5">
       <div className="flex flex-wrap gap-3 text-sm">
         <label className="flex items-center gap-1.5">
-          <input type="radio" checked={!some} disabled={disabled} onChange={() => onChange(null)} className="h-3.5 w-3.5" />
+          <input type="radio" checked={!some} disabled={disabled} onChange={() => onChange(null)} className="size-4 accent-fg" />
           All workspaces
         </label>
         <label className="flex items-center gap-1.5">
-          <input type="radio" checked={some} disabled={disabled || all.length === 0} onChange={() => onChange([])} className="h-3.5 w-3.5" />
+          <input type="radio" checked={some} disabled={disabled || all.length === 0} onChange={() => onChange([])} className="size-4 accent-fg" />
           Only some
         </label>
       </div>
@@ -72,12 +75,12 @@ function ScopePicker({ all, value, onChange, disabled = false }: { all: string[]
                 disabled={disabled}
                 checked={value!.includes(w)}
                 onChange={(e) => onChange(e.target.checked ? [...value!, w] : value!.filter((x) => x !== w))}
-                className="h-3.5 w-3.5 rounded"
+                className="size-4 rounded accent-fg"
               />
               {w}
             </label>
           ))}
-          {all.length === 0 && <span className="text-xs text-fg-subtle">No workspaces yet.</span>}
+          {all.length === 0 && <span className="text-sm text-fg-muted">No workspaces yet.</span>}
         </div>
       )}
     </div>
@@ -173,7 +176,7 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
   const mayTouch = (m: Member) => manages && !m.owner && m.email !== self && (m.role !== "admin" || managesAdmins);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-6">
       {confirmDialog}
       {manages && (
         <form
@@ -181,17 +184,21 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
             e.preventDefault();
             void invite(Boolean(email.trim()));
           }}
-          className="rounded-xl border border-line bg-surface"
+          className="overflow-hidden rounded-lg border border-line bg-surface"
         >
-          <div className="space-y-3 p-4">
-            <div className="flex flex-wrap items-end gap-2">
-              <label className="min-w-[16rem] flex-1">
-                <span className="block text-[10px] font-medium uppercase tracking-wide text-fg-subtle">Email</span>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="teammate@company.com" className={inputClass("mt-1 w-full")} />
+          <div className="space-y-4 p-5 sm:p-6">
+            <div className="space-y-1.5">
+              <h2 className="text-lg font-semibold text-fg">Invite people</h2>
+              <p className="text-sm text-fg-muted">An invite is a link that works once, for seven days, and can be revoked until it is used.</p>
+            </div>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="min-w-0 flex-1 basis-60">
+                <span className="block text-sm font-medium text-fg">Email</span>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="teammate@company.com" className={inputClass("mt-1.5 h-9 w-full")} />
               </label>
               <label>
-                <span className="block text-[10px] font-medium uppercase tracking-wide text-fg-subtle">Role</span>
-                <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as Role)} className={selectClass("mt-1")} title={DESCRIBE[inviteRole]}>
+                <span className="block text-sm font-medium text-fg">Role</span>
+                <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as Role)} className={selectClass("mt-1.5 h-9")} title={DESCRIBE[inviteRole]}>
                   {offer.map((r) => (
                     <option key={r} value={r}>{r}</option>
                   ))}
@@ -199,69 +206,87 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
               </label>
             </div>
             <div>
-              <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-fg-subtle">Access</span>
+              <span className="mb-1.5 block text-sm font-medium text-fg">Access</span>
               <ScopePicker all={workspaces} value={inviteScope} onChange={setInviteScope} />
             </div>
-            <p className="text-xs text-fg-muted">
-              <strong>{inviteRole}</strong> {DESCRIBE[inviteRole]}. An invite works once, for seven days; with an address it can only be accepted by that address.
-            </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 border-t border-line-faint bg-sunken/60 px-4 py-3">
-            <button type="submit" disabled={busy || !email.trim()} className={buttonClass("primary")} title={email.trim() ? undefined : "Enter an address to send to"}>
-              {busy ? "Working…" : "Send invite"}
-            </button>
-            <button type="button" disabled={busy} onClick={() => void invite(false)} className={buttonClass("secondary")}>
-              {email.trim() ? "Just make the link" : "Make a link anyone can use"}
-            </button>
-            {error && <span className="text-xs text-danger">{error}</span>}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-sunken px-5 py-3 text-sm text-fg-muted sm:px-6">
+            <span className="min-w-0">
+              {error ? (
+                <span role="alert" className="text-danger">{error}</span>
+              ) : (
+                <>
+                  <span className="font-medium text-fg">{inviteRole}</span> {DESCRIBE[inviteRole]}. With an address, only that address can accept it.
+                </>
+              )}
+            </span>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <Button type="button" variant="secondary" disabled={busy} onClick={() => void invite(false)}>
+                {email.trim() ? "Just make the link" : "Make a link anyone can use"}
+              </Button>
+              <Button type="submit" variant="primary" disabled={busy || !email.trim()} title={email.trim() ? undefined : "Enter an address to send to"}>
+                {busy ? "Working…" : "Send invite"}
+              </Button>
+            </div>
           </div>
         </form>
       )}
 
       {result && (
-        <div className="rounded-lg border border-line bg-sunken p-3 text-sm">
+        <div role="status" className="rounded-lg border border-line bg-surface p-4 text-sm">
           {result.sent === true && <p className="text-success">Sent to <Email value={result.email} />. The same link, in case they need it:</p>}
           {result.sent === false && <p className="text-warning">Could not send: {result.sendError}. Copy the link and send it yourself:</p>}
-          {result.sent === null && <p className="text-fg-tertiary">{result.email ? <>For <Email value={result.email} /> only.</> : "One person with this link can join — share it with care."} It works once, for seven days. Shown once:</p>}
-          <div className="mt-1.5 flex items-center gap-2">
-            <code className="min-w-0 flex-1 truncate font-mono text-xs text-fg-secondary">{result.url}</code>
-            <button type="button" onClick={() => void copy(result.url)} className={buttonClass("secondary", "!px-2.5 !py-1 !text-xs")}>{copied ? "Copied" : "Copy"}</button>
+          {result.sent === null && <p className="text-fg-muted">{result.email ? <>For <Email value={result.email} /> only.</> : "One person with this link can join — share it with care."} It works once, for seven days. Shown once:</p>}
+          <div className="mt-2 flex items-center gap-2">
+            <code className="min-w-0 flex-1 truncate rounded-md border border-line bg-sunken px-3 py-1.5 font-mono text-xs text-fg-secondary">{result.url}</code>
+            <Button variant="secondary" onClick={() => void copy(result.url)}>{copied ? "Copied" : "Copy"}</Button>
           </div>
         </div>
       )}
 
       {manages && invites.length > 0 && (
-        <div className="rounded-xl border border-line bg-surface">
-          <p className="border-b border-line-faint px-4 py-2 text-[10px] font-medium uppercase tracking-wide text-fg-subtle">Pending invites</p>
-          <ul className="divide-y divide-line-faint">
+        <section className="space-y-3">
+          <div className="flex items-end justify-between gap-2 px-1">
+            <h2 className="text-base font-medium text-fg">Pending invites</h2>
+            <span className="text-sm tabular-nums text-fg-muted">{invites.length}</span>
+          </div>
+          <div className="overflow-hidden rounded-lg border border-line bg-surface">
+          <ul className="divide-y divide-line">
             {invites.map((inv) => (
-              <li key={inv.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+              <li key={inv.id} className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-5">
+                <IconBox round className="max-sm:hidden"><Mail /></IconBox>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm text-fg">{inv.email ? <Email value={inv.email} /> : <span className="text-fg-muted">anyone with the link</span>}</p>
                   <p className="text-xs text-fg-muted">
                     {describeScope(inv.workspaces)} · invited by <Email value={inv.invitedBy} /> · expires <LocalTime iso={inv.expiresAt} options={{ dateStyle: "medium", timeStyle: "short" }} />
                   </p>
                 </div>
-                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-fg-tertiary" title={DESCRIBE[inv.role]}>{inv.role}</span>
+                <Tag><span title={DESCRIBE[inv.role]}>{inv.role}</span></Tag>
                 {(inv.role !== "admin" || managesAdmins) && (
-                  <button type="button" onClick={() => void revokeInvite(inv)} className={buttonClass("destructive", "!px-2 !py-1 !text-xs")}>Revoke</button>
+                  <Button variant="ghost" className="hover:text-danger" onClick={() => void revokeInvite(inv)}>Revoke</Button>
                 )}
               </li>
             ))}
           </ul>
-        </div>
+          </div>
+        </section>
       )}
 
-      <div className="rounded-xl border border-line bg-surface">
-        <ul className="divide-y divide-line-faint">
+      <section className="space-y-3">
+      <div className="flex items-end justify-between gap-2 px-1">
+        <h2 className="text-base font-medium text-fg">Members</h2>
+        <span className="text-sm tabular-nums text-fg-muted">{members.length}</span>
+      </div>
+      <div className="overflow-hidden rounded-lg border border-line bg-surface">
+        <ul className="divide-y divide-line">
           {members.map((m) => (
-            <li key={m.id} className="px-4 py-3">
+            <li key={m.id} className="px-4 py-3 sm:px-5">
               <div className="flex items-center gap-3">
                 <Avatar name={m.email} src={m.avatar} size="md" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm text-fg">
                     <Email value={m.email} />
-                    {m.email === self && <span className="ml-2 text-xs text-fg-subtle">you</span>}
+                    {m.email === self && <span className="ml-2 text-xs text-fg-muted">you</span>}
                   </p>
                   <p className="text-xs text-fg-muted">
                     since <LocalTime iso={m.createdAt} options={{ dateStyle: "medium" }} /> · {m.owner ? "all workspaces" : describeScope(m.workspaces)}
@@ -272,37 +297,37 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
                           setEditing(editing === m.id ? null : m.id);
                           setDraftScope(m.workspaces);
                         }}
-                        className="ml-2 font-medium text-fg-muted underline-offset-2 hover:text-fg hover:underline"
+                        className="ml-2 font-medium text-link underline-offset-2 hover:underline"
                       >
                         {editing === m.id ? "cancel" : "change access"}
                       </button>
                     )}
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 items-center gap-1">
                   {mayTouch(m) ? (
-                    <select value={m.role} onChange={(e) => void setRole(m, e.target.value as Role)} className={selectClass("!py-1 !text-xs")} title={DESCRIBE[m.role]} aria-label={`Role for ${m.email}`}>
+                    <select value={m.role} onChange={(e) => void setRole(m, e.target.value as Role)} className={selectClass("h-8 !py-1")} title={DESCRIBE[m.role]} aria-label={`Role for ${m.email}`}>
                       {offer.map((r) => (
                         <option key={r} value={r}>{r}</option>
                       ))}
                     </select>
                   ) : (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-fg-tertiary" title={DESCRIBE[m.role]}>{m.role}</span>
+                    <Tag><span title={DESCRIBE[m.role]}>{m.role}</span></Tag>
                   )}
                   {mine === "owner" && !m.owner && m.email !== self && (
-                    <button onClick={() => transfer(m)} className={buttonClass("minimal", "!px-2 !py-1 !text-xs")} title="Make them the owner; you become an admin">Transfer</button>
+                    <Button variant="ghost" onClick={() => transfer(m)} title="Make them the owner; you become an admin">Transfer</Button>
                   )}
                   {mayTouch(m) && members.length > 1 && (
-                    <button onClick={() => remove(m)} className={buttonClass("destructive", "!px-2 !py-1 !text-xs")}>Remove</button>
+                    <Button variant="ghost" className="hover:text-danger" onClick={() => remove(m)}>Remove</Button>
                   )}
                 </div>
               </div>
               {editing === m.id && (
-                <div className="mt-3 space-y-2 rounded-md border border-line bg-sunken/60 p-3">
+                <div className="mt-3 space-y-3 rounded-md border border-line bg-sunken p-3">
                   <ScopePicker all={workspaces} value={draftScope} onChange={setDraftScope} />
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => void saveScope(m)} className={buttonClass("primary", "!px-3 !py-1 !text-xs")}>Save access</button>
-                    <button type="button" onClick={() => setEditing(null)} className={buttonClass("minimal", "!px-2 !py-1 !text-xs")}>Cancel</button>
+                    <Button variant="primary" onClick={() => void saveScope(m)}>Save access</Button>
+                    <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
                   </div>
                 </div>
               )}
@@ -310,6 +335,7 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
           ))}
         </ul>
       </div>
+      </section>
       {error && !manages && <p className="text-sm text-danger">{error}</p>}
     </div>
   );

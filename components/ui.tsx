@@ -1,8 +1,8 @@
-// Cal.com-style UI primitives. @calcom/ui isn't published to npm (it's
-// internal to the cal.com monorepo), so these recreate its design language —
-// light surfaces, gray-900 primary actions, subtle borders, 6px radii —
-// as plain Tailwind components with the same component vocabulary
-// (Button, Badge, EmptyScreen, horizontal tabs).
+// The older helpers, kept with their signatures while pages move to the kit
+// (components/kit/: Button, Pill, Page, PageHeader, PageTabs, SettingsCard,
+// EmptyState, Table…). They draw in the kit's look (UI refactor, Nov 2026):
+// Vercel's language — hairline borders, no shadows on controls, 6px radii,
+// one blue focus ring. New code uses the kit; these stay server-callable.
 
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -15,13 +15,13 @@ export type ButtonColor = "primary" | "secondary" | "minimal" | "destructive";
 // border on every variant (transparent where invisible) — so a button sat
 // beside an input or select lands at the same height instead of 4px short.
 const BUTTON_BASE =
-  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md border text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-40";
+  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md border text-[13px] font-medium leading-5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50";
 
 export const BUTTON_STYLES: Record<ButtonColor, string> = {
-  primary: `${BUTTON_BASE} border-transparent bg-ink text-on-ink hover:bg-ink-hover px-3 py-1.5 shadow-sm`,
-  secondary: `${BUTTON_BASE} border-line-strong bg-surface text-fg hover:bg-sunken px-3 py-1.5 shadow-sm`,
+  primary: `${BUTTON_BASE} border-transparent bg-ink text-on-ink hover:bg-ink-hover px-3 py-1.5`,
+  secondary: `${BUTTON_BASE} border-line bg-surface text-fg hover:border-line-strong hover:bg-sunken px-3 py-1.5`,
   minimal: `${BUTTON_BASE} border-transparent text-fg-tertiary hover:bg-muted hover:text-fg px-3 py-1.5`,
-  destructive: `${BUTTON_BASE} border-line-strong bg-surface text-fg hover:border-red-200 hover:bg-red-50 hover:text-red-700 px-3 py-1.5 shadow-sm`,
+  destructive: `${BUTTON_BASE} border-line bg-surface text-danger hover:border-danger-line hover:bg-danger-soft px-3 py-1.5`,
 };
 
 export function buttonClass(color: ButtonColor = "primary", extra = "") {
@@ -32,7 +32,7 @@ export function buttonClass(color: ButtonColor = "primary", extra = "") {
  *  rare action that lives inside a badge row, where a full-height button
  *  would break the line. Anywhere else, use buttonClass. */
 export const CHIP_BUTTON_CLASS =
-  "inline-flex items-center gap-1 rounded-md border border-line-strong bg-surface px-1.5 py-0.5 text-xs font-medium text-fg-tertiary transition-colors hover:bg-sunken hover:text-fg";
+  "inline-flex items-center gap-1 rounded-md border border-line bg-surface px-1.5 py-0.5 text-xs font-medium text-fg-tertiary transition-colors hover:border-line-strong hover:bg-sunken hover:text-fg";
 export function chipButtonClass(extra = "") {
   return `${CHIP_BUTTON_CLASS} ${extra}`.trim();
 }
@@ -40,7 +40,7 @@ export function chipButtonClass(extra = "") {
 /** The "+ Add …" affordance: a full-width dashed row that opens into a form.
  *  Existed as three hand-rolled copies that had already drifted. */
 export const DASHED_BUTTON_CLASS =
-  "w-full rounded-md border border-dashed border-line-strong px-2 py-2 text-xs font-medium text-fg-muted transition-colors hover:border-gray-400 hover:text-fg";
+  "w-full rounded-lg border border-dashed border-line-strong px-2 py-2.5 text-[13px] font-medium text-fg-muted transition-colors hover:border-fg-subtle hover:bg-surface hover:text-fg";
 export function dashedButtonClass(extra = "") {
   return `${DASHED_BUTTON_CLASS} ${extra}`.trim();
 }
@@ -55,15 +55,15 @@ export function dashedButtonClass(extra = "") {
 // menu is the OS's, which is native <select>'s accessibility bargain.
 
 export const INPUT_CLASS =
-  "w-full rounded-md border border-line-strong bg-surface px-2.5 py-1.5 text-sm text-fg " +
-  "placeholder:text-fg-subtle focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-line " +
-  "disabled:cursor-not-allowed disabled:opacity-40";
+  "w-full rounded-md border border-line bg-surface px-3 py-1.5 text-sm text-fg transition-colors " +
+  "placeholder:text-fg-subtle hover:border-line-strong focus:border-focus focus:outline-none focus:ring-3 focus:ring-focus-soft " +
+  "disabled:cursor-not-allowed disabled:opacity-50";
 
 export const SELECT_CLASS =
-  "rounded-md border border-line-strong bg-surface px-2.5 py-1.5 text-sm text-fg-secondary " +
-  "focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-line";
+  "rounded-md border border-line bg-surface px-2.5 py-1.5 text-sm text-fg-secondary transition-colors " +
+  "hover:border-line-strong focus:border-focus focus:outline-none focus:ring-3 focus:ring-focus-soft";
 
-export const FIELD_LABEL_CLASS = "block text-[10px] font-medium uppercase tracking-wide text-fg-subtle";
+export const FIELD_LABEL_CLASS = "block text-xs font-medium text-fg-muted";
 
 export function inputClass(extra = "") {
   return `${INPUT_CLASS} ${extra}`.trim();
@@ -74,7 +74,7 @@ export function selectClass(extra = "") {
 
 /** The sub-hierarchy below PageHeader — settings sections, card groups. */
 export function SectionHeading({ children }: { children: ReactNode }) {
-  return <h2 className="mb-2 text-sm font-semibold text-fg">{children}</h2>;
+  return <h2 className="mb-3 text-base font-semibold tracking-tight text-fg">{children}</h2>;
 }
 
 export function ButtonLink({
@@ -100,11 +100,11 @@ export function ButtonLink({
 export type BadgeVariant = "default" | "success" | "error" | "warning" | "info";
 
 const BADGE_STYLES: Record<BadgeVariant, string> = {
-  default: "bg-muted text-gray-800",
-  success: "bg-green-100 text-green-800",
-  error: "bg-red-100 text-red-800",
-  warning: "bg-orange-100 text-orange-800",
-  info: "bg-blue-100 text-blue-800",
+  default: "border-line bg-sunken text-fg-secondary",
+  success: "border-success-line bg-success-soft text-success",
+  error: "border-danger-line bg-danger-soft text-danger",
+  warning: "border-warning-line bg-warning-soft text-warning",
+  info: "border-info-line bg-info-soft text-info",
 };
 
 export function Badge({
@@ -124,7 +124,7 @@ export function Badge({
   return (
     <span
       title={title}
-      className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium ${BADGE_STYLES[variant]} ${pulse ? "animate-pulse" : ""} ${className}`}
+      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-px text-xs font-medium leading-5 ${BADGE_STYLES[variant]} ${pulse ? "animate-pulse" : ""} ${className}`}
     >
       {children}
     </span>
@@ -236,9 +236,9 @@ export function IconButton({
         aria-label={label}
         disabled={disabled}
         onClick={onClick}
-        className={`rounded p-1 text-fg-subtle transition-colors disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent ${
+        className={`rounded-md p-1 text-fg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent ${
           tone === "destructive"
-            ? "hover:bg-red-50 hover:text-red-600"
+            ? "hover:bg-danger-soft hover:text-danger"
             : "hover:bg-muted hover:text-fg"
         } ${className}`}
       >
@@ -272,7 +272,7 @@ export function PlayIcon({ size = 11 }: { size?: number }) {
 
 export function Card({ children, className = "", id }: { children: ReactNode; className?: string; id?: string }) {
   return (
-    <div id={id} className={`rounded-xl border border-line bg-surface ${className}`}>{children}</div>
+    <div id={id} className={`rounded-lg border border-line bg-surface ${className}`}>{children}</div>
   );
 }
 
@@ -290,15 +290,15 @@ export function EmptyScreen({
   children?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-line-strong bg-surface px-6 py-12 text-center">
+    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-line-strong bg-surface px-6 py-14 text-center">
       {icon && (
-        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted text-fg-tertiary">
+        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg border border-line bg-sunken text-fg-tertiary">
           {icon}
         </div>
       )}
-      <h3 className="text-base font-semibold text-fg">{title}</h3>
-      <div className="mt-1 max-w-md text-sm leading-relaxed text-fg-muted">{description}</div>
-      {children && <div className="mt-5">{children}</div>}
+      <h3 className="text-sm font-semibold text-fg">{title}</h3>
+      <div className="mt-1 max-w-md text-[13px] leading-relaxed text-fg-muted">{description}</div>
+      {children && <div className="mt-4">{children}</div>}
     </div>
   );
 }
@@ -311,13 +311,14 @@ export function HorizontalTabs({
   tabs: { name: string; href: string; active?: boolean }[];
 }) {
   return (
-    <nav className="flex items-center gap-1">
+    <nav className="flex items-center gap-1 border-b border-line">
       {tabs.map((t) => (
         <Link
           key={t.name}
           href={t.href}
-          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-            t.active ? "bg-muted text-fg" : "text-fg-muted hover:bg-sunken hover:text-fg"
+          aria-current={t.active ? "page" : undefined}
+          className={`relative -mb-px flex h-10 items-center border-b-2 px-2.5 text-[13px] font-medium transition-colors ${
+            t.active ? "border-fg text-fg" : "border-transparent text-fg-muted hover:text-fg"
           }`}
         >
           {t.name}
@@ -352,8 +353,8 @@ export function PageHeader({
   return (
     <header className="mb-6 flex items-start justify-between gap-4">
       <div className="min-w-0 flex-1">
-        <h1 className="font-cal text-xl font-semibold tracking-tight text-fg">{title}</h1>
-        {subtitle && <p className="mt-0.5 text-sm text-fg-muted">{subtitle}</p>}
+        <h1 className="text-2xl font-semibold tracking-tight text-fg [overflow-wrap:anywhere]">{title}</h1>
+        {subtitle && <p className="mt-1 max-w-3xl text-sm text-fg-muted">{subtitle}</p>}
       </div>
       {children && (
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">{children}</div>
@@ -364,9 +365,9 @@ export function PageHeader({
 
 export function StatCard({ label, value, tone }: { label: string; value: ReactNode; tone?: "error" }) {
   return (
-    <Card className="p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">{label}</p>
-      <p className={`mt-1 font-cal text-2xl font-semibold tracking-tight ${tone === "error" ? "text-red-600" : "text-fg"}`}>{value}</p>
+    <Card className="px-4 py-3.5">
+      <p className="text-[13px] text-fg-muted">{label}</p>
+      <p className={`mt-1 text-2xl font-semibold tabular-nums tracking-tight ${tone === "error" ? "text-danger" : "text-fg"}`}>{value}</p>
     </Card>
   );
 }

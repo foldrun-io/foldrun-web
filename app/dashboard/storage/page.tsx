@@ -13,7 +13,9 @@ import { scopeAllows } from "@/platform/scope";
 import { viewerScope } from "@/server/users";
 import { fileStoreEnabled } from "@/lib/storage";
 import { nowMs } from "@/components/overview-model";
-import { PageHeader } from "@/components/ui";
+import { Page, PageHeader, EmptyState } from "@/components/kit/page";
+import { buttonVariants } from "@/components/kit/button";
+import { HardDrive, Library } from "lucide-react";
 import { FileBrowser } from "@/components/file-browser";
 import { browserDesks, dashboardShareReader } from "@/server/storage-browser";
 
@@ -25,12 +27,14 @@ export default async function AccountStoragePage({ searchParams }: { searchParam
 
   if (!fileStoreEnabled()) {
     return (
-      <main className="mx-auto max-w-7xl px-6 py-8">
+      <Page>
         <PageHeader title="Storage" />
-        <p className="rounded-lg border border-dashed border-line p-6 text-sm text-fg-muted">
-          This instance runs a single workspace from a folder on disk, so there is no file store: <code className="font-mono text-xs">storage/</code> is a directory in that folder.
-        </p>
-      </main>
+        <EmptyState
+          icon={<HardDrive />}
+          title="No file store on this instance"
+          description={<>This instance runs a single workspace from a folder on disk, so <code className="font-mono text-xs">storage/</code> is a directory in that folder.</>}
+        />
+      </Page>
     );
   }
 
@@ -41,14 +45,17 @@ export default async function AccountStoragePage({ searchParams }: { searchParam
   desks.sort((a, b) => (b.files.length > 0 ? 1 : 0) - (a.files.length > 0 ? 1 : 0) || b.files.reduce((s, f) => s + f.size, 0) - a.files.reduce((s, f) => s + f.size, 0));
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-8">
+    <Page>
       <PageHeader
         title="Storage"
-        subtitle="Every file your desks keep — what you uploaded and what their runs produced. Open a desk, click a file to see it, share it with a link; upload to any desk, or drop files on its card."
-      >
-        <Link href={`/dashboard/library/files${qs}`} className="text-sm font-medium text-fg-muted hover:text-fg">Shared library →</Link>
-      </PageHeader>
+        description="Every file your desks keep — what you uploaded and what their runs produced. Open a desk to see its files; drop files on a desk to upload."
+        actions={
+          <Link href={`/dashboard/library/files${qs}`} className={buttonVariants({ variant: "secondary", size: "md" })}>
+            <Library /> Shared library
+          </Link>
+        }
+      />
       <FileBrowser desks={desks.filter((d) => d.files.length > 0)} workspaces={names} tenant={tenant} now={nowMs()} canShare={canShare} />
-    </main>
+    </Page>
   );
 }

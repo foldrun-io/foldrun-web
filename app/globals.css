@@ -1,9 +1,12 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 @import "./theme-dark.css";
 
-/* The look: the cool neutrals every modern SaaS reads as calm — Cal.com,
-   Vercel, Stripe — with ink for buttons and the active item, and one
-   standard sans, Inter, for every word. The greys are Tailwind's own.
+/* The look (UI refactor, Nov 2026): Vercel's dashboard language. Pure
+   neutral greys, white cards on a #fafafa plane, 1px hairlines, small radii,
+   shadows only on what floats (menus, dialogs), one blue accent for links and
+   focus, status colours only for status. Geist for every word, Geist Mono for
+   code, ids and paths.
 
    Two themes. <html data-theme> is the person's choice, set on the server
    from their profile (components/theme-model.ts): "light", "dark", or
@@ -17,8 +20,8 @@
   color-scheme: light;
   --background: #ffffff;
   --foreground: #171717;
-  --paper: #f9fafb;
-  --paper-deep: #f4f5f6;
+  --paper: #fafafa;
+  --paper-deep: #fafafa;
 }
 
 /* The dark: variant, for the rare place a token cannot say it: on when the
@@ -35,6 +38,22 @@
 }
 
 @theme {
+  /* gray is drawn pure neutral (no blue cast), as Vercel's greys are; dark
+     re-points the same names (scripts/gen-dark-palette.mjs, PURE). */
+  /* cloudhost's greys (its theme.css): #fafafa #f2f2f2 #ebebeb #e0e0e0
+     #8f8f8f #666 #525252 #404040 #262626 #171717 #0a0a0a */
+  --color-gray-50: oklch(98.5% 0 0);
+  --color-gray-100: oklch(96.1% 0 0);
+  --color-gray-200: oklch(94% 0 0);
+  --color-gray-300: oklch(87% 0 0);
+  --color-gray-400: oklch(65.5% 0 0);
+  --color-gray-500: oklch(51% 0 0);
+  --color-gray-600: oklch(43.9% 0 0);
+  --color-gray-700: oklch(37.1% 0 0);
+  --color-gray-800: oklch(26.9% 0 0);
+  --color-gray-900: oklch(20.5% 0 0);
+  --color-gray-950: oklch(14.5% 0 0);
+
   /* Surfaces: the card, what sits sunk into it (a hover, a table head), a
      filled chip, a stronger fill. */
   --color-surface: var(--color-white);
@@ -68,6 +87,20 @@
   --color-info-soft: var(--color-sky-50);
   --color-info: var(--color-sky-700);
   --color-info-line: var(--color-sky-200);
+  /* The one accent: links, focus rings, the selected thing in a list. */
+  --color-link: var(--color-blue-600);
+  --color-focus: var(--color-blue-500);
+  --color-brand-green: var(--color-emerald-500);
+  --color-focus-soft: var(--color-blue-100);
+
+  /* Shadows only on what floats above the page. */
+  --shadow-menu: 0 0 0 1px color-mix(in oklab, var(--color-gray-900) 6%, transparent), 0 4px 8px -2px color-mix(in oklab, var(--color-gray-950) 8%, transparent), 0 12px 24px -6px color-mix(in oklab, var(--color-gray-950) 10%, transparent);
+  --shadow-overlay: 0 0 0 1px color-mix(in oklab, var(--color-gray-900) 6%, transparent), 0 8px 16px -4px color-mix(in oklab, var(--color-gray-950) 10%, transparent), 0 24px 48px -12px color-mix(in oklab, var(--color-gray-950) 18%, transparent);
+
+  /* The content column and the bars. */
+  --container-page: 75rem;
+  --container-narrow: 48rem;
+  --container-wide: 90rem;
 }
 
 @theme inline {

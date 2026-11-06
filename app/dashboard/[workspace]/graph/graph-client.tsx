@@ -1,170 +1,240 @@
 "use client";
 
-// Obsidian-style force graph of a workspace: every agent, flow, skill and
-// memory file is a dot, and edges are the real relations between them —
-// a flow's steps, an agent's skills, an agent's memory. Layout is a d3
-// force simulation, so structure emerges rather than being drawn: agents
-// that share flows drift together, isolated agents sit at the edge.
+// The graph: a map of a workspace (or the whole account) — every workspace,
+// flow, agent, tool, skill and file as a card, and the real relations
+// between them as lines. Drawn with React Flow and a layout of our own
+// (components/graph-layout-model.ts): columns by what a thing is, left to
+// right, deterministic, so the same account always draws the same picture.
 //
-// Rendering is plain SVG (no node-graph library) to keep it minimal:
-// thin links, dots sized by connectedness, labels that fade in as you
-// zoom. Hovering isolates a node's neighbourhood; clicking opens its file.
+// Hover a card to light its neighbourhood; click it for its facts and links
+// in the side panel; double-click to open it. The highlight is plain CSS
+// keyed on node ids, so hovering a map of hundreds re-renders nothing.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import "@xyflow/react/dist/style.css";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
-  forceCenter,
-  forceCollide,
-  forceLink,
-  forceManyBody,
-  forceSimulation,
-  type Simulation,
-} from "d3-force";
+  applyNodeChanges,
+  Background,
+  BackgroundVariant,
+  BaseEdge,
+  Handle,
+  MiniMap,
+  Panel,
+  Position,
+  ReactFlow,
+  ReactFlowProvider,
+  useReactFlow,
+  useStore,
+  ViewportPortal,
+  type Edge,
+  type EdgeProps,
+  type Node,
+  type NodeChange,
+  type NodeProps,
+  type OnSelectionChangeParams,
+} from "@xyflow/react";
+import { DropdownMenu as M } from "radix-ui";
+import {
+  BookOpen,
+  Bot,
+  Boxes,
+  Brain,
+  Building2,
+  Check,
+  Columns3,
+  ExternalLink,
+  FileText,
+  ListFilter,
+  Map as MapIcon,
+  Maximize,
+  Minus,
+  Network,
+  Plus,
+  RotateCcw,
+  Search,
+  Workflow,
+  Wrench,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import type { AgentInfo, AgentAssets, FlowInfo } from "@/lib/store";
 import { FlowPanel } from "./flow-panel";
-import { buttonClass } from "@/components/ui";
-import { statsLine, fmtAgo } from "@/components/graph-stats-model";
+import { Button, buttonVariants } from "@/components/kit/button";
+import { EmptyState, Page, PageHeader } from "@/components/kit/page";
+import { Segmented } from "@/components/kit/inspect-extra";
+import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger, menuItemClass } from "@/components/kit/menu";
+import { Status, StatusDot } from "@/components/kit/status";
+import { Kbd, inputBase } from "@/components/kit/input";
+import { cn } from "@/components/kit/cn";
+import { outcomeOf, type Outcome } from "@/components/outcome-model";
+import { statsLine, fmtAgo, fmtCost } from "@/components/graph-stats-model";
+import { idOf, isMajor, layoutGraph, workspaceOf, type LayoutName } from "@/components/graph-layout-model";
 
-type AgentWithAssets = AgentInfo & { assets: AgentAssets };
-
-// The model lives in lib/graph.ts so the account view draws with the same
+// The model lives in server/graph.ts so the account view draws with the same
 // shapes rather than its own copy of them.
 import type { Kind, Scope, GNode, GLink, Graph, SharedAssets } from "@/server/graph";
 export type { SharedAssets };
 
+type AgentWithAssets = AgentInfo & { assets: AgentAssets };
 
-const SCOPE_COLOR: Record<Scope, string> = {
-  account: "var(--color-violet-600)",
-  workspace: "var(--color-blue-600)",
-  agent: "var(--color-emerald-600)",
+// ---------------------------------------------------------------- words
+
+const KIND_WORD: Record<Kind, string> = {
+  agent: "Agent",
+  flow: "Flow",
+  tool: "Tool",
+  skill: "Skill",
+  knowledge: "Knowledge",
+  memory: "Memory",
+  scope: "Workspace",
 };
 
-// Assets are coloured by the SCOPE they live in, not by what they are — that
-// is the thing you cannot see from a file listing.
-const COLOR: Record<Kind, string> = {
-  agent: "var(--color-gray-900)",
-  flow: "var(--color-emerald-600)",
-  scope: "var(--color-gray-500)",
-  skill: "var(--color-gray-400)",
-  memory: "var(--color-violet-300)",
-  knowledge: "var(--color-blue-300)",
-  tool: "var(--color-amber-400)",
-};
-
-const RADIUS: Record<Kind, number> = {
-  agent: 7, flow: 6, scope: 10, skill: 3.5, memory: 3.5, knowledge: 3.5, tool: 3.5,
-};
-
-// The small dot on an agent or flow: how its last run ended, in the runs
-// page's own colours — green done, red failed, amber still going or waiting
-// on a person, grey stopped or never finished.
-const STATUS_DOT: Record<string, string> = {
-  completed: "var(--color-emerald-500)",
-  failed: "var(--color-red-500)",
-  running: "var(--color-amber-500)",
-  "awaiting-approval": "var(--color-amber-500)",
-  stopped: "var(--color-gray-400)",
-  queued: "var(--color-gray-400)",
-  pending: "var(--color-gray-400)",
-  skipped: "var(--color-gray-400)",
-};
-
-// The camera: the graph's origin sits at the viewport centre, then the whole
-// picture is scaled by k and offset by (x, y) in graph units. Zoom is a wide
-// range in log space — 0.1 lets a large account read as a shape, 8 lets a
-// label be read at arm's length.
-type View = { x: number; y: number; k: number };
-const MIN_K = 0.1;
-const MAX_K = 8;
-const clampK = (k: number) => Math.min(MAX_K, Math.max(MIN_K, k));
-
-/** The camera that shows every node, with a margin for labels and the header. */
-function fitView(nodes: { x?: number; y?: number }[], w: number, h: number, maxK = 1): View {
-  const pts = nodes.filter((n) => n.x !== undefined && n.y !== undefined) as { x: number; y: number }[];
-  if (!pts.length) return { x: 0, y: 0, k: 1 };
-  const minX = Math.min(...pts.map((p) => p.x));
-  const maxX = Math.max(...pts.map((p) => p.x));
-  const minY = Math.min(...pts.map((p) => p.y));
-  const maxY = Math.max(...pts.map((p) => p.y));
-  const bw = maxX - minX + 340; // room for labels
-  const bh = maxY - minY + 200; // room for the header and the hint line
-  const k = clampK(Math.min(maxK, w / bw, h / bh));
-  return { x: -(minX + maxX) / 2, y: -(minY + maxY) / 2, k };
+/** A kind's lucide icon — the only thing on a card that says what it is. */
+function KindIcon({ kind, scope, className }: { kind: Kind; scope?: Scope; className?: string }) {
+  const p = { className, "aria-hidden": true };
+  switch (kind) {
+    case "agent":
+      return <Bot {...p} />;
+    case "flow":
+      return <Workflow {...p} />;
+    case "tool":
+      return <Wrench {...p} />;
+    case "skill":
+      return <BookOpen {...p} />;
+    case "knowledge":
+      return <FileText {...p} />;
+    case "memory":
+      return <Brain {...p} />;
+    case "scope":
+      return scope === "account" ? <Building2 {...p} /> : <Boxes {...p} />;
+  }
 }
 
-/**
- * The hierarchy layout: the same `owns` edges the force view treats as mere
- * springs, read as what they are — containment. Workspace → agents, flows
- * and shared assets; agent → its skills and memory; flow → its steps. An
- * agent can have two owners (its workspace, and every flow that steps it);
- * the first `owns` edge wins as the tree parent — the builder pushes
- * workspace-ownership first, so agents sit under the workspace and a flow's
- * claim on them stays visible as a drawn edge rather than a tree position.
- *
- * Left-to-right tidy tree: depth is the x column, leaves stack downward,
- * parents centre on their children. Pure function of the graph, so Reset can
- * reapply it and toggling layouts is idempotent.
- */
-function treePositions(graph: Graph): Map<string, { x: number; y: number }> {
-  const DX = 190;
-  const DY = 34;
-  const idOf = (v: string | GNode) => (typeof v === "string" ? v : v.id);
-  const children = new Map<string, string[]>();
-  const hasParent = new Set<string>();
-  for (const l of graph.links) {
-    if (l.kind !== "owns") continue;
-    const source = idOf(l.source);
-    const target = idOf(l.target);
-    if (hasParent.has(target)) continue; // first parent wins
-    hasParent.add(target);
-    children.set(source, [...(children.get(source) ?? []), target]);
-  }
-  const pos = new Map<string, { x: number; y: number }>();
-  const placed = new Set<string>(); // cycle guard — a flow of flows can loop
-  let leaf = 0;
-  const place = (id: string, depth: number): number => {
-    if (placed.has(id)) return pos.get(id)?.y ?? 0;
-    placed.add(id);
-    const kids = children.get(id) ?? [];
-    let y: number;
-    if (kids.length === 0) {
-      y = leaf * DY;
-      leaf += 1;
-    } else {
-      const ys = kids.map((k) => place(k, depth + 1));
-      y = (Math.min(...ys) + Math.max(...ys)) / 2;
-    }
-    pos.set(id, { x: depth * DX, y });
-    return y;
-  };
-  const roots = graph.nodes.filter((n) => !hasParent.has(n.id));
-  for (const r of roots) {
-    place(r.id, 0);
-    leaf += 1; // a gap between trees of the forest
-  }
-  // Centre the whole forest on the origin, where the viewport starts.
-  const xs = [...pos.values()];
-  if (xs.length) {
-    const cx = (Math.min(...xs.map((p) => p.x)) + Math.max(...xs.map((p) => p.x))) / 2;
-    const cy = (Math.min(...xs.map((p) => p.y)) + Math.max(...xs.map((p) => p.y))) / 2;
-    for (const p of xs) {
-      p.x -= cx;
-      p.y -= cy;
-    }
-  }
-  return pos;
+type FilterKey = "scope" | "flow" | "agent" | "tool" | "skill" | "knowledge" | "memory";
+const FILTERS: { key: FilterKey; label: string; icon: LucideIcon }[] = [
+  { key: "scope", label: "Account and workspaces", icon: Boxes },
+  { key: "flow", label: "Flows", icon: Workflow },
+  { key: "agent", label: "Agents", icon: Bot },
+  { key: "tool", label: "Tools", icon: Wrench },
+  { key: "skill", label: "Skills", icon: BookOpen },
+  { key: "knowledge", label: "Knowledge", icon: FileText },
+  { key: "memory", label: "Memory", icon: Brain },
+];
+
+/** A run status as the outcome model reads it. The graph's counters carry no
+ *  verdict, so a completed run reads "done"; a step that never started has
+ *  no outcome and draws no dot. */
+function outcomeOfStatus(status: string): Outcome | null {
+  return ["completed", "failed", "running", "awaiting-approval", "stopped", "queued"].includes(status) ? outcomeOf(status, null) : null;
 }
 
-export function GraphClient({
-  workspace,
-  tenant,
-  agents = [],
-  flows = [],
-  graph,
-  title,
-  emptyMessage,
-}: {
+/** How X relates to its neighbour across one link, from X's side. */
+function relationWord(l: GLink, me: GNode, other: GNode): string {
+  const out = idOf(l.source) === me.id;
+  switch (l.kind) {
+    case "owns":
+      if (out) return me.kind === "flow" ? "Steps" : "Contains";
+      return other.kind === "flow" ? "Step in" : "Belongs to";
+    case "use":
+      return me.kind === "agent" ? "Uses" : "Used by";
+    case "step":
+      return out ? "Hands off to" : "Takes over from";
+    case "consult":
+      return out ? "Asks" : "Asked by";
+    case "delegate":
+      return out ? "Delegates to" : "Takes jobs from";
+  }
+}
+
+// ---------------------------------------------------------------- nodes and edges
+
+type CardData = {
+  label: string;
+  kind: Kind;
+  scope?: Scope;
+  meta: string;
+  outcome: Outcome | null;
+  title?: string;
+};
+type CardNode = Node<CardData, "card">;
+
+type WireData = { kind: GLink["kind"]; sw: number; tw: number };
+type WireEdge = Edge<WireData, "wire">;
+
+// Room for the column headings above and the zoom bar below.
+const FIT = { padding: { top: "48px", bottom: "64px", left: "24px", right: "24px" }, maxZoom: 1 } as const;
+
+const HIDDEN_HANDLE = { opacity: 0, width: 1, height: 1, minWidth: 0, minHeight: 0, border: 0, pointerEvents: "none" as const };
+
+const Card = memo(function Card({ data }: NodeProps<CardNode>) {
+  const major = isMajor(data.kind);
+  return (
+    <div
+      title={data.title}
+      className={cn(
+        "gcard flex h-full w-full items-center gap-2.5 rounded-lg border bg-surface px-2.5 shadow-xs transition-[border-color,box-shadow] duration-150",
+        data.kind === "scope" ? "border-line-strong" : "border-line hover:border-line-strong",
+      )}
+    >
+      <Handle type="target" position={Position.Left} style={HIDDEN_HANDLE} isConnectable={false} />
+      <Handle type="source" position={Position.Right} style={HIDDEN_HANDLE} isConnectable={false} />
+      <span
+        className={cn(
+          "flex shrink-0 items-center justify-center rounded-md [&_svg]:size-4",
+          major ? "size-8 border border-line bg-sunken text-fg-secondary" : "size-7 bg-sunken text-fg-muted",
+        )}
+      >
+        <KindIcon kind={data.kind} scope={data.scope} />
+      </span>
+      <span className="min-w-0 flex-1 leading-tight">
+        <span className="block truncate text-[13px] font-medium text-fg">{data.label}</span>
+        <span className="mt-0.5 block truncate text-xs text-fg-muted">{data.meta}</span>
+      </span>
+      {data.outcome && <StatusDot outcome={data.outcome} className="mr-0.5" />}
+    </div>
+  );
+});
+
+// One look for every line: a hairline grey. What kind of line it is shows in
+// its dash, never in a colour — the colour on this page is run status alone.
+const WIRE_STYLE: Record<GLink["kind"], React.CSSProperties> = {
+  owns: { stroke: "var(--color-line-strong)", strokeWidth: 1.25 },
+  use: { stroke: "var(--color-line-strong)", strokeWidth: 1.25, strokeDasharray: "5 4" },
+  step: { stroke: "var(--color-line-strong)", strokeWidth: 1.5, strokeDasharray: "1.5 4", strokeLinecap: "round" },
+  consult: { stroke: "var(--color-line-strong)", strokeWidth: 1.5, strokeDasharray: "1.5 4", strokeLinecap: "round" },
+  delegate: { stroke: "var(--color-line-strong)", strokeWidth: 1.5, strokeDasharray: "1.5 4", strokeLinecap: "round" },
+};
+
+/** Left to right as a smooth curve; back to the left mirrored; within one
+ *  column, an arc out to the right so it never runs through the cards. */
+const Wire = memo(function Wire({ id, sourceX, sourceY, targetX, targetY, data }: EdgeProps<WireEdge>) {
+  const sw = data?.sw ?? 0;
+  const tw = data?.tw ?? 0;
+  const sLeft = sourceX - sw;
+  const tRight = targetX + tw;
+  let d: string;
+  if (targetX >= sourceX + 8) {
+    const c = Math.max(36, (targetX - sourceX) / 2);
+    d = `M ${sourceX} ${sourceY} C ${sourceX + c} ${sourceY}, ${targetX - c} ${targetY}, ${targetX} ${targetY}`;
+  } else if (tRight <= sLeft - 8) {
+    const c = Math.max(36, (sLeft - tRight) / 2);
+    d = `M ${sLeft} ${sourceY} C ${sLeft - c} ${sourceY}, ${tRight + c} ${targetY}, ${tRight} ${targetY}`;
+  } else {
+    const right = Math.max(sourceX, tRight);
+    const bow = Math.min(84, 24 + Math.abs(targetY - sourceY) * 0.2);
+    d = `M ${sourceX} ${sourceY} C ${right + bow} ${sourceY}, ${right + bow} ${targetY}, ${tRight} ${targetY}`;
+  }
+  return <BaseEdge id={id} path={d} style={WIRE_STYLE[data?.kind ?? "owns"]} interactionWidth={0} />;
+});
+
+const nodeTypes = { card: Card };
+const edgeTypes = { wire: Wire };
+
+// ---------------------------------------------------------------- the page
+
+export function GraphClient(props: {
   /** Omitted in the account view, which spans every workspace. */
   workspace?: string;
   tenant: string;
@@ -178,569 +248,750 @@ export function GraphClient({
   graph: Graph;
   title?: string;
   emptyMessage?: string;
+  /** Map (columns by kind) or tree (containment), from `?layout=`. */
+  layout?: LayoutName;
 }) {
+  return (
+    <ReactFlowProvider>
+      <GraphView {...props} />
+    </ReactFlowProvider>
+  );
+}
+
+function GraphView({
+  workspace,
+  tenant,
+  agents = [],
+  flows = [],
+  graph,
+  title,
+  emptyMessage,
+  layout: layoutName = "map",
+}: React.ComponentProps<typeof GraphClient>) {
   const router = useRouter();
-  const svgRef = useRef<SVGSVGElement>(null);
-  const simRef = useRef<Simulation<GNode, GLink> | null>(null);
-
-
-
-  const [, setFrame] = useState(0); // repaint on each simulation tick
-  const [hover, setHover] = useState<string | null>(null);
-  // The clock the hover text reads "3h ago" against: fixed when the page
-  // opened, because a render must not consult the wall clock, and a graph
-  // is not open long enough for the difference to show.
+  const pathname = usePathname();
+  const rf = useReactFlow<CardNode, WireEdge>();
+  // The clock "3h ago" reads against: fixed when the page opened, because a
+  // render must not consult the wall clock.
   const [openedAt] = useState(() => Date.now());
-  const [layout, setLayout] = useState<"force" | "tree">("force");
-  const [view, setView] = useState<View>({ x: 0, y: 0, k: 1 });
-  const [showPanel, setShowPanel] = useState(false);
-  const dragRef = useRef<{ id: string | null; panFrom: { x: number; y: number } | null }>({
-    id: null,
-    panFrom: null,
-  });
-  // Every pointer that is currently down, for two-finger pinch on a touch
-  // screen. A mouse never puts more than one entry here.
-  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
-  const pinchRef = useRef<{ dist: number; mid: { x: number; y: number } } | null>(null);
-  const animRef = useRef<number | null>(null);
-  // The current camera, readable from callbacks that outlive a render.
-  const viewRef = useRef<View>(view);
-  useEffect(() => {
-    viewRef.current = view;
-  }, [view]);
+  const [hidden, setHidden] = useState<Set<FilterKey>>(() => new Set());
+  const [query, setQuery] = useState("");
+  const [hover, setHover] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  // The side panel: a card's facts, or the flow editor.
+  const [panel, setPanel] = useState<null | "details" | "edit">(null);
+  const [editFlow, setEditFlow] = useState<string | undefined>(undefined);
+  const [minimap, setMinimap] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
 
-  const viewport = () => {
-    const el = svgRef.current;
-    return { w: el?.clientWidth ?? 1200, h: el?.clientHeight ?? 800 };
-  };
+  // Stable short ids for React Flow (and the CSS that highlights by id):
+  // graph ids hold colons, spaces and quotes.
+  const rfId = useMemo(() => new Map(graph.nodes.map((n, i) => [n.id, `n${i}`])), [graph]);
+  const byRf = useMemo(() => new Map(graph.nodes.map((n, i) => [`n${i}`, n])), [graph]);
+  const byId = useMemo(() => new Map(graph.nodes.map((n) => [n.id, n])), [graph]);
 
-  // Zoom by a factor about a screen point (measured from the viewport
-  // centre), keeping whatever is under that point exactly where it is. The
-  // point under the cursor is p/k - v in graph units; solving for the offset
-  // that leaves it fixed at the new scale gives the two correction terms.
-  const zoomAt = useCallback((factor: number, px: number, py: number) => {
-    setView((v) => {
-      const k = clampK(v.k * factor);
-      if (k === v.k) return v;
-      return { k, x: v.x + px / k - px / v.k, y: v.y + py / k - py / v.k };
-    });
-  }, []);
+  const counts = useMemo(() => {
+    const c = new Map<FilterKey, number>();
+    for (const n of graph.nodes) c.set(n.kind, (c.get(n.kind) ?? 0) + 1);
+    return c;
+  }, [graph]);
 
-  // A programmatic move (fit, reset, keyboard, double-click) glides rather
-  // than cuts, so the eye can keep track of what it was looking at. Scale
-  // interpolates in log space — that is what reads as constant-speed zoom.
-  const animateTo = useCallback((target: View, ms = 260) => {
-    if (animRef.current) cancelAnimationFrame(animRef.current);
-    const start = performance.now();
-    const from = viewRef.current;
-    const step = (t: number) => {
-      const u = Math.min(1, (t - start) / ms);
-      const e = 1 - Math.pow(1 - u, 3); // ease-out cubic
-      const k = Math.exp(Math.log(from.k) + (Math.log(target.k) - Math.log(from.k)) * e);
-      setView({ k, x: from.x + (target.x - from.x) * e, y: from.y + (target.y - from.y) * e });
-      animRef.current = u < 1 ? requestAnimationFrame(step) : null;
+  // What is shown: the kinds the filter keeps, and the links between them.
+  const view = useMemo(() => {
+    const nodes = graph.nodes.filter((n) => !hidden.has(n.kind));
+    const ids = new Set(nodes.map((n) => n.id));
+    const links = graph.links.filter((l) => ids.has(idOf(l.source)) && ids.has(idOf(l.target)));
+    return { nodes, links };
+  }, [graph, hidden]);
+
+  const layout = useMemo(() => layoutGraph(layoutName, view.nodes, view.links), [layoutName, view]);
+
+  // Every neighbour of every node, by relation — the panel's lists, the
+  // cards' meta lines and the hover highlight all read it.
+  const relations = useMemo(() => {
+    const rel = new Map<string, Map<string, string[]>>();
+    const add = (me: GNode, other: GNode, word: string) => {
+      const m = rel.get(me.id) ?? rel.set(me.id, new Map()).get(me.id)!;
+      const list = m.get(word) ?? m.set(word, []).get(word)!;
+      if (!list.includes(other.id)) list.push(other.id);
     };
-    animRef.current = requestAnimationFrame(step);
-  }, []);
+    for (const l of view.links) {
+      const s = byId.get(idOf(l.source));
+      const t = byId.get(idOf(l.target));
+      if (!s || !t || s === t) continue;
+      add(s, t, relationWord(l, s, t));
+      add(t, s, relationWord(l, t, s));
+    }
+    return rel;
+  }, [view, byId]);
+
+  const metaOf = useCallback(
+    (n: GNode): { meta: string; title?: string } => {
+      const r = relations.get(n.id) ?? new Map<string, string[]>();
+      const count = (word: string, kind?: Kind) => (r.get(word) ?? []).filter((id) => !kind || byId.get(id)?.kind === kind).length;
+      const plural = (k: number, one: string, many = `${one}s`) => `${k} ${k === 1 ? one : many}`;
+      const owner = () => {
+        if (n.scope === "account") return "library";
+        if (n.scope === "workspace") return workspace ? "workspace" : (workspaceOf(n) ?? "workspace");
+        return n.id.split(":")[2] ?? "agent";
+      };
+      const stats = n.stats;
+      const ran = stats ? fmtAgo(openedAt - Date.parse(stats.lastAt)) : null;
+      const title = stats ? `${n.label} — last run ${stats.last}, ${ran} · ${statsLine(stats)} in 7 days` : undefined;
+      const runLine = stats ? (stats.runs > 0 ? `${ran} · ${statsLine(stats)}` : `ran ${ran}`) : null;
+      switch (n.kind) {
+        case "scope":
+          return n.scope === "account"
+            ? { meta: `${plural(count("Contains", "scope"), "workspace")} · ${count("Contains") - count("Contains", "scope")} shared` }
+            : { meta: `${plural(count("Contains", "agent"), "agent")} · ${plural(count("Contains", "flow"), "flow")}` };
+        case "flow":
+          return { meta: runLine ?? `${plural(count("Steps"), "step")} · never ran`, title };
+        case "agent":
+          return { meta: runLine ?? `${plural(count("Step in"), "flow")} · never ran`, title };
+        case "tool": {
+          const users = count("Used by");
+          return { meta: `Tool · ${owner()}${users > 1 ? ` · ${users} agents` : ""}` };
+        }
+        default:
+          return { meta: `${KIND_WORD[n.kind]} · ${owner()}` };
+      }
+    },
+    [relations, byId, openedAt, workspace],
+  );
+
+  const laidOut = useMemo<CardNode[]>(
+    () =>
+      view.nodes.map((n) => {
+        const box = layout.pos.get(n.id)!;
+        const { meta, title } = metaOf(n);
+        return {
+          id: rfId.get(n.id)!,
+          type: "card",
+          position: { x: box.x, y: box.y },
+          width: box.w,
+          height: box.h,
+          data: { label: n.label, kind: n.kind, scope: n.scope, meta, title, outcome: n.stats ? outcomeOfStatus(n.stats.last) : null },
+        };
+      }),
+    [view, layout, metaOf, rfId],
+  );
+
+  // Dragging moves a card for this look only; a new layout or filter starts
+  // from the computed picture again (state derived from props, not an effect).
+  const [nodes, setNodes] = useState<CardNode[]>(laidOut);
+  const [basis, setBasis] = useState(laidOut);
+  if (basis !== laidOut) {
+    setBasis(laidOut);
+    setNodes(laidOut);
+  }
+  const onNodesChange = useCallback((changes: NodeChange<CardNode>[]) => setNodes((ns) => applyNodeChanges(changes, ns)), []);
+
+  // The map leaves out the line from a workspace (or the account) to each of
+  // its shared files: they would cross the whole picture, and the card's own
+  // line already says where it lives. Hover still lights them.
+  const edges = useMemo<WireEdge[]>(() => {
+    const seen = new Set<string>();
+    const out: WireEdge[] = [];
+    for (const l of view.links) {
+      const s = byId.get(idOf(l.source))!;
+      const t = byId.get(idOf(l.target))!;
+      if (layoutName === "map" && l.kind === "owns" && s.kind === "scope" && !isMajor(t.kind)) continue;
+      // Packed into frames, a workspace's frame is its account's claim on it.
+      if (layout.groups.length && l.kind === "owns" && s.kind === "scope" && t.kind === "scope") continue;
+      const key = `${s.id}|${t.id}|${l.kind}`;
+      if (seen.has(key) || s.id === t.id) continue;
+      seen.add(key);
+      out.push({
+        id: `e${out.length}`,
+        source: rfId.get(s.id)!,
+        target: rfId.get(t.id)!,
+        type: "wire",
+        data: { kind: l.kind, sw: layout.pos.get(s.id)!.w, tw: layout.pos.get(t.id)!.w },
+        selectable: false,
+        focusable: false,
+      });
+    }
+    return out;
+  }, [view, byId, rfId, layout, layoutName]);
+
+  const edgesOf = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const e of edges) {
+      m.set(e.source, [...(m.get(e.source) ?? []), e.id]);
+      m.set(e.target, [...(m.get(e.target) ?? []), e.id]);
+    }
+    return m;
+  }, [edges]);
+
+  const q = query.trim().toLowerCase();
+  const matches = useMemo(
+    () => (q ? view.nodes.filter((n) => n.label.toLowerCase().includes(q)).map((n) => rfId.get(n.id)!) : []),
+    [q, view, rfId],
+  );
+
+  // ---- camera
 
   const fit = useCallback(() => {
-    const { w, h } = viewport();
-    animateTo(fitView(graph.nodes, w, h, layout === "tree" ? 1 : 1.5));
-  }, [graph, layout, animateTo]);
+    void rf.fitView({ ...FIT, duration: 300, minZoom: 0.1 });
+  }, [rf]);
 
-  // Wheel is attached by hand: React registers it passive, so preventDefault
-  // cannot stop the page scrolling under the graph. Zoom is proportional to
-  // the delta — a trackpad's stream of tiny deltas becomes a glide, one mouse
-  // notch a firm step — and a pinch arrives as a ctrl-wheel, scaled up so a
-  // finger's travel matches what it does in a map.
+  const centreOn = useCallback(
+    (id: string, keepZoom = false) => {
+      const n = rf.getNode(id);
+      if (!n) return;
+      const w = n.width ?? 0;
+      const h = n.height ?? 0;
+      requestAnimationFrame(() => {
+        const zoom = keepZoom ? rf.getZoom() : Math.max(rf.getZoom(), 0.9);
+        // On a phone the panel covers the lower part of the canvas: centre
+        // the card in what is left above it.
+        const phone = window.matchMedia("(max-width: 767px)").matches;
+        const shift = phone ? ((canvasRef.current?.clientHeight ?? 0) * 0.36) / zoom : 0;
+        void rf.setCenter(n.position.x + w / 2, n.position.y + h / 2 + shift, { zoom, duration: 350 });
+      });
+    },
+    [rf],
+  );
+
+  const select = useCallback(
+    (id: string | null, centre: false | "zoom" | "pan" = false) => {
+      setSelected(id);
+      setPanel(id ? "details" : null);
+      // After the panel has opened, so the centre is the narrowed canvas's.
+      if (id && centre) requestAnimationFrame(() => centreOn(id, centre === "pan"));
+    },
+    [centreOn],
+  );
+
+  // A new layout or filter: show the whole of it.
+  const fitted = useRef(laidOut);
   useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg) return;
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      if (animRef.current) {
-        cancelAnimationFrame(animRef.current);
-        animRef.current = null;
-      }
-      const rect = svg.getBoundingClientRect();
-      let dy = e.deltaY;
-      if (e.deltaMode === 1) dy *= 16; // lines
-      else if (e.deltaMode === 2) dy *= rect.height; // pages
-      const sensitivity = e.ctrlKey ? 0.01 : 0.0025;
-      const factor = Math.exp(-Math.max(-120, Math.min(120, dy)) * sensitivity);
-      zoomAt(factor, e.clientX - rect.left - rect.width / 2, e.clientY - rect.top - rect.height / 2);
-    };
-    svg.addEventListener("wheel", onWheel, { passive: false });
-    return () => svg.removeEventListener("wheel", onWheel);
-  }, [zoomAt]);
+    if (fitted.current === laidOut) return; // the first picture is fitted by fitView
+    fitted.current = laidOut;
+    const t = requestAnimationFrame(() => fit());
+    return () => cancelAnimationFrame(t);
+  }, [laidOut, fit]);
 
-  // Keyboard: + and − zoom about the centre, 0 fits, when nothing else has
-  // the keys — the flow editor's inputs must keep their own minus signs.
+  // Keyboard: + and − zoom, 0 fits, / finds, Esc closes the panel — when
+  // nothing else has the keys (the flow editor keeps its own minus signs).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === "+" || e.key === "=") zoomAt(1.25, 0, 0);
-      else if (e.key === "-" || e.key === "_") zoomAt(1 / 1.25, 0, 0);
+      if (e.key === "+" || e.key === "=") void rf.zoomIn({ duration: 200 });
+      else if (e.key === "-" || e.key === "_") void rf.zoomOut({ duration: 200 });
       else if (e.key === "0") fit();
+      else if (e.key === "/") searchRef.current?.focus();
+      else if (e.key === "Escape") select(null);
       else return;
       e.preventDefault();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [zoomAt, fit]);
+  }, [rf, fit, select]);
 
-  useEffect(() => () => { if (animRef.current) cancelAnimationFrame(animRef.current); }, []);
-
-  // Run the force simulation — or, in hierarchy mode, don't: positions are
-  // computed once from the containment tree and pinned. One effect owns both
-  // so a toggle is a clean teardown, never two layouts fighting over x/y.
-  useEffect(() => {
-    if (layout === "tree") {
-      const pos = treePositions(graph);
-      for (const n of graph.nodes) {
-        const p = pos.get(n.id);
-        if (p) {
-          n.x = p.x;
-          n.y = p.y;
-          n.fx = p.x;
-          n.fy = p.y;
-        }
+  const onSelectionChange = useCallback(
+    ({ nodes: sel }: OnSelectionChangeParams) => {
+      if (sel.length === 1) {
+        setSelected(sel[0].id);
+        setPanel((p) => (p === "edit" ? p : "details"));
       }
-      // Fit the whole tree in the viewport: a deep workspace is taller than
-      // the screen at zoom 1, and a layout you have to hunt for defeats the
-      // point of switching to it. Never zoom past 1 — a tiny tree stays
-      // life-size rather than ballooning.
-      const { w, h } = viewport();
-      if (pos.size) animateTo(fitView(graph.nodes, w, h, 1));
-      setFrame((f) => f + 1);
-      return;
-    }
-    for (const n of graph.nodes) {
-      n.fx = null;
-      n.fy = null;
-    }
-    const sim = forceSimulation<GNode, GLink>(graph.nodes)
-      .force(
-        "link",
-        forceLink<GNode, GLink>(graph.links)
-          .id((d) => d.id)
-          .distance((l) => ((l as GLink).kind === "owns" ? 46 : 120))
-          .strength((l) => ((l as GLink).kind === "owns" ? 0.9 : 0.35)),
-      )
-      .force("charge", forceManyBody<GNode>().strength((d) => (d.kind === "skill" || d.kind === "memory" ? -90 : -420)))
-      .force("center", forceCenter(0, 0))
-      .force("collide", forceCollide<GNode>((d) => RADIUS[d.kind] + 12))
-      .alphaDecay(0.045);
+    },
+    [],
+  );
 
-    sim.on("tick", () => setFrame((f) => f + 1));
-    simRef.current = sim;
-    return () => {
-      sim.stop();
-      simRef.current = null;
-    };
-  }, [graph, layout, animateTo]);
+  // ---- the highlight, as CSS keyed on ids
 
-  // Pointer handling: drag a node to pin it, drag the background to pan,
-  // wheel to zoom around the cursor.
-  const toGraphCoords = (e: React.PointerEvent | React.WheelEvent) => {
-    const rect = svgRef.current!.getBoundingClientRect();
-    return {
-      x: (e.clientX - rect.left - rect.width / 2) / view.k - view.x,
-      y: (e.clientY - rect.top - rect.height / 2) / view.k - view.y,
-    };
+  const highlight = useMemo(() => {
+    const lit = hover ?? selected;
+    const rules: string[] = [];
+    const node = (id: string) => `.gmap .react-flow__node[data-id="${id}"]`;
+    const edge = (id: string) => `.gmap .react-flow__edge[data-id="${id}"]`;
+    if (lit && byRf.has(lit)) {
+      const near = new Set<string>([lit]);
+      for (const ids of (relations.get(byRf.get(lit)!.id) ?? new Map<string, string[]>()).values()) for (const id of ids) near.add(rfId.get(id)!);
+      const lines = edgesOf.get(lit) ?? [];
+      rules.push(`.gmap .react-flow__node{opacity:.3}`, `${[...near].map(node).join(",")}{opacity:1}`);
+      rules.push(`.gmap .react-flow__edge{opacity:.2}`);
+      if (lines.length) {
+        rules.push(`${lines.map(edge).join(",")}{opacity:1}`);
+        rules.push(`${lines.map((id) => `${edge(id)} path`).join(",")}{stroke:var(--color-fg-muted)!important;stroke-width:1.75px!important}`);
+      }
+    } else if (q) {
+      rules.push(`.gmap .react-flow__node{opacity:.3}`, `.gmap .react-flow__edge{opacity:.2}`);
+      if (matches.length) rules.push(`${matches.map(node).join(",")}{opacity:1}`, `${matches.map((id) => `${node(id)} .gcard`).join(",")}{border-color:var(--color-focus)}`);
+    }
+    if (selected) rules.push(`${node(selected)} .gcard{border-color:var(--color-focus);box-shadow:0 0 0 1px var(--color-focus),0 0 0 4px var(--color-focus-soft)}`);
+    return rules.join("\n");
+  }, [hover, selected, q, matches, byRf, relations, rfId, edgesOf]);
+
+  // ---- the toolbar
+
+  const tq = tenant !== "default" ? `tenant=${encodeURIComponent(tenant)}` : "";
+  const layoutHref = (l: LayoutName) => {
+    const qs = [l === "map" ? "" : `layout=${l}`, tq].filter(Boolean).join("&");
+    return `${pathname}${qs ? `?${qs}` : ""}`;
+  };
+  const hiddenCount = hidden.size;
+
+  const selectedNode = selected ? byRf.get(selected) : undefined;
+  const isEmpty = graph.nodes.length === 0;
+
+  const openEditor = (flow?: string) => {
+    setEditFlow(flow);
+    setPanel("edit");
   };
 
-  const onPointerMove = (e: React.PointerEvent) => {
-    const pointers = pointersRef.current;
-    if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    // Two fingers down: the gap between them is the zoom, their midpoint the
-    // anchor and the pan. A pinch overrides whatever a single finger began.
-    if (pointers.size === 2) {
-      const [a, b] = [...pointers.values()];
-      const dist = Math.hypot(a.x - b.x, a.y - b.y);
-      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-      const prev = pinchRef.current;
-      if (prev && prev.dist > 0) {
-        const rect = svgRef.current!.getBoundingClientRect();
-        zoomAt(dist / prev.dist, mid.x - rect.left - rect.width / 2, mid.y - rect.top - rect.height / 2);
-        setView((v) => ({ ...v, x: v.x + (mid.x - prev.mid.x) / v.k, y: v.y + (mid.y - prev.mid.y) / v.k }));
-      }
-      pinchRef.current = { dist, mid };
-      return;
-    }
-    const { id, panFrom } = dragRef.current;
-    if (id) {
-      const p = toGraphCoords(e);
-      const node = graph.nodes.find((n) => n.id === id);
-      if (node) {
-        node.fx = p.x;
-        node.fy = p.y;
-        if (layout === "tree") {
-          // No simulation to carry the pin into x/y — do it directly.
-          node.x = p.x;
-          node.y = p.y;
-          setFrame((f) => f + 1);
-        } else {
-          simRef.current?.alpha(0.3).restart();
-        }
-      }
-    } else if (panFrom) {
-      setView((v) => ({
-        ...v,
-        x: v.x + (e.clientX - panFrom.x) / v.k,
-        y: v.y + (e.clientY - panFrom.y) / v.k,
-      }));
-      dragRef.current.panFrom = { x: e.clientX, y: e.clientY };
-    }
-  };
-
-  const neighbours = useMemo(() => {
-    if (!hover) return null;
-    const set = new Set<string>([hover]);
-    for (const l of graph.links) {
-      const s = typeof l.source === "string" ? l.source : l.source.id;
-      const t = typeof l.target === "string" ? l.target : l.target.id;
-      if (s === hover) set.add(t);
-      if (t === hover) set.add(s);
-    }
-    return set;
-  }, [hover, graph.links]);
-
-  const dim = (id: string) => (neighbours ? (neighbours.has(id) ? 1 : 0.12) : 1);
+  const heading = workspace ? "Graph" : `${(title ?? "account").charAt(0).toUpperCase()}${(title ?? "account").slice(1)} graph`;
 
   return (
-    <main className="relative h-screen overflow-hidden bg-surface">
-      {/* header */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between p-5">
-        <div className="pointer-events-auto">
-          <Link
-            href={
-              workspace
-                ? `/dashboard/${workspace}${tenant !== "default" ? `?tenant=${tenant}` : ""}`
-                : `/dashboard${tenant !== "default" ? `?tenant=${tenant}` : ""}`
-            }
-            className="text-sm font-medium text-fg-subtle transition-colors hover:text-fg-secondary"
-          >
-            ← {title ?? workspace}
-          </Link>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-fg-subtle">
-            {(["agent", "flow", "skill", "knowledge", "memory", "tool"] as Kind[]).map((k) => (
-              <span key={k} className="flex items-center gap-1.5">
-                <span
-                  className="inline-block rounded-full"
-                  style={{ width: 7, height: 7, background: COLOR[k] }}
-                />
-                {k}
-              </span>
-            ))}
-            <span className="mx-1 h-3 w-px bg-muted-strong" />
-            {(["account", "workspace", "agent"] as Scope[]).map((s) => (
-              <span key={s} className="flex items-center gap-1.5">
-                <span
-                  className="inline-block rounded-full"
-                  style={{ width: 8, height: 8, border: `1.5px solid ${SCOPE_COLOR[s]}` }}
-                />
-                {s}
-              </span>
-            ))}
-          </div>
-        </div>
-        <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-2">
-          <button
-            onClick={() => setShowPanel((s) => !s)}
-            className={buttonClass("secondary")}
-          >
-            {showPanel ? "Hide flow editor" : "Edit flow"}
-          </button>
-          <button
-            onClick={() => setLayout((l) => (l === "force" ? "tree" : "force"))}
-            className={buttonClass("secondary")}
-          >
-            {layout === "force" ? "Hierarchy" : "Force"}
-          </button>
-          <button onClick={fit} className={buttonClass("secondary")} title="Fit everything in view (0)">
-            Fit
-          </button>
-          <button
-            onClick={() => {
-              animateTo({ x: 0, y: 0, k: 1 });
-              if (layout === "tree") {
-                // Reapply the tree — a dragged node snaps home.
-                const pos = treePositions(graph);
-                graph.nodes.forEach((n) => {
-                  const p = pos.get(n.id);
-                  if (p) {
-                    n.x = p.x;
-                    n.y = p.y;
-                    n.fx = p.x;
-                    n.fy = p.y;
-                  }
-                });
-                setFrame((f) => f + 1);
-              } else {
-                graph.nodes.forEach((n) => {
-                  n.fx = null;
-                  n.fy = null;
-                });
-                simRef.current?.alpha(0.8).restart();
-              }
-            }}
-            className={buttonClass("secondary")}
-          >
-            Reset
-          </button>
-        </div>
-      </div>
-
-      {/* Editing a flow needs a workspace to write into. The account view spans
-          many, so it shows the picture and links out rather than editing here. */}
-      {showPanel && workspace && (
-        <div className="absolute right-5 top-20 z-10 w-96">
-          <FlowPanel
-            workspace={workspace}
-            tenant={tenant}
-            flows={flows}
-            agents={agents.map((a) => a.name)}
-            onSaved={() => router.refresh()}
-          />
-        </div>
-      )}
-
-      <svg
-        ref={svgRef}
-        className="h-full w-full touch-none select-none"
-        style={{ cursor: dragRef.current.panFrom ? "grabbing" : "default" }}
-        onPointerDown={(e) => {
-          pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-          svgRef.current?.setPointerCapture(e.pointerId);
-          if (pointersRef.current.size === 1) dragRef.current.panFrom = { x: e.clientX, y: e.clientY };
-          else dragRef.current = { id: null, panFrom: null };
-        }}
-        onPointerMove={onPointerMove}
-        onPointerUp={(e) => {
-          pointersRef.current.delete(e.pointerId);
-          pinchRef.current = null;
-          dragRef.current = { id: null, panFrom: null };
-        }}
-        onPointerCancel={(e) => {
-          pointersRef.current.delete(e.pointerId);
-          pinchRef.current = null;
-          dragRef.current = { id: null, panFrom: null };
-        }}
-        onDoubleClick={(e) => {
-          // Double-click the background to step in around that spot; with
-          // shift, step back out. The nodes stop the event so a double-click
-          // on a dot stays a click that opens its file.
-          const rect = svgRef.current!.getBoundingClientRect();
-          const px = e.clientX - rect.left - rect.width / 2;
-          const py = e.clientY - rect.top - rect.height / 2;
-          const factor = e.shiftKey ? 1 / 1.8 : 1.8;
-          const k = clampK(view.k * factor);
-          animateTo({ k, x: view.x + px / k - px / view.k, y: view.y + py / k - py / view.k });
-        }}
-      >
-        <g transform={`translate(${(svgRef.current?.clientWidth ?? 0) / 2}, ${(svgRef.current?.clientHeight ?? 0) / 2}) scale(${view.k}) translate(${view.x}, ${view.y})`}>
-          {graph.links.map((l, i) => {
-            const s = l.source as GNode;
-            const t = l.target as GNode;
-            if (!s?.x || !t?.x) return null;
-            const opacity = neighbours
-              ? neighbours.has(s.id) && neighbours.has(t.id)
-                ? 0.55
-                : 0.06
-              : l.kind === "step"
-                ? 0.32
-                : l.kind === "consult" || l.kind === "delegate"
-                  ? 0.4
-                  : l.kind === "use"
-                  ? // The capability edges are what the graph is FOR — at
-                    // containment opacity they read as noise and the view
-                    // degenerates into "a workspace owns things".
-                    0.45
-                  : 0.16;
-            // A consult is agent→agent: drawn in the agent's own colour so
-            // the team's shape reads apart from the toolbox and the flow.
-            const stroke =
-              l.kind === "step" ? COLOR.flow : l.kind === "use" ? COLOR.tool : l.kind === "consult" || l.kind === "delegate" ? COLOR.agent : "var(--color-gray-400)";
-            // A delegate (subagents:) does work and a consult only answers:
-            // solid and heavier for the first, dotted for the second.
-            const strokeWidth = l.kind === "step" ? 1.2 : l.kind === "delegate" ? 2 : l.kind === "use" || l.kind === "consult" ? 1.4 : 0.8;
-            const dash = l.kind === "use" ? "3 2" : l.kind === "consult" ? "1 3" : undefined;
-            if (layout === "tree") {
-              // Horizontal elbows read as a tree; straight lines read as string.
-              const mx = (s.x! + t.x!) / 2;
-              return (
-                <path
-                  key={i}
-                  d={`M ${s.x} ${s.y} C ${mx} ${s.y}, ${mx} ${t.y}, ${t.x} ${t.y}`}
-                  fill="none"
-                  stroke={stroke}
-                  strokeWidth={strokeWidth}
-                  strokeDasharray={dash}
-                  strokeOpacity={opacity}
-                />
-              );
-            }
-            return (
-              <line
-                key={i}
-                x1={s.x}
-                y1={s.y}
-                x2={t.x}
-                y2={t.y}
-                stroke={stroke}
-                strokeWidth={strokeWidth}
-                strokeDasharray={dash}
-                strokeOpacity={opacity}
+    <Page width="full">
+      <PageHeader
+        title={heading}
+        description={
+          workspace
+            ? "How this workspace's flows, agents, tools and files connect."
+            : "Every workspace, agent, flow and file, and what is shared across them."
+        }
+        className="mb-5"
+        actions={
+          <>
+            <form
+              role="search"
+              className="relative w-full sm:w-60"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (matches[0]) select(matches[0], "zoom");
+              }}
+            >
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fg-muted" aria-hidden />
+              <input
+                ref={searchRef}
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Find a card…"
+                aria-label="Find a card"
+                className={cn(inputBase, "h-9 pl-9 pr-16 [&::-webkit-search-cancel-button]:appearance-none")}
               />
-            );
-          })}
-
-          {graph.nodes.map((n) => {
-            if (n.x === undefined) return null;
-            const r = RADIUS[n.kind] + Math.min(4, n.degree * 0.7);
-            const isMinor = n.kind === "skill" || n.kind === "memory";
-            const opacity = dim(n.id);
-            // The main label's fade, reused by the counter line so the two
-            // arrive together.
-            const labelOpacity = isMinor
-              ? layout === "tree" ? 1 : Math.max(0, Math.min(1, (view.k - 0.7) / 0.3))
-              : Math.max(0, Math.min(1, (view.k - 0.3) / 0.2));
-            const stats = n.stats;
-            const hoverText = stats
-              ? `${n.label} — last run ${stats.last}, ${fmtAgo(openedAt - Date.parse(stats.lastAt))} · ${statsLine(stats)} in 7 days`
-              : undefined;
-            return (
-              <g
-                key={n.id}
-                transform={`translate(${n.x}, ${n.y})`}
-                opacity={opacity}
-                style={{ cursor: n.href ? "pointer" : "grab" }}
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-                  svgRef.current?.setPointerCapture(e.pointerId);
-                  dragRef.current = { id: n.id, panFrom: null };
-                  n.fx = n.x;
-                  n.fy = n.y;
-                }}
-                onDoubleClick={(e) => e.stopPropagation()}
-                onPointerEnter={() => setHover(n.id)}
-                onPointerLeave={() => setHover(null)}
-                onClick={() => {
-                  if (n.href && !dragRef.current.id) router.push(n.href);
-                }}
-              >
-                {hoverText && <title>{hoverText}</title>}
-                <circle r={r} fill={COLOR[n.kind]} />
-                {/* The ring is the scope. An account skill and an agent's own
-                    skill are the same kind of thing at different levels — that
-                    difference is the whole point of the picture. */}
-                {n.scope && (
-                  <circle
-                    r={r + 2.5}
-                    fill="none"
-                    stroke={SCOPE_COLOR[n.scope]}
-                    strokeWidth={n.kind === "scope" ? 2 : 1.2}
-                    strokeOpacity={n.kind === "scope" ? 0.9 : 0.65}
-                  />
-                )}
-                {/* How the last run ended, pinned to the dot's shoulder so it
-                    reads at any zoom; a run still going breathes. */}
-                {stats && (
-                  <circle
-                    cx={r * 0.8}
-                    cy={-r * 0.8}
-                    r={3.2}
-                    fill={STATUS_DOT[stats.last] ?? "var(--color-gray-400)"}
-                    stroke="var(--color-white)"
-                    strokeWidth={1.2}
+              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs tabular-nums text-fg-muted">
+                {q ? `${matches.length} found` : <Kbd>/</Kbd>}
+              </span>
+            </form>
+            <Segmented
+              label="Layout"
+              value={layoutName}
+              items={[
+                { key: "map", label: <><Columns3 className="size-4" aria-hidden />Map</>, href: layoutHref("map") },
+                { key: "tree", label: <><Network className="size-4" aria-hidden />Tree</>, href: layoutHref("tree") },
+              ]}
+            />
+            <Menu>
+              <MenuTrigger asChild>
+                <Button size="md" aria-label="Show on the graph">
+                  <ListFilter aria-hidden />
+                  <span className="max-sm:sr-only">{hiddenCount ? `Show · ${FILTERS.length - hiddenCount} of ${FILTERS.length}` : "Show"}</span>
+                </Button>
+              </MenuTrigger>
+              <MenuContent className="w-56">
+                <MenuLabel>Show on the graph</MenuLabel>
+                {FILTERS.map((f) => (
+                  <M.CheckboxItem
+                    key={f.key}
+                    checked={!hidden.has(f.key)}
+                    onSelect={(e) => e.preventDefault()}
+                    onCheckedChange={(on) =>
+                      setHidden((h) => {
+                        const next = new Set(h);
+                        if (on) next.delete(f.key);
+                        else next.add(f.key);
+                        return next;
+                      })
+                    }
+                    className={cn(menuItemClass, "pr-8")}
                   >
-                    {(stats.last === "running" || stats.last === "awaiting-approval") && (
-                      <animate attributeName="opacity" values="1;0.25;1" dur="1.4s" repeatCount="indefinite" />
-                    )}
-                  </circle>
-                )}
-                <text
-                  x={layout === "tree" ? r + 7 : 0}
-                  y={layout === "tree" ? 3.5 : r + 11}
-                  textAnchor={layout === "tree" ? "start" : "middle"}
-                  className="pointer-events-none"
-                  style={{
-                    fontSize: isMinor ? 8.5 : 10.5,
-                    fill: isMinor ? "var(--color-gray-400)" : "var(--color-gray-700)",
-                    fontWeight: n.kind === "agent" ? 600 : 400,
-                    // Labels come in as you approach: the small ones first
-                    // vanish, then far out even agents go, and the picture
-                    // is only its shape. A fade rather than a switch so
-                    // zooming through the threshold does not flicker.
-                    opacity: labelOpacity,
-                    transition: "opacity 120ms",
-                  }}
-                >
-                  {n.label}
-                </text>
-                {/* The counters, under the name (beside it in the tree, whose
-                    rows are too close for a second line): runs and spend in
-                    the window. Nothing at all where nothing ran. */}
-                {stats && stats.runs > 0 && (
-                  <text
-                    x={layout === "tree" ? r + 7 : 0}
-                    y={layout === "tree" ? 14 : r + 21}
-                    textAnchor={layout === "tree" ? "start" : "middle"}
-                    className="pointer-events-none"
-                    style={{ fontSize: 8, fill: "var(--color-gray-400)", opacity: labelOpacity, transition: "opacity 120ms" }}
-                  >
-                    {statsLine(stats)}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-        </g>
-      </svg>
+                    <f.icon aria-hidden />
+                    {f.label}
+                    <span className="ml-auto pl-3 text-xs tabular-nums text-fg-subtle">{counts.get(f.key) ?? 0}</span>
+                    <M.ItemIndicator className="absolute right-2 inline-flex">
+                      <Check />
+                    </M.ItemIndicator>
+                  </M.CheckboxItem>
+                ))}
+                <MenuSeparator />
+                <MenuItem disabled={!hiddenCount} onSelect={() => setHidden(new Set())}>
+                  Show everything
+                </MenuItem>
+              </MenuContent>
+            </Menu>
+            <Button size="md" onClick={fit} title="Fit everything in view (0)" className="max-sm:hidden">
+              <Maximize aria-hidden />
+              Fit
+            </Button>
+            {/* Editing a flow needs a workspace to write into. The account
+                view spans many, so it shows the picture and links out. */}
+            {workspace && (
+              <Button size="md" onClick={() => (panel === "edit" ? setPanel(selected ? "details" : null) : openEditor(selectedNode?.kind === "flow" ? selectedNode.label : undefined))} aria-pressed={panel === "edit"}>
+                <Workflow aria-hidden />
+                {panel === "edit" ? "Close editor" : "Edit flow"}
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      {graph.nodes.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <p className="text-sm text-fg-subtle">
-            {emptyMessage ?? "Nothing to graph yet — add an agent to this workspace."}
-          </p>
+      <div className="relative flex h-[calc(100svh-19rem)] min-h-[28rem] overflow-hidden rounded-lg border border-line bg-paper sm:h-[calc(100svh-15.5rem)]">
+        <style>{`.gmap .react-flow__node,.gmap .react-flow__edge{transition:opacity .15s}\n${highlight}`}</style>
+        <div ref={canvasRef} className="gmap relative min-w-0 flex-1">
+          {isEmpty ? (
+            <EmptyState
+              bare
+              className="h-full"
+              icon={<Network />}
+              title="Nothing to graph yet"
+              description={emptyMessage ?? "Add an agent to this workspace and it appears here."}
+            />
+          ) : (
+            <ReactFlow<CardNode, WireEdge>
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              onNodesChange={onNodesChange}
+              onNodeClick={(_, n) => select(n.id, "pan")}
+              onNodeDoubleClick={(_, n) => {
+                const g = byRf.get(n.id);
+                const href = g && (g.href ?? linksFor(g, tenant)[0]?.href);
+                if (href) router.push(href);
+              }}
+              onNodeMouseEnter={(_, n) => setHover(n.id)}
+              onNodeMouseLeave={() => setHover(null)}
+              onPaneClick={() => select(null)}
+              onSelectionChange={onSelectionChange}
+              selectNodesOnDrag={false}
+              nodesConnectable={false}
+              edgesFocusable={false}
+              deleteKeyCode={null}
+              // Off-screen culling only where it pays: a culled card is not
+              // measured, and fitting would then miss it.
+              onlyRenderVisibleElements={view.nodes.length > 400}
+              fitView
+              fitViewOptions={{ ...FIT, minZoom: 0.3 }}
+              minZoom={0.1}
+              maxZoom={2}
+              proOptions={{ hideAttribution: true }}
+              aria-label={workspace ? `Graph of ${workspace}` : "Graph of the account"}
+            >
+              <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
+              {layout.groups.length > 0 && (
+                <ViewportPortal>
+                  {layout.groups.map((g) => (
+                    <div
+                      key={g.key}
+                      style={{ position: "absolute", transform: `translate(${g.x}px, ${g.y}px)`, width: g.w, height: g.h }}
+                      className="pointer-events-none rounded-xl border border-line"
+                    >
+                      <div className="flex h-9 items-center gap-2 border-b border-line-faint px-4 text-[13px] font-medium text-fg-secondary">
+                        {g.key === "account" ? <Building2 className="size-4 text-fg-muted" aria-hidden /> : <Boxes className="size-4 text-fg-muted" aria-hidden />}
+                        {g.label}
+                      </div>
+                    </div>
+                  ))}
+                </ViewportPortal>
+              )}
+              {layout.columns.length > 0 && (
+                <ViewportPortal>
+                  {layout.columns.map((c) => (
+                    <div
+                      key={c.key}
+                      style={{ position: "absolute", transform: `translate(${c.x}px, ${layout.top - 36}px)`, width: c.w }}
+                      className="pointer-events-none flex items-center gap-1.5 px-1 text-[13px] font-medium text-fg-secondary"
+                    >
+                      {c.label}
+                      <span className="tabular-nums font-normal text-fg-subtle">{c.count}</span>
+                    </div>
+                  ))}
+                </ViewportPortal>
+              )}
+              {!panel && (
+                <Panel position="bottom-left" className="!m-3 max-xl:!hidden">
+                  <Legend />
+                </Panel>
+              )}
+              <Panel position="bottom-right" className="!m-3">
+                <ZoomBar onFit={fit} onReset={() => { setNodes(laidOut); fit(); }} minimap={minimap} onMinimap={() => setMinimap((m) => !m)} />
+              </Panel>
+              {minimap && (
+                <MiniMap
+                  position="top-right"
+                  pannable
+                  zoomable
+                  ariaLabel="Minimap"
+                  className="!m-3 !h-[112px] !w-[176px] overflow-hidden rounded-md border border-line max-md:!hidden"
+                  nodeColor="var(--color-line-strong)"
+                  nodeStrokeWidth={0}
+                  nodeBorderRadius={4}
+                  maskColor="color-mix(in oklab, var(--color-gray-900) 6%, transparent)"
+                />
+              )}
+            </ReactFlow>
+          )}
         </div>
-      )}
 
-      <p className="pointer-events-none absolute bottom-4 left-5 text-[11px] text-fg-subtle">
-        drag a dot to pin it · drag the background to pan · scroll or pinch to zoom · double-click to zoom in · click to open its file · the small dot is how the last run ended · counts are the last 7 days
-      </p>
-
-      {/* Zoom cluster: the same moves as the wheel and keys, for a mouse
-          without a wheel and for anyone who wants to know how far in they are. */}
-      <div className="absolute bottom-4 right-5 flex items-center gap-1 rounded-lg border border-line bg-surface/90 p-1 text-xs text-fg-tertiary shadow-sm backdrop-blur">
-        <button
-          onClick={() => zoomAt(1 / 1.25, 0, 0)}
-          className="h-6 w-6 rounded hover:bg-muted"
-          title="Zoom out (−)"
-          aria-label="Zoom out"
-        >
-          −
-        </button>
-        <button
-          onClick={fit}
-          className="min-w-[3.5rem] rounded px-1 tabular-nums hover:bg-muted"
-          title="Fit everything in view (0)"
-        >
-          {Math.round(view.k * 100)}%
-        </button>
-        <button
-          onClick={() => zoomAt(1.25, 0, 0)}
-          className="h-6 w-6 rounded hover:bg-muted"
-          title="Zoom in (+)"
-          aria-label="Zoom in"
-        >
-          +
-        </button>
+        {panel && (
+          <aside
+            aria-label={panel === "edit" ? "Flow editor" : "Details"}
+            className="z-10 flex flex-col overflow-hidden bg-surface max-md:absolute max-md:inset-x-0 max-md:bottom-0 max-md:max-h-[72%] max-md:rounded-t-lg max-md:border-t max-md:border-line max-md:shadow-overlay md:w-[22rem] md:shrink-0 md:border-l md:border-line"
+          >
+            {panel === "edit" && workspace ? (
+              <>
+                <PanelHead icon={<Workflow />} title="Edit flow" sub="Reorder, join or drop steps, then save." onClose={() => setPanel(selected ? "details" : null)} />
+                <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                  <FlowPanel
+                    key={editFlow ?? ""}
+                    workspace={workspace}
+                    tenant={tenant}
+                    flows={flows}
+                    agents={agents.map((a) => a.name)}
+                    initial={editFlow}
+                    onSaved={() => router.refresh()}
+                  />
+                </div>
+              </>
+            ) : selectedNode ? (
+              <Details
+                node={selectedNode}
+                tenant={tenant}
+                openedAt={openedAt}
+                relations={relations.get(selectedNode.id)}
+                byId={byId}
+                onPick={(id) => select(rfId.get(id)!, "zoom")}
+                onClose={() => select(null)}
+                onEdit={workspace && selectedNode.kind === "flow" && flows.some((f) => f.name === selectedNode.label) ? () => openEditor(selectedNode.label) : undefined}
+              />
+            ) : null}
+          </aside>
+        )}
       </div>
-    </main>
+      <p className="mt-3 px-1 text-[13px] text-fg-muted max-md:hidden">
+        Click a card for its details, double-click to open it. Hover to light what it connects to. The dot is how its last run ended; counts are the last 7 days.
+      </p>
+    </Page>
+  );
+}
+
+// ---------------------------------------------------------------- parts
+
+function Legend() {
+  const kinds: [LucideIcon, string][] = [
+    [Workflow, "Flow"],
+    [Bot, "Agent"],
+    [Wrench, "Tool"],
+    [BookOpen, "Skill"],
+    [Brain, "Memory"],
+    [FileText, "Knowledge"],
+  ];
+  const line = (dash?: string) => (
+    <svg width="22" height="6" aria-hidden className="shrink-0">
+      <line x1="1" y1="3" x2="21" y2="3" stroke="var(--color-fg-subtle)" strokeWidth="1.5" strokeDasharray={dash} strokeLinecap="round" />
+    </svg>
+  );
+  return (
+    <div className="flex items-center gap-x-3 gap-y-1 rounded-md border border-line bg-surface px-2.5 py-1.5 text-xs text-fg-muted shadow-xs">
+      {kinds.map(([Icon, word]) => (
+        <span key={word} className="inline-flex items-center gap-1">
+          <Icon className="size-3.5" aria-hidden />
+          {word}
+        </span>
+      ))}
+      <span className="h-3.5 w-px bg-line" aria-hidden />
+      <span className="inline-flex items-center gap-1.5">{line()}contains</span>
+      <span className="inline-flex items-center gap-1.5">{line("5 4")}uses</span>
+      <span className="inline-flex items-center gap-1.5">{line("1.5 4")}hands off</span>
+    </div>
+  );
+}
+
+function ZoomBar({ onFit, onReset, minimap, onMinimap }: { onFit: () => void; onReset: () => void; minimap: boolean; onMinimap: () => void }) {
+  const rf = useReactFlow();
+  const zoom = useStore((s) => s.transform[2]);
+  return (
+    <div className="flex items-center gap-0.5 rounded-md border border-line bg-surface p-0.5 text-fg-secondary shadow-xs">
+      <Button size="icon-sm" variant="ghost" onClick={() => void rf.zoomOut({ duration: 200 })} title="Zoom out (−)" aria-label="Zoom out">
+        <Minus />
+      </Button>
+      <button type="button" onClick={onFit} className="h-8 min-w-[3.25rem] rounded-sm px-1 text-[13px] tabular-nums hover:bg-muted" title="Fit everything in view (0)">
+        {Math.round(zoom * 100)}%
+      </button>
+      <Button size="icon-sm" variant="ghost" onClick={() => void rf.zoomIn({ duration: 200 })} title="Zoom in (+)" aria-label="Zoom in">
+        <Plus />
+      </Button>
+      <span className="mx-0.5 h-5 w-px bg-line" aria-hidden />
+      <Button size="icon-sm" variant="ghost" onClick={onFit} title="Fit everything in view (0)" aria-label="Fit">
+        <Maximize />
+      </Button>
+      <Button size="icon-sm" variant="ghost" onClick={onReset} title="Put dragged cards back" aria-label="Reset layout">
+        <RotateCcw />
+      </Button>
+      <Button size="icon-sm" variant="ghost" onClick={onMinimap} aria-pressed={minimap} title={minimap ? "Hide the minimap" : "Show the minimap"} aria-label="Minimap" className="max-md:hidden aria-pressed:bg-muted aria-pressed:text-fg">
+        <MapIcon />
+      </Button>
+    </div>
+  );
+}
+
+function PanelHead({ icon, title, sub, onClose }: { icon: React.ReactNode; title: React.ReactNode; sub?: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="flex items-start gap-3 border-b border-line px-4 py-3">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-line bg-sunken text-fg-secondary [&_svg]:size-4">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-fg">{title}</p>
+        {sub && <p className="truncate text-[13px] text-fg-muted">{sub}</p>}
+      </div>
+      <Button size="icon-sm" variant="ghost" onClick={onClose} aria-label="Close panel" className="-mr-1.5">
+        <X />
+      </Button>
+    </div>
+  );
+}
+
+/** Where a card leads: its own page, its file, the place its kind is kept. */
+function linksFor(n: GNode, tenant: string): { label: string; href: string }[] {
+  const q = tenant !== "default" ? `?tenant=${encodeURIComponent(tenant)}` : "";
+  const qa = tenant !== "default" ? `&tenant=${encodeURIComponent(tenant)}` : "";
+  const ws = workspaceOf(n);
+  const plural = n.kind === "skill" ? "skills" : n.kind === "tool" ? "tools" : n.kind;
+  const out: { label: string; href: string }[] = [];
+  switch (n.kind) {
+    case "scope":
+      if (n.scope === "account") out.push({ label: "Open library", href: `/dashboard/library${q}` });
+      else if (n.href) out.push({ label: "Open workspace", href: n.href });
+      break;
+    case "agent":
+      if (ws) out.push({ label: "Open agent", href: `/dashboard/${ws}/agents/${encodeURIComponent(n.label)}${q}` });
+      if (n.href) out.push({ label: "Open file", href: n.href });
+      break;
+    case "flow":
+      if (ws) out.push({ label: "Open flow", href: `/dashboard/${ws}/flows?flow=${encodeURIComponent(n.label)}${qa}` });
+      if (n.href) out.push({ label: "Open file", href: n.href });
+      break;
+    case "tool":
+      if (n.scope === "account") out.push({ label: "Open in library", href: `/dashboard/library?kind=tools${qa}` });
+      else if (n.scope === "workspace" && ws) out.push({ label: "Open in Tools", href: `/dashboard/${ws}/assets?kind=tools${qa}` });
+      break;
+    default:
+      if (n.scope === "account") out.push({ label: "Open in library", href: `/dashboard/library?kind=${plural}${qa}` });
+      else if (ws) out.push({ label: "Open in Files", href: `/dashboard/${ws}/edit?scope=${plural}${qa}` });
+  }
+  return out;
+}
+
+const SCOPE_WORD: Record<Scope, string> = { account: "Account library", workspace: "Workspace", agent: "Agent's own" };
+
+function Details({
+  node,
+  tenant,
+  openedAt,
+  relations,
+  byId,
+  onPick,
+  onClose,
+  onEdit,
+}: {
+  node: GNode;
+  tenant: string;
+  openedAt: number;
+  relations?: Map<string, string[]>;
+  byId: Map<string, GNode>;
+  onPick: (id: string) => void;
+  onClose: () => void;
+  onEdit?: () => void;
+}) {
+  const stats = node.stats;
+  const outcome = stats ? outcomeOfStatus(stats.last) : null;
+  const ws = workspaceOf(node);
+  const kindWord = node.kind === "scope" ? (node.scope === "account" ? "Account" : "Workspace") : KIND_WORD[node.kind];
+  const asset = !isMajor(node.kind);
+  const sub = [kindWord, asset && node.scope ? SCOPE_WORD[node.scope] : null, node.kind !== "scope" && ws ? ws : null].filter(Boolean).join(" · ");
+  const links = linksFor(node, tenant);
+  return (
+    <>
+      <PanelHead icon={<KindIcon kind={node.kind} scope={node.scope} />} title={node.label} sub={sub} onClose={onClose} />
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
+        {stats && (
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-[13px]">
+            <div>
+              <dt className="text-fg-muted">Last run</dt>
+              <dd className="mt-0.5">{outcome ? <Status outcome={outcome} /> : <span className="text-fg-secondary">{stats.last}</span>}</dd>
+            </div>
+            <div>
+              <dt className="text-fg-muted">Started</dt>
+              <dd className="mt-0.5 text-fg-secondary">{fmtAgo(openedAt - Date.parse(stats.lastAt))}</dd>
+            </div>
+            <div>
+              <dt className="text-fg-muted">Runs, 7 days</dt>
+              <dd className="mt-0.5 tabular-nums text-fg">{stats.runs}</dd>
+            </div>
+            <div>
+              <dt className="text-fg-muted">Spend, 7 days</dt>
+              <dd className="mt-0.5 tabular-nums text-fg">{fmtCost(stats.cost)}</dd>
+            </div>
+          </dl>
+        )}
+
+        {(links.length > 0 || onEdit) && (
+          <div className="flex flex-wrap gap-2">
+            {links.map((l) => (
+              <Link key={l.href} href={l.href} className={buttonVariants({ size: "sm" })}>
+                {l.label}
+                <ExternalLink className="size-3.5 text-fg-muted" aria-hidden />
+              </Link>
+            ))}
+            {onEdit && (
+              <Button size="sm" onClick={onEdit}>
+                <Workflow aria-hidden />
+                Edit steps
+              </Button>
+            )}
+          </div>
+        )}
+
+        {relations && relations.size > 0 ? (
+          [...relations].map(([word, ids]) => (
+            <section key={word}>
+              <h3 className="mb-1.5 flex items-center gap-1.5 text-[13px] font-medium text-fg-secondary">
+                {word}
+                <span className="font-normal tabular-nums text-fg-subtle">{ids.length}</span>
+              </h3>
+              <ul className="overflow-hidden rounded-md border border-line">
+                {ids.map((id) => {
+                  const n = byId.get(id);
+                  if (!n) return null;
+                  const o = n.stats ? outcomeOfStatus(n.stats.last) : null;
+                  return (
+                    <li key={id} className="border-b border-line last:border-b-0">
+                      <button
+                        type="button"
+                        onClick={() => onPick(id)}
+                        className="flex w-full items-center gap-2.5 px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none"
+                      >
+                        <KindIcon kind={n.kind} scope={n.scope} className="size-4 shrink-0 text-fg-muted" />
+                        <span className="min-w-0 flex-1 truncate text-fg">{n.label}</span>
+                        <span className="shrink-0 text-xs text-fg-subtle">{n.kind === "scope" ? (n.scope === "account" ? "account" : "workspace") : n.kind}</span>
+                        {o && <StatusDot outcome={o} />}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))
+        ) : (
+          <p className="text-[13px] text-fg-muted">Nothing connects to this yet.</p>
+        )}
+      </div>
+    </>
   );
 }

@@ -4,7 +4,7 @@
 // and response schema.
 
 import Link from "next/link";
-import { Card, PageHeader } from "@/components/ui";
+import { Page, PageHeader, Panel } from "@/components/kit/page";
 import { openapiDocument } from "@/server/openapi";
 
 // Per request, not prerendered (28 Oct 2026): the enforced CSP's nonce is
@@ -23,11 +23,11 @@ type Op = {
 };
 
 const METHOD_TONE: Record<string, string> = {
-  get: "bg-blue-50 text-blue-700",
-  post: "bg-green-50 text-green-700",
-  put: "bg-amber-50 text-amber-700",
-  patch: "bg-amber-50 text-amber-700",
-  delete: "bg-red-50 text-red-700",
+  get: "bg-info-soft text-info",
+  post: "bg-success-soft text-success",
+  put: "bg-warning-soft text-warning",
+  patch: "bg-warning-soft text-warning",
+  delete: "bg-danger-soft text-danger",
 };
 
 const GENERIC_DESC = "JSON — see docs/api.md for this route's fields";
@@ -45,60 +45,59 @@ export default function ApiReference() {
   const tags = [...byTag.keys()].sort();
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-8">
-      <Link href="/dashboard/docs" className="text-sm text-fg-muted hover:text-fg">
-        ← Docs
-      </Link>
+    <Page className="pb-16">
       <PageHeader
+        back={{ href: "/dashboard/docs", label: "Docs" }}
         title="API reference"
-        subtitle={
+        description={
           <>
             Version <span className="font-mono">{doc.info.version}</span> · every route, from{" "}
-            <a href="/api/openapi.json" className="text-accent hover:underline">
+            <a href="/api/openapi.json" className="text-link hover:underline">
               /api/openapi.json
             </a>{" "}
-            · <Link href="/dashboard/docs/api-usage" className="text-accent hover:underline">Using the API</Link>
+            · <Link href="/dashboard/docs/api-usage" className="text-link hover:underline">
+              Using the API
+            </Link>
           </>
         }
       />
-      <nav className="mb-6 flex flex-wrap gap-2 text-xs">
+      <nav aria-label="Tags" className="mb-8 flex flex-wrap gap-1.5">
         {tags.map((t) => (
-          <a key={t} href={`#tag-${t}`} className="rounded border border-line px-2 py-0.5 text-fg-tertiary hover:bg-sunken">
+          <a key={t} href={`#tag-${t}`} className="inline-flex h-7 items-center rounded-full border border-line bg-surface px-2.5 text-xs text-fg-secondary transition-colors hover:border-line-strong hover:text-fg">
             {t}
           </a>
         ))}
       </nav>
-      <div className="space-y-6">
+      <div className="space-y-8">
         {tags.map((t) => (
-          <Card key={t} id={`tag-${t}`} className="scroll-mt-20 p-5">
-            <h2 className="mb-3 text-sm font-semibold text-fg">{t}</h2>
-            <ul className="divide-y divide-line-faint">
+          <Panel key={t} id={`tag-${t}`} title={t} flush>
+            <ul className="divide-y divide-line">
               {byTag.get(t)!.map(({ path, method, op }) => {
                 const body = op.requestBody?.content?.["application/json"]?.schema;
                 const ok = op.responses?.["200"]?.content?.["application/json"]?.schema as { description?: string } | undefined;
                 const idem = op.parameters?.some((p) => p.$ref?.endsWith("/IdempotencyKey"));
                 return (
-                  <li key={`${method} ${path}`} id={`${method}-${path}`} className="py-3">
+                  <li key={`${method} ${path}`} id={`${method}-${path}`} className="px-5 py-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase ${METHOD_TONE[method] ?? "bg-sunken text-fg-secondary"}`}>{method}</span>
+                      <span className={`rounded px-1.5 py-0.5 font-mono text-xs font-semibold uppercase ${METHOD_TONE[method] ?? "bg-sunken text-fg-secondary"}`}>{method}</span>
                       <code className="break-all font-mono text-xs text-fg">{path}</code>
-                      {op.security && op.security.length === 0 && <span className="text-[10px] uppercase tracking-wide text-fg-subtle">no key</span>}
-                      {idem && <span className="text-[10px] uppercase tracking-wide text-fg-subtle">idempotency-key</span>}
+                      {op.security && op.security.length === 0 && <span className="rounded-full border border-line px-2 text-xs text-fg-muted">no key</span>}
+                      {idem && <span className="rounded-full border border-line px-2 text-xs text-fg-muted">idempotency-key</span>}
                     </div>
-                    {op.description && <p className="mt-1 text-xs text-fg-tertiary">{op.description}</p>}
+                    {op.description && <p className="mt-1 text-sm text-fg-muted">{op.description}</p>}
                     {(body || (ok && ok.description !== GENERIC_DESC)) && (
                       <details className="mt-2 text-xs">
                         <summary className="cursor-pointer text-fg-muted">Schema</summary>
                         {body ? (
                           <>
-                            <p className="mt-2 text-[10px] uppercase tracking-wide text-fg-subtle">Request body</p>
-                            <pre className="mt-1 overflow-x-auto rounded bg-sunken p-2 font-mono text-[11px] text-fg-secondary">{JSON.stringify(body, null, 2)}</pre>
+                            <p className="mt-2 text-xs font-medium text-fg-secondary">Request body</p>
+                            <pre className="mt-1 overflow-x-auto rounded-md border border-line bg-sunken p-2 font-mono text-xs text-fg-secondary">{JSON.stringify(body, null, 2)}</pre>
                           </>
                         ) : null}
                         {ok && ok.description !== GENERIC_DESC ? (
                           <>
-                            <p className="mt-2 text-[10px] uppercase tracking-wide text-fg-subtle">200 response</p>
-                            <pre className="mt-1 overflow-x-auto rounded bg-sunken p-2 font-mono text-[11px] text-fg-secondary">{JSON.stringify(ok, null, 2)}</pre>
+                            <p className="mt-2 text-xs font-medium text-fg-secondary">200 response</p>
+                            <pre className="mt-1 overflow-x-auto rounded-md border border-line bg-sunken p-2 font-mono text-xs text-fg-secondary">{JSON.stringify(ok, null, 2)}</pre>
                           </>
                         ) : null}
                       </details>
@@ -107,9 +106,9 @@ export default function ApiReference() {
                 );
               })}
             </ul>
-          </Card>
+          </Panel>
         ))}
       </div>
-    </main>
+    </Page>
   );
 }

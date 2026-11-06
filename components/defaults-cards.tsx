@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { SettingsForm, Field, useSettingsForm } from "./settings-form";
 import { inputClass, selectClass } from "./ui";
 import { WithEmails } from "./email";
+import { Button } from "./kit/button";
 import { NOTIFY_EVENTS, DEPLOY_BLOCKS, type Defaults, type Notify, type Budget, type Alerts, type Judge } from "./defaults-model";
 
 async function patch(endpoint: string, tenant: string, body: Record<string, unknown>): Promise<Defaults> {
@@ -39,21 +40,26 @@ export function TimezoneCard({ endpoint, tenant, initial, inherited }: { endpoin
     }
   }, []);
   return (
-    <SettingsForm form={form} hint="timezone: in AGENTS.md">
-      <Field label="Timezone" help={inherited && !form.value ? `Empty — schedules here use ${inherited}, the account's.` : "Schedules written here fire in this zone unless the flow names its own."}>
-        <input
-          list="foldrun-zones"
-          value={form.value}
-          onChange={(e) => form.setValue(e.target.value)}
-          placeholder={inherited ?? "UTC"}
-          className={inputClass("w-full max-w-sm font-mono")}
-        />
-        {zones.length > 0 && (
-          <datalist id="foldrun-zones">
-            {zones.map((z) => <option key={z} value={z} />)}
-          </datalist>
-        )}
-      </Field>
+    <SettingsForm
+      form={form}
+      id="timezone"
+      title="Timezone"
+      description={inherited && !form.value ? `Empty — schedules here use ${inherited}, the account's.` : "Schedules written here fire in this zone unless the flow names its own."}
+      hint={<><code className="font-mono text-xs">timezone:</code> in AGENTS.md</>}
+    >
+      <input
+        list="foldrun-zones"
+        aria-label="Timezone"
+        value={form.value}
+        onChange={(e) => form.setValue(e.target.value)}
+        placeholder={inherited ?? "UTC"}
+        className={inputClass("w-full max-w-sm font-mono")}
+      />
+      {zones.length > 0 && (
+        <datalist id="foldrun-zones">
+          {zones.map((z) => <option key={z} value={z} />)}
+        </datalist>
+      )}
     </SettingsForm>
   );
 }
@@ -119,17 +125,18 @@ export function BudgetCard({ endpoint, tenant, initial, spent, compact = false }
     );
   }
   return (
-    <SettingsForm form={form} hint="budget: in AGENTS.md">
-      <Field
-        label="Budget (USD)"
-        help={
-          empty
-            ? "No limit — runs start as long as the account has credit."
-            : `Runs stop starting once ${period.window}'s spend reaches $${Number(form.value.usd) || 0}; the cap resets with ${period.label}.${spent !== undefined ? ` $${spent.toFixed(2)} spent ${period.window}.` : ""}`
-        }
-      >
-        {control}
-      </Field>
+    <SettingsForm
+      form={form}
+      id="budget"
+      title="Budget"
+      description={
+        empty
+          ? "No limit — runs start as long as the account has credit."
+          : `Runs stop starting once ${period.window}'s spend reaches $${Number(form.value.usd) || 0}; the cap resets with ${period.label}.${spent !== undefined ? ` $${spent.toFixed(2)} spent ${period.window}.` : ""}`
+      }
+      hint={<><code className="font-mono text-xs">budget:</code> in AGENTS.md, in USD</>}
+    >
+      {control}
     </SettingsForm>
   );
 }
@@ -140,13 +147,14 @@ export function ConcurrencyCard({ endpoint, tenant, initial, plan }: { endpoint:
     return d.concurrency === null ? "" : String(d.concurrency);
   });
   return (
-    <SettingsForm form={form} hint="concurrency: in AGENTS.md">
-      <Field
-        label="Runs at once"
-        help={form.value.trim() === "" ? (plan ? `Empty — the plan's ${plan} at a time.` : "No cap — as many as the install can drive.") : `At most ${Number(form.value) || 0} runs drive at the same time; the rest wait their turn in the queue, never refused.`}
-      >
-        <input type="number" min={1} max={64} step={1} value={form.value} onChange={(e) => form.setValue(e.target.value)} placeholder="plan" className={inputClass("max-w-[8rem]")} />
-      </Field>
+    <SettingsForm
+      form={form}
+      id="concurrency"
+      title="Runs at once"
+      description={form.value.trim() === "" ? (plan ? `Empty — the plan's ${plan} at a time.` : "No cap — as many as the install can drive.") : `At most ${Number(form.value) || 0} runs drive at the same time; the rest wait their turn in the queue, never refused.`}
+      hint={<><code className="font-mono text-xs">concurrency:</code> in AGENTS.md</>}
+    >
+      <input type="number" min={1} max={64} step={1} aria-label="Runs at once" value={form.value} onChange={(e) => form.setValue(e.target.value)} placeholder="plan" className={inputClass("max-w-[8rem]")} />
     </SettingsForm>
   );
 }
@@ -227,27 +235,33 @@ export function ComputeCard({
   const from = live.pool.source === "plan" ? "the plan's" : live.pool.source === "account" ? "your own, below" : live.pool.source === "install" ? "this install's" : null;
   const words = LEVEL_WORDS[level];
   return (
-    <SettingsForm form={form} hint={level === "flow" ? "compute: in the flow" : "compute: in AGENTS.md"}>
+    <SettingsForm
+      form={form}
+      id="compute"
+      title="Compute"
+      description="What running steps hold now, and the cap they share."
+      hint={<><code className="font-mono text-xs">compute:</code> {level === "flow" ? "in the flow" : "in AGENTS.md"}</>}
+    >
       <div className="grid gap-1 text-sm text-fg-secondary">
         <span>
           Held by {live.inUse.steps} running step{live.inUse.steps === 1 ? "" : "s"}: <span className="tabular-nums text-fg">{of(live.inUse.vcpu, live.pool.vcpu, "vCPU")}</span> ·{" "}
           <span className="tabular-nums text-fg">{of(live.inUse.memGiB, live.pool.memGiB, "GiB")}</span> ·{" "}
           <span className="tabular-nums text-fg">{of(live.inUse.diskGiB ?? 0, live.pool.diskGiB, "GiB disk")}</span>
-          {from ? <span className="text-fg-subtle"> — {from}</span> : null}
+          {from ? <span className="text-fg-muted"> — {from}</span> : null}
         </span>
         {outer && (
-          <span className="text-fg-subtle">
+          <span className="text-fg-muted">
             The account allows {outer.vcpu ?? "any"} vCPU · {outer.memGiB ?? "any"} GiB · {outer.diskGiB ?? "any"} GiB disk; every step must fit both.
           </span>
         )}
         {(live.pool.stepVcpu || live.pool.stepMemGiB || live.pool.stepDiskGiB) && (
-          <span className="text-fg-subtle">
+          <span className="text-fg-muted">
             One step may hold up to {live.pool.stepVcpu ?? "any"} vCPU · {live.pool.stepMemGiB ?? "any"} GiB · {live.pool.stepDiskGiB ?? "any"} GiB disk
             {live.pool.stepDefault?.length ? " — the most for an account without a plan of its own" : ""}.
           </span>
         )}
         {level === "account" && live.runsWaiting && live.runsWaiting.limit !== null && (
-          <span className="text-fg-subtle">
+          <span className="text-fg-muted">
             {live.runsWaiting.waiting !== null ? (
               <>
                 <span className="tabular-nums text-fg">{live.runsWaiting.waiting} of {live.runsWaiting.limit}</span> runs waiting for their turn
@@ -263,7 +277,7 @@ export function ComputeCard({
             <span>
               {live.waiting.length} step{live.waiting.length === 1 ? "" : "s"} waiting for room — each starts in turn, oldest first, and is not charged while it waits.
             </span>
-            <ul className="grid gap-0.5 text-xs text-fg-subtle">
+            <ul className="grid gap-0.5 text-xs text-fg-muted">
               {live.waiting.slice(0, 5).map((w) => (
                 <li key={`${w.runId}-${w.step}`} className="truncate">
                   <a href={`/dashboard/${encodeURIComponent(w.workspace)}/runs/${encodeURIComponent(w.runId)}${tenant !== "default" ? `?tenant=${encodeURIComponent(tenant)}` : ""}`} className="text-fg-muted hover:text-fg hover:underline">
@@ -304,13 +318,14 @@ export function OwnerCard({ endpoint, tenant, initial, inherited }: { endpoint: 
     return d.owner ?? "";
   });
   return (
-    <SettingsForm form={form} hint="owner: in AGENTS.md (governance)">
-      <Field
-        label="Owner"
-        help={form.value.trim() ? "Shown on every agent and flow here that names no owner of its own, and on its traces." : inherited ? <WithEmails text={`Empty — the account's owner, ${inherited}.`} /> : "Empty — nobody named. Each agent's own owner: still shows."}
-      >
-        <input value={form.value} onChange={(e) => form.setValue(e.target.value)} placeholder="ops@example.com" maxLength={200} className={inputClass("max-w-sm")} />
-      </Field>
+    <SettingsForm
+      form={form}
+      id="owner"
+      title="Owner"
+      description={form.value.trim() ? "Shown on every agent and flow here that names no owner of its own, and on its traces." : inherited ? <WithEmails text={`Empty — the account's owner, ${inherited}.`} /> : "Empty — nobody named. Each agent's own owner: still shows."}
+      hint={<><code className="font-mono text-xs">owner:</code> in AGENTS.md</>}
+    >
+      <input aria-label="Owner" value={form.value} onChange={(e) => form.setValue(e.target.value)} placeholder="ops@example.com" maxLength={200} className={inputClass("max-w-sm")} />
     </SettingsForm>
   );
 }
@@ -359,7 +374,13 @@ export function AlertsCard({ endpoint, tenant, initial, inherited }: { endpoint:
   });
   const own = form.value.own !== false;
   return (
-    <SettingsForm form={form} hint="alerts: in AGENTS.md (observability) — each one told to notify: as an alert">
+    <SettingsForm
+      form={form}
+      id="alerts"
+      title="Alerts"
+      description="Thresholds that tell notify: when something crosses a line. Each one is optional."
+      hint={<><code className="font-mono text-xs">alerts:</code> in AGENTS.md</>}
+    >
       {workspace && (
         <Field label="Thresholds" help={own ? "Set here, these replace the account's thresholds whole — an empty set means no alerts for this workspace." : "The account's thresholds apply here."}>
           <select value={own ? "own" : "account"} onChange={(e) => form.setValue({ ...form.value, own: e.target.value === "own" })} className={selectClass("max-w-[14rem]")}>
@@ -369,7 +390,7 @@ export function AlertsCard({ endpoint, tenant, initial, inherited }: { endpoint:
         </Field>
       )}
       {own && (
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           {ALERT_FIELDS.map((f) => (
             <Field key={f.key} label={f.label} help={f.help}>
               <input
@@ -381,7 +402,7 @@ export function AlertsCard({ endpoint, tenant, initial, inherited }: { endpoint:
             </Field>
           ))}
           <Field label="A new site" help={`an agent reached a site it never reached before${inherited?.new_host ? " (on for the account)" : ""}`}>
-            <input type="checkbox" checked={form.value.new_host === true} onChange={(e) => form.setValue({ ...form.value, new_host: e.target.checked })} />
+            <input type="checkbox" checked={form.value.new_host === true} onChange={(e) => form.setValue({ ...form.value, new_host: e.target.checked })} className="size-4 rounded border-line-strong accent-fg" />
           </Field>
         </div>
       )}
@@ -398,8 +419,14 @@ export function JudgeCard({ endpoint, tenant, initial, inherited }: { endpoint: 
   });
   const from = inherited?.model ? `the account's, ${inherited.model}` : "the fast tier";
   return (
-    <SettingsForm form={form} hint="judge: in AGENTS.md (evaluation)">
-      <div className="flex flex-wrap gap-3">
+    <SettingsForm
+      form={form}
+      id="judge"
+      title="Judges"
+      description="The model every judge: in an eval and every verify: judge: grades with."
+      hint={<><code className="font-mono text-xs">judge:</code> in AGENTS.md</>}
+    >
+      <div className="flex flex-wrap gap-4">
         <Field label="Judges grade with" help={form.value.model ? "Every judge: in an eval and every verify: judge: here. An eval that names its own model: keeps it." : `Unset — ${from}.`}>
           <select value={form.value.model} onChange={(e) => form.setValue({ ...form.value, model: e.target.value })} className={selectClass("max-w-[12rem]")}>
             <option value="">{inherited?.model ? `the account's (${inherited.model})` : "fast (default)"}</option>
@@ -435,14 +462,18 @@ export function DeployBlockCard({ endpoint, tenant, initial }: { endpoint: strin
   });
   const value = form.value as (typeof DEPLOY_BLOCKS)[number];
   return (
-    <SettingsForm form={form} hint="deploy_block: in AGENTS.md">
-      <Field label="Refuse a deploy on" help={`${BLOCK_HELP[value] ?? ""} A workspace's own AGENTS.md can say otherwise.`}>
-        <select value={value} onChange={(e) => form.setValue(e.target.value)} className={selectClass("max-w-[14rem]")}>
-          <option value="none">nothing — warn only</option>
-          <option value="secrets">a written-in secret</option>
-          <option value="security">any security finding</option>
-        </select>
-      </Field>
+    <SettingsForm
+      form={form}
+      id="deploy-block"
+      title="Refuse a deploy on"
+      description={`${BLOCK_HELP[value] ?? ""} A workspace's own AGENTS.md can say otherwise.`}
+      hint={<><code className="font-mono text-xs">deploy_block:</code> in AGENTS.md</>}
+    >
+      <select aria-label="Refuse a deploy on" value={value} onChange={(e) => form.setValue(e.target.value)} className={selectClass("max-w-[14rem]")}>
+        <option value="none">nothing — warn only</option>
+        <option value="secrets">a written-in secret</option>
+        <option value="security">any security finding</option>
+      </select>
     </SettingsForm>
   );
 }
@@ -454,22 +485,23 @@ export function NetworkEnforceCard({ endpoint, tenant, initial, inherited }: { e
     return d.networkEnforce ? "refuse" : "report";
   });
   return (
-    <SettingsForm form={form} hint="network_enforce: in AGENTS.md">
-      <Field
-        label="A site off an agent's network: list"
-        help={
-          inherited
-            ? "The account refuses already, so every step here is refused too. Only the account's setting can turn it off."
-            : form.value === "refuse"
-              ? "Refused: the step gets a 403 and the trace says which site. Add it to the agent's network: list to allow it."
-              : "Allowed, and named once in the run's trace — so you can see what your agents reach before you start refusing. (An install that refuses for everyone still refuses.)"
-        }
-      >
-        <select value={form.value} onChange={(e) => form.setValue(e.target.value)} className={selectClass("max-w-[14rem]")} disabled={inherited}>
-          <option value="report">allowed — report only</option>
-          <option value="refuse">refused</option>
-        </select>
-      </Field>
+    <SettingsForm
+      form={form}
+      id="network-enforce"
+      title="A site off an agent's network: list"
+      description={
+        inherited
+          ? "The account refuses already, so every step here is refused too. Only the account's setting can turn it off."
+          : form.value === "refuse"
+            ? "Refused: the step gets a 403 and the trace says which site. Add it to the agent's network: list to allow it."
+            : "Allowed, and named once in the run's trace — so you can see what your agents reach before you start refusing. (An install that refuses for everyone still refuses.)"
+      }
+      hint={<><code className="font-mono text-xs">network_enforce:</code> in AGENTS.md</>}
+    >
+      <select aria-label="A site off an agent's network: list" value={form.value} onChange={(e) => form.setValue(e.target.value)} className={selectClass("max-w-[14rem]")} disabled={inherited}>
+        <option value="report">allowed — report only</option>
+        <option value="refuse">refused</option>
+      </select>
     </SettingsForm>
   );
 }
@@ -512,14 +544,19 @@ export function NotifyCard({
   const inheritedLine = inherited ? [inherited.email, inherited.url, inherited.hidden ? "a webhook" : null].filter(Boolean).join(" and ") : null;
 
   return (
-    <SettingsForm form={form} hint="notify: in AGENTS.md">
-      <label className="flex items-center gap-2 text-sm text-gray-800">
-        <input type="checkbox" checked={v.enabled} onChange={(e) => set({ enabled: e.target.checked })} className="h-4 w-4 rounded border-line-strong" />
-        {v.enabled ? "Notifications set here" : inheritedLine ? `Inherit the account's: ${inheritedLine}` : "No notifications"}
+    <SettingsForm
+      form={form}
+      id="notify"
+      title="Notifications"
+      description={scopeNote ?? "Where to say a run failed or waits for someone."}
+      hint={<><code className="font-mono text-xs">notify:</code> in AGENTS.md</>}
+    >
+      <label className="flex items-center gap-2 text-sm text-fg">
+        <input type="checkbox" checked={v.enabled} onChange={(e) => set({ enabled: e.target.checked })} className="size-4 rounded border-line-strong accent-fg" />
+        {v.enabled ? "Notifications set here" : inheritedLine ? <WithEmails text={`Inherit the account's: ${inheritedLine}`} /> : "No notifications"}
       </label>
-      {scopeNote && <p className="text-xs text-fg-subtle">{scopeNote}</p>}
       {(initial?.hidden || inherited?.hidden) && (
-        <p className="text-xs text-fg-subtle">The account&apos;s webhook URL is set; it is shown only to members with every workspace, since a webhook URL is often a credential.</p>
+        <p className="text-xs text-fg-muted">The account&apos;s webhook URL is set; it is shown only to members with every workspace, since a webhook URL is often a credential.</p>
       )}
       {v.enabled && (
         <>
@@ -530,16 +567,16 @@ export function NotifyCard({
             <input value={v.url ?? ""} onChange={(e) => set({ url: e.target.value })} placeholder="${SLACK_WEBHOOK_URL}" className={inputClass("w-full font-mono")} />
           </Field>
           <fieldset>
-            <legend className="block text-[10px] font-medium uppercase tracking-wide text-fg-subtle">Notify when</legend>
-            <div className="mt-1 flex flex-wrap gap-x-5 gap-y-1">
+            <legend className="block text-sm font-medium text-fg">Notify when</legend>
+            <div className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1">
               {NOTIFY_EVENTS.map((e) => (
                 <label key={e} className="flex items-center gap-2 text-sm text-fg-secondary">
-                  <input type="checkbox" checked={v.events.includes(e)} onChange={() => toggleEvent(e)} className="h-4 w-4 rounded border-line-strong" />
+                  <input type="checkbox" checked={v.events.includes(e)} onChange={() => toggleEvent(e)} className="size-4 rounded border-line-strong accent-fg" />
                   {EVENT_LABEL[e]}
                 </label>
               ))}
             </div>
-            <p className="mt-1 text-xs text-fg-subtle">Completed is opt-in: a channel that pings on every success gets muted, which un-pings the failures too.</p>
+            <p className="mt-1.5 text-xs text-fg-muted">Completed is opt-in: a channel that pings on every success gets muted, which un-pings the failures too.</p>
           </fieldset>
         </>
       )}
@@ -586,20 +623,15 @@ function NotifyTest({ workspace, tenant }: { workspace: string; tenant: string }
   };
 
   return (
-    <div className="border-t border-line-faint pt-3">
-      <button
-        type="button"
-        onClick={send}
-        disabled={state.busy}
-        className="rounded border border-line px-3 py-1.5 text-sm font-medium text-fg-secondary hover:border-line-strong hover:bg-sunken disabled:opacity-50"
-      >
+    <div className="border-t border-line pt-4">
+      <Button type="button" variant="secondary" onClick={send} disabled={state.busy}>
         {state.busy ? "Sending…" : "Send a test notification"}
-      </button>
-      <p className="mt-1 text-xs text-fg-subtle">
+      </Button>
+      <p className="mt-1.5 text-xs text-fg-muted">
         Sends one real message to this destination now. Saved settings only — save first if you have just edited them.
       </p>
       {state.result && (
-        <p className={`mt-2 text-sm ${state.result.ok ? "text-emerald-700" : "text-red-600"}`}>
+        <p className={`mt-2 text-sm ${state.result.ok ? "text-success" : "text-danger"}`}>
           {state.result.ok ? "Delivered to" : "Failed for"} <span className="font-mono text-xs">{state.result.destination}</span>
           {" — "}
           {state.result.detail}

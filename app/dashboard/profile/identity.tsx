@@ -9,7 +9,7 @@
 // unverified until it clicks the mail; the old one is told it happened.
 
 import { useState } from "react";
-import { buttonClass, inputClass, FIELD_LABEL_CLASS } from "@/components/ui";
+import { buttonClass, inputClass } from "@/components/ui";
 import { Email } from "@/components/email";
 
 export function NameForm({ firstName, lastName }: { firstName: string | null; lastName: string | null }) {
@@ -37,18 +37,18 @@ export function NameForm({ firstName, lastName }: { firstName: string | null; la
     >
       <div className="grid grid-cols-1 max-w-md gap-3 sm:grid-cols-2">
         <label className="block">
-          <span className={FIELD_LABEL_CLASS}>First name</span>
+          <span className="block pb-1.5 text-sm font-medium text-fg">First name</span>
           <input value={first} onChange={(e) => setFirst(e.target.value)} className={inputClass("w-full")} maxLength={80} autoComplete="given-name" />
         </label>
         <label className="block">
-          <span className={FIELD_LABEL_CLASS}>Last name</span>
+          <span className="block pb-1.5 text-sm font-medium text-fg">Last name</span>
           <input value={last} onChange={(e) => setLast(e.target.value)} className={inputClass("w-full")} maxLength={80} autoComplete="family-name" />
         </label>
       </div>
       <div className="flex items-center gap-3">
         <button type="submit" disabled={busy || !dirty} className={buttonClass("primary")}>{busy ? "Saving…" : "Save name"}</button>
-        {state.done && <span className="text-xs text-emerald-600">Saved</span>}
-        {state.error && <span className="text-xs text-red-600">{state.error}</span>}
+        {state.done && <span className="text-xs text-success">Saved</span>}
+        {state.error && <span className="text-xs text-danger">{state.error}</span>}
       </div>
     </form>
   );
@@ -90,18 +90,18 @@ export function EmailForm({ current }: { current: string }) {
       </p>
       <div className="grid grid-cols-1 max-w-md gap-3 sm:grid-cols-2">
         <label className="block">
-          <span className={FIELD_LABEL_CLASS}>New email</span>
+          <span className="block pb-1.5 text-sm font-medium text-fg">New email</span>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass("w-full")} autoComplete="email" required />
         </label>
         <label className="block">
-          <span className={FIELD_LABEL_CLASS}>Your password</span>
+          <span className="block pb-1.5 text-sm font-medium text-fg">Your password</span>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass("w-full")} autoComplete="current-password" required />
         </label>
       </div>
       <div className="flex items-center gap-3">
         <button type="submit" disabled={busy || !email.trim() || !password} className={buttonClass("primary")}>{busy ? "Moving…" : "Change email"}</button>
-        {state.done && <span className="text-xs text-emerald-600">{state.done}</span>}
-        {state.error && <span className="text-xs text-red-600">{state.error}</span>}
+        {state.done && <span className="text-xs text-success">{state.done}</span>}
+        {state.error && <span className="text-xs text-danger">{state.error}</span>}
       </div>
     </form>
   );

@@ -6,7 +6,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { buttonClass } from "@/components/ui";
+import { Cpu, Plug } from "lucide-react";
+import { Button } from "@/components/kit/button";
+import { IconBox } from "@/components/kit/page";
 import { LocalTime } from "@/components/local-time";
 import { useConfirm } from "@/components/confirm";
 import { Email } from "@/components/email";
@@ -53,30 +55,37 @@ export function McpConnections({ connections, everyone }: { connections: Connect
     router.refresh();
   }
 
+  const field = "mt-1.5 h-9 w-full rounded-md border border-line bg-surface px-3 text-sm text-fg";
   const machineForm = everyone ? (
-    <div className="mt-3 text-sm">
+    <div className="border-t border-line bg-sunken px-5 py-3 text-sm sm:px-6">
       {made && (
-        <div className="mb-3 rounded border border-line p-3 text-xs">
-          <div className="font-medium">Copy the secret now — it is not shown again.</div>
-          <div className="mt-1 font-mono break-all">client_id: {made.client_id}</div>
-          {made.client_secret && <div className="font-mono break-all">client_secret: {made.client_secret}</div>}
+        <div role="status" className="mb-3 rounded-md border border-success-line bg-success-soft p-3 text-xs text-fg">
+          <div className="font-medium text-success">Copy the secret now — it is not shown again.</div>
+          <div className="mt-1 break-all font-mono">client_id: {made.client_id}</div>
+          {made.client_secret && <div className="break-all font-mono">client_secret: {made.client_secret}</div>}
           <div className="mt-1 text-fg-muted">POST {made.token_endpoint} with grant_type=client_credentials, the id and secret as HTTP Basic; then Bearer the access token to /api/mcp.</div>
-          <button type="button" onClick={() => setMade(null)} className={`${buttonClass("minimal")} mt-2`}>Done</button>
+          <Button variant="ghost" className="mt-2" onClick={() => setMade(null)}>Done</Button>
         </div>
       )}
       {adding ? (
-        <div className="flex flex-wrap items-end gap-2 rounded-xl border border-line bg-surface p-3">
-          <label className="text-xs">Name<input value={m.name} onChange={(e) => setM({ ...m, name: e.target.value })} placeholder="Nightly report bot" className="mt-1 block rounded border border-line bg-surface px-2 py-1" /></label>
-          <label className="text-xs">Role<select value={m.role} onChange={(e) => setM({ ...m, role: e.target.value })} className="mt-1 block rounded border border-line bg-surface px-2 py-1">{["viewer", "editor", "admin"].map((r) => <option key={r} value={r}>{r}</option>)}</select></label>
-          <label className="text-xs">Access<select value={m.access} onChange={(e) => setM({ ...m, access: e.target.value as "read" | "write" })} className="mt-1 block rounded border border-line bg-surface px-2 py-1"><option value="read">read only</option><option value="write">read and act</option></select></label>
-          <label className="text-xs">Workspaces (comma-separated; empty for all you can open)<input value={m.workspaces} onChange={(e) => setM({ ...m, workspaces: e.target.value })} className="mt-1 block rounded border border-line bg-surface px-2 py-1" /></label>
-          <button type="button" disabled={busy === "add" || !m.name.trim()} onClick={() => void addMachine()} className={buttonClass("primary")}>Register</button>
-          <button type="button" onClick={() => setAdding(false)} className={buttonClass("minimal")}>Cancel</button>
+        <div className="space-y-3 py-1">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="block text-sm font-medium text-fg">Name<input value={m.name} onChange={(e) => setM({ ...m, name: e.target.value })} placeholder="Nightly report bot" className={field} /></label>
+            <label className="block text-sm font-medium text-fg">Role<select value={m.role} onChange={(e) => setM({ ...m, role: e.target.value })} className={field}>{["viewer", "editor", "admin"].map((r) => <option key={r} value={r}>{r}</option>)}</select></label>
+            <label className="block text-sm font-medium text-fg">Access<select value={m.access} onChange={(e) => setM({ ...m, access: e.target.value as "read" | "write" })} className={field}><option value="read">read only</option><option value="write">read and act</option></select></label>
+            <label className="block text-sm font-medium text-fg sm:col-span-3">Workspaces <span className="font-normal text-fg-muted">— comma-separated; empty for all you can open</span><input value={m.workspaces} onChange={(e) => setM({ ...m, workspaces: e.target.value })} className={field} /></label>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setAdding(false)}>Cancel</Button>
+            <Button variant="primary" disabled={busy === "add" || !m.name.trim()} onClick={() => void addMachine()}>Register</Button>
+          </div>
         </div>
       ) : (
-        <button type="button" onClick={() => setAdding(true)} className={buttonClass("secondary")}>Add a machine client</button>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="min-w-0 flex-1 text-fg-muted">A program that signs in to /api/mcp with client credentials — no person approves each token. It acts within your role and workspaces.</p>
+          <Button variant="secondary" onClick={() => setAdding(true)}>Add a machine client</Button>
+        </div>
       )}
-      <p className="mt-1 text-xs text-fg-muted">A program that signs in to /api/mcp with client credentials — no person approves each token. It acts within your role and workspaces, and stops if you lose them.</p>
     </div>
   ) : null;
 
@@ -91,37 +100,41 @@ export function McpConnections({ connections, everyone }: { connections: Connect
     router.refresh();
   }
 
-  if (!connections.length) {
-    return (
-      <div>
-        <p className="text-xs text-fg-muted">No AI app is connected{everyone ? " to this account" : " as you"}. claude.ai connects by itself when you add this install&apos;s /api/mcp as a custom connector.</p>
-        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-        {machineForm}
-      </div>
-    );
-  }
   return (
-    <div className="divide-y divide-line-faint rounded-xl border border-line bg-surface">
+    <div className="mb-6 min-w-0 overflow-hidden rounded-lg border border-line bg-surface">
       {confirmDialog}
-      {connections.map((c) => (
-        <div key={c.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
-          <div className="min-w-0">
-            <p className="font-medium text-fg">
-              {c.client} <span className="font-normal text-fg-muted">· {c.machine ? "machine client" : c.redirectHost}</span>
-            </p>
-            <p className="text-xs text-fg-muted">
-              {c.access === "read" ? "read only" : "read and act"} · {c.workspaces ? c.workspaces.join(", ") : "all workspaces"}
-              {everyone ? <> · <Email value={c.person} /></> : null} · connected <LocalTime iso={c.createdAt} />
-              {c.lastUsedAt ? <> · last used <LocalTime iso={c.lastUsedAt} /></> : null}
-            </p>
-          </div>
-          <button type="button" disabled={busy === c.id} onClick={() => revoke(c)} className={buttonClass("secondary")}>
-            Disconnect
-          </button>
-        </div>
-      ))}
-      {error && <p className="px-4 py-2 text-xs text-red-600">{error}</p>}
-      <div className="px-4 pb-3">{machineForm}</div>
+      <div className="space-y-1.5 p-5 pb-3 sm:p-6 sm:pb-3">
+        <h2 className="text-lg font-semibold text-fg">Connected AI apps</h2>
+        <p className="text-sm text-fg-muted">Apps signed in to this account over OAuth. Disconnect one and every token it holds stops working.</p>
+      </div>
+      {connections.length === 0 ? (
+        <p className="px-5 pb-5 text-sm text-fg-muted sm:px-6">
+          No AI app is connected{everyone ? " to this account" : " as you"}. claude.ai connects by itself when you add this install&apos;s /api/mcp as a custom connector.
+        </p>
+      ) : (
+        <ul className="divide-y divide-line border-t border-line">
+          {connections.map((c) => (
+            <li key={c.id} className="flex items-center gap-3 px-5 py-3 text-sm sm:px-6">
+              <IconBox className="max-sm:hidden">{c.machine ? <Cpu /> : <Plug />}</IconBox>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium text-fg">
+                  {c.client} <span className="font-normal text-fg-muted">· {c.machine ? "machine client" : c.redirectHost}</span>
+                </p>
+                <p className="text-xs text-fg-muted">
+                  {c.access === "read" ? "read only" : "read and act"} · {c.workspaces ? c.workspaces.join(", ") : "all workspaces"}
+                  {everyone ? <> · <Email value={c.person} /></> : null} · connected <LocalTime iso={c.createdAt} />
+                  {c.lastUsedAt ? <> · last used <LocalTime iso={c.lastUsedAt} /></> : null}
+                </p>
+              </div>
+              <Button variant="ghost" className="hover:text-danger" disabled={busy === c.id} onClick={() => revoke(c)}>
+                Disconnect
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {error && <p role="alert" className="px-5 pb-3 text-sm text-danger sm:px-6">{error}</p>}
+      {machineForm}
     </div>
   );
 }

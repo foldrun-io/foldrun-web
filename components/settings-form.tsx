@@ -1,12 +1,14 @@
 "use client";
 
-// The one shape a setting takes: a card with fields, a footer with Save,
-// Cancel while something changed, and what happened. Every form on a
-// settings page is this plus its fields, so they all save the same way,
-// disable the same way, and say "Saved" the same way.
+// The one shape a setting takes: cloudhost's settings card — a title and a
+// line about it, the fields, and a footer with a quiet note on the left and
+// Save on the right (Cancel while something changed, and what happened).
+// Every form on a settings page is this plus its fields, so they all save
+// the same way, disable the same way, and say "Saved" the same way.
 
 import { useState, type FormEvent, type ReactNode } from "react";
-import { buttonClass } from "./ui";
+import { Button } from "./kit/button";
+import { cn } from "./kit/cn";
 
 export function useSettingsForm<T>(initial: T, submit: (value: T) => Promise<void | T>) {
   const [value, setValue] = useState<T>(initial);
@@ -43,6 +45,9 @@ export function SettingsForm({
   form,
   saveLabel = "Save",
   hint,
+  title,
+  description,
+  id,
   compact = false,
   children,
 }: {
@@ -50,6 +55,10 @@ export function SettingsForm({
   saveLabel?: string;
   /** A short sentence in the footer — where the value lives, what it changes. */
   hint?: ReactNode;
+  /** The card's title and its line (cloudhost's settings card). */
+  title?: ReactNode;
+  description?: ReactNode;
+  id?: string;
   /** Drop the card: no border, no footer bar, the Save button inline. For a
    *  control that already sits inside a row of its own — a settings page
    *  wants the card, a list of twenty workspaces wants one line each, and
@@ -66,46 +75,64 @@ export function SettingsForm({
     return (
       <form onSubmit={onSubmit} className="flex flex-wrap items-center gap-2">
         {children}
-        <button type="submit" disabled={!form.dirty || form.busy} className={buttonClass("secondary")}>
+        <Button type="submit" variant="secondary" disabled={!form.dirty || form.busy}>
           {form.busy ? "Saving…" : saveLabel}
-        </button>
+        </Button>
         {form.dirty && !form.busy && (
-          <button type="button" onClick={form.reset} className={buttonClass("minimal")}>
+          <Button type="button" variant="ghost" onClick={form.reset}>
             Cancel
-          </button>
+          </Button>
         )}
-        {form.error && <span className="text-xs text-red-600">{form.error}</span>}
-        {form.done && !form.dirty && <span className="text-xs text-emerald-600">Saved</span>}
+        {form.error && <span className="text-xs text-danger">{form.error}</span>}
+        {form.done && !form.dirty && <span className="text-xs text-success">Saved</span>}
       </form>
     );
   }
   return (
-    <form onSubmit={onSubmit} className="rounded-xl border border-line bg-surface">
-      <div className="space-y-4 p-5">{children}</div>
-      <div className="flex flex-wrap items-center gap-3 border-t border-line-faint bg-sunken/60 px-5 py-3">
-        <button type="submit" disabled={!form.dirty || form.busy} className={buttonClass("primary")}>
-          {form.busy ? "Saving…" : saveLabel}
-        </button>
-        {form.dirty && !form.busy && (
-          <button type="button" onClick={form.reset} className={buttonClass("minimal")}>
-            Cancel
-          </button>
+    <form id={id} onSubmit={onSubmit} className="mb-6 min-w-0 scroll-mt-24 overflow-hidden rounded-lg border border-line bg-surface">
+      <div className="space-y-4 p-5 sm:p-6">
+        {(title || description) && (
+          <div className="min-w-0 space-y-1.5">
+            {title && <h2 className="text-lg font-semibold text-fg">{title}</h2>}
+            {description && <div className="text-sm text-fg-muted">{description}</div>}
+          </div>
         )}
-        {form.done && !form.dirty && <span className="text-xs text-emerald-600">Saved</span>}
-        {form.error && <span className="text-xs text-red-600">{form.error}</span>}
-        {hint && <span className="ml-auto text-xs text-fg-subtle">{hint}</span>}
+        {children}
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-sunken px-5 py-3 text-sm text-fg-muted sm:px-6">
+        <div className="min-w-0">
+          {form.error ? (
+            <span role="alert" className="text-danger">
+              {form.error}
+            </span>
+          ) : form.done && !form.dirty ? (
+            <span className="text-success">Saved</span>
+          ) : (
+            hint
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {form.dirty && !form.busy && (
+            <Button type="button" variant="ghost" onClick={form.reset}>
+              Cancel
+            </Button>
+          )}
+          <Button type="submit" variant="primary" disabled={!form.dirty || form.busy}>
+            {form.busy ? "Saving…" : saveLabel}
+          </Button>
+        </div>
       </div>
     </form>
   );
 }
 
 /** A labelled field: the label above, the control, one line under it. */
-export function Field({ label, help, children }: { label: string; help?: ReactNode; children: ReactNode }) {
+export function Field({ label, help, children, className }: { label: string; help?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <label className="block">
-      <span className="block text-[10px] font-medium uppercase tracking-wide text-fg-subtle">{label}</span>
-      <div className="mt-1">{children}</div>
-      {help && <span className="mt-1 block text-xs text-fg-subtle">{help}</span>}
+    <label className={cn("block", className)}>
+      <span className="block text-sm font-medium text-fg">{label}</span>
+      <div className="mt-1.5">{children}</div>
+      {help && <span className="mt-1.5 block text-xs text-fg-muted">{help}</span>}
     </label>
   );
 }

@@ -171,7 +171,7 @@ export function RunTimeline({
   const glide = win === null ? "transition-[width,left] duration-500 ease-linear" : "";
 
   return (
-    <div className="rounded-xl border border-line bg-surface">
+    <div className="overflow-hidden rounded-lg border border-line bg-surface">
       <style>{`
         @keyframes timeline-slide { from { background-position: 0 0 } to { background-position: 28px 0 } }
         .timeline-live {
@@ -184,15 +184,15 @@ export function RunTimeline({
       `}</style>
 
       {/* axis */}
-      <div className="grid grid-cols-[11rem_1fr] border-b border-line-faint text-[10px] text-fg-subtle">
-        <div className="px-3 py-1.5 font-medium uppercase tracking-wide">Timeline</div>
-        <div className="relative h-6 pr-3">
+      <div className="grid grid-cols-[8rem_1fr] border-b border-line bg-sunken text-xs text-fg-muted sm:grid-cols-[11rem_1fr]">
+        <div className="px-3 py-2 text-[13px]">Step</div>
+        <div className="relative h-8 pr-3">
           {/* A label within a few percent of either edge would clip; the
               grid line still marks the tick. The run's own zero always shows. */}
           {ticks.filter((t) => tickPos(t) < 96 && (tickPos(t) > 3 || t === 0)).map((t) => (
             <span
               key={t}
-              className="absolute top-1.5 -translate-x-1/2 tabular-nums"
+              className="absolute top-2 -translate-x-1/2 tabular-nums"
               style={{ left: `${tickPos(t)}%` }}
             >
               {t === 0 ? "0" : fmtTick(t)}
@@ -202,8 +202,8 @@ export function RunTimeline({
       </div>
 
       {/* rows */}
-      <div className={`grid grid-cols-[11rem_1fr] ${tall ? "max-h-[28rem] overflow-y-auto" : ""}`}>
-        <div className="border-r border-line-faint">
+      <div className={`grid grid-cols-[8rem_1fr] sm:grid-cols-[11rem_1fr] ${tall ? "max-h-[28rem] overflow-y-auto" : ""}`}>
+        <div className="border-r border-line">
           {run.steps.map((step, i) => {
             const firstOfGroup = i === 0 || run.steps[i - 1].group !== step.group;
             const parallel = !firstOfGroup;
@@ -214,18 +214,18 @@ export function RunTimeline({
                 onMouseEnter={() => setHover({ step: i })}
                 onMouseLeave={() => setHover(null)}
                 onClick={() => onSelect?.(i)}
-                className={`flex h-8 w-full items-center gap-1.5 px-3 text-left text-xs transition-colors hover:bg-sunken ${
+                className={`flex h-8 w-full items-center gap-1.5 px-3 text-left text-[13px] transition-colors hover:bg-sunken ${
                   hover?.step === i ? "bg-sunken" : ""
                 }`}
                 title={step.instruction || step.agent}
               >
                 <span
-                  className="w-4 shrink-0 tabular-nums text-gray-300"
+                  className="w-4 shrink-0 text-xs tabular-nums text-fg-subtle"
                   title={firstOfGroup ? `group ${step.group}` : `runs in parallel with the step above (group ${step.group})`}
                 >
                   {firstOfGroup ? step.group : "‖"}
                 </span>
-                <span className={`min-w-0 truncate ${parallel ? "text-fg-tertiary" : "font-medium text-gray-800"}`}>
+                <span className={`min-w-0 truncate ${parallel ? "text-fg-secondary" : "font-medium text-fg"}`}>
                   {step.agent}
                   {step.item && <span className="text-fg-subtle"> · {step.item}</span>}
                 </span>
@@ -351,7 +351,7 @@ export function RunTimeline({
                     })}
                   </>
                 ) : (
-                  <span className="absolute top-3.5 right-0 text-[10px] text-gray-300">{status}</span>
+                  <span className="absolute top-2 right-0 text-xs text-fg-subtle">{status}</span>
                 )}
               </div>
             );
@@ -359,14 +359,14 @@ export function RunTimeline({
         </div>
       </div>
 
-      <div className="flex items-center gap-3 border-t border-line-faint px-3 py-1.5 text-[11px] text-fg-muted">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line px-3 py-2 text-xs text-fg-muted">
         <span className="min-w-0 flex-1 truncate tabular-nums">{readout}</span>
-        <span className="flex shrink-0 items-center gap-0.5 text-[11px] text-fg-subtle">
+        <span className="flex shrink-0 items-center gap-0.5 text-xs text-fg-muted">
           <button
             type="button"
             onClick={() => zoomStep(1 / 1.6)}
             disabled={win === null}
-            className="h-5 w-5 rounded hover:bg-muted hover:text-fg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+            className="size-6 rounded hover:bg-muted hover:text-fg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
             title="Zoom out"
             aria-label="Zoom out"
           >
@@ -375,7 +375,7 @@ export function RunTimeline({
           <button
             type="button"
             onClick={() => zoomStep(1.6)}
-            className="h-5 w-5 rounded hover:bg-muted hover:text-fg-secondary"
+            className="size-6 rounded hover:bg-muted hover:text-fg-secondary"
             title="Zoom in — or drag across the chart, or pinch"
             aria-label="Zoom in"
           >
@@ -392,7 +392,7 @@ export function RunTimeline({
             </button>
           )}
         </span>
-        <span className="flex shrink-0 items-center gap-2 text-[10px] text-fg-subtle">
+        <span className="flex shrink-0 items-center gap-2 text-xs text-fg-muted max-sm:hidden">
           <span className="inline-block h-2 w-3 rounded-sm bg-green-500/80" /> step
           <span className="inline-block h-1.5 w-3 rounded-[2px] bg-blue-400/80" /> tool
           <span className="inline-block h-2 w-3 rounded-sm bg-amber-300 timeline-waiting" /> waiting

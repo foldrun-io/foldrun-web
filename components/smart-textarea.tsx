@@ -124,7 +124,7 @@ export function SmartTextarea({
   const gutterWidth = Math.max(2, String(lineCount).length) * CHAR_WIDTH + 20;
 
   return (
-    <div className="relative overflow-hidden rounded-lg border border-line bg-surface shadow-sm focus-within:border-gray-400 focus-within:ring-2 focus-within:ring-line">
+    <div className="relative overflow-hidden rounded-lg border border-line bg-surface shadow-sm focus-within:border-line-strong focus-within:ring-2 focus-within:ring-line">
       {/* A YAML error names a line — "bad indentation … at line 12" — which is
           unusable against a bare textarea. The gutter is what makes the message
           actionable, so it marks the offending line rather than only counting.
@@ -143,7 +143,7 @@ export function SmartTextarea({
         className="absolute inset-y-0 left-0 select-none overflow-hidden border-r border-line-faint bg-sunken/70 py-3 pr-2 text-right font-mono text-xs tabular-nums text-fg-subtle"
       >
         {Array.from({ length: lineCount }, (_, i) => i + 1).map((n) => (
-          <div key={n} className={n === errorLine ? "font-semibold text-red-600" : undefined}>
+          <div key={n} className={n === errorLine ? "font-semibold text-danger" : undefined}>
             {n}
           </div>
         ))}
@@ -223,7 +223,7 @@ export function SmartTextarea({
           style={{ top: caret.top, left: caret.left }}
           className="absolute z-20 max-h-64 w-80 overflow-auto rounded-lg border border-line bg-surface shadow-xl"
         >
-          <p className="border-b border-line-faint px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">
+          <p className="border-b border-line-faint px-3 py-1.5 text-xs font-medium text-fg-muted">
             {ctx.title}
           </p>
           <ul>

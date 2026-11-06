@@ -13,19 +13,26 @@ import { avatarUrl } from "@/platform/avatars";
 import { Avatar } from "@/components/avatar";
 import { platform } from "@/lib/platform";
 import { workspaceBudgetStanding } from "@/platform/limits";
-import { AgentsPanel, FlowsPanel } from "@/components/workspace-desk";
-import { AttentionPanel, NowNext, StatusStrip } from "@/components/mission-control";
-import { needsList, flowStrips, nowBoard, spendWithin, DAY_MS } from "@/components/mission-model";
+import { AttentionPanel, Cells, NowNext, Panel, PanelLink, SpendPanel, outcomeRing } from "@/components/mission-control";
+import { needsList, flowStrips, nowBoard, spendWithin, fmtSpan, DAY_MS } from "@/components/mission-model";
 import { accountIssues } from "@/server/issues";
-import { flowRows, agentRows, type NextFire } from "@/components/workspace-overview-model";
+import { flowRows, agentRows, fmtIn, type NextFire } from "@/components/workspace-overview-model";
 import { parseCron, nextFire, upcomingRuns } from "@/platform/scheduler";
 import { fmtAgo, nowMs } from "@/components/overview-model";
 import { creditsShort } from "@/components/money";
 import { runLite } from "@/server/run-lite";
 import { runCharges, runCharge, agentCharge } from "@/server/run-charges";
-import { AutoRefresh } from "../run-button";
+import { AutoRefresh, RunButton } from "../run-button";
 import { workspaceRuntimeReport } from "@/platform/runtime-warm.ts";
 import { RuntimesPanel } from "@/components/workspace-runtimes";
+import { Page, PageHeader, Fact, ResourceCard, EmptyState, IconBox } from "@/components/kit/page";
+import { buttonVariants } from "@/components/kit/button";
+import { SplitOverview } from "@/components/kit/overview";
+import { Status } from "@/components/kit/status";
+import type { Row } from "@/components/kit/list";
+import { OUTCOME } from "@/components/outcome-model";
+import { humanSchedule } from "@/components/schedule-human";
+import { BarChart3, Bot, CircleDashed, Clock3, FolderTree, GitCommitHorizontal, Settings, Workflow } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -70,55 +77,164 @@ export default async function ProjectPage({
   const runtimes = workspaceRuntimeReport(tenant, workspace);
   const runtimeBuilding = runtimes.some((r) => r.state === "building" || r.state === "pending");
 
+  const flowRowsUi: Row[] = rows.map((f) => {
+    const beat = strips.get(f.name);
+    const last = beat?.last ?? null;
+    const href = `/dashboard/${workspace}/flows?flow=${encodeURIComponent(f.name)}${tenantParam}`;
+    const when = f.schedule ? (humanSchedule(f.schedule) ?? f.schedule) : f.trigger === "webhook" ? "Webhook" : f.trigger === "manual" ? "Run by hand" : f.trigger;
+    const lastLine = last ? (
+      <>
+        <span className={`size-2 shrink-0 rounded-full ${OUTCOME[last.outcome].dot}`} />
+        <span className="truncate">
+          {OUTCOME[last.outcome].label} {fmtSpan(now - Date.parse(last.startedAt))} ago
+          {last.failure ? ` · ${last.failure.agent}: ${last.failure.reason}` : last.headline ? ` · ${last.headline}` : ""}
+        </span>
+      </>
+    ) : (
+      <>
+        <CircleDashed />
+        <span className="truncate">Never ran</span>
+      </>
+    );
+    const nextLine = f.nextFireAt ? (
+      <>
+        <Clock3 />
+        <span className="truncate">Next {fmtIn(Date.parse(f.nextFireAt) - now)}</span>
+      </>
+    ) : null;
+    return {
+      key: f.name,
+      search: [f.name, when, last?.headline, last?.failure?.reason].filter(Boolean).join(" "),
+      href,
+      icon: <Workflow />,
+      name: f.name,
+      sub: `${when} · ${f.steps} step${f.steps === 1 ? "" : "s"}`,
+      cells: {
+        status: last ? <Status outcome={last.outcome} /> : <span className="text-fg-muted">Never ran</span>,
+        runs: beat ? <Cells beat={beat} n={12} tenant={tenant} /> : undefined,
+        next: f.nextFireAt ? fmtIn(Date.parse(f.nextFireAt) - now) : undefined,
+        spend: `${f.runs7d} · ${creditsShort(f.spend7d)}`,
+      },
+      action: <RunButton endpoint={`/api/workspaces/${workspace}/flows/${f.name}/run`} tenant={tenant} label="Run" />,
+      card: (
+        <ResourceCard
+          href={href}
+          icon={<Workflow />}
+          name={f.name}
+          sub={when}
+          status={f.live > 0 ? "busy" : outcomeRing(last?.outcome)}
+          statusLabel={f.live > 0 ? `${f.live} running` : last ? OUTCOME[last.outcome].hint : "never ran"}
+          lines={[lastLine, ...(nextLine ? [nextLine] : []), <><BarChart3 /><span className="truncate">{f.runs7d} run{f.runs7d === 1 ? "" : "s"} · {creditsShort(f.spend7d)} in 7 days</span></>]}
+        />
+      ),
+    };
+  });
+  const agentList = agentRows(agents, runs, now, (r, a) => agentCharge(r, a, charges));
+
   return (
-    <main className="mx-auto max-w-7xl px-6 py-6">
+    <Page>
       <AutoRefresh active={board.length > 0 || runtimeBuilding} />
-      <header className="mb-4">
-        <div className="flex items-start justify-between gap-6">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2.5">
-              <Avatar name={workspace} src={avatarUrl(tenant, "workspace", workspace)} size="lg" square />
-              <h1 className="font-cal text-xl font-semibold tracking-tight text-fg">{workspace}</h1>
-            </div>
-            <p className="mt-1 text-sm text-fg-muted">
-              {summary?.description || `${agents.length} agent${agents.length === 1 ? "" : "s"} · ${flows.length} flow${flows.length === 1 ? "" : "s"}`}
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-col items-end gap-1 text-xs">
-            <Link href={`/dashboard/${workspace}/edit${qs}`} className="font-medium text-fg-tertiary hover:text-fg">Source files →</Link>
+      <PageHeader
+        icon={<Avatar name={workspace} src={avatarUrl(tenant, "workspace", workspace)} size="lg" square />}
+        title={workspace}
+        description={summary?.description || undefined}
+        meta={
+          <>
+            <Fact label="Agents">{agents.length}</Fact>
+            <Fact label="Flows">{flows.length}</Fact>
             {/* The commit the last deploy named (foldrun deploy --commit), when
                 it named one; either way, History is where the changes are. */}
-            <Link href={`/dashboard/${workspace}/history${qs}`} className={`text-[11px] text-fg-subtle hover:text-fg-secondary ${commit ? "font-mono" : ""}`}>
-              {commit ? `${commit.commit.slice(0, 7)} · deployed ${fmtAgo(now - Date.parse(commit.at))}` : "History →"}
+            <Link href={`/dashboard/${workspace}/history${qs}`} className="inline-flex items-center gap-1.5 hover:text-fg">
+              <GitCommitHorizontal className="size-4" aria-hidden />
+              {commit ? (
+                <span>
+                  <span className="font-mono">{commit.commit.slice(0, 7)}</span> deployed {fmtAgo(now - Date.parse(commit.at))}
+                </span>
+              ) : (
+                "History"
+              )}
             </Link>
-          </div>
-        </div>
-      </header>
-
-      <StatusStrip
-        now={now}
-        facts={{
-          running: board.length,
-          attention: needs.length,
-          platform: needs.filter((a) => a.kind === "platform").length,
-          next: upcoming[0] ? { flow: upcoming[0].flow, at: upcoming[0].at } : null,
-          spendDayUsd: spendWithin(lite, now, DAY_MS),
-          spend7dUsd: spendWithin(lite, now, 7 * DAY_MS),
-          budget: budget !== null ? { text: `${creditsShort(spent)} of ${creditsShort(budget.usd)} ${window}`, warn: spent >= budget.usd * 0.8 } : null,
-          links: {
-            attention: needs.length ? "#attention" : `/dashboard/${workspace}/runs${qs}`,
-            running: `/dashboard/${workspace}/runs?status=running${tenantParam}`,
-            next: `/dashboard/${workspace}/triggers${qs}`,
-            // The wallet is hosted furniture; elsewhere the spend is Usage.
-            spend: platform.edition() === "hosted" ? `/dashboard/wallet${qs}` : `/dashboard/usage${qs}`,
-          },
-        }}
+          </>
+        }
+        actions={
+          <>
+            <Link href={`/dashboard/${workspace}/edit${qs}`} className={buttonVariants({ variant: "secondary" })}>
+              <FolderTree aria-hidden />
+              Files
+            </Link>
+            <Link href={`/dashboard/${workspace}/settings${qs}`} className={buttonVariants({ variant: "secondary", size: "icon-sm" })} aria-label="Workspace settings">
+              <Settings aria-hidden />
+            </Link>
+          </>
+        }
       />
-      <AttentionPanel items={needs} tenant={tenant} showWorkspace={false} accountWide={accountWide} issuesHref={`/dashboard/issues?workspace=${encodeURIComponent(workspace)}${tenant !== "default" ? `&tenant=${tenant}` : ""}`} />
-      <NowNext board={board} upcoming={upcoming} now={now} tenant={tenant} showWorkspace={false} runsHref={`/dashboard/${workspace}/runs${qs}`} />
-      <FlowsPanel workspace={workspace} tenant={tenant} flows={rows} strips={strips} now={now} />
-      <RuntimesPanel runtimes={runtimes} />
-      <AgentsPanel workspace={workspace} tenant={tenant} agents={agentRows(agents, runs, now, (r, a) => agentCharge(r, a, charges))} now={now} />
-    </main>
+      <SplitOverview
+        search="Search flows…"
+        title="Flows"
+        actions={
+          <Link href={`/dashboard/${workspace}/flows${qs}`} className={buttonVariants({ variant: "secondary" })}>
+            All flows
+          </Link>
+        }
+        columns={[
+          { key: "status", header: "Last run" },
+          { key: "runs", header: "Recent runs", hide: "lg" },
+          { key: "next", header: "Next", hide: "md" },
+          { key: "spend", header: "7 days", align: "end", hide: "sm" },
+        ]}
+        rows={flowRowsUi}
+        empty={
+          <EmptyState
+            icon={<Workflow />}
+            title="No flows yet"
+            description="A flow is a numbered list of steps in flows/, each naming the agent that runs it."
+            action={
+              <Link href={`/dashboard/${workspace}/flows?create=flows${tenantParam}`} className={buttonVariants({ variant: "primary" })}>
+                New flow
+              </Link>
+            }
+          />
+        }
+        left={
+          <>
+            <AttentionPanel items={needs} tenant={tenant} showWorkspace={false} accountWide={accountWide} issuesHref={`/dashboard/issues?workspace=${encodeURIComponent(workspace)}${tenantParam}`} />
+            <NowNext board={board} upcoming={upcoming} now={now} tenant={tenant} showWorkspace={false} runsHref={`/dashboard/${workspace}/runs${qs}`} />
+            <SpendPanel
+              dayUsd={spendWithin(lite, now, DAY_MS)}
+              weekUsd={spendWithin(lite, now, 7 * DAY_MS)}
+              budget={budget !== null ? { spentUsd: spent, limitUsd: budget.usd, label: window } : null}
+              href={platform.edition() === "hosted" ? `/dashboard/wallet${qs}` : `/dashboard/usage${qs}`}
+            />
+          </>
+        }
+        after={
+          <>
+            <RuntimesPanel runtimes={runtimes} />
+            <Panel title="Agents" count={agentList.length} action={<PanelLink href={`/dashboard/${workspace}/agents${qs}`}>All agents</PanelLink>}>
+              {agentList.length === 0 ? (
+                <p className="px-5 py-8 text-center text-sm text-fg-muted">No agents yet.</p>
+              ) : (
+                <ul className="divide-y divide-line">
+                  {agentList.map((a) => (
+                    <li key={a.name}>
+                      <Link href={`/dashboard/${workspace}/agents/${encodeURIComponent(a.name)}${qs}`} className="flex min-w-0 items-center gap-3 px-5 py-3 hover:bg-sunken">
+                        <IconBox>
+                          <Bot />
+                        </IconBox>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium text-fg">{a.name}</span>
+                          <span className="block truncate text-xs text-fg-muted">{a.description || a.model}</span>
+                        </span>
+                        <span className="hidden shrink-0 text-xs text-fg-muted sm:block">{a.lastAt ? `ran ${fmtAgo(now - Date.parse(a.lastAt))}` : "never ran"}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
+          </>
+        }
+      />
+    </Page>
   );
 }

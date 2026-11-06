@@ -75,7 +75,7 @@ export function deprecationNotice(
       `In the last 30 days it was called ${use.requests} time${use.requests === 1 ? "" : "s"}, by:\n${callers}\n\n` +
       (d.link ? `What replaces it: ${d.link}\n\n` : "") +
       `Every response from it carries Deprecation and Sunset headers. Your use of the API, and of this route, is in\n` +
-      `  ${origin ? `${origin}/dashboard/settings#api` : "Settings → API, on the dashboard"}\n` +
+      `  ${origin ? `${origin}/dashboard/settings?tab=api#api` : "Settings → API, on the dashboard"}\n` +
       `  foldrun api version\n\n` +
       `Once nothing calls it, there is nothing more to do; these warnings stop.\n`,
   };

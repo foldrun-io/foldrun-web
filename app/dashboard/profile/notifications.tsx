@@ -32,7 +32,7 @@ function Switch({ on, disabled, onChange, label }: { on: boolean; disabled?: boo
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!on)}
-      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${on ? "bg-ink" : "bg-gray-300"} ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
+      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${on ? "bg-ink" : "bg-line-strong"} ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
     >
       <span className={`inline-block h-4 w-4 rounded-full bg-surface transition-transform ${on ? "translate-x-4" : "translate-x-0.5"}`} />
     </button>
@@ -77,14 +77,14 @@ export function NotificationPreferences({ workspaces }: { workspaces: string[] }
 
   return (
     <Card className="divide-y divide-line-faint">
-      {error && <p className="px-5 py-3 text-sm text-red-700">{error}</p>}
+      {error && <p className="px-5 py-3 text-sm text-danger">{error}</p>}
       {cats.map((c) => (
         <div key={c.category} className="px-5 py-4">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-fg">
                 {c.label}
-                {c.required && <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-fg-muted">always sent</span>}
+                {c.required && <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-fg-muted">always sent</span>}
               </p>
               <p className="mt-0.5 text-xs text-fg-muted">{c.description}</p>
               {c.required && c.why && <p className="mt-1 text-xs text-fg-subtle">Cannot be turned off: {c.why}.</p>}

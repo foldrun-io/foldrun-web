@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/confirm";
+import { Trash2 } from "lucide-react";
+import { Button } from "@/components/kit/button";
 
 
 export function DeleteLibraryItem({
@@ -22,7 +24,12 @@ export function DeleteLibraryItem({
   return (
     <>
       {confirmDialog}
-      <button
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={`Delete ${name}`}
+        title="Delete"
+        className="hover:text-danger"
         onClick={async () => {
           if (!(await confirm({ title: `Delete ${name} from the library?`, confirmLabel: "Delete" }))) return;
           // For standard skills the folder is the unit, not the SKILL.md file.
@@ -34,10 +41,9 @@ export function DeleteLibraryItem({
           });
           router.refresh();
         }}
-        className="text-xs font-medium text-fg-subtle transition-colors hover:text-red-600"
       >
-        Delete
-      </button>
+        <Trash2 />
+      </Button>
     </>
   );
 }

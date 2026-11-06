@@ -10,6 +10,8 @@
 // the box into the inputs file through the source PUT — a revision like any
 // other edit, and the file `foldrun invoke <flow> --inputs <name>` reads.
 
+import { buttonVariants } from "@/components/kit/button";
+import { ChevronDown } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -152,7 +154,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
 
   return (
     <div ref={box} className="relative inline-flex">
-      <div className="inline-flex rounded-md shadow-sm">
+      <div className="inline-flex rounded-md">
         <button
           type="button"
           disabled={!mayRun}
@@ -161,7 +163,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
             setOpen((o) => !o);
             setMenu(false);
           }}
-          className={buttonClass("secondary", "rounded-r-none px-2 py-1 text-xs")}
+          className={buttonVariants({ variant: "secondary", className: "rounded-r-none" })}
         >
           Run with…
         </button>
@@ -171,14 +173,14 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
           aria-label="Pick a saved input set"
           aria-expanded={menu}
           onClick={() => setMenu((m) => !m)}
-          className={buttonClass("secondary", "-ml-px rounded-l-none px-1.5 py-1 text-xs")}
+          className={buttonVariants({ variant: "secondary", size: "icon-sm", className: "-ml-px rounded-l-none" })}
         >
-          ▾
+          <ChevronDown aria-hidden />
         </button>
       </div>
 
       {menu && (
-        <ul role="menu" className="absolute right-0 top-full z-30 mt-1 w-64 rounded-lg border border-line bg-surface py-1 text-xs shadow-lg">
+        <ul role="menu" className="absolute right-0 top-full z-30 mt-1 w-64 rounded-lg border border-line bg-surface p-1 text-[13px] shadow-menu">
           {sets === null && <li className="px-3 py-1.5 text-fg-subtle">Loading…</li>}
           {sets?.length === 0 && (
             <li className="px-3 py-1.5 text-fg-muted">No saved inputs yet. Open Run with… and save the task you type.</li>
@@ -207,10 +209,10 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
         <div
           role="dialog"
           aria-label={`Run ${flow} with saved inputs`}
-          className="absolute right-0 top-full z-30 mt-1 w-[min(28rem,calc(100vw-2rem))] rounded-xl border border-line bg-surface p-3 text-left shadow-xl"
+          className="absolute right-0 top-full z-30 mt-1 w-[min(28rem,calc(100vw-2rem))] rounded-lg border border-line bg-surface p-4 text-left shadow-menu"
         >
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-fg">Run {flow} with…</h3>
+            <h3 className="text-sm font-semibold text-fg">Run {flow} with…</h3>
             <button type="button" onClick={() => setOpen(false)} className="text-xs text-fg-subtle hover:text-fg-secondary" aria-label="Close">
               ✕
             </button>
@@ -220,7 +222,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
             <button
               type="button"
               onClick={() => pick(null)}
-              className={`rounded-full border px-2 py-0.5 text-[11px] ${chosen === null ? "border-gray-900 bg-ink text-on-ink" : "border-line text-fg-tertiary hover:bg-sunken"}`}
+              className={`rounded-full border px-2 py-0.5 text-[11px] ${chosen === null ? "border-transparent bg-ink text-on-ink" : "border-line text-fg-tertiary hover:bg-sunken"}`}
             >
               Custom
             </button>
@@ -230,7 +232,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
                 type="button"
                 onClick={() => pick(s)}
                 title={`evals/${s.file}${s.source === "eval" ? " — an eval case for this flow" : ""}`}
-                className={`rounded-full border px-2 py-0.5 text-[11px] ${chosen === s.name ? "border-gray-900 bg-ink text-on-ink" : "border-line text-fg-tertiary hover:bg-sunken"}`}
+                className={`rounded-full border px-2 py-0.5 text-[11px] ${chosen === s.name ? "border-transparent bg-ink text-on-ink" : "border-line text-fg-tertiary hover:bg-sunken"}`}
               >
                 {s.name}
                 {s.source === "eval" && <span className="ml-1 opacity-60">eval</span>}
@@ -238,7 +240,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
             ))}
           </div>
 
-          <label className="mt-2 block text-[10px] font-medium uppercase tracking-wide text-fg-subtle" htmlFor={`task-${flow}`}>
+          <label className="mt-3 block text-xs font-medium text-fg-muted" htmlFor={`task-${flow}`}>
             Task
           </label>
           <textarea
@@ -274,7 +276,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
           </fieldset>
 
           {started && (
-            <p className="mt-2 rounded-md bg-emerald-50 px-2 py-1.5 text-xs text-emerald-800">
+            <p className="mt-2 rounded-md bg-success-soft px-2 py-1.5 text-xs text-success">
               {started.test ? "Test run" : "Live run"} started —{" "}
               <Link href={runHref(started.runId)} className="font-medium underline">
                 open {started.runId}
@@ -305,11 +307,11 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
               Kept in <span className="font-mono">{inputsFile(flow)}</span> — also{" "}
               <span className="font-mono">foldrun invoke {flow} --inputs &lt;name&gt;</span>.
             </p>
-            {saved && <p className="mt-1 text-xs text-emerald-700">{saved}</p>}
+            {saved && <p className="mt-1 text-xs text-success">{saved}</p>}
           </div>
 
           {error && (
-            <p role="alert" className="mt-2 text-xs text-red-600">
+            <p role="alert" className="mt-2 text-xs text-danger">
               {error}
             </p>
           )}

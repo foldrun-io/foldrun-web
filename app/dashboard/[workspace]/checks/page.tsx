@@ -10,8 +10,9 @@ import fs from "node:fs";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { workspaceDir } from "@/lib/store";
-import { WorkspaceHeader } from "@/components/workspace-header";
-import { PageHeader } from "@/components/ui";
+import { BookOpen } from "lucide-react";
+import { Page, PageHeader } from "@/components/kit/page";
+import { buttonVariants } from "@/components/kit/button";
 import { ChecksPanel } from "./checks-panel";
 import { can } from "@/platform/permissions";
 import { viewerRole } from "@/server/users";
@@ -28,24 +29,24 @@ export default async function ChecksPage({
   const { workspace } = await params;
   const { tenant = "default" } = await searchParams;
   if (!fs.existsSync(workspaceDir(tenant, workspace))) notFound();
-  const qs = tenant !== "default" ? `?tenant=${tenant}` : "";
   // The online checks fetch OSV and remote MCP servers, an editor's ask
   // since 30 Oct 2026; a viewer is not offered a button the API refuses.
   const role = await viewerRole();
   const canOnline = role === null || can(role, "workspace:write");
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-8">
-      <WorkspaceHeader workspace={workspace} qs={qs} />
+    <Page>
       <PageHeader
         title="Checks"
-        subtitle={`What foldrun check says about ${workspace} as deployed: what a deploy refuses, what it warns about, and the security rules — secrets written into files, hidden text, agents that could leak, unpinned code. Offline; no model is called.`}
-      >
-        <Link href="https://docs.foldrun.io/checks" className="text-sm font-medium text-fg-muted hover:text-fg">
-          Every rule →
-        </Link>
-      </PageHeader>
+        description="What foldrun check says about this workspace as deployed: what a deploy refuses, what it warns about, and the security rules. Offline; no model is called."
+        actions={
+          <Link href="https://docs.foldrun.io/checks" className={buttonVariants({ variant: "secondary", size: "md" })}>
+            <BookOpen aria-hidden />
+            Every rule
+          </Link>
+        }
+      />
       <ChecksPanel workspace={workspace} tenantQuery={tenant !== "default" ? `&tenant=${tenant}` : ""} canOnline={canOnline} />
-    </main>
+    </Page>
   );
 }

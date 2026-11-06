@@ -11,6 +11,7 @@ import type { RunRecord } from "@/lib/store";
 import { CallContent, type CallRun } from "@/components/trace-view";
 import { fmtDur } from "@/components/run-timeline";
 import { grouped } from "@/components/money";
+import { ChevronRight } from "lucide-react";
 
 const TONE: Record<TraceSpan["status"], string> = {
   ok: "bg-emerald-500/70",
@@ -50,8 +51,14 @@ function Row({
   const isOpen = open.has(span.id);
   const failing = span.id === culprit;
   useEffect(() => {
-    // The failure the view opens on is scrolled to, once.
-    if (failing) ref.current?.scrollIntoView({ block: "nearest" });
+    // The failure the view opens on is scrolled to, once — inside the
+    // tree's own box, never the page: the run page's header and its
+    // callout are what a reader opens the page on.
+    const row = ref.current;
+    const box = row?.closest<HTMLElement>("[data-trace-box]");
+    if (!failing || !row || !box) return;
+    const top = row.offsetTop; // the box is the offset parent (relative)
+    if (top < box.scrollTop || top + row.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = Math.max(0, top - box.clientHeight / 2);
   }, [failing]);
   const dur = span.start !== null && span.end !== null ? Math.max(0, span.end - span.start) : null;
   const left = span.start !== null ? ((span.start - range.start) / range.width) * 100 : 0;
@@ -66,27 +73,27 @@ function Row({
     <>
       <div
         ref={ref}
-        className={`group grid grid-cols-[minmax(0,1fr)_minmax(6rem,30%)] items-center gap-3 rounded px-1.5 py-0.5 text-xs ${failing ? "bg-danger-soft" : "hover:bg-sunken"}`}
+        className={`group grid grid-cols-[minmax(0,1fr)_minmax(4rem,30%)] items-center gap-3 rounded px-1.5 py-1 text-[13px] ${failing ? "bg-danger-soft" : "hover:bg-sunken"}`}
       >
         <div className="flex min-w-0 items-center gap-1.5" style={{ paddingLeft: `${depth * 14}px` }}>
           {span.children.length > 0 ? (
-            <button type="button" aria-expanded={isOpen} onClick={() => toggle(span.id)} className="w-3 shrink-0 text-fg-subtle hover:text-fg">
-              {isOpen ? "▾" : "▸"}
+            <button type="button" aria-expanded={isOpen} aria-label={isOpen ? "Fold" : "Unfold"} onClick={() => toggle(span.id)} className="flex size-4 shrink-0 items-center justify-center text-fg-muted hover:text-fg">
+              <ChevronRight className={`size-3.5 transition-transform ${isOpen ? "rotate-90" : ""}`} aria-hidden />
             </button>
           ) : (
-            <span className="w-3 shrink-0" />
+            <span className="w-4 shrink-0" />
           )}
           <span className={`w-3 shrink-0 text-center ${span.status === "error" ? "text-danger" : "text-fg-subtle"}`}>{ICON[span.kind]}</span>
           <span className={`truncate ${span.kind === "step" || span.kind === "run" ? "font-medium text-fg" : span.status === "error" ? "text-danger" : "text-fg-secondary"}`} title={span.text ?? span.label}>
             {span.kind === "error" ? span.text : span.label}
           </span>
-          {facts.length > 0 && <span className="shrink-0 truncate text-[11px] text-fg-subtle">{facts.join(" · ")}</span>}
+          {facts.length > 0 && <span className="shrink-0 truncate text-xs text-fg-subtle">{facts.join(" · ")}</span>}
           {span.kind === "tool" && span.captured && (
-            <button type="button" aria-expanded={io} onClick={() => setIo((v) => !v)} className="shrink-0 text-[11px] font-medium text-fg-muted hover:text-fg hover:underline">
+            <button type="button" aria-expanded={io} onClick={() => setIo((v) => !v)} className="shrink-0 text-xs font-medium text-fg-muted hover:text-fg hover:underline">
               {io ? "hide" : "input / output"}
             </button>
           )}
-          {dur !== null && span.kind !== "error" && <span className="ml-auto shrink-0 tabular-nums text-[11px] text-fg-subtle">{fmtDur(dur)}</span>}
+          {dur !== null && span.kind !== "error" && <span className="ml-auto shrink-0 tabular-nums text-xs text-fg-subtle">{fmtDur(dur)}</span>}
         </div>
         <div className="relative h-2.5 rounded-sm bg-sunken">
           {span.start !== null && <div className={`absolute inset-y-0 rounded-sm ${TONE[span.status]}`} style={{ left: `${Math.min(99.4, left)}%`, width: `${Math.min(100 - Math.min(99.4, left), width)}%` }} />}
@@ -130,21 +137,22 @@ export function RunTree({ run, workspace, tenant, now }: { run: RunRecord; works
   const range = { start, width: Math.max(1, (tree.end ?? now) - start) };
   const calls = tree.children.reduce((n, s) => n + s.children.filter((c) => c.kind === "model").length, 0);
   return (
-    <section className="rounded-xl border border-line bg-surface p-2 shadow-sm">
-      <header className="mb-1 flex items-center gap-2 px-1.5 text-[11px]">
-        <span className="font-medium uppercase tracking-wide text-fg-subtle">trace</span>
-        <span className="text-fg-subtle">
+    <section className="overflow-hidden rounded-lg border border-line bg-surface">
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-sunken px-4 py-2 text-[13px]">
+        <span className="text-fg-muted">
           {tree.children.length} step{tree.children.length === 1 ? "" : "s"} · {calls} model call{calls === 1 ? "" : "s"}
           {path.length > 0 ? " · opened on what went wrong" : ""}
         </span>
-        <button type="button" onClick={() => setTouched(new Map(allIds.map((id) => [id, true])))} className="ml-auto text-fg-muted hover:text-fg hover:underline">
-          expand all
-        </button>
-        <button type="button" onClick={() => setTouched(new Map(allIds.filter((id) => id !== "run").map((id) => [id, false])))} className="text-fg-muted hover:text-fg hover:underline">
-          collapse
-        </button>
+        <span className="ml-auto flex items-center gap-3">
+          <button type="button" onClick={() => setTouched(new Map(allIds.map((id) => [id, true])))} className="text-fg-muted hover:text-fg hover:underline">
+            Expand all
+          </button>
+          <button type="button" onClick={() => setTouched(new Map(allIds.filter((id) => id !== "run").map((id) => [id, false])))} className="text-fg-muted hover:text-fg hover:underline">
+            Collapse
+          </button>
+        </span>
       </header>
-      <div className="max-h-[32rem] overflow-auto">
+      <div data-trace-box className="relative max-h-[32rem] overflow-auto p-2">
         <Row span={tree} depth={0} open={open} toggle={toggle} range={range} culprit={path.length ? path[path.length - 1]! : null} callRun={{ workspace, runId: run.id }} tenant={tenant} />
       </div>
     </section>

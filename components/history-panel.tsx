@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from "react";
 import { LocalTime } from "@/components/local-time";
-import { buttonClass } from "@/components/ui";
+import { Button } from "@/components/kit/button";
 import { usePaged, PagerControls } from "@/components/pager";
 
 interface Summary {
@@ -80,11 +80,11 @@ export function HistoryPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, workspace, tenant, path]);
 
-  if (error) return <p className="mt-2 text-xs text-red-600">{error}</p>;
-  if (revisions === null) return <p className="mt-2 text-xs text-fg-subtle">Loading history…</p>;
+  if (error) return <p className="mt-2 text-xs text-danger">{error}</p>;
+  if (revisions === null) return <p className="mt-2 text-xs text-fg-muted">Loading history…</p>;
   if (revisions.length === 0) {
     return (
-      <p className="mt-2 text-xs text-fg-subtle">
+      <p className="mt-2 text-xs text-fg-muted">
         No history yet — the first save from now on starts it.
       </p>
     );
@@ -93,8 +93,8 @@ export function HistoryPanel({
   const file = detail?.files[0];
 
   return (
-    <div className="mt-2 rounded-lg border border-line bg-surface">
-      <ul className="max-h-48 divide-y divide-gray-50 overflow-y-auto">
+    <div className="mt-2 overflow-hidden rounded-lg border border-line bg-surface">
+      <ul className="max-h-48 divide-y divide-line-faint overflow-y-auto">
         {paged.rows.map((r) => {
           const on = open === r.id;
           return (
@@ -102,7 +102,7 @@ export function HistoryPanel({
               <button
                 type="button"
                 onClick={() => setOpen(on ? null : r.id)}
-                className={`flex w-full items-baseline justify-between gap-3 px-3 py-1.5 text-left text-xs hover:bg-sunken ${on ? "bg-sunken" : ""}`}
+                className={`flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left text-xs transition-colors hover:bg-sunken ${on ? "bg-sunken" : ""}`}
               >
                 <span className="min-w-0 truncate text-fg">
                   {r.message}
@@ -126,7 +126,7 @@ export function HistoryPanel({
       {open && (
         <div className="border-t border-line-faint">
           {!file ? (
-            <p className="px-3 py-2 text-xs text-fg-subtle">Loading…</p>
+            <p className="px-3 py-2 text-xs text-fg-muted">Loading…</p>
           ) : (
             <>
               <pre className="max-h-72 overflow-auto px-3 py-2 font-mono text-[11px] leading-relaxed">
@@ -135,42 +135,33 @@ export function HistoryPanel({
                     key={i}
                     className={
                       op.kind === "add"
-                        ? "bg-green-50 text-green-800"
+                        ? "bg-success-soft text-success"
                         : op.kind === "del"
-                          ? "bg-red-50 text-red-800 line-through decoration-red-300"
+                          ? "bg-danger-soft text-danger line-through decoration-danger/40"
                           : "text-fg-muted"
                     }
                   >
-                    <span className="mr-2 inline-block w-3 select-none text-gray-300">
+                    <span className="mr-2 inline-block w-3 select-none text-fg-subtle">
                       {op.kind === "add" ? "+" : op.kind === "del" ? "−" : " "}
                     </span>
                     {op.text || " "}
                   </div>
                 ))}
               </pre>
-              <div className="flex items-center gap-2 border-t border-line-faint px-3 py-2">
+              <div className="flex flex-wrap items-center gap-2 border-t border-line-faint bg-sunken px-3 py-2">
                 {file.after !== null ? (
-                  <button
-                    type="button"
-                    onClick={() => onUse(file.after!)}
-                    className={buttonClass("secondary", "px-2 py-0.5 text-xs")}
-                  >
+                  <Button size="xs" onClick={() => onUse(file.after!)}>
                     Use this version
-                  </button>
+                  </Button>
                 ) : (
-                  <span className="text-xs text-fg-subtle">This revision deleted the file.</span>
+                  <span className="text-xs text-fg-muted">This revision deleted the file.</span>
                 )}
                 {file.before !== null && file.after !== null && (
-                  <button
-                    type="button"
-                    onClick={() => onUse(file.before!)}
-                    className={buttonClass("minimal", "px-2 py-0.5 text-xs")}
-                    title="What the file said before this change"
-                  >
+                  <Button size="xs" variant="ghost" onClick={() => onUse(file.before!)} title="What the file said before this change">
                     Use the version before it
-                  </button>
+                  </Button>
                 )}
-                <span className="ml-auto text-[11px] text-fg-subtle">
+                <span className="ml-auto text-xs text-fg-muted">
                   Loads into the editor — nothing changes until you save.
                 </span>
               </div>

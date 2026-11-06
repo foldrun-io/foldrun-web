@@ -19,7 +19,8 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { CHIP_BUTTON_CLASS } from "@/components/ui";
+import { Button } from "@/components/kit/button";
+import { Tag } from "@/components/kit/page";
 
 interface Question {
   id: string;
@@ -189,12 +190,12 @@ export function PendingApprovals() {
   const hiddenGates = gates.length - shown.reduce((n, r) => n + r.length, 0);
 
   return (
-    <div className="border-b border-amber-200 bg-amber-50 px-6 py-2.5">
-      <div className="mx-auto max-w-5xl text-sm text-amber-900">
+    <div className="border-b border-warning-line bg-warning-soft px-4 py-3 sm:px-6">
+      <div className="mx-auto max-w-5xl text-[13px] text-fg">
         {questions.length > 0 && (
           <div className="mb-2">
             <div className="flex items-center gap-2 font-medium">
-              <span className="inline-flex h-2 w-2 shrink-0 animate-pulse rounded-full bg-violet-500" aria-hidden />
+              <span className="inline-flex size-2 shrink-0 animate-pulse rounded-full bg-info" aria-hidden />
               {questions.length === 1 ? "An agent is asking you something" : `${questions.length} agents are asking you something`}
             </div>
             <ul className="mt-1.5 space-y-1">
@@ -203,25 +204,19 @@ export function PendingApprovals() {
                   <Link href={`/dashboard/${q.workspace}/runs/${q.runId}${tenantParam.replace("&", "?")}`} className="w-44 shrink-0 truncate font-medium hover:underline">
                     {q.workspace} · {q.flow}
                   </Link>
-                  <span className="rounded bg-surface/70 px-1.5 font-mono text-xs text-amber-800">{q.agent}</span>
-                  <span className="min-w-0 flex-1 truncate" title={q.question}>{q.question}</span>
-                  <span className="text-xs text-amber-700">{waitedFor(q.askedAt)}</span>
+                  <Tag mono className="h-5">{q.agent}</Tag>
+                  <span className="min-w-0 flex-1 truncate text-fg-secondary" title={q.question}>{q.question}</span>
+                  <span className="text-xs text-fg-muted">{waitedFor(q.askedAt)}</span>
                   {(q.options ?? []).slice(0, 4).map((o) => (
-                    <button
-                      key={o}
-                      type="button"
-                      disabled={busy.has(`q:${q.id}`)}
-                      onClick={() => answer(q, o)}
-                      className={`${CHIP_BUTTON_CLASS} border-violet-300 text-violet-800 hover:bg-violet-50`}
-                    >
+                    <Button key={o} size="xs" disabled={busy.has(`q:${q.id}`)} onClick={() => answer(q, o)}>
                       {o}
-                    </button>
+                    </Button>
                   ))}
-                  <Link href={`/dashboard/${q.workspace}/runs/${q.runId}${tenantParam.replace("&", "?")}`} className="text-xs text-amber-800 hover:underline">
-                    answer →
+                  <Link href={`/dashboard/${q.workspace}/runs/${q.runId}${tenantParam.replace("&", "?")}`} className="text-xs font-medium text-fg-secondary hover:text-fg hover:underline">
+                    Answer →
                   </Link>
                   {answerError[q.id] && (
-                    <span role="alert" className="basis-full text-xs text-red-700">
+                    <span role="alert" className="basis-full text-xs text-danger">
                       {answerError[q.id]}
                     </span>
                   )}
@@ -232,7 +227,7 @@ export function PendingApprovals() {
         )}
         {gates.length > 0 && (
         <div className="flex items-center gap-2 font-medium">
-          <span className="inline-flex h-2 w-2 shrink-0 animate-pulse rounded-full bg-amber-500" aria-hidden />
+          <span className="inline-flex size-2 shrink-0 animate-pulse rounded-full bg-warning" aria-hidden />
           {gates.length === 1
             ? "A run is waiting for your approval"
             : runs.length === 1
@@ -252,39 +247,29 @@ export function PendingApprovals() {
                 >
                   {g.workspace} · {g.flow}
                 </Link>
-                <span className="rounded bg-surface/70 px-1.5 font-mono text-xs text-amber-800">{g.agent}</span>
-                <span className="min-w-0 flex-1 truncate" title={g.question}>
+                <Tag mono className="h-5">{g.agent}</Tag>
+                <span className="min-w-0 flex-1 truncate text-fg-secondary" title={g.question}>
                   {g.asked ? g.question : `approve “${g.question}”?`}
                 </span>
-                <span className="text-xs text-amber-700">{waitedFor(g.waitingSince)}</span>
-                <button
-                  type="button"
-                  disabled={busy.has(key(g))}
-                  onClick={() => decide(g, "approve")}
-                  className={`${CHIP_BUTTON_CLASS} border-emerald-300 text-emerald-800 hover:bg-emerald-50`}
-                >
+                <span className="text-xs text-fg-muted">{waitedFor(g.waitingSince)}</span>
+                <Button size="xs" variant="primary" disabled={busy.has(key(g))} onClick={() => decide(g, "approve")}>
                   Approve
-                </button>
-                <button
-                  type="button"
-                  disabled={busy.has(key(g))}
-                  onClick={() => decide(g, "reject")}
-                  className={`${CHIP_BUTTON_CLASS} hover:border-red-200 hover:text-red-700`}
-                >
+                </Button>
+                <Button size="xs" variant="danger-outline" disabled={busy.has(key(g))} onClick={() => decide(g, "reject")}>
                   Reject
-                </button>
+                </Button>
                 <Link
                   href={`/dashboard/${g.workspace}/runs/${g.runId}${tenantParam.replace("&", "?")}`}
-                  className="text-xs text-amber-800 hover:underline"
+                  className="text-xs font-medium text-fg-secondary hover:text-fg hover:underline"
                 >
-                  review →
+                  Review →
                 </Link>
               </li>
             )),
           )}
         </ul>
         {hiddenGates > 0 && (
-          <Link href={`/dashboard/runs?status=awaiting-approval${tenantParam}`} className="mt-1 inline-block text-xs text-amber-700 hover:underline">
+          <Link href={`/dashboard/runs?status=awaiting-approval${tenantParam}`} className="mt-1 inline-block text-xs text-fg-secondary hover:underline">
             and {hiddenGates} more — see all
           </Link>
         )}

@@ -91,22 +91,21 @@ test("anchor ids are safe in a URL", () => {
 // component, not a hand-rolled chevron and a useState each.
 const read = (rel: string) => fs.readFileSync(path.join(import.meta.dirname, "..", rel), "utf8");
 
-test("the Flows page collapses each flow with CollapsibleCard and offers Expand all", () => {
+test("the Flows list never mounts a canvas per flow", () => {
+  // UI refactor (Nov 2026): the list is a ResourceList of rows; one flow's
+  // canvas mounts only on its own page (?flow=), in its Steps tab — so a
+  // workspace with forty flows does not build forty canvases.
   const src = read("app/dashboard/[workspace]/flows/page.tsx");
-  assert.match(src, /from "@\/components\/collapsible-card"/);
-  assert.match(src, /<CollapsibleCard\b/);
-  assert.match(src, /<CollapseAll\b/);
-  // The canvas is inside the card body, so it does not mount while collapsed.
-  const card = src.indexOf("<CollapsibleCard");
-  assert.ok(card !== -1 && src.indexOf("<FlowCanvas", card) > card, "FlowCanvas must sit inside the CollapsibleCard");
-  assert.ok(src.indexOf("</CollapsibleCard>") > src.indexOf("<FlowCanvas"), "FlowCanvas must sit inside the CollapsibleCard");
+  assert.match(src, /<ResourceList\b/);
+  assert.equal(src.split("<FlowCanvas").length - 1, 1, "exactly one FlowCanvas, for the open flow");
+  const steps = src.indexOf('tab === "steps"');
+  assert.ok(steps !== -1 && src.indexOf("<FlowCanvas") > steps, "FlowCanvas sits inside the open flow's Steps tab");
 });
 
 test("every converted list uses the shared component", () => {
   for (const f of [
     "app/dashboard/[workspace]/evals/eval-card.tsx",
     "app/dashboard/usage/page.tsx",
-    "components/file-browser.tsx",
   ]) {
     assert.match(read(f), /<CollapsibleCard\b/, `${f} should use CollapsibleCard`);
   }

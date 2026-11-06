@@ -31,7 +31,7 @@ export interface Row {
   tone?: "warn" | "error";
 }
 
-const TH = "px-4 py-2 text-[10px] font-medium uppercase tracking-wide text-fg-subtle";
+const TH = "h-10 px-4 text-left text-[13px] font-medium whitespace-nowrap text-fg-muted";
 const TD = "px-4 py-2 text-sm";
 
 /** A table with one header style, one empty state, one hover, one minimum
@@ -57,7 +57,7 @@ export function DataTable({
     <Card className="overflow-x-auto">
       {(title || action) && (
         <div className="flex items-center justify-between border-b border-line-faint px-4 py-2">
-          <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">{title}</p>
+          <p className="text-[13px] text-fg-muted">{title}</p>
           {action && <div className="text-xs text-fg-muted">{action}</div>}
         </div>
       )}
@@ -152,7 +152,7 @@ export function TitledList({
   const head = tone === "error" ? "border-red-100 text-red-700" : tone === "warn" ? "border-amber-100 text-amber-800" : "border-line-faint text-fg-muted";
   return (
     <Card className={border ? `border ${border}` : ""}>
-      <p className={`border-b px-4 py-2 text-xs font-medium uppercase tracking-wide ${head}`}>
+      <p className={`border-b px-4 py-2 text-sm font-medium ${head}`}>
         {title}
         {items.length > 0 && <span className="ml-1.5 font-normal normal-case tracking-normal opacity-70">· {items.length}</span>}
       </p>

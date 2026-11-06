@@ -1,7 +1,7 @@
 // Account-wide runs — every workspace your API key can see. The per-workspace
 // view lives at /dashboard/<workspace>/runs and keeps the workspace nav.
 
-import { RunSearch } from "@/components/run-search";
+import { RunSearch, RunQuery } from "@/components/run-search";
 import { parseRunFilter, matchesRunFilter, isEmptyFilter } from "@/lib/runs-filter";
 import { SEARCH_KEYS } from "@/components/run-views-model";
 import { runCharges, runCharge } from "@/server/run-charges";
@@ -11,7 +11,7 @@ import { listAllRuns, runDisplayStatus } from "@/lib/store";
 import { viewerScope } from "@/server/users";
 import { scopeAllows } from "@/platform/scope";
 import { AutoRefresh } from "../run-button";
-import { PageHeader } from "@/components/ui";
+import { Page, PageHeader } from "@/components/kit/page";
 import {
   Pager,
   RunFilters,
@@ -24,7 +24,6 @@ import {
   pageOf,
 } from "@/components/runs-table";
 import { RunsSelection } from "@/components/runs-bulk";
-import { ListSearch } from "@/components/list-search";
 import { filterByQuery } from "@/components/list-search-model";
 
 export const dynamic = "force-dynamic";
@@ -93,24 +92,28 @@ export default async function RunsPage({
     .join("&");
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-8">
+    <Page width="wide">
       <AutoRefresh active={runs.some((r) => r.status === "running" || r.status === "queued")} />
-      <PageHeader title="All runs" subtitle="Every run across every workspace in this account." />
+      <PageHeader title="All runs" description="Every run across every workspace in this account." />
 
       <RunStats runs={runs} chargedUsd={runs.reduce((n, r) => n + runCharge(r, charges), 0)} />
 
-      <ListSearch mode="url" value={q} placeholder="Search runs — id, flow, workspace, headline, error…" noun="runs" />
-      {/* Keyed by the search, so a saved view, back and forward reset its
-          fields to what the URL says (Codex review). */}
-      <RunSearch key={JSON.stringify(searchKept)} tenant={tenant} />
-      <RunFilters
-        base="/dashboard/runs"
-        current={current}
-        workspaces={workspaces}
-        flows={flows}
-        tenantParam={tenantParam}
-        total={runs.length}
-      />
+      <div className="mb-4 space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <RunQuery value={q} placeholder="Search runs — id, flow, workspace, headline, error…" className="min-w-48 flex-1" />
+          {/* Keyed by the search, so a saved view, back and forward reset its
+              fields to what the URL says (Codex review). */}
+          <RunSearch key={JSON.stringify(searchKept)} tenant={tenant} />
+        </div>
+        <RunFilters
+          base="/dashboard/runs"
+          current={current}
+          workspaces={workspaces}
+          flows={flows}
+          tenantParam={tenantParam}
+          total={runs.length}
+        />
+      </div>
 
       <RunsSelection
         tenant={tenant}
@@ -129,8 +132,9 @@ export default async function RunsPage({
         base={`/dashboard/runs${filterQs ? `?${filterQs}` : ""}`}
         page={page}
         pages={pages}
+        total={runs.length}
         tenantParam={tenantParam}
       />
-    </main>
+    </Page>
   );
 }

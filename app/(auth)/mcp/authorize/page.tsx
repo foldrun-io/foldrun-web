@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { AuthCard } from "../../brand";
 import { McpAuthorize } from "./authorize";
 
 export const metadata = { title: "Connect an AI app" };
@@ -9,12 +10,10 @@ export const metadata = { title: "Connect an AI app" };
 // a code — or with a no.
 export default function McpAuthorizePage() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-paper px-4">
-      <div className="w-full max-w-md">
-        <Suspense>
-          <McpAuthorize />
-        </Suspense>
-      </div>
-    </main>
+    <AuthCard wide>
+      <Suspense>
+        <McpAuthorize />
+      </Suspense>
+    </AuthCard>
   );
 }

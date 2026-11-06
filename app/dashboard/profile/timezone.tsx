@@ -12,7 +12,7 @@
 // and it is a property of the schedule, not of whoever is looking at it.
 
 import { useState } from "react";
-import { buttonClass, FIELD_LABEL_CLASS } from "@/components/ui";
+import { buttonClass } from "@/components/ui";
 import { useDetectedTimeZone, useViewerTime } from "@/components/viewer-time";
 
 const AUTOMATIC = "";
@@ -68,14 +68,14 @@ export function TimezoneForm({ current }: { current: string | null }) {
       }}
     >
       <div>
-        <label className={FIELD_LABEL_CLASS} htmlFor="tz">
+        <label className="block text-sm font-medium text-fg" htmlFor="tz">
           Timezone
         </label>
         <select
           id="tz"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          className="mt-1 w-full max-w-sm rounded-lg border border-line bg-surface px-3 py-2 text-sm text-fg"
+          className="mt-1.5 h-9 w-full max-w-sm rounded-md border border-line bg-surface px-3 text-sm text-fg"
         >
           <option value={AUTOMATIC}>
             Automatic{detected ? ` — ${detected}` : ""}
@@ -95,11 +95,11 @@ export function TimezoneForm({ current }: { current: string | null }) {
         {preview ? ` Right now that reads ${preview}.` : ""}
       </p>
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-line-faint pt-3">
+      <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">
         <button type="submit" className={buttonClass()} disabled={busy || !dirty}>
           {busy ? "Saving…" : "Save timezone"}
         </button>
-        {error ? <span className="text-xs text-red-600">{error}</span> : !dirty && <span className="text-xs text-fg-subtle">Nothing to save.</span>}
+        {error ? <span className="text-xs text-danger">{error}</span> : !dirty && <span className="text-xs text-fg-subtle">Nothing to save.</span>}
       </div>
     </form>
   );

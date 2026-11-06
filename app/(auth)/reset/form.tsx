@@ -25,11 +25,11 @@ export function ResetForm({ token }: { token: string }) {
       }}
     >
       <label className="block">
-        <span className="mb-1 block text-sm font-medium text-fg-secondary">New password</span>
+        <span className="mb-1.5 block text-sm font-medium text-fg">New password</span>
         <input name="password" type="password" required minLength={10} autoFocus autoComplete="new-password" className={inputClass("w-full")} />
       </label>
-      {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-      <button disabled={busy} className={buttonClass("primary", "w-full")}>{busy ? "…" : "Set password and sign in"}</button>
+      {error && <p className="rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
+      <button disabled={busy} className={buttonClass("primary", "h-9 w-full")}>{busy ? "…" : "Set password and sign in"}</button>
     </form>
   );
 }

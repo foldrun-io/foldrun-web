@@ -8,7 +8,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Badge, buttonClass, inputClass, selectClass, Card, SectionHeading, FIELD_LABEL_CLASS } from "@/components/ui";
+import { buttonClass, inputClass, selectClass, SectionHeading } from "@/components/ui";
+import { KeyRound } from "lucide-react";
+import { Button } from "@/components/kit/button";
+import { EmptyState, IconBox, Tag, Chip } from "@/components/kit/page";
+import { cn } from "@/components/kit/cn";
 import { useConfirm } from "@/components/confirm";
 
 type Kind = "key" | "api" | "ssh" | "oauth" | "oauth_m2m" | "service_account" | "file" | "client_cert" | "identity" | "token_exchange";
@@ -62,13 +66,13 @@ export interface OAuthConnectionRow {
 
 function GrantStatus({ c }: { c: OAuthConnectionRow }) {
   if (c.status === "failed") {
-    return <p className="mt-0.5 text-xs text-red-600">refresh failed {c.lastErrorAt?.slice(0, 10)} — {c.lastError} · reconnect to fix</p>;
+    return <p className="mt-0.5 text-xs text-danger">refresh failed {c.lastErrorAt?.slice(0, 10)} — {c.lastError} · reconnect to fix</p>;
   }
-  if (c.status === "expired") return <p className="mt-0.5 text-xs text-red-600">sign-in expired · reconnect to fix</p>;
-  if (c.status === "expiring") return <p className="mt-0.5 text-xs text-amber-600">sign-in expires in {c.daysLeft} days</p>;
+  if (c.status === "expired") return <p className="mt-0.5 text-xs text-danger">sign-in expired · reconnect to fix</p>;
+  if (c.status === "expiring") return <p className="mt-0.5 text-xs text-warning">sign-in expires in {c.daysLeft} days</p>;
   if (c.status === "no-client") return <p className="mt-0.5 text-xs text-fg-subtle">connected {c.connectedAt?.slice(0, 10)} · no saved client, so no one-click reconnect</p>;
   return (
-    <p className="mt-0.5 text-xs text-emerald-700">
+    <p className="mt-0.5 text-xs text-success">
       sign-in OK{c.daysLeft !== null ? ` · ${c.daysLeft} days left` : ""}{c.connectedAt ? ` · connected ${c.connectedAt.slice(0, 10)}` : ""}
     </p>
   );
@@ -93,7 +97,7 @@ function SecretHealth({ health }: { health: ConnectionRow["health"] }) {
   const when = last.at.slice(0, 10);
   if (last.outcome === "refused") {
     return (
-      <p className="mt-0.5 text-xs text-red-600">
+      <p className="mt-0.5 text-xs text-danger">
         refused by {last.host} on {when}
         {last.status ? ` (${last.status})` : ""}
         {refusals > 1 ? ` · ${refusals} times running` : ""}
@@ -103,22 +107,22 @@ function SecretHealth({ health }: { health: ConnectionRow["health"] }) {
   }
   if (last.outcome === "error") {
     return (
-      <p className="mt-0.5 text-xs text-amber-600">
+      <p className="mt-0.5 text-xs text-warning">
         {last.host} failed on {when}
         {last.status ? ` (${last.status})` : ""} — its end, not the key
       </p>
     );
   }
   return (
-    <p className="mt-0.5 text-xs text-emerald-700">
+    <p className="mt-0.5 text-xs text-success">
       accepted by {last.host} on {when}
     </p>
   );
 }
 
 const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <label className="block">
-    <span className={FIELD_LABEL_CLASS}>{label}</span>
+  <label className="block min-w-0">
+    <span className="mb-1.5 block text-sm font-medium text-fg">{label}</span>
     {children}
   </label>
 );
@@ -176,7 +180,7 @@ function SecretSites({ row, tenant, workspace, editable }: { row: ConnectionRow;
     }
   }
   return (
-    <div className="mt-1 text-xs">
+    <div className="mt-1.5 text-xs">
       {!editing ? (
         <p className="flex flex-wrap items-center gap-1.5 text-fg-subtle">
           {sites.length ? (
@@ -189,7 +193,7 @@ function SecretSites({ row, tenant, workspace, editable }: { row: ConnectionRow;
             <span>Not bound to sites — a step with a script or Bash gets the real value in its sandbox</span>
           )}
           {editable && (
-            <button type="button" onClick={() => setEditing(true)} className="text-accent underline-offset-2 hover:underline">
+            <button type="button" onClick={() => setEditing(true)} className="font-medium text-link underline-offset-2 hover:underline">
               {sites.length ? "Edit sites" : "Bind to sites"}
             </button>
           )}
@@ -205,7 +209,7 @@ function SecretSites({ row, tenant, workspace, editable }: { row: ConnectionRow;
           <button type="button" onClick={() => { setEditing(false); setText(sites.join(", ")); }} className={buttonClass("minimal")}>Cancel</button>
         </form>
       )}
-      {error && <p className="mt-1 text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-danger">{error}</p>}
     </div>
   );
 }
@@ -246,7 +250,7 @@ function SecretWorkspaces({ row, tenant, choices }: { row: ConnectionRow; tenant
   }
   const limited = row.workspaces;
   return (
-    <div className="mt-1 text-xs">
+    <div className="mt-1.5 text-xs">
       {!editing ? (
         <p className="flex flex-wrap items-center gap-1.5 text-fg-subtle">
           <span>Workspaces:</span>
@@ -268,7 +272,7 @@ function SecretWorkspaces({ row, tenant, choices }: { row: ConnectionRow; tenant
               setPicked(row.workspaces ?? []);
               setError(null);
               setEditing(true);
-            }} className="text-accent underline-offset-2 hover:underline">
+            }} className="font-medium text-link underline-offset-2 hover:underline">
               Change
             </button>
           )}
@@ -305,7 +309,7 @@ function SecretWorkspaces({ row, tenant, choices }: { row: ConnectionRow; tenant
           </div>
         </form>
       )}
-      {error && <p className="mt-1 text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-danger">{error}</p>}
     </div>
   );
 }
@@ -674,13 +678,18 @@ export function Connections({
     <section className={heading ? "mb-8" : ""}>
       {confirmDialog}
       {heading && <SectionHeading>Connections</SectionHeading>}
-      <Card className="mb-3 p-4">
-        <form onSubmit={(e) => { e.preventDefault(); void submit(); }} className="space-y-3" autoComplete="off">
-          <div className="flex flex-wrap items-end gap-2">
+      <div className="mb-8 min-w-0 overflow-hidden rounded-lg border border-line bg-surface">
+        <div className="p-5 sm:p-6">
+        <div className="mb-4 min-w-0 space-y-1.5">
+          <h2 className="text-lg font-semibold text-fg">Add a connection</h2>
+          <p className="text-sm text-fg-muted">A credential agents use by name, as <code className="font-mono">{"${NAME}"}</code>. Pick its type and fill what that type needs.</p>
+        </div>
+        <form id="new-connection" onSubmit={(e) => { e.preventDefault(); void submit(); }} className="space-y-4" autoComplete="off">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Name">
               <input value={name} autoComplete="off"
                 onChange={(e) => { setError(null); setName(e.target.value.toUpperCase().replaceAll(/[^A-Z0-9_]/g, "_")); }}
-                placeholder="CRM_TOKEN" className={inputClass("w-56 font-mono")} />
+                placeholder="CRM_TOKEN" className={inputClass("w-full font-mono")} />
             </Field>
             <Field label="Type">
               <select
@@ -691,7 +700,7 @@ export function Connections({
                   setApp("");
                   setF({});
                 }}
-                className={selectClass()}
+                className={selectClass("w-full")}
               >
                 <option value="key">API key / token</option>
                 <option value="api">API — base URL + headers</option>
@@ -709,18 +718,12 @@ export function Connections({
                 <option value="file">File (SSH key, certificate)</option>
               </select>
             </Field>
-            <button type="submit" disabled={busy || !name || (oauthBrowser && !savedApp && !newApp)} className={buttonClass("primary")}>
-              {oauthBrowser ? (savedApp ? "Connect →" : "Save & Connect →") : "Save"}
-            </button>
-            {savedApp?.device_url && (
-              <button type="button" disabled={busy || !name} onClick={() => void connectWithCode()} className={buttonClass("secondary")}>Connect with a code</button>
-            )}
           </div>
 
           {!workspace && limitTo && !oauthBrowser && (
-            <div className="space-y-1 text-xs" role="radiogroup" aria-label="Workspaces that may use it">
+            <div className="space-y-1.5 text-sm text-fg-secondary" role="radiogroup" aria-label="Workspaces that may use it">
               <div className="flex flex-wrap items-center gap-3">
-                <span className={FIELD_LABEL_CLASS}>Workspaces</span>
+                <span className="text-sm font-medium text-fg">Workspaces</span>
                 <label className="flex items-center gap-1.5">
                   <input type="radio" name="new-secret-workspaces" checked={newLimit === null} onChange={() => setNewLimit(null)} />
                   All workspaces
@@ -819,7 +822,7 @@ export function Connections({
           )}
 
           {kind === "token_exchange" && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Token URL"><input value={f.token_url ?? ""} onChange={set("token_url")} placeholder="https://auth.example.com/token" className={inputClass("font-mono")} autoComplete="off" /></Field>
               <Field label="client_id"><input value={f.client_id ?? ""} onChange={set("client_id")} className={inputClass("font-mono")} autoComplete="off" /></Field>
               <Field label="client_secret"><input type="password" value={f.client_secret ?? ""} onChange={set("client_secret")} className={inputClass("font-mono")} autoComplete="new-password" /></Field>
@@ -833,7 +836,7 @@ export function Connections({
               <Field label="Audience (optional)"><input value={f.audience ?? ""} onChange={set("audience")} className={inputClass("font-mono")} autoComplete="off" /></Field>
               <Field label="Scopes (optional, fewer than the subject's)"><input value={f.scope ?? ""} onChange={set("scope")} className={inputClass("font-mono")} autoComplete="off" /></Field>
               <Field label="Requested token type (optional)"><input value={f.requested_token_type ?? ""} onChange={set("requested_token_type")} placeholder="urn:ietf:params:oauth:token-type:access_token" className={inputClass("font-mono")} autoComplete="off" /></Field>
-              <p className="col-span-2 text-xs text-fg-muted">Declare the subject secret beside this one in an agent&apos;s secrets:. Each use trades its live token for the narrower one (RFC 8693), cached until it expires.</p>
+              <p className="text-xs sm:col-span-2 text-fg-muted">Declare the subject secret beside this one in an agent&apos;s secrets:. Each use trades its live token for the narrower one (RFC 8693), cached until it expires.</p>
             </div>
           )}
           {kind === "identity" && <IdentityFields tenant={tenant} workspace={workspace} audience={f.audience ?? ""} onAudience={set("audience")} />}
@@ -885,7 +888,7 @@ export function Connections({
           )}
 
           {(kind === "oauth" || kind === "oauth_m2m") && (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               {kind === "oauth" && clients.length > 0 && (
                 <Field label="App">
                   <select
@@ -902,7 +905,7 @@ export function Connections({
                 </Field>
               )}
               {savedApp && (
-                <p className="col-span-2 text-xs text-fg-muted">
+                <p className="text-xs sm:col-span-2 text-fg-muted">
                   Connects with the saved app <code className="font-mono">{savedApp.name}</code>. Ask for the scopes this
                   connection needs, as the provider spells them; they stay with this connection, so Reconnect asks for the
                   same ones. The provider must allow them for the app.
@@ -912,20 +915,20 @@ export function Connections({
                 // First, because it is the step people do somewhere else: the
                 // provider's console refuses a redirect it has not seen, and
                 // the address is whichever one this page was opened at.
-                <div className="col-span-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                <div className="sm:col-span-2 rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-xs text-warning">
                   <div className="font-medium">1. Register this redirect URL on your app, then connect.</div>
                   <div className="mt-1 flex items-center gap-2">
                     <code className="font-mono break-all">{redirect || "…/api/oauth/callback"}</code>
                     <button type="button" onClick={copyRedirect} className={buttonClass("secondary")}>{copied ? "Copied" : "Copy"}</button>
                   </div>
-                  <div className="mt-1 text-amber-800">
+                  <div className="mt-1">
                     It is the address you opened this dashboard at. Most providers accept https, or http on localhost only,
                     so open the dashboard from an address the provider allows before you click Save &amp; Connect.
                   </div>
                 </div>
               )}
               {newApp && (
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <Field label="Issuer — fills the URLs below from the provider's own metadata (optional)">
                     <div className="flex items-center gap-2">
                       <input value={f.issuer ?? ""} onChange={set("issuer")} placeholder="https://login.example.com" className={inputClass(cred)} autoComplete="off" />
@@ -964,7 +967,7 @@ export function Connections({
                 </select>
               </Field>
               {f.token_auth === "tls_client_auth" && (
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <Field label="Client certificate, PEM">
                     <textarea value={f.tls_client_cert ?? ""} onChange={set("tls_client_cert")} rows={2} placeholder="-----BEGIN CERTIFICATE-----" className={inputClass(cred)} autoComplete="off" />
                   </Field>
@@ -975,7 +978,7 @@ export function Connections({
                 </div>
               )}
               {f.token_auth === "private_key_jwt" && (
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <Field label="Private key, PEM or JWK — leave empty and foldrun makes one">
                     <textarea value={f.client_assertion_key ?? ""} onChange={set("client_assertion_key")} rows={3} placeholder="the PEM private key (BEGIN PRIVATE KEY …)" className={inputClass(cred)} autoComplete="off" />
                   </Field>
@@ -996,7 +999,7 @@ export function Connections({
                 </Field>
               )}
               {kind === "oauth" && (
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <Field label="Extra authorize parameters (optional) — one name=value per line, as the provider documents">
                     <textarea value={f.authorize_extra ?? ""} onChange={set("authorize_extra")} rows={2} placeholder="name=value" className={inputClass(cred)} />
                   </Field>
@@ -1014,19 +1017,19 @@ export function Connections({
             </div>
           )}
         </form>
-        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-        {notice && <p className="mt-2 text-xs text-fg-muted">{notice}</p>}
+        {error && <p role="alert" className="mt-3 text-sm text-danger">{error}</p>}
+        {notice && <p className="mt-3 text-sm text-fg-muted">{notice}</p>}
         {device && (
-          <div className="mt-3 rounded border border-line p-3 text-xs">
-            <div className="font-medium">On any device, open <a className="underline" href={device.verification_uri_complete ?? device.verification_uri} target="_blank" rel="noreferrer">{device.verification_uri}</a> and type this code:</div>
+          <div className="mt-4 rounded-md border border-line bg-sunken p-4 text-sm">
+            <div className="font-medium text-fg">On any device, open <a className="underline" href={device.verification_uri_complete ?? device.verification_uri} target="_blank" rel="noreferrer">{device.verification_uri}</a> and type this code:</div>
             <div className="mt-2 font-mono text-lg tracking-widest">{device.user_code}</div>
             <div className="mt-1 text-fg-muted">Waiting for the provider to say yes…</div>
           </div>
         )}
         {jwk && (
-          <div className="mt-3 rounded border border-line p-3 text-xs">
-            <div className="font-medium">Register this public key with the provider (as a JWK, or the JWKS it asks for). It is not secret.</div>
-            <pre className="mt-2 overflow-x-auto font-mono text-[11px]">{jwk.key}</pre>
+          <div className="mt-4 rounded-md border border-line bg-sunken p-4 text-sm">
+            <div className="font-medium text-fg">Register this public key with the provider (as a JWK, or the JWKS it asks for). It is not secret.</div>
+            <pre className="mt-2 overflow-x-auto font-mono text-xs text-fg-secondary">{jwk.key}</pre>
             <div className="mt-2 flex gap-2">
               <button type="button" onClick={() => void navigator.clipboard?.writeText(jwk.key)} className={buttonClass("secondary")}>Copy</button>
               {jwk.connect && <button type="button" onClick={() => { const n = jwk.connect!; setJwk(null); void connect(n); }} className={buttonClass("primary")}>Registered — connect</button>}
@@ -1034,42 +1037,61 @@ export function Connections({
             </div>
           </div>
         )}
-      </Card>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-sunken px-5 py-3 text-sm text-fg-muted sm:px-6">
+          <span className="min-w-0">The value is write-only: nobody sees it again, the model never.</span>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {savedApp?.device_url && (
+              <Button type="button" variant="secondary" disabled={busy || !name} onClick={() => void connectWithCode()}>Connect with a code</Button>
+            )}
+            <Button type="submit" form="new-connection" variant="primary" disabled={busy || !name || (oauthBrowser && !savedApp && !newApp)}>
+              {oauthBrowser ? (savedApp ? "Connect →" : "Save & Connect →") : "Save"}
+            </Button>
+          </div>
+        </div>
+      </div>
 
-      <Card>
+      <div className="mb-3 flex items-end justify-between gap-2 px-1">
+        <h2 className="text-base font-medium text-fg">{workspace ? "Connections here" : "Connections"}</h2>
+        <span className="text-sm tabular-nums text-fg-muted">{secrets.length}</span>
+      </div>
+      <div className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface">
         {secrets.length === 0 ? (
-          <p className="px-5 py-6 text-sm text-fg-muted">No connections yet.</p>
+          <EmptyState bare compact icon={<KeyRound />} title="No connections yet" description="Add one above; agents receive it by name." />
         ) : (
-          <ul className="divide-y divide-line-faint">
+          <ul className="divide-y divide-line">
             {secrets.map((s) => { const grant = grantOf(s); /* any kind: a plain token from an OAuth consent has a connection too */ return (
-              <li key={`${s.scope}:${s.name}`} className={`flex flex-wrap items-center gap-3 px-5 py-3${wanted === s.name ? " bg-amber-50" : ""}`}>
+              <li key={`${s.scope}:${s.name}`} className={cn("flex min-w-0 flex-wrap items-start gap-3 px-4 py-3.5 sm:px-5", wanted === s.name && "bg-warning-soft")}>
+                <IconBox className="mt-0.5 max-sm:hidden"><KeyRound /></IconBox>
                 <div className="min-w-0 flex-1">
-                  <p className="flex flex-wrap items-center gap-1.5 font-mono text-sm font-medium text-fg">
-                    {s.name}
-                    <Badge variant={s.kind === "oauth2" ? "info" : "default"}>{KIND_LABEL[s.kind ?? "key"]}</Badge>
-                    {workspace && s.scope === "account" && <Badge>inherited</Badge>}
-                    {s.shadowed && <Badge variant="warning">overrides account</Badge>}
+                  <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-fg">
+                    <span className="mr-0.5 break-all font-mono">{s.name}</span>
+                    <Tag>{KIND_LABEL[s.kind ?? "key"]}</Tag>
+                    {workspace && s.scope === "account" && <Chip>inherited</Chip>}
+                    {s.shadowed && <Chip tone="warn">overrides account</Chip>}
                   </p>
-                  <p className="mt-0.5 text-xs text-fg-subtle">•••••••• · updated {s.updatedAt.slice(0, 10)}</p>
+                  <p className="mt-0.5 text-xs text-fg-muted">•••••••• · updated {s.updatedAt.slice(0, 10)}</p>
                   {grant && <GrantStatus c={grant} />}
                   <SecretHealth health={s.health ?? null} />
                   <SecretSites row={s} tenant={tenant} workspace={workspace} editable={!workspace || s.scope === "workspace"} />
                   {!workspace && s.scope === "account" && <SecretWorkspaces row={s} tenant={tenant} choices={limitTo} />}
                 </div>
+                <div className="flex shrink-0 items-center gap-1">
                 {grant?.client && (!workspace || s.scope === "workspace") ? (
-                  <button onClick={() => reconnect(s)} className={buttonClass(grant.status === "ok" ? "secondary" : "primary")}>Reconnect</button>
+                  <Button variant={grant.status === "ok" ? "secondary" : "primary"} onClick={() => reconnect(s)}>Reconnect</Button>
                 ) : !workspace && hasClient(s.name) && (
-                  <button onClick={() => connect(s.name)} className={buttonClass("secondary")}>Reconnect</button>
+                  <Button variant="secondary" onClick={() => connect(s.name)}>Reconnect</Button>
                 )}
                 {(!workspace || s.scope === "workspace") && (
-                  <button onClick={() => remove(s)} className={buttonClass("destructive")}>Delete</button>
+                  <Button variant="ghost" className="hover:text-danger" onClick={() => remove(s)}>Delete</Button>
                 )}
+                </div>
               </li>
             ); })}
           </ul>
         )}
-      </Card>
-      <p className="mt-2 text-xs text-fg-muted">
+      </div>
+      <p className="mt-3 px-1 text-sm text-fg-muted">
         An agent declares <code className="font-mono">secrets:</code> to receive a connection as an
         environment variable, or references it in <code className="font-mono">apis:</code> headers as{" "}
         <code className="font-mono">{"${NAME}"}</code>. The model never sees the value. Bind a connection to the sites it is
@@ -1092,10 +1114,10 @@ function IdentityFields({ tenant, workspace, audience, onAudience }: { tenant: s
   return (
     <>
       <Field label="Audience — the value your cloud's trust expects in aud">
-        <input value={audience} onChange={onAudience} placeholder="sts.amazonaws.com" className={inputClass("w-96 font-mono")} autoComplete="off" />
+        <input value={audience} onChange={onAudience} placeholder="sts.amazonaws.com" className={inputClass("w-full max-w-md font-mono")} autoComplete="off" />
       </Field>
       {info && !info.enabled ? (
-        <p className="text-xs text-red-600">This install does not issue identity tokens yet (its operator sets FOLDRUN_OIDC_ISSUER).</p>
+        <p className="text-xs text-danger">This install does not issue identity tokens yet (its operator sets FOLDRUN_OIDC_ISSUER).</p>
       ) : info ? (
         <div className="text-xs text-fg-muted">
           <p>Trust this issuer in your cloud: <code className="font-mono text-fg">{info.issuer}</code></p>

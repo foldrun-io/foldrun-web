@@ -17,7 +17,10 @@ import { EditorShell, type ContextSection } from "@/components/editor-shell";
 import { CodeView } from "@/components/code-view";
 import { kindOf, crumbs } from "@/components/editor-context-model";
 import { nowMs } from "@/components/overview-model";
-import { EmptyScreen, Card } from "@/components/ui";
+import { Card, EmptyState, PageHeader } from "@/components/kit/page";
+import { PageTabs } from "@/components/kit/page-tabs";
+import { libraryTabs } from "@/components/nav-model";
+import { FileText, Lock } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -98,9 +101,12 @@ export default async function AccountFilesPage({
   const viewer =
     !selected ? undefined
     : sealed ? (
-      <Card className="p-6">
-        <p className="font-mono text-sm text-fg">{selected}</p>
-        <p className="mt-2 text-sm text-fg-tertiary">This file is on disk and listed here, but its contents are not served: {sealed}</p>
+      <Card className="flex items-start gap-3 p-5">
+        <Lock className="mt-0.5 size-4 shrink-0 text-fg-muted" aria-hidden />
+        <div className="min-w-0">
+          <p className="font-mono text-sm text-fg [overflow-wrap:anywhere]">{selected}</p>
+          <p className="mt-1 text-sm text-fg-muted">This file is on disk and listed here, but its contents are not served: {sealed}</p>
+        </div>
       </Card>
     )
     : content !== null && !editable ? <CodeView path={selected} text={content} />
@@ -126,13 +132,22 @@ export default async function AccountFilesPage({
       lastChange={null}
       sections={sections}
       now={now}
-      treeFooter={
+      header={
         <>
-          {files.length} files, as they sit on disk minus the platform&apos;s own bookkeeping. Add or remove under{" "}
-          <Link href={`/dashboard/library${qs}`} className="underline hover:text-fg-tertiary">each shelf</Link> or in a workspace.
+          <PageHeader
+            title="Library"
+            description={
+              <>
+                The whole account as one tree: {files.length} files as they sit on disk, minus the platform&apos;s own bookkeeping. Add or remove under{" "}
+                <Link href={`/dashboard/library${qs}`} className="text-link hover:underline">each shelf</Link> or in a workspace.
+              </>
+            }
+            className="mb-6"
+          />
+          <PageTabs tabs={libraryTabs(tenant)} />
         </>
       }
-      emptyEditor={<EmptyScreen title="Nothing here yet" description="Create a workspace, or add a shared tool or skill that every workspace can use." />}
+      emptyEditor={<EmptyState bare icon={<FileText />} title="Nothing here yet" description="Create a workspace, or add a shared tool or skill that every workspace can use." />}
     />
   );
 }

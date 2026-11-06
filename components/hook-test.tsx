@@ -5,7 +5,9 @@
 // a hook is the customer's code and only runs inside a step's sandbox there.
 
 import { useState } from "react";
-import { buttonClass, inputClass } from "@/components/ui";
+import { Play } from "lucide-react";
+import { Button } from "@/components/kit/button";
+import { Textarea } from "@/components/kit/input";
 
 interface Answer {
   ok: boolean;
@@ -24,8 +26,21 @@ type Result =
   | { kind: "refused"; summary: string; detail: string }
   | { kind: "error"; message: string };
 
-export function HookTest({ workspace, tenant, hook, sample }: { workspace: string; tenant: string; hook: string; sample: string }) {
-  const [open, setOpen] = useState(false);
+export function HookTest({
+  workspace,
+  tenant,
+  hook,
+  sample,
+  initiallyOpen = false,
+}: {
+  workspace: string;
+  tenant: string;
+  hook: string;
+  sample: string;
+  /** Open with the event box showing — where the test has a pane of its own. */
+  initiallyOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(initiallyOpen);
   const [event, setEvent] = useState(sample);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
@@ -66,32 +81,34 @@ export function HookTest({ workspace, tenant, hook, sample }: { workspace: strin
   }
   const a = result?.kind === "answer" ? result.answer : null;
   return (
-    <div className="mt-2 space-y-2">
-      <textarea
+    <div className={initiallyOpen ? "space-y-3" : "mt-2 space-y-2"}>
+      <Textarea
         value={event}
         onChange={(e) => setEvent(e.target.value)}
-        rows={4}
+        rows={initiallyOpen ? 8 : 4}
         spellCheck={false}
         aria-label={`event for ${hook}`}
-        className={inputClass("w-full font-mono text-xs")}
+        className="font-mono text-xs"
       />
       <div className="flex items-center gap-2">
-        <button type="button" onClick={run} disabled={busy} className={buttonClass("secondary")}>
-          {busy ? "Running…" : "Run it"}
-        </button>
-        <button type="button" onClick={() => { setOpen(false); setResult(null); }} className="text-xs text-fg-muted hover:text-fg">
-          Close
-        </button>
+        <Button variant={initiallyOpen ? "primary" : "secondary"} size={initiallyOpen ? "md" : "sm"} onClick={run} disabled={busy}>
+          {initiallyOpen && <Play />} {busy ? "Running…" : "Run it"}
+        </Button>
+        {!initiallyOpen && (
+          <button type="button" onClick={() => { setOpen(false); setResult(null); }} className="text-xs text-fg-muted hover:text-fg">
+            Close
+          </button>
+        )}
       </div>
-      {result?.kind === "error" && <p className="text-xs text-red-700">{result.message}</p>}
+      {result?.kind === "error" && <p className="text-xs text-danger">{result.message}</p>}
       {result?.kind === "refused" && (
         <div className="rounded-md border border-line bg-sunken p-2 text-xs text-fg-secondary">
           <p className="font-medium">{result.summary}</p>
-          <pre className="mt-1 whitespace-pre-wrap font-mono text-[11px] text-fg-muted">{result.detail}</pre>
+          <pre className="mt-1 whitespace-pre-wrap font-mono text-xs text-fg-muted">{result.detail}</pre>
         </div>
       )}
       {a && (
-        <div className={`rounded-md border p-2 text-xs ${!a.ok ? "border-red-200 bg-red-50 text-red-700" : a.decision === "deny" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-line bg-sunken text-fg-secondary"}`}>
+        <div className={`rounded-md border p-2 text-xs ${!a.ok ? "border-danger-line bg-danger-soft text-danger" : a.decision === "deny" ? "border-warning-line bg-warning-soft text-warning" : "border-line bg-sunken text-fg-secondary"}`}>
           <p className="font-medium">
             {!a.ok ? `failed: ${a.failure}` : a.decision === "deny" ? "deny" : a.decision === "allow" ? "allow" : "ok"}
             <span className="ml-2 font-normal text-fg-muted">{a.ms}ms</span>

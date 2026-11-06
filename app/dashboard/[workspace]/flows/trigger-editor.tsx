@@ -9,7 +9,9 @@ import { useEffect, useState } from "react";
 import { useResolvedTimeZone } from "@/components/viewer-time";
 import { useRouter } from "next/navigation";
 
-import { inputClass, selectClass, buttonClass, chipButtonClass, FIELD_LABEL_CLASS } from "@/components/ui";
+import { inputClass, selectClass, buttonClass, FIELD_LABEL_CLASS } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
+import { Zap } from "lucide-react";
 import {
   SCHEDULE_DAYS as DAYS,
   SCHEDULE_DAY_NAMES as DAY_NAMES,
@@ -128,10 +130,12 @@ export function TriggerEditor({
   if (!open) {
     return (
       <button
+        type="button"
         onClick={() => setOpen(true)}
-        className={chipButtonClass()}
+        className={buttonVariants({ variant: "secondary" })}
       >
-        Trigger…
+        <Zap aria-hidden />
+        Change trigger
       </button>
     );
   }
@@ -139,8 +143,8 @@ export function TriggerEditor({
   // w-full drops the open panel onto its own row of the badge flex line —
   // an expanded editor inside a badge row was the layout bug this replaced.
   return (
-    <div className="w-full rounded-md border border-line bg-sunken p-3">
-      <div className="flex flex-wrap items-end gap-2">
+    <div className="w-full rounded-lg border border-line bg-sunken p-4">
+      <div className="flex flex-wrap items-end gap-3">
         <label>
           <span className={FIELD_LABEL_CLASS}>Starts</span>
           <select value={kind} onChange={(e) => setKind(e.target.value)} className={selectClass()}>
@@ -234,7 +238,7 @@ export function TriggerEditor({
       {kind === "schedule" && (
         <p className="mt-2 text-xs text-fg-muted">{describe(preset, time, day, custom, tz)}</p>
       )}
-      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      {error && <p role="alert" className="mt-2 text-xs text-danger">{error}</p>}
     </div>
   );
 }

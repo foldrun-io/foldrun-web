@@ -191,7 +191,7 @@ export function StepOptionsEditor({
                   placeholder="web.search"
                   aria-label={`Limit ${i + 1}: tool`}
                   aria-invalid={!!keyIssue}
-                  className={inputClass(`font-mono ${keyIssue ? "border-red-400" : ""}`)}
+                  className={inputClass(`font-mono ${keyIssue ? "border-danger" : ""}`)}
                 />
                 </span>
                 <span className="w-24 shrink-0">
@@ -202,25 +202,25 @@ export function StepOptionsEditor({
                   placeholder="10"
                   aria-label={`Limit ${i + 1}: calls`}
                   aria-invalid={!!countIssue}
-                  className={inputClass(countIssue ? "border-red-400" : "")}
+                  className={inputClass(countIssue ? "border-danger" : "")}
                 />
                 </span>
                 <button
                   type="button"
                   onClick={() => setLimits((rows) => rows.filter((_, j) => j !== i))}
                   aria-label={`Remove limit ${r.key || i + 1}`}
-                  className="rounded px-1.5 text-sm text-fg-subtle hover:bg-red-50 hover:text-red-700"
+                  className="rounded px-1.5 text-sm text-fg-subtle hover:bg-danger-soft hover:text-danger"
                 >
                   ×
                 </button>
-                {(keyIssue || countIssue) && <span className="text-[11px] text-red-600">{keyIssue ?? countIssue}</span>}
+                {(keyIssue || countIssue) && <span className="text-xs text-danger">{keyIssue ?? countIssue}</span>}
               </div>
             );
           })}
           <button
             type="button"
             onClick={() => setLimits((rows) => [...rows, { key: "", count: "" }])}
-            className="rounded border border-dashed border-line-strong px-2 py-0.5 text-xs text-fg-muted hover:border-gray-500 hover:text-fg"
+            className="rounded border border-dashed border-line-strong px-2 py-0.5 text-xs text-fg-muted hover:border-fg-subtle hover:text-fg"
           >
             + Add a limit
           </button>
@@ -233,7 +233,7 @@ export function StepOptionsEditor({
         <button onClick={onClose} className={buttonClass("minimal")}>
           Cancel
         </button>
-        {error && <span className="text-xs text-red-600">{error}</span>}
+        {error && <span role="alert" className="text-xs text-danger">{error}</span>}
       </div>
     </div>
   );

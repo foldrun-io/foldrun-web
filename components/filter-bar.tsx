@@ -21,7 +21,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { selectClass } from "@/components/ui";
+import { ChevronDown } from "lucide-react";
+import { cn } from "@/components/kit/cn";
 
 export interface FilterOption {
   value: string;
@@ -49,10 +50,15 @@ export interface FilterDimension {
 
 const CHIPS_UP_TO = 6;
 
-const LABEL = "text-[10px] font-medium uppercase tracking-wide text-fg-subtle";
-const CHIP = "shrink-0 whitespace-nowrap px-2.5 py-1 text-xs font-medium transition-colors";
-const CHIP_ON = "bg-ink text-on-ink";
-const CHIP_OFF = "bg-surface text-fg-tertiary hover:bg-sunken";
+// The kit's look (UI refactor, Nov 2026): a select is a 36px box like an
+// input; a short dimension is a segmented control like the view switch —
+// one sunken box, the chosen value raised in it. The dimension's name is the
+// control's accessible label and its "all" value, not a micro-label above it.
+const SELECT =
+  "h-9 w-full min-w-0 appearance-none rounded-md border border-line bg-surface pl-3 pr-8 text-[13px] text-fg transition-colors hover:border-line-strong focus-visible:border-focus focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-focus-soft";
+const CHIP = "flex h-full shrink-0 items-center whitespace-nowrap rounded-sm px-2.5 text-[13px] transition-colors";
+const CHIP_ON = "bg-surface font-medium text-fg shadow-[0_1px_2px_rgb(0_0_0/0.06)]";
+const CHIP_OFF = "text-fg-muted hover:text-fg";
 
 export function FilterBar({
   base,
@@ -95,7 +101,7 @@ export function FilterBar({
   const clearAll = href(Object.fromEntries(dimensions.map((d) => [d.key, undefined])));
 
   return (
-    <div className="mb-4 flex flex-wrap items-end gap-x-5 gap-y-3">
+    <div className="flex flex-wrap items-center gap-2">
       {dimensions.map((d) => {
         // A dimension with one value is not a choice; it is shown only when
         // it is the active filter, so it can be cleared.
@@ -103,83 +109,80 @@ export function FilterBar({
         const kind = d.kind === "auto" || !d.kind ? (d.options.length <= CHIPS_UP_TO ? "chips" : "select") : d.kind;
         const value = current[d.key] ?? "";
         const all = d.allLabel ?? "All";
-        return (
-          <div key={d.key} className="flex min-w-0 max-w-full flex-col gap-1">
-            <span className={LABEL}>{d.label}</span>
-            {kind === "select" ? (
-              // A GET form: the select navigates on change, and the hidden
-              // inputs carry every other filter so the URL the form builds
-              // is the same one `href` would. The submit button is for a
-              // page where nothing runs on change; it is hidden once it does.
-              <form method="get" action={base} className="flex items-center gap-1">
-                {Object.entries(current)
-                  .filter(([k, v]) => v && k !== d.key && !(d.resets ?? []).includes(k))
-                  .map(([k, v]) => (
-                    <input key={k} type="hidden" name={k} value={v} />
-                  ))}
-                {tenant && <input type="hidden" name="tenant" value={tenant.replace(/^tenant=/, "")} />}
-                <select
-                  name={d.key}
-                  aria-label={d.label}
-                  value={value}
-                  onChange={(e) => router.push(href(patchFor(d, e.target.value)))}
-                  className={selectClass("py-1 pr-7 text-xs")}
-                >
-                  <option value="">{all}</option>
-                  {d.options.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label ?? o.value}
-                    </option>
-                  ))}
-                </select>
-                <noscript>
-                  <button type="submit" className="rounded-md px-2 py-1 text-xs ring-1 ring-inset ring-line">
-                    Go
-                  </button>
-                </noscript>
-              </form>
-            ) : (
-              // A segmented control: one box, the chips joined inside it, so
-              // five statuses read as one question rather than five buttons.
-              // Too many for a phone's width, it scrolls inside its box.
-              <div role="group" aria-label={d.label} className="inline-flex max-w-full overflow-x-auto rounded-md ring-1 ring-inset ring-line">
+        return kind === "select" ? (
+          // A GET form: the select navigates on change, and the hidden
+          // inputs carry every other filter so the URL the form builds is
+          // the same one `href` would. The submit button is for a page where
+          // nothing runs on change; it is hidden once it does.
+          <form key={d.key} method="get" action={base} className="flex min-w-0 max-w-full items-center gap-1">
+            {Object.entries(current)
+              .filter(([k, v]) => v && k !== d.key && !(d.resets ?? []).includes(k))
+              .map(([k, v]) => (
+                <input key={k} type="hidden" name={k} value={v} />
+              ))}
+            {tenant && <input type="hidden" name="tenant" value={tenant.replace(/^tenant=/, "")} />}
+            <span className="relative min-w-0">
+              <select
+                name={d.key}
+                aria-label={d.label}
+                title={d.label}
+                value={value}
+                onChange={(e) => router.push(href(patchFor(d, e.target.value)))}
+                className={cn(SELECT, "max-w-56", value && "border-line-strong font-medium")}
+              >
+                <option value="">{all}</option>
+                {d.options.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label ?? o.value}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-fg-muted" aria-hidden />
+            </span>
+            <noscript>
+              <button type="submit" className="h-9 rounded-md border border-line bg-surface px-3 text-[13px] text-fg">
+                Go
+              </button>
+            </noscript>
+          </form>
+        ) : (
+          // A segmented control: one box, the chips joined inside it, so
+          // five statuses read as one question rather than five buttons.
+          // Too many for a phone's width, it scrolls inside its box.
+          <div
+            key={d.key}
+            role="group"
+            aria-label={d.label}
+            className="inline-flex h-9 max-w-full items-center gap-0.5 overflow-x-auto rounded-md border border-line bg-sunken p-0.5"
+          >
+            <Link href={href(patchFor(d, undefined))} aria-current={!value ? "true" : undefined} className={cn(CHIP, !value ? CHIP_ON : CHIP_OFF)}>
+              {all}
+            </Link>
+            {d.options.map((o) => {
+              const on = value === o.value;
+              return (
                 <Link
-                  href={href(patchFor(d, undefined))}
-                  aria-current={!value ? "true" : undefined}
-                  className={`${CHIP} ${!value ? CHIP_ON : CHIP_OFF}`}
+                  key={o.value}
+                  href={href(patchFor(d, on ? undefined : o.value))}
+                  aria-current={on ? "true" : undefined}
+                  className={cn(CHIP, on ? CHIP_ON : CHIP_OFF)}
                 >
-                  {all}
+                  {o.label ?? o.value}
                 </Link>
-                {d.options.map((o) => {
-                  const on = value === o.value;
-                  return (
-                    <Link
-                      key={o.value}
-                      href={href(patchFor(d, on ? undefined : o.value))}
-                      aria-current={on ? "true" : undefined}
-                      className={`${CHIP} border-l border-line ${on ? CHIP_ON : CHIP_OFF}`}
-                    >
-                      {o.label ?? o.value}
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
+              );
+            })}
           </div>
         );
       })}
       {(active.length > 0 || total !== undefined) && (
-        <div className="ml-auto flex items-center gap-3 self-center text-xs text-fg-muted">
+        <div className="ml-auto flex items-center gap-3 text-[13px] text-fg-muted">
           {total !== undefined && (
             <span className="tabular-nums">
               {total} {noun}
             </span>
           )}
           {active.length > 0 && (
-            <Link
-              href={clearAll}
-              className="font-medium text-fg-tertiary underline-offset-2 hover:text-fg hover:underline"
-            >
+            <Link href={clearAll} className="font-medium text-fg-secondary underline-offset-2 hover:text-fg hover:underline">
               Clear filters
             </Link>
           )}

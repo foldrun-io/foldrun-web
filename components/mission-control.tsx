@@ -1,18 +1,20 @@
-// The overview's building blocks, shared by the account home and each
-// workspace's page so both read the same way, top to bottom:
+// The overview's building blocks (UI refactor, Nov 2026, cloudhost's look),
+// shared by the account home and each workspace's page so both read the
+// same way:
 //
-//   status line   — the numbers, one line, each a link
-//   Needs you     — what is broken or waiting, and whether it is the
-//                   platform's fault or the desk's (only when there is any)
-//   Now & next    — what is running, what fires next (only when there is any)
+//   StatusStrip     the numbers, as tiles (where a page wants them)
+//   SpendPanel      money, as ring rows (cloudhost's Usage card)
+//   AttentionPanel  what is broken or waiting, platform's fault or the desk's
+//   NowNext         what is running and what fires next
+//   outcomeRing     a run outcome as a card's status ring
 //
-// then the page's own list (desks, or flows and agents). Each fact has one
-// home: this replaced an Alerts card that repeated Needs attention, a Recent
-// runs list that repeated the heartbeat, and an Up next card that repeated
-// the empty Running panel's "Next:" line.
+// Each fact has one home: this replaced an Alerts card that repeated Needs
+// attention, a Recent runs list that repeated the heartbeat, and an Up next
+// card that repeated the empty Running panel's "Next:" line.
 
 import Link from "next/link";
-import { OUTCOME } from "@/components/outcome-model";
+import { CheckCircle2, ChevronRight, Clock3, Coins } from "lucide-react";
+import { OUTCOME, type Outcome } from "@/components/outcome-model";
 import { runHref } from "@/components/run-href";
 import { fmtSpan, type AttentionItem, type Heartbeat, type NowItem } from "@/components/mission-model";
 import { type Alert } from "@/components/overview-model";
@@ -22,27 +24,54 @@ import { issueDoctor } from "@/lib/issues";
 import { WithEmails } from "@/components/email";
 import { fmtIn } from "@/components/workspace-overview-model";
 import { LocalTime } from "@/components/local-time";
+import { Chip, Stat, StatGrid, UsageRows, type RingStatus, type Tone, type UsageRow } from "@/components/kit/page";
+import { cn } from "@/components/kit/cn";
 
-const KIND: Record<AttentionItem["kind"], { label: string; tone: string; bar: string }> = {
-  platform: { label: "platform", tone: "text-white bg-slate-800 ring-slate-800", bar: "bg-slate-800" },
-  waiting: { label: "needs you", tone: "text-violet-700 bg-violet-50 ring-violet-200", bar: "bg-violet-500" },
-  stuck: { label: "stuck", tone: "text-amber-800 bg-amber-50 ring-amber-200", bar: "bg-amber-500" },
-  failed: { label: "failed", tone: "text-red-700 bg-red-50 ring-red-200", bar: "bg-red-600" },
-  bad: { label: "bad", tone: "text-rose-700 bg-rose-50 ring-rose-200", bar: "bg-rose-500" },
-  blocked: { label: "blocked", tone: "text-orange-700 bg-orange-50 ring-orange-200", bar: "bg-orange-500" },
-  missed: { label: "missed", tone: "text-amber-800 bg-amber-50 ring-amber-200", bar: "bg-amber-500" },
+const KIND: Record<AttentionItem["kind"], { label: string; tone: Tone }> = {
+  platform: { label: "Platform", tone: "default" },
+  waiting: { label: "Needs you", tone: "info" },
+  stuck: { label: "Stuck", tone: "warn" },
+  failed: { label: "Failed", tone: "bad" },
+  bad: { label: "Bad", tone: "bad" },
+  blocked: { label: "Blocked", tone: "warn" },
+  missed: { label: "Missed", tone: "warn" },
 };
 
-export function Panel({ title, count, action, children, className = "" }: { title: string; count?: number; action?: React.ReactNode; children: React.ReactNode; className?: string }) {
+/** A run's outcome as a card's ring — the outcome's own word as its label,
+ *  unchanged (the refactor keeps every outcome distinct). */
+export function outcomeRing(o: Outcome | null | undefined): RingStatus {
+  if (!o) return "idle";
+  if (o === "running" || o === "queued") return "busy";
+  if (o === "waiting") return "waiting";
+  if (o === "failed" || o === "bad" || o === "blocked") return "error";
+  if (o === "stopped") return "idle";
+  return "live";
+}
+
+/** cloudhost's Panel, with the older props: the title (and a count) outside
+ *  the card, an action beside it. */
+export function Panel({ title, count, action, children, className = "", flush = true }: { title: string; count?: number; action?: React.ReactNode; children: React.ReactNode; className?: string; flush?: boolean }) {
   return (
-    <section className={`flex min-w-0 flex-col rounded-xl border border-line bg-surface shadow-sm ${className}`}>
-      <header className="flex items-center gap-2 border-b border-line-faint px-4 py-2.5">
-        <h2 className="text-[13px] font-semibold text-fg">{title}</h2>
-        {count !== undefined && <span className="rounded-full bg-muted px-1.5 text-[11px] tabular-nums text-fg-tertiary">{count}</span>}
-        <span className="ml-auto">{action}</span>
-      </header>
-      {children}
+    <section className={cn("min-w-0 space-y-3", className)}>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h2 className="flex items-center gap-2 px-1 text-base font-medium text-fg">
+          {title}
+          {count !== undefined && <span className="rounded-full bg-muted px-1.5 text-xs font-medium tabular-nums text-fg-muted">{count}</span>}
+        </h2>
+        {action && <div className="flex items-center gap-2">{action}</div>}
+      </div>
+      <div className={cn("min-w-0 overflow-hidden rounded-lg border border-line bg-surface", !flush && "p-5")}>{children}</div>
     </section>
+  );
+}
+
+/** A panel header's "see all" link. */
+export function PanelLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link href={href} className="inline-flex h-8 items-center gap-0.5 rounded-md border border-line bg-surface px-3 text-[13px] font-medium text-fg transition-colors hover:bg-sunken">
+      {children}
+      <ChevronRight className="size-3.5 text-fg-muted" aria-hidden />
+    </Link>
   );
 }
 
@@ -61,137 +90,133 @@ export interface StatusFacts {
   links: { running: string; attention: string; next: string; spend: string; balance?: string };
 }
 
-/** The numbers, on one line. Replaced the Usage card, the wallet button,
- *  the Alerts card's all-clear and the Running panel's "Next:" line. */
+/** The numbers as four tiles, each a door. */
 export function StatusStrip({ facts, now }: { facts: StatusFacts; now: number }) {
   const f = facts;
-  const item = "inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1 hover:bg-muted";
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-x-1 gap-y-1 rounded-xl border border-line bg-surface px-2 py-1.5 text-sm shadow-sm">
-      <Link href={f.links.attention} className={item}>
-        {f.attention === 0 ? (
-          <><span className="text-emerald-600">✓</span><span className="text-fg-secondary">All clear</span></>
-        ) : (
-          <>
-            <span className="h-2 w-2 rounded-full bg-red-500" />
-            <span className="font-semibold tabular-nums text-fg">{f.attention}</span>
-            <span className="text-fg-tertiary">need{f.attention === 1 ? "s" : ""} attention</span>
-            {f.platform > 0 && <span className="rounded bg-slate-800 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-white">{f.platform} platform</span>}
-          </>
-        )}
-      </Link>
-      <span className="text-gray-200">·</span>
-      <Link href={f.links.running} className={item}>
-        <span className={`h-2 w-2 rounded-full ${f.running ? "animate-pulse bg-sky-500" : "bg-gray-300"}`} />
-        <span className="font-semibold tabular-nums text-fg">{f.running}</span>
-        <span className="text-fg-tertiary">running</span>
-      </Link>
-      <span className="text-gray-200">·</span>
-      <Link href={f.links.next} className={item} title={f.next ? f.next.at : undefined}>
-        <span className="text-fg-muted">next</span>
-        {f.next ? (
-          <>
-            <span className="font-medium text-fg">{f.next.flow}</span>
-            {f.next.workspace && <span className="text-fg-subtle">{f.next.workspace}</span>}
-            <span className="tabular-nums text-fg-tertiary">{fmtIn(Math.max(0, Date.parse(f.next.at) - now))}</span>
-          </>
-        ) : (
-          <span className="text-fg-subtle">nothing scheduled</span>
-        )}
-      </Link>
-      <span className="ml-auto" />
-      <Link href={f.links.spend} className={item}>
-        {/* Charged, in credits (FOL-54): the ledger's figure, list price for
-            runs not settled yet — what the account pays, not token cost. */}
-        <span className="tabular-nums text-fg">{creditsShort(f.spendDayUsd)}</span>
-        <span className="text-fg-muted">today</span>
-        <span className="text-gray-300">/</span>
-        <span className="tabular-nums text-fg">{creditsShort(f.spend7dUsd)}</span>
-        <span className="text-fg-muted">7d</span>
-      </Link>
-      {f.budget && (
-        <Link href={f.links.spend} className={`${item} ${f.budget.warn ? "font-medium text-amber-700" : "text-fg-tertiary"}`}>
-          {f.budget.text}
-        </Link>
-      )}
-      {f.balanceUsd !== undefined && f.balanceUsd !== null && (
-        <Link href={f.links.balance ?? f.links.spend} className={`${item} font-medium ${f.balanceUsd <= 0 ? "text-red-700" : "text-fg"}`}>
-          {creditsShort(f.balanceUsd)} <span className="font-normal text-fg-muted">left</span>
-        </Link>
-      )}
-    </div>
+    <StatGrid className="mb-8">
+      <Stat
+        href={f.links.attention}
+        icon={f.attention === 0 ? <CheckCircle2 className="text-success" /> : <span className="size-2 rounded-full bg-red-500" />}
+        label="Needs attention"
+        value={f.attention === 0 ? "All clear" : f.attention}
+        tone={f.attention ? "danger" : undefined}
+        sub={f.platform > 0 ? `${f.platform} the platform's` : undefined}
+      />
+      <Stat href={f.links.running} icon={<span className={`size-2 rounded-full ${f.running ? "animate-pulse bg-sky-500" : "bg-gray-300"}`} />} label="Running now" value={f.running} />
+      <Stat
+        href={f.links.next}
+        icon={<Clock3 />}
+        label="Next run"
+        value={f.next ? <span className="truncate text-lg">{f.next.flow}</span> : <span className="text-base font-normal text-fg-subtle">Nothing scheduled</span>}
+        sub={f.next ? `${fmtIn(Math.max(0, Date.parse(f.next.at) - now))}${f.next.workspace ? ` · ${f.next.workspace}` : ""}` : undefined}
+      />
+      <Stat href={f.links.spend} icon={<Coins />} label="Spend today" value={creditsShort(f.spendDayUsd)} sub={`${creditsShort(f.spend7dUsd)} in 7 days`} />
+    </StatGrid>
+  );
+}
+
+/** Money as cloudhost's usage card: spend today and this week, a budget's
+ *  standing, the balance. Charged, in credits (FOL-54): the ledger's figure,
+ *  list price for runs not settled yet — what the account pays. */
+export function SpendPanel({
+  dayUsd,
+  weekUsd,
+  balanceUsd,
+  budget,
+  href,
+  balanceHref,
+}: {
+  dayUsd: number;
+  weekUsd: number;
+  balanceUsd?: number | null;
+  budget?: { spentUsd: number; limitUsd: number; label: string } | null;
+  href: string;
+  balanceHref?: string;
+}) {
+  const rows: UsageRow[] = [
+    { key: "day", label: "Spent today", used: 0, limit: null, shown: creditsShort(dayUsd), href },
+    { key: "week", label: "Spent in 7 days", used: 0, limit: null, shown: creditsShort(weekUsd), href },
+    ...(budget ? [{ key: "budget", label: `Budget ${budget.label}`, used: budget.spentUsd, limit: budget.limitUsd, shown: `${creditsShort(budget.spentUsd)} / ${creditsShort(budget.limitUsd)}`, href }] : []),
+    ...(balanceUsd !== undefined && balanceUsd !== null ? [{ key: "balance", label: "Balance", used: balanceUsd <= 0 ? 1 : 0, limit: 1, shown: creditsShort(balanceUsd), href: balanceHref ?? href }] : []),
+  ];
+  return (
+    <Panel title="Usage" action={<PanelLink href={href}>Usage</PanelLink>}>
+      <UsageRows rows={rows} heading="This week" />
+    </Panel>
   );
 }
 
 /** What is broken or waiting, worst first, with the money warnings last.
- *  Renders nothing when there is nothing: the status line says all clear. */
-export function AttentionPanel({ items, alerts = [], tenant, showWorkspace = true, issuesHref, accountWide = true }: { items: AttentionItem[]; alerts?: Alert[]; tenant: string; showWorkspace?: boolean; issuesHref?: string; accountWide?: boolean }) {
-  if (items.length === 0 && alerts.length === 0) return null;
+ *  "All clear" when there is nothing. */
+export function AttentionPanel({ items, alerts = [], tenant, showWorkspace = true, issuesHref, accountWide = true, limit = 6 }: { items: AttentionItem[]; alerts?: Alert[]; tenant: string; showWorkspace?: boolean; issuesHref?: string; accountWide?: boolean; limit?: number }) {
+  const total = items.length + alerts.length;
   return (
-    <Panel
-      title="Needs attention"
-      count={items.length + alerts.length}
-      className="mb-4"
-      action={issuesHref ? <Link href={issuesHref} className="text-[11px] font-medium text-fg-muted hover:text-fg">All issues →</Link> : undefined}
-    >
-      <ul id="attention" className="max-h-[26rem] divide-y divide-line-faint overflow-auto">
-        {items.map((a) => {
-          const k = KIND[a.kind];
-          return (
-            <li key={a.issue?.id ?? `${a.kind}/${a.workspace}/${a.what}`} className="relative flex items-start gap-2 hover:bg-sunken">
-              <Link href={a.run ? runHref(a.run.workspace, a.run.id, tenant) : `${a.href ?? "/dashboard"}${tenant !== "default" ? `${(a.href ?? "").includes("?") ? "&" : "?"}tenant=${tenant}` : ""}`} className="group relative flex min-w-0 flex-1 gap-3 px-4 py-2.5">
-                <span className={`absolute inset-y-2 left-0 w-0.5 rounded-full ${k.bar}`} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className={`shrink-0 rounded px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset ${k.tone}`}>{k.label}</span>
-                    <span className="truncate font-medium text-fg group-hover:underline">{a.what}</span>
-                    {a.kind !== "platform" && showWorkspace && <span className="shrink-0 rounded bg-muted px-1.5 text-[10px] text-fg-muted">{a.workspace}</span>}
-                    {a.kind === "platform" ? (
-                      <span className="shrink-0 text-[11px] text-fg-muted">
-                        {a.issue ? `×${a.count} run${a.count === 1 ? "" : "s"}` : `${a.count} flow${a.count === 1 ? "" : "s"}`}{a.desks && a.desks.length > 1 ? ` on ${a.desks.length} desks` : ""}
-                      </span>
-                    ) : a.issue ? (
-                      a.count > 1 && <span className="shrink-0 text-[11px] text-fg-muted" title={`first ${a.issue.firstSeen}`}>×{a.count} since {fmtSpan(a.sinceMs ?? 0)} ago</span>
-                    ) : (
-                      a.count > 1 && <span className="shrink-0 text-[11px] text-fg-muted">×{a.count} today</span>
-                    )}
-                    {a.issue?.regressed && (
-                      <span className="shrink-0 rounded bg-danger-soft px-1.5 text-[10px] font-medium text-danger" title="It was resolved and came back">
-                        regressed{a.issue.sinceRevision ? ` since ${a.issue.sinceRevision.slice(0, 7)}` : ""}
-                      </span>
-                    )}
-                    {a.issue?.status === "acknowledged" && <span className="shrink-0 rounded bg-muted px-1.5 text-[10px] text-fg-muted" title={`by ${a.issue.acknowledged?.by ?? "someone"}`}>acknowledged</span>}
-                    <span className="ml-auto shrink-0 text-[11px] tabular-nums text-fg-subtle">{fmtSpan(a.ageMs)} ago</span>
+    <Panel title="Needs attention" count={total || undefined} action={issuesHref ? <PanelLink href={issuesHref}>All issues</PanelLink> : undefined}>
+      {total === 0 ? (
+        <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
+          <span className="flex size-10 items-center justify-center rounded-lg border border-line text-success">
+            <CheckCircle2 className="size-5" />
+          </span>
+          <p className="font-medium text-fg">All clear</p>
+          <p className="text-sm text-fg-muted">Nothing failed, stuck or waiting for you.</p>
+        </div>
+      ) : (
+        <ul id="attention" className="divide-y divide-line">
+          {items.slice(0, limit).map((a) => {
+            const k = KIND[a.kind];
+            const href = a.run ? runHref(a.run.workspace, a.run.id, tenant) : `${a.href ?? "/dashboard"}${tenant !== "default" ? `${(a.href ?? "").includes("?") ? "&" : "?"}tenant=${tenant}` : ""}`;
+            return (
+              <li key={a.issue?.id ?? `${a.kind}/${a.workspace}/${a.what}`} className="flex min-w-0 items-start gap-3 px-5 py-3">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <Link href={href} className="block truncate text-sm font-medium text-fg hover:underline">
+                    {a.what}
+                  </Link>
+                  <p className="line-clamp-2 text-sm text-fg-muted">
+                    <WithEmails text={a.reason} />
+                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                    <Chip tone={k.tone} dot>
+                      {k.label}
+                    </Chip>
+                    {a.kind !== "platform" && showWorkspace && <Chip>{a.workspace}</Chip>}
+                    {a.kind === "platform" && a.desks && a.desks.length > 1 && <Chip>{a.desks.length} workspaces</Chip>}
+                    {a.count > 1 && <Chip>×{a.count}</Chip>}
+                    {a.issue?.regressed && <Chip tone="bad">regressed</Chip>}
+                    {a.issue?.status === "acknowledged" && <Chip>acknowledged</Chip>}
+                    <span className="text-xs text-fg-muted">{fmtSpan(a.ageMs)} ago</span>
                   </div>
-                  <p className="mt-0.5 line-clamp-2 text-xs text-fg-tertiary"><WithEmails text={a.reason} /></p>
-                  {a.fineMs != null && (
-                    <p className="mt-0.5 text-[11px] text-emerald-700">fine since {fmtSpan(a.fineMs)} ago — resolve it if it is fixed</p>
-                  )}
-                  {a.kind === "platform" && a.desks && showWorkspace && (
-                    <p className="mt-1 flex flex-wrap gap-1">
-                      {a.desks.map((d) => <span key={d} className="rounded bg-muted px-1.5 text-[10px] text-fg-muted">{d}</span>)}
-                    </p>
-                  )}
+                  {a.fineMs != null && <p className="text-xs text-success">Fine for {fmtSpan(a.fineMs)}: resolve it if it is fixed.</p>}
                 </div>
-              </Link>
-              {a.issue && (
-                <div className="py-2.5 pr-4">
-                  <IssueActions id={a.issue.id} status={a.issue.status} tenant={tenant} platform={a.issue.kind === "platform"} accountWide={accountWide} doctor={issueDoctor(a.issue)} />
-                </div>
-              )}
+                {a.issue && (
+                  <div className="shrink-0 pt-0.5">
+                    <IssueActions id={a.issue.id} status={a.issue.status} tenant={tenant} platform={a.issue.kind === "platform"} accountWide={accountWide} doctor={issueDoctor(a.issue)} compact />
+                  </div>
+                )}
+              </li>
+            );
+          })}
+          {alerts.map((a) => (
+            <li key={a.text} className="flex min-w-0 items-start gap-3 px-5 py-3">
+              <div className="min-w-0 flex-1 space-y-1">
+                <Link href={a.href} className="block text-sm font-medium text-fg hover:underline">
+                  {a.text}
+                </Link>
+                <Chip tone={a.level === "error" ? "bad" : "warn"} dot>
+                  Money
+                </Chip>
+              </div>
             </li>
-          );
-        })}
-        {alerts.map((a) => (
-          <li key={a.text}>
-            <Link href={a.href} className="group relative flex items-center gap-3 px-4 py-2.5 hover:bg-sunken">
-              <span className={`absolute inset-y-2 left-0 w-0.5 rounded-full ${a.level === "error" ? "bg-red-600" : "bg-amber-500"}`} />
-              <span className={`shrink-0 rounded px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset ${a.level === "error" ? "bg-red-50 text-red-700 ring-red-200" : "bg-amber-50 text-amber-800 ring-amber-200"}`}>money</span>
-              <span className="truncate text-sm text-gray-800 group-hover:underline">{a.text}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+          ))}
+          {items.length > limit && issuesHref && (
+            <li>
+              <Link href={issuesHref} className="block px-5 py-2.5 text-center text-sm text-fg-muted hover:bg-sunken hover:text-fg">
+                {items.length - limit} more
+              </Link>
+            </li>
+          )}
+        </ul>
+      )}
     </Panel>
   );
 }
@@ -202,43 +227,32 @@ export interface NextFire {
   at: string;
 }
 
-/** Running now, and the next few fires. Renders nothing when neither has
- *  anything: an empty "Nothing running" panel was a quarter of the screen. */
+/** Running now (only when something runs) and the next fires. */
 export function NowNext({ board, upcoming, now, tenant, showWorkspace = true, runsHref }: { board: NowItem[]; upcoming: NextFire[]; now: number; tenant: string; showWorkspace?: boolean; runsHref: string }) {
-  if (board.length === 0 && upcoming.length === 0) return null;
   const rest = tenant !== "default" ? `&tenant=${tenant}` : "";
-  // Nothing running: the status line already says 0, so Up next stands
-  // alone rather than beside an empty box.
   return (
-    <div className={`mb-4 grid grid-cols-1 items-start gap-4 ${board.length ? "lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]" : ""}`}>
+    <>
       {board.length > 0 && (
-        <Panel
-          title="Running now"
-          count={board.length}
-          action={<Link href={runsHref} className="text-[11px] font-medium text-fg-muted hover:text-fg">All runs →</Link>}
-        >
-          <ul className="divide-y divide-line-faint">
-            {board.slice(0, 8).map((r) => {
-              const o = OUTCOME[r.outcome];
+        <Panel title="Running now" count={board.length} action={<PanelLink href={runsHref}>All runs</PanelLink>}>
+          <ul className="divide-y divide-line">
+            {board.slice(0, 6).map((r) => {
               const pct = r.steps ? Math.round((100 * r.done) / r.steps) : 0;
               return (
                 <li key={`${r.workspace}/${r.id}`}>
-                  <Link href={runHref(r.workspace, r.id, tenant)} className="group block px-4 py-2.5 hover:bg-sunken">
+                  <Link href={runHref(r.workspace, r.id, tenant)} className="group block px-5 py-3 hover:bg-sunken">
                     <div className="flex items-center gap-2 text-sm">
-                      <span className={`h-2 w-2 shrink-0 rounded-full ${o.dot}`} />
+                      <span className={`size-2 shrink-0 rounded-full ${OUTCOME[r.outcome].dot}`} />
                       <span className="truncate font-medium text-fg group-hover:underline">{r.what}</span>
-                      {showWorkspace && <span className="shrink-0 rounded bg-muted px-1.5 text-[10px] text-fg-muted">{r.workspace}</span>}
-                      {r.stuck && <span className="shrink-0 rounded bg-amber-100 px-1.5 text-[10px] font-medium text-amber-800">stuck?</span>}
-                      <span className="ml-auto shrink-0 text-[11px] tabular-nums text-fg-muted">{fmtSpan(r.elapsedMs)}</span>
+                      {showWorkspace && <span className="shrink-0 text-fg-muted">{r.workspace}</span>}
+                      <span className="ml-auto shrink-0 text-xs tabular-nums text-fg-muted">{fmtSpan(r.elapsedMs)}</span>
                     </div>
-                    <div className="mt-1.5 flex items-center gap-3 pl-4">
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                        <div className={`h-full rounded-full ${r.outcome === "waiting" ? "bg-violet-500" : "bg-sky-500"}`} style={{ width: `${Math.max(pct, 4)}%` }} />
-                      </div>
-                      <span className="w-44 shrink-0 truncate text-[11px] text-fg-muted">
-                        {r.outcome === "waiting" ? (r.question ? "asking you a question" : "waiting for approval") : r.outcome === "queued" ? "queued" : r.active ? `step ${r.active.index}/${r.steps} · ${r.active.agent}` : `${r.done}/${r.steps} steps`}
-                      </span>
+                    <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
+                      <div className={`h-full rounded-full ${r.outcome === "waiting" ? "bg-violet-500" : "bg-sky-500"}`} style={{ width: `${Math.max(pct, 4)}%` }} />
                     </div>
+                    <p className="mt-1.5 truncate text-xs text-fg-muted">
+                      {r.outcome === "waiting" ? (r.question ? "Asking you a question" : "Waiting for approval") : r.outcome === "queued" ? "Queued" : r.active ? `Step ${r.active.index} of ${r.steps} · ${r.active.agent}` : `${r.done} of ${r.steps} steps`}
+                      {r.stuck && " · stuck?"}
+                    </p>
                   </Link>
                 </li>
               );
@@ -248,40 +262,43 @@ export function NowNext({ board, upcoming, now, tenant, showWorkspace = true, ru
       )}
       <Panel title="Up next">
         {upcoming.length === 0 ? (
-          <p className="px-4 py-5 text-center text-xs text-fg-subtle">Nothing scheduled.</p>
+          <p className="px-5 py-8 text-center text-sm text-fg-muted">Nothing scheduled.</p>
         ) : (
-          <ul className="divide-y divide-line-faint">
+          <ul className="divide-y divide-line">
             {upcoming.slice(0, 5).map((u) => (
               <li key={`${u.workspace}/${u.flow}/${u.at}`}>
-                <Link href={`/dashboard/${u.workspace}/flows?flow=${encodeURIComponent(u.flow)}${rest}`} className="group flex items-center gap-3 px-4 py-2 hover:bg-sunken">
-                  <span className="w-16 shrink-0 text-xs font-medium tabular-nums text-fg">{fmtIn(Math.max(0, Date.parse(u.at) - now)).replace(/^in /, "")}</span>
+                <Link href={`/dashboard/${u.workspace}/flows?flow=${encodeURIComponent(u.flow)}${rest}`} className="group flex items-center gap-3 px-5 py-3 hover:bg-sunken">
+                  <Clock3 className="size-4 shrink-0 text-fg-muted" aria-hidden />
                   <span className="min-w-0 flex-1 truncate text-sm">
                     <span className="font-medium text-fg group-hover:underline">{u.flow}</span>
-                    {showWorkspace && <span className="ml-1.5 text-fg-subtle">{u.workspace}</span>}
+                    {showWorkspace && <span className="ml-1.5 text-fg-muted">{u.workspace}</span>}
                   </span>
-                  <span className="shrink-0 text-[11px] text-fg-subtle"><LocalTime iso={u.at} /></span>
+                  <span className="shrink-0 text-xs tabular-nums text-fg-muted" title={u.at}>
+                    {fmtIn(Math.max(0, Date.parse(u.at) - now))}
+                  </span>
                 </Link>
               </li>
             ))}
           </ul>
         )}
       </Panel>
-    </div>
+    </>
   );
 }
 
-/** A strip of a thing's last runs, oldest → newest, each a link to the run,
- *  left-padded to `n` so strips line up down a table. */
+/** A thing's last runs, oldest → newest, each a link to the run. */
 export function Cells({ beat, n, tenant }: { beat: Heartbeat; n: number; tenant: string }) {
   return (
     <div className="flex items-center gap-[3px]">
-      {Array.from({ length: Math.max(0, n - beat.cells.length) }).map((_, i) => <span key={`e${i}`} className="h-4 w-2 rounded-[2px] bg-muted" />)}
+      {Array.from({ length: Math.max(0, n - beat.cells.length) }).map((_, i) => (
+        <span key={`e${i}`} className="h-5 w-1.5 rounded-full bg-muted" />
+      ))}
       {beat.cells.map((r) => (
         <Link
           key={r.id}
           href={runHref(r.workspace, r.id, tenant)}
           title={`${r.what} · ${OUTCOME[r.outcome].hint} · ${r.startedAt.slice(0, 16).replace("T", " ")} UTC${r.headline ? `\n${r.headline}` : ""}`}
-          className={`h-4 w-2 rounded-[2px] ${OUTCOME[r.outcome].cell} transition-transform hover:scale-y-125 hover:ring-2 hover:ring-gray-900/20`}
+          className={`h-5 w-1.5 rounded-full ${OUTCOME[r.outcome].cell} transition-transform hover:scale-y-110`}
         />
       ))}
     </div>
@@ -291,10 +308,15 @@ export function Cells({ beat, n, tenant }: { beat: Heartbeat; n: number; tenant:
 /** The key to the cell colours, once per page. */
 export function CellLegend() {
   return (
-    <span className="hidden items-center gap-3 text-[10px] text-fg-muted md:flex">
+    <span className="hidden items-center gap-3 text-xs text-fg-muted lg:flex">
       {(["good", "done", "quiet", "blocked", "bad", "failed", "running", "waiting"] as const).map((k) => (
-        <span key={k} className="flex items-center gap-1"><span className={`h-2 w-2 rounded-sm ${OUTCOME[k].cell.replace(" animate-pulse", "")}`} />{OUTCOME[k].label}</span>
+        <span key={k} className="flex items-center gap-1">
+          <span className={`size-2 rounded-full ${OUTCOME[k].cell.replace(" animate-pulse", "")}`} />
+          {OUTCOME[k].label}
+        </span>
       ))}
     </span>
   );
 }
+
+export { LocalTime };

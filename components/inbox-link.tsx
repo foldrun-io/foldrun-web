@@ -1,56 +1,73 @@
 "use client";
 
-// The inbox door in the top bar, with how many items assigned to you or on
-// runs you started you have not read (GET /api/me/inbox's counts.unread).
-// Asked once a minute and on every navigation; hidden when there is no
-// person to have an inbox (dev mode with nobody signed in).
+// The bell, beside the person at the foot of the sidebar: a door to the
+// inbox, with a blue dot while something there is unread
+// (GET /api/me/inbox's counts.unread). Asked once a minute and on every
+// navigation, by one shared poll; hidden when there is no person to have an
+// inbox (dev mode with nobody signed in).
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+import { Bell } from "lucide-react";
+import { cn } from "./kit/cn";
 
 const EVERY_MS = 60_000;
 
-export function InboxLink({ tenant }: { tenant: string }) {
+// One poll for the page, however many places show the count.
+let unread: number | null = null;
+const listeners = new Set<() => void>();
+let lastKey = "";
+let timer: ReturnType<typeof setInterval> | null = null;
+function load(tenant: string) {
+  fetch("/api/me/inbox", { headers: { "x-foldrun-tenant": tenant } })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d: { counts?: { unread?: number } } | null) => {
+      unread = d?.counts ? (d.counts.unread ?? 0) : null;
+      listeners.forEach((l) => l());
+    })
+    .catch(() => {});
+}
+function subscribe(cb: () => void) {
+  listeners.add(cb);
+  return () => listeners.delete(cb);
+}
+
+export function useInboxUnread(): number | null {
   const pathname = usePathname();
   const params = useSearchParams();
-  const t = params.get("tenant") ?? tenant;
-  const [unread, setUnread] = useState<number | null>(null);
-
+  const t = params.get("tenant") ?? "default";
   useEffect(() => {
-    let alive = true;
-    const load = () =>
-      fetch("/api/me/inbox", { headers: { "x-foldrun-tenant": t } })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((d: { counts?: { unread?: number } } | null) => {
-          if (alive) setUnread(d?.counts ? (d.counts.unread ?? 0) : null);
-        })
-        .catch(() => {});
-    void load();
-    const timer = setInterval(load, EVERY_MS);
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
+    const key = `${pathname}|${t}`;
+    if (key !== lastKey) {
+      lastKey = key;
+      load(t);
+    }
+    if (!timer) timer = setInterval(() => load(t), EVERY_MS);
   }, [pathname, t]);
+  return useSyncExternalStore(subscribe, () => unread, () => null);
+}
 
-  if (unread === null) return null;
+export function InboxLink({ className }: { className?: string }) {
+  const params = useSearchParams();
+  const pathname = usePathname();
+  const t = params.get("tenant") ?? "default";
+  const n = useInboxUnread();
+  if (n === null) return null;
   const on = pathname === "/dashboard/inbox";
   return (
     <Link
       href={`/dashboard/inbox${t !== "default" ? `?tenant=${encodeURIComponent(t)}` : ""}`}
-      title={unread ? `${unread} unread in your inbox` : "Your inbox"}
-      aria-label={unread ? `Inbox, ${unread} unread` : "Inbox"}
-      className={`relative flex h-8 items-center gap-1.5 rounded-md px-2 text-sm ${on ? "bg-accent-soft text-accent" : "text-fg-tertiary hover:bg-muted-strong/40 hover:text-fg"}`}
-    >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M22 12h-6l-2 3h-4l-2-3H2" />
-        <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
-      </svg>
-      <span className="max-sm:hidden">Inbox</span>
-      {unread > 0 && (
-        <span className="rounded-full bg-accent px-1.5 text-[10px] font-semibold leading-4 text-white tabular-nums">{unread > 99 ? "99+" : unread}</span>
+      aria-label={n ? `Inbox, ${n} unread` : "Inbox"}
+      title={n ? `${n} unread in your inbox` : "Inbox"}
+      className={cn(
+        "relative flex size-8 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
+        on ? "bg-muted text-fg" : "text-fg-muted hover:bg-muted hover:text-fg",
+        className,
       )}
+    >
+      <Bell className="size-4" strokeWidth={1.75} aria-hidden />
+      {n > 0 && <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-blue-600 ring-2 ring-paper" aria-hidden />}
     </Link>
   );
 }

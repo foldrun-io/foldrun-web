@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { workspaceDir, listAgents, listFlows, agentAssets } from "@/lib/store";
 import { GraphClient } from "./graph-client";
 import { buildWorkspaceGraph } from "@/server/graph";
+import { isLayout } from "@/components/graph-layout-model";
 
 export const dynamic = "force-dynamic";
 
@@ -11,10 +12,10 @@ export default async function GraphPage({
   searchParams,
 }: {
   params: Promise<{ workspace: string }>;
-  searchParams: Promise<{ tenant?: string }>;
+  searchParams: Promise<{ tenant?: string; layout?: string }>;
 }) {
   const { workspace } = await params;
-  const { tenant = "default" } = await searchParams;
+  const { tenant = "default", layout } = await searchParams;
   if (!fs.existsSync(workspaceDir(tenant, workspace))) notFound();
 
   // Built here, like the account view: reading a workspace off disk is the
@@ -34,6 +35,7 @@ export default async function GraphPage({
       agents={agents}
       flows={flows}
       graph={graph}
+      layout={isLayout(layout) ? layout : "map"}
     />
   );
 }

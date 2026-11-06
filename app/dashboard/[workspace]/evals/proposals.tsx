@@ -84,25 +84,27 @@ export function Proposals({
   const shown = proposals.filter((p) => p.status !== "dismissed").slice(0, 5);
 
   return (
-    <div className="mb-3">
-      <div className="mb-1 flex flex-wrap items-center gap-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-fg-subtle">Proposed fixes</p>
-        {run && canPropose && !open && (
+    <div className="space-y-3">
+      {run && canPropose && !open && (
+      <div className="flex flex-wrap items-center gap-2">
+        {shown.length === 0 && <span className="text-sm text-fg-muted">No fix proposed yet.</span>}
+        {(
           <button
             onClick={propose}
             disabled={busy === "propose"}
-            className={buttonClass("minimal")}
+            className={buttonClass("secondary")}
             title="The assistant reads the failures and the files they used, and proposes the smallest change. Nothing is written until you apply it."
           >
             {busy === "propose" ? "Asking…" : "Propose a fix"}
           </button>
         )}
       </div>
-      {error && <p className="mb-1 text-xs text-red-600">{error}</p>}
-      {shown.length === 0 && <p className="text-xs text-fg-muted">None yet.</p>}
-      <ul className="space-y-2">
+      )}
+      {error && <p className="text-xs text-danger">{error}</p>}
+      {shown.length === 0 && !(run && canPropose && !open) && <p className="text-sm text-fg-muted">None yet.</p>}
+      {shown.length > 0 && <ul className="space-y-2">
         {shown.map((p) => (
-          <li key={p.id} id={p.id} className="rounded-lg border border-line bg-surface px-3 py-2">
+          <li key={p.id} id={p.id} className="scroll-mt-24 rounded-lg border border-line bg-surface px-4 py-3">
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <Badge variant={TONE[p.status]}>{LABEL[p.status]}</Badge>
               <span className="text-fg-muted">
@@ -127,9 +129,9 @@ export function Proposals({
               </span>
             </div>
             {p.status === "drafting" && <p className="mt-1 text-xs text-fg-muted">The assistant is reading the failures and the files they used — reload in a minute.</p>}
-            {p.error && <p className="mt-1 text-xs text-red-600">{p.error}</p>}
+            {p.error && <p className="mt-1 text-xs text-danger">{p.error}</p>}
             {(p.notes ?? []).map((n) => (
-              <p key={n} className="mt-1 text-xs text-amber-700">
+              <p key={n} className="mt-1 text-xs text-warning">
                 <WithEmails text={n} />
               </p>
             ))}
@@ -138,7 +140,7 @@ export function Proposals({
               <ul className="mt-1 space-y-0.5">
                 {p.failures.map((f, i) => (
                   <li key={i} className="text-xs text-fg-secondary">
-                    {f.runId ? <Link href={runHref(workspace, f.runId, tenant)} className="font-mono text-accent hover:underline">{f.runId}</Link> : <span className="font-medium">{f.case}</span>} — <WithEmails text={`${f.check}: ${f.detail}`} />
+                    {f.runId ? <Link href={runHref(workspace, f.runId, tenant)} className="font-mono text-link hover:underline">{f.runId}</Link> : <span className="font-medium">{f.case}</span>} — <WithEmails text={`${f.check}: ${f.detail}`} />
                   </li>
                 ))}
               </ul>
@@ -157,7 +159,7 @@ export function Proposals({
             {p.issues.length > 0 && (
               <ul className="mt-1">
                 {p.issues.map((i, n) => (
-                  <li key={n} className={`text-xs ${i.level === "error" ? "text-red-600" : "text-amber-700"}`}>
+                  <li key={n} className={`text-xs ${i.level === "error" ? "text-danger" : "text-warning"}`}>
                     <WithEmails text={`${i.where}: ${i.message}`} />
                   </li>
                 ))}
@@ -166,7 +168,7 @@ export function Proposals({
             {p.applied && p.status !== "applied" && <p className="mt-1 text-xs text-fg-muted">Written: {p.applied.join(", ") || "nothing"}</p>}
           </li>
         ))}
-      </ul>
+      </ul>}
     </div>
   );
 }

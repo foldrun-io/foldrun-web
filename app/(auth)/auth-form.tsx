@@ -81,14 +81,14 @@ export function AuthForm({ mode, invite, setup }: { mode: "login" | "signup"; in
         // The second step replaces the form: the email and password were
         // right, and the only thing left is the code.
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-fg-secondary">Code from your authenticator app</span>
+          <span className="mb-1.5 block text-sm font-medium text-fg">Code from your authenticator app</span>
           <input name="code" inputMode="numeric" autoComplete="one-time-code" autoFocus required placeholder="123 456 — or a backup code" className={FIELD} />
           <span className="mt-1 block text-xs text-fg-muted">Lost the app? A backup code works once.</span>
         </label>
       )}
       {!challenge && mode === "signup" && !invite && (
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-fg-secondary">Account name</span>
+          <span className="mb-1.5 block text-sm font-medium text-fg">Account name</span>
           <input
             name="account"
             required
@@ -103,11 +103,11 @@ export function AuthForm({ mode, invite, setup }: { mode: "login" | "signup"; in
         </label>
       )}
       {!challenge && <label className="block">
-        <span className="mb-1 block text-sm font-medium text-fg-secondary">Email</span>
+        <span className="mb-1.5 block text-sm font-medium text-fg">Email</span>
         <input name="email" type="email" required placeholder="you@example.com" className={FIELD} />
       </label>}
       {!challenge && <label className="block">
-        <span className="mb-1 block text-sm font-medium text-fg-secondary">Password</span>
+        <span className="mb-1.5 block text-sm font-medium text-fg">Password</span>
         <input
           name="password"
           type="password"
@@ -121,12 +121,12 @@ export function AuthForm({ mode, invite, setup }: { mode: "login" | "signup"; in
         )}
       </label>}
       {error && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        <p className="rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>
       )}
       <button
         type="submit"
         disabled={busy}
-        className={buttonClass("primary", "w-full")}
+        className={buttonClass("primary", "h-9 w-full")}
       >
         {busy ? "…" : challenge ? "Verify" : mode === "signup" ? "Create account" : "Sign in"}
       </button>

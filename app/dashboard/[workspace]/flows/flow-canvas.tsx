@@ -48,7 +48,8 @@ import { Badge, buttonClass, inputClass, selectClass, FIELD_LABEL_CLASS } from "
 import { useConfirm } from "@/components/confirm";
 import { InlineEditor } from "@/components/inline-editor";
 import { humanSchedule } from "@/components/schedule-human";
-import { ExpandableTitle } from "@/components/expandable";
+import { buttonVariants } from "@/components/kit/button";
+import { Command as CommandIcon, FileCode2, Keyboard, Map as MapIcon, Redo2, Settings2, Undo2 } from "lucide-react";
 import {
   buildCanvas,
   dropTarget,
@@ -139,7 +140,7 @@ function FormDialog({ ask }: { ask: Ask }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="canvas-ask-title"
-        className="w-full max-w-md space-y-3 rounded-xl border border-line bg-surface p-5 text-left shadow-xl"
+        className="w-full max-w-md space-y-3 rounded-lg border border-line bg-surface p-5 text-left shadow-menu"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.key === "Escape" && ask.resolve(null)}
         onSubmit={(e) => {
@@ -1629,10 +1630,10 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
     setTarget(null);
     setHovered(null);
   };
-  const paletteItem = "cursor-grab select-none rounded-md border bg-surface px-2 py-1 text-left text-xs active:cursor-grabbing";
+  const paletteItem = "cursor-grab select-none rounded-md border bg-surface px-2 py-1 text-left text-xs transition-colors hover:bg-sunken active:cursor-grabbing";
 
   const sel = selectedStep != null ? steps[selectedStep] : null;
-  const tool = buttonClass("minimal", "border-line px-2 py-0.5 text-xs disabled:opacity-40");
+  const tool = buttonVariants({ variant: "ghost", size: "icon-sm" });
   const recent = runs.slice(0, 14).reverse();
 
   return (
@@ -1666,20 +1667,29 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
         />
       )}
       <div
-        className="mt-3 flex min-h-5 flex-wrap items-center gap-3 text-xs"
+        className="flex min-h-5 flex-wrap items-center gap-3 text-xs"
         onPointerDown={() => touch(me)}
       >
-        <ExpandableTitle open={editing} onToggle={() => setEditing((e) => !e)} name={flow} meta={`flows/${file}`} />
+        <button
+          type="button"
+          onClick={() => setEditing((e) => !e)}
+          aria-expanded={editing}
+          title={editing ? `Close flows/${file}` : `Edit flows/${file} here — frontmatter, steps, the prose above them`}
+          className={buttonVariants({ variant: "secondary", size: "xs" })}
+        >
+          <FileCode2 aria-hidden />
+          {editing ? "Close" : "Edit"} <span className="font-mono">flows/{file}</span>
+        </button>
         {status && (
           <Badge variant={status.startsWith("not ") ? "error" : status === "saved" || status === "undone" || status === "redone" ? "success" : "default"}>{status}</Badge>
         )}
       </div>
       {editing && <InlineEditor workspace={workspace} tenant={tenant} path={`flows/${file}`} />}
-      <div className="mt-3 flex flex-col gap-3 md:flex-row" data-canvas-root={me} onPointerDown={() => touch(me)} onFocus={() => touch(me)}>
-        <aside className="w-full shrink-0 space-y-3 md:w-52" aria-label="Palette — drag onto the canvas">
+      <div className="mt-3 flex flex-col gap-4 md:flex-row" data-canvas-root={me} onPointerDown={() => touch(me)} onFocus={() => touch(me)}>
+        <aside className="w-full shrink-0 space-y-4 rounded-lg border border-line bg-surface p-3 md:w-56 md:self-start" aria-label="Palette — drag onto the canvas">
           <div>
-            <p className={FIELD_LABEL_CLASS}>Agents</p>
-            <div className="mt-1 flex flex-wrap gap-1">
+            <p className="text-[13px] font-medium text-fg-muted">Agents</p>
+            <div className="mt-2 flex flex-wrap gap-1">
               {agents.map((a) => (
                 <div
                   key={a.name}
@@ -1694,7 +1704,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
               ))}
               <button
                 type="button"
-                className="rounded-md border border-dashed border-line-strong px-2 py-1 text-left text-xs text-fg-muted hover:border-gray-500 hover:text-fg"
+                className="rounded-md border border-dashed border-line-strong px-2 py-1 text-left text-xs text-fg-muted hover:border-fg-subtle hover:text-fg"
                 title="Create agents/<name>/agent.md"
                 onClick={async () => {
                   const v = await prompt({
@@ -1719,20 +1729,20 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
             </div>
           </div>
           <div>
-            <p className={FIELD_LABEL_CLASS}>Flows</p>
+            <p className="text-[13px] font-medium text-fg-muted">Flows</p>
             <div
               draggable
               onDragStart={(e) => beginDrag(e, { kind: "pattern", pattern: "subflow" })}
               onDragEnd={endDrag}
-              className={`${paletteItem} mt-1 border-dashed border-emerald-500 text-emerald-800`}
+              className={`${paletteItem} mt-2 border-dashed border-emerald-500 text-emerald-800`}
               title="[[flow:x]] — another flow of this workspace, as one step"
             >
               Run another flow
             </div>
           </div>
           <div>
-            <p className={FIELD_LABEL_CLASS}>Patterns</p>
-            <div className="mt-1 grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-2">
+            <p className="text-[13px] font-medium text-fg-muted">Patterns</p>
+            <div className="mt-2 grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-2">
               {PATTERNS.map((p) => (
                 <div
                   key={p.pattern}
@@ -1751,7 +1761,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
 
         <div className="min-w-0 flex-1">
           {/* The toolbar: what the run overlay shows, and the controls. */}
-          <div className="mb-1 flex min-h-7 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-muted" role="toolbar" aria-label={`Canvas controls for ${flow}`}>
+          <div className="mb-2 flex min-h-8 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-muted" role="toolbar" aria-label={`Canvas controls for ${flow}`}>
             <RunPicker
               recent={recent}
               shown={shown}
@@ -1761,27 +1771,27 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
               onPick={(id) => setPicked(id)}
               onClear={() => setPicked("none")}
             />
-            <span className="ml-auto flex items-center gap-1">
+            <span className="ml-auto flex items-center gap-0.5 rounded-md border border-line bg-surface p-0.5">
               <button type="button" className={tool} onClick={() => void travel(false)} disabled={!history.past.length} title={`Undo the last edit made here (${MOD}Z)`} aria-label="Undo">
-                Undo
+                <Undo2 />
               </button>
               <button type="button" className={tool} onClick={() => void travel(true)} disabled={!history.future.length} title={`Redo (Shift+${MOD}Z)`} aria-label="Redo">
-                Redo
+                <Redo2 />
               </button>
-              <button type="button" className={tool} onClick={toggleMinimap} aria-pressed={minimap} title="Show or hide the minimap (M)">
-                Minimap
+              <button type="button" className={tool} onClick={toggleMinimap} aria-pressed={minimap} title="Show or hide the minimap (M)" aria-label="Minimap">
+                <MapIcon />
               </button>
-              <button type="button" className={tool} onClick={openPalette} title={`Commands: add, run, go to a step (${MOD}K)`}>
-                {MOD}K
+              <button type="button" className={tool} onClick={openPalette} title={`Commands: add, run, go to a step (${MOD}K)`} aria-label="Commands">
+                <CommandIcon />
               </button>
               <button type="button" className={tool} onClick={() => setSheet(true)} title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">
-                ?
+                <Keyboard />
               </button>
             </span>
           </div>
-          <div className="mb-1 flex min-h-5 items-center gap-2 text-xs text-fg-muted">
+          <div className="mb-2 flex min-h-5 items-center gap-2 text-xs text-fg-muted">
             {target ? (
-              <span className="font-medium text-sky-800">release — {describeDrop(target, layout.columns.length)}</span>
+              <span className="font-medium text-info">release — {describeDrop(target, layout.columns.length)}</span>
             ) : selectedSteps.length > 1 ? (
               <span className="font-medium text-fg-secondary">
                 {selectedSteps.length} steps selected — drag them together, {MOD}C copies, Delete removes
@@ -1887,7 +1897,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
           </div>
 
           {panel === "trigger" && (
-            <div className="mt-2">
+            <div className="mt-3">
               <TriggerEditor
                 workspace={workspace}
                 flow={flow}
@@ -1901,20 +1911,20 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
           )}
 
           {sel && selectedStep != null && (
-            <div className="mt-2 rounded-lg border border-line bg-surface p-3" aria-label="Selected step">
+            <div className="mt-3 rounded-lg border border-line bg-surface p-4" aria-label="Selected step">
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-sm font-medium text-fg">
                   Step {nodeColumn(selectedStep) + 1} · {sel.subflow ? `flow: ${sel.subflow}` : sel.agent}
                 </span>
                 <span className="ml-auto flex flex-wrap gap-1">
-                  <button type="button" className={buttonClass("secondary", "px-2 py-0.5 text-xs")} onClick={() => setPanel(panel === "options" ? null : "options")}>⚙ Options</button>
-                  <button type="button" className={buttonClass("secondary", "px-2 py-0.5 text-xs")} onClick={() => setPanel(panel === "instruction" ? null : "instruction")}>Instruction</button>
+                  <button type="button" className={buttonVariants({ variant: "secondary", size: "xs" })} aria-pressed={panel === "options"} onClick={() => setPanel(panel === "options" ? null : "options")}><Settings2 aria-hidden />Options</button>
+                  <button type="button" className={buttonVariants({ variant: "secondary", size: "xs" })} onClick={() => setPanel(panel === "instruction" ? null : "instruction")}>Instruction</button>
                   {!sel.subflow && (
-                    <button type="button" className={buttonClass("secondary", "px-2 py-0.5 text-xs")} onClick={() => setPanel(panel === "agent" ? null : "agent")}>Agent file</button>
+                    <button type="button" className={buttonVariants({ variant: "secondary", size: "xs" })} onClick={() => setPanel(panel === "agent" ? null : "agent")}>Agent file</button>
                   )}
                   <button
                     type="button"
-                    className={buttonClass("destructive", "px-2 py-0.5 text-xs")}
+                    className={buttonVariants({ variant: "danger-outline", size: "xs" })}
                     onClick={() => void removeStepAt(selectedStep)}
                   >
                     Delete step
@@ -1922,7 +1932,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
                 </span>
               </div>
               {/* Every palette block, reachable without a mouse. */}
-              <div className="mt-2 flex flex-wrap gap-1" role="group" aria-label="Add a pattern to this step">
+              <div className="mt-3 flex flex-wrap gap-1.5 border-t border-line pt-3" role="group" aria-label="Add a pattern to this step">
                 {([
                   ["fanout", "Fan-out…"],
                   ["loop", "Evaluator loop…"],
@@ -1932,20 +1942,20 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
                   ["rescue", "Rescue…"],
                   ["parallel", "Add beside…"],
                 ] as [Pattern, string][]).map(([p, l]) => (
-                  <button key={p} type="button" className={buttonClass("minimal", "border-line px-2 py-0.5 text-xs")} onClick={() => void applyStepPattern(selectedStep, p)}>
+                  <button key={p} type="button" className={buttonVariants({ variant: "secondary", size: "xs" })} onClick={() => void applyStepPattern(selectedStep, p)}>
                     {l}
                   </button>
                 ))}
-                <button type="button" className={buttonClass("minimal", "border-line px-2 py-0.5 text-xs")} onClick={() => void insertAt({ kind: "gap", rail: nodeColumn(selectedStep) + 1 }, { kind: "pattern", pattern: "chain" })}>
+                <button type="button" className={buttonVariants({ variant: "secondary", size: "xs" })} onClick={() => void insertAt({ kind: "gap", rail: nodeColumn(selectedStep) + 1 }, { kind: "pattern", pattern: "chain" })}>
                   Add after…
                 </button>
-                <button type="button" className={buttonClass("minimal", "border-line px-2 py-0.5 text-xs")} onClick={() => void insertAt({ kind: "gap", rail: nodeColumn(selectedStep) + 1 }, { kind: "pattern", pattern: "router" })}>
+                <button type="button" className={buttonVariants({ variant: "secondary", size: "xs" })} onClick={() => void insertAt({ kind: "gap", rail: nodeColumn(selectedStep) + 1 }, { kind: "pattern", pattern: "router" })}>
                   Router after…
                 </button>
                 {!sel.subflow && (
                   <>
-                    <button type="button" className={buttonClass("minimal", "border-line px-2 py-0.5 text-xs")} onClick={() => void addToTeam(selectedStep, "sub")}>Sub-agent…</button>
-                    <button type="button" className={buttonClass("minimal", "border-line px-2 py-0.5 text-xs")} onClick={() => void addToTeam(selectedStep, "consult")}>Consult…</button>
+                    <button type="button" className={buttonVariants({ variant: "secondary", size: "xs" })} onClick={() => void addToTeam(selectedStep, "sub")}>Sub-agent…</button>
+                    <button type="button" className={buttonVariants({ variant: "secondary", size: "xs" })} onClick={() => void addToTeam(selectedStep, "consult")}>Consult…</button>
                   </>
                 )}
               </div>
@@ -1977,8 +1987,8 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
                 />
               )}
               {panel === "agent" && !sel.subflow && (
-                <div className="mt-2 rounded-lg border border-line bg-sunken/60 px-3 pb-3">
-                  <p className="pt-2 text-[11px] text-fg-muted">
+                <div className="mt-3 rounded-lg border border-line bg-sunken px-3 pb-3">
+                  <p className="pt-2 text-xs text-fg-muted">
                     <span className="font-mono text-fg-subtle">agents/{sel.agent}/agent.md</span>
                     {(() => {
                       const others = (usedBy[sel.agent] ?? []).filter((f) => f !== flow);
@@ -2122,8 +2132,8 @@ function NodeMenu({
       disabled={!!o.disabled}
       title={o.disabled || o.hint}
       onClick={() => act(a)}
-      className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs disabled:cursor-not-allowed disabled:opacity-45 ${
-        o.danger ? "text-red-700 hover:bg-red-50" : "text-gray-800 hover:bg-muted"
+      className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] disabled:cursor-not-allowed disabled:opacity-45 ${
+        o.danger ? "text-danger hover:bg-danger-soft" : "text-fg-secondary hover:bg-muted hover:text-fg"
       }`}
     >
       {label}
@@ -2135,21 +2145,21 @@ function NodeMenu({
       role="menu"
       aria-label={`Step ${column + 1} · ${step.subflow ?? step.agent}`}
       style={{ position: "fixed", left: Math.max(8, left - 220), top: Math.max(8, top) }}
-      className="z-50 w-56 rounded-lg border border-line bg-surface p-1 shadow-xl"
+      className="z-50 w-56 rounded-lg border border-line bg-surface p-1 shadow-menu"
     >
-      <p className="truncate px-2 pb-1 pt-0.5 text-[10.5px] font-medium uppercase tracking-wide text-fg-subtle">
+      <p className="truncate px-2 pb-1 pt-1 text-xs font-medium text-fg-muted">
         Step {column + 1} · {step.subflow ? `flow: ${step.subflow}` : step.agent}
       </p>
       {item("run-from", "Run from here", { disabled: runFrom, hint: lastRun ? `A new run from ${lastRun.id}: earlier steps carried, this one and after run again — asks first` : undefined })}
       {item("test", "Test this step alone", { disabled: testAlone, hint: "Runs this agent once with this step's instruction, as a test run — nothing outward happens" })}
       {item("pause", <>{step.approve ? "✓ " : ""}Pause before</>, { hint: step.approve ? "Remove the approval gate (the ! / approve: true)" : "A person approves before this step runs — writes the ! marker" })}
-      <div className="my-1 border-t border-line-faint" />
+      <div className="-mx-1 my-1 h-px bg-line-faint" />
       {item("duplicate", <>Duplicate<span className="ml-auto text-fg-subtle">{MOD}D</span></>, { hint: "A copy beside it, in the same group" })}
       {item("copy", <>Copy<span className="ml-auto text-fg-subtle">{MOD}C</span></>, { hint: "The step's markdown, options and all — paste into any flow" })}
       {item("paste", <>Paste after<span className="ml-auto text-fg-subtle">{MOD}V</span></>, { hint: "Copied steps, as the next step" })}
       {folded != null && item("fold", "Fold this parallel group", { hint: "Draw the group as one node — a view choice, nothing is written" })}
-      <div className="my-1 border-t border-line-faint" />
-      {item("delete", <>Delete<span className="ml-auto text-red-400">Del</span></>, { danger: true, hint: "Asks first; the agent file stays" })}
+      <div className="-mx-1 my-1 h-px bg-line-faint" />
+      {item("delete", <>Delete<span className="ml-auto opacity-70">Del</span></>, { danger: true, hint: "Asks first; the agent file stays" })}
     </div>
   );
 }
@@ -2180,7 +2190,7 @@ function CommandPalette({ commands, onClose }: { commands: Command[]; onClose: (
   };
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-ink/30 p-4 pt-[12vh]" onClick={onClose} role="presentation">
-      <div role="dialog" aria-modal="true" aria-label="Commands" className="w-full max-w-lg overflow-hidden rounded-xl border border-line bg-surface shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-label="Commands" className="w-full max-w-lg overflow-hidden rounded-lg border border-line bg-surface shadow-menu" onClick={(e) => e.stopPropagation()}>
         <input
           autoFocus
           value={q}
@@ -2202,7 +2212,7 @@ function CommandPalette({ commands, onClose }: { commands: Command[]; onClose: (
           }}
           placeholder="Add a step, run, go to step 3…"
           aria-label="Search commands"
-          className="w-full border-b border-line px-4 py-3 text-sm outline-none"
+          className="w-full border-b border-line bg-surface px-4 py-3 text-sm text-fg outline-none placeholder:text-fg-subtle"
         />
         <ul role="listbox" className="max-h-[50vh] overflow-y-auto p-1">
           {list.length === 0 && <li className="px-3 py-2 text-xs text-fg-subtle">No command matches.</li>}
@@ -2235,13 +2245,13 @@ function ShortcutSheet({ onClose }: { onClose: () => void }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="canvas-keys-title"
-        className="w-full max-w-md rounded-xl border border-line bg-surface p-5 shadow-2xl"
+        className="w-full max-w-md rounded-lg border border-line bg-surface p-5 shadow-menu"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.key === "Escape" && onClose()}
       >
-        <h2 id="canvas-keys-title" className="text-sm font-semibold text-fg">Canvas shortcuts</h2>
-        <p className="mt-1 text-xs text-fg-muted">For the canvas you last clicked; never while you type in a field or editor.</p>
-        <dl className="mt-3 space-y-1.5 text-xs">
+        <h2 id="canvas-keys-title" className="text-base font-semibold text-fg">Canvas shortcuts</h2>
+        <p className="mt-1 text-sm text-fg-muted">For the canvas you last clicked; never while you type in a field or editor.</p>
+        <dl className="mt-4 space-y-2 text-[13px]">
           {SHORTCUTS.map(([k, what]) => (
             <div key={k} className="flex gap-3">
               <dt className="w-36 shrink-0">

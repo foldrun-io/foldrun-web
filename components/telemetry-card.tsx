@@ -7,8 +7,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { buttonClass, inputClass, Card, FIELD_LABEL_CLASS } from "@/components/ui";
-import { Banner } from "@/components/banner";
+import { inputClass } from "@/components/ui";
+import { SettingsCard } from "@/components/kit/page";
+import { Button } from "@/components/kit/button";
 import type { TelemetryConfig } from "./defaults-model";
 
 const SECRET_REF = /^\$\{([A-Z][A-Z0-9_]{1,63})\}$/;
@@ -71,53 +72,61 @@ export function TelemetryCard({ tenant, initial, mayEdit }: { tenant: string; in
   };
 
   return (
-    <Card className="space-y-3 p-4 text-sm">
-      <div>
-        <p className="font-semibold text-fg">Send runs to your tracing (OpenTelemetry)</p>
-        <p className="mt-0.5 text-fg-tertiary">
-          Each finished run goes to your collector as one trace — run, steps, model calls and tool calls, with tokens, cost and each agent&apos;s owner — beside the rest of your systems. A workspace&apos;s own <code className="font-mono">telemetry:</code> in its AGENTS.md replaces this one.
-        </p>
+    <SettingsCard
+      id="telemetry"
+      title="Send runs to your tracing"
+      description={
+        <>
+          Each finished run goes to your OpenTelemetry collector as one trace — run, steps, model calls and tool calls, with tokens, cost and each agent&apos;s owner. A workspace&apos;s own{" "}
+          <code className="font-mono">telemetry:</code> in its AGENTS.md replaces this one.
+        </>
+      }
+      hint={mayEdit ? <><code className="font-mono text-xs">telemetry:</code> in AGENTS.md</> : "An admin of this account can set this."}
+      footer={
+        mayEdit && (
+          <>
+            {initial && (
+              <>
+                <Button variant="ghost" disabled={busy !== null} onClick={() => save(true)}>
+                  {busy === "clear" ? "Stopping…" : "Stop sending"}
+                </Button>
+                <Button variant="secondary" disabled={busy !== null} onClick={test}>
+                  {busy === "test" ? "Sending…" : "Send a test trace"}
+                </Button>
+              </>
+            )}
+            <Button variant="primary" disabled={busy !== null || !endpoint.trim()} onClick={() => save(false)}>
+              {busy === "save" ? "Saving…" : "Save"}
+            </Button>
+          </>
+        )
+      }
+    >
+      <div className="space-y-4">
+        {note && <p role="status" className="rounded-md border border-success-line bg-success-soft px-3 py-2 text-sm text-success">{note}</p>}
+        {error && <p role="alert" className="rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
+        {/* A member limited to some workspaces is told it is set, not where
+            runs go or with which header (GET /api/account, 30 Oct 2026). */}
+        {initial?.hidden && <p className="text-sm text-fg-muted">Runs are sent to a collector. Where, and with which header, is shown only to members with every workspace.</p>}
+        {!initial?.hidden && (
+          <>
+            <label className="block">
+              <span className="block text-sm font-medium text-fg">Collector URL (OTLP/HTTP traces)</span>
+              <input value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="https://otel.example.com/v1/traces" disabled={!mayEdit} className={inputClass("mt-1.5 w-full font-mono")} />
+            </label>
+            <div className="flex flex-wrap gap-4">
+              <label className="block">
+                <span className="block text-sm font-medium text-fg">Header</span>
+                <input value={header} onChange={(e) => setHeader(e.target.value)} disabled={!mayEdit} className={inputClass("mt-1.5 w-48 font-mono")} />
+              </label>
+              <label className="block">
+                <span className="block text-sm font-medium text-fg">Its value: a vault secret, by name</span>
+                <input value={secret} onChange={(e) => setSecret(e.target.value.toUpperCase())} placeholder="OTEL_TOKEN" disabled={!mayEdit} className={inputClass("mt-1.5 w-56 font-mono")} />
+              </label>
+            </div>
+          </>
+        )}
       </div>
-      {note && <Banner tone="ok">{note}</Banner>}
-      {error && <Banner tone="error">{error}</Banner>}
-      {/* A member limited to some workspaces is told it is set, not where
-          runs go or with which header (GET /api/account, 30 Oct 2026). */}
-      {initial?.hidden && <p className="text-fg-tertiary">Runs are sent to a collector. Where, and with which header, is shown only to members with every workspace.</p>}
-      {!initial?.hidden && <>
-      <label className="block">
-        <span className={FIELD_LABEL_CLASS}>Collector URL (OTLP/HTTP traces)</span>
-        <input value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="https://otel.example.com/v1/traces" disabled={!mayEdit} className={inputClass("w-full font-mono")} />
-      </label>
-      <div className="flex flex-wrap gap-3">
-        <label className="block">
-          <span className={FIELD_LABEL_CLASS}>Header</span>
-          <input value={header} onChange={(e) => setHeader(e.target.value)} disabled={!mayEdit} className={inputClass("w-48 font-mono")} />
-        </label>
-        <label className="block">
-          <span className={FIELD_LABEL_CLASS}>Its value: a secret in the vault, by name</span>
-          <input value={secret} onChange={(e) => setSecret(e.target.value.toUpperCase())} placeholder="OTEL_TOKEN" disabled={!mayEdit} className={inputClass("w-56 font-mono")} />
-        </label>
-      </div>
-      </>}
-      {mayEdit ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <button disabled={busy !== null || !endpoint.trim()} onClick={() => save(false)} className={buttonClass("primary")}>
-            {busy === "save" ? "Saving…" : "Save"}
-          </button>
-          {initial && (
-            <>
-              <button disabled={busy !== null} onClick={test} className={buttonClass("secondary")}>
-                {busy === "test" ? "Sending…" : "Send a test trace"}
-              </button>
-              <button disabled={busy !== null} onClick={() => save(true)} className={buttonClass("minimal")}>
-                {busy === "clear" ? "Stopping…" : "Stop sending"}
-              </button>
-            </>
-          )}
-        </div>
-      ) : (
-        <p className="text-fg-tertiary">An admin of this account can set this.</p>
-      )}
-    </Card>
+    </SettingsCard>
   );
 }

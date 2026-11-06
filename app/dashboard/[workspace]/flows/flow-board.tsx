@@ -13,6 +13,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, buttonClass, inputClass, selectClass, dashedButtonClass, IconButton, PlayIcon } from "@/components/ui";
+import { Chip, Tag } from "@/components/kit/page";
+import { ArrowDown, ArrowUp, ChevronsUp, FileCode2, GripVertical, Plus, Settings2, X } from "lucide-react";
+import { buttonVariants } from "@/components/kit/button";
 import { StepOptionsEditor } from "./step-options";
 import { InlineEditor } from "@/components/inline-editor";
 import { SmartTextarea } from "@/components/smart-textarea";
@@ -219,14 +222,14 @@ export function FlowBoard({
           armed ? "my-1 h-9 border border-dashed" : "h-1"
         } ${
           active
-            ? "border-gray-900 bg-ink/5 text-fg"
+            ? "border-fg bg-muted text-fg"
             : armed
               ? "border-line-strong text-fg-subtle"
               : "border-transparent"
         }`}
       >
         {armed && (
-          <span className="text-[11px] font-medium">
+          <span className="text-xs font-medium">
             {active ? `release — ${label}` : label}
           </span>
         )}
@@ -235,9 +238,9 @@ export function FlowBoard({
   };
 
   return (
-    <div className="mt-4">
+    <div>
       {confirmDialog}
-      <div className="mb-2 flex min-h-5 items-center gap-3 text-xs">
+      <div className="mb-3 flex min-h-5 flex-wrap items-center gap-3 text-xs">
         {/* The card's header already names the flow; this is the way into
             its file. It names the path so it reads as a file you can open,
             not a section to collapse (nobody found the editor when it named
@@ -246,9 +249,10 @@ export function FlowBoard({
           type="button"
           onClick={() => setEditing((e) => !e)}
           aria-expanded={editing}
-          className="rounded-md border border-line px-2 py-1 font-mono text-[11px] text-fg-tertiary hover:border-gray-400 hover:text-fg"
+          className={buttonVariants({ variant: "secondary", size: "xs" })}
         >
-          {editing ? "Close" : "Edit"} flows/{file}
+          <FileCode2 aria-hidden />
+          {editing ? "Close" : "Edit"} <span className="font-mono">flows/{file}</span>
         </button>
         {dragging !== null && (
           <span className="text-fg-muted">
@@ -262,7 +266,7 @@ export function FlowBoard({
         )}
       </div>
 
-      <ol className="space-y-1">
+      <ol className="space-y-1 rounded-lg border border-line bg-surface p-2 sm:p-3">
         <Rail at={0} />
         {groups.map((group, g) => (
           <li key={group.join("-")}>
@@ -281,16 +285,16 @@ export function FlowBoard({
                 if (step !== null) apply(joinGroup(groups, step, group[0]));
                 clearDrag();
               }}
-              className={`flex gap-3 rounded-lg p-1 transition-colors ${
-                overGroup === g ? "bg-muted ring-1 ring-gray-900" : ""
+              className={`group flex gap-3 rounded-lg p-1 transition-colors ${
+                overGroup === g ? "bg-muted ring-1 ring-fg" : ""
               }`}
             >
               <span className="mt-1.5 flex w-5 shrink-0 flex-col items-center gap-0.5">
-                <span className="font-mono text-xs leading-5 text-fg-subtle">{g + 1}</span>
+                <span className="flex size-5 items-center justify-center rounded-full bg-muted font-mono text-xs leading-5 text-fg-muted">{g + 1}</span>
                 {/* From step 1 is just the Run button above; from anywhere
                     later, this is how. */}
                 {g > 0 && (
-                  <span className="opacity-0 transition-opacity group-hover:opacity-100">
+                  <span className="opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
                     <IconButton
                       label={`Run from step ${g + 1} — earlier steps are skipped`}
                       side="right"
@@ -303,7 +307,7 @@ export function FlowBoard({
               </span>
               <div className="min-w-0 flex-1 space-y-1.5">
                 {group.length > 1 && (
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-600">
+                  <p className="text-xs font-medium text-fg-muted">
                     {group.length} in parallel
                   </p>
                 )}
@@ -324,25 +328,11 @@ export function FlowBoard({
                       }}
                       onDragEnd={clearDrag}
                       className={`cursor-grab rounded-lg border bg-surface px-3 py-2 transition-opacity active:cursor-grabbing ${
-                        dragging === index ? "border-gray-900 opacity-40" : "border-line"
+                        dragging === index ? "border-fg opacity-40" : "border-line hover:border-line-strong"
                       }`}
                     >
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <svg
-                          width="10"
-                          height="14"
-                          viewBox="0 0 10 14"
-                          className="shrink-0 text-gray-300"
-                          fill="currentColor"
-                          aria-hidden
-                        >
-                          <circle cx="2" cy="2" r="1.2" />
-                          <circle cx="8" cy="2" r="1.2" />
-                          <circle cx="2" cy="7" r="1.2" />
-                          <circle cx="8" cy="7" r="1.2" />
-                          <circle cx="2" cy="12" r="1.2" />
-                          <circle cx="8" cy="12" r="1.2" />
-                        </svg>
+                        <GripVertical className="size-4 shrink-0 text-fg-subtle" aria-hidden />
                         {s.subflow ? (
                           <span className="text-sm font-medium text-fg">flow: {s.subflow}</span>
                         ) : (
@@ -354,27 +344,27 @@ export function FlowBoard({
                                 ? "Close this agent's file"
                                 : `Edit agents/${s.agent}/agent.md`
                             }
-                            className="text-sm font-medium text-fg underline decoration-gray-300 decoration-dashed underline-offset-4 hover:decoration-gray-900"
+                            className="text-sm font-medium text-fg underline decoration-line-strong decoration-dashed underline-offset-4 hover:decoration-fg"
                           >
                             {s.agent}
                           </button>
                         )}
-                        {missing && <Badge variant="error">not found</Badge>}
-                        {s.optional && <Badge>optional</Badge>}
-                        {s.approve && <Badge variant="warning">needs approval</Badge>}
-                        {s.when && <Badge className="max-w-full" title={s.when}><span className="truncate">when: {s.when}</span></Badge>}
-                        {s.case && <Badge variant="info">case: {s.case}</Badge>}
-                        {s.else && <Badge variant="info">else</Badge>}
-                        {s.retry != null && <Badge>retry ×{s.retry}</Badge>}
-                        {s.timeout != null && <Badge>{s.timeout}s</Badge>}
-                        {s.waitSecs != null && <Badge variant="info">wait {s.waitSecs >= 86400 ? `${Math.round(s.waitSecs / 86400)}d` : s.waitSecs >= 3600 ? `${Math.round(s.waitSecs / 3600)}h` : `${s.waitSecs}s`}</Badge>}
-                        {s.onFail && <Badge variant="warning">on-fail → {s.onFail}</Badge>}
-                        {s.ask && <Badge variant="warning" title={s.ask}>asks a human</Badge>}
-                        {s.delegate && s.delegate.length > 0 && <Badge variant="info">delegates: {s.delegate.join(", ")}</Badge>}
-                        {s.model && <Badge variant="info">{s.model}</Badge>}
-                        {s.verify && <Badge variant="success" className="max-w-full" title={s.verify}><span className="truncate">verify: {s.verify}</span></Badge>}
-                        {s.loop != null && s.until && <Badge variant="warning" className="max-w-full" title={s.until}><span className="truncate">loop ×{s.loop} until “{s.until}”</span></Badge>}
-                        {s.each && <Badge variant="info">fan-out {s.each}{s.max != null ? ` ×${s.max}` : ""}</Badge>}
+                        {missing && <Chip tone="bad">not found</Chip>}
+                        {s.optional && <Tag>optional</Tag>}
+                        {s.approve && <Chip tone="warn">needs approval</Chip>}
+                        {s.when && <Tag className="max-w-full"><span className="truncate" title={s.when}>when: {s.when}</span></Tag>}
+                        {s.case && <Tag>case: {s.case}</Tag>}
+                        {s.else && <Tag>else</Tag>}
+                        {s.retry != null && <Tag>retry ×{s.retry}</Tag>}
+                        {s.timeout != null && <Tag>{s.timeout}s</Tag>}
+                        {s.waitSecs != null && <Tag>wait {s.waitSecs >= 86400 ? `${Math.round(s.waitSecs / 86400)}d` : s.waitSecs >= 3600 ? `${Math.round(s.waitSecs / 3600)}h` : `${s.waitSecs}s`}</Tag>}
+                        {s.onFail && <Tag>on-fail → {s.onFail}</Tag>}
+                        {s.ask && <Chip tone="warn"><span title={s.ask}>asks a human</span></Chip>}
+                        {s.delegate && s.delegate.length > 0 && <Tag>delegates: {s.delegate.join(", ")}</Tag>}
+                        {s.model && <Tag mono>{s.model}</Tag>}
+                        {s.verify && <Tag className="max-w-full"><span className="truncate" title={s.verify}>verify: {s.verify}</span></Tag>}
+                        {s.loop != null && s.until && <Tag className="max-w-full"><span className="truncate" title={s.until}>loop ×{s.loop} until “{s.until}”</span></Tag>}
+                        {s.each && <Tag>fan-out {s.each}{s.max != null ? ` ×${s.max}` : ""}</Tag>}
 
                         {/* Drag is not reachable by keyboard, so the same two
                             moves are available as buttons. */}
@@ -384,28 +374,28 @@ export function FlowBoard({
                             disabled={g === 0 && group.length === 1}
                             onClick={() => apply(splitToRail(groups, index, g))}
                           >
-                            <span className="block text-xs leading-none">↑</span>
+                            <ArrowUp className="size-3.5" />
                           </IconButton>
                           <IconButton
                             label="Move down"
                             disabled={g === groups.length - 1 && group.length === 1}
                             onClick={() => apply(splitToRail(groups, index, g + 2))}
                           >
-                            <span className="block text-xs leading-none">↓</span>
+                            <ArrowDown className="size-3.5" />
                           </IconButton>
                           {g > 0 && (
                             <IconButton
                               label="Run in parallel with the step above"
                               onClick={() => apply(joinGroup(groups, index, groups[g - 1][0]))}
                             >
-                              <span className="block text-xs leading-none">⇈</span>
+                              <ChevronsUp className="size-3.5" />
                             </IconButton>
                           )}
                           <IconButton
                             label="Step options — model, retries, loops, fan-out"
                             onClick={() => setOptionsFor(optionsFor === index ? null : index)}
                           >
-                            <span className="block text-xs leading-none">⚙</span>
+                            <Settings2 className="size-3.5" />
                           </IconButton>
                           <IconButton
                             label="Remove this step"
@@ -421,7 +411,7 @@ export function FlowBoard({
                               }
                             }}
                           >
-                            <span className="block text-xs leading-none">✕</span>
+                            <X className="size-3.5" />
                           </IconButton>
                         </span>
                       </div>
@@ -439,20 +429,20 @@ export function FlowBoard({
                           type="button"
                           onClick={() => setInstructionFor(index)}
                           title="Edit what this step tells the agent to do — this flow only"
-                          className="mt-1 block w-full rounded px-4 py-0.5 text-left text-xs leading-relaxed text-fg-muted hover:bg-sunken hover:text-fg"
+                          className="mt-1 block w-full rounded-md px-5 py-1 text-left text-[13px] leading-relaxed text-fg-muted hover:bg-sunken hover:text-fg"
                         >
                           {s.instruction || (
-                            <span className="text-gray-300">no instruction — click to write one</span>
+                            <span className="text-fg-subtle">no instruction — click to write one</span>
                           )}
                         </button>
                       )}
                       {agentFor === index && !s.subflow && (
-                        <div className="mt-2 rounded-lg border border-line bg-sunken/60 px-3 pb-3">
+                        <div className="mt-2 rounded-lg border border-line bg-sunken px-3 pb-3">
                           {/* The scope, before the typing. An agent is the
                               workspace's, not this flow's, and an editor that
                               opens inside a flow card implies otherwise unless
                               it says so. */}
-                          <p className="pt-2 text-[11px] text-fg-muted">
+                          <p className="pt-2 text-xs text-fg-muted">
                             <span className="font-mono text-fg-subtle">agents/{s.agent}/agent.md</span>
                             {(() => {
                               const others = (usedBy[s.agent] ?? []).filter((f) => f !== name);
@@ -571,7 +561,7 @@ export function InstructionEditor({
         <button type="button" onClick={onCancel} className={buttonClass("minimal", "px-2 py-0.5 text-xs")}>
           Cancel
         </button>
-        <span className="text-[11px] text-fg-subtle">this flow only — the agent{"'"}s own file is unchanged</span>
+        <span className="text-xs text-fg-subtle">this flow only — the agent{"'"}s own file is unchanged</span>
       </div>
     </div>
   );
@@ -596,16 +586,17 @@ function AddStep({
     return (
       <button
         onClick={() => setOpen(true)}
-        className={dashedButtonClass("mt-2")}
+        className={dashedButtonClass("mt-3 inline-flex items-center justify-center gap-1.5")}
       >
-        + Add step
+        <Plus className="size-4" aria-hidden />
+        Add step
       </button>
     );
   }
 
   return (
     <form
-      className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-line bg-sunken/60 p-2"
+      className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-line bg-sunken p-3"
       onSubmit={(e) => {
         e.preventDefault();
         if (!target) return;

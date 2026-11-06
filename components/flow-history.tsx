@@ -18,6 +18,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
 import { buttonClass } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
+import { History } from "lucide-react";
 import { useConfirm } from "@/components/confirm";
 import { useCan, needs } from "@/components/role";
 import { diffStats, foldDiff, lineDiff, restoreMessage, type DiffOp, type DiffRow } from "@/components/flow-history-model";
@@ -43,7 +45,7 @@ export function DiffView({ rows, empty }: { rows: DiffRow[]; empty: string }) {
     <pre className="overflow-auto py-1 font-mono text-[11px] leading-relaxed" data-testid="diff">
       {rows.map((r, i) =>
         r.kind === "gap" ? (
-          <div key={i} className="select-none bg-sunken px-3 py-0.5 text-[10px] text-fg-subtle">
+          <div key={i} className="select-none bg-sunken px-3 py-0.5 text-[11px] text-fg-subtle">
             ⋯ {r.count} unchanged line{r.count === 1 ? "" : "s"}
           </div>
         ) : (
@@ -53,8 +55,8 @@ export function DiffView({ rows, empty }: { rows: DiffRow[]; empty: string }) {
               r.kind === "add" ? "bg-green-50 text-green-900" : r.kind === "del" ? "bg-red-50 text-red-900" : "text-fg-tertiary"
             }
           >
-            <span className="inline-block w-8 select-none pr-1 text-right text-gray-300">{r.oldNo ?? ""}</span>
-            <span className="inline-block w-8 select-none pr-1 text-right text-gray-300">{r.newNo ?? ""}</span>
+            <span className="inline-block w-8 select-none pr-1 text-right text-fg-subtle">{r.oldNo ?? ""}</span>
+            <span className="inline-block w-8 select-none pr-1 text-right text-fg-subtle">{r.newNo ?? ""}</span>
             <span className="mr-2 inline-block w-3 select-none text-fg-subtle">
               {r.kind === "add" ? "+" : r.kind === "del" ? "−" : " "}
             </span>
@@ -70,7 +72,8 @@ export function FlowHistory({ workspace, tenant, flow, file }: { workspace: stri
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={buttonClass("minimal", "px-2 py-1 text-xs")} title={`Every saved version of flows/${file}`}>
+      <button type="button" onClick={() => setOpen(true)} className={buttonVariants({ variant: "ghost", size: "sm" })} title={`Every saved version of flows/${file}`}>
+        <History aria-hidden />
         History
       </button>
       {open && <HistoryDrawer workspace={workspace} tenant={tenant} flow={flow} file={file} onClose={() => setOpen(false)} />}
@@ -78,7 +81,7 @@ export function FlowHistory({ workspace, tenant, flow, file }: { workspace: stri
   );
 }
 
-function HistoryDrawer({
+export function HistoryDrawer({
   workspace,
   tenant,
   flow,
@@ -222,12 +225,12 @@ function HistoryDrawer({
       <aside
         role="dialog"
         aria-label={`History of ${flow}`}
-        className="flex h-full w-full max-w-3xl flex-col border-l border-line bg-surface shadow-xl"
+        className="flex h-full w-full max-w-3xl flex-col border-l border-line bg-surface shadow-menu"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center gap-3 border-b border-line px-4 py-3">
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold text-fg">History</h2>
+            <h2 className="text-base font-semibold text-fg">History</h2>
             <p className="truncate font-mono text-[11px] text-fg-muted">{path}</p>
           </div>
           <button type="button" onClick={onClose} className={buttonClass("minimal", "ml-auto px-2 py-1 text-xs")} aria-label="Close history">
@@ -236,11 +239,11 @@ function HistoryDrawer({
         </header>
 
         {error && (
-          <p role="alert" className="border-b border-red-200 bg-red-50 px-4 py-2 text-xs text-red-700">
+          <p role="alert" className="border-b border-danger-line bg-danger-soft px-4 py-2 text-xs text-danger">
             {error}
           </p>
         )}
-        {notice && <p className="border-b border-emerald-200 bg-emerald-50 px-4 py-2 text-xs text-emerald-800">{notice}</p>}
+        {notice && <p className="border-b border-success-line bg-success-soft px-4 py-2 text-xs text-success">{notice}</p>}
 
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           <ul className="max-h-48 shrink-0 divide-y divide-line-faint overflow-y-auto border-b border-line-faint md:max-h-none md:w-64 md:border-b-0 md:border-r">
@@ -264,7 +267,7 @@ function HistoryDrawer({
                     <span className="truncate">{r.by}</span>
                     <span>·</span>
                     <LocalTime iso={r.at} options={{ dateStyle: "medium", timeStyle: "short" }} />
-                    {i === 0 && <span className="ml-auto rounded bg-muted-strong px-1 text-[10px] text-fg-secondary">latest</span>}
+                    {i === 0 && <span className="ml-auto rounded bg-muted-strong px-1 text-[11px] text-fg-secondary">latest</span>}
                   </span>
                 </button>
               </li>
@@ -295,7 +298,7 @@ function HistoryDrawer({
                 </div>
                 {stats && mode === "change" && (
                   <span className="text-[11px] tabular-nums text-fg-muted">
-                    <span className="text-green-700">+{stats.added}</span> <span className="text-red-700">−{stats.removed}</span>
+                    <span className="text-success">+{stats.added}</span> <span className="text-danger">−{stats.removed}</span>
                   </span>
                 )}
                 {mode === "current" && <span className="text-[11px] text-fg-muted">− this version · + the file now</span>}

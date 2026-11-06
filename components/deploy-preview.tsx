@@ -12,7 +12,7 @@
 // that tree: `issues` refuse it, `warnings` do not.
 
 import { useEffect, useState } from "react";
-import { Badge } from "@/components/ui";
+import { Chip } from "@/components/kit/page";
 
 type DiffOp = { kind: "same" | "add" | "del"; text: string };
 
@@ -79,7 +79,7 @@ export function DeployPreview({ workspace, tenant, to }: { workspace: string; te
   }, [workspace, tenant, to]);
 
   if (error) return <p className="text-xs text-danger">Could not preview: {error}</p>;
-  if (!plan) return <p className="text-xs text-fg-subtle">Working out what would change…</p>;
+  if (!plan) return <p className="text-xs text-fg-muted">Working out what would change…</p>;
   if (plan.noop) return <p className="text-xs text-fg-muted">main already matches this tree. Deploying it would change nothing.</p>;
 
   return (
@@ -93,7 +93,7 @@ export function DeployPreview({ workspace, tenant, to }: { workspace: string; te
         </p>
       )}
       {plan.issues && plan.issues.length > 0 && (
-        <div className="rounded-md border border-danger-line bg-danger-soft px-2.5 py-1.5 text-xs text-danger">
+        <div className="rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-xs text-danger">
           It would not pass the deploy checks:
           <ul className="mt-0.5 list-inside list-disc font-mono text-[11px]">
             {plan.issues.map((i, n) => (
@@ -103,7 +103,7 @@ export function DeployPreview({ workspace, tenant, to }: { workspace: string; te
         </div>
       )}
       {plan.warnings && plan.warnings.length > 0 && (
-        <div className="rounded-md border border-warning-line bg-warning-soft px-2.5 py-1.5 text-xs text-warning">
+        <div className="rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-xs text-warning">
           It would deploy, with {plan.warnings.length === 1 ? "a warning" : "warnings"}:
           <ul className="mt-0.5 list-inside list-disc font-mono text-[11px]">
             {plan.warnings.map((i, n) => (
@@ -114,10 +114,10 @@ export function DeployPreview({ workspace, tenant, to }: { workspace: string; te
       )}
       <ul className="space-y-1">
         {plan.files.map((f) => (
-          <li key={f.path} className="rounded border border-line bg-surface">
+          <li key={f.path} className="overflow-hidden rounded-md border border-line bg-surface">
             <details>
-              <summary className="flex cursor-pointer items-center gap-2 px-2 py-1 text-xs">
-                <Badge variant={f.change === "removed" ? "error" : f.change === "added" ? "success" : "info"}>{f.change}</Badge>
+              <summary className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-sunken">
+                <Chip tone={f.change === "removed" ? "bad" : f.change === "added" ? "good" : "info"}>{f.change}</Chip>
                 <span className="truncate font-mono">{f.path}</span>
               </summary>
               <Diff ops={f.diff} />

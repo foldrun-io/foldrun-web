@@ -7,7 +7,8 @@
 // (POST …/flows/<flow>/filter).
 
 import { useState } from "react";
-import { buttonClass, Card, FIELD_LABEL_CLASS } from "@/components/ui";
+import { buttonClass, FIELD_LABEL_CLASS } from "@/components/ui";
+import { inputBase } from "@/components/kit/input";
 import { WithEmails } from "@/components/email";
 
 /** What the trigger delivers, as a starting point for the box. */
@@ -66,16 +67,16 @@ export function FilterTest({
   };
 
   return (
-    <Card className="p-4">
+    <div className="p-5">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-sm font-medium text-fg">
-          {flow} <span className="font-normal text-fg-muted">· trigger: {trigger}</span>
+          {flow} <span className="font-normal text-fg-muted">· {trigger}</span>
         </p>
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
         <div>
           <span className={FIELD_LABEL_CLASS}>filter:</span>
-          <pre className="mt-1 max-h-56 overflow-auto rounded-md bg-sunken p-2 font-mono text-xs text-fg-secondary"><WithEmails text={JSON.stringify(filter, null, 2)} /></pre>
+          <pre className="mt-1.5 max-h-56 overflow-auto rounded-md border border-line bg-sunken p-3 font-mono text-xs text-fg-secondary"><WithEmails text={JSON.stringify(filter, null, 2)} /></pre>
         </div>
         <label className="block">
           <span className={FIELD_LABEL_CLASS}>A delivery to test</span>
@@ -84,21 +85,21 @@ export function FilterTest({
             onChange={(e) => setPayload(e.target.value)}
             spellCheck={false}
             rows={8}
-            className="mt-1 w-full rounded-md border border-line-strong bg-surface p-2 font-mono text-xs text-fg-secondary focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-line"
+            className={`${inputBase} mt-1.5 p-3 font-mono text-xs`}
           />
         </label>
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-3">
+      <div className="mt-3 flex flex-wrap items-center gap-3">
         <button onClick={test} disabled={busy} className={buttonClass("secondary")}>
           {busy ? "Testing…" : "Test filter"}
         </button>
         {answer && (
-          <p className={`text-sm ${answer.match ? "text-emerald-700" : "text-amber-700"}`}>
+          <p className={`text-sm ${answer.match ? "text-success" : "text-warning"}`}>
             {answer.match ? "Would start a run" : "Would not start a run"} — <WithEmails text={answer.reason} />
           </p>
         )}
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p role="alert" className="text-sm text-danger">{error}</p>}
       </div>
-    </Card>
+    </div>
   );
 }

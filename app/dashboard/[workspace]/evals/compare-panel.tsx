@@ -162,9 +162,8 @@ export function ComparePanel({
   const set = (i: number, patch: Partial<Row>) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
   return (
-    <div className="mt-3 rounded-lg border border-line bg-sunken/40 p-3">
-      <p className="mb-2 text-sm font-medium text-fg">Compare models</p>
-      <p className="mb-3 text-xs text-fg-muted">
+    <div>
+      <p className="mb-4 text-sm text-fg-muted">
         Each setting runs every case{repeat > 1 ? `, ${repeat} times` : ""}, as test runs — nothing is sent. The judge stays this eval&apos;s own. It stops at the spend limit.
       </p>
       {canStart && (<>
@@ -221,7 +220,7 @@ export function ComparePanel({
           <span className={FIELD_LABEL_CLASS}>Spend limit, USD</span>
           <input type="number" min={0.5} max={100} step={0.5} value={maxUsd} onChange={(e) => setMaxUsd(Math.min(100, Math.max(0.5, Number(e.target.value) || 5)))} className={inputClass("w-20")} />
         </label>
-        <span className={`pb-2 text-xs ${trials > MAX_TRIALS ? "text-red-600" : "text-fg-muted"}`}>
+        <span className={`pb-2 text-xs ${trials > MAX_TRIALS ? "text-danger" : "text-fg-muted"}`}>
           {trials} runs{trials > MAX_TRIALS ? ` — at most ${MAX_TRIALS}` : ""}
         </span>
         <button onClick={start} disabled={busy || trials > MAX_TRIALS || rows.some((r) => !r.model.trim())} className={buttonClass("primary")}>
@@ -234,13 +233,13 @@ export function ComparePanel({
           {progress.done} of {progress.total} runs done — this takes as long as the runs do; you can leave and come back.
         </p>
       )}
-      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-xs text-danger">{error}</p>}
 
       {shown && <ComparisonTable workspace={workspace} tenant={tenant} result={shown} />}
 
       {past.length > 0 && (
-        <div className="mt-3">
-          <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-fg-subtle">Earlier comparisons</p>
+        <div className="mt-5 border-t border-line pt-4">
+          <p className="mb-1.5 text-[13px] font-medium text-fg-muted">Earlier comparisons</p>
           <ul className="space-y-1">
             {past.slice(0, 8).map((p) => (
               <li key={p.runId} className="flex flex-wrap items-center gap-2 text-xs">
@@ -248,10 +247,10 @@ export function ComparePanel({
                 {p.status === "done" && p.result ? (
                   <>
                     <span className="text-fg-secondary">{p.result.configs.map((c) => `${c.label}: ${pct(c.rate)}`).join(" · ")}</span>
-                    <button onClick={() => setShown(p.result!)} className="text-accent hover:underline">show</button>
+                    <button onClick={() => setShown(p.result!)} className="text-link hover:underline">show</button>
                   </>
                 ) : (
-                  <span className="text-red-600">{p.error ?? "failed"}</span>
+                  <span className="text-danger">{p.error ?? "failed"}</span>
                 )}
               </li>
             ))}
@@ -266,9 +265,9 @@ export function ComparisonTable({ workspace, tenant, result }: { workspace: stri
   const best = Math.max(...result.configs.map((c) => c.rate ?? -1));
   return (
     <div className="mt-3 overflow-x-auto">
-      {result.stopped && <p className="mb-2 text-xs text-amber-700">Stopped early: {result.stopped}. The settings that ran fewer trials are marked.</p>}
+      {result.stopped && <p className="mb-2 text-xs text-warning">Stopped early: {result.stopped}. The settings that ran fewer trials are marked.</p>}
       <table className="w-full min-w-[560px] text-left text-xs">
-        <thead className="text-[10px] uppercase tracking-wide text-fg-subtle">
+        <thead className="text-[13px] text-fg-muted">
           <tr>
             <th className="py-1 pr-3 font-medium">Setting</th>
             <th className="py-1 pr-3 font-medium">Passing</th>
@@ -292,7 +291,7 @@ export function ComparisonTable({ workspace, tenant, result }: { workspace: stri
               <td className="py-1.5 pr-3 tabular-nums">{usd(c.avgCostUsd)}</td>
               <td className="py-1.5 pr-3 tabular-nums">{c.avgSecs === null ? "—" : `${c.avgSecs}s`}</td>
               {result.cases.map((row) => (
-                <td key={row.case} className={`py-1.5 pr-3 tabular-nums ${row.passed[i] < row.trials[i] ? "text-red-700" : "text-fg-secondary"}`}>
+                <td key={row.case} className={`py-1.5 pr-3 tabular-nums ${row.passed[i] < row.trials[i] ? "text-danger" : "text-fg-secondary"}`}>
                   {row.passed[i]}/{row.trials[i]}
                 </td>
               ))}
@@ -300,10 +299,10 @@ export function ComparisonTable({ workspace, tenant, result }: { workspace: stri
           ))}
         </tbody>
       </table>
-      <p className="mt-1 text-[11px] text-fg-subtle">
+      <p className="mt-1 text-xs text-fg-muted">
         Judge: {result.judge.model}{result.judge.effort ? ` · ${result.judge.effort}` : ""} · spent ${result.spentUsd.toFixed(2)} of ${result.maxUsd.toFixed(2)} · cost includes the judges
         {result.configs[0]?.runIds[0] && (
-          <> · e.g. <Link href={runHref(workspace, result.configs[0].runIds[0], tenant)} className="text-accent hover:underline">a run</Link></>
+          <> · e.g. <Link href={runHref(workspace, result.configs[0].runIds[0], tenant)} className="text-link hover:underline">a run</Link></>
         )}
       </p>
     </div>

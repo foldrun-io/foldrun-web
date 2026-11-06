@@ -3,22 +3,21 @@
 // the sidebar fell back to account-level nav and the switcher read "none
 // selected". Scoped data deserves scoped chrome.
 
-import { RunSearch } from "@/components/run-search";
+import { RunSearch, RunQuery } from "@/components/run-search";
 import { parseRunFilter, matchesRunFilter, isEmptyFilter } from "@/lib/runs-filter";
 import { SEARCH_KEYS } from "@/components/run-views-model";
 import { runCharges, runCharge } from "@/server/run-charges";
 import { listApiKeys } from "@/server/auth";
 import { a2aKeyLabels } from "@/components/a2a-model";
 import Link from "next/link";
-import { WorkspaceHeader } from "@/components/workspace-header";
 import fs from "node:fs";
 import { notFound, redirect } from "next/navigation";
 import { runHref } from "@/components/run-href";
 import { workspaceDir, listRuns, runDisplayStatus } from "@/lib/store";
 import { AutoRefresh } from "../../run-button";
-import { PageHeader } from "@/components/ui";
+import { Page, PageHeader } from "@/components/kit/page";
+import { buttonVariants } from "@/components/kit/button";
 import { Pager, RunFilters, RunStats, RunsTable, whatRan, filterByWindow, pageOf, runSearchText, type RunRow } from "@/components/runs-table";
-import { ListSearch } from "@/components/list-search";
 import { filterByQuery } from "@/components/list-search-model";
 import { RunsSelection } from "@/components/runs-bulk";
 
@@ -66,7 +65,6 @@ export default async function WorkspaceRunsPage({
   // something most visits never need, and the approve button was somewhere you
   // would only find by already knowing.
   const awaiting = all.filter((r) => r.status === "awaiting-approval");
-  const qs = tenant !== "default" ? `?tenant=${tenant}` : "";
   const tenantParam = tenant !== "default" ? `&tenant=${tenant}` : "";
   // Widening the scope keeps the question. "Failed, last 7 days, flow
   // harvest" carried across to the account page used to arrive as an
@@ -84,47 +82,48 @@ export default async function WorkspaceRunsPage({
   })();
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-8">
+    <Page>
       {/* The open run paints itself over its stream; the timer is for the
           other rows, whose badges are server-rendered. */}
       <AutoRefresh active={runs.some((r) => r.status === "running" || r.status === "queued")} />
 
-      <WorkspaceHeader workspace={workspace} qs={qs} />
-
       <PageHeader
         title="Runs"
-        subtitle={
+        description={
           awaiting.length
             ? `${awaiting.length} run${awaiting.length === 1 ? "" : "s"} waiting for you to approve a step.`
             : `Every run in ${workspace}. Open one to watch it step by step.`
         }
-      >
-        <Link
-          href={`/dashboard/runs${wider}`}
-          className="text-sm font-medium text-fg-muted hover:text-fg"
-        >
-          All workspaces →
-        </Link>
-      </PageHeader>
+        actions={
+          <Link href={`/dashboard/runs${wider}`} className={buttonVariants({ variant: "secondary" })}>
+            All workspaces
+          </Link>
+        }
+      />
 
       <RunStats runs={runs} chargedUsd={runs.reduce((n, r) => n + runCharge(r, charges), 0)} />
-      {/* Two filter rows: what happened, and when. Each chip row carries the
-          other's choice in its links, so picking a window keeps the status
-          and vice versa — filters that reset each other teach people not to
-          combine them. Paging resets on any filter change, which is why the
-          page param only appears on the pager's own links. */}
-      {/* Same bar as the account view — one workspace, so no workspace row. */}
-      <ListSearch mode="url" value={q} placeholder="Search runs — id, flow, headline, error…" noun="runs" />
-      {/* Keyed by the search, so a saved view, back and forward reset its
-          fields to what the URL says (Codex review). */}
-      <RunSearch key={JSON.stringify(searchKept)} tenant={tenant} />
-      <RunFilters
-        base={`/dashboard/${workspace}/runs`}
-        current={{ flow: flowFilter, status: statusFilter, since, q: q || undefined, ...searchKept }}
-        flows={flows}
-        tenantParam={tenantParam}
-        total={runs.length}
-      />
+
+      {/* Search, then the filters. Each control carries the others' choices
+          in its links, so picking a window keeps the status and vice versa —
+          filters that reset each other teach people not to combine them.
+          Paging resets on any filter change, which is why the page param
+          only appears on the pager's own links. */}
+      <div className="mb-4 space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <RunQuery value={q} placeholder="Search runs — id, flow, headline, error…" className="min-w-48 flex-1" />
+          {/* Keyed by the search, so a saved view, back and forward reset its
+              fields to what the URL says (Codex review). */}
+          <RunSearch key={JSON.stringify(searchKept)} tenant={tenant} />
+        </div>
+        {/* Same bar as the account view — one workspace, so no workspace row. */}
+        <RunFilters
+          base={`/dashboard/${workspace}/runs`}
+          current={{ flow: flowFilter, status: statusFilter, since, q: q || undefined, ...searchKept }}
+          flows={flows}
+          tenantParam={tenantParam}
+          total={runs.length}
+        />
+      </div>
       <RunsSelection
         tenant={tenant}
         runs={rows.map((r) => ({ workspace, id: r.id, status: runDisplayStatus(r) }))}
@@ -143,9 +142,9 @@ export default async function WorkspaceRunsPage({
         base={`/dashboard/${workspace}/runs${pagerQs ? `?${pagerQs}` : ""}`}
         page={page}
         pages={pages}
+        total={runs.length}
         tenantParam={tenantParam}
       />
-
-    </main>
+    </Page>
   );
 }

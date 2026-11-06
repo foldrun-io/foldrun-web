@@ -2,7 +2,10 @@
 // person resolves it. Same list as GET /api/issues and `foldrun issues`.
 
 import Link from "next/link";
-import { PageHeader } from "@/components/ui";
+import { AlertTriangle, Ban, CalendarX2, CheckCircle2, ChevronRight, ServerCrash, XCircle, X } from "lucide-react";
+import { Page, PageHeader, Chip, Tag, EmptyState, type Tone } from "@/components/kit/page";
+import { Segmented } from "@/components/kit/inspect-extra";
+import { cn } from "@/components/kit/cn";
 import { viewerScope } from "@/server/users";
 import { accountIssues, filterIssues, ISSUE_STATUSES, type IssueFilter } from "@/server/issues";
 import { IssueActions } from "@/components/issue-actions";
@@ -22,12 +25,12 @@ const TABS: { key: IssueFilter; label: string }[] = [
   { key: "all", label: "All" },
 ];
 
-const KIND: Record<Issue["kind"], { label: string; tone: string }> = {
-  platform: { label: "platform", tone: "text-white bg-slate-800 ring-slate-800" },
-  failed: { label: "failed", tone: "text-red-700 bg-red-50 ring-red-200" },
-  blocked: { label: "blocked", tone: "text-orange-700 bg-orange-50 ring-orange-200" },
-  bad: { label: "problem found", tone: "text-rose-700 bg-rose-50 ring-rose-200" },
-  missed: { label: "missed schedule", tone: "text-amber-800 bg-amber-50 ring-amber-200" },
+const KIND: Record<Issue["kind"], { label: string; tone: Tone; icon: React.ReactNode; box: string }> = {
+  platform: { label: "platform", tone: "info", icon: <ServerCrash />, box: "border-info-line bg-info-soft text-info" },
+  failed: { label: "failed", tone: "bad", icon: <XCircle />, box: "border-danger-line bg-danger-soft text-danger" },
+  blocked: { label: "blocked", tone: "warn", icon: <Ban />, box: "border-warning-line bg-warning-soft text-warning" },
+  bad: { label: "problem found", tone: "bad", icon: <AlertTriangle />, box: "border-danger-line bg-danger-soft text-danger" },
+  missed: { label: "missed schedule", tone: "warn", icon: <CalendarX2 />, box: "border-warning-line bg-warning-soft text-warning" },
 };
 
 const ACTED: Record<string, string> = { acknowledge: "acknowledged", snooze: "snoozed", resolve: "resolved", reopen: "reopened" };
@@ -50,96 +53,150 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
   };
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-8">
-      <PageHeader
-        title="Issues"
-        subtitle={`What went wrong, grouped, and kept open until someone resolves it — a later good run does not close one.${workspace ? ` Only ${workspace}.` : ""}`}
-      />
-      <nav className="mb-4 flex flex-wrap gap-1 text-sm">
-        {TABS.map((t) => (
-          <Link
-            key={t.key}
-            href={q(t.key)}
-            className={`rounded-md px-3 py-1.5 ${t.key === status ? "bg-muted font-medium text-fg" : "text-fg-muted hover:bg-sunken hover:text-fg"}`}
-          >
-            {t.label} <span className="tabular-nums text-fg-subtle">{count(t.key)}</span>
-          </Link>
-        ))}
+    <Page>
+      <PageHeader title="Issues" description="What went wrong, grouped, and kept open until someone resolves it. A later good run does not close one." />
+
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Segmented label="Status" value={status} items={TABS.map((t) => ({ key: t.key, label: t.label, href: q(t.key), count: count(t.key) }))} />
         {workspace && (
-          <Link href={`/dashboard/issues${tenant !== "default" ? `?tenant=${tenant}` : ""}`} className="ml-auto rounded-md px-3 py-1.5 text-fg-muted hover:text-fg">
-            Every workspace →
+          <Link
+            href={`/dashboard/issues${tenant !== "default" ? `?tenant=${tenant}` : ""}`}
+            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-[13px] text-fg-secondary transition-colors hover:border-line-strong hover:text-fg"
+            title="Show every workspace"
+          >
+            Only <span className="font-medium text-fg">{workspace}</span>
+            <X className="size-3.5 text-fg-muted" aria-label="Every workspace" />
           </Link>
         )}
-      </nav>
+      </div>
 
       {issues.length === 0 ? (
-        <p className="rounded-xl border border-line bg-surface px-4 py-8 text-center text-sm text-fg-muted">
-          {status === "active" ? "No open issues. Anything that fails, ends BLOCKED or finds a problem shows up here until someone resolves it." : "None."}
-        </p>
+        <EmptyState
+          icon={<CheckCircle2 />}
+          title={
+            status === "active"
+              ? "No open issues"
+              : status === "snoozed"
+                ? "Nothing snoozed"
+                : status === "resolved"
+                  ? "Nothing resolved yet"
+                  : "No issues yet"
+          }
+          description={
+            status === "active"
+              ? "Anything that fails, ends BLOCKED or finds a problem shows up here until someone resolves it."
+              : status === "snoozed"
+                ? "An issue you snooze for a day, or until it happens five more times, waits here and comes back on its own."
+                : status === "resolved"
+                  ? "Issues someone resolved stay here; one that happens again opens again."
+                  : "Every failure, BLOCKED or BAD result appears here, grouped, until someone resolves it."
+          }
+        />
       ) : (
-        <ul className="space-y-3">
-          {issues.map((i) => (
-            <li key={i.id} id={i.id} className="rounded-xl border border-line bg-surface p-4 shadow-sm">
-              <div className="flex flex-wrap items-start gap-2">
-                <span className={`shrink-0 rounded px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset ${KIND[i.kind].tone}`}>{KIND[i.kind].label}</span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-fg">
-                    {i.what}
-                    {i.agent && <span className="font-normal text-fg-muted"> · at {i.agent}</span>}
-                  </p>
-                  <p className="mt-0.5 flex flex-wrap gap-1">
-                    {i.workspaces.map((w) => (
-                      <span key={w} className="rounded bg-muted px-1.5 text-[10px] text-fg-muted">{w}</span>
-                    ))}
-                    {i.status !== "open" && (
-                      <span className="rounded bg-muted px-1.5 text-[10px] font-medium text-fg">
-                        {i.status}
-                        {i.snoozedUntil ? " until " : ""}
-                        {i.snoozedUntil && <LocalTime iso={i.snoozedUntil} />}
-                        {i.snoozedFor ? ` for ${i.snoozedFor} more` : ""}
-                        {i.resolved?.by.startsWith("auto:") ? " (auto: a later run went fine)" : ""}
+        <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
+          {issues.map((i) => {
+            const k = KIND[i.kind];
+            return (
+              <li key={i.id} id={i.id} className="scroll-mt-20 px-3 py-4 transition-colors hover:bg-sunken/50 sm:px-4">
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-md border [&_svg]:size-4", k.box)} aria-hidden>
+                    {k.icon}
+                  </span>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <p className="text-sm font-medium text-fg [overflow-wrap:anywhere]">
+                      {i.what}
+                      {i.agent && <span className="font-normal text-fg-muted"> · at {i.agent}</span>}
+                    </p>
+                    <p className="line-clamp-1 text-sm text-fg-muted [overflow-wrap:anywhere]">
+                      <WithEmails text={i.reason} />
+                    </p>
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      <Chip tone={k.tone}>{k.label}</Chip>
+                      {i.workspaces.map((w) => (
+                        <Tag key={w}>{w}</Tag>
+                      ))}
+                      {i.status !== "open" && (
+                        <Chip>
+                          {i.status}
+                          {i.snoozedUntil ? " until " : ""}
+                          {i.snoozedUntil && <LocalTime iso={i.snoozedUntil} />}
+                          {i.snoozedFor ? ` for ${i.snoozedFor} more` : ""}
+                          {i.resolved?.by.startsWith("auto:") ? " (auto: a later run went fine)" : ""}
+                        </Chip>
+                      )}
+                      {i.regressed && (
+                        <span title="It was resolved and came back">
+                          <Chip tone="bad">regressed{i.sinceRevision ? ` since ${i.sinceRevision.slice(0, 7)}` : ""}</Chip>
+                        </span>
+                      )}
+                      <span className="text-xs text-fg-muted">
+                        {i.count} time{i.count === 1 ? "" : "s"} · latest {fmtSpan(Math.max(0, now - Date.parse(i.lastSeen)))} ago
                       </span>
-                    )}
-                    {i.regressed && (
-                      <span className="rounded bg-danger-soft px-1.5 text-[10px] font-medium text-danger" title="It was resolved and came back">
-                        regressed{i.sinceRevision ? ` since ${i.sinceRevision.slice(0, 7)}` : ""}
-                      </span>
-                    )}
-                  </p>
+                    </div>
+                    <details className="group pt-1">
+                      <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-sm text-[13px] font-medium text-fg-secondary hover:text-fg [&::-webkit-details-marker]:hidden">
+                        <ChevronRight className="size-3.5 transition-transform group-open:rotate-90" aria-hidden />
+                        Details
+                      </summary>
+                      <div className="mt-2 space-y-2 rounded-md border border-line bg-sunken p-3 text-[13px]">
+                        <p className="text-fg">
+                          <span className="text-fg-muted">What to do:</span> {i.action}
+                        </p>
+                        <p className="text-fg-secondary [overflow-wrap:anywhere]">
+                          <WithEmails text={i.reason} />
+                        </p>
+                        <p className="text-fg-muted">
+                          First <LocalTime iso={i.firstSeen} />
+                          {i.recoveredAt && <span className="text-success"> · fine since {fmtSpan(Math.max(0, now - Date.parse(i.recoveredAt)))} ago</span>}
+                        </p>
+                        <p className="flex flex-wrap gap-x-3 gap-y-1">
+                          {i.runs.slice(0, 6).map((r) =>
+                            r.missed ? (
+                              <span key={r.id} className="text-fg-muted">
+                                due <LocalTime iso={r.at} />
+                              </span>
+                            ) : (
+                              <Link key={r.id} href={runHref(r.workspace, r.id, tenant)} className="font-mono text-xs text-fg-secondary hover:text-fg hover:underline">
+                                {r.id}
+                              </Link>
+                            ),
+                          )}
+                          {i.runs.length > 6 && <span className="text-fg-subtle">and {i.count - 6} more</span>}
+                        </p>
+                        {i.history.length > 0 && (
+                          <ol className="space-y-0.5 border-t border-line pt-2 text-xs text-fg-muted">
+                            {[...i.history]
+                              .reverse()
+                              .slice(0, 8)
+                              .map((e, n) => (
+                                <li key={n}>
+                                  <LocalTime iso={e.at} /> — {ACTED[e.action] ?? e.action} by <Email value={e.by} />
+                                  {e.until && (
+                                    <>
+                                      {" "}
+                                      until <LocalTime iso={e.until} />
+                                    </>
+                                  )}
+                                  {e.note && (
+                                    <span className="text-fg-tertiary">
+                                      {" "}
+                                      · <WithEmails text={e.note} />
+                                    </span>
+                                  )}
+                                </li>
+                              ))}
+                          </ol>
+                        )}
+                      </div>
+                    </details>
+                  </div>
+                  <IssueActions id={i.id} status={i.status} tenant={tenant} platform={i.kind === "platform"} accountWide={scope === null} doctor={issueDoctor(i)} />
                 </div>
-                <IssueActions id={i.id} status={i.status} tenant={tenant} platform={i.kind === "platform"} accountWide={scope === null} doctor={issueDoctor(i)} />
-              </div>
-              <p className="mt-2 line-clamp-3 text-xs text-fg-tertiary"><WithEmails text={i.reason} /></p>
-              <p className="mt-1 text-xs text-fg"><span className="text-fg-muted">What to do:</span> {i.action}</p>
-              <p className="mt-2 text-[11px] text-fg-muted">
-                {i.count} time{i.count === 1 ? "" : "s"} · first <LocalTime iso={i.firstSeen} /> · latest {fmtSpan(Math.max(0, now - Date.parse(i.lastSeen)))} ago
-                {i.recoveredAt && <span className="text-emerald-700"> · fine since {fmtSpan(Math.max(0, now - Date.parse(i.recoveredAt)))} ago</span>}
-              </p>
-              <p className="mt-1 flex flex-wrap gap-x-2 text-[11px]">
-                {i.runs.slice(0, 6).map((r) =>
-                  r.missed ? (
-                    <span key={r.id} className="text-fg-muted">due <LocalTime iso={r.at} /></span>
-                  ) : (
-                    <Link key={r.id} href={runHref(r.workspace, r.id, tenant)} className="font-mono text-fg-muted hover:text-fg hover:underline">{r.id}</Link>
-                  ),
-                )}
-                {i.runs.length > 6 && <span className="text-fg-subtle">and {i.count - 6} more</span>}
-              </p>
-              {i.history.length > 0 && (
-                <ol className="mt-2 space-y-0.5 border-t border-line-faint pt-2 text-[11px] text-fg-muted">
-                  {[...i.history].reverse().slice(0, 8).map((e, k) => (
-                    <li key={k}>
-                      <LocalTime iso={e.at} /> — {ACTED[e.action] ?? e.action} by <Email value={e.by} />
-                      {e.until && <> until <LocalTime iso={e.until} /></>}
-                      {e.note && <span className="text-fg-tertiary"> · <WithEmails text={e.note} /></span>}
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
-    </main>
+    </Page>
   );
 }

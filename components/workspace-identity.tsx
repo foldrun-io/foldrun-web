@@ -40,7 +40,7 @@ export function WorkspaceIdentity({
   const renaming = form.value.name !== workspace;
 
   return (
-    <SettingsForm form={form} saveLabel={renaming ? "Rename and save" : "Save"} hint="name: and description: in AGENTS.md">
+    <SettingsForm form={form} id="identity" title="Name and description" description="What this workspace is called, and the line shown on its card and in Find." saveLabel={renaming ? "Rename and save" : "Save"} hint={<><code className="font-mono text-xs">name:</code> and <code className="font-mono text-xs">description:</code> in AGENTS.md</>}>
       <Field label="Name" help="Kebab-case. This is the folder name and the URL.">
         <input value={form.value.name} onChange={(e) => form.setValue({ ...form.value, name: e.target.value })} spellCheck={false} className={inputClass("w-full max-w-sm font-mono")} />
       </Field>
@@ -48,7 +48,7 @@ export function WorkspaceIdentity({
         <input value={form.value.description} onChange={(e) => form.setValue({ ...form.value, description: e.target.value })} placeholder="What this workspace is for." className={inputClass("w-full")} />
       </Field>
       {renaming && webhookFlows.length > 0 && (
-        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        <p className="rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-xs text-warning">
           <strong>This breaks {webhookFlows.length} webhook URL{webhookFlows.length === 1 ? "" : "s"}.</strong> The name is part of the URL and of the token it
           carries, so anything calling <span className="font-mono">{webhookFlows.join(", ")}</span> will start failing its signature check. Copy the new URLs
           from each flow afterwards and re-point the caller.

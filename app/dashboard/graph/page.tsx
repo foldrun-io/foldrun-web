@@ -1,6 +1,7 @@
 import { buildAccountGraph } from "@/server/graph";
 import { viewerScope } from "@/server/users";
 import { GraphClient } from "@/app/dashboard/[workspace]/graph/graph-client";
+import { isLayout } from "@/components/graph-layout-model";
 
 export const dynamic = "force-dynamic";
 
@@ -18,20 +19,19 @@ export const dynamic = "force-dynamic";
 export default async function AccountGraphPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tenant?: string }>;
+  searchParams: Promise<{ tenant?: string; layout?: string }>;
 }) {
-  const { tenant = "default" } = await searchParams;
+  const { tenant = "default", layout } = await searchParams;
   // A member scoped to some workspaces sees only those, here as everywhere.
   const graph = buildAccountGraph(tenant, await viewerScope());
 
   return (
-    <main className="h-[calc(100vh-4rem)]">
-      <GraphClient
-        tenant={tenant}
-        graph={graph}
-        title="account"
-        emptyMessage="Nothing to graph yet — create a workspace and add an agent."
-      />
-    </main>
+    <GraphClient
+      tenant={tenant}
+      graph={graph}
+      title="account"
+      layout={isLayout(layout) ? layout : "map"}
+      emptyMessage="Create a workspace and add an agent, and it appears here."
+    />
   );
 }

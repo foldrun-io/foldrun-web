@@ -5,15 +5,18 @@
 // character short of.
 
 import { useState } from "react";
-import { buttonClass, inputClass } from "@/components/ui";
+import { inputClass } from "@/components/ui";
+import { Button } from "@/components/kit/button";
+import { Check, Copy } from "lucide-react";
 
 export function CopyField({ value, className = "" }: { value: string; className?: string }) {
   const [done, setDone] = useState(false);
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <input readOnly value={value} onFocus={(e) => e.currentTarget.select()} className={inputClass("flex-1 font-mono text-xs")} />
-      <button
+      <input readOnly value={value} onFocus={(e) => e.currentTarget.select()} className={inputClass("h-8 flex-1 font-mono text-xs")} />
+      <Button
         type="button"
+        variant="secondary"
         onClick={async () => {
           try {
             await navigator.clipboard.writeText(value);
@@ -23,10 +26,10 @@ export function CopyField({ value, className = "" }: { value: string; className?
             // the input is selectable; the button was a convenience
           }
         }}
-        className={buttonClass("secondary")}
       >
+        {done ? <Check aria-hidden /> : <Copy aria-hidden />}
         {done ? "Copied" : "Copy"}
-      </button>
+      </Button>
     </div>
   );
 }

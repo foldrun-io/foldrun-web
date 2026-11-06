@@ -23,7 +23,7 @@
 // that deletes on a stray Enter has traded one accident for another.
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { buttonClass } from "@/components/ui";
+import { Button } from "@/components/kit/button";
 
 export interface ConfirmOptions {
   title: string;
@@ -65,7 +65,7 @@ export function ConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-[1px]"
       onClick={() => onResolve(false)}
       role="presentation"
     >
@@ -76,29 +76,22 @@ export function ConfirmDialog({
         // text-left explicitly: the dialog renders wherever the hook was
         // called from — inside a right-aligned table cell, say — and a
         // question that inherits that alignment reads ragged.
-        className="w-full max-w-md rounded-xl border border-line bg-surface p-5 text-left shadow-xl"
+        className="w-full max-w-md overflow-hidden rounded-xl border border-line bg-surface text-left shadow-overlay"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="confirm-title" className="text-sm font-semibold text-fg">
-          {options.title}
-        </h2>
-        {options.body && (
-          <div className="mt-1.5 text-sm leading-relaxed text-fg-muted">{options.body}</div>
-        )}
-        <div className="mt-4 flex items-center justify-end gap-2">
-          <button ref={cancelRef} onClick={() => onResolve(false)} className={buttonClass("secondary")}>
+        <div className="p-5 sm:p-6">
+          <h2 id="confirm-title" className="text-lg font-semibold text-fg">
+            {options.title}
+          </h2>
+          {options.body && <div className="mt-2 text-sm leading-relaxed text-fg-muted">{options.body}</div>}
+        </div>
+        <div className="flex items-center justify-end gap-2 border-t border-line bg-sunken px-5 py-3 sm:px-6">
+          <Button ref={cancelRef} variant="secondary" onClick={() => onResolve(false)}>
             {options.cancelLabel ?? "Cancel"}
-          </button>
-          <button
-            onClick={() => onResolve(true)}
-            className={
-              destructive
-                ? `${buttonClass("primary")} !bg-red-600 hover:!bg-red-700`
-                : buttonClass("primary")
-            }
-          >
+          </Button>
+          <Button variant={destructive ? "danger" : "primary"} onClick={() => onResolve(true)}>
             {options.confirmLabel ?? "Confirm"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

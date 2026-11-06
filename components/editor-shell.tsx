@@ -1,9 +1,10 @@
 "use client";
 
-// The editor as a workbench: three panes, full height.
+// The editor (UI refactor, Nov 2026): the page's header and tabs, then one
+// card with three columns that fills the window under them.
 //
 //   left    the tree, with a search box and the create controls
-//   centre  a header — the path, the frontmatter as chips, Edit/Read, Save,
+//   centre  a toolbar — the path, what the file is, Edit/Read, Save,
 //           who last touched it — over an editor that scrolls on its own
 //   right   what the file relates to: who uses it, the secrets it names,
 //           its runs, its recent changes, a test box, the reference page
@@ -15,14 +16,17 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { ArrowRight, ChevronRight, PanelRightClose, PanelRightOpen, Search } from "lucide-react";
 import { FileTree } from "./file-tree";
-import { Workbench, Pane, Stage } from "./pane";
 import { InlineEditor } from "./inline-editor";
 import { ToolTest } from "./tool-test";
-import { Badge } from "./ui";
+import { Page, Tag, Chip } from "./kit/page";
+import { Button } from "./kit/button";
+import { inputBase } from "./kit/input";
+import { cn } from "./kit/cn";
 import { fmtAgo } from "./overview-model";
 import { useConfirm } from "./confirm";
-import type { Chip } from "./editor-context-model";
+import type { Chip as FileChip } from "./editor-context-model";
 
 export interface ContextItem {
   label: string;
@@ -70,7 +74,10 @@ export function EditorShell({
   viewer,
   treeReadOnly = false,
   actions,
+  header,
 }: {
+  /** Above the editor card: the page's title and its tabs. */
+  header?: ReactNode;
   /** Render this instead of the editor — a preview, a pretty-printed record,
    *  a "not served" note. */
   viewer?: ReactNode;
@@ -90,7 +97,7 @@ export function EditorShell({
   rootName: string;
   content: string | null;
   crumbs: { label: string; href?: string }[];
-  chips: Chip[];
+  chips: FileChip[];
   kindLabel: string;
   issues: Issue[];
   lastChange: { by: string; at: string; href: string } | null;
@@ -137,17 +144,26 @@ export function EditorShell({
   };
 
   const toneClass = (t?: ContextItem["tone"]) =>
-    t === "ok" ? "text-emerald-600" : t === "warn" ? "text-amber-600" : t === "error" ? "text-red-600" : t === "muted" ? "text-fg-subtle" : "text-fg-secondary";
+    t === "ok" ? "text-success" : t === "warn" ? "text-warning" : t === "error" ? "text-danger" : t === "muted" ? "text-fg-subtle" : "text-fg-secondary";
+
+  const shown = crumbs.length > 4 ? crumbs.slice(-3) : crumbs;
+  const folded = crumbs.length > 4 ? crumbs[crumbs.length - 4] : null;
 
   return (
-    <Workbench>
+    <Page width="full">
       {confirmDialog}
-      <Pane
-        side="left"
-        onClickCapture={guard}
-        head={
-          <div className="p-2">
+      {header}
+      {/* One card: the tree on the left, the open file on the right, and what
+          it relates to beside it on a wide screen. It fills the window under
+          the header, and each column scrolls on its own. */}
+      <div className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-line bg-surface md:h-[calc(100svh-17rem)] md:min-h-[30rem] md:flex-row">
+        <aside
+          onClickCapture={guard}
+          className="flex shrink-0 flex-col border-line bg-sunken max-md:max-h-[40vh] max-md:border-b md:w-64 md:border-r"
+        >
+          <div className="shrink-0 p-2">
             <label className="relative block">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-fg-muted" aria-hidden />
               <input
                 id="editor-tree-filter"
                 value={filter}
@@ -160,169 +176,159 @@ export function EditorShell({
                 }}
                 placeholder="Find a file…"
                 aria-label="Find a file"
-                className="h-8 w-full rounded-md border border-line bg-surface px-2.5 pr-7 text-xs text-fg placeholder:text-fg-subtle focus:border-gray-400 focus:outline-none"
+                className={cn(inputBase, "h-8 pl-8 pr-8 text-[13px]")}
               />
-              <kbd className="pointer-events-none absolute inset-y-0 right-2 flex items-center font-mono text-[10px] text-fg-subtle">/</kbd>
+              <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-sm border border-line bg-sunken px-1.5 font-mono text-[11px] leading-4 text-fg-muted">/</kbd>
             </label>
           </div>
-        }
-        foot={treeFooter ? <div className="px-3 py-2 text-[11px] leading-relaxed text-fg-subtle">{treeFooter}</div> : undefined}
-      >
-        <div className="px-1.5 py-1">
-          <FileTree
-            files={files}
-            selected={selected}
-            linkBase={linkBase}
-            linkSuffix={linkSuffix}
-            linkStyle={linkStyle}
-            rootName={rootName}
-            workspace={workspace}
-            tenant={tenant}
-            readOnly={treeReadOnly || !workspace}
-            filter={filter}
-          />
-          {filter.trim() && files.filter((f) => f.toLowerCase().includes(filter.trim().toLowerCase())).length === 0 && (
-            <p className="px-2 py-4 text-center text-xs text-fg-subtle">No file matches “{filter}”.</p>
-          )}
-        </div>
-      </Pane>
-
-      {/* Editor */}
-      <Stage
-        head={
-        <>
-        <header className="border-b border-line px-4 py-2">
-          {/* One row: the path on the left, the controls on the right. A deep
-              path keeps its last three segments and folds the rest into an
-              ellipsis that reveals them on hover. On a phone the controls
-              wrap under the path rather than run off the screen. */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden whitespace-nowrap font-mono text-xs text-fg-muted" aria-label="Path" title={crumbs.map((c) => c.label).join("/")}>
-              {(() => {
-                const shown = crumbs.length > 4 ? crumbs.slice(-3) : crumbs;
-                const folded = crumbs.length > 4 ? crumbs[crumbs.length - 4] : null;
-                return (
-                  <>
-                    {folded && (
-                      <span className="flex items-center gap-1">
-                        {folded.href ? <Link href={folded.href} className="hover:text-fg">…</Link> : <span>…</span>}
-                        <span className="text-gray-300">/</span>
-                      </span>
-                    )}
-                    {shown.map((c, i) => (
-                      <span key={`${c.label}-${i}`} className="flex min-w-0 items-center gap-1">
-                        {i > 0 && <span className="text-gray-300">/</span>}
-                        {c.href ? (
-                          <Link href={c.href} className="hover:text-fg">{c.label}</Link>
-                        ) : (
-                          <span className="truncate font-semibold text-fg">{c.label}</span>
-                        )}
-                      </span>
-                    ))}
-                  </>
-                );
-              })()}
-            </nav>
-            <div className="flex shrink-0 items-center gap-3">
-              <div ref={setToolbar} className="flex items-center gap-2" />
-              {actions}
-              {content !== null && lastChange && (
-                <Link href={lastChange.href} className="hidden text-[11px] text-fg-subtle hover:text-fg-secondary xl:inline" title={lastChange.at}>
-                  {lastChange.by} · {fmtAgo(now - Date.parse(lastChange.at))}
-                </Link>
-              )}
-              <button
-                type="button"
-                onClick={() => setShowContext((v) => !v)}
-                className="text-[11px] text-fg-subtle hover:text-fg-secondary max-lg:hidden"
-                title={showContext ? "Hide the context panel" : "Show the context panel"}
-              >
-                {showContext ? "Hide panel" : "Show panel"}
-              </button>
-            </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
+            <FileTree
+              files={files}
+              selected={selected}
+              linkBase={linkBase}
+              linkSuffix={linkSuffix}
+              linkStyle={linkStyle}
+              rootName={rootName}
+              workspace={workspace}
+              tenant={tenant}
+              readOnly={treeReadOnly || !workspace}
+              filter={filter}
+            />
+            {filter.trim() && files.filter((f) => f.toLowerCase().includes(filter.trim().toLowerCase())).length === 0 && (
+              <p className="px-2 py-4 text-center text-xs text-fg-muted">No file matches “{filter}”.</p>
+            )}
           </div>
-          {/* What the file is, quietly, under the path. */}
-          {(kindLabel || chips.length > 0) && (
-            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              <span className="rounded-full border border-line px-1.5 text-[10px] uppercase tracking-wide text-fg-muted">{kindLabel}</span>
-              {chips.map((c) => (
-                <span key={c.label} title={c.title} className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-fg-tertiary">{c.label}</span>
+          {treeFooter && <div className="shrink-0 border-t border-line px-3 py-2.5 text-xs leading-relaxed text-fg-muted">{treeFooter}</div>}
+        </aside>
+
+        {/* The open file: its path and what it is on the left of a toolbar,
+            the editor's own controls (view switch, Save, History) on the
+            right, through a portal. */}
+        <section className="flex min-w-0 flex-1 flex-col">
+          <header className="shrink-0 border-b border-line px-4 py-2.5">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <nav className="flex min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap text-[13px] text-fg-muted" aria-label="Path" title={crumbs.map((c) => c.label).join("/")}>
+                  {folded && (
+                    <span className="flex items-center gap-1">
+                      {folded.href ? <Link href={folded.href} className="hover:text-fg">…</Link> : <span>…</span>}
+                      <ChevronRight className="size-3.5 shrink-0 text-fg-subtle" aria-hidden />
+                    </span>
+                  )}
+                  {shown.map((c, i) => (
+                    <span key={`${c.label}-${i}`} className={cn("flex items-center gap-1", i === shown.length - 1 ? "min-w-0" : "shrink-0")}>
+                      {i > 0 && <ChevronRight className="size-3.5 shrink-0 text-fg-subtle" aria-hidden />}
+                      {c.href ? (
+                        <Link href={c.href} className="max-w-32 truncate hover:text-fg">{c.label}</Link>
+                      ) : (
+                        <span className="truncate font-medium text-fg">{c.label}</span>
+                      )}
+                    </span>
+                  ))}
+                </nav>
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <div ref={setToolbar} className="flex flex-wrap items-center gap-2" />
+                {actions}
+                {content !== null && lastChange && (
+                  <Link href={lastChange.href} className="hidden text-xs text-fg-muted hover:text-fg xl:inline" title={lastChange.at}>
+                    {lastChange.by} · {fmtAgo(now - Date.parse(lastChange.at))}
+                  </Link>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setShowContext((v) => !v)}
+                  className="max-lg:hidden"
+                  aria-pressed={showContext}
+                  aria-label={showContext ? "Hide the context panel" : "Show the context panel"}
+                  title={showContext ? "Hide the context panel" : "Show the context panel"}
+                >
+                  {showContext ? <PanelRightClose /> : <PanelRightOpen />}
+                </Button>
+              </div>
+            </div>
+            {/* What the file says about itself, quietly, under the path. */}
+            {(kindLabel || chips.length > 0) && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {kindLabel && <Tag>{kindLabel}</Tag>}
+                {chips.map((c) => (
+                  <span key={c.label} title={c.title} className="inline-flex h-6 items-center rounded-md bg-muted px-2 text-xs text-fg-secondary">{c.label}</span>
+                ))}
+              </div>
+            )}
+          </header>
+          {issues.length > 0 && (
+            <div role="alert" className="shrink-0 space-y-0.5 border-b border-warning-line bg-warning-soft px-4 py-2 text-xs text-warning">
+              {issues.map((i) => (
+                <p key={`${i.where}:${i.message}`}>
+                  <span className="font-mono font-medium">{i.where}</span> — {i.message}
+                </p>
               ))}
             </div>
           )}
-        </header>
-        {issues.length > 0 && (
-          <div className="border-b border-amber-200 bg-amber-50 px-4 py-1.5 text-xs text-amber-900">
-            {issues.map((i) => (
-              <p key={`${i.where}:${i.message}`}>
-                <span className="font-mono text-amber-700">{i.where}</span> — {i.message}
-              </p>
-            ))}
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
+            {viewer ? (
+              <div className="pt-4">{viewer}</div>
+            ) : content === null || !selected ? (
+              <div className="py-10">{emptyEditor}</div>
+            ) : (
+              <InlineEditor
+                key={selected}
+                workspace={workspace}
+                libraryKind={libraryKind}
+                tenant={tenant}
+                path={selected}
+                initialContent={content}
+                rows={40}
+                toolbarTarget={toolbar}
+                onDirtyChange={setDirty}
+                onSaved={() => router.refresh()}
+              />
+            )}
           </div>
-        )}
-        </>
-        }
-      >
-        <div className="px-4 pb-6">
-          {viewer ? (
-            <div className="pt-3">{viewer}</div>
-          ) : content === null || !selected ? (
-            <div className="py-16">{emptyEditor}</div>
-          ) : (
-            <InlineEditor
-              key={selected}
-              workspace={workspace}
-              libraryKind={libraryKind}
-              tenant={tenant}
-              path={selected}
-              initialContent={content}
-              rows={40}
-              toolbarTarget={toolbar}
-              onDirtyChange={setDirty}
-              onSaved={() => router.refresh()}
-            />
-          )}
-        </div>
-      </Stage>
+        </section>
 
-      {/* Context */}
-      {showContext && (
-        <Pane side="right" className="max-lg:hidden">
-          {sections.map((s) => (
-            <div key={s.title} className="border-b border-line px-4 py-3">
-              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">{s.title}</p>
-              {s.items.length === 0 ? (
-                <p className="text-xs text-fg-subtle">{s.empty ?? "None."}</p>
-              ) : (
-                <ul className="space-y-1">
-                  {s.items.map((it, i) => (
-                    <li key={`${it.label}-${i}`} className="flex items-baseline justify-between gap-2 text-xs">
-                      {it.href ? (
-                        <Link href={it.href} className={`min-w-0 truncate hover:underline ${it.mono ? "font-mono" : ""} ${toneClass(it.tone)}`}>{it.label}</Link>
-                      ) : (
-                        <span className={`min-w-0 truncate ${it.mono ? "font-mono" : ""} ${toneClass(it.tone)}`}>{it.label}</span>
-                      )}
-                      {it.meta && <span className={`shrink-0 text-[11px] ${it.tone === "error" ? "text-red-600" : it.tone === "warn" ? "text-amber-600" : it.tone === "ok" ? "text-emerald-600" : "text-fg-subtle"}`}>{it.meta}</span>}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {s.more && (
-                <Link href={s.more.href} className="mt-1.5 inline-block text-[11px] font-medium text-fg-muted hover:text-fg">{s.more.label} →</Link>
-              )}
-            </div>
-          ))}
-          {test && workspace && (
-            <div className="border-b border-line px-4 py-3">
-              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">Test</p>
-              {dirty && <Badge variant="warning">runs what is saved</Badge>}
-              <div className="mt-1.5">
+        {/* What the file relates to. */}
+        {showContext && (sections.length > 0 || (test && workspace)) && (
+          <aside className="w-72 shrink-0 overflow-y-auto border-l border-line max-lg:hidden">
+            {sections.map((s) => (
+              <div key={s.title} className="border-b border-line px-4 py-3.5 last:border-b-0">
+                <p className="mb-2 text-[13px] font-medium text-fg">{s.title}</p>
+                {s.items.length === 0 ? (
+                  <p className="text-[13px] text-fg-muted">{s.empty ?? "None."}</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {s.items.map((it, i) => (
+                      <li key={`${it.label}-${i}`} className="flex items-baseline justify-between gap-2 text-[13px]">
+                        {it.href ? (
+                          <Link href={it.href} className={cn("min-w-0 truncate hover:underline", it.mono && "font-mono text-xs", toneClass(it.tone))}>{it.label}</Link>
+                        ) : (
+                          <span className={cn("min-w-0 truncate", it.mono && "font-mono text-xs", toneClass(it.tone))}>{it.label}</span>
+                        )}
+                        {it.meta && <span className={cn("shrink-0 text-xs", it.tone === "error" ? "text-danger" : it.tone === "warn" ? "text-warning" : it.tone === "ok" ? "text-success" : "text-fg-muted")}>{it.meta}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {s.more && (
+                  <Link href={s.more.href} className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-fg-muted hover:text-fg">
+                    {s.more.label} <ArrowRight className="size-3" aria-hidden />
+                  </Link>
+                )}
+              </div>
+            ))}
+            {test && workspace && (
+              <div className="px-4 py-3.5">
+                <p className="mb-2 flex items-center gap-2 text-[13px] font-medium text-fg">
+                  Test {dirty && <Chip tone="warn">runs what is saved</Chip>}
+                </p>
                 <ToolTest workspace={workspace} tenant={tenant} tool={test.tool} transport={test.transport} scriptArgs={test.scriptArgs} stale={dirty} />
               </div>
-            </div>
-          )}
-        </Pane>
-      )}
-    </Workbench>
+            )}
+          </aside>
+        )}
+      </div>
+    </Page>
   );
 }

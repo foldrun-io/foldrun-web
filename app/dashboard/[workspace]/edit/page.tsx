@@ -21,7 +21,11 @@ import { workspaceCheck } from "@/server/checks";
 import { EditorShell, type ContextSection, type Issue } from "@/components/editor-shell";
 import { kindOf, chipsFor, secretRefs, crumbs, DOC_FOR, type FileKind } from "@/components/editor-context-model";
 import { nowMs } from "@/components/overview-model";
-import { EmptyScreen } from "@/components/ui";
+import { EmptyState, PageHeader } from "@/components/kit/page";
+import { PageTabs } from "@/components/kit/page-tabs";
+import { buttonVariants } from "@/components/kit/button";
+import { filesTabs } from "@/components/nav-model";
+import { FileText, LayoutGrid, Library } from "lucide-react";
 import { NewFile } from "./new-file";
 
 export const dynamic = "force-dynamic";
@@ -219,7 +223,7 @@ export default async function EditPage({
         title: "Secrets",
         items: refs.map((n) => ({ label: n, mono: true, meta: set.has(n) ? "set" : "missing", tone: set.has(n) ? ("ok" as const) : ("error" as const) })),
         empty: "Names none.",
-        more: { label: "Secrets", href: `/dashboard/${workspace}/settings${qs}` },
+        more: { label: "Secrets", href: `/dashboard/${workspace}/settings?tab=secrets${qs.replace("?", "&")}` },
       });
     }
 
@@ -258,32 +262,32 @@ export default async function EditPage({
       sections={sections}
       test={test}
       now={now}
-      treeFooter={
-        scope ? (
-          <>
-            {scope.list ? <NewFile workspace={workspace} tenant={tenant} scope={scope.dir} /> : null}
-            {scope.list ? <p className="mt-2" /> : null}
-            {scope.blurb}{" "}
-            {scope.list ? (
-              <>
-                <Link href={`/dashboard/${workspace}/assets?kind=${scope.list}${rest}`} className="underline hover:text-fg-tertiary">See them as cards</Link>
-                {" · "}
-              </>
-            ) : null}
-            <Link href={`/dashboard/${workspace}/edit${qs}`} className="underline hover:text-fg-tertiary">Browse the whole workspace</Link>.
-          </>
-        ) : (
-          <>
-            <NewFile workspace={workspace} tenant={tenant} />
-            <p className="mt-2">
-              Runs, storage and secrets are not files here. Shared files live in the{" "}
-              <Link href={`/dashboard/library/files${qs}`} className="underline hover:text-fg-tertiary">library</Link>.
-            </p>
-          </>
-        )
+      header={
+        <>
+          <PageHeader
+            title={scope ? scope.title : "Files"}
+            description={scope ? scope.blurb : "Everything this workspace is made of, as files. Runs, storage and secrets live elsewhere."}
+            actions={
+              scope?.list ? (
+                <Link href={`/dashboard/${workspace}/assets?kind=${scope.list}${rest}`} className={buttonVariants({ variant: "secondary", size: "md" })}>
+                  <LayoutGrid /> View as cards
+                </Link>
+              ) : !scope ? (
+                <Link href={`/dashboard/library/files${qs}`} className={buttonVariants({ variant: "secondary", size: "md" })}>
+                  <Library /> Shared files
+                </Link>
+              ) : undefined
+            }
+            className="mb-6"
+          />
+          <PageTabs tabs={filesTabs(workspace, tenant)} />
+        </>
       }
+      treeFooter={scope ? (scope.list ? <NewFile workspace={workspace} tenant={tenant} scope={scope.dir} /> : undefined) : <NewFile workspace={workspace} tenant={tenant} />}
       emptyEditor={
-        <EmptyScreen
+        <EmptyState
+          bare
+          icon={<FileText />}
           title={scope ? `Nothing in ${scope.dir}/ yet` : "No file selected"}
           description={scope ? (scope.empty ?? "Agents create these as they run — there is nothing to write by hand yet.") : "Pick a file from the tree, or create one."}
         />

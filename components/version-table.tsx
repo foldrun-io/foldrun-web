@@ -64,18 +64,18 @@ export function ComponentTable({ info }: { info: VersionInfo }) {
     <div className="overflow-x-auto">
       <table className="w-full min-w-[420px] text-sm">
         <thead>
-          <tr className="border-b border-line text-left text-xs text-fg-muted">
-            <th className="py-1.5 pr-4 font-medium">Component</th>
-            <th className="py-1.5 pr-4 font-medium">Commit</th>
-            <th className="py-1.5 font-medium">What it is</th>
+          <tr className="border-b border-line text-left text-[13px] text-fg-muted">
+            <th className="py-2 pr-4 font-medium">Component</th>
+            <th className="py-2 pr-4 font-medium">Commit</th>
+            <th className="py-2 font-medium">What it is</th>
           </tr>
         </thead>
         <tbody>
           {rows.map(([name, sha]) => (
             <tr key={name} className="border-b border-line-faint last:border-0">
-              <td className="py-1.5 pr-4 font-mono text-xs text-fg">{REPO_OF[name] ?? name}</td>
-              <td className="py-1.5 pr-4 font-mono text-xs text-fg-secondary">{sha ?? <span className="text-gray-300">—</span>}</td>
-              <td className="py-1.5 text-xs text-fg-muted">{WHAT[name] ?? ""}</td>
+              <td className="py-2 pr-4 font-mono text-xs text-fg">{REPO_OF[name] ?? name}</td>
+              <td className="py-2 pr-4 font-mono text-xs text-fg-secondary">{sha ?? <span className="text-fg-subtle">—</span>}</td>
+              <td className="py-2 text-xs text-fg-muted">{WHAT[name] ?? ""}</td>
             </tr>
           ))}
         </tbody>

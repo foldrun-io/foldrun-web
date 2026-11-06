@@ -59,7 +59,7 @@ export function AppearanceForm({ current }: { current: Theme }) {
         ))}
       </div>
       <p className="text-xs text-fg-muted">{HINT[theme]}</p>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   );
 }

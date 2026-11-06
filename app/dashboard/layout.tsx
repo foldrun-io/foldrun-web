@@ -1,22 +1,26 @@
-// The shell for every dashboard page: Inter for everything, a mono for
-// code (both from the root layout), a light ground, a deeper sidebar.
-// The marketing page at / keeps its own look.
+// The shell for every dashboard page (UI refactor, Nov 2026): Vercel's
+// shape. The sidebar on the left (nav-model.ts), one bar over the content —
+// where you are on the left (account / workspace), New, the inbox, money and
+// the person on the right — then the notices, then the page. Phones get a
+// drawer and a floating bar at the bottom. Geist for everything, Geist Mono
+// for code (both from the root layout).
 
 import { Suspense } from "react";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { Sidebar } from "@/components/sidebar";
 import { PendingApprovals } from "@/components/pending-approvals";
-import { UserMenu } from "@/components/user-menu";
 import { ViewerTimeZoneProvider } from "@/components/viewer-time";
 import { RoleProvider } from "@/components/role";
 import { verifySession, SESSION_COOKIE, roleOfUser } from "@/server/users";
-import { TopBar } from "@/components/topbar";
-import { InboxLink } from "@/components/inbox-link";
+import { ShellDataProvider } from "@/components/topbar";
 import { BalancePill, LowBalanceBanner, DunningBanner, SupportBanner } from "@/components/billing-slots";
 import { Find } from "@/components/find";
 import { WithEmails } from "@/components/email";
-import { MobileNav } from "@/components/mobile-nav";
+import { PhoneBar, PhoneHeader, ShellBar, StatusFooter } from "@/components/mobile-nav";
+import { NewMenu } from "@/components/new-menu";
+import { Banner } from "@/components/kit/page";
+import { TooltipProvider } from "@/components/kit/tooltip";
 import { platform } from "@/lib/platform";
 import { EditionProvider } from "@/components/edition";
 import { adminState } from "@/platform/admin";
@@ -75,104 +79,82 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <RoleProvider role={role}>
     <ViewerTimeZoneProvider timezone={session?.timezone ?? null}>
     {session?.viewAs && <SupportBanner account={tenant} expiresAt={session.viewAs.expiresAt} reason={session.viewAs.reason} />}
-    <div
-      className="flex min-h-screen bg-paper font-sans text-fg antialiased"
-    >
+    <TooltipProvider delayDuration={250}>
+    <ShellDataProvider account={tenant} plan={plan} accountAvatar={avatarUrl(tenant, "account", tenant)}>
+    <div className="flex min-h-svh bg-paper font-sans text-fg antialiased">
       <Suspense>
         <Sidebar />
       </Suspense>
-      {/* overflow-x-clip: the page body must never scroll sideways; anything
-          that pokes past the pane is clipped, not scrolled to. */}
-      {/* pb-20: room under every page for the Ask AI button, so it never
-          sits on the last row. */}
-      <div className="min-w-0 flex-1 overflow-x-clip pb-20">
-        {/* One slim bar over every page: the person, top right. Account-level
-            pages (usage, wallet, help, settings, sign out) live behind the
-            avatar, the way every SaaS keeps who-you-are out of the work nav —
-            the sidebar below stays about the workspace alone. */}
-        <div className="sticky top-0 z-40 flex h-12 items-center justify-between gap-3 border-b border-line/80 bg-paper/90 px-4 backdrop-blur">
-          {/* Where you are, top left: account / workspace, each a switcher with a
-              find box. Who you are stays top right. */}
-          <div className="flex min-w-0 items-center">
-            <Suspense>
-              <MobileNav />
-            </Suspense>
-            <Suspense>
-              <TopBar account={tenant} plan={plan} workspaces={[]} accountAvatar={avatarUrl(tenant, "account", tenant)} />
-            </Suspense>
-          </div>
-          <div className="flex items-center gap-2">
-            {/* The balance beside the person: money is account-level, and the
-                number should never need a click to discover. */}
-            {/* What is waiting on you, with what you have not read. */}
-            <Suspense>
-              <InboxLink tenant={tenant} />
-            </Suspense>
-            <Suspense>
-              <BalancePill tenant={tenant} />
-            </Suspense>
-            <Suspense>
-              <UserMenu />
-            </Suspense>
-          </div>
-        </div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Suspense>
+          <PhoneHeader />
+        </Suspense>
+        <Suspense>
+          <ShellBar
+            actions={
+              <>
+                <Suspense>
+                  <NewMenu />
+                </Suspense>
+                <Suspense>
+                  <BalancePill tenant={tenant} />
+                </Suspense>
+              </>
+            }
+          />
+        </Suspense>
+        {/* Notices, most important first (agreed in the refactor's design
+            review): who you are acting as, then what stops every run
+            (suspended, paused, a live incident, no model key), then money,
+            then the email check. */}
+        {suspended && (
+          <Banner tone="danger" title="This account is suspended">
+            {suspended.reason}. Runs will not start until it is restored; everything here stays readable. Reply to the email you received, or write to hello@foldrun.io.
+          </Banner>
+        )}
+        {accountPaused && (
+          <Banner tone="danger" title="Runs are paused" action={<Link href="/dashboard/settings#governance">Resume</Link>}>
+            Nothing new starts in any workspace. <WithEmails text={`Paused by ${accountPaused.by}${accountPaused.reason ? `: ${accountPaused.reason}` : ""}.`} />
+          </Banner>
+        )}
         {/* An incident or maintenance the operator posted: on every page
             while it is live, gone when it is resolved. */}
         <StatusBanner statusPage={statusPageUrl()} />
-        {/* When the balance is about to run out, say so on every page, with
-            the one button that fixes it. The email for this exists; a
-            banner is for the person who is already here. */}
+        {noModelKey && (
+          <Banner tone="warning" title="No model key" action={can(role, "secrets:write") ? <Link href="/dashboard/settings#provider">Add a key</Link> : undefined}>
+            Runs on this account are refused until you add an API key from your model provider.
+            {!can(role, "secrets:write") && <span className="ml-1 opacity-80">Only an admin can add it — ask one.</span>}
+          </Banner>
+        )}
         <Suspense>
           <DunningBanner tenant={tenant} />
         </Suspense>
         <Suspense>
           <LowBalanceBanner tenant={tenant} />
         </Suspense>
+        {session && !session.emailVerifiedAt && edition === "hosted" && <VerifyBanner email={session.email} />}
         <Suspense>
           <Find />
         </Suspense>
         <Suspense>
           <PendingApprovals />
         </Suspense>
-        {session && !session.emailVerifiedAt && edition === "hosted" && (
-          <VerifyBanner email={session.email} />
-        )}
-        {suspended && (
-          <div role="alert" className="border-b border-red-200 bg-red-50 px-6 py-2 text-sm text-red-800">
-            <span className="font-medium">This account is suspended</span> — {suspended.reason}. Runs will not start until it is restored; everything here stays readable. Reply to the email you received, or write to hello@foldrun.io.
-          </div>
-        )}
-        {accountPaused && (
-          <div role="alert" className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-red-200 bg-red-50 px-6 py-2 text-sm text-red-800">
-            <span className="flex-1">
-              <span className="font-medium">Runs are paused</span> — nothing new starts in any workspace.{" "}
-              <WithEmails text={`Paused by ${accountPaused.by}${accountPaused.reason ? `: ${accountPaused.reason}` : ""}.`} />
-            </span>
-            <Link href="/dashboard/settings#governance" className="text-xs font-semibold underline">
-              Resume
-            </Link>
-          </div>
-        )}
-        {noModelKey && (
-          <div role="alert" className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-amber-200 bg-amber-50 px-6 py-2 text-sm text-amber-900">
-            <span className="flex-1">
-              <span className="font-medium">No model key</span> — runs on this account are refused until you add an API key from your model provider.
-              {!can(role, "secrets:write") && <span className="ml-2 opacity-80">Only an admin can add it — ask one.</span>}
-            </span>
-            {can(role, "secrets:write") && (
-              <Link href="/dashboard/settings#provider" className="text-xs font-semibold underline">
-                Add a key
-              </Link>
-            )}
-          </div>
-        )}
-        {children}
+        {/* overflow-x-clip: the page body must never scroll sideways. */}
+        <main id="main" className="min-w-0 flex-1 overflow-x-clip pb-28 md:pb-16">{children}</main>
+        <Suspense>
+          <StatusFooter statusPage={edition === "hosted" ? statusPageUrl() : null} />
+        </Suspense>
       </div>
+      <Suspense>
+        <PhoneBar />
+      </Suspense>
       <UpdateToast />
       {/* The assistant, on every page: inside a workspace it works there,
           elsewhere in the one picked in its header. */}
       <AssistantDock tenant={tenant} />
     </div>
+    </ShellDataProvider>
+    </TooltipProvider>
     </ViewerTimeZoneProvider>
     </RoleProvider>
     </EditionProvider>

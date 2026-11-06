@@ -1,28 +1,32 @@
 // The runs table, shared by the workspace-scoped runs page and the
 // account-wide one. The only difference between them is whether the
 // Workspace column earns its place — inside one workspace it doesn't.
+//
+// UI refactor (Nov 2026): cloudhost's ResourceList shape, drawn on the
+// server because the list is filtered and paged there — tall rows with an
+// icon box, what ran and one quiet line under it (why it failed, where a
+// live run is, or what it concluded), then the outcome, when, how long and
+// what it cost.
 
 import { creditsShort } from "@/components/money";
 import Link from "next/link";
-import { Pager as BasePager } from "@/components/pager";
 import { paginate, PAGE_SIZE } from "@/components/paging";
-import { Fragment } from "react";
 import { runCost, runDisplayStatus, runDurationSecs, runFailure, runVerdict, type RunRecord } from "@/lib/store";
-import { Badge, Card, EmptyScreen, StatCard, TestBadge } from "@/components/ui";
 import { a2aRunLabel } from "@/components/a2a-model";
 import { LocalTime } from "@/components/local-time";
 import { DeleteButton } from "@/app/dashboard/manage";
 import { FilterBar, type FilterDimension } from "@/components/filter-bar";
 import { RowCheckbox, SelectAllCheckbox } from "@/components/bulk-select";
 import { runKey } from "@/components/run-key";
-import { OUTCOME, outcomeOf, tally, type Outcome } from "@/components/outcome-model";
-
-function OutcomeBadge({ outcome }: { outcome: Outcome }) {
-  const o = OUTCOME[outcome];
-  return <span title={o.hint} className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${o.pill}`}>{o.label}</span>;
-}
+import { outcomeOf, tally } from "@/components/outcome-model";
+import { Status } from "@/components/kit/status";
+import { EmptyState, SummaryCard, Tag } from "@/components/kit/page";
+import { cn } from "@/components/kit/cn";
+import { Bot, ChevronLeft, ChevronRight, FlaskConical, Play, Workflow } from "lucide-react";
 
 export type RunRow = RunRecord & { workspace: string };
+
+const WHEN: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" };
 
 /** `chargedUsd`: what these runs were charged (server/run-charges.ts), shown
  *  in credits; without it, the token cost they used, in dollars. */
@@ -40,23 +44,31 @@ export function RunStats({ runs, chargedUsd }: { runs: RunRow[]; chargedUsd?: nu
   // Median, not mean: one run parked overnight at an approval gate would
   // otherwise report every run as taking hours.
   const typical = durations.length ? durations[Math.floor(durations.length / 2)] : null;
-  return (
-    <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-6">
-      <StatCard label="Total runs" value={runs.length} />
-      <StatCard label="Completed" value={t.completedPct === null ? "—" : `${t.completedPct}%`} />
-      <StatCard label="Failed" value={failed} tone={failed > 0 ? "error" : undefined} />
-      {blocked > 0 && <StatCard label="Blocked" value={blocked} tone="error" />}
-      {t.bad > 0 && <StatCard label="Problem found" value={t.bad} tone="error" />}
-      <StatCard label="Typical duration" value={typical === null ? "—" : `${typical.toFixed(1)}s`} />
-      {chargedUsd !== undefined ? (
-        <StatCard label="Charged" value={creditsShort(chargedUsd)} />
-      ) : (
-        <StatCard label="Total spend" value={`$${runs.reduce((s, r) => s + runCost(r), 0).toFixed(4)}`} />
-      )}
-      <StatCard label="Running now" value={runs.filter((r) => r.status === "running").length} />
-    </div>
-  );
+  const bad = (n: number) => <span className={n > 0 ? "font-medium text-danger" : undefined}>{n}</span>;
+  const items = [
+    { label: "Total runs", value: runs.length },
+    { label: "Completed", value: t.completedPct === null ? "—" : `${t.completedPct}%` },
+    { label: "Failed", value: bad(failed) },
+    ...(blocked > 0 ? [{ label: "Blocked", value: bad(blocked) }] : []),
+    ...(t.bad > 0 ? [{ label: "Problem found", value: bad(t.bad) }] : []),
+    { label: "Typical duration", value: typical === null ? "—" : `${typical.toFixed(1)}s` },
+    chargedUsd !== undefined
+      ? { label: "Charged", value: creditsShort(chargedUsd) }
+      : { label: "Total spend", value: `$${runs.reduce((s, r) => s + runCost(r), 0).toFixed(4)}` },
+    { label: "Running now", value: runs.filter((r) => r.status === "running").length },
+  ];
+  return <SummaryCard className="mb-6" items={items.map((it) => ({ label: it.label, value: <span className="tabular-nums">{it.value}</span> }))} />;
 }
+
+/** The kind of thing a run ran, as the icon in its row's box. */
+function KindIcon({ flow }: { flow: string }) {
+  if (flow.startsWith("adhoc:")) return <Bot aria-label="agent" />;
+  if (flow.startsWith("eval:")) return <FlaskConical aria-label="eval" />;
+  return <Workflow aria-label="flow" />;
+}
+
+const TH = "h-10 px-3 text-left align-middle text-[13px] font-medium whitespace-nowrap text-fg-muted";
+const TD = "h-16 px-3 py-2 align-middle whitespace-nowrap text-fg-secondary";
 
 export function RunsTable({
   runs,
@@ -84,42 +96,33 @@ export function RunsTable({
   emptyDescription: string;
 }) {
   if (runs.length === 0) {
-    return (
-      <EmptyScreen
-        icon={
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polygon points="6 3 20 12 6 21 6 3" />
-          </svg>
-        }
-        title="No runs match"
-        description={emptyDescription}
-      />
-    );
+    return <EmptyState icon={<Play />} title="No runs match" description={emptyDescription} />;
   }
 
   return (
-    <Card className="overflow-x-auto">
+    <div className="overflow-x-auto rounded-lg border border-line bg-surface">
       <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-line text-left text-xs font-medium uppercase tracking-wide text-fg-subtle">
+        <thead className="bg-sunken">
+          <tr className="border-b border-line">
             {/* Selection, when the page mounts a RunsSelection around this
                 table; a viewer sees an empty column. */}
-            <th className="w-8 pl-4 pr-1 py-3"><SelectAllCheckbox label="Select every run on this page" /></th>
-            <th className="px-4 py-3">Run</th>
-            {showWorkspace && <th className="px-4 py-3">Workspace</th>}
-            <th className="px-4 py-3">What ran</th>
-            <th className="px-4 py-3">Status</th>
-            <th className="px-4 py-3">Steps</th>
-            <th className="px-4 py-3">Duration</th>
-            <th className="px-4 py-3">{money ? "Credits" : "Cost"}</th>
-            <th className="px-4 py-3">Started</th>
-            <th className="px-4 py-3" />
+            <th className="w-10 pl-4 pr-0 align-middle">
+              <SelectAllCheckbox label="Select every run on this page" />
+            </th>
+            <th className={TH}>Run</th>
+            {showWorkspace && <th className={cn(TH, "max-lg:hidden")}>Workspace</th>}
+            <th className={TH}>Status</th>
+            <th className={cn(TH, "max-sm:hidden")}>Started</th>
+            <th className={cn(TH, "max-md:hidden")}>Duration</th>
+            <th className={cn(TH, "text-right max-md:hidden")}>{money ? "Credits" : "Cost"}</th>
+            <th className="w-px px-3" aria-label="Actions" />
           </tr>
         </thead>
-        <tbody className="divide-y divide-line-faint">
+        <tbody className="[&_tr:last-child]:border-0">
           {runs.map((r) => {
             const dur = runDurationSecs(r);
             const failure = runFailure(r);
+            const href = `/dashboard/${r.workspace}/runs/${r.id}${tenantParam.replace("&", "?")}`;
             // Where a live run actually is — the list answers it without a
             // click, the same way it already answers "why did this fail".
             const active =
@@ -132,62 +135,98 @@ export function RunsTable({
             // no failure and nothing live to report, so a row never carries
             // two competing explanations of itself.
             const summary = failure === null && active.length === 0 ? r.summary?.trim() || null : null;
-            const hasDetail = failure !== null || active.length > 0 || summary !== null;
+            const a2a = a2aRunLabel(r, a2aLabels);
+            const done = r.steps.filter((s) => s.status === "completed").length;
+            // The record's own encoding, spelled out: a flow run names its
+            // flow, a direct agent run its agent, an eval its eval —
+            // "adhoc:extractor" is the platform's spelling, not the reader's.
+            const kind = r.flow.startsWith("adhoc:") ? "agent" : r.flow.startsWith("eval:") ? "eval" : "flow";
             return (
-              <Fragment key={`${r.workspace}/${r.id}`}>
-              {/* `relative` makes the row the containing block for the
-                  stretched link below — the whole row opens the run, not
-                  just the id. */}
-              <tr className={`group relative transition-colors hover:bg-sunken ${hasDetail ? "[&>td]:border-b-0" : ""}`}>
+              // `relative` makes the row the containing block for the
+              // stretched link — the whole row opens the run, not just its
+              // name.
+              <tr key={`${r.workspace}/${r.id}`} className="group relative border-b border-line transition-colors hover:bg-sunken">
                 {/* Above the row's stretched link, like the delete cell — or
                     ticking the box opens the run. */}
-                <td className="relative z-10 w-8 pl-4 pr-1 py-2.5">
+                <td className="relative z-10 w-10 pl-4 pr-0 align-middle">
                   <RowCheckbox id={runKey(r)} label={`Select run ${r.id.slice(4)}`} />
                 </td>
-                <td className="px-4 py-2.5">
-                  <Link
-                    href={`/dashboard/${r.workspace}/runs/${r.id}${tenantParam.replace("&", "?")}`}
-                    className="font-mono text-xs font-medium text-fg hover:underline after:absolute after:inset-0 after:content-['']"
-                  >
-                    {r.id.slice(4)}
-                  </Link>
-                </td>
-                {showWorkspace && (
-                  <td className="px-4 py-2.5 text-xs text-fg-tertiary">{r.workspace}</td>
-                )}
-                {/* The record's own encoding, spelled out: a flow run names
-                    its flow, a direct agent run says which agent, an eval
-                    says which eval — "adhoc:extractor" is the platform's
-                    spelling, not the reader's. */}
-                <td className="px-4 py-2.5 text-xs text-fg-tertiary">
-                  {r.flow.startsWith("adhoc:") ? (
-                    <><span className="text-fg-subtle">agent: </span>{r.flow.slice(6)}</>
-                  ) : r.flow.startsWith("eval:") ? (
-                    <><span className="text-fg-subtle">eval: </span>{r.flow.slice(5)}</>
-                  ) : (
-                    <><span className="text-fg-subtle">flow: </span>{r.flow}</>
-                  )}
-                </td>
-                <td className="px-4 py-2.5">
-                  <span className="inline-flex items-center gap-1">
-                    {/* One word, the same one every overview cell and dot
-                        uses: a run that completed and reported BLOCKED is
-                        orange "blocked" here too, not a green "completed". */}
-                    <OutcomeBadge outcome={outcomeOf(runDisplayStatus(r), r.status === "completed" ? runVerdict(r) : null)} />
-                    {r.test && <TestBadge />}
-                    {(() => {
-                      const a2a = a2aRunLabel(r, a2aLabels);
-                      return a2a ? <Badge variant="info" title="Started by an outside agent over A2A, with this A2A key">{a2a}</Badge> : null;
-                    })()}
+                <td className={cn(TD, "w-full max-w-0")}>
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-line bg-surface text-fg [&_svg]:size-4" title={kind}>
+                      <KindIcon flow={r.flow} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex min-w-0 items-baseline gap-2">
+                        <Link
+                          href={href}
+                          className="truncate font-medium text-fg after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-focus"
+                        >
+                          {whatRan(r.flow)}
+                        </Link>
+                        <span className="shrink-0 font-mono text-xs text-fg-subtle max-sm:hidden">{r.id.slice(4)}</span>
+                      </span>
+                      {/* One quiet line: the reason, where it is, or what it
+                          found. "failed" with no cause makes every diagnosis
+                          start by opening the run — the sentence was in the
+                          record all along. */}
+                      {failure ? (
+                        <span
+                          className="block truncate text-xs text-fg-muted"
+                          title={`${failure.agent}: ${failure.message}${failure.fix ? ` — ${failure.fix}` : ""}${failure.reason !== failure.message ? `\n${failure.reason}` : ""}`}
+                        >
+                          {failure.agent}: {failure.message}
+                        </span>
+                      ) : active.length > 0 ? (
+                        <span className={cn("block truncate text-xs", r.status === "awaiting-approval" ? "text-warning" : "text-info")}>
+                          {active
+                            .map(
+                              ({ s, i }) =>
+                                `Step ${i + 1} of ${r.steps.length} · ${s.agent} — ${s.status === "awaiting-approval" ? "awaiting approval" : "running"}`,
+                            )
+                            .join(" · ")}
+                        </span>
+                      ) : summary ? (
+                        <span className="block truncate text-xs text-fg-muted" title={summary}>
+                          {summary}
+                        </span>
+                      ) : (
+                        <span className="block truncate text-xs text-fg-muted">
+                          {kind} · {done} of {r.steps.length} step{r.steps.length === 1 ? "" : "s"}
+                        </span>
+                      )}
+                    </span>
                   </span>
                 </td>
-                <td className="px-4 py-2.5 text-xs text-fg-muted">
-                  {r.steps.filter((s) => s.status === "completed").length}/{r.steps.length}
+                {showWorkspace && <td className={cn(TD, "max-lg:hidden")}>{r.workspace}</td>}
+                <td className={TD}>
+                  <span className="flex items-center gap-1.5">
+                    {/* One word, the same one every overview cell and dot
+                        uses: a run that completed and reported BLOCKED is
+                        "blocked" here too, not "completed". */}
+                    <Status outcome={outcomeOf(runDisplayStatus(r), r.status === "completed" ? runVerdict(r) : null)} />
+                    {r.test && (
+                      <span title="A test run: every step ran, nothing outward happened, state/ and storage/ were left alone">
+                        <Tag className="h-5">test</Tag>
+                      </span>
+                    )}
+                    {a2a && (
+                      <span title="Started by an outside agent over A2A, with this A2A key">
+                        <Tag className="h-5 max-w-40 truncate">{a2a}</Tag>
+                      </span>
+                    )}
+                  </span>
                 </td>
-                <td className="px-4 py-2.5 text-xs text-fg-muted">
-                  {dur === null ? "…" : `${dur.toFixed(1)}s`}
+                <td className={cn(TD, "max-sm:hidden")}>
+                  <LocalTime iso={r.startedAt} options={WHEN} className="tabular-nums" />
                 </td>
-                <td className="px-4 py-2.5 text-xs text-fg-muted">
+                <td className={cn(TD, "max-md:hidden")}>
+                  <span className="block tabular-nums">{dur === null ? "…" : `${dur.toFixed(1)}s`}</span>
+                  <span className="block text-xs tabular-nums text-fg-muted">
+                    {done}/{r.steps.length} steps
+                  </span>
+                </td>
+                <td className={cn(TD, "text-right tabular-nums max-md:hidden")}>
                   {money?.[r.id] ? (
                     <span title={money[r.id].charged ? "Charged" : "Estimated: list price until the run is settled"}>
                       {money[r.id].charged ? "" : "~"}
@@ -197,12 +236,9 @@ export function RunsTable({
                     `$${runCost(r).toFixed(4)}`
                   )}
                 </td>
-                <td className="px-4 py-2.5 text-xs text-fg-subtle">
-                  <LocalTime iso={r.startedAt} />
-                </td>
                 {/* Above the row's stretched link, or the overlay swallows
                     the click and "delete" quietly opens the run instead. */}
-                <td className="relative z-10 px-4 py-2.5 text-right">
+                <td className="relative z-10 w-px px-3 text-right align-middle whitespace-nowrap">
                   <span className="opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                     <DeleteButton
                       endpoint={`/api/workspaces/${r.workspace}/runs/${r.id}`}
@@ -213,79 +249,11 @@ export function RunsTable({
                   </span>
                 </td>
               </tr>
-              {active.length > 0 && (
-                <tr>
-                  {/* One line, clipped at the card's edge. The link is taken out of
-                      the table's flow on purpose: a colSpan cell with nowrap text
-                      has no width to truncate against, so a long line used to
-                      widen the whole table instead — every column stretched, a
-                      horizontal scrollbar appeared, and scrolling to the date
-                      column scrolled the text off to the left with it. */}
-                  <td colSpan={showWorkspace ? 10 : 9} className="px-4 pb-2.5 pt-0">
-                    <div className="relative h-[18px]">
-                    <Link
-                      href={`/dashboard/${r.workspace}/runs/${r.id}${tenantParam.replace("&", "?")}`}
-                      className={`absolute inset-x-0 top-0 block truncate font-mono text-[11px] leading-relaxed ${
-                        r.status === "awaiting-approval"
-                          ? "text-amber-600 hover:text-amber-700"
-                          : "text-blue-600/80 hover:text-blue-700"
-                      }`}
-                    >
-                      {active
-                        .map(
-                          ({ s, i }) =>
-                            `${r.status === "awaiting-approval" && s.status === "awaiting-approval" ? "⏸" : "▸"} step ${i + 1}/${r.steps.length} · ${s.agent} — ${
-                              s.status === "awaiting-approval" ? "awaiting approval" : "running"
-                            }`,
-                        )
-                        .join("   ")}
-                    </Link>
-                    </div>
-                  </td>
-                </tr>
-              )}
-              {/* The reason, on the list itself. "failed" with no cause makes
-                  every diagnosis start by opening the run — the sentence was
-                  in the record all along. */}
-              {failure && (
-                <tr>
-                  <td colSpan={showWorkspace ? 10 : 9} className="px-4 pb-2.5 pt-0">
-                    <div className="relative h-[18px]">
-                    <Link
-                      href={`/dashboard/${r.workspace}/runs/${r.id}${tenantParam.replace("&", "?")}`}
-                      className="absolute inset-x-0 top-0 block truncate font-mono text-[11px] leading-relaxed text-red-600/90 hover:text-red-700"
-                      title={`${failure.agent}: ${failure.message}${failure.fix ? ` — ${failure.fix}` : ""}${failure.reason !== failure.message ? `\n${failure.reason}` : ""}`}
-                    >
-                      ✗ {failure.agent}: {failure.message}
-                    </Link>
-                    </div>
-                  </td>
-                </tr>
-              )}
-              {/* The outcome, on the list itself — the sibling of the failure
-                  row above. A status says a run finished; this says what it
-                  found, which is the thing a person actually came for. */}
-              {summary && (
-                <tr>
-                  <td colSpan={showWorkspace ? 10 : 9} className="px-4 pb-2.5 pt-0">
-                    <div className="relative h-[18px]">
-                    <Link
-                      href={`/dashboard/${r.workspace}/runs/${r.id}${tenantParam.replace("&", "?")}`}
-                      className="absolute inset-x-0 top-0 block truncate text-[11px] leading-relaxed text-fg-muted hover:text-fg-secondary"
-                      title={summary}
-                    >
-                      {summary}
-                    </Link>
-                    </div>
-                  </td>
-                </tr>
-              )}
-              </Fragment>
             );
           })}
         </tbody>
       </table>
-    </Card>
+    </div>
   );
 }
 
@@ -321,8 +289,33 @@ export function pageOf(runs: RunRow[], page: number): { rows: RunRow[]; pages: n
   return paginate(runs, page);
 }
 
-export function Pager(props: { base: string; page: number; pages: number; total?: number; tenantParam: string }) {
-  return <BasePager {...props} labels={["← Newer", "Older →"]} />;
+export function Pager({ base, page, pages, total, tenantParam }: { base: string; page: number; pages: number; total?: number; tenantParam: string }) {
+  if (pages <= 1 && !total) return null;
+  const sep = base.includes("?") ? "&" : "?";
+  const at = (n: number) => `${base}${sep}page=${n}${tenantParam}`;
+  const from = (page - 1) * RUNS_PAGE_SIZE + 1;
+  const to = total !== undefined ? Math.min(total, page * RUNS_PAGE_SIZE) : null;
+  const step = (n: number, label: string, enabled: boolean, Icon: typeof ChevronLeft) =>
+    enabled ? (
+      <Link href={at(n)} aria-label={label} title={label} className="flex size-8 items-center justify-center rounded-md border border-line bg-surface text-fg hover:bg-sunken">
+        <Icon className="size-4" />
+      </Link>
+    ) : (
+      <span aria-hidden className="flex size-8 items-center justify-center rounded-md border border-line bg-surface text-fg opacity-40">
+        <Icon className="size-4" />
+      </span>
+    );
+  return (
+    <div className="flex items-center justify-between gap-3 pt-3 text-sm text-fg-muted">
+      <span className="tabular-nums">{to !== null ? `${from}–${to} of ${total}` : `Page ${page} of ${pages}`}</span>
+      {pages > 1 && (
+        <span className="flex items-center gap-1">
+          {step(page - 1, "Newer runs", page > 1, ChevronLeft)}
+          {step(page + 1, "Older runs", page < pages, ChevronRight)}
+        </span>
+      )}
+    </div>
+  );
 }
 
 /** What a run's `flow` field means to a reader — the same transformation the
@@ -334,6 +327,15 @@ export function whatRan(flow: string): string {
 /** The statuses a run can show — display statuses, so the filter and the
  *  badge in the row agree (a stopped run is `failed` on disk). */
 export const RUN_STATUSES = ["completed", "failed", "stopped", "running", "queued", "awaiting-approval"] as const;
+
+const STATUS_LABEL: Record<(typeof RUN_STATUSES)[number], string> = {
+  completed: "Completed",
+  failed: "Failed",
+  stopped: "Stopped",
+  running: "Running",
+  queued: "Queued",
+  "awaiting-approval": "Awaiting approval",
+};
 
 /**
  * The runs list's filters, as dimensions for the shared FilterBar: workspace
@@ -367,10 +369,10 @@ export function RunFilters({
 }) {
   const dimensions: FilterDimension[] = [
     ...(workspaces
-      ? [{ key: "workspace", label: "Workspace", options: workspaces.map((value) => ({ value })), resets: ["flow"] }]
+      ? [{ key: "workspace", label: "Workspace", kind: "select" as const, allLabel: "All workspaces", options: workspaces.map((value) => ({ value })), resets: ["flow"] }]
       : []),
-    { key: "flow", label: "What ran", options: flows.map((value) => ({ value })) },
-    { key: "status", label: "Status", kind: "chips" as const, allLabel: "Any", options: RUN_STATUSES.map((value) => ({ value })) },
+    { key: "flow", label: "What ran", kind: "select" as const, allLabel: "Everything that ran", options: flows.map((value) => ({ value })) },
+    { key: "status", label: "Status", kind: "chips" as const, allLabel: "Any status", options: RUN_STATUSES.map((value) => ({ value, label: STATUS_LABEL[value] })) },
     {
       key: "since",
       label: "When",

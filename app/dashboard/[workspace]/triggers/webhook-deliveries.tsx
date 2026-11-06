@@ -8,7 +8,9 @@
 // fixed and want to prove.
 
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { Badge, Card, buttonClass, chipButtonClass } from "@/components/ui";
+import { buttonClass } from "@/components/ui";
+import { Chip, EmptyState } from "@/components/kit/page";
+import { ChevronDown, ChevronRight, Send } from "lucide-react";
 import { LocalTime } from "@/components/local-time";
 import { useCan } from "@/components/role";
 
@@ -42,7 +44,7 @@ interface Endpoint {
   disabledReason: string | null;
 }
 
-const VARIANT = { delivered: "success", pending: "warning", failed: "error", skipped: "default" } as const;
+const TONE = { delivered: "good", pending: "warn", failed: "bad", skipped: "default" } as const;
 const PAGE = 25;
 
 export function WebhookDeliveries({ workspace }: { workspace: string }) {
@@ -85,30 +87,33 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
     }
   };
 
-  if (error) return <p className="text-sm text-red-700">{error}</p>;
+  if (error) return <p role="alert" className="text-sm text-danger">{error}</p>;
   if (!data) return <p className="text-sm text-fg-subtle">Loading…</p>;
   const { deliveries, total, endpoint } = data;
 
   return (
     <div className="space-y-3">
       {endpoint?.disabledAt && (
-        <Card className="border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        <div role="alert" className="rounded-lg border border-danger-line bg-danger-soft p-4 text-sm text-danger">
           This workspace&apos;s webhook is <strong>switched off</strong> since <LocalTime iso={endpoint.disabledAt} />: {endpoint.disabledReason}. New
           notifications are recorded below but not sent. Fix the receiver, then Redeliver any delivery (or send a test from Workspace settings) — an
           accepted one switches it back on. Changing the URL in <code>notify:</code> starts it fresh.
-        </Card>
+        </div>
       )}
       {!endpoint?.disabledAt && endpoint?.failingSince && (
-        <p className="text-sm text-amber-700">
+        <p className="text-sm text-warning">
           Every delivery has failed since <LocalTime iso={endpoint.failingSince} />. After a few days
           of that the webhook is switched off and the account owner is emailed.
         </p>
       )}
-      <div className="flex flex-wrap items-center gap-2 text-sm">
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <div role="group" aria-label="Show" className="inline-flex h-8 items-center gap-0.5 rounded-md border border-line bg-sunken p-0.5">
         {(["", "failed", "pending"] as const).map((f) => (
           <button
             key={f || "all"}
-            className={chipButtonClass(filter === f ? "bg-ink text-on-ink" : "")}
+            type="button"
+            aria-pressed={filter === f}
+            className={`flex h-full items-center rounded-sm px-2.5 text-[13px] font-medium transition-colors ${filter === f ? "bg-surface text-fg shadow-[0_1px_2px_rgb(0_0_0/0.06)]" : "text-fg-muted hover:text-fg"}`}
             onClick={() => {
               setFilter(f);
               setOffset(0);
@@ -117,32 +122,36 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
             {f === "" ? "All" : f === "failed" ? "Failed" : "Retrying"}
           </button>
         ))}
-        <span className="text-xs text-fg-subtle">{total} deliver{total === 1 ? "y" : "ies"}</span>
-        {note && <span className="text-xs text-fg-tertiary">{note}</span>}
+        </div>
+        <span className="text-[13px] text-fg-muted">{total} deliver{total === 1 ? "y" : "ies"}</span>
+        {note && <span className="text-[13px] text-fg-secondary">{note}</span>}
       </div>
       {deliveries.length === 0 ? (
-        <p className="text-sm text-fg-muted">
-          {filter ? "None match." : "No webhook deliveries yet. A workspace whose notify: is a url records every one here — failures, approval requests, tests."}
-        </p>
+        <EmptyState
+          compact
+          icon={<Send />}
+          title={filter ? "None match." : "No webhook deliveries yet"}
+          description={filter ? undefined : "A workspace whose notify: is a url records every one here — failures, approval requests, tests."}
+        />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-line">
+        <div className="overflow-x-auto rounded-lg border border-line bg-surface">
           <table className="w-full min-w-[720px] text-sm">
-            <thead className="bg-sunken text-left text-xs uppercase tracking-wide text-fg-muted">
+            <thead className="border-b border-line bg-sunken text-left text-[13px] text-fg-muted">
               <tr>
-                <th className="px-3 py-2 font-medium">When</th>
-                <th className="px-3 py-2 font-medium">Event</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-                <th className="px-3 py-2 font-medium">Attempts</th>
-                <th className="px-3 py-2 font-medium">Last answer</th>
+                <th className="h-10 px-3 font-medium">When</th>
+                <th className="h-10 px-3 font-medium">Event</th>
+                <th className="h-10 px-3 font-medium">Status</th>
+                <th className="h-10 px-3 font-medium">Attempts</th>
+                <th className="h-10 px-3 font-medium">Last answer</th>
                 <th className="px-3 py-2" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-line-faint">
+            <tbody className="divide-y divide-line">
               {deliveries.map((d) => (
                 <Fragment key={d.id}>
                   <tr className="cursor-pointer hover:bg-sunken" onClick={() => setOpen(open === d.id ? null : d.id)}>
-                    <td className="whitespace-nowrap px-3 py-2 text-fg-muted"><LocalTime iso={d.createdAt} /></td>
-                    <td className="px-3 py-2 font-medium">
+                    <td className="whitespace-nowrap px-3 py-3 text-fg-muted"><LocalTime iso={d.createdAt} /></td>
+                    <td className="px-3 py-3 font-medium">
                       {/* The row opens on a click anywhere; this is the control a keyboard and a screen reader reach. */}
                       <button
                         type="button"
@@ -155,19 +164,19 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
                         }}
                         className="inline-flex items-center gap-1 rounded text-left hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
                       >
-                        <span aria-hidden className="text-fg-subtle">{open === d.id ? "▾" : "▸"}</span>
+                        {open === d.id ? <ChevronDown aria-hidden className="size-4 text-fg-subtle" /> : <ChevronRight aria-hidden className="size-4 text-fg-subtle" />}
                         {d.event}
                       </button>
                     </td>
-                    <td className="px-3 py-2">
-                      <Badge variant={VARIANT[d.status]}>{d.status === "pending" ? "retrying" : d.status}</Badge>
+                    <td className="px-3 py-3">
+                      <Chip tone={TONE[d.status]}>{d.status === "pending" ? "retrying" : d.status}</Chip>
                       {d.status === "pending" && d.nextAttemptAt && (
                         <span className="ml-1 text-xs text-fg-subtle">next <LocalTime iso={d.nextAttemptAt} /></span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-fg-tertiary">{d.attempts}</td>
-                    <td className="px-3 py-2 text-fg-tertiary">{d.lastStatusCode ? `HTTP ${d.lastStatusCode}` : d.lastError ?? "—"}</td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="px-3 py-3 text-fg-tertiary">{d.attempts}</td>
+                    <td className="px-3 py-3 text-fg-tertiary">{d.lastStatusCode ? `HTTP ${d.lastStatusCode}` : d.lastError ?? "—"}</td>
+                    <td className="px-3 py-3 text-right">
                       {runs && (
                         <button
                           className={buttonClass("secondary")}
@@ -193,7 +202,7 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
                             <li key={`${a.n}-${a.at}`} className="flex flex-wrap gap-x-3">
                               <span className="text-fg-subtle">#{a.n}{a.manual ? " (manual)" : ""}</span>
                               <span className="text-fg-muted"><LocalTime iso={a.at} /></span>
-                              <span className={a.error ? "text-red-700" : "text-emerald-700"}>{a.statusCode ? `HTTP ${a.statusCode}` : a.error}</span>
+                              <span className={a.error ? "text-danger" : "text-success"}>{a.statusCode ? `HTTP ${a.statusCode}` : a.error}</span>
                               <span className="text-fg-subtle">{a.durationMs} ms</span>
                               {a.response && <code className="max-w-full truncate text-fg-tertiary">{a.response}</code>}
                             </li>

@@ -84,7 +84,7 @@ export function alertsFor(a: AlertInput): Alert[] {
     out.push({
       level: c.spent >= c.budget ? "error" : "warn",
       text: `${c.workspace} is at ${creditsShort(c.spent)} of its ${creditsShort(c.budget)} budget${c.label ? ` (written as ${c.label})` : " this month"}`,
-      href: `/dashboard/${c.workspace}/settings${q}`,
+      href: `/dashboard/${c.workspace}/settings${q ? `${q}&` : "?"}tab=policies#budget`,
     });
   }
   const weight = { error: 0, warn: 1, info: 2 };

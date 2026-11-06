@@ -46,12 +46,11 @@ export function RuntimesPanel({ runtimes }: { runtimes: RuntimeRow[] }) {
     <Panel
       title="Runtimes"
       count={runtimes.length}
-      className="mb-4"
-      action={failed > 0 ? <span className="text-[11px] font-medium text-danger">{failed} failed</span> : undefined}
+      action={failed > 0 ? <span className="text-sm font-medium text-danger">{failed} failed</span> : undefined}
     >
-      <ul className="divide-y divide-line-faint">
+      <ul className="divide-y divide-line">
         {runtimes.map((r) => (
-          <li key={r.fingerprint} className="px-4 py-2.5 text-sm">
+          <li key={r.fingerprint} className="px-5 py-3 text-sm">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant={VARIANT[r.state] ?? "default"} pulse={r.state === "building"}>{r.state}</Badge>
               <span className="min-w-0 truncate font-mono text-xs text-fg">
@@ -64,12 +63,12 @@ export function RuntimesPanel({ runtimes }: { runtimes: RuntimeRow[] }) {
                   .filter(Boolean)
                   .join(" · ") || "no packages"}
               </span>
-              <span className="ml-auto shrink-0 text-[11px] text-fg-subtle">
+              <span className="ml-auto shrink-0 text-xs text-fg-muted">
                 {r.agents.join(", ")}
                 {r.at && <> · <LocalTime iso={r.at} /></>}
               </span>
             </div>
-            <p className="mt-0.5 text-xs text-fg-muted">{SAYS[r.state] ?? r.state}</p>
+            <p className="mt-1 text-sm text-fg-muted">{SAYS[r.state] ?? r.state}</p>
             {r.rejected.length > 0 && (
               <p className="mt-1 text-xs text-warning">
                 Not valid requirements, dropped: <span className="font-mono">{r.rejected.join(", ")}</span>

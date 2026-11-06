@@ -7,7 +7,8 @@
 import { cookies } from "next/headers";
 import { peekHandoff } from "@/platform/oauth-connect";
 import { verifySession, SESSION_COOKIE } from "@/server/users";
-import { Card } from "@/components/ui";
+import { Page, PageHeader, SettingsCard, EmptyState } from "@/components/kit/page";
+import { Link2Off } from "lucide-react";
 import { HandoffAccept } from "./accept";
 import { WithEmails } from "@/components/email";
 
@@ -18,31 +19,28 @@ export default async function ConnectHandoffPage({ params }: { params: Promise<{
   const h = await peekHandoff(id);
   const usable = h && tenant && h.tenant === tenant;
   return (
-    <div className="mx-auto max-w-7xl px-6 py-10">
-      <h1 className="text-lg font-semibold text-fg">Connect an account</h1>
+    <Page width="narrow" className="pb-16">
+      <PageHeader title="Connect an account" description={usable ? "A connection was started from a terminal. Check it is yours before you go on." : undefined} />
       {!usable ? (
-        <p className="mt-3 text-sm text-fg-muted">
-          This connect link expired, was already used, or belongs to another account. Start it again from where you
-          began.
-        </p>
+        <EmptyState icon={<Link2Off />} title="This link no longer works" description="It expired, was already used, or belongs to another account. Start it again from where you began." />
       ) : (
-        <Card className="mt-4 max-w-xl p-5">
-          <p className="text-sm text-fg-muted">A connection was started from a terminal. Check it is yours before you go on.</p>
-          <dl className="mt-4 grid grid-cols-[8rem_1fr] gap-y-2 text-sm">
+        <SettingsCard title="The connection" description="Accepting sends you to the provider to approve it; the grant lands in this secret." footer={<HandoffAccept id={id} tenant={tenant!} />}>
+          <dl className="grid grid-cols-[7rem_1fr] gap-y-2.5 text-sm">
             <dt className="text-fg-muted">Secret</dt>
-            <dd className="font-mono text-fg">{h.name}</dd>
+            <dd className="break-all font-mono text-fg">{h.name}</dd>
             <dt className="text-fg-muted">Stored in</dt>
             <dd className="text-fg">{h.workspace ? `workspace ${h.workspace}` : "the account"}</dd>
             <dt className="text-fg-muted">App</dt>
-            <dd className="font-mono text-fg">{h.client}</dd>
+            <dd className="break-all font-mono text-fg">{h.client}</dd>
             <dt className="text-fg-muted">Scopes</dt>
             <dd className="break-all font-mono text-xs text-fg">{h.scopes === undefined ? "the app's default" : h.scopes || "none"}</dd>
             <dt className="text-fg-muted">Started by</dt>
-            <dd className="text-fg"><WithEmails text={h.by} /></dd>
+            <dd className="text-fg">
+              <WithEmails text={h.by} />
+            </dd>
           </dl>
-          <HandoffAccept id={id} tenant={tenant!} />
-        </Card>
+        </SettingsCard>
       )}
-    </div>
+    </Page>
   );
 }

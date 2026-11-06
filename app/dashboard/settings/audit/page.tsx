@@ -6,7 +6,14 @@
 // admins who can see the whole account.
 
 import Link from "next/link";
-import { PageHeader, Card, Badge, buttonClass, inputClass, selectClass, FIELD_LABEL_CLASS } from "@/components/ui";
+import { inputClass, selectClass } from "@/components/ui";
+import { SettingsShell } from "@/components/settings-shell";
+import { EmptyState, Chip, type Tone } from "@/components/kit/page";
+import { Button, buttonVariants } from "@/components/kit/button";
+import { Download, ScrollText } from "lucide-react";
+import { settingsTabs } from "../tabs";
+import { verifySession, SESSION_COOKIE } from "@/server/users";
+import { cookies } from "next/headers";
 import { LocalTime } from "@/components/local-time";
 import { viewerRole, viewerScope } from "@/server/users";
 import { can } from "@/platform/permissions";
@@ -27,8 +34,8 @@ const WINDOWS = [
   { v: "", label: "All time" },
 ];
 
-const variantOf = (action: string) =>
-  action.startsWith("support.") ? "warning" : /refused|revoked|deleted|removed|disabled|close/.test(action) ? "error" : /created|enabled|joined|invited/.test(action) ? "success" : "default";
+const toneOf = (action: string): Tone =>
+  action.startsWith("support.") ? "warn" : /refused|revoked|deleted|removed|disabled|close/.test(action) ? "bad" : /created|enabled|joined|invited/.test(action) ? "good" : "default";
 
 /** One line a person reads, from an entry's detail — never the raw JSON. */
 function describe(e: AuditEntry): string {
@@ -92,14 +99,15 @@ export default async function AuditLogPage({
     return s ? `?${s}` : "";
   };
 
+  const session = await verifySession((await cookies()).get(SESSION_COOKIE)?.value);
+  const tabs = settingsTabs(tenant, { team: Boolean(session), active: "audit" });
+  const subtitle = "Who signed in, minted a key, invited someone, changed a secret, deployed — and when support looked.";
+
   if (!allowed) {
     return (
-      <main className="mx-auto max-w-7xl px-6 py-8">
-        <PageHeader title="Audit log" subtitle="Who did what in this account." />
-        <Card className="p-5">
-          <p className="text-sm text-fg-tertiary">The audit log is for the account&apos;s owner and admins who can open every workspace. Ask the owner if you need it.</p>
-        </Card>
-      </main>
+      <SettingsShell title="Settings" subtitle={subtitle} tabs={tabs}>
+        <EmptyState icon={<ScrollText />} title="Owner and admins only" description="The audit log is for the account's owner and admins who can open every workspace. Ask the owner if you need it." />
+      </SettingsShell>
     );
   }
 
@@ -120,102 +128,128 @@ export default async function AuditLogPage({
   }
   const workspaces = listWorkspaces(tenant).filter((w) => scopeAllows(scope, w.name)).map((w) => w.name);
   const csv = `/api/audit${qs({ format: "csv", cursor: undefined, tenant: undefined })}`;
+  const filtered = Boolean(sp.action || sp.actor || sp.workspace || since !== "30d");
+  const field = "grid min-w-0 gap-1.5 text-sm font-medium text-fg";
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-8">
-      <PageHeader
-        title="Audit log"
-        subtitle={
-          <>
-            Who signed in, minted a key, invited someone, changed a secret, deployed — and when support looked. Kept for the life of the account.{" "}
-            <Link href={`/dashboard/settings${tenant !== "default" ? `?tenant=${tenant}` : ""}#security`} className="text-accent hover:underline">Settings</Link>
-          </>
-        }
-      >
-        <a href={csv} className={buttonClass("secondary")} download>
-          Download CSV
-        </a>
-      </PageHeader>
-
-      <form method="get" className="mb-4 flex flex-wrap items-end gap-3">
-        {tenant !== "default" && <input type="hidden" name="tenant" value={tenant} />}
-        <label className="grid gap-1">
-          <span className={FIELD_LABEL_CLASS}>When</span>
-          <select name="since" defaultValue={since} className={selectClass("w-40")}>
-            {WINDOWS.map((w) => (
-              <option key={w.v} value={w.v}>{w.label}</option>
-            ))}
-          </select>
-        </label>
-        <label className="grid gap-1">
-          <span className={FIELD_LABEL_CLASS}>Action</span>
-          <select name="action" defaultValue={sp.action ?? ""} className={selectClass("w-40")}>
-            <option value="">Everything</option>
-            {FAMILIES.map((f) => (
-              <option key={f} value={f}>{f}</option>
-            ))}
-          </select>
-        </label>
-        <label className="grid gap-1">
-          <span className={FIELD_LABEL_CLASS}>Who</span>
-          <input name="actor" defaultValue={sp.actor ?? ""} placeholder="email, key:label, support:…" className={inputClass("w-56")} />
-        </label>
-        <label className="grid gap-1">
-          <span className={FIELD_LABEL_CLASS}>Workspace</span>
-          <select name="workspace" defaultValue={sp.workspace ?? ""} className={selectClass("w-40")}>
-            <option value="">Any</option>
-            {workspaces.map((w) => (
-              <option key={w} value={w}>{w}</option>
-            ))}
-          </select>
-        </label>
-        <button className={buttonClass("primary")}>Filter</button>
-        {(sp.action || sp.actor || sp.workspace || since !== "30d") && (
-          <Link href={`/dashboard/settings/audit${tenant !== "default" ? `?tenant=${tenant}` : ""}`} className={buttonClass("minimal")}>Clear</Link>
-        )}
-      </form>
-
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
-
-      <Card>
-        {page.entries.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-fg-muted">Nothing matches. Widen the window or clear the filters.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-line-faint text-left text-[11px] uppercase tracking-wide text-fg-subtle">
-                  <th className="px-4 py-2 font-medium">When</th>
-                  <th className="px-4 py-2 font-medium">Who</th>
-                  <th className="px-4 py-2 font-medium">Action</th>
-                  <th className="px-4 py-2 font-medium">What</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line-faint">
-                {page.entries.map((e) => (
-                  <tr key={e.id} className={e.action.startsWith("support.") ? "bg-amber-50/60" : undefined}>
-                    <td className="whitespace-nowrap px-4 py-2 text-xs text-fg-muted"><LocalTime iso={e.at} /></td>
-                    <td className="max-w-56 truncate px-4 py-2 font-mono text-xs text-fg-secondary" title={e.actor}><WithEmails text={e.actor} /></td>
-                    <td className="whitespace-nowrap px-4 py-2"><Badge variant={variantOf(e.action)}><span className="font-mono">{e.action}</span></Badge></td>
-                    <td className="px-4 py-2 text-fg-secondary">{describe(e) || <span className="text-fg-subtle">{e.subject ?? ""}</span>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+    <SettingsShell title="Settings" subtitle={subtitle} tabs={tabs}>
+      <section className="min-w-0 space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-2 px-1">
+          <div className="min-w-0">
+            <h2 className="text-base font-medium text-fg">Audit log</h2>
+            <p className="text-sm text-fg-muted">Kept for the life of the account, newest first.</p>
           </div>
-        )}
-      </Card>
-
-      <div className="mt-3 flex items-center justify-between text-xs text-fg-muted">
-        <span>{page.entries.length} shown{sp.cursor ? " · older entries" : ""}</span>
-        <div className="flex gap-2">
-          {sp.cursor && <Link href={`/dashboard/settings/audit${qs({ cursor: undefined })}`} className={buttonClass("minimal")}>Newest</Link>}
-          {page.next && <Link href={`/dashboard/settings/audit${qs({ cursor: page.next })}`} className={buttonClass("secondary")}>Older →</Link>}
+          <a href={csv} className={buttonVariants({ variant: "secondary" })} download>
+            <Download aria-hidden />
+            Download CSV
+          </a>
         </div>
-      </div>
-      <p className="mt-4 text-xs text-fg-muted">
-        Also on the API (<code className="font-mono">GET /api/audit</code>) and the CLI (<code className="font-mono">foldrun audit --since 7d --csv</code>). Secrets are recorded by name — a value never reaches this log.
-      </p>
-    </main>
+
+        <form method="get" className="rounded-lg border border-line bg-surface p-4">
+          {tenant !== "default" && <input type="hidden" name="tenant" value={tenant} />}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className={field}>
+              When
+              <select name="since" defaultValue={since} className={selectClass("h-9 w-full font-normal")}>
+                {WINDOWS.map((w) => (
+                  <option key={w.v} value={w.v}>
+                    {w.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={field}>
+              Action
+              <select name="action" defaultValue={sp.action ?? ""} className={selectClass("h-9 w-full font-normal")}>
+                <option value="">Everything</option>
+                {FAMILIES.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={field}>
+              Who
+              <input name="actor" defaultValue={sp.actor ?? ""} placeholder="email, key:label, support:…" className={inputClass("h-9 font-normal")} />
+            </label>
+            <label className={field}>
+              Workspace
+              <select name="workspace" defaultValue={sp.workspace ?? ""} className={selectClass("h-9 w-full font-normal")}>
+                <option value="">Any</option>
+                {workspaces.map((w) => (
+                  <option key={w} value={w}>
+                    {w}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="mt-3 flex justify-end gap-2">
+            {filtered && (
+              <Link href={`/dashboard/settings/audit${tenant !== "default" ? `?tenant=${tenant}` : ""}`} className={buttonVariants({ variant: "ghost" })}>
+                Clear
+              </Link>
+            )}
+            <Button type="submit" variant="primary">
+              Filter
+            </Button>
+          </div>
+        </form>
+
+        {error && (
+          <p role="alert" className="text-sm text-danger">
+            {error}
+          </p>
+        )}
+
+        <div className="overflow-hidden rounded-lg border border-line bg-surface">
+          {page.entries.length === 0 ? (
+            <EmptyState bare compact icon={<ScrollText />} title="Nothing matches" description="Widen the window or clear the filters." />
+          ) : (
+            <ul className="divide-y divide-line">
+              {page.entries.map((e) => (
+                <li key={e.id} className={e.action.startsWith("support.") ? "bg-warning-soft px-4 py-3 sm:px-5" : "px-4 py-3 sm:px-5"}>
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+                    <Chip tone={toneOf(e.action)}>
+                      <span className="font-mono">{e.action}</span>
+                    </Chip>
+                    <span className="min-w-0 flex-1 text-sm text-fg [overflow-wrap:anywhere]">{describe(e) || <span className="text-fg-muted">{e.subject ?? ""}</span>}</span>
+                  </div>
+                  <p className="mt-1 flex min-w-0 flex-wrap gap-x-2 text-xs text-fg-muted">
+                    <span className="max-w-full truncate font-mono" title={e.actor}>
+                      <WithEmails text={e.actor} />
+                    </span>
+                    <span aria-hidden>·</span>
+                    <LocalTime iso={e.at} />
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between px-1 text-sm text-fg-muted">
+          <span>
+            {page.entries.length} shown{sp.cursor ? " · older entries" : ""}
+          </span>
+          <div className="flex gap-2">
+            {sp.cursor && (
+              <Link href={`/dashboard/settings/audit${qs({ cursor: undefined })}`} className={buttonVariants({ variant: "ghost" })}>
+                Newest
+              </Link>
+            )}
+            {page.next && (
+              <Link href={`/dashboard/settings/audit${qs({ cursor: page.next })}`} className={buttonVariants({ variant: "secondary" })}>
+                Older →
+              </Link>
+            )}
+          </div>
+        </div>
+        <p className="px-1 text-sm text-fg-muted">
+          Also on the API (<code className="font-mono">GET /api/audit</code>) and the CLI (<code className="font-mono">foldrun audit --since 7d --csv</code>). Secrets are recorded by name — a value never reaches this log.
+        </p>
+      </section>
+    </SettingsShell>
   );
 }

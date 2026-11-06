@@ -1,14 +1,16 @@
 // Workspace settings: what belongs to this one workspace — its name, the
 // endpoint its runs ride, its secrets, its triggers, and the way to delete
-// it. A section list on the left is the map.
+// it. cloudhost's settings: a narrow column of cards, tabs by ?tab=, the
+// Danger zone last.
 
+import { HashTab } from "../../settings/anchor";
 import Link from "next/link";
 import fs from "node:fs";
 import path from "node:path";
 import { configMatter } from "@/lib/matter";
 import { notFound } from "next/navigation";
-import { WorkspaceHeader } from "@/components/workspace-header";
 import { DeleteButton } from "../../manage";
+import { buttonVariants } from "@/components/kit/button";
 import { workspaceDir, listFlows, parseProvider, accountDir, listWorkspaces } from "@/lib/store";
 import { listSecrets } from "@/lib/secrets";
 import { secretHealth, healthKey } from "@/lib/secret-health";
@@ -22,11 +24,13 @@ import { readAgentsMdKeys } from "@/lib/agents-md";
 import { defaultsOf, accountDefaultsFor } from "@/components/defaults-model";
 import { BudgetCard, TimezoneCard, NotifyCard, NetworkEnforceCard, OwnerCard, AlertsCard, JudgeCard, ComputeCard } from "@/components/defaults-cards";
 
-import { Badge, Card } from "@/components/ui";
+import { Page, PageHeader, SettingsCard, EmptyState, Chip, Tag } from "@/components/kit/page";
+import { PageTabs } from "@/components/kit/page-tabs";
+import { CalendarClock, Webhook, Zap } from "lucide-react";
 import { WorkspaceIdentity } from "@/components/workspace-identity";
 import { AvatarEditor } from "@/components/avatar";
 import { avatarUrl } from "@/platform/avatars";
-import { SettingsShell, SettingsSection } from "@/components/settings-shell";
+import { SettingsSection } from "@/components/settings-shell";
 import { ExportLink, ImportPackageButton } from "@/components/package-buttons";
 import { connectionStatus } from "@/platform/oauth-connections";
 import { listOAuthClients } from "@/platform/oauth-clients";
@@ -36,29 +40,19 @@ import { pauseView } from "@/server/pause";
 
 export const dynamic = "force-dynamic";
 
-// The four jobs first (frontmatter-fields.ts JOBS), then the setup pages.
-const NAV = [
-  { id: "governance", label: "Governance", group: "The four jobs" },
-  { id: "guardrail", label: "Guardrail", group: "The four jobs" },
-  { id: "observability", label: "Observability", group: "The four jobs" },
-  { id: "evaluation", label: "Evaluation", group: "The four jobs" },
-  { id: "general", label: "General", group: "Setup" },
-  { id: "provider", label: "Model provider", group: "Setup" },
-  { id: "secrets", label: "Secrets", group: "Setup" },
-  { id: "triggers", label: "Triggers", group: "Setup" },
-  { id: "export", label: "Export and import", group: "Setup" },
-  { id: "danger", label: "Delete", danger: true, group: "Setup" },
-];
+const TABS = ["general", "policies", "secrets", "triggers"] as const;
+type Tab = (typeof TABS)[number];
 
 export default async function WorkspaceSettingsPage({
   params,
   searchParams,
 }: {
   params: Promise<{ workspace: string }>;
-  searchParams: Promise<{ tenant?: string }>;
+  searchParams: Promise<{ tenant?: string; tab?: string }>;
 }) {
   const { workspace } = await params;
-  const { tenant = "default" } = await searchParams;
+  const { tenant = "default", tab: tabParam } = await searchParams;
+  const tab: Tab = TABS.includes(tabParam as Tab) ? (tabParam as Tab) : "general";
   if (!fs.existsSync(workspaceDir(tenant, workspace))) notFound();
 
   // With each secret's health, keyed as GET /api/secrets keys it — an
@@ -106,21 +100,119 @@ export default async function WorkspaceSettingsPage({
   const remaps = Object.entries(effective.models ?? {});
   const agentsMd = `/dashboard/${workspace}/edit?path=AGENTS.md${rest}`;
 
+  const base = `/dashboard/${workspace}/settings`;
+  const tabHref = (t: Tab) => (t === "general" ? `${base}${qs}` : `${base}?tab=${t}${rest}`);
+
   return (
-    <main>
-      <SettingsShell
-        nav={NAV}
-        title="Workspace settings"
-        subtitle={
+    <Page width="narrow" className="pb-16">
+      <PageHeader
+        className="mb-6"
+        title="Settings"
+        description={
           <>
             What belongs to <span className="font-mono text-fg-secondary">{workspace}</span> alone. Keys, account secrets and the team are in{" "}
-            <Link href={`/dashboard/settings${qs}`} className="font-medium text-fg-secondary underline">account settings</Link>.
+            <Link href={`/dashboard/settings${qs}`} className="font-medium text-link hover:underline">
+              account settings
+            </Link>
+            .
           </>
         }
-        above={<WorkspaceHeader workspace={workspace} qs={qs} />}
-      >
-        <SettingsSection id="governance" title="Governance" description="Who answers for this workspace's agents, what it may spend, and the switch that stops it. In its AGENTS.md: governance: (or the same keys at the top); unset, the account's.">
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      />
+      {/* Old one-page links (`…/settings#governance`, `#secrets`, a bookmark,
+          a banner) land on the tab that section is on now. */}
+      <HashTab
+        sections={{
+          general: "general", provider: "general", export: "general", danger: "general",
+          governance: "policies", guardrail: "policies", observability: "policies", evaluation: "policies", pause: "policies",
+          secrets: "secrets", triggers: "triggers",
+        }}
+        current={tab}
+        base={`${base}${qs}`}
+        defaultTab="general"
+      />
+      <PageTabs
+        tabs={[
+          { label: "General", href: tabHref("general"), active: tab === "general" },
+          { label: "Policies", href: tabHref("policies"), active: tab === "policies" },
+          { label: "Secrets", href: tabHref("secrets"), active: tab === "secrets", badge: secrets.length || undefined },
+          { label: "Triggers", href: tabHref("triggers"), active: tab === "triggers", badge: scheduled.length + hooks.length || undefined },
+        ]}
+      />
+
+      {tab === "general" && (
+        <div>
+          <SettingsSection id="general">
+            <WorkspaceIdentity
+              tenant={tenant}
+              workspace={workspace}
+              description={listWorkspaces(tenant).find((w) => w.name === workspace)?.description ?? ""}
+              webhookFlows={hooks.map((f) => f.name)}
+            />
+            <SettingsCard title="Picture" description="Shown on the workspace's card, in the switcher and in Find.">
+              <AvatarEditor kind="workspace" id={workspace} name={workspace} src={avatarUrl(tenant, "workspace", workspace)} tenant={tenant} square />
+            </SettingsCard>
+            <TimezoneCard endpoint={endpoint} tenant={tenant} initial={own.timezone} inherited={inherited.timezone} />
+          </SettingsSection>
+
+          <SettingsSection id="provider">
+            <SettingsCard
+              title="Model provider"
+              description={
+                <>
+                  Where this workspace&apos;s model calls go, unless an agent pins its own. To point it elsewhere, add a <code className="font-mono text-xs">provider:</code> block to its AGENTS.md.
+                </>
+              }
+              hint={
+                <Link href={`/dashboard/docs/providers${qs}`} className="text-link hover:underline">
+                  Providers reference
+                </Link>
+              }
+              footer={
+                <Link href={agentsMd} className={buttonVariants({ variant: "secondary" })}>
+                  Edit AGENTS.md
+                </Link>
+              }
+            >
+              <div className="rounded-md border border-line bg-sunken px-3 py-2">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <code className="break-all font-mono text-sm text-fg">{effective.label}</code>
+                  <span className="text-xs text-fg-muted">set by {effective.source}</span>
+                </div>
+                {remaps.length > 0 && <p className="mt-1.5 font-mono text-xs text-fg-muted">{remaps.map(([tier, id]) => `${tier} → ${id}`).join(" · ")}</p>}
+              </div>
+            </SettingsCard>
+          </SettingsSection>
+
+          <SettingsSection id="export">
+            <SettingsCard
+              title="Export and import"
+              description="This workspace as a .zip — agents, flows, tools, skills, scripts, evals and knowledge. Never memory, state, storage, runs or a secret's value; the names of the secrets it uses travel so the importer can set them."
+              hint="Import previews what it adds and replaces first."
+              footer={
+                <>
+                  <ImportPackageButton tenant={tenant} workspace={workspace} />
+                  <ExportLink workspace={workspace} label="Export workspace" />
+                </>
+              }
+            />
+          </SettingsSection>
+
+          <SettingsSection id="danger">
+            <SettingsCard
+              danger
+              title="Delete this workspace"
+              description="Its agents, flows, runs, secrets and previews go with it. There is no undo."
+              hint="The ledger keeps what its runs cost; everything else is removed."
+              footer={<DeleteButton variant="button" endpoint={`/api/workspaces/${workspace}`} tenant={tenant} confirmText={`Delete workspace ${workspace} and everything in it?`} redirectTo={`/dashboard${qs}`} />}
+            />
+          </SettingsSection>
+        </div>
+      )}
+
+      {tab === "policies" && (
+        <div>
+          <SettingsSection id="governance" title="Governance" description="Who answers for this workspace's agents, and what it may spend. In its AGENTS.md: governance:; unset, the account's.">
+            {halt.workspace || halt.account ? <PauseCard workspace={workspace} tenant={tenant} scope="workspace" own={halt.workspace ?? null} heldByAccount={halt.account} mayManage={managesWorkspace} /> : null}
             <OwnerCard endpoint={endpoint} tenant={tenant} initial={own.owner} inherited={inherited.owner} />
             <BudgetCard endpoint={endpoint} tenant={tenant} initial={budget} spent={spent} />
             {/* This workspace's own pool (27 Oct 2026): what its running steps may hold together, inside the account's. */}
@@ -134,135 +226,112 @@ export default async function WorkspaceSettingsPage({
               inUse={computeHeld(tenant, [workspace]).workspaces[workspace] ?? { vcpu: 0, memGiB: 0, diskGiB: 0, steps: 0 }}
               waiting={roomWaiting(tenant, [workspace])}
             />
-          </div>
-          <div className="mt-3">
-          <PauseCard
-            workspace={workspace}
-            tenant={tenant}
-            scope="workspace"
-            own={halt.workspace ?? null}
-            heldByAccount={halt.account}
-            mayManage={managesWorkspace}
-          />
-          </div>
-        </SettingsSection>
+          </SettingsSection>
 
-        <SettingsSection id="guardrail" title="Guardrail" description="What this workspace's agents may reach and call. Each agent's own limits, network and hooks are on its page.">
-          <NetworkEnforceCard endpoint={endpoint} tenant={tenant} initial={own.networkEnforce || inherited.networkEnforce} inherited={inherited.networkEnforce} />
-        </SettingsSection>
+          <SettingsSection id="guardrail" title="Guardrail" description="What this workspace's agents may reach and call. Each agent's own limits, network and hooks are on its page.">
+            <NetworkEnforceCard endpoint={endpoint} tenant={tenant} initial={own.networkEnforce || inherited.networkEnforce} inherited={inherited.networkEnforce} />
+          </SettingsSection>
 
-        <SettingsSection id="observability" title="Observability" description="Who is told about this workspace's runs, and when. Set here, notify: and alerts: replace the account's whole.">
-          <div className="grid gap-3">
-            <NotifyCard endpoint={endpoint} tenant={tenant} testWorkspace={workspace} initial={own.notify} inherited={inherited.notify} scopeNote="A workspace's notify: replaces the account's — a URL is a destination, and merging two sends half your alerts to a channel you stopped reading." />
+          <SettingsSection id="observability" title="Observability" description="Who is told about this workspace's runs, and when. Set here, notify: and alerts: replace the account's whole.">
+            <NotifyCard
+              endpoint={endpoint}
+              tenant={tenant}
+              testWorkspace={workspace}
+              initial={own.notify}
+              inherited={inherited.notify}
+              scopeNote="A workspace's notify: replaces the account's — a URL is a destination, and merging two sends half your alerts to a channel you stopped reading."
+            />
             <AlertsCard endpoint={endpoint} tenant={tenant} initial={own.alerts} inherited={inherited.alerts} />
-          </div>
-        </SettingsSection>
+          </SettingsSection>
 
-        <SettingsSection id="evaluation" title="Evaluation" description="How this workspace's work is judged.">
-          <JudgeCard endpoint={endpoint} tenant={tenant} initial={own.judge} inherited={inherited.judge} />
-          <p className="mt-2 text-sm text-fg-tertiary">
-            Its evals and their last results are on the <Link href={`/dashboard/${workspace}/evals${qs}`} className="font-medium text-fg-secondary underline">Evals page</Link>.
-          </p>
-        </SettingsSection>
-
-        <SettingsSection id="general" title="General" description="The name is the folder and the URL; the description is what the card and Find show.">
-          <Card className="mb-3 p-5">
-            <AvatarEditor kind="workspace" id={workspace} name={workspace} src={avatarUrl(tenant, "workspace", workspace)} tenant={tenant} square />
-          </Card>
-          <WorkspaceIdentity
-            tenant={tenant}
-            workspace={workspace}
-            description={listWorkspaces(tenant).find((w) => w.name === workspace)?.description ?? ""}
-            webhookFlows={hooks.map((f) => f.name)}
-          />
-          <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
-            <TimezoneCard endpoint={endpoint} tenant={tenant} initial={own.timezone} inherited={inherited.timezone} />
-          </div>
-        </SettingsSection>
-
-        <SettingsSection id="provider" title="Model provider" description="Where this workspace's model calls go, unless an agent pins its own.">
-          <Card className="p-4">
-            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-              <code className="font-mono text-sm text-fg">{effective.label}</code>
-              <span className="text-xs text-fg-subtle">set by {effective.source}</span>
-            </div>
-            {remaps.length > 0 && <p className="mt-1.5 font-mono text-xs text-fg-muted">{remaps.map(([tier, id]) => `${tier} → ${id}`).join(" · ")}</p>}
-            <p className="mt-2 text-sm text-fg-tertiary">
-              To point this workspace elsewhere, add a <code className="font-mono text-xs">provider:</code> block to{" "}
-              <Link href={agentsMd} className="font-medium text-fg-secondary underline">AGENTS.md</Link>. The{" "}
-              <Link href={`/dashboard/docs/providers${qs}`} className="font-medium text-fg-secondary underline">providers reference</Link> lists the shapes.
+          <SettingsSection id="evaluation" title="Evaluation" description="How this workspace's work is judged.">
+            <JudgeCard endpoint={endpoint} tenant={tenant} initial={own.judge} inherited={inherited.judge} />
+            <p className="px-1 text-sm text-fg-muted">
+              Its evals and their last results are on the{" "}
+              <Link href={`/dashboard/${workspace}/evals${qs}`} className="font-medium text-link hover:underline">
+                Evals page
+              </Link>
+              .
             </p>
-          </Card>
-        </SettingsSection>
+          </SettingsSection>
 
-        <SettingsSection wide id="secrets" title="Secrets" description="Credentials this workspace's agents read as ${NAME}. Account secrets are inherited and marked; one set here overrides it.">
-          <Connections tenant={tenant} secrets={secrets} clients={(await listOAuthClients(tenant)).map((c) => ({ name: c.name, scopes: c.scopes, ...(c.device_url ? { device_url: c.device_url } : {}) }))} connections={await connectionStatus(tenant)} workspace={workspace} heading={false} />
-        </SettingsSection>
+          {!halt.workspace && !halt.account && (
+            <SettingsSection id="pause" title="Danger zone" danger>
+              <PauseCard workspace={workspace} tenant={tenant} scope="workspace" own={null} heldByAccount={null} mayManage={managesWorkspace} />
+            </SettingsSection>
+          )}
+        </div>
+      )}
 
+      {tab === "secrets" && (
+        <SettingsSection id="secrets" title="Secrets" description="Credentials this workspace's agents read as ${NAME}. Account secrets are inherited and marked; one set here overrides it.">
+          <Connections
+            tenant={tenant}
+            secrets={secrets}
+            clients={(await listOAuthClients(tenant)).map((c) => ({ name: c.name, scopes: c.scopes, ...(c.device_url ? { device_url: c.device_url } : {}) }))}
+            connections={await connectionStatus(tenant)}
+            workspace={workspace}
+            heading={false}
+          />
+        </SettingsSection>
+      )}
+
+      {tab === "triggers" && (
         <SettingsSection
-          id="triggers" wide
+          id="triggers"
           title="Triggers"
           description="What starts a flow here without a person. Set in each flow's frontmatter."
-          action={<Link href={`/dashboard/${workspace}/flows${qs}`} className="text-xs font-medium text-fg-muted hover:text-fg">Flows →</Link>}
+          action={
+            <Link href={`/dashboard/${workspace}/flows${qs}`} className={buttonVariants({ variant: "secondary" })}>
+              Flows
+            </Link>
+          }
         >
-          <Card>
-            {scheduled.length === 0 && hooks.length === 0 ? (
-              <p className="px-5 py-6 text-sm text-fg-muted">
-                No scheduled or webhook flows. Set <code className="font-mono">trigger:</code> in a flow&apos;s frontmatter to add one.
-              </p>
-            ) : (
-              <ul className="divide-y divide-line-faint">
+          {scheduled.length === 0 && hooks.length === 0 ? (
+            <EmptyState
+              icon={<Zap />}
+              title="No scheduled or webhook flows"
+              description={
+                <>
+                  Set <code className="font-mono">trigger:</code> in a flow&apos;s frontmatter to add one.
+                </>
+              }
+            />
+          ) : (
+            <div className="overflow-hidden rounded-lg border border-line bg-surface">
+              <ul className="divide-y divide-line">
                 {scheduled.map((f) => (
-                  <li key={`cron-${f.file}`} className="flex flex-wrap items-center gap-2 px-5 py-3">
-                    <Link href={`/dashboard/${workspace}/edit?path=${encodeURIComponent(`flows/${f.file}`)}${rest}`} className="text-sm font-medium text-fg hover:underline">{f.name}</Link>
-                    <Badge variant="info">schedule</Badge>
-                    <code className="font-mono text-xs text-fg-muted">{f.schedule}</code>
-                    <span className="text-xs text-fg-subtle">{f.timezone ?? "UTC"}</span>
-                    {parseCron(f.schedule!) === null && <Badge variant="error">invalid cron</Badge>}
+                  <li key={`cron-${f.file}`} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3.5 sm:px-5">
+                    <CalendarClock aria-hidden className="size-4 shrink-0 text-fg-muted" />
+                    <Link href={`/dashboard/${workspace}/edit?path=${encodeURIComponent(`flows/${f.file}`)}${rest}`} className="min-w-0 flex-1 truncate text-sm font-medium text-fg hover:underline">
+                      {f.name}
+                    </Link>
+                    {parseCron(f.schedule!) === null ? <Chip tone="bad">invalid cron</Chip> : null}
+                    <Tag mono>{f.schedule}</Tag>
+                    <Tag>{f.timezone ?? "UTC"}</Tag>
                   </li>
                 ))}
                 {hooks.map((f) => (
-                  <li key={`hook-${f.file}`} className="flex flex-wrap items-center gap-2 px-5 py-3">
-                    <Link href={`/dashboard/${workspace}/edit?path=${encodeURIComponent(`flows/${f.file}`)}${rest}`} className="text-sm font-medium text-fg hover:underline">{f.name}</Link>
-                    <Badge variant="info">webhook</Badge>
+                  <li key={`hook-${f.file}`} className="space-y-2 px-4 py-3.5 sm:px-5">
+                    <div className="flex items-center gap-3">
+                      <Webhook aria-hidden className="size-4 shrink-0 text-fg-muted" />
+                      <Link href={`/dashboard/${workspace}/edit?path=${encodeURIComponent(`flows/${f.file}`)}${rest}`} className="min-w-0 flex-1 truncate text-sm font-medium text-fg hover:underline">
+                        {f.name}
+                      </Link>
+                      <Tag>webhook</Tag>
+                    </div>
                     {managesWorkspace ? (
                       <CopyField value={`${publicUrl() ?? ""}${webhookPath(tenant, workspace, f.name)}`} className="w-full min-w-0" />
                     ) : (
-                      <code className="min-w-0 truncate font-mono text-xs text-fg-muted">webhook URL — visible to admins</code>
+                      <code className="block min-w-0 truncate font-mono text-xs text-fg-muted">webhook URL — visible to admins</code>
                     )}
                   </li>
                 ))}
               </ul>
-            )}
-          </Card>
-        </SettingsSection>
-
-        <SettingsSection
-          id="export"
-          title="Export and import"
-          description="This workspace as a .zip — agents, flows, tools, skills, scripts, evals and knowledge. Never memory, state, storage, runs or a secret's value; the names of the secrets it uses travel so the importer can set them."
-        >
-          <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
-            <p className="text-sm text-fg-tertiary">Import shows what a package adds, replaces and still needs before it writes anything.</p>
-            <div className="flex items-center gap-2">
-              <ImportPackageButton tenant={tenant} workspace={workspace} />
-              <ExportLink workspace={workspace} label="Export workspace" />
             </div>
-          </Card>
+          )}
         </SettingsSection>
-
-        <SettingsSection wide id="danger" title="Delete this workspace" description="Its agents, flows, runs, secrets and previews go with it. There is no undo." danger>
-          <Card className="flex flex-wrap items-center justify-between gap-3 border-red-200 p-4">
-            <p className="text-sm text-fg-tertiary">The ledger keeps what its runs cost; everything else is removed.</p>
-            <DeleteButton
-              endpoint={`/api/workspaces/${workspace}`}
-              tenant={tenant}
-              confirmText={`Delete workspace ${workspace} and everything in it?`}
-              redirectTo={`/dashboard${qs}`}
-            />
-          </Card>
-        </SettingsSection>
-      </SettingsShell>
-    </main>
+      )}
+    </Page>
   );
 }

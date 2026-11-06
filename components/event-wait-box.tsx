@@ -12,7 +12,9 @@
 // meant to call it. Reject goes through the approve route, as for any gate.
 
 import { useState } from "react";
-import { buttonClass } from "@/components/ui";
+import { Button } from "@/components/kit/button";
+import { Textarea } from "@/components/kit/input";
+import { Webhook } from "lucide-react";
 import { useCan, needs } from "@/components/role";
 import { announceDecision } from "@/components/pending-approvals";
 import { eventRelease, eventBody } from "@/components/live-run-model";
@@ -73,65 +75,66 @@ export function EventWaitBox({
     : `curl -X POST "$FOLDRUN_URL/api/events/<account>/${workspace}/${runId}?token=<token>" \\\n  -H 'content-type: application/json' \\\n  -d '{"status":"done"}'`;
 
   return (
-    <div className="mb-3 space-y-2 rounded-lg border border-info-line bg-info-soft px-3 py-2">
-      <span className="block text-xs font-medium text-info">Waiting for an external event before this step runs.</span>
-      <p className="text-xs text-fg-tertiary">
+    <div className="mb-4 space-y-3 rounded-lg border border-info-line bg-info-soft p-3 text-[13px] sm:p-4">
+      <span className="flex items-center gap-2 text-sm font-medium text-fg">
+        <Webhook className="size-4 shrink-0 text-info" aria-hidden />
+        Waiting for an external event before this step runs.
+      </span>
+      <p className="text-fg-secondary">
         Whatever POSTs this URL releases the step, and the body reaches it as the event. Hand the URL to the system that will say so — a payment hook, a reply, a job that finishes.
       </p>
       {release ? (
         <div className="flex items-start gap-2">
-          <code className="min-w-0 flex-1 break-all rounded-md border border-line bg-surface px-2 py-1.5 font-mono text-[11px] text-fg-secondary">POST {release.url}</code>
-          <button
-            type="button"
+          <code className="min-w-0 flex-1 break-all rounded-md border border-line bg-surface px-2.5 py-2 font-mono text-xs text-fg-secondary">POST {release.url}</code>
+          <Button
             onClick={() => {
               void navigator.clipboard?.writeText(release.url).then(() => {
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1500);
               });
             }}
-            className={buttonClass("secondary", "!px-2 !py-1 !text-xs")}
           >
             {copied ? "Copied" : "Copy"}
-          </button>
+          </Button>
         </div>
       ) : (
-        <p className="text-xs text-fg-muted">
+        <p className="text-fg-muted">
           The step&apos;s trace does not show its event URL. It carries a token the server derives from the run and is printed in the trace when the step parks; you can still release the step from here.
         </p>
       )}
       <details>
-        <summary className="cursor-pointer text-[11px] font-medium text-fg-muted">From a terminal</summary>
-        <pre className="mt-1 overflow-x-auto rounded-md border border-line bg-surface p-2 font-mono text-[11px] text-fg-secondary">{curl}</pre>
+        <summary className="cursor-pointer text-[13px] font-medium text-fg-muted hover:text-fg">From a terminal</summary>
+        <pre className="mt-1.5 overflow-x-auto rounded-md border border-line bg-surface p-2.5 font-mono text-xs text-fg-secondary">{curl}</pre>
       </details>
-      <textarea
+      <Textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={3}
         placeholder='Payload — JSON or plain text, e.g. {"status":"paid","amount":120}'
         aria-label="Event payload"
-        className="w-full rounded-md border border-line bg-surface px-2 py-1.5 font-mono text-xs text-fg placeholder:text-fg-subtle focus:border-line-strong focus:outline-none"
+        className="min-h-0 font-mono text-xs"
       />
-      {parsed.error && <p className="text-xs text-danger">{parsed.error}</p>}
-      {error && <p className="text-xs text-danger">{error}</p>}
+      {parsed.error && <p className="text-danger">{parsed.error}</p>}
+      {error && <p className="text-danger">{error}</p>}
       <span className="flex flex-wrap items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={() => void viaApprove("approve")}
-          disabled={busy || !mayRelease || !!parsed.error}
-          title={mayRelease ? "Releases the step with this payload, recorded as released by you" : needs("run:start")}
-          className={buttonClass("primary")}
-        >
-          {text.trim() ? "Release with payload" : "Release with empty payload"}
-        </button>
-        <button
-          type="button"
+        <Button
+          size="md"
+          variant="danger-outline"
           onClick={() => void viaApprove("reject")}
           disabled={busy || !mayRelease}
           title={mayRelease ? "Stops waiting: the step fails and the run ends" : needs("run:start")}
-          className={buttonClass("destructive")}
         >
           Reject
-        </button>
+        </Button>
+        <Button
+          size="md"
+          variant="primary"
+          onClick={() => void viaApprove("approve")}
+          disabled={busy || !mayRelease || !!parsed.error}
+          title={mayRelease ? "Releases the step with this payload, recorded as released by you" : needs("run:start")}
+        >
+          {text.trim() ? "Release with payload" : "Release with empty payload"}
+        </Button>
       </span>
     </div>
   );

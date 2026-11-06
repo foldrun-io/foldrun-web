@@ -4,10 +4,16 @@ import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
 import { WithEmails } from "@/components/email";
 import { useState } from "react";
-import { buttonClass, inputClass, Card } from "@/components/ui";
+import { inputClass, selectClass } from "@/components/ui";
+import { Check, Copy, KeyRound, Play } from "lucide-react";
+import { Button } from "@/components/kit/button";
+import { SettingsCard, EmptyState, IconBox, Tag, Chip } from "@/components/kit/page";
+import { cn } from "@/components/kit/cn";
 import { useConfirm } from "@/components/confirm";
 import { useCan } from "@/components/role";
 import { ASSIGNABLE, type Role } from "@/platform/permissions";
+
+const CHECK = "size-4 rounded border-line-strong accent-fg";
 
 interface KeyRow {
   createdBy?: string;
@@ -176,320 +182,330 @@ export function KeyManager({
     }
   };
 
+  const sel = selectClass("h-9");
+  const createDisabled = busy || (kind === "api" ? narrow && chosen.length === 0 : !a2aWs || a2aChosen.length === 0);
   return (
-    <section>
+    <div>
       {confirmDialog}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-fg">API keys</h2>
-        {manages && (
-          // Wraps on a phone: one line of five controls made the whole
-          // Settings page wider than the screen (3 Nov 2026).
-          <form
-            className="flex min-w-0 flex-wrap items-center gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void create();
-            }}
+      {manages && (
+        // Wraps on a phone: one line of five controls made the whole
+        // Settings page wider than the screen (3 Nov 2026).
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void create();
+          }}
+        >
+          <SettingsCard
+            id="create-key"
+            title="Create a key"
+            description="A key is you, on a machine: the CLI and the HTTP API. It carries a role no higher than yours and opens no workspace you cannot."
+            hint={kind === "a2a" ? "Opens /a2a only — every /api route refuses it." : "Shown once. Copy it when it appears."}
+            footer={
+              <Button type="submit" variant="primary" disabled={createDisabled}>
+                {busy ? "Creating…" : "Create key"}
+              </Button>
+            }
           >
-            <input
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="Key name (e.g. laptop, CI)"
-              className={inputClass("w-full sm:w-52")}
-            />
-            {/* A key carries a role like a member does. Editor is the default
-                and the right answer for CI; admin is for a key that manages
-                the account and should be rare. */}
-            <select
-              value={kind}
-              onChange={(e) => setKind(e.target.value as "api" | "a2a")}
-              className="rounded-md border border-line-strong px-2 py-1.5 text-sm text-fg-secondary"
-              aria-label="What the key is for"
-            >
-              <option value="api">API key</option>
-              <option value="a2a">A2A key — an outside agent</option>
-            </select>
-            {kind === "api" && (
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as Role)}
-              className="rounded-md border border-line-strong px-2 py-1.5 text-sm text-fg-secondary"
-              aria-label="Role for the key"
-            >
-              {ASSIGNABLE.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-            )}
-            <select
-              value={expires}
-              onChange={(e) => setExpires(e.target.value)}
-              className="rounded-md border border-line-strong px-2 py-1.5 text-sm text-fg-secondary"
-              aria-label="When the key expires"
-            >
-              {EXPIRY.map((x) => (
-                <option key={x.v} value={x.v}>
-                  {x.label}
-                </option>
-              ))}
-            </select>
-            <button className={buttonClass("primary")} disabled={busy || (kind === "api" ? narrow && chosen.length === 0 : !a2aWs || a2aChosen.length === 0)}>
-              {busy ? "…" : "Create key"}
-            </button>
-          </form>
-        )}
-      </div>
-
-      {manages && kind === "a2a" && (
-        <div className="mb-3 space-y-2 text-xs text-fg-muted">
-          {/* An outside agent's key: it opens /a2a/<account>/<workspace>/…
-              for the flows named here (each published with a2a: — a flow
-              not published cannot be chosen, FOL-112), and
-              no /api route — not runs, approvals, source or keys. */}
-          <p>
-            An A2A key lets an outside agent call published flows of one workspace over A2A — nothing else: every /api route refuses it, and it can never approve a gate or answer a question.
-          </p>
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="inline-flex items-center gap-1.5">
-              Workspace
-              <select
-                value={a2aWs}
-                onChange={(e) => {
-                  setA2aWs(e.target.value);
-                  setA2aChosen([]);
-                }}
-                className="rounded-md border border-line-strong px-2 py-1 text-xs text-fg-secondary"
-                aria-label="The workspace whose flows the A2A key may call"
-              >
-                {workspaces.map((w) => (
-                  <option key={w} value={w}>{w}</option>
-                ))}
-              </select>
-            </label>
-            <label className="inline-flex items-center gap-1.5" title="How many of its tasks may be open at once; one more is refused until one ends">
-              Open tasks at most
-              <input type="number" min={1} max={A2A_MAX_TASKS} value={maxTasks} onChange={(e) => setMaxTasks(e.target.value)} className={inputClass("w-20")} />
-            </label>
-          </div>
-          <div className="flex flex-wrap gap-x-4 gap-y-1">
-            {(a2aFlows[a2aWs] ?? []).map((f) => (
-              <label key={f.name} className="inline-flex items-center gap-1.5 font-mono text-fg-secondary" title={f.published ? "Published over A2A" : "Not published — publish it first (the flow's Publish over A2A control); a key names published flows only"}>
-                <input
-                  type="checkbox"
-                  disabled={!f.published}
-                  checked={a2aChosen.includes(f.name)}
-                  onChange={(e) => setA2aChosen((c) => (e.target.checked ? [...c, f.name] : c.filter((x) => x !== f.name)))}
-                />
-                {f.name}
-                {!f.published && <span className="font-sans text-fg-subtle">(not published)</span>}
-              </label>
-            ))}
-            {(a2aFlows[a2aWs] ?? []).length === 0 && <span>No flows in this workspace.</span>}
-          </div>
-        </div>
-      )}
-
-      {manages && kind === "api" && (
-        <div className="mb-3 text-xs text-fg-muted">
-          {/* What the key will be able to reach, said before it exists. A
-              key is never more than its minter: a role at or below yours,
-              and only workspaces you can open. */}
-          <label className="inline-flex items-center gap-1.5">
-            <input type="checkbox" checked={narrow} onChange={(e) => setNarrow(e.target.checked)} />
-            Limit to some workspaces
-          </label>
-          {!narrow && (
-            <span className="ml-2">
-              The key will open {scoped ? `the ${workspaces.length} workspace${workspaces.length === 1 ? "" : "s"} you can open` : "every workspace"}, at the role you pick — never above your own.
-            </span>
-          )}
-          {narrow && (
-            <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
-              {workspaces.map((w) => (
-                <label key={w} className="inline-flex items-center gap-1.5 font-mono text-fg-secondary">
-                  <input
-                    type="checkbox"
-                    checked={chosen.includes(w)}
-                    onChange={(e) => setChosen((c) => (e.target.checked ? [...c, w] : c.filter((x) => x !== w)))}
-                  />
-                  {w}
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block sm:col-span-2">
+                  <span className="block text-sm font-medium text-fg">Name</span>
+                  <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="laptop, CI" className={inputClass("mt-1.5 h-9 w-full max-w-md")} />
                 </label>
-              ))}
-              {workspaces.length === 0 && <span>No workspaces yet.</span>}
-            </div>
-          )}
-        </div>
-      )}
+                <label className="block">
+                  <span className="block text-sm font-medium text-fg">Kind</span>
+                  <select value={kind} onChange={(e) => setKind(e.target.value as "api" | "a2a")} className={selectClass("mt-1.5 h-9 w-full")} aria-label="What the key is for">
+                    <option value="api">API key</option>
+                    <option value="a2a">A2A key — an outside agent</option>
+                  </select>
+                </label>
+                {/* A key carries a role like a member does. Editor is the default
+                    and the right answer for CI; admin is for a key that manages
+                    the account and should be rare. */}
+                {kind === "api" && (
+                  <label className="block">
+                    <span className="block text-sm font-medium text-fg">Role</span>
+                    <select value={role} onChange={(e) => setRole(e.target.value as Role)} className={selectClass("mt-1.5 h-9 w-full")} aria-label="Role for the key">
+                      {ASSIGNABLE.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <label className="block">
+                  <span className="block text-sm font-medium text-fg">Expires</span>
+                  <select value={expires} onChange={(e) => setExpires(e.target.value)} className={selectClass("mt-1.5 h-9 w-full")} aria-label="When the key expires">
+                    {EXPIRY.map((x) => (
+                      <option key={x.v} value={x.v}>
+                        {x.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
 
-      {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
+              {kind === "a2a" && (
+                <div className="space-y-3 rounded-md border border-line bg-sunken p-4 text-sm text-fg-muted">
+                  {/* An outside agent's key: it opens /a2a/<account>/<workspace>/…
+                      for the flows named here (each published with a2a: — a flow
+                      not published cannot be chosen, FOL-112), and
+                      no /api route — not runs, approvals, source or keys. */}
+                  <p>An A2A key lets an outside agent call published flows of one workspace over A2A — nothing else: every /api route refuses it, and it can never approve a gate or answer a question.</p>
+                  <div className="flex flex-wrap items-center gap-4">
+                    <label className="inline-flex items-center gap-2 text-fg">
+                      Workspace
+                      <select
+                        value={a2aWs}
+                        onChange={(e) => {
+                          setA2aWs(e.target.value);
+                          setA2aChosen([]);
+                        }}
+                        className={sel}
+                        aria-label="The workspace whose flows the A2A key may call"
+                      >
+                        {workspaces.map((w) => (
+                          <option key={w} value={w}>
+                            {w}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="inline-flex items-center gap-2 text-fg" title="How many of its tasks may be open at once; one more is refused until one ends">
+                      Open tasks at most
+                      <input type="number" min={1} max={A2A_MAX_TASKS} value={maxTasks} onChange={(e) => setMaxTasks(e.target.value)} className={inputClass("h-9 w-20")} />
+                    </label>
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                    {(a2aFlows[a2aWs] ?? []).map((f) => (
+                      <label
+                        key={f.name}
+                        className="inline-flex items-center gap-1.5 font-mono text-fg-secondary"
+                        title={f.published ? "Published over A2A" : "Not published — publish it first (the flow's Publish over A2A control); a key names published flows only"}
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={!f.published}
+                          checked={a2aChosen.includes(f.name)}
+                          onChange={(e) => setA2aChosen((c) => (e.target.checked ? [...c, f.name] : c.filter((x) => x !== f.name)))}
+                          className={CHECK}
+                        />
+                        {f.name}
+                        {!f.published && <span className="font-sans text-fg-subtle">(not published)</span>}
+                      </label>
+                    ))}
+                    {(a2aFlows[a2aWs] ?? []).length === 0 && <span>No flows in this workspace.</span>}
+                  </div>
+                </div>
+              )}
+
+              {kind === "api" && (
+                <div className="text-sm text-fg-muted">
+                  {/* What the key will be able to reach, said before it exists. A
+                      key is never more than its minter: a role at or below yours,
+                      and only workspaces you can open. */}
+                  <label className="inline-flex items-center gap-2 text-fg">
+                    <input type="checkbox" checked={narrow} onChange={(e) => setNarrow(e.target.checked)} className={CHECK} />
+                    Limit to some workspaces
+                  </label>
+                  {!narrow && (
+                    <p className="mt-1">
+                      The key will open {scoped ? `the ${workspaces.length} workspace${workspaces.length === 1 ? "" : "s"} you can open` : "every workspace"}, at the role you pick — never above your own.
+                    </p>
+                  )}
+                  {narrow && (
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1.5">
+                      {workspaces.map((w) => (
+                        <label key={w} className="inline-flex items-center gap-1.5 font-mono text-fg-secondary">
+                          <input type="checkbox" checked={chosen.includes(w)} onChange={(e) => setChosen((c) => (e.target.checked ? [...c, w] : c.filter((x) => x !== w)))} className={CHECK} />
+                          {w}
+                        </label>
+                      ))}
+                      {workspaces.length === 0 && <span>No workspaces yet.</span>}
+                    </div>
+                  )}
+                </div>
+              )}
+              {error && (
+                <p role="alert" className="text-sm text-danger">
+                  {error}
+                </p>
+              )}
+            </div>
+          </SettingsCard>
+        </form>
+      )}
+      {!manages && error && (
+        <p role="alert" className="mb-4 text-sm text-danger">
+          {error}
+        </p>
+      )}
 
       {created && (
-        <Card className="mb-3 border-green-300 bg-green-50 p-4">
-          <p className="text-sm font-semibold text-green-900">
-            Key created — copy it now, it won&apos;t be shown again.
-          </p>
-          <div className="mt-2 flex items-center gap-2">
-            <code className="flex-1 truncate rounded-md bg-surface px-3 py-2 font-mono text-xs text-fg ring-1 ring-inset ring-green-200">
-              {created}
-            </code>
-            <button
+        <div role="status" className="mb-6 rounded-lg border border-success-line bg-success-soft p-4 sm:p-5">
+          <p className="text-sm font-medium text-success">Key created — copy it now, it won&apos;t be shown again.</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <code className="min-w-0 flex-1 truncate rounded-md border border-line bg-surface px-3 py-2 font-mono text-xs text-fg">{created}</code>
+            <Button
+              variant="secondary"
               onClick={() => {
                 void navigator.clipboard.writeText(created);
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1500);
               }}
-              className={buttonClass("secondary")}
             >
+              {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
               {copied ? "Copied" : "Copy"}
-            </button>
-            <button onClick={() => setCreated(null)} className={buttonClass("minimal")}>
+            </Button>
+            <Button variant="ghost" onClick={() => setCreated(null)}>
               Done
-            </button>
+            </Button>
           </div>
-          <p className="mt-2 font-mono text-[11px] leading-relaxed text-green-800">
+          <p className="mt-2 font-mono text-xs leading-relaxed text-fg-secondary">
             export {createdKind === "a2a" ? "FOLDRUN_A2A_KEY" : "FOLDRUN_TOKEN"}={created.slice(0, 12)}…
           </p>
-          {createdKind === "a2a" && (
-            <p className="mt-1 text-[11px] text-green-800">Give it to the outside agent; it sends it as Authorization: Bearer to /a2a only.</p>
-          )}
-        </Card>
+          {createdKind === "a2a" && <p className="mt-1 text-xs text-fg-secondary">Give it to the outside agent; it sends it as Authorization: Bearer to /a2a only.</p>}
+        </div>
       )}
 
-      <Card>
-        {keys.length === 0 ? (
-          <p className="px-5 py-6 text-sm text-fg-muted">
-            No keys yet. Create one to authenticate the CLI and API.
-          </p>
-        ) : (
-          <ul className="divide-y divide-line-faint">
-            {keys.map((k) => (
-              <li key={k.id} className="flex items-center gap-4 px-5 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-2 text-sm font-medium text-fg">
-                    {k.label}
-                    {k.purpose === "a2a" ? (
-                      <span
-                        className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-fg-tertiary"
-                        title="An outside agent's key: it opens /a2a only — the published flows it names — and no /api route"
-                      >
-                        A2A
-                      </span>
-                    ) : (
-                    <span
-                      className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-fg-tertiary"
-                      title={k.role ? "What this key may do" : "Minted before roles existed — acts as admin"}
-                    >
-                      {k.role ?? "admin"}
-                    </span>
-                    )}
-                    {k.purpose === "a2a" && k.a2a && (
-                      <span
-                        className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-fg-secondary"
-                        title={`The flows this key may call in ${k.a2a.workspace}, each also published; at most ${k.a2a.maxTasks} tasks open at once`}
-                      >
-                        {k.a2a.workspace}: {k.a2a.flows.join(", ")} · {k.a2a.maxTasks} open
-                      </span>
-                    )}
-                    {k.scope && (
-                      <span
-                        className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-fg-secondary"
-                        title="A deploy key, for the platform's own git — which went on 17 Oct 2026, so it opens nothing now. Revoke it."
-                      >
-                        deploy key · opens nothing · revoke
-                      </span>
-                    )}
-                    {!k.scope && k.purpose !== "a2a" && (
-                      <span
-                        className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-fg-secondary"
-                        title={k.workspaces ? "The workspaces this key opens — its minter's at the time, or fewer" : "Every workspace in the account"}
-                      >
-                        {k.workspaces ? (k.workspaces.length === 0 ? "no workspaces" : k.workspaces.join(", ")) : "all workspaces"}
-                      </span>
-                    )}
-                    {k.replacedBy && (() => {
-                      const next = keys.find((n) => n.id === k.replacedBy);
-                      return (
-                        <span
-                          className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-fg-secondary"
-                          title="Rotated: this key is not rotated again — rotate the new one (also if its secret was lost)"
-                        >
-                          rotated → {next ? `${next.label} · ${next.prefix}…` : k.replacedBy}
-                        </span>
-                      );
-                    })()}
-                    {k.revokedAt && (
-                      <span className="rounded-md bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-800">
-                        revoked
-                      </span>
-                    )}
-                    {!k.revokedAt && k.expiresAt && Date.parse(k.expiresAt) <= Date.now() && (
-                      <span className="rounded-md bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-800">expired</span>
-                    )}
-                    {k.origin === "cli-login" && !k.revokedAt && (
-                      <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-fg-secondary" title="Minted by foldrun login on that machine. It lasts 90 days and the CLI renews it while the machine is in use; revoke it to sign that machine out.">
-                        CLI sign-in · renews itself
-                      </span>
-                    )}
-                    {!k.revokedAt && k.origin !== "cli-login" && k.expiresAt && Date.parse(k.expiresAt) > Date.now() && Date.parse(k.expiresAt) - Date.now() < 7 * 86_400_000 && (
-                      <span className="rounded-md bg-orange-100 px-1.5 py-0.5 text-xs font-medium text-orange-800">expires {relative(k.expiresAt)}</span>
-                    )}
-                  </p>
-                  <dl className="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs text-fg-muted sm:grid-cols-4">
-                    <div>
-                      <dt className="inline text-fg-subtle">Created </dt>
-                      <dd className="inline"><LocalTime iso={k.createdAt} options={{ dateStyle: "medium" }} />{k.createdBy ? <> by <WithEmails text={k.createdBy} /></> : ""}</dd>
+      <section className="min-w-0 space-y-3">
+        <div className="flex items-end justify-between gap-2 px-1">
+          <h2 className="text-base font-medium text-fg">Keys</h2>
+          <span className="text-sm tabular-nums text-fg-muted">{keys.length}</span>
+        </div>
+        <div className="overflow-hidden rounded-lg border border-line bg-surface">
+          {keys.length === 0 ? (
+            <EmptyState bare compact icon={<KeyRound />} title="No keys yet" description="Create one to authenticate the CLI and API." />
+          ) : (
+            <ul className="divide-y divide-line">
+              {keys.map((k) => {
+                const expired = !!k.expiresAt && Date.parse(k.expiresAt) <= Date.now();
+                const next = k.replacedBy ? keys.find((n) => n.id === k.replacedBy) : undefined;
+                return (
+                  <li key={k.id} className={cn("flex min-w-0 items-start gap-3 px-4 py-3.5 sm:px-5", (k.revokedAt || expired) && "opacity-70")}>
+                    <IconBox className="mt-0.5 max-sm:hidden">
+                      <KeyRound />
+                    </IconBox>
+                    <div className="min-w-0 flex-1">
+                      <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-fg">
+                        <span className="mr-0.5 truncate">{k.label}</span>
+                        {k.purpose === "a2a" ? (
+                          <Tag>
+                            <span title="An outside agent's key: it opens /a2a only — the published flows it names — and no /api route">A2A</span>
+                          </Tag>
+                        ) : (
+                          <Tag>
+                            <span title={k.role ? "What this key may do" : "Minted before roles existed — acts as admin"}>{k.role ?? "admin"}</span>
+                          </Tag>
+                        )}
+                        {k.revokedAt && <Chip tone="bad">revoked</Chip>}
+                        {!k.revokedAt && expired && <Chip tone="bad">expired</Chip>}
+                        {!k.revokedAt && k.origin !== "cli-login" && k.expiresAt && !expired && Date.parse(k.expiresAt) - Date.now() < 7 * 86_400_000 && (
+                          <Chip tone="warn">expires {relative(k.expiresAt)}</Chip>
+                        )}
+                      </p>
+                      <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-fg-muted">
+                        {k.purpose === "a2a" && k.a2a && (
+                          <span title={`The flows this key may call in ${k.a2a.workspace}, each also published; at most ${k.a2a.maxTasks} tasks open at once`}>
+                            {k.a2a.workspace}: {k.a2a.flows.join(", ")} · {k.a2a.maxTasks} open
+                          </span>
+                        )}
+                        {k.scope && (
+                          <span className="text-warning" title="A deploy key, for the platform's own git — which went on 17 Oct 2026, so it opens nothing now. Revoke it.">
+                            deploy key · opens nothing · revoke
+                          </span>
+                        )}
+                        {!k.scope && k.purpose !== "a2a" && (
+                          <span title={k.workspaces ? "The workspaces this key opens — its minter's at the time, or fewer" : "Every workspace in the account"}>
+                            {k.workspaces ? (k.workspaces.length === 0 ? "no workspaces" : k.workspaces.join(", ")) : "all workspaces"}
+                          </span>
+                        )}
+                        {k.origin === "cli-login" && !k.revokedAt && (
+                          <span title="Minted by foldrun login on that machine. It lasts 90 days and the CLI renews it while the machine is in use; revoke it to sign that machine out.">CLI sign-in · renews itself</span>
+                        )}
+                        {k.replacedBy && (
+                          <span title="Rotated: this key is not rotated again — rotate the new one (also if its secret was lost)">
+                            rotated → {next ? `${next.label} · ${next.prefix}…` : k.replacedBy}
+                          </span>
+                        )}
+                      </p>
+                      <dl className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-fg-muted">
+                        <div>
+                          <dt className="inline text-fg-subtle">Created </dt>
+                          <dd className="inline">
+                            <LocalTime iso={k.createdAt} options={{ dateStyle: "medium" }} />
+                            {k.createdBy ? (
+                              <>
+                                {" "}
+                                by <WithEmails text={k.createdBy} />
+                              </>
+                            ) : (
+                              ""
+                            )}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="inline text-fg-subtle">Last used </dt>
+                          <dd className="inline" title={k.lastIp ? `from ${k.lastIp}` : undefined}>
+                            {k.lastUsedAt ? (
+                              <>
+                                {relative(k.lastUsedAt)}
+                                {k.lastIp ? <span className="font-mono text-fg-subtle"> · {k.lastIp}</span> : null}
+                              </>
+                            ) : (
+                              "never"
+                            )}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="inline text-fg-subtle">Expires </dt>
+                          <dd className="inline">{k.expiresAt ? <LocalTime iso={k.expiresAt} options={{ dateStyle: "medium" }} /> : "never"}</dd>
+                        </div>
+                        <div className="font-mono text-fg-subtle">
+                          {k.prefix}… · {k.id}
+                        </div>
+                      </dl>
+                      {rotating === k.id && (
+                        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-line bg-sunken p-3 text-sm">
+                          <span className="text-fg-muted">A new key with this label, role and workspaces —</span>
+                          <select value={grace} onChange={(e) => setGrace(e.target.value)} className={selectClass("h-8")} aria-label="What happens to the old key">
+                            {GRACE.map((g) => (
+                              <option key={g.v} value={g.v}>
+                                {g.label}
+                              </option>
+                            ))}
+                          </select>
+                          <Button variant="primary" onClick={() => void rotate(k.id)} disabled={busy}>
+                            {busy ? "Rotating…" : "Rotate"}
+                          </Button>
+                          <Button variant="ghost" onClick={() => setRotating(null)}>
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <dt className="inline text-fg-subtle">Last used </dt>
-                      <dd className="inline" title={k.lastIp ? `from ${k.lastIp}` : undefined}>
-                        {k.lastUsedAt ? <>{relative(k.lastUsedAt)}{k.lastIp ? <span className="font-mono text-fg-subtle"> · {k.lastIp}</span> : null}</> : "never"}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="inline text-fg-subtle">Expires </dt>
-                      <dd className="inline">{k.expiresAt ? <LocalTime iso={k.expiresAt} options={{ dateStyle: "medium" }} /> : "never"}</dd>
-                    </div>
-                    <div className="font-mono text-fg-subtle">{k.prefix}… · {k.id}</div>
-                  </dl>
-                  {rotating === k.id && (
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                      <span className="text-fg-tertiary">A new key with this label, role and workspaces —</span>
-                      <select value={grace} onChange={(e) => setGrace(e.target.value)} className="rounded-md border border-line-strong px-2 py-1 text-xs text-fg-secondary" aria-label="What happens to the old key">
-                        {GRACE.map((g) => (
-                          <option key={g.v} value={g.v}>{g.label}</option>
-                        ))}
-                      </select>
-                      <button onClick={() => void rotate(k.id)} disabled={busy} className={buttonClass("primary")}>{busy ? "…" : "Rotate"}</button>
-                      <button onClick={() => setRotating(null)} className={buttonClass("minimal")}>Cancel</button>
-                    </div>
-                  )}
-                </div>
-                {!k.revokedAt && manages && (
-                  <div className="flex shrink-0 items-center gap-3">
-                    {!(k.expiresAt && Date.parse(k.expiresAt) <= Date.now()) && !k.replacedBy && (
-                      <button
-                        onClick={() => setRotating(rotating === k.id ? null : k.id)}
-                        className="text-xs font-medium text-fg-subtle transition-colors hover:text-fg"
-                      >
-                        Rotate
-                      </button>
+                    {!k.revokedAt && manages && (
+                      <div className="flex shrink-0 items-center gap-1">
+                        {!expired && !k.replacedBy && (
+                          <Button variant="ghost" size="sm" onClick={() => setRotating(rotating === k.id ? null : k.id)}>
+                            Rotate
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="sm" className="hover:text-danger" onClick={() => revoke(k.id)}>
+                          Revoke
+                        </Button>
+                      </div>
                     )}
-                    <button
-                      onClick={() => revoke(k.id)}
-                      className="text-xs font-medium text-fg-subtle transition-colors hover:text-red-600"
-                    >
-                      Revoke
-                    </button>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-    </section>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -499,8 +515,10 @@ export function TickButton() {
   const [result, setResult] = useState<string | null>(null);
 
   return (
-    <div className="flex items-center gap-3">
-      <button
+    <div className="flex flex-wrap items-center gap-3">
+      {result && <span className="text-sm text-fg-muted">{result}</span>}
+      <Button
+        variant="secondary"
         disabled={busy}
         onClick={async () => {
           setBusy(true);
@@ -515,11 +533,10 @@ export function TickButton() {
             setBusy(false);
           }
         }}
-        className={buttonClass("secondary")}
       >
+        <Play aria-hidden />
         {busy ? "Ticking…" : "Run scheduler now"}
-      </button>
-      {result && <span className="text-xs text-fg-muted">{result}</span>}
+      </Button>
     </div>
   );
 }

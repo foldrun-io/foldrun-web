@@ -109,7 +109,7 @@ export function CliAuthorize() {
       </p>
 
       <label className="block">
-        <span className="mb-1 block text-sm font-medium text-fg-secondary">Code shown in the terminal</span>
+        <span className="mb-1.5 block text-sm font-medium text-fg">Code shown in the terminal</span>
         <input
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
@@ -120,11 +120,11 @@ export function CliAuthorize() {
       </label>
 
       {request === null && code.replace(/[^A-Za-z0-9]/g, "").length === 8 && (
-        <p className="mt-3 text-sm text-red-600">No sign-in request has that code. It may have expired — run <span className="font-mono">foldrun login</span> again.</p>
+        <p className="mt-3 text-sm text-danger">No sign-in request has that code. It may have expired — run <span className="font-mono">foldrun login</span> again.</p>
       )}
 
       {request && (
-        <div className="mt-5 rounded-md border border-line bg-surface p-4 text-sm">
+        <div className="mt-5 rounded-md border border-line bg-sunken p-4 text-sm">
           <dl className="space-y-1.5">
             <div className="flex justify-between gap-4"><dt className="text-fg-muted">Machine</dt><dd className="font-mono text-fg">{request.hostname}</dd></div>
             {request.createdAt && <div className="flex justify-between gap-4"><dt className="text-fg-muted">Asked at</dt><dd className="text-fg"><LocalTime iso={request.createdAt} options={CLOCK} />{request.approveBy ? <span className="text-fg-muted"> — can be approved until <LocalTime iso={request.approveBy} options={CLOCK} /></span> : null}</dd></div>}
@@ -134,7 +134,7 @@ export function CliAuthorize() {
             <div className="flex justify-between gap-4"><dt className="text-fg-muted">Role</dt><dd className="text-fg">{me.role === "owner" ? "admin (a key is never an owner)" : me.role}</dd></div>
           </dl>
           {request.sameNetwork === false && (
-            <p className="mt-3 rounded-md border border-red-300 bg-red-50 p-2 text-xs text-red-700">
+            <p className="mt-3 rounded-md border border-danger-line bg-danger-soft p-2 text-xs text-danger">
               This request came from a different network than the one this browser is on. If you did not just run <span className="font-mono">foldrun login</span> on another machine of your own, deny it.
             </p>
           )}
@@ -154,7 +154,7 @@ export function CliAuthorize() {
         </div>
       )}
 
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-3 text-sm text-danger">{error}</p>}
     </>
   );
 }

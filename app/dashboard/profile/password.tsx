@@ -6,7 +6,7 @@
 // wrong field.
 
 import { useState } from "react";
-import { buttonClass, inputClass, FIELD_LABEL_CLASS } from "@/components/ui";
+import { buttonClass, inputClass } from "@/components/ui";
 
 export function PasswordForm() {
   const [current, setCurrent] = useState("");
@@ -44,7 +44,7 @@ export function PasswordForm() {
     >
       <div className="grid gap-3">
         <label className="block sm:max-w-xs">
-          <span className={`${FIELD_LABEL_CLASS} pb-1`}>Current password</span>
+          <span className="block pb-1.5 text-sm font-medium text-fg">Current password</span>
           <input
             type="password"
             autoComplete="current-password"
@@ -55,7 +55,7 @@ export function PasswordForm() {
         </label>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block">
-          <span className={`${FIELD_LABEL_CLASS} pb-1`}>New password</span>
+          <span className="block pb-1.5 text-sm font-medium text-fg">New password</span>
           <input
             type="password"
             autoComplete="new-password"
@@ -65,7 +65,7 @@ export function PasswordForm() {
           />
         </label>
         <label className="block">
-          <span className={`${FIELD_LABEL_CLASS} pb-1`}>New password again</span>
+          <span className="block pb-1.5 text-sm font-medium text-fg">New password again</span>
           <input
             type="password"
             autoComplete="new-password"
@@ -77,7 +77,7 @@ export function PasswordForm() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-line-faint pt-3">
+      <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">
         <button
           type="submit"
           disabled={busy || !current || next.length < 8 || mismatch}
@@ -85,9 +85,9 @@ export function PasswordForm() {
         >
           {busy ? "Changing…" : "Change password"}
         </button>
-        {mismatch && <span className="text-xs text-red-600">The two new passwords do not match.</span>}
-        {state.error && <span className="text-xs text-red-600">{state.error}</span>}
-        {state.done && <span className="text-xs text-green-700">{state.done}</span>}
+        {mismatch && <span className="text-xs text-danger">The two new passwords do not match.</span>}
+        {state.error && <span className="text-xs text-danger">{state.error}</span>}
+        {state.done && <span className="text-xs text-success">{state.done}</span>}
         {!mismatch && !state.error && !state.done && (
           <span className="text-xs text-fg-muted">At least 8 characters.</span>
         )}

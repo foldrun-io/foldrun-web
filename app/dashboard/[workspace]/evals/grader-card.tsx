@@ -1,19 +1,19 @@
 "use client";
 
-// One grader — an eval with `trigger: runs` — and what it has found: the pass
-// rate over the window, a bar per day, the runs that failed and why, and a
-// box to grade one run now (POST …/evals/<e>/grade). Nothing here starts a
-// run; a grader only reads the ones that happened.
+// One grader's own view (?eval=<name>) — an eval with `trigger: runs` — and
+// what it has found: the pass rate over the window, a bar per day, the runs
+// that failed and why, and a box to grade one run now (POST …/evals/<e>/grade).
+// Nothing here starts a run; a grader only reads the ones that happened.
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, buttonClass, inputClass } from "@/components/ui";
-import { CollapsibleCard } from "@/components/collapsible-card";
-import { anchorId } from "@/components/collapse-model";
-import { ExpandableTitle } from "@/components/expandable";
-import { InlineEditor } from "@/components/inline-editor";
-import { DeleteButton } from "../../manage";
+import { Gauge } from "lucide-react";
+import { Page, PageHeader, IconBox, Panel, PanelList, SummaryCard, StatGrid, Stat, Chip, type Tone } from "@/components/kit/page";
+import { Button } from "@/components/kit/button";
+import { Input } from "@/components/kit/input";
+import { EvalMenu } from "./eval-actions";
+import { EvalSource } from "./eval-card";
 import { runHref } from "@/components/run-href";
 import { useCan } from "@/components/role";
 import { WithEmails } from "@/components/email";
@@ -33,7 +33,7 @@ export function gradeReason(g: Grade): string {
   return "";
 }
 
-export function GraderCard({
+export function GraderDetail({
   workspace,
   tenant,
   info,
@@ -41,6 +41,9 @@ export function GraderCard({
   week,
   grades,
   extra,
+  listHref,
+  targetHref,
+  missingTarget = false,
 }: {
   workspace: string;
   tenant: string;
@@ -53,10 +56,12 @@ export function GraderCard({
   grades: Grade[];
   /** Whatever the page adds under the grades — proposals, for one. */
   extra?: ReactNode;
+  listHref: string;
+  targetHref: string;
+  missingTarget?: boolean;
 }) {
   const router = useRouter();
   const canRun = useCan("run:start");
-  const [editing, setEditing] = useState(false);
   const [runId, setRunId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,138 +91,176 @@ export function GraderCard({
   const failures = grades.filter((g) => g.status === "fail").slice(0, 8);
   const days = summary.byDay.slice(-30);
   const tallest = Math.max(1, ...days.map((d) => d.graded));
+  const kind = info.flow ? "flow" : "agent";
+  const target = info.flow ?? info.agent ?? "";
 
   return (
-    <CollapsibleCard
-      id={anchorId("eval", info.name)}
-      scope={`evals:${workspace}`}
-      item={info.name}
-      search={[info.name, info.file, info.flow ?? info.agent ?? ""].join(" ")}
-      forceOpen={busy || !!error}
-      title={info.name}
-      meta={
-        <>
-          <Badge variant="info">{info.flow ? `flow: ${info.flow}` : `agent: ${info.agent}`}</Badge>
-          <Badge title="The share of finished runs this grader reads, chosen by a hash of the run id — the same run is always in or out.">grades {info.sample}% of runs</Badge>
-          <Badge>judge: {info.model}</Badge>
-          {summary.graded > 0 ? (
-            <Badge variant={week.rate === null ? "default" : week.rate >= 0.9 ? "success" : week.rate >= 0.7 ? "warning" : "error"} title={`${week.passed} passed, ${week.failed} failed in 7 days; ${pct(summary.rate)} over 30`}>
-              {pct(week.rate)} passing · 7 days
-            </Badge>
-          ) : (
-            <Badge>no runs graded yet</Badge>
-          )}
-          {info.improve && <Badge title={`A fix is proposed once ${info.improve} graded runs failed and nobody has looked.`}>improve after {info.improve}</Badge>}
-          {info.problems.length > 0 && <Badge variant="error">cannot be read</Badge>}
-        </>
-      }
-      actions={
-        <span className="opacity-0 transition-opacity group-hover:opacity-100">
-          <DeleteButton
-            endpoint={`/api/workspaces/${workspace}/source`}
-            tenant={tenant}
-            body={{ path: `evals/${info.file}` }}
-            confirmText={`Delete grader ${info.name}? The grades it gave stay on disk until they age out.`}
-          />
-        </span>
-      }
-    >
-      {info.problems.map((p) => (
-        <p key={p} className="mb-1 text-xs text-red-600">
-          <WithEmails text={p} />
-        </p>
-      ))}
+    <Page>
+      <PageHeader
+        back={{ href: listHref, label: "Evals" }}
+        icon={
+          <IconBox>
+            <Gauge />
+          </IconBox>
+        }
+        title={info.name}
+        badge={
+          <>
+            {summary.graded > 0 ? (
+              <span title={`${week.passed} passed, ${week.failed} failed in 7 days; ${pct(summary.rate)} over 30`}>
+                <Chip tone={rateTone(week.rate)}>{pct(week.rate)} passing · 7 days</Chip>
+              </span>
+            ) : (
+              <Chip>no runs graded yet</Chip>
+            )}
+            {info.problems.length > 0 && <Chip tone="bad">cannot be read</Chip>}
+          </>
+        }
+        description={
+          <>
+            Grades real finished runs of {kind} <span className="font-medium text-fg">{target}</span> against its checks.
+          </>
+        }
+        actions={<EvalMenu workspace={workspace} tenant={tenant} file={info.file} listHref={listHref} confirmText={`Delete grader ${info.name}? The grades it gave stay on disk until they age out.`} />}
+      />
 
-      <div className="mb-3 grid gap-3 sm:grid-cols-4">
-        <Stat label="Graded · 30 days" value={String(summary.graded)} />
-        <Stat label="Passing · 30 days" value={pct(summary.rate)} />
-        <Stat label="Failed · 30 days" value={String(summary.failed)} />
-        <Stat label="Judges cost" value={`$${summary.costUsd.toFixed(4)}`} />
-      </div>
-
-      {days.length > 0 && (
-        <div className="mb-3" aria-label="grades per day, passed over failed">
-          <div className="flex h-12 items-end gap-0.5">
-            {days.map((d) => (
-              <div key={d.day} className="flex w-3 flex-col justify-end" title={`${d.day}: ${d.passed} passed, ${d.failed} failed of ${d.graded}`}>
-                <div className="bg-red-400" style={{ height: `${(d.failed / tallest) * 48}px` }} />
-                <div className="bg-emerald-500" style={{ height: `${(d.passed / tallest) * 48}px` }} />
-              </div>
+      <div className="space-y-8 pb-12">
+        {(info.problems.length > 0 || missingTarget) && (
+          <div className="space-y-1 rounded-lg border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
+            {missingTarget && <p>{kind} &quot;{target}&quot; not found in this workspace.</p>}
+            {info.problems.map((p) => (
+              <p key={p}>
+                <WithEmails text={p} />
+              </p>
             ))}
           </div>
-          <p className="mt-1 text-[11px] text-fg-subtle">a bar per day graded — green passed, red failed</p>
-        </div>
-      )}
+        )}
 
-      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-fg-subtle">Checks</p>
-      <ul className="mb-3 space-y-1">
-        {info.cases.map((c) => (
-          <li key={c.name} className="rounded-lg border border-line bg-sunken/60 px-3 py-1.5 text-xs">
-            <span className="font-medium text-fg">
-              <WithEmails text={c.name} />
-            </span>
-            {c.expect.map((a, i) => (
-              <span key={i} className="ml-2 text-fg-tertiary">
-                <span className="font-mono">{a.type}:</span> <WithEmails text={a.value} />
-              </span>
-            ))}
-          </li>
-        ))}
-      </ul>
+        <SummaryCard
+          items={[
+            {
+              label: kind === "flow" ? "Flow" : "Agent",
+              value: missingTarget ? (
+                <span className="text-danger">{target}</span>
+              ) : (
+                <Link href={targetHref} className="hover:underline">
+                  {target}
+                </Link>
+              ),
+            },
+            {
+              label: "Grades",
+              value: <span title="The share of finished runs this grader reads, chosen by a hash of the run id — the same run is always in or out.">{info.sample}% of runs</span>,
+            },
+            { label: "Judge", value: <span className="font-mono">{info.model}</span> },
+            {
+              label: "Proposes a fix",
+              value: info.improve ? <span title={`A fix is proposed once ${info.improve} graded runs failed and nobody has looked.`}>after {info.improve} failures</span> : "Only when asked",
+            },
+          ]}
+        />
 
-      {failures.length > 0 && (
-        <>
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-fg-subtle">Recent failures</p>
-          <ul className="mb-3 space-y-1">
-            {failures.map((g) => (
-              <li key={g.runId} className="flex flex-wrap items-baseline gap-2 text-xs">
-                <Link href={runHref(workspace, g.runId, tenant)} className="font-mono text-accent hover:underline">{g.runId}</Link>
-                <span className="text-fg-muted">{g.at.slice(0, 16).replace("T", " ")}</span>
-                <span className="text-red-700">
-                  <WithEmails text={gradeReason(g)} />
-                </span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
+        <StatGrid>
+          <Stat label="Graded · 30 days" value={String(summary.graded)} />
+          <Stat label="Passing · 30 days" value={pct(summary.rate)} />
+          <Stat label="Failed · 30 days" value={String(summary.failed)} tone={summary.failed > 0 ? "danger" : undefined} />
+          <Stat label="Judges cost" value={`$${summary.costUsd.toFixed(4)}`} />
+        </StatGrid>
 
-      {extra}
+        {days.length > 0 && (
+          <Panel title="Per day" description="A bar per day graded — passed under failed.">
+            <div className="flex h-16 items-end gap-1 overflow-x-auto" aria-label="grades per day, passed over failed">
+              {days.map((d) => (
+                <div key={d.day} className="flex w-3 shrink-0 flex-col justify-end gap-px" title={`${d.day}: ${d.passed} passed, ${d.failed} failed of ${d.graded}`}>
+                  <div className="rounded-t-sm bg-danger" style={{ height: `${(d.failed / tallest) * 64}px` }} />
+                  <div className="rounded-b-sm bg-success" style={{ height: `${(d.passed / tallest) * 64}px` }} />
+                </div>
+              ))}
+            </div>
+          </Panel>
+        )}
 
-      {canRun && (
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <input value={runId} onChange={(e) => setRunId(e.target.value)} placeholder="run-…" className={inputClass("w-56 font-mono text-xs")} aria-label="run id to grade" />
-          <button onClick={gradeOne} disabled={busy || !runId.trim()} className={buttonClass("secondary")}>
-            {busy ? "Grading…" : "Grade a run"}
-          </button>
-          {fresh && (
-            <span className={`text-xs ${fresh.status === "pass" ? "text-emerald-700" : fresh.status === "fail" ? "text-red-700" : "text-amber-700"}`}>
-              {fresh.status}
-              {fresh.status !== "pass" && (
-                <>
-                  {" — "}
-                  <WithEmails text={gradeReason(fresh)} />
-                </>
-              )}
-            </span>
+        <Panel title="Checks" description="What every graded run is held to." flush>
+          {info.cases.length === 0 ? (
+            <p className="px-5 py-6 text-sm text-fg-muted">No checks yet.</p>
+          ) : (
+            <PanelList>
+              {info.cases.map((c) => (
+                <li key={c.name} className="space-y-1 px-5 py-3">
+                  <p className="text-sm font-medium text-fg">
+                    <WithEmails text={c.name} />
+                  </p>
+                  {c.expect.map((a, i) => (
+                    <p key={i} className="text-[13px] text-fg-secondary [overflow-wrap:anywhere]">
+                      <span className="font-mono text-fg-muted">{a.type}:</span> <WithEmails text={a.value} />
+                    </p>
+                  ))}
+                </li>
+              ))}
+            </PanelList>
           )}
-          {error && <span className="text-xs text-red-600">{error}</span>}
-        </div>
-      )}
+        </Panel>
 
-      <div className="mt-3">
-        <ExpandableTitle open={editing} onToggle={() => setEditing((e) => !e)} name={`evals/${info.file}`} />
+        {failures.length > 0 && (
+          <Panel title="Recent failures" flush>
+            <PanelList>
+              {failures.map((g) => (
+                <li key={g.runId} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-5 py-3 text-sm">
+                  <Link href={runHref(workspace, g.runId, tenant)} className="font-mono text-[13px] text-link hover:underline">
+                    {g.runId}
+                  </Link>
+                  <span className="text-[13px] text-fg-muted">{g.at.slice(0, 16).replace("T", " ")}</span>
+                  <span className="min-w-0 text-danger [overflow-wrap:anywhere]">
+                    <WithEmails text={gradeReason(g)} />
+                  </span>
+                </li>
+              ))}
+            </PanelList>
+          </Panel>
+        )}
+
+        {extra && (
+          <Panel title="Proposed fixes" description="The assistant reads the failures and proposes the smallest change. Nothing is written until you apply it.">
+            {extra}
+          </Panel>
+        )}
+
+        {canRun && (
+          <Panel title="Grade a run" description="Grade one finished run now, whether or not it is in the sample.">
+            <form
+              className="flex flex-wrap items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (runId.trim() && !busy) void gradeOne();
+              }}
+            >
+              <Input value={runId} onChange={(e) => setRunId(e.target.value)} placeholder="run-…" className="w-64 max-w-full font-mono text-[13px]" aria-label="run id to grade" />
+              <Button type="submit" disabled={busy || !runId.trim()}>
+                {busy ? "Grading…" : "Grade a run"}
+              </Button>
+              {fresh && (
+                <span className={`text-sm ${fresh.status === "pass" ? "text-success" : fresh.status === "fail" ? "text-danger" : "text-warning"}`}>
+                  {fresh.status}
+                  {fresh.status !== "pass" && (
+                    <>
+                      {" — "}
+                      <WithEmails text={gradeReason(fresh)} />
+                    </>
+                  )}
+                </span>
+              )}
+              {error && <span className="text-sm text-danger">{error}</span>}
+            </form>
+          </Panel>
+        )}
+
+        <EvalSource workspace={workspace} tenant={tenant} name={info.name} file={info.file} />
       </div>
-      {editing && <InlineEditor workspace={workspace} tenant={tenant} path={`evals/${info.file}`} />}
-    </CollapsibleCard>
+    </Page>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-line bg-surface px-3 py-2">
-      <p className="text-[10px] font-medium uppercase tracking-wide text-fg-subtle">{label}</p>
-      <p className="text-lg font-semibold text-fg">{value}</p>
-    </div>
-  );
+/** A 7-day pass rate as a chip's tone. */
+function rateTone(rate: number | null): Tone {
+  return rate === null ? "default" : rate >= 0.9 ? "good" : rate >= 0.7 ? "warn" : "bad";
 }

@@ -67,7 +67,7 @@ export function FindTrigger({ compact = false }: { compact?: boolean } = {}) {
         onClick={openFind}
         title="Find (F)"
         aria-label="Find"
-        className="mb-4 flex h-8 w-full items-center justify-center rounded-md border border-line bg-surface text-fg-subtle shadow-sm transition-colors hover:border-line-strong hover:text-fg-tertiary"
+        className="flex size-8 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-muted hover:text-fg"
       >
         <SearchIcon />
       </button>
@@ -77,11 +77,11 @@ export function FindTrigger({ compact = false }: { compact?: boolean } = {}) {
     <button
       type="button"
       onClick={openFind}
-      className="mb-4 flex w-full items-center gap-2 rounded-md border border-line bg-surface px-2.5 py-1.5 text-left text-sm text-fg-subtle shadow-sm transition-colors hover:border-line-strong hover:text-fg-tertiary"
+      className="flex h-9 w-full items-center gap-2 rounded-md border border-line bg-surface px-2.5 text-left text-sm text-fg-muted transition-colors hover:border-line-strong"
     >
       <SearchIcon />
-      <span className="flex-1">Find</span>
-      <kbd className="rounded border border-line bg-sunken px-1.5 font-mono text-[10px] text-fg-muted">F</kbd>
+      <span className="flex-1">Find…</span>
+      <kbd className="rounded border border-line bg-sunken px-1.5 font-mono text-[10px] leading-4 text-fg-muted">F</kbd>
     </button>
   );
 }

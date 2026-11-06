@@ -3,7 +3,6 @@
 // and agents use it and which secrets it names. The library keeps history
 // too, but has no route for it yet, so the Changes section waits.
 
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import matter from "@/lib/matter";
 import { LIBRARY_KINDS, listLibrary, readLibraryFile, libraryUsage, type LibraryKind } from "@/lib/library";
@@ -11,7 +10,10 @@ import { listSecrets } from "@/lib/secrets";
 import { EditorShell, type ContextSection } from "@/components/editor-shell";
 import { kindOf, chipsFor, secretRefs, DOC_FOR, type FileKind } from "@/components/editor-context-model";
 import { nowMs } from "@/components/overview-model";
-import { EmptyScreen } from "@/components/ui";
+import { EmptyState, PageHeader } from "@/components/kit/page";
+import { PageTabs } from "@/components/kit/page-tabs";
+import { libraryTabs } from "@/components/nav-model";
+import { FileText } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -104,13 +106,18 @@ export default async function LibraryEditPage({
       lastChange={null}
       sections={sections}
       now={now}
-      treeFooter={
+      header={
         <>
-          Shared with every workspace. Agents reach these files at <span className="font-mono">../../../../library/</span>.{" "}
-          <Link href={`/dashboard/library?kind=${kind}${rest}`} className="underline hover:text-fg-tertiary">Back to the shelf</Link>.
+          <PageHeader
+            title="Library"
+            description="Shared with every workspace in this account. Agents reach these files at ../../../../library/."
+            back={{ href: `/dashboard/library?kind=${kind}${rest}`, label: "Back to the shelf" }}
+            className="mb-6"
+          />
+          <PageTabs tabs={libraryTabs(tenant).map((t) => ({ ...t, active: t.href.includes(`kind=${kind}`) && !t.href.includes("/files") }))} />
         </>
       }
-      emptyEditor={<EmptyScreen title="Nothing here yet" description="Add a shared tool, skill, knowledge or memory file from its shelf." />}
+      emptyEditor={<EmptyState bare icon={<FileText />} title="Nothing here yet" description="Add a shared tool, skill, knowledge or memory file from its shelf." />}
     />
   );
 }

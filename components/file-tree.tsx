@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useConfirm } from "@/components/confirm";
 import { matchesQuery } from "@/components/list-search-model";
+import { ChevronRight, FilePlus, FileText, Folder, FolderOpen, FolderPlus, Pencil, Trash2 } from "lucide-react";
 
 interface TreeNode {
   name: string;
@@ -87,57 +88,13 @@ function templateFor(rel: string): string {
 }
 
 function Chevron({ open }: { open: boolean }) {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="shrink-0 text-fg-subtle"
-    >
-      {open ? <path d="m6 9 6 6 6-6" /> : <path d="m9 18 6-6-6-6" />}
-    </svg>
-  );
+  return <ChevronRight aria-hidden className={`size-3.5 shrink-0 text-fg-subtle transition-transform ${open ? "rotate-90" : ""}`} />;
 }
 
-function NewFileIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
-      <path d="M14 2v6h6" /><path d="M12 18v-6" /><path d="M9 15h6" />
-    </svg>
-  );
-}
-
-function RenameIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-    </svg>
-  );
-}
-
-function NewFolderIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 19V6a2 2 0 0 1 2-2h3.5l2 2H18a2 2 0 0 1 2 2v3" />
-      <path d="M4 19h9" /><path d="M18 15v6" /><path d="M15 18h6" />
-    </svg>
-  );
-}
-
-function TrashIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-    </svg>
-  );
-}
+const NewFileIcon = () => <FilePlus className="size-3.5" aria-hidden />;
+const RenameIcon = () => <Pencil className="size-3.5" aria-hidden />;
+const NewFolderIcon = () => <FolderPlus className="size-3.5" aria-hidden />;
+const TrashIcon = () => <Trash2 className="size-3.5" aria-hidden />;
 
 // Why a file may not move or die, in the same sentences the server uses
 // (store.ts#anchoredReason — that one is authoritative; this mirror exists
@@ -239,11 +196,12 @@ function Node({
           href={hrefFor(node.path!)}
           style={{ paddingLeft: indent + 6 }}
           title={node.path}
-          className={`flex min-w-0 flex-1 items-center gap-1 rounded py-[3px] pr-2 font-mono text-xs leading-6 transition-colors ${
-            active ? "bg-ink text-on-ink" : "text-fg-tertiary hover:bg-muted hover:text-fg"
+          className={`flex min-h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md pr-2 text-[13px] transition-colors ${
+            active ? "bg-muted font-medium text-fg" : "text-fg-secondary hover:bg-muted hover:text-fg"
           }`}
         >
           <span className="w-3.5 shrink-0" />
+          <FileText aria-hidden className={`size-3.5 shrink-0 ${active ? "text-fg" : "text-fg-subtle"}`} />
           <span className="truncate">{node.name}</span>
         </Link>
         {canEdit && (
@@ -256,7 +214,7 @@ function Node({
               setRenaming(node.path!);
             }}
             className={`mr-1 shrink-0 rounded p-0.5 opacity-0 transition-opacity group-hover/file:opacity-100 ${
-              active ? "text-gray-300 hover:text-white" : "text-fg-subtle hover:bg-muted-strong hover:text-fg"
+              "text-fg-subtle hover:bg-muted-strong hover:text-fg"
             }`}
           >
             <RenameIcon />
@@ -272,7 +230,7 @@ function Node({
               remove(node.path!, false);
             }}
             className={`mr-1 shrink-0 rounded p-0.5 opacity-0 transition-opacity group-hover/file:opacity-100 ${
-              active ? "text-gray-300 hover:text-white" : "text-fg-subtle hover:bg-muted-strong hover:text-red-600"
+              "text-fg-subtle hover:bg-muted-strong hover:text-danger"
             }`}
           >
             <TrashIcon />
@@ -298,17 +256,18 @@ function Node({
           setDropTarget(null);
           if (from) move(from, node.id);
         }}
-        className={`group flex items-center gap-1 rounded py-[3px] pr-1 font-mono text-xs leading-6 text-fg-tertiary hover:bg-muted ${
-          dropTarget === node.id ? "bg-muted-strong/80 ring-1 ring-inset ring-gray-400" : ""
+        className={`group flex min-h-7 items-center gap-1 rounded-md pr-1 text-[13px] text-fg-secondary hover:bg-muted ${
+          dropTarget === node.id ? "bg-muted-strong/80 ring-1 ring-inset ring-line-strong" : ""
         }`}
       >
         <button
           type="button"
           onClick={() => toggle(node.id)}
-          className="flex min-w-0 flex-1 items-center gap-1 text-left hover:text-fg"
+          className="flex min-h-7 min-w-0 flex-1 items-center gap-1.5 text-left hover:text-fg"
         >
           <Chevron open={open} />
-          <span className="truncate font-medium text-gray-800">{node.name}<span className="text-gray-300">/</span></span>
+          {open ? <FolderOpen aria-hidden className="size-3.5 shrink-0 text-fg-muted" /> : <Folder aria-hidden className="size-3.5 shrink-0 text-fg-muted" />}
+          <span className="truncate text-fg">{node.name}</span>
         </button>
         <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
           <button
@@ -338,7 +297,7 @@ function Node({
               type="button"
               title="Delete this and everything in it"
               onClick={() => remove(node.id, true)}
-              className="rounded p-0.5 text-fg-subtle hover:bg-muted-strong hover:text-red-600"
+              className="rounded p-0.5 text-fg-subtle hover:bg-muted-strong hover:text-danger"
             >
               <TrashIcon />
             </button>
@@ -350,7 +309,7 @@ function Node({
         <div className="relative">
           <span
             aria-hidden
-            className="absolute inset-y-0 border-l border-line/80"
+            className="absolute inset-y-0 border-l border-line"
             style={{ left: indent + 13 }}
           />
           <div>
@@ -418,10 +377,10 @@ function DraftRow({
             if (e.key === "Escape") onCancel();
           }}
           placeholder={kind === "folder" ? "folder-name" : "file.md"}
-          className="w-full min-w-0 rounded border border-line-strong bg-surface px-1 py-0.5 font-mono text-xs text-fg focus:border-gray-500 focus:outline-none"
+          className="w-full min-w-0 rounded border border-line-strong bg-surface px-1 py-0.5 font-mono text-xs text-fg focus:border-line-strong focus:outline-none focus:ring-2 focus:ring-focus"
         />
       </div>
-      {error && <p className="mt-1 pl-7 text-[11px] leading-tight text-red-600">{error}</p>}
+      {error && <p className="mt-1 pl-7 text-xs leading-tight text-danger">{error}</p>}
     </div>
   );
 }
@@ -454,10 +413,10 @@ function RenameRow({
             if (e.key === "Enter" && name.trim()) onSubmit(name.trim());
             if (e.key === "Escape") onCancel();
           }}
-          className="w-full min-w-0 rounded border border-line-strong bg-surface px-1 py-0.5 font-mono text-xs text-fg focus:border-gray-500 focus:outline-none"
+          className="w-full min-w-0 rounded border border-line-strong bg-surface px-1 py-0.5 font-mono text-xs text-fg focus:border-line-strong focus:outline-none focus:ring-2 focus:ring-focus"
         />
       </div>
-      {error && <p className="mt-1 pl-7 text-[11px] leading-tight text-red-600">{error}</p>}
+      {error && <p className="mt-1 pl-7 text-xs leading-tight text-danger">{error}</p>}
     </div>
   );
 }
@@ -660,10 +619,9 @@ export function FileTree({
 
   return (
     <div className="select-none py-0.5">
-      <div className="mb-1 flex items-center justify-between gap-2 border-b border-b-gray-200/70 px-1.5 pb-1.5">
-          <span className="flex min-w-0 items-baseline gap-1 font-mono text-xs">
-            <span className="truncate font-semibold text-fg">{rootName ?? "files"}</span>
-            <span className="text-gray-300">/</span>
+      <div className="mb-1 flex min-h-7 items-center justify-between gap-2 px-1.5">
+          <span className="flex min-w-0 items-baseline gap-1 text-[13px]">
+            <span className="truncate font-medium text-fg-muted">{rootName ?? "files"}</span>
           </span>
           {canCreate && (
           <span className="flex items-center gap-0.5">

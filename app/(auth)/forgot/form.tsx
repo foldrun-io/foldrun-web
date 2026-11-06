@@ -19,11 +19,11 @@ export function ForgotForm() {
       }}
     >
       <label className="block">
-        <span className="mb-1 block text-sm font-medium text-fg-secondary">Email</span>
+        <span className="mb-1.5 block text-sm font-medium text-fg">Email</span>
         <input name="email" type="email" required autoFocus className={inputClass("w-full")} />
       </label>
-      {msg && <p className="rounded-lg bg-sunken px-3 py-2 text-sm text-fg-secondary">{msg}</p>}
-      <button disabled={busy} className={buttonClass("primary", "w-full")}>{busy ? "…" : "Send reset link"}</button>
+      {msg && <p className="rounded-md border border-line bg-sunken px-3 py-2 text-sm text-fg-secondary">{msg}</p>}
+      <button disabled={busy} className={buttonClass("primary", "h-9 w-full")}>{busy ? "…" : "Send reset link"}</button>
     </form>
   );
 }

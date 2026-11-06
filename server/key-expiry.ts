@@ -34,7 +34,7 @@ export function expiryNotice(k: Pick<ApiKeyRecord, "label" | "prefix" | "expires
       `The API key "${k.label}" (${k.prefix}…) on the account "${k.tenant}" stops working on ${day}.\n\n` +
       `Anything that uses it — a CI job, a script, a laptop — will be refused from then on. ` +
       `Rotate it to get a new key with the same role and workspaces, and keep the old one working for an hour or a day while you swap it in:\n\n` +
-      `  ${origin ? `${origin}/dashboard/settings#api-keys` : "Settings → API keys, on the dashboard"}\n` +
+      `  ${origin ? `${origin}/dashboard/settings?tab=api#api-keys` : "Settings → API keys, on the dashboard"}\n` +
       `  foldrun keys rotate <id> --grace 24h\n\n` +
       `If nothing uses it any more, let it lapse — there is nothing to do.\n`,
   };

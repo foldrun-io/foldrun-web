@@ -62,7 +62,7 @@ test("an account that must bring a model key is asked for it first", () => {
   assert.equal(o.total, 9);
   assert.equal(o.steps[0].id, "model");
   assert.equal(o.next?.id, "model");
-  assert.equal(o.next?.href, "/dashboard/settings#provider");
+  assert.equal(o.next?.href, "/dashboard/settings?tab=models#provider");
   assert.match(o.next?.cli ?? "", /^foldrun account model set /);
   const set = onboardingSteps({ ...empty, model: { done: true } });
   assert.equal(set.next?.id, "workspace");

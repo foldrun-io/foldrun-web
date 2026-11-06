@@ -11,9 +11,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
-import { buttonClass } from "@/components/ui";
 import { useConfirm } from "@/components/confirm";
 import { DeployPreview } from "@/components/deploy-preview";
+import { WithEmails } from "@/components/email";
+import { ChevronRight, Eye, EyeOff, GitCommitHorizontal, RotateCcw } from "lucide-react";
+import { Button } from "@/components/kit/button";
+import { Chip } from "@/components/kit/page";
+import { cn } from "@/components/kit/cn";
 
 interface Summary {
   id: string;
@@ -49,10 +53,13 @@ export function HistoryList({
   workspace,
   tenant,
   revisions,
+  page = 1,
 }: {
   workspace: string;
   tenant: string;
   revisions: Summary[];
+  /** Which page of the log this is: the first row of page 1 is what is live. */
+  page?: number;
 }) {
   const router = useRouter();
   const [confirm, confirmDialog] = useConfirm();
@@ -104,108 +111,123 @@ export function HistoryList({
   };
 
   return (
-    <ul className="divide-y divide-line-faint">
+    <div className="min-w-0 space-y-3">
       {confirmDialog}
-      {note && <li className="px-5 py-2 text-xs text-red-600">{note}</li>}
-      {revisions.map((r, index) => {
-        const on = open === r.id;
-        const detail = details[r.id];
-        return (
-          <li key={r.id}>
-            <button
-              type="button"
-              onClick={() => void toggle(r.id)}
-              className={`flex w-full items-start gap-4 px-5 py-3 text-left hover:bg-sunken ${on ? "bg-sunken" : ""}`}
-            >
-              <span className="w-24 shrink-0 pt-0.5 font-mono text-[11px] text-fg-subtle" title={r.id}>
-                {shortId(r)}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm text-fg">{r.message}</span>
-                <span className="mt-0.5 block text-xs text-fg-muted">
-                  {r.by}
-                  <span className="mx-1.5 text-gray-300">·</span>
-                  <LocalTime iso={r.at} options={{ dateStyle: "medium", timeStyle: "short" }} />
-                  {r.paths.length > 1 && (
-                    <>
-                      <span className="mx-1.5 text-gray-300">·</span>
-                      {r.paths.length} files
-                    </>
-                  )}
+      {note && <p role="alert" className="rounded-lg border border-danger-line bg-danger-soft px-4 py-2.5 text-sm text-danger">{note}</p>}
+      <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
+        {revisions.map((r, index) => {
+          const on = open === r.id;
+          const detail = details[r.id];
+          const canRoll = r.restorable && index > 0;
+          return (
+            <li key={r.id}>
+              <div className={cn("relative flex min-w-0 items-center gap-3 px-3 py-3 transition-colors hover:bg-sunken sm:px-4", on && "bg-sunken")}>
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-line bg-surface text-fg [&_svg]:size-4">
+                  <GitCommitHorizontal aria-hidden />
                 </span>
-              </span>
-              <span className="shrink-0 pt-1 text-xs text-gray-300">{on ? "▾" : "▸"}</span>
-            </button>
-            {on && r.restorable && index > 0 && (
-              <div className="flex items-center gap-3 border-t border-line-faint bg-sunken px-5 py-2">
-                <button type="button" onClick={() => setPreviewing(previewing === r.id ? null : r.id)} className={buttonClass("secondary", "px-2.5 py-1 text-xs")}>
-                  {previewing === r.id ? "Hide preview" : "Preview"}
+                <button
+                  type="button"
+                  onClick={() => void toggle(r.id)}
+                  aria-expanded={on}
+                  className="min-w-0 flex-1 text-left after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-focus"
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-sm font-medium text-fg">{r.message}</span>
+                    {page === 1 && index === 0 && <Chip tone="good" dot>Live</Chip>}
+                  </span>
+                  <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs text-fg-muted">
+                    <span className="font-mono text-fg-secondary" title={r.id}>
+                      {shortId(r)}
+                    </span>
+                    <span aria-hidden>·</span>
+                    <span className="min-w-0 truncate">
+                      <WithEmails text={r.by} />
+                    </span>
+                    <span aria-hidden>·</span>
+                    <LocalTime iso={r.at} options={{ dateStyle: "medium", timeStyle: "short" }} />
+                    {r.paths.length > 1 && (
+                      <>
+                        <span aria-hidden>·</span>
+                        {r.paths.length} files
+                      </>
+                    )}
+                  </span>
                 </button>
-                <button type="button" disabled={rolling !== null} onClick={() => void rollback(r)} className={buttonClass("secondary", "px-2.5 py-1 text-xs")}>
-                  {rolling === r.id ? "Rolling back…" : "Roll back to this"}
-                </button>
-                <span className="text-[11px] text-fg-subtle">Makes main what it was here. Later changes stay in history.</span>
-              </div>
-            )}
-            {on && r.restorable && index > 0 && previewing === r.id && (
-              <div className="border-t border-line-faint bg-sunken px-5 py-3">
-                <DeployPreview workspace={workspace} tenant={tenant} to={r.id} />
-              </div>
-            )}
-
-            {on && (
-              <div className="border-t border-line-faint bg-surface px-5 py-3">
-                {detail === "loading" || !detail ? (
-                  <p className="text-xs text-fg-subtle">Loading…</p>
-                ) : detail === "error" ? (
-                  <p className="text-xs text-red-600">Could not load this revision.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {detail.files.map((f) => (
-                      <div key={f.path}>
-                        <div className="mb-1 flex items-baseline justify-between">
-                          <Link href={editHref(f.path)} className="font-mono text-xs font-medium text-fg hover:underline">
-                            {f.path}
-                          </Link>
-                          <span className="text-[11px] text-fg-subtle">
-                            {f.before === null ? "created" : f.after === null ? "deleted" : "edited"}
-                          </span>
-                        </div>
-                        <pre className="max-h-80 overflow-auto rounded-md border border-line font-mono text-[11px] leading-relaxed">
-                          {f.diff
-                            // A long unchanged run is noise; keep three lines of context around a change.
-                            .map((op, i, all) => ({ op, i, keep: op.kind !== "same" || all.slice(Math.max(0, i - 3), i + 4).some((o) => o.kind !== "same") }))
-                            .reduce<{ rows: React.ReactNode[]; gap: boolean }>(
-                              (acc, { op, i, keep }) => {
-                                if (!keep) {
-                                  if (!acc.gap) acc.rows.push(<div key={`gap-${i}`} className="px-3 text-gray-300">⋯</div>);
-                                  return { rows: acc.rows, gap: true };
-                                }
-                                acc.rows.push(
-                                  <div
-                                    key={i}
-                                    className={`px-3 ${op.kind === "add" ? "bg-green-50 text-green-800" : op.kind === "del" ? "bg-red-50 text-red-800" : "text-fg-muted"}`}
-                                  >
-                                    <span className="mr-2 inline-block w-3 select-none text-gray-300">
-                                      {op.kind === "add" ? "+" : op.kind === "del" ? "−" : " "}
-                                    </span>
-                                    {op.text || " "}
-                                  </div>,
-                                );
-                                return { rows: acc.rows, gap: false };
-                              },
-                              { rows: [], gap: false },
-                            ).rows}
-                        </pre>
-                      </div>
-                    ))}
-                  </div>
+                {canRoll && (
+                  <Button size="sm" className="relative z-10 max-sm:hidden" disabled={rolling !== null} onClick={() => void rollback(r)}>
+                    <RotateCcw aria-hidden />
+                    {rolling === r.id ? "Rolling back…" : "Roll back"}
+                  </Button>
                 )}
+                <ChevronRight aria-hidden className={cn("size-4 shrink-0 text-fg-subtle transition-transform", on && "rotate-90")} />
               </div>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+
+              {on && canRoll && (
+                <div className="flex flex-wrap items-center gap-2 border-t border-line-faint bg-sunken px-3 py-2.5 sm:px-4">
+                  <Button size="sm" onClick={() => setPreviewing(previewing === r.id ? null : r.id)}>
+                    {previewing === r.id ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
+                    {previewing === r.id ? "Hide preview" : "Preview"}
+                  </Button>
+                  <Button size="sm" className="sm:hidden" disabled={rolling !== null} onClick={() => void rollback(r)}>
+                    <RotateCcw aria-hidden />
+                    {rolling === r.id ? "Rolling back…" : "Roll back to this"}
+                  </Button>
+                  <span className="text-[13px] text-fg-muted">Makes main what it was here. Later changes stay in history.</span>
+                </div>
+              )}
+              {on && canRoll && previewing === r.id && (
+                <div className="border-t border-line-faint bg-sunken px-3 py-3 sm:px-4">
+                  <DeployPreview workspace={workspace} tenant={tenant} to={r.id} />
+                </div>
+              )}
+
+              {on && (
+                <div className="border-t border-line-faint bg-surface px-3 py-3 sm:px-4">
+                  {detail === "loading" || !detail ? (
+                    <p className="text-[13px] text-fg-muted">Loading…</p>
+                  ) : detail === "error" ? (
+                    <p className="text-[13px] text-danger">Could not load this revision.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {detail.files.map((f) => (
+                        <div key={f.path} className="min-w-0">
+                          <div className="mb-1.5 flex items-center justify-between gap-2">
+                            <Link href={editHref(f.path)} className="min-w-0 truncate font-mono text-xs font-medium text-fg hover:underline">
+                              {f.path}
+                            </Link>
+                            <Chip tone={f.before === null ? "good" : f.after === null ? "bad" : "default"}>{f.before === null ? "created" : f.after === null ? "deleted" : "edited"}</Chip>
+                          </div>
+                          <pre className="max-h-80 overflow-auto rounded-md border border-line bg-sunken py-1 font-mono text-[11px] leading-relaxed">
+                            {f.diff
+                              // A long unchanged run is noise; keep three lines of context around a change.
+                              .map((op, i, all) => ({ op, i, keep: op.kind !== "same" || all.slice(Math.max(0, i - 3), i + 4).some((o) => o.kind !== "same") }))
+                              .reduce<{ rows: React.ReactNode[]; gap: boolean }>(
+                                (acc, { op, i, keep }) => {
+                                  if (!keep) {
+                                    if (!acc.gap) acc.rows.push(<div key={`gap-${i}`} className="px-3 text-fg-subtle">⋯</div>);
+                                    return { rows: acc.rows, gap: true };
+                                  }
+                                  acc.rows.push(
+                                    <div key={i} className={`px-3 ${op.kind === "add" ? "bg-success-soft text-success" : op.kind === "del" ? "bg-danger-soft text-danger" : "text-fg-muted"}`}>
+                                      <span className="mr-2 inline-block w-3 select-none text-fg-subtle">{op.kind === "add" ? "+" : op.kind === "del" ? "−" : " "}</span>
+                                      {op.text || " "}
+                                    </div>,
+                                  );
+                                  return { rows: acc.rows, gap: false };
+                                },
+                                { rows: [], gap: false },
+                              ).rows}
+                          </pre>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }

@@ -8,9 +8,9 @@ import { notFound } from "next/navigation";
 import { workspaceDir } from "@/lib/store";
 import { usedBytes, driverFor, fileStoreEnabled, listStorage } from "@/lib/storage";
 import { nowMs } from "@/components/overview-model";
-import { PageHeader } from "@/components/ui";
-import { WorkspaceHeader } from "@/components/workspace-header";
-import { UploadZone } from "./storage-tools";
+import { Page, PageHeader, EmptyState } from "@/components/kit/page";
+import { HardDrive } from "lucide-react";
+import { UploadZone, StorageUsage } from "./storage-tools";
 import { FileBrowser } from "@/components/file-browser";
 import { ShareList } from "@/components/share-list";
 import { browserDesks, dashboardShareReader } from "@/server/storage-browser";
@@ -30,17 +30,17 @@ export default async function WorkspaceFilesPage({
   const { workspace } = await params;
   const { tenant = "default" } = await searchParams;
   if (!fs.existsSync(workspaceDir(tenant, workspace))) notFound();
-  const qs = tenant !== "default" ? `?tenant=${tenant}` : "";
 
   if (!fileStoreEnabled()) {
     return (
-      <main className="mx-auto max-w-7xl px-6 py-8">
-        <WorkspaceHeader workspace={workspace} qs={qs} />
+      <Page width="wide">
         <PageHeader title="Storage" />
-        <p className="rounded-lg border border-dashed border-line p-6 text-sm text-fg-muted">
-          This instance runs a single workspace from a folder on disk, so there is no file store: <code className="font-mono text-xs">storage/</code> is a directory in that folder. Put something in it and the next run will read it.
-        </p>
-      </main>
+        <EmptyState
+          icon={<HardDrive />}
+          title="No file store on this instance"
+          description={<>This instance runs a single workspace from a folder on disk, so <code className="font-mono text-xs">storage/</code> is a directory in that folder. Put something in it and the next run will read it.</>}
+        />
+      </Page>
     );
   }
   const reader = await dashboardShareReader();
@@ -71,28 +71,22 @@ export default async function WorkspaceFilesPage({
     };
   });
 
+  const used = usedBytes(tenant, workspace);
+  const quotaMb = Number(process.env.FOLDRUN_STORAGE_QUOTA_MB ?? 5120);
+  const driver = driverFor(tenant, workspace).kind;
+
   return (
-    <main className="mx-auto max-w-7xl px-6 py-8">
-      <WorkspaceHeader workspace={workspace} qs={qs} />
+    <Page width="wide">
       <PageHeader
         title="Storage"
-        subtitle={<>What you upload and what {workspace}&apos;s runs produce. Agents read these at <code className="font-mono text-xs">workspace/storage/</code> and write new ones back there.</>}
+        description={<>What you upload and what {workspace}&apos;s runs produce. Agents read these at <code className="font-mono text-xs">workspace/storage/</code>.</>}
+        meta={<StorageUsage used={used} quotaMb={quotaMb} count={count} driver={driver} />}
+        actions={<UploadZone workspace={workspace} tenant={tenant} maxMb={Number(process.env.FOLDRUN_STORAGE_MAX_MB ?? 512)} />}
       />
-      <div className="mb-5 max-w-xl">
-        <UploadZone
-          workspace={workspace}
-          tenant={tenant}
-          maxMb={Number(process.env.FOLDRUN_STORAGE_MAX_MB ?? 512)}
-          used={usedBytes(tenant, workspace)}
-          quotaMb={Number(process.env.FOLDRUN_STORAGE_QUOTA_MB ?? 5120)}
-          count={count}
-          driver={driverFor(tenant, workspace).kind}
-        />
-      </div>
       <FileBrowser desks={desks} tenant={tenant} now={nowMs()} canShare={canShare} single />
       {(canShare || shares.length > 0) && (
         <ShareList rows={shares} workspace={workspace} tenant={tenant} now={nowMs()} canRevoke={canRevoke} />
       )}
-    </main>
+    </Page>
   );
 }
