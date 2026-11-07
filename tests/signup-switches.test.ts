@@ -270,6 +270,32 @@ test("verifying grants the trial only to an account whose door earns it", async 
   }
 });
 
+test("a paid account handed to an invitee, its founder removed, still earns no trial", async () => {
+  hosted(true);
+  fresh();
+  const { transferOwnership, removeMember } = await import("../server/users.ts");
+  const b = billing() as { grantTrial: (tenant: string) => Promise<boolean> };
+  const before = b.grantTrial;
+  const granted: string[] = [];
+  b.grantTrial = async (tenant) => {
+    granted.push(tenant);
+    return true;
+  };
+  try {
+    await createUser("boot2@example.test", PW, "boot2", { request: "free" });
+    const founder = await withOffer({ paidConfigured: true, paidBlocked: null, plans: [PLAN] }, () => createUser("payer2@example.test", PW, "payco", { request: "paid" }));
+    const joiner = await createUser("joiner2@example.test", PW, "payco", { joining: true, role: "admin" });
+    assert.equal(joiner.admission, "invite");
+    await transferOwnership("payco", joiner.id, founder.id);
+    await removeMember("payco", founder.id, joiner.id);
+    assert.equal(await accountAdmission("payco"), "invite", "the founder is gone: how the account began is unknown, not the joiner's door");
+    await verifyRoute.GET(new NextRequest(verifyLink("http://x", (await findUser("joiner2@example.test"))!)));
+    assert.deepEqual(granted, []);
+  } finally {
+    b.grantTrial = before;
+  }
+});
+
 // ------------------------------------------------------------ the page
 
 test("the sign-up page: invite, dead invite, setup, form, closed", () => {

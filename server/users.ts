@@ -340,14 +340,22 @@ export async function signupOpen(): Promise<boolean> {
   return anyWayIn(signupModesNow(await hasUsers()));
 }
 
-/** The door an account came in by: its founder's — the earliest member,
- *  who is the one that opened it (an invitee always joins later, and a
- *  transfer of ownership does not change how the account began). Absent
- *  when it was not recorded (accounts from before 7 Nov 2026). */
+/**
+ * The door an account came in by: its founder's — the earliest member who
+ * did not join on an invite (a transfer of ownership does not change how the
+ * account began). Absent when it was not recorded (a founder from before
+ * 7 Nov 2026). When the founder has been removed and only invitees remain,
+ * how the account began is no longer known: it reads as "invite", which earns
+ * nothing (core trialEligible) — never as whatever an invitee's record says
+ * (Codex review: transfer to an invitee, remove the paid founder, and the
+ * account must not then earn the trial).
+ */
 export async function accountAdmission(tenant: string): Promise<Admission | undefined> {
   const members = (await readUsers()).filter((u) => u.tenant === tenant);
   if (!members.length) return undefined;
-  const founder = members.reduce((a, b) => (b.createdAt < a.createdAt || (b.createdAt === a.createdAt && b.id < a.id) ? b : a));
+  const founders = members.filter((u) => u.admission !== "invite");
+  if (!founders.length) return "invite";
+  const founder = founders.reduce((a, b) => (b.createdAt < a.createdAt || (b.createdAt === a.createdAt && b.id < a.id) ? b : a));
   return founder.admission;
 }
 
