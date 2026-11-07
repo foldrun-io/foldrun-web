@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { flushRevisions } from "@/lib/workspace-revisions";
 import { requirePermission, errorResponse, reportError, actorOf, refuse } from "@/server/api";
 import { audit } from "@/server/audit";
 import { readPackage, planImport, applyImport, PackageError } from "@/lib/package";
@@ -64,6 +65,9 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
         overwritten: flag("overwrite") ? result.overwritten.length : 0,
       },
     });
+    // Committed as a revision before the answer (when revisions are on): the
+    // folder is already changed, so a store that is down only leaves it queued.
+    await flushRevisions({ tenant, workspace });
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     // A write that failed is the server's fault, and its message is a Node

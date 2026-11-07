@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { flushRevisions } from "@/lib/workspace-revisions";
 import { requireTenant, errorResponse, actorOf, requirePermission, refuse } from "@/server/api";
 import { createHash } from "node:crypto";
 import { readWorkspaceFile, writeWorkspaceFile, deleteWorkspacePath, listWorkspaceFiles, renameWorkspaceFile, assertEditablePath } from "@/lib/store";
@@ -89,6 +90,9 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ workspace: 
       ...(message ? { message } : {}),
     });
     await auditPolicyEvents(policyEvents, actor.name, tenant);
+    // Committed as a revision before the answer (when revisions are on): the
+    // folder is already changed, so a store that is down only leaves it queued.
+    await flushRevisions({ tenant, workspace });
     return NextResponse.json({ ok: true, path: body.path, sha256: sha256(body.content), issues });
   } catch (err) {
     return errorResponse(err);
@@ -135,6 +139,9 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
     }
     renameWorkspaceFile(tenant, workspace, body.from, body.to, { by });
     await auditPolicyEvents(policyEvents, actor.name, tenant);
+    // Committed as a revision before the answer (when revisions are on): the
+    // folder is already changed, so a store that is down only leaves it queued.
+    await flushRevisions({ tenant, workspace });
     return NextResponse.json({ ok: true, path: body.to });
   } catch (err) {
     return errorResponse(err);
@@ -156,6 +163,8 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ workspac
     const policyEvents = assertMayChangeWorkspacePolicy(actor, tenant, workspace, [], "merge", { removed: [body.path] });
     deleteWorkspacePath(tenant, workspace, body.path, { by });
     await auditPolicyEvents(policyEvents, actor.name, tenant);
+    // Committed as a revision before the answer (when revisions are on).
+    await flushRevisions({ tenant, workspace });
     return NextResponse.json({ ok: true });
   } catch (err) {
     return errorResponse(err);

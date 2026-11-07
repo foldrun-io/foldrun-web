@@ -13,6 +13,7 @@
 // dry run is the question, the name typed back is the answer.
 
 import { NextRequest, NextResponse } from "next/server";
+import { flushRevisions } from "@/lib/workspace-revisions";
 import { requirePermission, actorOf, errorResponse, ApiError } from "@/server/api";
 import { applyRestore, planRestore } from "@/server/restore";
 import { auditPolicyEvents } from "@/server/workspace-policy";
@@ -66,6 +67,9 @@ async function restorePost(req: NextRequest, ctx: Ctx) {
       subject: workspace,
       detail: { workspace, to: plan.to.sha, requested: to, from: plan.from, added: plan.added.length, updated: plan.updated.length, removed: plan.removed.length },
     });
+    // Committed as a revision before the answer (when revisions are on): the
+    // folder is already changed, so a store that is down only leaves it queued.
+    await flushRevisions({ tenant, workspace });
     return NextResponse.json({
       ok: true,
       applied: true,
