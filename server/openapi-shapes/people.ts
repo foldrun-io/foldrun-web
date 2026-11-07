@@ -202,7 +202,7 @@ export const SHAPES: Record<string, Shape> = {
         type: ["object", "null"],
         description: "null when not signed in",
       },
-      signupOpen: { ...bool, description: "a stranger may sign up on this install" },
+      signupOpen: { ...bool, description: "there is a way in for a stranger to show: the install's first account, free sign-up, or paid sign-up in effect (GET /api/signup says which, for the public)" },
       hasUsers: { ...bool, description: "the install has at least one account" },
     }),
   },

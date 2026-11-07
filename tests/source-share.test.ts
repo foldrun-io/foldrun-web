@@ -17,7 +17,7 @@ const { createApiKey } = await import("../server/auth.ts");
 const { createUser } = await import("../server/users.ts");
 const route = await import("../app/api/workspaces/[workspace]/source/share/route.ts");
 
-await createUser("owner@share.test", "a long and unusual passphrase 42!", "share-co");
+await createUser("owner@share.test", "a long and unusual passphrase 42!", "share-co", { request: "free" });
 const ws = path.join(process.env.FOLDRUN_DATA!, "share-co", "workspaces", "desk");
 const lib = path.join(process.env.FOLDRUN_DATA!, "share-co", "library");
 const put = (rel: string, text: string) => {

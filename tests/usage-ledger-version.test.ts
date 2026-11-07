@@ -88,7 +88,7 @@ test("a signed-in person on a pinned account gets the current shape", async () =
   const tenant = "ledger-dash";
   const { createUser, mintSession, SESSION_COOKIE } = await import("../server/users.ts");
   // The person signs up first (the account is theirs), then it gets a line.
-  const { value } = await mintSession(await createUser("owner@ledger-dash.test", "a long and unusual passphrase 42!", tenant));
+  const { value } = await mintSession(await createUser("owner@ledger-dash.test", "a long and unusual passphrase 42!", tenant, { request: "free" }));
   await account(tenant);
   await updateAdminState(tenant, { apiVersion: "2026-10-01" }, "test", "api-version");
   const r = await usage({ cookie: `${SESSION_COOKIE}=${value}` });

@@ -24,16 +24,22 @@ export function statusPageUrl(): string {
 /** CORS for an open GET: the allowed origin echoed, never `*` with
  *  credentials, and Vary so a cache does not hand one origin's answer to
  *  another. A request from anywhere else still gets the body — CORS only
- *  decides whether a browser lets the page read it. */
-export function withStatusCors(req: NextRequest, res: NextResponse): NextResponse {
+ *  decides whether a browser lets the page read it. Exact matches only: no
+ *  suffix, no pattern, and an opaque origin ("null") is never on a list.
+ *  Shared by every open read a static site fetches (/api/status, /api/signup). */
+export function withOpenCors(req: NextRequest, res: NextResponse, origins: string[]): NextResponse {
   const origin = req.headers.get("origin");
-  if (origin && statusOrigins().includes(origin)) {
+  if (origin && origin !== "null" && origins.includes(origin)) {
     res.headers.set("access-control-allow-origin", origin);
     res.headers.set("access-control-allow-methods", "GET, OPTIONS");
     res.headers.set("access-control-max-age", "600");
   }
   res.headers.append("vary", "Origin");
   return res;
+}
+
+export function withStatusCors(req: NextRequest, res: NextResponse): NextResponse {
+  return withOpenCors(req, res, statusOrigins());
 }
 
 export function statusPreflight(req: NextRequest): NextResponse {

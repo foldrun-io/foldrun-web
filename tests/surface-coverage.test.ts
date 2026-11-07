@@ -129,6 +129,7 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   "GET /api/healthz": "for monitors and load balancers",
   "GET /api/metrics": CALLBACK + "a Prometheus scrape",
   "GET /api/status/history": "the public status page's, served with CORS",
+  "GET /api/signup": SERVER("(auth)/signup/page.tsx → signupModesNow, the same resolver (server/signup.ts); the route is the public site's, served with CORS"),
   "POST /api/hooks/[tenant]/[workspace]/[flow]": CALLBACK + "a flow's webhook URL",
   "POST /api/inbox/[tenant]/[workspace]/[flow]": CALLBACK + "inbound mail for a flow",
   "GET /api/keys": SERVER("settings/page.tsx → listApiKeys"),

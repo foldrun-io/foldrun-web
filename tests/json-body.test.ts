@@ -76,7 +76,7 @@ test("library POST/PUT/DELETE and gallery POST: a null body is 400", async () =>
 });
 
 test("cli authorize: no body, a null body or a non-string code is 400", async () => {
-  const user = await createUser("body@acme-body.test", "a long enough password 1", "acme-body");
+  const user = await createUser("body@acme-body.test", "a long enough password 1", "acme-body", { request: "free" });
   const cookie = `${SESSION_COOKIE}=${(await mintSession(user)).value}`;
   for (const body of [undefined, "null", "[]", JSON.stringify({ code: 12345678 })]) {
     await is400(await authorize.POST(req("POST", "/api/cli/authorize", body, { cookie })));

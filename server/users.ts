@@ -7,9 +7,11 @@
 // this file, not by redesigning it.
 //
 // Passwords are scrypt (node:crypto, per-user salt). Signup bootstraps the
-// same way API keys do: the first user is free, every later one needs
-// FOLDRUN_OPEN_SIGNUP=1 — a personal install stays personal by default, and
-// the hosted platform, which wants strangers, sets the flag.
+// same way API keys do: the first user is free, every later one needs a
+// door that is open (signup.open, FOLDRUN_OPEN_SIGNUP=1 — or, on the hosted
+// platform, paid sign-up once it is in effect) — a personal install stays
+// personal by default. Which door each account came in by is recorded on
+// its owner (`admission`, core signup.ts).
 
 import { ensureTenantKey } from "@/platform/tenant-keys.ts";
 import { assertPasswordPolicy } from "@/server/password-policy";
@@ -31,7 +33,8 @@ import { assertSafeName, accountDir, ensureAccountFiles } from "@/lib/store.ts";
 import { installKey } from "@/lib/webhook.ts";
 import { sessionMac } from "./session-mac.ts";
 import { isOwner as isOwnerOf, ownerOf as ownerOfMembers } from "@/platform/ownership.ts";
-import { assertSignupAllowed } from "@/platform/signup.ts";
+import { anyWayIn, assertSignupAllowed, SIGNUP_REQUESTS, type Admission, type SignupRequest } from "@/platform/signup.ts";
+import { signupModesNow } from "./signup";
 import {
   assertCanChangeRole,
   assertCanRemoveMember,
@@ -54,7 +57,6 @@ import {
   type InviteRow,
   type InviteStatus,
 } from "@/platform/invites.ts";
-import { settingText } from "@/platform/settings";
 
 const usersFile = () => path.join(dataRoot(), "users.json");
 
@@ -129,6 +131,12 @@ export interface UserRecord {
   session?: { kind: "v1" | "v2" | "s1"; audience: string | null; mfa: boolean };
   /** A person's own small settings: `onboardingDismissedAt`, and the like. */
   prefs?: Record<string, unknown> | null;
+  /** The door this person's account came in by, set once when they were
+   *  added (core signup.ts Admission): bootstrap, free, paid, invite or
+   *  operator. Absent on people from before 7 Nov 2026. Never written by
+   *  any request after that — it is what the account is owed (the trial),
+   *  read later, and must not be something a person can change. */
+  admission?: Admission;
 }
 
 // A string sealed under the install key: AES-256-GCM, iv.tag.ciphertext,
@@ -322,8 +330,25 @@ export async function hasUsers(): Promise<boolean> {
   return (await readUsers()).length > 0;
 }
 
+/**
+ * Is there a way in for a stranger — should a page SHOW one? The first
+ * account (bootstrap), free sign-up, or paid sign-up in effect. Never an
+ * authorization: nothing lets anyone in on this; createUser asks the door it
+ * was asked for, inside the lock (core signup.ts assertSignupAllowed).
+ */
 export async function signupOpen(): Promise<boolean> {
-  return !await hasUsers() || settingText("FOLDRUN_OPEN_SIGNUP") === "1";
+  return anyWayIn(signupModesNow(await hasUsers()));
+}
+
+/** The door an account came in by: its founder's — the earliest member,
+ *  who is the one that opened it (an invitee always joins later, and a
+ *  transfer of ownership does not change how the account began). Absent
+ *  when it was not recorded (accounts from before 7 Nov 2026). */
+export async function accountAdmission(tenant: string): Promise<Admission | undefined> {
+  const members = (await readUsers()).filter((u) => u.tenant === tenant);
+  if (!members.length) return undefined;
+  const founder = members.reduce((a, b) => (b.createdAt < a.createdAt || (b.createdAt === a.createdAt && b.id < a.id) ? b : a));
+  return founder.admission;
 }
 
 /**
@@ -357,6 +382,9 @@ export async function findUser(email: string): Promise<UserRecord | null> {
 /** What the users lock knows when it decides whether this person may be
  *  added: asked inside the lock, so two at once cannot both pass. */
 export interface NewUserFacts {
+  /** Does anyone exist on the install? From the read under the lock: the
+   *  bootstrap door is decided here, so two first sign-ups make one owner. */
+  usersExist: boolean;
   accountExists: boolean;
   emailTaken: boolean;
   nameTaken: boolean;
@@ -374,7 +402,7 @@ async function addUser(
   password: string,
   tenant: string,
   opts: { joining?: boolean; role?: Role; workspaces?: string[] | null },
-  decide: () => Promise<(facts: NewUserFacts) => void>,
+  decide: () => Promise<(facts: NewUserFacts) => Admission>,
 ): Promise<UserRecord> {
   const normalized = email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) throw new Error("that is not an email address");
@@ -398,7 +426,8 @@ async function addUser(
     ...(opts.joining && opts.workspaces ? { workspaces: opts.workspaces } : {}),
   };
   await mutateUsers((users) => {
-    allowed({
+    user.admission = allowed({
+      usersExist: users.length > 0,
       accountExists: users.some((u) => u.tenant === tenant),
       emailTaken: users.some((u) => u.email === normalized),
       nameTaken: users.some((u) => u.tenant === tenant) || fs.existsSync(accountDir(tenant)),
@@ -419,21 +448,45 @@ async function addUser(
   return user;
 }
 
-/** A sign-up: the install's signup rules decide (core signup.ts). */
-export async function createUser(
-  email: string,
-  password: string,
-  tenant: string,
-  opts: { joining?: boolean; role?: Role; workspaces?: string[] | null } = {},
-): Promise<UserRecord> {
-  return addUser(email, password, tenant, opts, async () => {
+/** How a sign-up asks to come in: a new account by a named door, or a
+ *  member joining one (server code that already holds the proof — the
+ *  public route joins through acceptInvite, which checks the invite). */
+export type CreateUserOpts =
+  | { joining?: false; request: SignupRequest; /** the install's setup token was presented and matched */ setupToken?: boolean }
+  | { joining: true; role?: Role; workspaces?: string[] | null };
+
+/**
+ * A sign-up: the install's signup rules decide (core signup.ts), by the door
+ * asked for — there is no "any door that is open". The door is decided INSIDE
+ * the users lock: the bootstrap door from the people read under it, so two
+ * first sign-ups at once make exactly one owner, and the switches from this
+ * pod's settings snapshot at that moment. The door taken is recorded on the
+ * person (`admission`).
+ */
+export async function createUser(email: string, password: string, tenant: string, opts: CreateUserOpts): Promise<UserRecord> {
+  const joining = opts.joining === true;
+  // Validated, not trusted: a caller passing a body's field through gets
+  // the closed sentence for anything that is not a door, like core does.
+  const request = joining ? undefined : (opts as { request?: unknown }).request;
+  if (!joining && !SIGNUP_REQUESTS.includes(request as SignupRequest)) {
+    assertSignupAllowed({ joining: false, request, modes: { bootstrap: false, free: false, paid: false }, accountExists: false, emailTaken: false, nameTaken: false });
+  }
+  const setupToken = !joining && (opts as { setupToken?: boolean }).setupToken === true;
+  return addUser(email, password, tenant, opts, async () => (facts) => {
     // The order these are asked in is a security property, and it lives in
     // core where it can be unit-tested — see signup.ts. Briefly: whether signup
     // is possible at all is decided BEFORE anything specific to this address,
     // so a closed install refuses every address with the same sentence instead
     // of confirming which ones are registered.
-    const open = await signupOpen();
-    return (facts) => assertSignupAllowed({ joining: Boolean(opts.joining), open, ...facts });
+    const modes = signupModesNow(facts.usersExist);
+    const admission = assertSignupAllowed({ joining, request, modes, ...facts });
+    // The first account of an install with a setup token is its installer's:
+    // the route checked the token before the lock, and the lock checks the
+    // door it actually took, so a first sign-up cannot slip in between.
+    if (admission === "bootstrap" && process.env.FOLDRUN_SETUP_TOKEN && !setupToken) {
+      throw Object.assign(new Error("this install's first account needs its setup link"), { status: 403 });
+    }
+    return admission;
   });
 }
 
@@ -446,7 +499,10 @@ export async function createUser(
  * from the public may call this.
  */
 export async function createAccountOwner(email: string, password: string, tenant: string, allowed: (facts: NewUserFacts) => void): Promise<UserRecord> {
-  return addUser(email, password, tenant, {}, async () => allowed);
+  return addUser(email, password, tenant, {}, async () => (facts) => {
+    allowed(facts);
+    return "operator";
+  });
 }
 
 export async function verifyPassword(email: string, password: string): Promise<UserRecord | null> {
@@ -720,7 +776,6 @@ export async function acceptInvite(
   const normalized = email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) throw new Error("that is not an email address");
   await assertPasswordPolicy(password, normalized);
-  const open = await signupOpen();
 
   const salt = crypto.randomBytes(16).toString("hex");
   const user: UserRecord = {
@@ -731,6 +786,7 @@ export async function acceptInvite(
     hash: scrypt(password, salt),
     createdAt: new Date().toISOString(),
     owner: false,
+    admission: "invite",
   };
   const invite = await mutateUsers(async (users, invites) => {
     const row = await invites.claim(parsed.id, user.id);
@@ -741,7 +797,8 @@ export async function acceptInvite(
     if (!minterStillMay(users, row)) throw invalidInvite();
     assertSignupAllowed({
       joining: true,
-      open,
+      // An invite is its own door: no switch is asked.
+      modes: { bootstrap: false, free: false, paid: false },
       accountExists: users.some((u) => u.tenant === row.tenant),
       emailTaken: users.some((u) => u.email === normalized),
       nameTaken: true,

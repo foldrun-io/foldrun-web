@@ -30,7 +30,7 @@ const { peekHandoff } = await import("../../foldrun-platform/src/oauth-connect.t
 const { setOAuth2Secret } = await import("../../foldrun-core/src/secrets.ts");
 const { scopesOf } = await import("../server/oauth-scopes.ts");
 
-const owner = await createUser("o@acme.test", "correct horse battery staple 9", "acme");
+const owner = await createUser("o@acme.test", "correct horse battery staple 9", "acme", { request: "free" });
 const session = (await mintSession(owner)).value;
 fs.mkdirSync(path.join(process.env.FOLDRUN_DATA, "acme/workspaces/desk/flows"), { recursive: true });
 fs.writeFileSync(path.join(process.env.FOLDRUN_DATA, "acme/workspaces/desk/AGENTS.md"), "---\nname: desk\n---\n");
@@ -138,7 +138,7 @@ test("an Idempotency-Key retry of a browser-bound start gets its own consent and
 });
 
 test("a hand-off someone may not accept is refused without being used up", async () => {
-  const other = await createUser("x@other.test", "correct horse battery staple 9", "other");
+  const other = await createUser("x@other.test", "correct horse battery staple 9", "other", { request: "free" });
   const otherSession = (await mintSession(other)).value;
   const r = await asKey(start.POST, "/api/oauth/start", { client: "any-app", secret: "KEEP_TOKEN", workspace: "desk" });
   const id = new URL(((await r.json()) as { url: string }).url).pathname.split("/").pop()!;

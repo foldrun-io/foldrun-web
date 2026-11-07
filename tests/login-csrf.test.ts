@@ -70,7 +70,7 @@ test("every open write: a cross-site text/plain or urlencoded form post is refus
 });
 
 test("same-origin JSON signs in, end to end: through the proxy, then the route sets the session", async () => {
-  await createUser("owner@example.test", "Correct-horse-battery-9", "acme");
+  await createUser("owner@example.test", "Correct-horse-battery-9", "acme", { request: "free" });
   const headers = { "content-type": "application/json", origin: ORIGIN, "sec-fetch-site": "same-origin" };
   const body = JSON.stringify({ email: "owner@example.test", password: "Correct-horse-battery-9" });
   assert.equal((await throughProxy("/api/auth/login", headers, body)).passed, true);

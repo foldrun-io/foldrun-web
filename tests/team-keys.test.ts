@@ -21,7 +21,7 @@ const memberRoute = await import("../app/api/team/members/[id]/route.ts");
 
 const PW = "a long and unusual passphrase 42!";
 const tenant = "keys-co";
-const owner = await createUser("owner@keys.test", PW, tenant);
+const owner = await createUser("owner@keys.test", PW, tenant, { request: "free" });
 const ownerCookie = `${SESSION_COOKIE}=${(await mintSession(owner)).value}`;
 const asOwner = (method: string, p: string, body?: unknown) =>
   new NextRequest(`http://localhost:3900${p}`, { method, headers: { cookie: ownerCookie, origin: "http://localhost:3900", "content-type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) });

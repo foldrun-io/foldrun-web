@@ -193,6 +193,23 @@ export const SHAPES: Record<string, Shape> = {
       maintenance: arr(PublicIncident, "maintenance now or announced"),
     }),
   },
+  "GET /api/signup": {
+    response: obj({
+      free: { ...bool, description: "a stranger may open an account without paying (signup.open)" },
+      paid: { ...bool, description: "a stranger may open an account by choosing a plan — hosted only, and only while payments are ready and the paid flow exists" },
+      plans: arr(
+        obj({
+          id: str(), name: str(),
+          price: obj({ amount: { ...int, description: "minor units of the currency (cents for usd)" }, currency: str("ISO 4217, lower case"), interval: str("month | year") }),
+          credits: { ...int, description: "credits the fee buys each cycle" },
+          storageGb: nullable({ ...int, description: "storage included, GB; null where the catalogue does not say" }),
+          vcpu: num, memoryGiB: num,
+          priority: { ...bool, description: "the high-priority lane" },
+        }),
+        "only the plans the catalogue marks purchasable, and only while paid is true; empty otherwise and on the community edition",
+      ),
+    }),
+  },
   "GET /api/status/history": {
     query: [{ name: "days", description: "1–90, default 90" }],
     response: obj({

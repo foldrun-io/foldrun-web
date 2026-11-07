@@ -237,7 +237,7 @@ test("the pin is for keys: the dashboard always gets the current version", async
     const tenant = "pinned-dash";
     const { key } = await createApiKey(tenant, "ci", undefined, undefined, "editor");
     const { createUser, mintSession, SESSION_COOKIE } = await import("../server/users.ts");
-    const { value } = await mintSession(await createUser("owner@pinned-dash.test", "a long and unusual passphrase 42!", tenant));
+    const { value } = await mintSession(await createUser("owner@pinned-dash.test", "a long and unusual passphrase 42!", tenant, { request: "free" }));
     await updateAdminState(tenant, { apiVersion: "2099-02-02" }, "test", "api-version");
     const viaKey = await apiGate(req("GET", "/api/workspaces", key));
     assert.equal(viaKey.headers["foldrun-version"], "2099-02-02", "a key gets the account's pin");

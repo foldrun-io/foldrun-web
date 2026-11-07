@@ -22,7 +22,7 @@ const { accountDir, workspaceDir } = await import("@/lib/store");
 const route = await import("../app/api/usage/budget/route.ts");
 
 const tenant = "budget-co";
-const owner = await createUser("owner@budget.test", "a long and unusual passphrase 42!", tenant);
+const owner = await createUser("owner@budget.test", "a long and unusual passphrase 42!", tenant, { request: "free" });
 const write = (dir: string, front: string) => {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "AGENTS.md"), `---\n${front}\n---\n\nContext.\n`);

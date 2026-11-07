@@ -35,6 +35,7 @@ import { GROUP_SHAPES } from "./openapi-shapes/index.ts";
 const OPEN = [
   /^\/api\/healthz$/, /^\/api\/version$/, /^\/api\/openapi\.json$/,
   /^\/api\/status(\/history)?$/,
+  /^\/api\/signup$/,
   /^\/api\/hooks\//, /^\/api\/inbox\//, /^\/api\/events\//, /^\/api\/approve\//, /^\/api\/unsubscribe$/,
   /^\/api\/billing\/stripe$/, /^\/api\/billing\/confirm$/,
   // A storefront's HMAC signature (X-Foldrun-Partner/Timestamp/Signature), never a key.

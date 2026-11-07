@@ -27,7 +27,7 @@ const transferRoute = await import("../app/api/team/transfer/route.ts");
 
 const PW = "a long and unusual passphrase 42!";
 const tenant = "cli-co";
-const owner = await createUser("owner@cli.test", PW, tenant);
+const owner = await createUser("owner@cli.test", PW, tenant, { request: "free" });
 const admin = await createUser("admin@cli.test", PW, tenant, { joining: true, role: "admin" });
 const editor = await createUser("editor@cli.test", PW, tenant, { joining: true, role: "editor" });
 

@@ -30,7 +30,7 @@ const ask = (cookie: string, body: unknown) =>
   transfer.POST(new NextRequest("http://x/api/team/transfer", { method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify(body) }));
 
 test("a session alone no longer hands the account over: the password is asked, and checked", async () => {
-  const owner = await createUser("owner@transfer.test", PW, "transfer-a");
+  const owner = await createUser("owner@transfer.test", PW, "transfer-a", { request: "free" });
   const member = await createUser("next@transfer.test", PW, "transfer-a", { joining: true, role: "admin" });
   const cookie = await cookieOf(owner);
 
@@ -46,7 +46,7 @@ test("a session alone no longer hands the account over: the password is asked, a
 });
 
 test("with two-step sign-in on, a code from the app is asked too", async () => {
-  const owner = await createUser("mfa-owner@transfer.test", PW, "transfer-b");
+  const owner = await createUser("mfa-owner@transfer.test", PW, "transfer-b", { request: "free" });
   const member = await createUser("mfa-next@transfer.test", PW, "transfer-b", { joining: true, role: "admin" });
   const secret = "JBSWY3DPEHPK3PXP";
   await setMfa(owner.id, { secret, backupHashes: [] });
@@ -61,7 +61,7 @@ test("with two-step sign-in on, a code from the app is asked too", async () => {
 });
 
 test("wrong passwords are limited: the seventh in a quarter hour is a 429", async () => {
-  const owner = await createUser("grind@transfer.test", PW, "transfer-c");
+  const owner = await createUser("grind@transfer.test", PW, "transfer-c", { request: "free" });
   const member = await createUser("grind-next@transfer.test", PW, "transfer-c", { joining: true, role: "admin" });
   const cookie = await cookieOf(owner);
   for (let i = 0; i < 6; i++) assert.equal((await ask(cookie, { to: member.id, password: `wrong ${i}` })).status, 401);

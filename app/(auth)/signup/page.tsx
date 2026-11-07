@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import Link from "@/components/kit/link";
-import { signupOpen, peekInvite, setupTokenRequired } from "@/server/users";
+import { hasUsers, peekInvite, setupTokenRequired } from "@/server/users";
+import { signupModesNow, signupPageState, SIGNUP_CONTACT } from "@/server/signup";
+import { platform } from "@/lib/platform";
 import { AuthForm } from "../auth-form";
 import { Email } from "@/components/email";
 import { AuthCard } from "../brand";
@@ -17,10 +19,19 @@ export default async function SignupPage({
   // Looked at, not used up: the invite is spent only when the form posts
   // and the member is created (acceptInvite).
   const invited = invite ? await peekInvite(invite) : null;
+  // The doors as this server runs them — the same resolver the POST and
+  // GET /api/signup use (server/signup.ts).
+  const state = signupPageState({
+    inviteGiven: Boolean(invite),
+    inviteValid: Boolean(invited),
+    setupRequired: !invited && (await setupTokenRequired()),
+    setupGiven: Boolean(setup),
+    modes: signupModesNow(await hasUsers()),
+  });
 
   // A valid invite is its own permission: someone on the team sent it, so
   // the install's open-signup setting does not apply.
-  if (invited) {
+  if (state === "invite" && invited) {
     return (
       <AuthCard
         title={
@@ -48,7 +59,7 @@ export default async function SignupPage({
       </AuthCard>
     );
   }
-  if (invite && !invited) {
+  if (state === "invite-invalid") {
     return (
       <AuthCard center title="That invite is no longer valid" hint="Used, revoked or expired — ask your teammate for a fresh link. An invite works once, for seven days." />
     );
@@ -57,7 +68,7 @@ export default async function SignupPage({
   // The install's first account, where a setup token was set: the link the
   // installer printed carries it. Without it, say where to find it — never
   // whether a given token was close.
-  if (!invited && (await setupTokenRequired()) && !setup) {
+  if (state === "setup") {
     return (
       <AuthCard
         center
@@ -72,20 +83,32 @@ export default async function SignupPage({
     );
   }
 
-  if (!await signupOpen()) {
+  // Neither the first account nor free sign-up: registration is closed. No
+  // waitlist — a person who wants in writes to us (hosted) or asks whoever
+  // runs the install. Signing in, and a valid invite, still work.
+  if (state === "closed") {
     return (
       <AuthCard
         center
-        title="Signups are closed"
+        title="New account registration is closed"
         hint={
-          <>
-            This install doesn&apos;t accept new accounts. If it&apos;s yours, start the server with <code className="rounded bg-muted px-1">FOLDRUN_OPEN_SIGNUP=1</code>.
-          </>
+          platform.edition() === "hosted" ? (
+            <>
+              Contact <Email value={SIGNUP_CONTACT} /> to ask for an account. If a teammate invited you, open the link they sent.
+            </>
+          ) : (
+            <>
+              This install doesn&apos;t accept new accounts — ask whoever runs it for an invite. If it&apos;s yours, start the server with <code className="rounded bg-muted px-1">FOLDRUN_OPEN_SIGNUP=1</code>.
+            </>
+          )
         }
         footer={
-          <Link href="/login" className="font-medium text-fg hover:underline">
-            Sign in instead
-          </Link>
+          <>
+            Already have an account?{" "}
+            <Link href="/login" className="font-medium text-fg hover:underline">
+              Sign in
+            </Link>
+          </>
         }
       />
     );

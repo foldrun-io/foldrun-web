@@ -81,7 +81,7 @@ test("a request older than the approval window is refused approval, and can stil
 });
 
 test("the route answers 410 for a stale approval, with what to do", async () => {
-  const user = await createUser("phish@acme-phish.test", "a long enough password 1", "acme-phish");
+  const user = await createUser("phish@acme-phish.test", "a long enough password 1", "acme-phish", { request: "free" });
   const cookie = `${SESSION_COOKIE}=${(await mintSession(user)).value}`;
   const stale = await beginCliLogin("carried");
   age(stale.code, APPROVE_WINDOW_MS + 1000);

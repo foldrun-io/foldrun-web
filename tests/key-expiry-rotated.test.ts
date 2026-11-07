@@ -19,7 +19,7 @@ const { createUser } = await import("../server/users.ts");
 const { warnExpiringKeys } = await import("../server/key-expiry.ts");
 
 test("rotating with a grace does not mail a warning about the old key", async () => {
-  await createUser("owner@rot.test", "correct horse battery staple 9", "rot");
+  await createUser("owner@rot.test", "correct horse battery staple 9", "rot", { request: "free" });
   const { record } = await createApiKey("rot", "ci", "owner@rot.test", undefined, "editor");
   const { record: fresh } = await rotateApiKey("rot", record.id, 24 * 3_600_000);
   const sent: string[] = [];

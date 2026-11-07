@@ -38,7 +38,7 @@ const signupRoute = await import("../app/api/auth/signup/route.ts");
 const PW = "a long and unusual passphrase 42!";
 const BASE = "http://localhost:3900";
 const tenant = "inv-co";
-const owner = await createUser("owner@inv.test", PW, tenant);
+const owner = await createUser("owner@inv.test", PW, tenant, { request: "free" });
 saveWorkspace(tenant, "desk-a", templateFiles("home"));
 saveWorkspace(tenant, "desk-b", templateFiles("home"));
 
@@ -305,7 +305,7 @@ test("a minter removed or demoted voids what they handed out", async () => {
 });
 
 test("another account's invite is a 404 there, and is not in its list", async () => {
-  const other = await createUser("boss@other-inv.test", PW, "other-inv");
+  const other = await createUser("boss@other-inv.test", PW, "other-inv", { request: "free" });
   const otherCookie = await cookieOf(other);
   const inv = await invite(ownerCookie, { role: "viewer" });
   assert.equal((await del(inv.id, { cookie: otherCookie })).status, 404);

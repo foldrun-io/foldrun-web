@@ -53,7 +53,7 @@ function workspace(tenant: string, name: string) {
   fs.writeFileSync(path.join(ws, "flows/weekly.md"), "---\nname: weekly\ntrigger: manual\n---\n\n1. [[writer]] — write the weekly note\n");
 }
 
-const owner = await createUser("ana@acme.test", PW, "acme");
+const owner = await createUser("ana@acme.test", PW, "acme", { request: "free" });
 const member = await createUser("vic@acme.test", PW, "acme", { joining: true, role: "editor" });
 workspace("acme", "desk");
 workspace("acme", "other");

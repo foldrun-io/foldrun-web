@@ -125,7 +125,7 @@ test("the route: a key reads the steps; a person hides and brings back the card"
   const keyPatch = await PATCH(new NextRequest("http://x/api/me/onboarding", { method: "PATCH", headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ dismissed: true }) }));
   assert.equal(keyPatch.status, 401, "a key is nobody; hiding is a person's");
 
-  const user = await createUser("owner@acme.test", "Qz8-vmT2-plx9-Wr4k-onb", "acme2");
+  const user = await createUser("owner@acme.test", "Qz8-vmT2-plx9-Wr4k-onb", "acme2", { request: "free" });
   const { value } = await mintSession(user);
   const cookie = `${SESSION_COOKIE}=${value}`;
   const patch = (dismissed: unknown) =>
@@ -176,7 +176,7 @@ test("the welcome flow: four screens from the steps, the first not done, ?step= 
 test("the route: welcomed, per-step hide and show, a workspace's checklist", async () => {
   // A second account on this install: signups are open for it.
   process.env.FOLDRUN_OPEN_SIGNUP = "1";
-  const user = await createUser("hider@acme3.test", "Qz8-vmT2-plx9-Wr4k-hid", "acme3");
+  const user = await createUser("hider@acme3.test", "Qz8-vmT2-plx9-Wr4k-hid", "acme3", { request: "free" });
   delete process.env.FOLDRUN_OPEN_SIGNUP;
   const { value } = await mintSession(user);
   const cookie = `${SESSION_COOKIE}=${value}`;

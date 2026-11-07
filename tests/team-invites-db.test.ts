@@ -32,7 +32,7 @@ test("invites in Postgres: one member per link under a race, a refused accept ro
   const { createUser, mintInvite, acceptInvite, peekInvite, revokeInvitesBeyond, listMembers } = await import("../server/users.ts");
   const { deleteTenant } = await import("@/platform/tenant-delete.ts");
   const tenant = `inv${Date.now()}`;
-  const owner = await createUser(`owner@${tenant}.test`, PW, tenant);
+  const owner = await createUser(`owner@${tenant}.test`, PW, tenant, { request: "free" });
   const row = async (id: string) => (await orm()!.select().from(invites).where(eq(invites.id, id)))[0];
 
   // A race: five acceptances of one link, one member.

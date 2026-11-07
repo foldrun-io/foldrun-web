@@ -28,7 +28,7 @@ test("a console session is stored with its surface and its second factor; a plai
   process.env.FOLDRUN_OPEN_SIGNUP = "1";
   const { createUser, mintSession, verifySession } = await import("../server/users.ts");
   const tenant = `aud${Date.now()}`;
-  const user = await createUser(`op@${tenant}.test`, "a long enough password here 1", tenant);
+  const user = await createUser(`op@${tenant}.test`, "a long enough password here 1", tenant, { request: "free" });
   const consoleToken = await mintSession(user, "test", { audience: "admin", mfa: true });
   assert.match(consoleToken.value, /^v2\./, "revocable: the facts live in the row");
   assert.deepEqual((await verifySession(consoleToken.value))?.session, { kind: "v2", audience: "admin", mfa: true });

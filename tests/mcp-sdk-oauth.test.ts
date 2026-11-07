@@ -60,7 +60,7 @@ async function inProcess(input: string | URL | Request, init?: RequestInit): Pro
   return handler(new NextRequest(req.url, { method: req.method, headers: req.headers, ...(body !== undefined ? { body } : {}) }));
 }
 
-const owner = await createUser("ana@acme.test", "Correct-Horse-Battery-77", "acme");
+const owner = await createUser("ana@acme.test", "Correct-Horse-Battery-77", "acme", { request: "free" });
 const ws = path.join(DATA, "acme/workspaces/desk");
 fs.mkdirSync(path.join(ws, "agents/writer"), { recursive: true });
 fs.mkdirSync(path.join(ws, "flows"), { recursive: true });

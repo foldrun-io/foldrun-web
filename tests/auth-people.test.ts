@@ -66,8 +66,8 @@ const linkIn = (text: string) => text.match(/http:\/\/x\/api\/auth\/verify\?toke
 const click = (url: string) => verifyRoute.GET(new NextRequest(url));
 
 test("asking to move: the same answer for a taken and a free address, and nothing moves yet", async () => {
-  await createUser("taken@people.test", PW, "people-taken");
-  const me = await createUser("mover@people.test", PW, "people-mover");
+  await createUser("taken@people.test", PW, "people-taken", { request: "free" });
+  const me = await createUser("mover@people.test", PW, "people-mover", { request: "free" });
   const cookie = await cookieFor(me.id);
 
   const free = await askMove(cookie, "Fresh@People.test");
@@ -88,7 +88,7 @@ test("asking to move: the same answer for a taken and a free address, and nothin
 });
 
 test("the link moves the login, verifies it, tells the old address, and works once", async () => {
-  const me = await createUser("clicker@people.test", PW, "people-clicker");
+  const me = await createUser("clicker@people.test", PW, "people-clicker", { request: "free" });
   const cookie = await cookieFor(me.id);
   assert.equal((await askMove(cookie, "clicked@people.test")).status, 200);
   const url = linkIn(mailTo("clicked@people.test").at(-1)!.text)!;
@@ -107,7 +107,7 @@ test("the link moves the login, verifies it, tells the old address, and works on
 test("a used link stays dead after the login moves back (A → B → A)", async () => {
   // Codex, 30 Oct 2026: "still at the old address" was the single-use mark,
   // so moving back made the first link good again for whoever kept it.
-  const me = await createUser("roundtrip@people.test", PW, "people-roundtrip");
+  const me = await createUser("roundtrip@people.test", PW, "people-roundtrip", { request: "free" });
   assert.equal((await askMove(await cookieFor(me.id), "roundtrip-b@people.test")).status, 200);
   const there = linkIn(mailTo("roundtrip-b@people.test").at(-1)!.text)!;
   assert.match((await click(there)).headers.get("location") ?? "", /verified=1/);
@@ -121,7 +121,7 @@ test("a used link stays dead after the login moves back (A → B → A)", async 
 });
 
 test("two links asked for at once: the first click spends the other", async () => {
-  const me = await createUser("twolinks@people.test", PW, "people-twolinks");
+  const me = await createUser("twolinks@people.test", PW, "people-twolinks", { request: "free" });
   const cookie = await cookieFor(me.id);
   await askMove(cookie, "twolinks-1@people.test");
   await askMove(cookie, "twolinks-2@people.test");
@@ -133,7 +133,7 @@ test("two links asked for at once: the first click spends the other", async () =
 });
 
 test("a password change since the request cancels the move", async () => {
-  const me = await createUser("cancel@people.test", PW, "people-cancel");
+  const me = await createUser("cancel@people.test", PW, "people-cancel", { request: "free" });
   assert.equal((await askMove(await cookieFor(me.id), "cancelled@people.test")).status, 200);
   const url = linkIn(mailTo("cancelled@people.test").at(-1)!.text)!;
   await changePassword(me.id, PW, "another long password 2");
@@ -142,7 +142,7 @@ test("a password change since the request cancels the move", async () => {
 });
 
 test("the password counter is not cleared before the request went through", async () => {
-  const me = await createUser("counter@people.test", PW, "people-counter");
+  const me = await createUser("counter@people.test", PW, "people-counter", { request: "free" });
   const cookie = await cookieFor(me.id);
   for (let i = 0; i < 5; i++) assert.equal((await askMove(cookie, "x@people.test", "wrong password!!")).status, 400);
   // Right password, but no address: the request did not go through.
@@ -153,7 +153,7 @@ test("the password counter is not cleared before the request went through", asyn
 });
 
 test("five moves asked for a day, then a 429 that says when", async () => {
-  const me = await createUser("daily@people.test", PW, "people-daily");
+  const me = await createUser("daily@people.test", PW, "people-daily", { request: "free" });
   const cookie = await cookieFor(me.id);
   for (let i = 1; i <= 5; i++) assert.equal((await askMove(cookie, `daily${i}@people.test`)).status, 200, `request ${i}`);
   const sixth = await askMove(cookie, "daily6@people.test");
@@ -163,7 +163,7 @@ test("five moves asked for a day, then a 429 that says when", async () => {
 });
 
 test("an install that sends no mail refuses the move and says how to set mail up (30 Oct 2026)", async () => {
-  const me = await createUser("nomail@people.test", PW, "people-nomail");
+  const me = await createUser("nomail@people.test", PW, "people-nomail", { request: "free" });
   const cookie = await cookieFor(me.id);
   delete process.env.FOLDRUN_RESEND_API_KEY;
   try {
@@ -175,7 +175,7 @@ test("an install that sends no mail refuses the move and says how to set mail up
     assert.match(body.error, /FOLDRUN_RESEND_API_KEY/);
     assert.equal((await findUserById(me.id))!.email, "nomail@people.test", "the login has not moved");
     // A taken address gets the same refusal: no oracle on this path either.
-    await createUser("nomail-taken@people.test", PW, "people-nomail-taken");
+    await createUser("nomail-taken@people.test", PW, "people-nomail-taken", { request: "free" });
     assert.equal((await askMove(cookie, "nomail-taken@people.test")).status, 409);
   } finally {
     process.env.FOLDRUN_RESEND_API_KEY = "re_test_auth_people";
@@ -197,7 +197,7 @@ const wrongCode = (i: number) => {
 };
 
 test("ten wrong app codes in a row pause app codes, mail the owner, and a backup code still signs in", async () => {
-  const me = await createUser("mfa-lock@people.test", PW, "people-mfa-lock");
+  const me = await createUser("mfa-lock@people.test", PW, "people-mfa-lock", { request: "free" });
   await setMfa(me.id, { secret: SECRET, backupHashes: [hashBackup("abcde-fghjk")] });
   for (let i = 0; i < 10; i++) {
     await rateLimitReset(`mfa:${me.id}`); // past the five-minute throttle, which is tested below
@@ -219,7 +219,7 @@ test("ten wrong app codes in a row pause app codes, mail the owner, and a backup
 });
 
 test("the five-minute throttle's 429 says when to come back", async () => {
-  const me = await createUser("mfa-throttle@people.test", PW, "people-mfa-throttle");
+  const me = await createUser("mfa-throttle@people.test", PW, "people-mfa-throttle", { request: "free" });
   await setMfa(me.id, { secret: SECRET, backupHashes: [] });
   for (let i = 0; i < 6; i++) await verifyCode(me.id, wrongCode(100 + i));
   const r = await verifyCode(me.id, wrongCode(200));
@@ -247,7 +247,7 @@ test("a field that should be text and is not is a 400, not a 500", async () => {
   assert.equal((await l.json()).error, "email must be text");
   const s = await signup.POST(new NextRequest("http://x/api/auth/signup", json({ email: ["a@b.c"], password: PW })));
   assert.equal(s.status, 400);
-  const me = await createUser("typed@people.test", PW, "people-typed");
+  const me = await createUser("typed@people.test", PW, "people-typed", { request: "free" });
   const n = await nameRoute.POST(new NextRequest("http://x/api/auth/name", json({ firstName: 5 }, { cookie: await cookieFor(me.id) })));
   assert.equal(n.status, 400);
   assert.equal((await askMove(await cookieFor(me.id), { a: 1 })).status, 400);

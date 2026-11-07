@@ -65,7 +65,7 @@ test("per caller, when a trusted proxy names one: the 21st from one address is a
 });
 
 test("install-wide: past the hour's reset mail, the answer is the same sentence and no mail goes", async () => {
-  const user = await createUser("owner@forgot.test", "Correct-horse-battery-9", "forgot-acct");
+  const user = await createUser("owner@forgot.test", "Correct-horse-battery-9", "forgot-acct", { request: "free" });
   const first = await ask(user.email);
   assert.equal(first.status, 200);
   // Made-up addresses above spent none of the install's mail.
@@ -90,7 +90,7 @@ test("one caller cannot spend the install's reset mail: past its share, its asks
   try {
     const users: Awaited<ReturnType<typeof createUser>>[] = [];
     // Twelve people, each with their own account (one account takes one signup).
-    for (let i = 0; i < 12; i++) users.push(await createUser(`share${i}@forgot.test`, "Correct-horse-battery-9", `forgot-share-${i}`));
+    for (let i = 0; i < 12; i++) users.push(await createUser(`share${i}@forgot.test`, "Correct-horse-battery-9", `forgot-share-${i}`, { request: "free" }));
     const shareLines = async (n: number) => {
       for (let i = 0; i < 300; i++) {
         const all = (await Promise.all(users.map((_u, j) => recentAudit(`forgot-share-${j}`)))).flat();

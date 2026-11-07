@@ -31,7 +31,7 @@ const secretsRoute = await import("../app/api/secrets/route.ts");
 const startRoute = await import("../app/api/oauth/start/route.ts");
 const reconnectRoute = await import("../app/api/oauth/reconnect/route.ts");
 
-const owner = await createUser("owner@acme.test", "correct horse battery staple 9", "acme");
+const owner = await createUser("owner@acme.test", "correct horse battery staple 9", "acme", { request: "free" });
 const ownerCookie = `${SESSION_COOKIE}=${(await mintSession(owner)).value}`;
 fs.mkdirSync(path.join(process.env.FOLDRUN_DATA!, "acme", "workspaces", "desk"), { recursive: true });
 // Only the owner's session sets the mail sender (5 Nov 2026): no key, not

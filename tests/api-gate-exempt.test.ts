@@ -35,7 +35,7 @@ test("health, status and version answer a caller whose read bucket is empty", as
 test("signing out works when the account's write bucket is spent", async () => {
   resetApiGateCaches();
   const tenant = "exempt-w";
-  const user = await createUser("owner@exempt.test", "a long and unusual passphrase 42!", tenant);
+  const user = await createUser("owner@exempt.test", "a long and unusual passphrase 42!", tenant, { request: "free" });
   const { value } = await mintSession(user);
   const cookie = { cookie: `${SESSION_COOKIE}=${value}` };
   const keys = await Promise.all(Array.from({ length: ACCOUNT_MULTIPLE }, (_, i) => createApiKey(tenant, `k${i}`, undefined, undefined, "editor")));

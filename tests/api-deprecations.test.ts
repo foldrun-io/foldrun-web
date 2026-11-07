@@ -37,8 +37,8 @@ const fresh = () => {
   for (const f of [".api-usage.json", ".api-deprecation-notices.json"]) fs.rmSync(path.join(process.env.FOLDRUN_DATA!, f), { force: true });
 };
 
-await createUser("owner@dep.test", "correct horse battery staple 9", "dep");
-await createUser("owner@quiet.test", "correct horse battery staple 9", "quiet");
+await createUser("owner@dep.test", "correct horse battery staple 9", "dep", { request: "free" });
+await createUser("owner@quiet.test", "correct horse battery staple 9", "quiet", { request: "free" });
 
 test("the steps due: seen always, then 90, 30 and 7 days before the sunset; nothing after it", () => {
   assert.deepEqual(stepsDue(dep(null), NOW), ["seen"]);

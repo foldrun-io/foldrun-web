@@ -28,7 +28,7 @@ const linkFor = async (id: string) => {
 };
 
 test("a reset link is for the address it was sent to: one without it, or for another, is refused", async () => {
-  const u = await createUser("bound@reset.test", "an old password long enough 5", "reset-bound");
+  const u = await createUser("bound@reset.test", "an old password long enough 5", "reset-bound", { request: "free" });
   const noEmail = mintToken("reset", { u: u.id, h: hashFingerprint(u.hash) }, RESET_TTL_MS);
   assert.equal((await post(noEmail, "a brand new password, long 6")).status, 400);
   const oldInbox = mintToken("reset", { u: u.id, h: hashFingerprint(u.hash), e: "old@reset.test" }, RESET_TTL_MS);
@@ -37,7 +37,7 @@ test("a reset link is for the address it was sent to: one without it, or for ano
 });
 
 test("with MFA on, a reset changes the password but sets no session", async () => {
-  const u = await createUser("mfa@reset.test", "an old password long enough 1", "reset-mfa");
+  const u = await createUser("mfa@reset.test", "an old password long enough 1", "reset-mfa", { request: "free" });
   await setMfa(u.id, { secret: "JBSWY3DPEHPK3PXP", backupHashes: [] });
   const r = await post(await linkFor(u.id), "a brand new password, long 2");
   assert.equal(r.status, 200);
@@ -47,7 +47,7 @@ test("with MFA on, a reset changes the password but sets no session", async () =
 });
 
 test("without MFA, a reset still signs the person in", async () => {
-  const u = await createUser("plain@reset.test", "an old password long enough 3", "reset-plain");
+  const u = await createUser("plain@reset.test", "an old password long enough 3", "reset-plain", { request: "free" });
   const r = await post(await linkFor(u.id), "a brand new password, long 4");
   assert.equal(r.status, 200);
   assert.ok(r.cookies.get(SESSION_COOKIE)?.value, "signed in, as before");

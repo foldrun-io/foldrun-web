@@ -12,7 +12,8 @@ import { sendEmailChangedNotice } from "@/server/email";
 import { audit } from "@/server/audit";
 import { platform } from "@/lib/platform";
 import { billing } from "@/platform/billing";
-import { isOwner } from "@/server/users";
+import { isOwner, accountAdmission } from "@/server/users";
+import { trialEligible } from "@/platform/signup";
 import { publicOrigin } from "@/server/auth-flows";
 
 export async function GET(req: NextRequest) {
@@ -64,6 +65,10 @@ async function verified(req: NextRequest, user: UserRecord) {
   // moment before: credits handed out at signup are credits a script can
   // farm with throwaway addresses; a working inbox is the cheapest proof
   // of a person we have. Joiners bring nothing — their team has a wallet.
-  if (platform.edition() === "hosted" && (await isOwner(user.tenant, user.id))) await billing().grantTrial(user.tenant);
+  // And only an account that came in by a door that earns it (7 Nov 2026,
+  // core signup.ts trialEligible): a paid sign-up bought a plan, and one
+  // still waiting to pay must never run on free credit. On top of hosted
+  // and owner, never instead of them.
+  if (platform.edition() === "hosted" && (await isOwner(user.tenant, user.id)) && trialEligible(await accountAdmission(user.tenant))) await billing().grantTrial(user.tenant);
   return NextResponse.redirect(new URL("/dashboard?verified=1", publicOrigin(req)));
 }

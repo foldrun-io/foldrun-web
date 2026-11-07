@@ -26,7 +26,7 @@ const auditRoute = await import("../app/api/audit/route.ts");
 const { warnExpiringKeys } = await import("../server/key-expiry.ts");
 const { apiGate, resetApiGateCaches } = await import("../server/api-limits.ts");
 
-await createUser("owner@acme.test", "correct horse battery staple 9", "acme");
+await createUser("owner@acme.test", "correct horse battery staple 9", "acme", { request: "free" });
 const { key: admin } = await createApiKey("acme", "ops", "owner@acme.test", undefined, "admin");
 const keysFile = () => path.join(process.env.FOLDRUN_DATA!, "keys.json");
 const editKey = (id: string, patch: Record<string, unknown>) => {

@@ -6,7 +6,8 @@ import { requireSession, errorResponse, ApiError } from "@/server/api";
 import { rateLimit } from "@/platform/cache";
 import { verifyLink, publicOrigin } from "@/server/auth-flows";
 import { sendVerifyEmail } from "@/server/email";
-import { isOwner } from "@/server/users";
+import { isOwner, accountAdmission } from "@/server/users";
+import { trialEligible } from "@/platform/signup";
 import { billing } from "@/platform/billing";
 import { platform } from "@/lib/platform";
 
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
     if (!limit.allowed) throw new ApiError("sent recently — check your inbox, or try again in an hour", 429);
     // Same rule as the first send: the trial line goes only to someone whose
     // confirmation will actually grant it.
-    const trialCredits = platform.edition() === "hosted" && (await isOwner(me.tenant, me.id)) ? billing().trialCredits() : undefined;
+    const trialCredits = platform.edition() === "hosted" && (await isOwner(me.tenant, me.id)) && trialEligible(await accountAdmission(me.tenant)) ? billing().trialCredits() : undefined;
     const sent = await sendVerifyEmail(me.tenant, me.email, verifyLink(publicOrigin(req), me), { trialCredits });
     if (!sent.ok) throw new ApiError(sent.error, 502);
     return NextResponse.json({ ok: true });

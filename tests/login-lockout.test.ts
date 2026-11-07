@@ -55,7 +55,7 @@ const signIn = (email: string, password: string, ip?: string) =>
 test("a stranger failing as someone locks out only themselves; the person still signs in from their own address", async () => {
   process.env.FOLDRUN_TRUST_PROXY = "1";
   try {
-    await createUser("ceo@lockout.test", PW, "lockout-ceo");
+    await createUser("ceo@lockout.test", PW, "lockout-ceo", { request: "free" });
     for (let i = 0; i < 8; i++) assert.equal((await signIn("ceo@lockout.test", "wrong", "203.0.113.50")).status, 401, `try ${i + 1}`);
     assert.equal((await signIn("ceo@lockout.test", PW, "203.0.113.50")).status, 429, "the stranger's own address is locked out, even with the right password");
     const real = await signIn("ceo@lockout.test", PW, "198.51.100.20");
@@ -68,7 +68,7 @@ test("a stranger failing as someone locks out only themselves; the person still 
 test("a guesser spread over many addresses meets the ceiling over every caller, and the person is mailed once", async () => {
   process.env.FOLDRUN_TRUST_PROXY = "1";
   try {
-    await createUser("spread@lockout.test", PW, "lockout-spread");
+    await createUser("spread@lockout.test", PW, "lockout-spread", { request: "free" });
     // Five addresses × eight wrong passwords: the fortieth is the last try.
     for (let a = 1; a <= 5; a++) {
       for (let i = 0; i < 8; i++) assert.equal((await signIn("spread@lockout.test", "wrong", `192.0.2.${a}`)).status, 401, `address ${a}, try ${i + 1}`);
@@ -100,7 +100,7 @@ test("an unknown address that reaches the ceiling mails nobody", async () => {
 });
 
 test("with no caller address nobody can be told apart: eight wrong tries close the account's password sign-in, as before", async () => {
-  await createUser("noproxy@lockout.test", PW, "lockout-noproxy");
+  await createUser("noproxy@lockout.test", PW, "lockout-noproxy", { request: "free" });
   for (let i = 0; i < 8; i++) assert.equal((await signIn("noproxy@lockout.test", "wrong")).status, 401);
   assert.equal((await signIn("noproxy@lockout.test", PW)).status, 429);
 });

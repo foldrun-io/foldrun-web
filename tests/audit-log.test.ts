@@ -27,8 +27,8 @@ const keysRoute = await import("../app/api/keys/route.ts");
 const secretsRoute = await import("../app/api/secrets/route.ts");
 const { audit, auditCsv, queryAudit } = await import("../server/audit.ts");
 
-await createUser("owner@acme.test", "correct horse battery staple 9", "acme");
-await createUser("owner@globex.test", "correct horse battery staple 9", "globex");
+await createUser("owner@acme.test", "correct horse battery staple 9", "acme", { request: "free" });
+await createUser("owner@globex.test", "correct horse battery staple 9", "globex", { request: "free" });
 const { key: acmeAdmin } = await createApiKey("acme", "ops", "owner@acme.test", undefined, "admin");
 const { key: acmeEditor } = await createApiKey("acme", "ci", "owner@acme.test", undefined, "editor");
 const { key: acmeScoped } = await createApiKey("acme", "one-ws", "owner@acme.test", undefined, "admin", ["leads"]);

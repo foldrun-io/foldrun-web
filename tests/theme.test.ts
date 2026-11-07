@@ -67,7 +67,7 @@ test("the text a page leans on is AA in both themes", async () => {
 // ---------- the route ----------
 
 test("the route: a person sets and reads their theme; system is stored as nothing", async () => {
-  const user = await createUser("owner@theme.test", "Qz8-vmT2-plx9-Wr4k-thm", "theme1");
+  const user = await createUser("owner@theme.test", "Qz8-vmT2-plx9-Wr4k-thm", "theme1", { request: "free" });
   const { value } = await mintSession(user);
   const cookie = `${SESSION_COOKIE}=${value}`;
   const patch = (body: unknown, headers: Record<string, string> = { cookie }) =>

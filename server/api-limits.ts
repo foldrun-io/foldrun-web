@@ -170,12 +170,14 @@ export function forgetAccountProfile(tenant: string): void {
 /**
  * Routes that are neither counted nor refused. A spent bucket must not stop
  * a person signing out (or support ending a view), nor a monitor reading
- * health, status or the version — none of them costs anything to answer.
+ * health, status or the version, nor the public site asking whether sign-up
+ * is open — none of them costs anything to answer (/api/signup reads the
+ * settings snapshot and the catalogue in memory, no user rows).
  */
 export function unmetered(method: string, pathname: string): boolean {
   const p = pathname.replace(/\/+$/, "");
   if (method === "GET" || method === "HEAD") {
-    if (p === "/api/healthz" || p === "/api/version" || p === "/api/status" || p.startsWith("/api/status/")) return true;
+    if (p === "/api/healthz" || p === "/api/version" || p === "/api/status" || p.startsWith("/api/status/") || p === "/api/signup") return true;
   }
   if (method === "POST" && p === "/api/auth/logout") return true;
   if (supportExempt(method, p)) return true;

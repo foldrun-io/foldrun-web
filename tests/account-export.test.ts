@@ -26,7 +26,7 @@ const { append } = await import("@/platform/ledger");
 const exportRoute = await import("../app/api/account/export/route.ts");
 
 test("a ledger line in the export has no cost, agents, key or pricingVersion — and keeps the charge", async () => {
-  const owner = await createUser("owner@export.test", "a long enough password 1", "export-co");
+  const owner = await createUser("owner@export.test", "a long enough password 1", "export-co", { request: "free" });
   const cookie = `${SESSION_COOKIE}=${(await mintSession(owner)).value}`;
   await append(owner.tenant, {
     t: "2026-10-30T01:00:00.000Z",

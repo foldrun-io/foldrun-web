@@ -34,7 +34,7 @@ test("enabling MFA ends every other session and keeps this browser's", opts, asy
   const enable = await import("../app/api/auth/mfa/enable/route.ts");
 
   const tenant = `mfaon${Date.now()}`;
-  const user = await createUser(`owner@${tenant}.test`, "a long enough password here 1", tenant);
+  const user = await createUser(`owner@${tenant}.test`, "a long enough password here 1", tenant, { request: "free" });
   const stolen = await mintSession(user, "attacker");
   const mine = await mintSession(user, "owner's browser");
 
