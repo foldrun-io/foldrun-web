@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { flushRevisions } from "@/lib/workspace-revisions";
+import { flushRevisions, readWorkspaceFileVia } from "@/lib/workspace-revisions";
 import { requireTenant, errorResponse, actorOf, requirePermission, refuse } from "@/server/api";
 import { createHash } from "node:crypto";
 import { readWorkspaceFile, writeWorkspaceFile, deleteWorkspacePath, listWorkspaceFiles, renameWorkspaceFile, assertEditablePath } from "@/lib/store";
@@ -21,7 +21,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
     const tenant = await tenantOf(req);
     const rel = req.nextUrl.searchParams.get("path");
     if (!rel) return NextResponse.json({ files: listWorkspaceFiles(tenant, workspace) });
-    const content = readWorkspaceFile(tenant, workspace, rel);
+    // The head's bytes when `revisions.read` is on and it has the file; the
+    // folder otherwise (core workspace-revisions.ts readWorkspaceFileVia).
+    const content = await readWorkspaceFileVia(tenant, workspace, rel);
     return NextResponse.json({ path: rel, content, sha256: sha256(content) });
   } catch (err) {
     return errorResponse(err);
