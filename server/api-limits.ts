@@ -44,10 +44,9 @@ export interface Tier {
 
 /** Per-credential limits by plan. The account's bucket is ACCOUNT_MULTIPLE
  *  times this. An account with no plan (trial, `self-hosted` edition) is `free`. */
-export const TIERS: Record<"free" | "starter" | "creator" | "pro" | "scale", Tier> = {
+export const TIERS: Record<"free" | "starter" | "pro" | "scale", Tier> = {
   free: { read: 300, write: 60 },
   starter: { read: 600, write: 120 },
-  creator: { read: 1200, write: 240 },
   pro: { read: 3000, write: 600 },
   scale: { read: 6000, write: 1200 },
 };
@@ -171,13 +170,14 @@ export function forgetAccountProfile(tenant: string): void {
  * Routes that are neither counted nor refused. A spent bucket must not stop
  * a person signing out (or support ending a view), nor a monitor reading
  * health, status or the version, nor the public site asking whether sign-up
- * is open — none of them costs anything to answer (/api/signup reads the
- * settings snapshot and the catalogue in memory, no user rows).
+ * is open — none of them costs anything to answer (/api/signup and
+ * /api/pricing read the settings snapshot and the catalogue in memory, no
+ * user rows).
  */
 export function unmetered(method: string, pathname: string): boolean {
   const p = pathname.replace(/\/+$/, "");
   if (method === "GET" || method === "HEAD") {
-    if (p === "/api/healthz" || p === "/api/version" || p === "/api/status" || p.startsWith("/api/status/") || p === "/api/signup") return true;
+    if (p === "/api/healthz" || p === "/api/version" || p === "/api/status" || p.startsWith("/api/status/") || p === "/api/signup" || p === "/api/pricing") return true;
   }
   if (method === "POST" && p === "/api/auth/logout") return true;
   if (supportExempt(method, p)) return true;
