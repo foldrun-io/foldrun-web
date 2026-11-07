@@ -6,8 +6,8 @@
 //
 // It reads the same as a native <select> so forms stay plain: <option> and
 // <optgroup> children, `value` / `defaultValue`, `onChange(e)` with
-// `e.target.value`, `name` (inside a <form>, Radix keeps a hidden native
-// select carrying the value, so GET forms and FormData still work),
+// `e.target.value`, `name` (a hidden input carries the chosen value, an
+// empty choice as "", so GET forms and FormData still work),
 // `required`, `disabled`, `id`, `aria-label`. `onValueChange(v)` is there too.
 //
 // An empty value ("" — "All", "Not set") is a real choice here; Radix does
@@ -106,20 +106,27 @@ export function Select({
   const current = value !== undefined ? String(value) : undefined;
   const shown = current !== undefined ? all.find((o) => o.value === current) : undefined;
   const { title, ...ariaRest } = aria;
+  // What a <form> submits. Radix's own hidden select would send the internal
+  // key, so an empty choice ("Everything", "Any") went out as the sentinel
+  // and a GET filter matched nothing (Codex review). The decoded value goes
+  // in a hidden input of our own; uncontrolled, it follows the last pick.
+  const [picked, setPicked] = React.useState(defaultValue !== undefined ? String(defaultValue) : "");
+  const submitted = current ?? picked;
   return (
     <S.Root
       value={current !== undefined ? toKey(current) : undefined}
       defaultValue={defaultValue !== undefined ? toKey(String(defaultValue)) : undefined}
       onValueChange={(k) => {
         const v = fromKey(k);
+        setPicked(v);
         onValueChange?.(v);
         onChange?.({ target: { value: v, name }, currentTarget: { value: v, name } });
       }}
-      name={name}
       required={required}
       disabled={disabled}
     >
       <span data-slot="select" className={cn("relative inline-flex min-w-0", className)}>
+        {name && <input type="hidden" name={name} value={submitted} disabled={disabled} />}
         <S.Trigger
           id={id}
           autoFocus={autoFocus}
