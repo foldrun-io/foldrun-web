@@ -19,6 +19,7 @@ const CALLBACK = "called by something else holding its own proof, not by a perso
 
 /** Operations the CLI does not call, and why. */
 const NOT_IN_CLI: Record<string, string> = {
+  "GET /api/pricing": "the public catalogue for foldrun.io and foldrun.ir, which read it from a browser; `foldrun usage rates` shows the same figures through the account's own /api/usage/rates",
   "POST /api/account/close": "closing an account is the owner's, in person, in Settings",
   "POST /api/oauth/handoff/[id]": "accepting a terminal-started connection is a signed-in person's, in the browser; the CLI opens the page (/api/oauth/start answers its URL)",
   ...Object.fromEntries(
@@ -150,6 +151,8 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   "GET /api/team": SERVER("settings/page.tsx → listMembers"),
   "GET /api/team/invites": SERVER("settings/page.tsx → listInvites"),
   "GET /api/usage": SERVER("usage/page.tsx → accountUsage"),
+  "GET /api/usage/rates": SERVER("usage/page.tsx (Rates tab) → billing().meterRates and catalogue, the functions the route calls"),
+  "GET /api/pricing": SERVER("usage/page.tsx (Rates tab) → billing().catalogue; the route is foldrun.io and foldrun.ir's, served with CORS"),
   "GET /api/usage/history": SERVER("usage/page.tsx → spendHistory"),
   "GET /api/usage/budget": SERVER("limits/page.tsx → accountBudgetStanding, workspaceBudgetStanding"),
   "DELETE /api/workspaces/[workspace]": SEEN("[workspace]/settings/page.tsx (Delete workspace)"),
