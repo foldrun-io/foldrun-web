@@ -198,9 +198,10 @@ export function AssistantDock({ tenant }: { tenant: string }) {
     <>
       {!open && (
         // The wrapper holds the fixed position so the tooltip still shows
-        // (why it is off) while the button is disabled.
+        // (why it is off) while the button is disabled. On a phone it sat
+        // over page buttons; there it is in the bottom bar (PhoneBar).
         <Tooltip label={mayWrite ? "Ask how foldrun works, or have agents, flows, tools and skills written" : needs("workspace:write")}>
-          <span className="fixed bottom-5 right-5 z-30 inline-flex max-md:bottom-20 max-md:right-4">
+          <span className="fixed bottom-5 right-5 z-30 inline-flex max-md:hidden">
             <button
               type="button"
               disabled={!mayWrite}

@@ -4,7 +4,7 @@
 // (open its file, delete it), and the old in-page anchors (#eval-<name>,
 // from a run's grades and the inbox) turned into the eval's own view.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Ellipsis, FileText, Trash2 } from "lucide-react";

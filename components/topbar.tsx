@@ -16,7 +16,7 @@
 // page's is (on the box it came back empty), and a list fetched the way the
 // pages read their data is the one that agrees with them.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";

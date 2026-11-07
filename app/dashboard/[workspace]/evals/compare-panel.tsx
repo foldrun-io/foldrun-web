@@ -7,7 +7,7 @@
 // the settings differ — plus the comparisons kept before.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { buttonVariants } from "@/components/kit/button";
 import { Tooltip } from "@/components/kit/tooltip";
 import { Input, labelClass } from "@/components/kit/input";

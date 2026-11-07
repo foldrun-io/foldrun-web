@@ -226,6 +226,16 @@ for (const rule of RULES) {
   });
 }
 
+// ---------- one Link: prefetch on intent ----------
+
+test("every link is the kit Link, which prefetches on intent, not on sight", () => {
+  // next/link prefetches each route as its link scrolls into view: 7–26
+  // server renders per page load on dev (7 Nov 2026). kit/link waits for a
+  // hover, focus or touch.
+  const bad = ALL.filter((f) => f.rel !== path.join("components", "kit", "link.tsx") && /from\s+["']next\/link["']/.test(f.src)).map((f) => f.rel);
+  assert.deepEqual(bad, [], 'import Link from "@/components/kit/link"');
+});
+
 // ---------- the kit itself ----------
 
 test("the kit's server-safe parts stay server-safe", () => {

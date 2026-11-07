@@ -9,7 +9,7 @@
 // guess. The notice never reloads anything by itself — a reload loop on a
 // mid-rollout box (two pods, two versions) is the failure it must not have.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { buttonVariants } from "./kit/button";
 import { cn } from "./kit/cn";

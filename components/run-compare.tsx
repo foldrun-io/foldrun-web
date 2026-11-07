@@ -5,7 +5,7 @@
 // GET …/runs/<id>/compare, the route `foldrun report --compare` reads.
 
 import { useState } from "react";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import type { RunComparison } from "@/lib/compare";
 import { runHref } from "@/components/run-href";
 import { Button } from "@/components/kit/button";

@@ -3,7 +3,7 @@
 // settings shell like every other settings page.
 
 import { cookies } from "next/headers";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { notFound } from "next/navigation";
 import { verifySession, listMembers, allowedWorkspaces, SESSION_COOKIE } from "@/server/users";
 import { listWorkspaces } from "@/lib/store";

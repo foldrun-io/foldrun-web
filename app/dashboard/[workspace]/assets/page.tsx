@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { notFound } from "next/navigation";
 import { workspaceDir, listAgents, type AgentInfo } from "@/lib/store";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { Page, PageHeader, EmptyState, Tag, Chip } from "@/components/kit/page";
 import { PageTabs } from "@/components/kit/page-tabs";
 import { buttonVariants } from "@/components/kit/button";

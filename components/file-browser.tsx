@@ -10,7 +10,7 @@
 // desk's row) to upload them there.
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useRouter } from "next/navigation";
 import {
   Box,

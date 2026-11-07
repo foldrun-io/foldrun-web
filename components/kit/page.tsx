@@ -39,7 +39,7 @@
 //   table.tsx       Table parts, DataTable           chart.tsx  Sparkbars, Meter, ChartLegend
 //   overview.tsx    SplitOverview       skeleton.tsx Skeleton
 import * as React from "react";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { ChevronRight } from "lucide-react";
 import { cn } from "./cn";
 import { Tooltip } from "./tooltip";

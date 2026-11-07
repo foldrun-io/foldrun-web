@@ -4,7 +4,7 @@
 // billing, docs, help, what's new, status, settings), the theme, sign out.
 // The sidebar is for the work; this is for who you are.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BookOpen, CircleHelp, CreditCard, Ellipsis, ExternalLink, LogOut, Monitor, Moon, Settings, Sparkles, Sun, User, BarChart3, Activity } from "lucide-react";

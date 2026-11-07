@@ -5,7 +5,7 @@
 // A mail client's own Unsubscribe button skips this page and posts directly
 // (RFC 8058).
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { readUnsubscribeToken, mailCategory } from "@/lib/mail";
 import { buttonVariants } from "@/components/kit/button";
 import { cn } from "@/components/kit/cn";

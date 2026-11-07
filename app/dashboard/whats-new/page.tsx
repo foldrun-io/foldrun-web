@@ -5,7 +5,7 @@
 // the API's own changelog: its dated versions, what each one broke, and the
 // routes on their way out, from server/api-version.ts.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { Page, PageHeader, Card, Chip, EmptyState, Panel } from "@/components/kit/page";
 import { Sparkles } from "lucide-react";
 import { releases, versionInfo, type Release, type NoteLine } from "@/server/release";

@@ -17,7 +17,7 @@
 // the notify: webhooks this workspace sent; and the flows outside agents
 // call over A2A.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import fs from "node:fs";
 import { notFound } from "next/navigation";
 import { workspaceDir, listFlows, type FlowInfo } from "@/lib/store";

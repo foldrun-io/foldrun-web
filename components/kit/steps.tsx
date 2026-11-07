@@ -6,7 +6,7 @@
 // its actions under a hairline. Used by the welcome flow
 // (components/welcome-flow.tsx); anything stepwise can take them.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import type { ReactNode } from "react";
 import { Check } from "lucide-react";
 import { cn } from "./cn";

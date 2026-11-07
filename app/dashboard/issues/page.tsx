@@ -1,7 +1,7 @@
 // Issues (FOL-54 step 3): what went wrong, grouped, and kept open until a
 // person resolves it. Same list as GET /api/issues and `foldrun issues`.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { AlertTriangle, Ban, CalendarX2, CheckCircle2, ServerCrash, XCircle, X } from "lucide-react";
 import { Page, PageHeader, Chip, Tag, EmptyState, type Tone } from "@/components/kit/page";
 import { Segmented } from "@/components/kit/segmented";

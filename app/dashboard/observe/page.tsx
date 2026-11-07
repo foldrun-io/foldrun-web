@@ -9,7 +9,7 @@
 
 import { cachedAccountInsights } from "@/server/insights";
 import { creditsShort } from "@/components/money";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { viewerScope } from "@/server/users";
 import { accountObservation } from "@/server/account-observe";
 import { runHref } from "@/components/run-href";

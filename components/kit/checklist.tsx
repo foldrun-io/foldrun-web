@@ -11,7 +11,7 @@
 // Used by the account home's Getting started (components/onboarding-card.tsx)
 // and a workspace's checklist (components/workspace-checklist.tsx).
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import type { ReactNode } from "react";
 import { Check, Circle, Ellipsis, EyeOff } from "lucide-react";
 import { Button } from "./button";
@@ -115,16 +115,16 @@ export function ChecklistCard({
                 href={r.href}
                 className={cn(
                   "flex min-h-10 items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors",
-                  r.done ? "bg-info-soft text-link" : "bg-sunken text-fg hover:bg-muted",
+                  r.done ? "text-fg-muted hover:bg-sunken hover:text-fg-secondary" : "bg-sunken text-fg hover:bg-muted",
                   r.onHide && !r.done && "pr-11",
                 )}
               >
                 {r.icon && <span className="flex shrink-0 [&_svg]:size-4">{r.icon}</span>}
                 <span className="min-w-0 flex-1">
-                  <span className={cn("block truncate", r.done && "line-through decoration-1")}>{r.label}</span>
+                  <span className={cn("block truncate", r.done && "line-through decoration-fg-subtle decoration-1")}>{r.label}</span>
                   {!r.done && r.hint && <span className="block truncate text-xs text-fg-muted">{r.hint}</span>}
                 </span>
-                {r.done ? <Check className="size-4 shrink-0" aria-label="done" /> : !r.onHide && <Circle className="size-3.5 shrink-0 text-fg-subtle" aria-label="not done" />}
+                {r.done ? <Check className="size-4 shrink-0 text-success" aria-label="done" /> : !r.onHide && <Circle className="size-3.5 shrink-0 text-fg-subtle" aria-label="not done" />}
               </Link>
             )}
             {r.onHide && !r.done && (

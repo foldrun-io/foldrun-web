@@ -7,7 +7,7 @@
 // of another's uploads — so uploading happens on a desk's own page, a link
 // away on each card. Genuinely shared assets belong in the account library.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { listWorkspaces } from "@/lib/store";
 import { scopeAllows } from "@/platform/scope";
 import { viewerScope } from "@/server/users";

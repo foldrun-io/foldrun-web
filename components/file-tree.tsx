@@ -7,7 +7,7 @@
 // link *template* rather than a function (functions can't cross the server
 // component boundary).
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useConfirm } from "@/components/kit/confirm";

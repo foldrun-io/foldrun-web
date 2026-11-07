@@ -9,7 +9,7 @@
 //            "tablist" (it swaps what is shown below) or "radiogroup" (a
 //            setting, like the theme)
 import * as React from "react";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { cn } from "./cn";
 import { Tooltip } from "./tooltip";
 

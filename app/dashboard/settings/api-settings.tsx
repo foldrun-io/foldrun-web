@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Select } from "@/components/kit/select";

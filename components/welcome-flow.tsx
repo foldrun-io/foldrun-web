@@ -8,7 +8,7 @@
 // store. The one thing kept is that this person has seen it, so the home
 // page stops sending them here.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { BookOpen, Boxes, CircleCheck, FileArchive, KeyRound, PlugZap, Sparkles, Terminal } from "lucide-react";

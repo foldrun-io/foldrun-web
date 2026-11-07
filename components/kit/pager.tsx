@@ -10,7 +10,7 @@
 //
 // The arithmetic is components/paging.ts; `usePaged` (kit/list.tsx) keeps a
 // client page that clamps when the list shrinks under it.
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "./cn";
 import { Tooltip } from "./tooltip";

@@ -4,7 +4,7 @@
 // its saved versions, its .zip, and the way to delete it (which asks on the
 // Settings tab, where the danger card says what breaks).
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useEffect, useState } from "react";
 import { Download, History, MoreHorizontal, Trash2 } from "lucide-react";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/kit/menu";

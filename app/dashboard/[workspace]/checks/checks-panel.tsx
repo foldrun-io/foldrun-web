@@ -4,7 +4,7 @@
 // the editor. "Security only" is the CLI's --security; the command line
 // under the list is how to get the same answer in a terminal or CI.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useCallback, useEffect, useState } from "react";
 import { LocalTime } from "@/components/local-time";
 import { Check, RefreshCw, ShieldCheck } from "lucide-react";

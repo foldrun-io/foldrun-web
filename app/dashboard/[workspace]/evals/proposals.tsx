@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { buttonVariants } from "@/components/kit/button";
 import { Chip, type Tone } from "@/components/kit/page";
 import { DiffView } from "@/components/flow-history";

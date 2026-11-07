@@ -6,7 +6,7 @@
 // for code (both from the root layout).
 
 import { Suspense } from "react";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { cookies } from "next/headers";
 import { Sidebar } from "@/components/sidebar";
 import { PendingApprovals } from "@/components/pending-approvals";

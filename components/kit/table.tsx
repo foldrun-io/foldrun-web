@@ -3,7 +3,7 @@
 // Server-safe: plain elements and class names, no state. A list of things
 // (agents, flows, keys) is ResourceList / RowTable in list.tsx instead.
 import * as React from "react";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { cn } from "./cn";
 
 export function TableCard({ className, ...props }: React.ComponentProps<"div">) {

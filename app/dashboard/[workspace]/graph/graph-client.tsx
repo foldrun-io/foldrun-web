@@ -12,7 +12,7 @@
 
 import "@xyflow/react/dist/style.css";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   applyNodeChanges,

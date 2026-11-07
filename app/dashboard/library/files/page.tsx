@@ -10,7 +10,7 @@
 
 import { scopeAllows } from "@/platform/scope";
 import { viewerScope } from "@/server/users";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { readLibraryFile } from "@/lib/library";
 import { listAccountFiles, readAccountFile, accountFileSealed, listWorkspaces, readWorkspaceFile } from "@/lib/store";
 import { EditorShell, type ContextSection } from "@/components/editor-shell";

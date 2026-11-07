@@ -5,7 +5,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import type { ReactNode } from "react";
 import { WithEmails } from "@/components/email";
 import { Page, PageHeader, Panel } from "@/components/kit/page";

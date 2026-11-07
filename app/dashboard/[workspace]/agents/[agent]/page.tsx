@@ -6,7 +6,7 @@
 // is only findable by knowing the `adhoc:` prefix. This is the other axis:
 // what it is allowed to do at the top, what it has produced underneath.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import fs from "node:fs";
 import { Pager } from "@/components/kit/pager";
 import { paginate, pageFrom, PAGE_SIZE } from "@/components/paging";

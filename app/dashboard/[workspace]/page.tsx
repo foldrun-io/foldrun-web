@@ -7,7 +7,7 @@ import { viewerScope, verifySession, SESSION_COOKIE } from "@/server/users";
 import { cookies } from "next/headers";
 import { onboardingPrefs, workspaceChecklistFor } from "@/server/onboarding";
 import { WorkspaceChecklist } from "@/components/workspace-checklist";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import fs from "node:fs";
 import { notFound } from "next/navigation";
 import { workspaceDir, listAgents, listFlows, listRuns, listWorkspaces } from "@/lib/store";

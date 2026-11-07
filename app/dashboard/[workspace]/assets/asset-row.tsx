@@ -8,7 +8,7 @@
 // happens in the detail drawer — components/asset-drawer.tsx — and the row is
 // one link.)
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ExternalLink, MoreHorizontal, Share2, Trash2 } from "lucide-react";

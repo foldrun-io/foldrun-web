@@ -6,7 +6,7 @@
 // Each item opens the existing create dialog on its own page (?create=<kind>),
 // so there is one create flow per noun, not two. Hidden for viewers.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Bot, Boxes, FlaskConical, Plus, Webhook, Workflow, Wrench, BookOpen } from "lucide-react";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "./kit/menu";

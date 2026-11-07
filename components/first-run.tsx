@@ -8,7 +8,7 @@
 // failed is the server's (runFailure), handed in after the stream's `done`
 // refreshes the page.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CircleCheck, Hand, Play, RotateCcw, Stethoscope, TriangleAlert, Workflow } from "lucide-react";

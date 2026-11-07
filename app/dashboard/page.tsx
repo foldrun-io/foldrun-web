@@ -36,7 +36,7 @@ import { verifySession, SESSION_COOKIE, viewerRole } from "@/server/users";
 import { can } from "@/platform/permissions";
 import { onboardingFor, onboardingPrefs } from "@/server/onboarding";
 import { OnboardingCard, OnboardingReopen } from "@/components/onboarding-card";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { Boxes, CircleDashed, Clock3, ListChecks, Plus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { OUTCOME } from "@/components/outcome-model";

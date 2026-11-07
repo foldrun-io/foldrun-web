@@ -7,7 +7,7 @@
 // with the key that asked and the run that served each. One read: GET
 // /api/workspaces/<ws>/a2a. Publishing is on each flow's card (Flows page).
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useEffect, useState } from "react";
 import { Chip, EmptyState, Panel } from "@/components/kit/page";
 import { Globe } from "lucide-react";

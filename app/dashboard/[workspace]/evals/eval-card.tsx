@@ -6,7 +6,7 @@
 
 import { useState } from "react";
 import type React from "react";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useRouter } from "next/navigation";
 import { Check, Circle, FlaskConical, X } from "lucide-react";
 import { Page, PageHeader, IconBox, Panel, PanelList, SummaryCard, Chip, Tag } from "@/components/kit/page";

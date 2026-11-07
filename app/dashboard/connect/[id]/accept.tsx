@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { Button, buttonVariants } from "@/components/kit/button";
 
 /** Accept: the hand-off becomes a consent bound to this browser. */

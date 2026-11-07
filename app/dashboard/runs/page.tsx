@@ -11,7 +11,7 @@ import { listAllRuns, runDisplayStatus } from "@/lib/store";
 import { viewerScope } from "@/server/users";
 import { scopeAllows } from "@/platform/scope";
 import { AutoRefresh } from "../run-button";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { Play } from "lucide-react";
 import { Page, PageHeader, EmptyState } from "@/components/kit/page";
 import { Pager } from "@/components/kit/pager";

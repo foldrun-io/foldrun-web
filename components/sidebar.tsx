@@ -7,7 +7,7 @@
 // the foot. It can be hidden (Ctrl/⌘ B, remembered in this browser); on a
 // phone it opens as a sheet from the floating bar (mobile-nav.tsx).
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import {

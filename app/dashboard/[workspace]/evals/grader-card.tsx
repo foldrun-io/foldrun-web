@@ -5,7 +5,7 @@
 // that failed and why, and a box to grade one run now (POST …/evals/<e>/grade).
 // Nothing here starts a run; a grader only reads the ones that happened.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Gauge } from "lucide-react";

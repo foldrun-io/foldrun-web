@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { signupOpen, peekInvite, setupTokenRequired } from "@/server/users";
 import { AuthForm } from "../auth-form";
 import { Email } from "@/components/email";

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { AuthForm } from "../auth-form";
 import { AuthCard } from "../brand";
 

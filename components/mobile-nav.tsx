@@ -6,14 +6,16 @@
 //                toggle and the workspace switcher at the start, the page's
 //                name in the middle, "Create new" and money at the end.
 //   PhoneHeader  phones: the mark, the account in the middle, the bell.
-//   PhoneBar     phones: a floating pill at the bottom — Find | the menu,
+//   PhoneBar     phones: a floating pill at the bottom — Find | Ask AI | the menu,
 //                which opens the sidebar's list as a sheet from below.
 //   StatusFooter a quiet line under every page: the platform's status and
 //                the version.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useState, type ReactNode } from "react";
-import { Menu as MenuIcon, PanelLeft, Search } from "lucide-react";
+import { Menu as MenuIcon, PanelLeft, Search, Sparkles } from "lucide-react";
+import { openAssistant } from "./assistant";
+import { useCan } from "./role";
 import { FoldrunMark, NavList, setSidebarHidden, useNav, useSidebarHidden } from "./sidebar";
 import { Sheet, SheetContent, SheetTitle } from "./kit/dialog";
 import { AccountSwitcher, WorkspaceSwitcher } from "./topbar";
@@ -69,6 +71,7 @@ export function PhoneHeader() {
 export function PhoneBar({ actions }: { actions?: ReactNode }) {
   const [more, setMore] = useState(false);
   const nav = useNav();
+  const mayAsk = useCan("workspace:write");
   return (
     <>
       <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center md:hidden">
@@ -78,6 +81,15 @@ export function PhoneBar({ actions }: { actions?: ReactNode }) {
             Find
           </button>
           <span className="h-6 w-px bg-line" aria-hidden />
+          {mayAsk && (
+            <>
+              <button type="button" onClick={() => openAssistant()} className="flex h-full items-center gap-1.5 px-4 text-sm text-fg">
+                <Sparkles className="size-4" aria-hidden />
+                Ask AI
+              </button>
+              <span className="h-6 w-px bg-line" aria-hidden />
+            </>
+          )}
           <button type="button" onClick={() => setMore(true)} aria-haspopup="dialog" aria-expanded={more} aria-label="Menu" className="flex h-full items-center px-4 text-fg">
             <MenuIcon className="size-5" />
           </button>

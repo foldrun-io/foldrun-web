@@ -13,7 +13,7 @@
 // editor keeps its own state (InlineEditor) and renders its controls into
 // the header through a portal, so nothing about saving moved.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowRight, ChevronRight, PanelRightClose, PanelRightOpen } from "lucide-react";

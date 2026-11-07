@@ -7,7 +7,7 @@
 // each row's cells and its card; this only searches, switches and pages, so
 // a list never needs a second copy of its data in the browser's shape.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";

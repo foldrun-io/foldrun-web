@@ -8,7 +8,7 @@
 // LiveRun from the stream, so the outcome and the actions change the moment
 // the run does; this page hands it what only the server knows.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import fs from "node:fs";
 import { notFound } from "next/navigation";
 import { workspaceDir, listRuns, listRunOutputs, readRun, runCost, runTokens, measuredHitRate, runDisplayStatus, runFailure, runVerdict } from "@/lib/store";

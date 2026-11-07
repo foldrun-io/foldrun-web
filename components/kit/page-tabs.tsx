@@ -9,7 +9,7 @@
 //            state is the component's — role="tablist", each a role="tab".
 //
 // For a small switch of two or three views inside a toolbar, use Segmented.
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "./cn";
 import { Count } from "./page";

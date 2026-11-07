@@ -5,7 +5,7 @@
 // The same reader as GET /api/audit, with the same gate: the owner and
 // admins who can see the whole account.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { Input } from "@/components/kit/input";
 import { Select } from "@/components/kit/select";
 import { SettingsShell } from "@/components/settings-shell";

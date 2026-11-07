@@ -3,7 +3,7 @@
 // cap is over a day, a week or a month; unset is no limit.
 
 import fs from "node:fs";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { accountDir, listWorkspaces } from "@/lib/store";
 import { readAgentsMdKeys } from "@/lib/agents-md";
 import { accountBudgetStanding, workspaceBudgetStanding, type BudgetStanding } from "@/platform/limits";

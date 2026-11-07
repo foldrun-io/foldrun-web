@@ -15,7 +15,7 @@
 
 import { creditsShort } from "@/components/money";
 import { runCharges } from "@/server/run-charges";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import fs from "node:fs";
 import { notFound } from "next/navigation";
 import { workspaceDir } from "@/lib/store";

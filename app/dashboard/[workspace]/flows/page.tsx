@@ -7,7 +7,7 @@
 // flow — its steps on the canvas, its runs and its settings, in tabs
 // (`&tab=runs|settings`). `?create=flows` opens the New flow dialog.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import fs from "node:fs";
 import path from "node:path";
 import { notFound } from "next/navigation";

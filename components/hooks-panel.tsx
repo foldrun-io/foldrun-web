@@ -3,7 +3,7 @@
 // the hooks stopped or changed lately, read off the runs' own trails, where
 // every line a hook wrote carries a `hook` record (core store.ts RunEvent.hook).
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { listRuns } from "@/lib/store";
 import { listWorkspaceHooks, HOOK_SAMPLE } from "@/server/hooks";
 import { hookActivity, hookTally, hookBadge, HOOK_TONE } from "@/components/hooks-model";

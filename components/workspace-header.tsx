@@ -10,7 +10,7 @@
 // workspace's; the balance is shared — the wording keeps them straight,
 // and the whole line is a door to the wallet.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { Tooltip } from "@/components/kit/tooltip";
 import { billing } from "@/platform/billing";
 import { platform } from "@/lib/platform";

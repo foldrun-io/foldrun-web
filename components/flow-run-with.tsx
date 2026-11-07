@@ -14,7 +14,7 @@ import { buttonVariants } from "@/components/kit/button";
 import { cn } from "@/components/kit/cn";
 import { ChevronDown, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useRouter } from "next/navigation";
 import { Input, Textarea } from "@/components/kit/input";
 import { useConfirm } from "@/components/kit/confirm";

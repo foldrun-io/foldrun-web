@@ -9,7 +9,7 @@ import { SEARCH_KEYS } from "@/components/run-views-model";
 import { runCharges, runCharge } from "@/server/run-charges";
 import { listApiKeys } from "@/server/auth";
 import { a2aKeyLabels } from "@/components/a2a-model";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import fs from "node:fs";
 import { notFound, redirect } from "next/navigation";
 import { runHref } from "@/components/run-href";

@@ -4,7 +4,7 @@
 // it read; Set aside hides it from your view only — a gate still waits, an
 // issue stays open for everyone else (POST /api/me/inbox).
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LocalTime } from "@/components/local-time";

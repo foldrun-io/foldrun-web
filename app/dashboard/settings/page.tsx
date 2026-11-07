@@ -1,6 +1,6 @@
 import { scopeAllows } from "@/platform/scope";
 import { platform } from "@/lib/platform";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { CopyField } from "@/components/copy-field";
 import { McpConnections } from "./mcp-connections";
 import { connectionView, listGrants } from "@/server/mcp-oauth";

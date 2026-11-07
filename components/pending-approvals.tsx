@@ -16,7 +16,7 @@
 // in the same frame; the refetch confirms it against the step's own status,
 // so the gate cannot come back while the worker is still picking the run up.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/kit/button";

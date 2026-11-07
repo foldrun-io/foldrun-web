@@ -7,7 +7,7 @@
 // gets, so the dashboard and the API cannot disagree about a finding.
 
 import fs from "node:fs";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { notFound } from "next/navigation";
 import { workspaceDir } from "@/lib/store";
 import { BookOpen } from "lucide-react";

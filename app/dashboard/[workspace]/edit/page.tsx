@@ -6,7 +6,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { notFound } from "next/navigation";
 import matter, { configMatter } from "@/lib/matter";
 import { schemaKindOf } from "@/lib/frontmatter-fields";

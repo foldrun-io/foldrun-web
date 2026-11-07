@@ -8,7 +8,7 @@
 // and the page should open in the time it takes to read one line per row.
 
 import { useState } from "react";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
 import { useConfirm } from "@/components/kit/confirm";

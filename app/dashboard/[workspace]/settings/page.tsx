@@ -4,7 +4,7 @@
 // Danger zone last.
 
 import { HashTab } from "../../settings/anchor";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import fs from "node:fs";
 import path from "node:path";
 import { configMatter } from "@/lib/matter";

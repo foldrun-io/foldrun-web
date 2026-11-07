@@ -9,7 +9,7 @@
 // once every step is done or hidden. The steps come from the server; this
 // only draws them.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import type { Onboarding, OnboardingStepId } from "./onboarding-model";

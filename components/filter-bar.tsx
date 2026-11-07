@@ -19,7 +19,7 @@
 // is the same thing the pager already is. The select cannot be a link, so it
 // stays a navigation, with a plain submit for anyone without script.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/components/kit/cn";
 import { Select } from "@/components/kit/select";

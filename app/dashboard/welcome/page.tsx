@@ -8,7 +8,7 @@
 // (welcomeFlow), so it ticks however the work was done and resumes where the
 // account is. Nothing here is a second progress store.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { cookies, headers } from "next/headers";
 import { verifySession, SESSION_COOKIE, viewerScope, viewerRole } from "@/server/users";
 import { onboardingFor, onboardingPrefs } from "@/server/onboarding";

@@ -9,7 +9,7 @@
 // what it cost.
 
 import { creditsShort } from "@/components/money";
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { paginate, PAGE_SIZE } from "@/components/paging";
 import { runCost, runDisplayStatus, runDurationSecs, runFailure, runVerdict, type RunRecord } from "@/lib/store";
 import { a2aRunLabel } from "@/components/a2a-model";

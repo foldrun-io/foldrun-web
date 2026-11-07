@@ -3,7 +3,7 @@
 // tag, each with its description and, where the spec has one, its request
 // and response schema.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { Chip, Page, PageHeader, Panel, Tag } from "@/components/kit/page";
 import { openapiDocument } from "@/server/openapi";
 import { Disclosure } from "@/components/kit/disclosure";

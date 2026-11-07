@@ -12,7 +12,7 @@
 // attention, a Recent runs list that repeated the heartbeat, and an Up next
 // card that repeated the empty Running panel's "Next:" line.
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { CheckCircle2, Clock3, Coins } from "lucide-react";
 import { OUTCOME, type Outcome } from "@/components/outcome-model";
 import { runHref } from "@/components/run-href";

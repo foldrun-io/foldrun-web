@@ -6,7 +6,7 @@
 // navigation, by one shared poll; hidden when there is no person to have an
 // inbox (dev mode with nobody signed in).
 
-import Link from "next/link";
+import Link from "@/components/kit/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { Bell } from "lucide-react";
