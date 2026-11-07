@@ -35,7 +35,7 @@ import { GROUP_SHAPES } from "./openapi-shapes/index.ts";
 const OPEN = [
   /^\/api\/healthz$/, /^\/api\/version$/, /^\/api\/openapi\.json$/,
   /^\/api\/status(\/history)?$/,
-  /^\/api\/signup$/,
+  /^\/api\/signup$/, /^\/api\/pricing$/,
   /^\/api\/hooks\//, /^\/api\/inbox\//, /^\/api\/events\//, /^\/api\/approve\//, /^\/api\/unsubscribe$/,
   /^\/api\/billing\/stripe$/, /^\/api\/billing\/confirm$/,
   // A storefront's HMAC signature (X-Foldrun-Partner/Timestamp/Signature), never a key.
@@ -69,6 +69,44 @@ const AccountApi = obj({
     description: "the account's API use over the last 30 days; null to a caller limited to some workspaces (it names who calls each route), or when it could not be read",
   },
   usageHidden: { ...bool, description: "true: usage is withheld because the caller is limited to some workspaces" },
+});
+
+const nstr = (description?: string): Schema => ({ type: ["string", "null"], ...(description ? { description } : {}) });
+const nullable = (s: Schema): Schema => ({ ...s, type: [s.type as string, "null"] });
+
+/** The two pots of an account's balance, USD (7 Nov 2026). */
+const CreditPots: Schema = obj({
+  planUsd: { type: "number", description: "plan credits: pay for compute, storage and network, never tokens on foldrun's models" },
+  boughtUsd: { type: "number", description: "bought credits: pay for anything, tokens on foldrun's models included" },
+});
+
+const PlanTermsProps: Record<string, Schema> = {
+  id: str(), name: str(), feeUsd: { type: "number" }, creditsPerMonth: int,
+  rollover: { ...bool, description: "unused plan credits carry into the next month" },
+  rolloverCapCredits: { ...int, description: "the most a rollover keeps; 0 without" },
+  storageGb: int,
+  computeAtOnce: obj({ vcpu: { type: "number" }, memGiB: { type: "number" } }),
+  lane: str("normal | fast"),
+  paysForTokens: { ...bool, description: "always false: plan credits never pay for tokens on foldrun's models" },
+};
+
+const MeterRatesSchema: Schema = obj({
+  creditUsd: { type: "number" }, vcpuUsdPerHour: { type: "number" }, ramUsdPerGibHour: { type: "number" },
+  diskUsdPerGibMonth: { type: "number" }, storageUsdPerGbMonth: { type: "number" }, networkUsdPerGb: { type: "number" },
+  margin: { type: "number", description: "the multiple on provider token prices on foldrun's models" },
+});
+
+const PricingCatalogueSchema: Schema = obj({
+  version: { ...int, description: "the settings version the figures were read at" },
+  creditUsd: { type: "number" },
+  plans: arr(obj(PlanTermsProps)),
+  contact: obj({ label: str() }),
+  meters: arr(obj({ meter: str("vcpu | ram | disk | storage | network"), unit: str(), usd: { type: "number" }, over: str("what the rate applies over, when it is not every unit") })),
+  example: obj({ name: str(), vcpu: { type: "number" }, memGiB: { type: "number" }, creditsPerHour: { type: "number" } }),
+  models: obj({
+    margin: { type: "number" }, providers: arr(str()), soon: arr(str(), "providers on their way"),
+    prices: arr(obj({ provider: str(), model: str(), inputPerMTok: { type: "number" }, outputPerMTok: { type: "number" }, cacheReadPerMTok: { type: ["number", "null"] }, cacheWritePerMTok: { type: ["number", "null"] } })),
+  }),
 });
 
 /** Written before the per-group files (kept as they were). */
@@ -466,6 +504,10 @@ const LEGACY_SHAPES: Record<string, Shape> = {
     }),
   },
   "GET /api/usage": {
+    query: [
+      { name: "from", description: "first UTC day of the period, YYYY-MM-DD; default the first of this month. Bounds tokens, compute and billed, not totals or workspaces" },
+      { name: "to", description: "last UTC day of the period, YYYY-MM-DD; default today. At most a year after from" },
+    ],
     response: obj({
       tenant: { type: "string" },
       generatedAt: { type: "string" },
@@ -480,7 +522,62 @@ const LEGACY_SHAPES: Record<string, Shape> = {
         description: "null for a caller limited to some workspaces: the wallet and the account-wide charge are not theirs to read",
       },
       waived: { type: ["array", "null"], items: { type: "string" }, description: "models | compute | network — legs the bill leaves out; null for a caller limited to some workspaces" },
+      period: obj({ from: str("YYYY-MM-DD"), to: str("YYYY-MM-DD"), basis: str("consumption — priced at today's rates; `billed` is what the ledger charged") }),
+      credits: {
+        ...obj({
+          unit: str("credit"),
+          usdPerCredit: { type: "number" },
+          pots: CreditPots,
+          plan: nullable({ ...obj({ ...PlanTermsProps, status: { type: ["string", "null"], description: "active | past_due | cancelled" }, resetsAt: nstr("when the monthly grant next lands, or the plan's credits renew") }) }),
+          boughtOldestExpiresAt: nstr("when the oldest bought credit still unspent expires"),
+        }),
+        type: ["object", "null"],
+        description: "the two credit pots and the plan; null for a caller limited to some workspaces, and where nothing is billed",
+      },
+      tokens: obj({
+        totals: obj({ calls: int, billedCredits: { type: "number" }, byokTokens: { ...int, description: "tokens used on the account's own keys, billed nothing here" } }),
+        byModel: arr(obj({
+          supply: str("foldrun (the platform's keys, billed) | operator (the operator's key, billed) | own (the account's own key, 0 billed)"),
+          provider: str(), model: str(), calls: int,
+          inputTokens: int, cacheReadTokens: int, cacheWriteTokens: int, outputTokens: int,
+          billedCredits: { type: "number", description: "0 on the account's own key" },
+          providerCostUsd: { type: "number", description: "foldrun's models: the provider's price before the margin" },
+          estimatedCalls: { ...int, description: "calls charged at an estimate because no usage came back" },
+          billedNote: str("why the row is billed nothing, when it is"),
+        })),
+      }),
+      compute: obj({
+        meters: arr(obj({
+          meter: str("vcpu | ram | disk | storage | network | pods"),
+          quantity: { type: ["number", "null"] }, unit: str(),
+          rateCreditsPerUnit: { type: ["number", "null"], description: "credits per unit; null where nothing is priced" },
+          credits: { type: "number" },
+          includedGb: { type: "number", description: "storage: the plan's allowance" },
+          overGb: { type: "number", description: "storage: GB over it, which is what is charged" },
+        })),
+        planFee: { ...nullable(obj({ usd: { type: "number" }, credits: { type: "number" }, label: str(), includedCredits: { type: "number" } })), description: "the monthly plan fee as its own line; null for a caller limited to some workspaces and on Free" },
+        bySize: arr(obj({
+          size: str("small | large | heavy | unrecorded"), steps: int, hours: { type: "number" },
+          vcpu: { type: "number" }, memGiB: { type: "number" }, diskGiB: { type: "number" },
+          creditsPerHour: { type: ["number", "null"] },
+        })),
+      }),
+      billed: {
+        ...obj({ totalCredits: { type: "number", description: "what the ledger charged over the period" }, waived: { type: "array", items: { type: "string" } } }),
+        type: ["object", "null"],
+        description: "null for a caller limited to some workspaces",
+      },
     }),
+  },
+  "GET /api/usage/rates": {
+    response: obj({
+      rates: { ...nullable(MeterRatesSchema), description: "what the account is charged now; null where nothing is billed" },
+      plan: { ...nullable(obj({ ...PlanTermsProps, status: { type: ["string", "null"] }, resetsAt: nstr() })), description: "the account's plan; null for a caller limited to some workspaces" },
+      catalogue: { ...nullable(PricingCatalogueSchema), description: "the public catalogue" },
+    }),
+  },
+  "GET /api/pricing": {
+    response: PricingCatalogueSchema,
   },
   "GET /api/billing": {
     response: obj({
@@ -494,7 +591,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
   "POST /api/billing/checkout": { body: obj({ usd: { type: "number" } }, ["usd"]), response: obj({ url: str() }) },
   "POST /api/billing/portal": { body: obj({ returnTo: str() }), response: obj({ url: str() }) },
   "POST /api/billing/subscribe": {
-    body: obj({ plan: str("starter | creator | pro | scale"), resume: bool }),
+    body: obj({ plan: str("starter | pro | scale"), resume: bool }),
     response: obj({
       ok: bool,
       url: str("Stripe Checkout, when the plan starts with a card"),
