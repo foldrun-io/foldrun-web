@@ -29,6 +29,7 @@
     "clsx": "^2.1.1",
     "codemirror": "^6.0.2",
     "d3-force": "^3.0.0",
+    "github-slugger": "^2.0.0",
     "gray-matter": "^4.0.3",
     "lucide-react": "^1.70.0",
     "next": "^16.4.3",
@@ -51,5 +52,8 @@
     "tailwindcss": "^4",
     "typescript": "~6.0.3",
     "typescript-7": "npm:typescript@^7.0.2"
+  },
+  "overrides": {
+    "minimatch@>=7.0.0 <11.0.1": "^11.0.1"
   }
 }
