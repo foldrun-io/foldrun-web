@@ -13,7 +13,7 @@ import { NextResponse, type NextRequest } from "next/server";
 export function statusOrigins(): string[] {
   const env = process.env.FOLDRUN_STATUS_ORIGINS;
   if (env) return env.split(",").map((s) => s.trim()).filter(Boolean);
-  return ["https://foldrun.io", "https://www.foldrun.io", "https://status.foldrun.io"];
+  return ["https://foldrun.io", "https://www.foldrun.io", "https://status.foldrun.io", "https://docs.foldrun.io"];
 }
 
 /** The public status page, for the dashboard's links. */
