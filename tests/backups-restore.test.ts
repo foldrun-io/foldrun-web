@@ -22,7 +22,7 @@ const { deployWorkspace } = await import("@/lib/deploy");
 const { recordBackup } = await import("@/platform/backups");
 const { headRevision } = await import("@/lib/history");
 // The newest revision with a snapshot — what a restore reaches as "now".
-const headSha = (t: string, w: string) => headRevision(t, w)?.id ?? null;
+const headSha = async (t: string, w: string) => (await headRevision(t, w))?.id ?? null;
 
 const { key } = await createApiKey("acme", "ci", "ci@acme.test", undefined, "admin", null);
 const { key: viewer } = await createApiKey("acme", "ro", "ro@acme.test", undefined, "viewer", null);
@@ -44,7 +44,7 @@ const v1 = deployWorkspace("acme", "desk", [
   { path: "flows/publish.md", content: FLOW },
 ], { by: "a@acme.test", message: "v1" });
 assert.ok(v1.applied, JSON.stringify(v1.issues));
-const sha1 = headSha("acme", "desk")!;
+const sha1 = (await headSha("acme", "desk"))!;
 fs.mkdirSync(path.join(ws, "state"), { recursive: true });
 fs.writeFileSync(path.join(ws, "state/ledger.csv"), "a,b\n1,2\n");
 const v2 = deployWorkspace("acme", "desk", [
@@ -53,7 +53,7 @@ const v2 = deployWorkspace("acme", "desk", [
   { path: "knowledge/new.md", content: "---\ntype: note\n---\n\n# new\n" },
 ], { by: "a@acme.test", message: "v2" });
 assert.ok(v2.applied, JSON.stringify(v2.issues));
-const sha2 = headSha("acme", "desk")!;
+const sha2 = (await headSha("acme", "desk"))!;
 
 test("a dry run names every change with a diff, and writes nothing", async () => {
   const res = await restore({ to: sha1, dryRun: true });
@@ -71,7 +71,7 @@ test("a dry run names every change with a diff, and writes nothing", async () =>
   assert.ok(diff.some((d: { kind: string; text: string }) => d.kind === "add" && d.text === "one"));
   assert.ok(diff.some((d: { kind: string; text: string }) => d.kind === "del" && d.text === "two"));
   assert.equal(fs.readFileSync(path.join(ws, "agents/writer/agent.md"), "utf8"), agent("two"));
-  assert.equal(headSha("acme", "desk"), sha2);
+  assert.equal(await headSha("acme", "desk"), sha2);
 });
 
 test("a time resolves to the last revision at or before it; nothing before the first is a 404", async () => {
@@ -87,7 +87,7 @@ test("without the workspace's name typed back, the restore is refused and nothin
   assert.equal(res.status, 400);
   assert.match((await res.json()).error, /confirm/);
   assert.equal((await restore({ to: sha1, confirm: "other" })).status, 400);
-  assert.equal(headSha("acme", "desk"), sha2);
+  assert.equal(await headSha("acme", "desk"), sha2);
 });
 
 test("a viewer cannot restore", async () => {
@@ -197,13 +197,13 @@ test("restore requests are listed only for the workspaces a caller was given; an
 test("a dry run to a point that would fail the deploy checks carries their issues, and the warnings", async () => {
   const { writeWorkspaceFile } = await import("@/lib/store");
   writeWorkspaceFile("acme", "desk", "flows/broken.md", "---\nname: broken\ntrigger: manual\n---\n\n1. [[ghost]] — nobody is called this\n", { by: "a@acme.test" });
-  const broken = headSha("acme", "desk")!;
+  const broken = (await headSha("acme", "desk"))!;
   writeWorkspaceFile("acme", "desk", "flows/broken.md", "---\nname: broken\ntrigger: manual\n---\n\n1. [[writer]] — write it\n", { by: "a@acme.test" });
-  assert.notEqual(headSha("acme", "desk"), broken);
+  assert.notEqual(await headSha("acme", "desk"), broken);
 
   const plan = await (await restore({ to: broken, dryRun: true })).json();
   assert.ok(plan.issues.some((i: { message: string }) => /ghost/.test(i.message)), JSON.stringify(plan.issues));
   assert.ok(Array.isArray(plan.warnings));
-  const clean = await (await restore({ to: headSha("acme", "desk")!, dryRun: true })).json();
+  const clean = await (await restore({ to: (await headSha("acme", "desk"))!, dryRun: true })).json();
   assert.deepEqual(clean.issues, []);
 });

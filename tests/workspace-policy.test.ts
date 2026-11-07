@@ -84,12 +84,12 @@ test("PUT /source: project.md is the config only where there is no AGENTS.md", a
 });
 
 test("deploy: an editor's deploy that drops network_enforce is refused, nothing changes; one that keeps the keys goes through", async () => {
-  const before = headRevision("acme", "desk")?.id;
+  const before = (await headRevision("acme", "desk"))?.id;
   const res = await deployRoute.POST(json("/api/workspaces/desk/deploy", "POST", editor, { files: tree(POLICY.replace("network_enforce: true\n", "")) }), ctx);
   assert.equal(res.status, 403);
   assert.match(((await res.json()) as { error: string }).error, /network_enforce:/);
   assert.equal(agentsMd(), POLICY);
-  assert.equal(headRevision("acme", "desk")?.id, before);
+  assert.equal((await headRevision("acme", "desk"))?.id, before);
 
   // A deploy that carries no AGENTS.md removes it, and with it the policy.
   const without = await deployRoute.POST(json("/api/workspaces/desk/deploy", "POST", editor, { files: [AGENT, FLOW] }), ctx);
@@ -121,7 +121,7 @@ test("import with overwrite: an editor's package may not replace the policy keys
 
 test("restore: an editor may not go back to before the policy was set; an admin may", async () => {
   reset("---\nname: desk\n---\n\nA desk.\n");
-  const open = headRevision("acme", "desk")!.id;
+  const open = (await headRevision("acme", "desk"))!.id;
   reset();
   const body = { to: open, confirm: "desk" };
   const refused = await restoreRoute.POST(json("/api/workspaces/desk/restore", "POST", editor, body), ctx);

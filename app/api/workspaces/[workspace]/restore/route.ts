@@ -39,14 +39,14 @@ async function restorePost(req: NextRequest, ctx: Ctx) {
     if (typeof body.to !== "string" || !body.to.trim()) throw new ApiError("expected { to: <commit, date or age> }", 400);
     const to = body.to.trim();
 
-    if (body.dryRun === true) return NextResponse.json({ dryRun: true, ...planRestore(tenant, workspace, to) });
+    if (body.dryRun === true) return NextResponse.json({ dryRun: true, ...(await planRestore(tenant, workspace, to)) });
 
     if (body.confirm !== workspace) {
       throw new ApiError(`a restore needs { confirm: "${workspace}" } — run it with { dryRun: true } first to see what changes`, 400);
     }
     const expectRemoved = Array.isArray(body.expectRemoved) ? body.expectRemoved.filter((p): p is string => typeof p === "string") : undefined;
     const by = await actorOf(req);
-    const result = applyRestore(tenant, workspace, to, { by, expectRemoved, actor });
+    const result = await applyRestore(tenant, workspace, to, { by, expectRemoved, actor });
     const { plan } = result;
     if (plan.noop) return NextResponse.json({ ok: true, applied: false, noop: true, to: plan.to, main: result.main });
     if (!result.applied) {

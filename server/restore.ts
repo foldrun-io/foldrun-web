@@ -18,6 +18,7 @@ import path from "node:path";
 import { deployWorkspace, planDeploy, type DeployIssue } from "@/lib/deploy";
 import { diffLines, headRevision, resolveRevision, snapshotAt, type DiffOp } from "@/lib/history";
 import { workspaceDir } from "@/lib/store";
+import { asRestoreOf, flushRevisions } from "@/lib/workspace-revisions";
 import { ApiError } from "./api.ts";
 import type { Actor } from "./auth.ts";
 import { assertMayChangeWorkspacePolicy, type PolicyEvent } from "./workspace-policy.ts";
@@ -57,24 +58,24 @@ function readCurrent(tenant: string, workspace: string, rel: string): string {
   }
 }
 
-function target(tenant: string, workspace: string, to: string) {
+async function target(tenant: string, workspace: string, to: string) {
   if (!fs.existsSync(workspaceDir(tenant, workspace))) throw new ApiError(`no workspace "${workspace}"`, 404);
-  if (!headRevision(tenant, workspace)) throw new ApiError("this workspace has no history to restore from yet", 409);
-  const point = resolveRevision(tenant, workspace, to);
+  if (!(await headRevision(tenant, workspace))) throw new ApiError("this workspace has no history to restore from yet", 409);
+  const point = await resolveRevision(tenant, workspace, to);
   if (!point) throw new ApiError(`nothing in ${workspace}'s history at or before "${to}"`, 404);
   return { ...point, sha: point.id };
 }
 
-function treeOf(tenant: string, workspace: string, id: string) {
-  const files = snapshotAt(tenant, workspace, id);
+async function treeOf(tenant: string, workspace: string, id: string) {
+  const files = await snapshotAt(tenant, workspace, id);
   if (!files) throw new ApiError(`revision ${id} holds no snapshot to restore`, 409);
   return files;
 }
 
 /** What restoring to `to` would change, with a diff per file. Writes nothing. */
-export function planRestore(tenant: string, workspace: string, to: string, opts: { diffs?: boolean } = {}): RestorePlan {
-  const point = target(tenant, workspace, to);
-  const files = treeOf(tenant, workspace, point.id);
+export async function planRestore(tenant: string, workspace: string, to: string, opts: { diffs?: boolean } = {}): Promise<RestorePlan> {
+  const point = await target(tenant, workspace, to);
+  const files = await treeOf(tenant, workspace, point.id);
   // History holds source; what an agent wrote into its own folder at run
   // time (a browser profile, a PDF it downloaded) was never in a snapshot,
   // so a restore leaves it where it is rather than deleting it.
@@ -88,7 +89,7 @@ export function planRestore(tenant: string, workspace: string, to: string, opts:
   return {
     workspace,
     to: point,
-    from: headRevision(tenant, workspace)?.id ?? null,
+    from: (await headRevision(tenant, workspace))?.id ?? null,
     added: plan.added,
     updated: plan.updated,
     removed: plan.removed,
@@ -109,31 +110,38 @@ export function planRestore(tenant: string, workspace: string, to: string, opts:
  * the dry run: anything else that would now be removed refuses the restore
  * (core's own check, in the same call that writes).
  */
-export function applyRestore(
+export async function applyRestore(
   tenant: string,
   workspace: string,
   to: string,
   opts: { by: string; expectRemoved?: string[]; actor?: Pick<Actor, "role"> },
-): { applied: boolean; plan: RestorePlan; main: string | null; unexpectedRemovals?: string[]; issues?: unknown[]; policyEvents?: PolicyEvent[] } {
-  const plan = planRestore(tenant, workspace, to, { diffs: false });
+): Promise<{ applied: boolean; plan: RestorePlan; main: string | null; unexpectedRemovals?: string[]; issues?: unknown[]; policyEvents?: PolicyEvent[] }> {
+  const plan = await planRestore(tenant, workspace, to, { diffs: false });
   if (plan.noop) return { applied: false, plan, main: plan.from };
-  const tree = treeOf(tenant, workspace, plan.to.id);
+  const tree = await treeOf(tenant, workspace, plan.to.id);
   // A restore is a deploy of an older tree: going back to before an admin
   // set a budget or network_enforce changes those keys, so it needs what
   // changing them needs (server/workspace-policy.ts, 30 Oct 2026).
   const policyEvents = opts.actor ? assertMayChangeWorkspacePolicy(opts.actor, tenant, workspace, tree, "replace") : [];
-  const result = deployWorkspace(tenant, workspace, tree, {
-    commit: null,
-    force: false,
-    by: opts.by,
-    message: `restored to ${plan.to.id} (${plan.to.at})`,
-    keepUntracked: true,
-    expectRemoved: opts.expectRemoved,
-  });
+  // The deploy writes the folder and records the change; where revisions are
+  // on, that change is committed as a restore of the revision restored to
+  // (restoredFrom), a new revision at the old blobs — history is kept. The
+  // commit is awaited, so `main` is the revision this restore made.
+  const result = asRestoreOf(tenant, workspace, plan.to.id, () =>
+    deployWorkspace(tenant, workspace, tree, {
+      commit: null,
+      force: false,
+      by: opts.by,
+      message: `restored to ${plan.to.id} (${plan.to.at})`,
+      keepUntracked: true,
+      expectRemoved: opts.expectRemoved,
+    }),
+  );
+  if (result.applied) await flushRevisions({ tenant, workspace });
   return {
     applied: result.applied,
     plan: { ...plan, blockedBy: result.blockedBy },
-    main: headRevision(tenant, workspace)?.id ?? null,
+    main: (await headRevision(tenant, workspace))?.id ?? null,
     ...(result.unexpectedRemovals ? { unexpectedRemovals: result.unexpectedRemovals } : {}),
     ...(result.issues?.length ? { issues: result.issues } : {}),
     ...(result.applied && policyEvents.length ? { policyEvents } : {}),
