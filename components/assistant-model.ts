@@ -3,6 +3,8 @@
 // page, naming the page the person is on, and keeping a conversation in the
 // tab. The panel (assistant.tsx) is the drawing; this is what the tests read.
 
+import { headingSlugger } from "./heading-slug";
+
 export interface AssistantFile {
   path: string;
   content: string;
@@ -113,13 +115,10 @@ export function parseSse(buffer: string): { events: StreamEvent[]; rest: string 
   return { events, rest };
 }
 
-/** The id the docs page gives a heading — components/markdown.tsx. */
+/** The id the docs page gives a heading — heading-slug.ts, as markdown.tsx
+ *  and docs.foldrun.io make it (a heading named twice on a page: its first). */
 export function anchorOf(heading: string): string {
-  return heading
-    .toLowerCase()
-    .replace(/`/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
+  return headingSlugger()(heading);
 }
 
 /** `[flows › Every step option › Routing]` → a link to that heading on the

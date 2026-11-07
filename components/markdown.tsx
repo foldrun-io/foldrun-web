@@ -10,6 +10,7 @@
 // get wrong, because there is no HTML path at all.
 
 import type { ReactNode } from "react";
+import { headingSlugger } from "./heading-slug";
 
 /** Inline: `code`, **bold**, *italic*, [text](href). Order matters. */
 function inline(text: string, keyPrefix = ""): ReactNode[] {
@@ -140,6 +141,8 @@ export function Markdown({
 }) {
   const lines = text.split("\n");
   const blocks: ReactNode[] = [];
+  // The same anchors as docs.foldrun.io (heading-slug.ts).
+  const slug = headingSlugger();
   let i = 0;
 
   while (i < lines.length) {
@@ -179,11 +182,7 @@ export function Markdown({
         // mapping it to <h3> would skip a level, which is exactly what screen
         // reader navigation reads as a missing section.
         const Tag = (["h2", "h2", "h3", "h4", "h5", "h6"] as const)[level - 1];
-        const id = heading[2]
-          .toLowerCase()
-          .replace(/`/g, "")
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-|-$/g, "");
+        const id = slug(heading[2]);
         blocks.push(
           <Tag
             key={blocks.length}
