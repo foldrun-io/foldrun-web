@@ -80,18 +80,7 @@ export function useSidebarHidden() {
 }
 
 /** The foldrun mark: a folder with its run light. */
-export function FoldrunMark({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-fg" aria-hidden>
-      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
-      <path d="M3 11h18" />
-      {/* The run light. The ring is the surface behind it, so the dot never
-          touches the folder's outline at any size. */}
-      <circle cx="20.6" cy="19.4" r="3" fill="var(--color-paper-deep)" stroke="none" />
-      <circle cx="20.6" cy="19.4" r="1.9" fill="#10b981" stroke="none" />
-    </svg>
-  );
-}
+export { FoldrunMark } from "./kit/mark";
 
 /** The navigation for the current page. */
 export function useNav(): Nav & { workspace: string | null; tenant: string; title: string | null } {

@@ -4,18 +4,14 @@
 // app's approval) draws it.
 import type { ReactNode } from "react";
 import { cn } from "@/components/kit/cn";
+import { FoldrunMark } from "@/components/kit/mark";
 
-// The mark, on the way in. Same folder as the sidebar draws — a person who
+// The mark, on the way in: the same FoldrunMark the sidebar draws — a person who
 // signs in should see the thing they are signing in to, not a bare heading.
 export function Brand({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-fg" aria-hidden>
-        <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
-        <path d="M3 11h18" />
-        <circle cx="20.6" cy="19.4" r="3" fill="var(--color-surface)" stroke="none" />
-        <circle cx="20.6" cy="19.4" r="1.9" fill="var(--color-success)" stroke="none" />
-      </svg>
+      <FoldrunMark size={22} on="surface" />
       <span className="font-cal text-base tracking-tight text-fg">foldrun</span>
     </div>
   );

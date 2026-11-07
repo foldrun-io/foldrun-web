@@ -8,5 +8,5 @@
        one detail that survives at 16px. The ring is the tile, knocked out of
        the folder outline so the two never touch. -->
   <circle cx="24.5" cy="23.5" r="3.6" fill="#09090b"/>
-  <circle cx="24.5" cy="23.5" r="2.3" fill="#10b981"/>
+  <circle cx="24.5" cy="23.5" r="2.3" fill="#ffffff"/>
 </svg>

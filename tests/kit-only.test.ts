@@ -236,12 +236,20 @@ test("every link is the kit Link, which prefetches on intent, not on sight", () 
   assert.deepEqual(bad, [], 'import Link from "@/components/kit/link"');
 });
 
+// ---------- one mark ----------
+
+test("the foldrun mark is drawn once, in kit/mark (one colour, 7 Nov 2026)", () => {
+  // Its folder path is the signature: any other file drawing it is a copy.
+  const bad = ALL.filter((f) => f.rel !== path.join("components", "kit", "mark.tsx") && f.src.includes("M3 7a2 2 0 0 1 2-2h4l2 2h8")).map((f) => f.rel);
+  assert.deepEqual(bad, [], "use FoldrunMark from @/components/kit/mark");
+});
+
 // ---------- the kit itself ----------
 
 test("the kit's server-safe parts stay server-safe", () => {
   // A server page composes these directly; a hook or "use client" here
   // would turn every page that draws a Panel into a client bundle.
-  for (const f of ["page.tsx", "button.tsx", "input.tsx", "segmented.tsx", "pager.tsx", "status.tsx", "table.tsx", "chart.tsx", "cn.ts", "skeleton.tsx"]) {
+  for (const f of ["mark.tsx", "page.tsx", "button.tsx", "input.tsx", "segmented.tsx", "pager.tsx", "status.tsx", "table.tsx", "chart.tsx", "cn.ts", "skeleton.tsx"]) {
     const src = fs.readFileSync(path.join(KIT, f), "utf8");
     assert.doesNotMatch(src, /^["']use client["']/m, `kit/${f} must stay server-safe`);
     assert.doesNotMatch(src, /\buse(State|Effect|Ref|Router|Pathname|SearchParams|SyncExternalStore)\(/, `kit/${f} calls a hook — move that part to a client file`);
