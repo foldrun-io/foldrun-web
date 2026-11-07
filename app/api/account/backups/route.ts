@@ -26,19 +26,21 @@ export async function GET(req: NextRequest) {
   try {
     const { tenant, actor } = await requireCaller(req);
     const backups = await listBackups(tenant);
-    const workspaces = listWorkspaces(tenant)
-      .filter((w) => scopeAllows(actor.workspaces, w.name))
-      .map((w) => {
-        // The newest revision with a snapshot — what a restore can reach.
-        const head = headRevision(tenant, w.name)?.id ?? null;
-        const latest = listRevisions(tenant, w.name, { limit: 1 })[0] ?? null;
-        return {
-          name: w.name,
-          head,
-          lastChange: latest ? { id: latest.id, at: latest.at, by: latest.by, message: latest.message } : null,
-          history: Boolean(head),
-        };
-      });
+    const workspaces = await Promise.all(
+      listWorkspaces(tenant)
+        .filter((w) => scopeAllows(actor.workspaces, w.name))
+        .map(async (w) => {
+          // The newest revision with a snapshot — what a restore can reach.
+          const head = (await headRevision(tenant, w.name))?.id ?? null;
+          const latest = (await listRevisions(tenant, w.name, { limit: 1 }))[0] ?? null;
+          return {
+            name: w.name,
+            head,
+            lastChange: latest ? { id: latest.id, at: latest.at, by: latest.by, message: latest.message } : null,
+            history: Boolean(head),
+          };
+        }),
+    );
     return NextResponse.json({
       policy: backupPolicy(),
       last: backups[0] ?? null,

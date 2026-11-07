@@ -12,7 +12,7 @@ import { Pager } from "@/components/kit/pager";
 import { paginate, pageFrom, PAGE_SIZE } from "@/components/paging";
 import { notFound } from "next/navigation";
 import { workspaceDir } from "@/lib/store";
-import { ensureBaseline, hasSnapshot, listRevisions } from "@/lib/history";
+import { ensureBaseline, listRevisionsRestorable } from "@/lib/history";
 import { History as HistoryIcon } from "lucide-react";
 import { Page, PageHeader, EmptyState } from "@/components/kit/page";
 import { SearchField } from "@/components/kit/list";
@@ -34,8 +34,8 @@ export default async function HistoryPage({
 
   // A workspace no save has touched since history moved off git still has
   // a point to come back to: its tree as it stands now.
-  ensureBaseline(tenant, workspace);
-  const revisions = listRevisions(tenant, workspace, { limit: 300 }).map((r) => ({ ...r, restorable: hasSnapshot(tenant, workspace, r.id) }));
+  await ensureBaseline(tenant, workspace);
+  const revisions = await listRevisionsRestorable(tenant, workspace, { limit: 300 });
   const found = filterByQuery(revisions, q, (r) => [r.message, r.by, r.id, r.commit ?? "", ...r.paths].join(" "));
   const { rows, page, pages, total } = paginate(found, pageFrom(pageParam));
   const qs = tenant !== "default" ? `?tenant=${tenant}` : "";

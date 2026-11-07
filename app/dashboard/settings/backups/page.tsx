@@ -32,12 +32,14 @@ export default async function BackupsPage({ searchParams }: { searchParams: Prom
   const backups = await listBackups(tenant);
   const requests = await listRestoreRequests(tenant);
   const last = backups[0] ?? null;
-  const workspaces = listWorkspaces(tenant)
-    .filter((w) => scopeAllows(scope, w.name))
-    .map((w) => {
-      const latest = listRevisions(tenant, w.name, { limit: 1 })[0] ?? null;
-      return { name: w.name, history: Boolean(headRevision(tenant, w.name)), lastChange: latest ? { at: latest.at, message: latest.message } : null };
-    });
+  const workspaces = await Promise.all(
+    listWorkspaces(tenant)
+      .filter((w) => scopeAllows(scope, w.name))
+      .map(async (w) => {
+        const latest = (await listRevisions(tenant, w.name, { limit: 1 }))[0] ?? null;
+        return { name: w.name, history: Boolean(await headRevision(tenant, w.name)), lastChange: latest ? { at: latest.at, message: latest.message } : null };
+      }),
+  );
   const session = await verifySession((await cookies()).get(SESSION_COOKIE)?.value);
   const yes = (on: boolean, good: string, bad: string) => <Chip tone={on ? "good" : "warn"}>{on ? good : bad}</Chip>;
 

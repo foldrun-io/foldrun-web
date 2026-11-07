@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
     const forPath = req.nextUrl.searchParams.get("path") ?? undefined;
 
     if (id) {
-      const rev = readRevision(tenant, workspace, id);
+      const rev = await readRevision(tenant, workspace, id);
       if (!rev) return refuse("no such revision", 404);
       const files = (forPath ? rev.files.filter((f) => f.path === forPath) : rev.files).map((f) => ({
         ...f,
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
     }
 
     const limit = intParam(req.nextUrl.searchParams.get("limit"), 100, 1, 500);
-    return NextResponse.json({ revisions: listRevisions(tenant, workspace, { forPath, limit }) });
+    return NextResponse.json({ revisions: await listRevisions(tenant, workspace, { forPath, limit }) });
   } catch (err) {
     return errorResponse(err);
   }
