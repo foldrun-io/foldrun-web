@@ -107,6 +107,7 @@ export function CreateForm({
   variants,
   trigger = true,
   autoOpen = false,
+  then,
 }: {
   noun: string;
   hint: string;
@@ -123,6 +124,9 @@ export function CreateForm({
   /** An optional second axis — "what shape of thing" where scope is "where
    *  it lives". The chosen value is POSTed under `key`. */
   variants?: { key: string; choices: VariantChoice[] };
+  /** Where to go once it is made, instead of into what was made (the
+   *  welcome flow carries on to its next step). */
+  then?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -214,7 +218,9 @@ export function CreateForm({
         ...(variants && variant ? { [variants.key]: variant } : {}),
         ...(followUp ? { [followUp.key]: thenValue } : {}),
       });
-      const href = createdHref(data);
+      // `then` may name the thing just made as {name} (the welcome flow carries
+      // the new workspace into its First run step).
+      const href = then ? then.replace("{name}", encodeURIComponent(name)) : createdHref(data);
       if (href) {
         // Straight into what was made. Not close(): its replace() back to
         // this page would race the push.

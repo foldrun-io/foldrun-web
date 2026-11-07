@@ -49,6 +49,9 @@ export interface OnboardingStep {
   /** The CLI's way to do it, when there is one. */
   cli?: string;
   done: boolean;
+  /** This person hid the step from their card (it still counts, and still
+   *  ticks itself when done). Always false for a key. */
+  hidden: boolean;
 }
 
 export interface Onboarding {
@@ -58,12 +61,24 @@ export interface Onboarding {
   complete: boolean;
   /** The first step not done, in order. */
   next: OnboardingStep | null;
+  /** The first step neither done nor hidden by this person — what the card
+   *  offers next. Null once every step is done or hidden. */
+  upNext: OnboardingStep | null;
+  /** The step ids this person hid. */
+  hidden: OnboardingStepId[];
 }
 
-export function onboardingSteps(f: OnboardingFacts): Onboarding {
+export const ONBOARDING_STEP_IDS: readonly OnboardingStepId[] = ["model", "workspace", "agent", "run", "success", "secret", "trigger", "teammate", "billing", "cli"];
+
+export function isOnboardingStepId(v: unknown): v is OnboardingStepId {
+  return typeof v === "string" && (ONBOARDING_STEP_IDS as readonly string[]).includes(v);
+}
+
+/** `hidden`: the step ids this person hid from their card (prefs). */
+export function onboardingSteps(f: OnboardingFacts, hidden: readonly string[] = []): Onboarding {
   const ws = f.workspaces[0];
-  const inWs = (page: string) => (ws ? `/dashboard/${encodeURIComponent(ws)}/${page}` : "/dashboard?create=workspace");
-  const steps: OnboardingStep[] = [
+  const inWs = (page: string) => (ws ? `/dashboard/${encodeURIComponent(ws)}/${page}` : "/dashboard/welcome?step=start");
+  const raw: Omit<OnboardingStep, "hidden">[] = [
     ...(f.model
       ? [
           {
@@ -80,7 +95,7 @@ export function onboardingSteps(f: OnboardingFacts): Onboarding {
       id: "workspace",
       title: "Create a workspace",
       why: "A workspace holds one desk's agents, flows, secrets and runs.",
-      href: "/dashboard?create=workspace",
+      href: "/dashboard/welcome?step=start",
       cli: "foldrun init && foldrun deploy",
       done: f.workspaces.length > 0,
     },
@@ -150,6 +165,61 @@ export function onboardingSteps(f: OnboardingFacts): Onboarding {
       done: f.cli,
     },
   ];
+  const steps: OnboardingStep[] = raw.map((s) => ({ ...s, hidden: hidden.includes(s.id) }));
   const done = steps.filter((s) => s.done).length;
-  return { steps, done, total: steps.length, complete: done === steps.length, next: steps.find((s) => !s.done) ?? null };
+  return {
+    steps,
+    done,
+    total: steps.length,
+    complete: done === steps.length,
+    next: steps.find((s) => !s.done) ?? null,
+    upNext: steps.find((s) => !s.done && !s.hidden) ?? null,
+    hidden: steps.filter((s) => s.hidden).map((s) => s.id),
+  };
+}
+
+// ---- the welcome flow (/dashboard/welcome) ----
+//
+// Four screens over the same steps, never a second progress store: each
+// screen is done when the steps under it are, so the flow resumes wherever
+// the account really is, by whatever route the work was done.
+
+export type WelcomeStepId = "model" | "start" | "run" | "next";
+
+export interface WelcomeStep {
+  id: WelcomeStepId;
+  title: string;
+  done: boolean;
+}
+
+export interface WelcomeFlow {
+  steps: WelcomeStep[];
+  /** The screen to show: the one asked for (?step=) when it is in the flow,
+   *  else the first not done, else the last. */
+  current: WelcomeStepId;
+}
+
+const doneOf = (o: Onboarding, id: OnboardingStepId) => o.steps.find((s) => s.id === id)?.done ?? false;
+
+/** `firstVisit`: this person has not opened the flow before — it starts at
+ *  the beginning, ticks and all, rather than skipping to the first screen
+ *  not done (a new account already has its template workspace, and the
+ *  choices on Start with are still worth a look). */
+export function welcomeFlow(o: Onboarding, asked?: string | null, firstVisit = false): WelcomeFlow {
+  const hasModel = o.steps.some((s) => s.id === "model");
+  const steps: WelcomeStep[] = [
+    ...(hasModel ? [{ id: "model" as const, title: "Your model", done: doneOf(o, "model") }] : []),
+    { id: "start", title: "Start with", done: doneOf(o, "workspace") },
+    { id: "run", title: "First run", done: doneOf(o, "success") },
+    { id: "next", title: "Next", done: doneOf(o, "teammate") && doneOf(o, "trigger") && doneOf(o, "secret") },
+  ];
+  const pick = steps.find((s) => s.id === asked);
+  const current = pick?.id ?? (firstVisit ? steps[0].id : (steps.find((s) => !s.done)?.id ?? "next"));
+  return { steps, current };
+}
+
+/** The screen after `id` in the flow, or null after the last. */
+export function welcomeAfter(flow: WelcomeFlow, id: WelcomeStepId): WelcomeStepId | null {
+  const i = flow.steps.findIndex((s) => s.id === id);
+  return i >= 0 && i < flow.steps.length - 1 ? flow.steps[i + 1].id : null;
 }

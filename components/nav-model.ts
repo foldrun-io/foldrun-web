@@ -13,7 +13,7 @@
 import { kindsAt } from "@/lib/kinds";
 
 /** Path segments directly under /dashboard that are account-level, not a workspace. */
-export const ACCOUNT_SEGMENTS = new Set(["", "runs", "storage", "settings", "profile", "library", "graph", "observe", "issues", "inbox", "usage", "wallet", "billing", "help", "docs", "whats-new", "connect", "limits"]);
+export const ACCOUNT_SEGMENTS = new Set(["", "runs", "storage", "settings", "profile", "library", "graph", "observe", "issues", "inbox", "usage", "wallet", "billing", "help", "docs", "whats-new", "connect", "limits", "welcome"]);
 
 /** The workspace a dashboard path is inside, or null on an account page. */
 export function workspaceOf(pathname: string): string | null {
@@ -134,7 +134,7 @@ export function accountNav(pathname: string, tenant: string, hosted: boolean, co
 export function pageTitle(pathname: string): string | null {
   const seg = pathname.split("/")[2] ?? "";
   return (
-    ({ docs: "Docs", help: "Help", "whats-new": "What's new", profile: "Profile", connect: "Connect", wallet: "Wallet", limits: "Limits" } as Record<string, string>)[seg] ?? null
+    ({ docs: "Docs", help: "Help", welcome: "Get started", "whats-new": "What's new", profile: "Profile", connect: "Connect", wallet: "Wallet", limits: "Limits" } as Record<string, string>)[seg] ?? null
   );
 }
 

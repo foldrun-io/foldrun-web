@@ -52,7 +52,10 @@ export function AuthForm({ mode, invite, setup }: { mode: "login" | "signup"; in
           setBusy(false);
           return;
         }
-        const target = payload.workspace ? `/dashboard/${payload.workspace}` : "/dashboard";
+        // Someone who just made a new account starts in the welcome flow
+        // (/dashboard/welcome): their model, what to start with, a first run.
+        // A joiner lands in what their team already has.
+        const target = mode === "signup" && !invite ? "/dashboard/welcome" : payload.workspace ? `/dashboard/${payload.workspace}` : "/dashboard";
         // A full navigation, not router.push: client-side nav can wedge on a
         // stale RSC cache, and after a login the whole tree changes anyway.
         // Only a same-site absolute path is honoured: `//evil.com` and

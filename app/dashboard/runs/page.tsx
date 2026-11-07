@@ -11,7 +11,10 @@ import { listAllRuns, runDisplayStatus } from "@/lib/store";
 import { viewerScope } from "@/server/users";
 import { scopeAllows } from "@/platform/scope";
 import { AutoRefresh } from "../run-button";
-import { Page, PageHeader } from "@/components/kit/page";
+import Link from "next/link";
+import { Play } from "lucide-react";
+import { Page, PageHeader, EmptyState } from "@/components/kit/page";
+import { buttonVariants } from "@/components/kit/button";
 import {
   Pager,
   RunFilters,
@@ -59,6 +62,25 @@ export default async function RunsPage({
 
   const scope = await viewerScope();
   const all: RunRow[] = listAllRuns(tenant).filter((r) => scopeAllows(scope, r.workspace));
+  // Nothing has ever run here: no stats and filters over nothing — the way
+  // to a first run instead (the welcome flow's First run).
+  if (!all.length) {
+    return (
+      <Page width="wide">
+        <PageHeader title="All runs" description="Every run across every workspace in this account." />
+        <EmptyState
+          icon={<Play />}
+          title="No runs yet"
+          description="A run is a flow's steps in order, each handed to the agent it names. The demo pipeline runs in a minute."
+          action={
+            <Link href={`/dashboard/welcome?step=run${tenant !== "default" ? `&tenant=${tenant}` : ""}`} className={buttonVariants({ variant: "primary", size: "md" })}>
+              Run your first flow
+            </Link>
+          }
+        />
+      </Page>
+    );
+  }
   const charges = await runCharges(tenant);
   // Runs an outside agent started read "A2A · <key label>".
   const a2aLabels = all.some((r) => r.a2a || r.trigger === "a2a") ? a2aKeyLabels(await listApiKeys(tenant)) : {};

@@ -31,11 +31,13 @@ import { runCharges } from "@/server/run-charges";
 import { AutoRefresh } from "./run-button";
 import { ImportPackageButton } from "@/components/package-buttons";
 import { cookies } from "next/headers";
-import { verifySession, SESSION_COOKIE } from "@/server/users";
-import { onboardingFor, ONBOARDING_PREF } from "@/server/onboarding";
+import { redirect } from "next/navigation";
+import { verifySession, SESSION_COOKIE, viewerRole } from "@/server/users";
+import { can } from "@/platform/permissions";
+import { onboardingFor, onboardingPrefs } from "@/server/onboarding";
 import { OnboardingCard, OnboardingReopen } from "@/components/onboarding-card";
 import Link from "next/link";
-import { Boxes, CircleDashed, Clock3, Plus } from "lucide-react";
+import { Boxes, CircleDashed, Clock3, ListChecks, Plus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { OUTCOME } from "@/components/outcome-model";
 import { fmtIn } from "@/components/workspace-overview-model";
@@ -96,9 +98,20 @@ export default async function Dashboard({
   );
   const rest = tenant !== "default" ? `&tenant=${tenant}` : "";
   // Getting started: derived from the account, hidden per person.
-  const onboarding = await onboardingFor(tenant, scope);
   const person = await verifySession((await cookies()).get(SESSION_COOKIE)?.value);
-  const onboardingHidden = Boolean(person?.prefs?.[ONBOARDING_PREF]);
+  const prefs = onboardingPrefs(person?.prefs);
+  const onboarding = await onboardingFor(tenant, scope, prefs.hidden);
+  const onboardingHidden = Boolean(prefs.dismissedAt);
+  // A first-timer in an account with nothing in it starts in the welcome
+  // flow, once: it records that they saw it, and they are never sent again.
+  // Not when the page was asked to open a dialog, nor for someone who cannot
+  // make a workspace, nor for a person who has hidden getting started.
+  const role = person ? await viewerRole() : null;
+  if (person && !workspaces.length && !prefs.welcomedAt && !onboardingHidden && !create && !importing && (role === null || can(role, "workspace:manage"))) {
+    redirect(`/dashboard/welcome${qs}`);
+  }
+  const fresh = workspaces.length === 0;
+  const showCard = !onboardingHidden && !onboarding.complete;
 
   const spendHref = `/dashboard/usage${qs}`;
   const rows: Row[] = desks.map((d) => {
@@ -176,11 +189,6 @@ export default async function Dashboard({
       {/* Live rows repaint themselves; the timer is for the board around them. */}
       <AutoRefresh active={board.length > 0} />
       <h1 className="sr-only">Workspaces</h1>
-      {!onboardingHidden && !onboarding.complete && (
-        <div className="mb-6">
-          <OnboardingCard data={onboarding} qs={qs} canDismiss={Boolean(person)} />
-        </div>
-      )}
       <SplitOverview
         search="Search workspaces…"
         title="Workspaces"
@@ -204,26 +212,36 @@ export default async function Dashboard({
             description="A workspace holds its own agents, flows, secrets and runs. Start with the demo: a four-step pipeline you can run in a minute."
             action={
               <>
-                <DemoButton tenant={tenant} exists={false} />
-                <Link href={`/dashboard?create=workspace${rest}`} className={buttonVariants({ variant: "secondary" })}>
-                  New workspace
+                <DemoButton tenant={tenant} exists={false} then={`/dashboard/welcome?step=run${rest}`} label="Try the demo pipeline" variant="primary" />
+                <Link href={`/dashboard/welcome${qs}`} className={buttonVariants({ variant: "secondary", size: "md" })}>
+                  <ListChecks aria-hidden />
+                  Set up step by step
                 </Link>
               </>
             }
           />
         }
         left={
+          fresh && !showCard && !needs.length && !money.length ? undefined : (
           <>
-            <SpendPanel
-              dayUsd={spendWithin(lite, now, DAY_MS)}
-              weekUsd={spendWithin(lite, now, 7 * DAY_MS)}
-              balanceUsd={wallet?.balanceUsd ?? null}
-              href={spendHref}
-              balanceHref={`/dashboard/billing${qs}`}
-            />
-            <AttentionPanel items={needs} alerts={money} tenant={tenant} issuesHref={`/dashboard/issues${qs}`} accountWide={scope === null} />
-            <NowNext board={board} upcoming={upcoming} now={now} tenant={tenant} runsHref={`/dashboard/runs?status=running${rest}`} />
+            {showCard && <OnboardingCard data={onboarding} qs={qs} canDismiss={Boolean(person)} />}
+            {/* A new account has nothing to spend, watch or fix: no wall of
+                empty panels, only the way in. */}
+            {!fresh && (
+              <SpendPanel
+                dayUsd={spendWithin(lite, now, DAY_MS)}
+                weekUsd={spendWithin(lite, now, 7 * DAY_MS)}
+                balanceUsd={wallet?.balanceUsd ?? null}
+                href={spendHref}
+                balanceHref={`/dashboard/billing${qs}`}
+              />
+            )}
+            {(!fresh || needs.length > 0 || money.length > 0) && (
+              <AttentionPanel items={needs} alerts={money} tenant={tenant} issuesHref={`/dashboard/issues${qs}`} accountWide={scope === null} />
+            )}
+            {!fresh && <NowNext board={board} upcoming={upcoming} now={now} tenant={tenant} runsHref={`/dashboard/runs?status=running${rest}`} />}
           </>
+          )
         }
       />
       {onboardingHidden && !onboarding.complete && (
