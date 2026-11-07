@@ -47,7 +47,36 @@ const OnboardingStep = obj({
   href: str("where to do it, a dashboard path"),
   cli: str("the CLI's way to do it, when there is one"),
   done: bool,
+  hidden: { ...bool, description: "this person hid the step from their card; always false for a key" },
 });
+
+/** A workspace's checklist (workspace-checklist-model.ts). */
+const ChecklistItem = obj({
+  id: str("run | trigger | owner | eval | notify"),
+  title: str(),
+  why: str(),
+  href: str("where it is done, a dashboard path"),
+  done: bool,
+  hidden: { ...bool, description: "this person hid the item" },
+});
+const WorkspaceChecklist = obj({
+  workspace: str(),
+  items: arr(ChecklistItem),
+  done: int,
+  total: int,
+  complete: { ...bool, description: "every item done" },
+  dismissed: { ...bool, description: "this person hid the checklist for this workspace" },
+  show: { ...bool, description: "whether the card is drawn: not dismissed, and an item is neither done nor hidden" },
+});
+const ChecklistPatch = obj(
+  {
+    workspace: str("the workspace whose checklist this changes"),
+    dismissed: { ...bool, description: "true hides the whole checklist for you; false brings it back" },
+    hide: arr(str(), "item ids to hide for you"),
+    show: arr(str(), "item ids to bring back"),
+  },
+  ["workspace"],
+);
 
 const RunView = obj({ name: str("1 to 40 characters, unique"), query: str("a query string of the runs pages' filters, e.g. tool=web&tool_error=1") }, ["name", "query"]);
 const Preferences = obj({
@@ -360,19 +389,37 @@ export const SHAPES: Record<string, Shape> = {
     response: MailPreferences,
   },
   "GET /api/me/onboarding": {
+    query: [{ name: "workspace", description: "add that workspace's checklist to the answer; 404 for a workspace outside the caller's scope or that does not exist" }],
     response: obj({
       steps: arr(OnboardingStep),
       done: int,
       total: int,
       complete: bool,
       next: { ...OnboardingStep, type: ["object", "null"], description: "the first step not done; null when all are" },
+      upNext: { ...OnboardingStep, type: ["object", "null"], description: "the first step neither done nor hidden by this person; null when none is left" },
+      hidden: arr(str(), "the step ids this person hid; empty for a key"),
       dismissed: { ...bool, description: "this person hid the card; always false for a key" },
       dismissedAt: nstr(),
+      welcomedAt: nstr("when this person first opened the welcome flow; null before, and for a key"),
+      checklist: { ...WorkspaceChecklist, description: "with ?workspace=: that workspace's checklist (absent otherwise)" },
     }),
   },
   "PATCH /api/me/onboarding": {
-    body: obj({ dismissed: { ...bool, description: "true hides the card for you; false brings it back" } }, ["dismissed"]),
-    response: obj({ ok: bool, dismissed: bool, dismissedAt: nstr() }),
+    body: obj({
+      dismissed: { ...bool, description: "true hides the card for you; false brings it back" },
+      welcomed: { ...bool, description: "true records that you have seen the welcome flow (the home page stops sending you there)" },
+      hide: arr(str(), "step ids to hide from your card"),
+      show: arr(str(), "step ids to bring back"),
+      checklist: ChecklistPatch,
+    }),
+    response: obj({
+      ok: bool,
+      dismissed: bool,
+      dismissedAt: nstr(),
+      welcomedAt: nstr(),
+      hidden: arr(str()),
+      checklist: obj({ dismissedAt: str(), hidden: arr(str()) }),
+    }),
   },
   "GET /api/me/preferences": { response: Preferences },
   "PATCH /api/me/preferences": {

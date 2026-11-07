@@ -7,9 +7,23 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { buttonVariants } from "@/components/kit/button";
+import { Button } from "@/components/kit/button";
 
-export function DemoButton({ tenant, exists }: { tenant: string; exists: boolean }) {
+/** `then`: where to go once it is made (the welcome flow's next step);
+ *  without it, the demo's flows. */
+export function DemoButton({
+  tenant,
+  exists,
+  then,
+  label = "Try the demo pipeline",
+  variant = "secondary",
+}: {
+  tenant: string;
+  exists: boolean;
+  then?: string;
+  label?: string;
+  variant?: "primary" | "secondary";
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +39,7 @@ export function DemoButton({ tenant, exists }: { tenant: string; exists: boolean
     });
     const body = (await res.json().catch(() => ({}))) as { error?: string };
     if (res.ok) {
-      router.push(`/dashboard/demo-pipeline/flows${tenant !== "default" ? `?tenant=${tenant}` : ""}`);
+      router.push(then ?? `/dashboard/demo-pipeline/flows${tenant !== "default" ? `?tenant=${tenant}` : ""}`);
       return;
     }
     setError(body.error ?? "could not create the demo");
@@ -33,11 +47,15 @@ export function DemoButton({ tenant, exists }: { tenant: string; exists: boolean
   };
 
   return (
-    <span className="inline-flex items-center gap-2">
-      <button onClick={() => void create()} disabled={busy} className={buttonVariants({ variant: "secondary" })}>
-        {busy ? "Creating…" : "Try the demo pipeline"}
-      </button>
-      {error && <span className="text-xs text-red-600">{error}</span>}
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <Button variant={variant} size={variant === "primary" ? "md" : "sm"} onClick={() => void create()} disabled={busy}>
+        {busy ? "Creating…" : label}
+      </Button>
+      {error && (
+        <span role="alert" className="text-xs text-danger">
+          {error}
+        </span>
+      )}
     </span>
   );
 }

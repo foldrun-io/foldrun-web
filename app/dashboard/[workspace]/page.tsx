@@ -3,7 +3,10 @@
 // is running and what fires next, then the flows with their last runs as a
 // strip, and the agents. Files live on Edit; runs on Runs.
 
-import { viewerScope } from "@/server/users";
+import { viewerScope, verifySession, SESSION_COOKIE } from "@/server/users";
+import { cookies } from "next/headers";
+import { onboardingPrefs, workspaceChecklistFor } from "@/server/onboarding";
+import { WorkspaceChecklist } from "@/components/workspace-checklist";
 import Link from "next/link";
 import fs from "node:fs";
 import { notFound } from "next/navigation";
@@ -130,6 +133,10 @@ export default async function ProjectPage({
     };
   });
   const agentList = agentRows(agents, runs, now, (r, a) => agentCharge(r, a, charges));
+  // What this desk still needs before it can be left to run (cloudhost's
+  // Production checklist), hidden per person.
+  const person = await verifySession((await cookies()).get(SESSION_COOKIE)?.value);
+  const checklist = workspaceChecklistFor(tenant, workspace, onboardingPrefs(person?.prefs));
 
   return (
     <Page>
@@ -189,14 +196,20 @@ export default async function ProjectPage({
             title="No flows yet"
             description="A flow is a numbered list of steps in flows/, each naming the agent that runs it."
             action={
-              <Link href={`/dashboard/${workspace}/flows?create=flows${tenantParam}`} className={buttonVariants({ variant: "primary" })}>
-                New flow
-              </Link>
+              <>
+                <Link href={`/dashboard/${workspace}/flows?create=flows${tenantParam}`} className={buttonVariants({ variant: "primary" })}>
+                  New flow
+                </Link>
+                <Link href={`/dashboard/welcome?step=start${tenantParam}`} className={buttonVariants({ variant: "secondary" })}>
+                  Other ways to start
+                </Link>
+              </>
             }
           />
         }
         left={
           <>
+            {checklist.show && <WorkspaceChecklist data={checklist} qs={qs} canHide={Boolean(person)} />}
             <AttentionPanel items={needs} tenant={tenant} showWorkspace={false} accountWide={accountWide} issuesHref={`/dashboard/issues?workspace=${encodeURIComponent(workspace)}${tenantParam}`} />
             <NowNext board={board} upcoming={upcoming} now={now} tenant={tenant} showWorkspace={false} runsHref={`/dashboard/${workspace}/runs${qs}`} />
             <SpendPanel

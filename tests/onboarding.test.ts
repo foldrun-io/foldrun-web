@@ -138,3 +138,92 @@ test("the route: a key reads the steps; a person hides and brings back the card"
   assert.equal((await patch(false)).status, 200);
   assert.equal((await findUserById(user.id))?.prefs ?? null, null);
 });
+
+const { welcomeFlow, welcomeAfter } = await import("../components/onboarding-model.ts");
+
+test("a hidden step still counts, ticks itself, and is passed over for what the card offers next", () => {
+  const o = onboardingSteps(empty, ["workspace", "nonsense"]);
+  assert.equal(o.next?.id, "workspace", "next is the account's, whatever a person hid");
+  assert.equal(o.upNext?.id, "agent", "upNext skips what this person hid");
+  assert.deepEqual(o.hidden, ["workspace"]);
+  assert.equal(o.steps.find((s) => s.id === "workspace")?.hidden, true);
+  assert.equal(o.total, 8);
+  const done = onboardingSteps({ ...empty, workspaces: ["a"] }, ["workspace"]);
+  assert.equal(done.steps.find((s) => s.id === "workspace")?.done, true, "hidden and done");
+  const all = onboardingSteps(empty, ["workspace", "agent", "run", "success", "secret", "trigger", "teammate", "cli"]);
+  assert.equal(all.upNext, null, "everything hidden: nothing left to offer");
+  assert.equal(all.complete, false);
+});
+
+test("the welcome flow: four screens from the steps, the first not done, ?step= honoured", () => {
+  const fresh = welcomeFlow(onboardingSteps({ ...empty, model: { done: false } }));
+  assert.deepEqual(fresh.steps.map((s) => s.id), ["model", "start", "run", "next"]);
+  assert.equal(fresh.current, "model");
+  const platform = welcomeFlow(onboardingSteps(empty), "model");
+  assert.deepEqual(platform.steps.map((s) => s.id), ["start", "run", "next"], "no model screen where the platform supplies models");
+  assert.equal(platform.current, "start", "a screen not in the flow falls back to the first not done");
+  const made = welcomeFlow(onboardingSteps({ ...empty, model: { done: true }, workspaces: ["demo-pipeline"], runs: 1 }));
+  assert.equal(made.current, "run", "resumes where the account is");
+  assert.equal(welcomeFlow(onboardingSteps({ ...empty, model: { done: true }, workspaces: ["home"] }), null, true).current, "model", "a first visit starts at the beginning");
+  assert.equal(welcomeFlow(onboardingSteps(empty), "next").current, "next");
+  assert.equal(welcomeAfter(made, "start"), "run");
+  assert.equal(welcomeAfter(made, "next"), null);
+  const finished = welcomeFlow(onboardingSteps({ ...empty, workspaces: ["a"], completedRuns: 1, runs: 1, members: 2, triggers: 1, secrets: 1 }));
+  assert.ok(finished.steps.every((s) => s.done));
+  assert.equal(finished.current, "next");
+});
+
+test("the route: welcomed, per-step hide and show, a workspace's checklist", async () => {
+  // A second account on this install: signups are open for it.
+  process.env.FOLDRUN_OPEN_SIGNUP = "1";
+  const user = await createUser("hider@acme3.test", "Qz8-vmT2-plx9-Wr4k-hid", "acme3");
+  delete process.env.FOLDRUN_OPEN_SIGNUP;
+  const { value } = await mintSession(user);
+  const cookie = `${SESSION_COOKIE}=${value}`;
+  const patch = (body: unknown) =>
+    PATCH(new NextRequest("http://x/api/me/onboarding", { method: "PATCH", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify(body) }));
+  const get = async (q = "") => {
+    const r = await GET(new NextRequest(`http://x/api/me/onboarding${q}`, { headers: { cookie } }));
+    return { status: r.status, body: await r.json() };
+  };
+
+  assert.equal((await patch({})).status, 400, "nothing to change");
+  assert.equal((await patch({ hide: ["no-such-step"] })).status, 400);
+  assert.equal((await patch({ welcomed: "yes" })).status, 400);
+
+  assert.equal((await get()).body.welcomedAt, null);
+  const w = await patch({ welcomed: true });
+  assert.equal(w.status, 200);
+  const at = (await w.json()).welcomedAt;
+  assert.ok(at);
+  assert.equal((await (await patch({ welcomed: true })).json()).welcomedAt, at, "the first visit is kept");
+
+  assert.deepEqual((await (await patch({ hide: ["workspace", "cli"] })).json()).hidden, ["workspace", "cli"]);
+  let read = (await get()).body;
+  assert.deepEqual(read.hidden, ["workspace", "cli"]);
+  assert.equal(read.next.id, "workspace");
+  assert.equal(read.upNext.id, "agent");
+  assert.deepEqual((await (await patch({ show: ["workspace"] })).json()).hidden, ["cli"]);
+
+  assert.equal((await get("?workspace=nope")).status, 404);
+  deployWorkspace("acme3", "desk", [{ path: "AGENTS.md", content: AGENTS }], { by: "a@b.c", message: "made" });
+  read = (await get("?workspace=desk")).body;
+  assert.equal(read.checklist.workspace, "desk");
+  assert.equal(read.checklist.total, 5);
+  assert.equal(read.checklist.show, true);
+  assert.equal((await get()).body.checklist, undefined, "only when asked for");
+
+  assert.equal((await patch({ checklist: { workspace: "nope", dismissed: true } })).status, 404);
+  assert.equal((await patch({ checklist: { workspace: "desk", hide: ["owner-ish"] } })).status, 400);
+  assert.equal((await patch({ checklist: { workspace: "desk", hide: ["eval"] } })).status, 200);
+  read = (await get("?workspace=desk")).body;
+  assert.equal(read.checklist.items.find((i: { id: string }) => i.id === "eval").hidden, true);
+  assert.equal(read.checklist.dismissed, false);
+  assert.equal((await patch({ checklist: { workspace: "desk", dismissed: true } })).status, 200);
+  read = (await get("?workspace=desk")).body;
+  assert.equal(read.checklist.dismissed, true);
+  assert.equal(read.checklist.show, false);
+  assert.equal(read.checklist.items.find((i: { id: string }) => i.id === "eval").hidden, true, "dismissing keeps the hidden items");
+  await patch({ checklist: { workspace: "desk", dismissed: false, show: ["eval"] } });
+  assert.equal((await findUserById(user.id))?.prefs?.onboardingChecklists, undefined, "nothing left: the entry is gone");
+});
