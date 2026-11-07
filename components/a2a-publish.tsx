@@ -15,12 +15,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { buttonClass, inputClass, FIELD_LABEL_CLASS } from "@/components/ui";
+import { Input, Textarea, labelClass } from "@/components/kit/input";
+import { cn } from "@/components/kit/cn";
 import { buttonVariants } from "@/components/kit/button";
 import { Globe } from "lucide-react";
 import { CopyField } from "@/components/copy-field";
 import { useCan } from "@/components/role";
 import { a2aBodyOf, a2aCurl, a2aFormOf, a2aRiskState, type A2aForm, type A2aRisk } from "@/components/a2a-model";
+import { Callout } from "@/components/kit/page";
+import { Switch, Checkbox } from "@/components/kit/choice";
+import { Tooltip } from "@/components/kit/tooltip";
 
 interface Published {
   publish: boolean;
@@ -85,18 +89,19 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => {
-          setOpen(true);
-          void locate();
-        }}
-        className={buttonVariants({ variant: "secondary" })}
-        title={initial?.publish ? "Published over A2A — outside agents with an A2A key naming this flow may call it" : "Let outside agents call this flow over A2A"}
-      >
-        <Globe aria-hidden />
-        {initial?.publish ? "Change publishing" : "Publish over A2A…"}
-      </button>
+      <Tooltip label={initial?.publish ? "Published over A2A — outside agents with an A2A key naming this flow may call it" : "Let outside agents call this flow over A2A"}>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(true);
+            void locate();
+          }}
+          className={buttonVariants({ variant: "secondary" })}
+        >
+          <Globe aria-hidden />
+          {initial?.publish ? "Change publishing" : "Publish over A2A…"}
+        </button>
+      </Tooltip>
     );
   }
 
@@ -108,35 +113,35 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
       </p>
       <fieldset disabled={!mayManage || busy} className="mt-3 grid gap-3 sm:grid-cols-2">
         <label className="flex items-center gap-2 text-sm text-fg-secondary sm:col-span-2">
-          <input type="checkbox" checked={form.publish} onChange={(e) => set("publish", e.target.checked)} />
+          <Switch checked={form.publish} onCheckedChange={(checked: boolean) => set("publish", checked)} />
           Published — outside agents with an A2A key may call it
         </label>
         <label>
-          <span className={FIELD_LABEL_CLASS}>Card name</span>
-          <input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder={flow} maxLength={100} className={inputClass("w-full")} />
+          <span className={labelClass}>Card name</span>
+          <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder={flow} maxLength={100} className="w-full" />
         </label>
         <label className="flex items-center gap-2 self-end pb-2 text-sm text-fg-secondary">
-          <input type="checkbox" checked={form.publicCard} onChange={(e) => set("publicCard", e.target.checked)} />
+          <Switch checked={form.publicCard} onCheckedChange={(checked: boolean) => set("publicCard", checked)} />
           Public card — readable without a key (calling it never is)
         </label>
         <label className="sm:col-span-2">
-          <span className={FIELD_LABEL_CLASS}>Description</span>
-          <textarea
+          <span className={labelClass}>Description</span>
+          <Textarea
             value={form.description}
             onChange={(e) => set("description", e.target.value)}
             rows={2}
             maxLength={2000}
             placeholder="What this agent does, for the agents that call it. Written for strangers: no internal names, no secrets."
-            className={inputClass("w-full")}
+            className="w-full"
           />
         </label>
         <label className="sm:col-span-2">
-          <span className={FIELD_LABEL_CLASS}>Example requests — one per line</span>
-          <textarea value={form.examples} onChange={(e) => set("examples", e.target.value)} rows={2} className={inputClass("w-full font-mono text-xs")} />
+          <span className={labelClass}>Example requests — one per line</span>
+          <Textarea value={form.examples} onChange={(e) => set("examples", e.target.value)} rows={2} className="w-full font-mono text-xs" />
         </label>
       </fieldset>
       {risk.items.length > 0 && (
-        <div role="alert" className="mt-3 rounded-md border border-warning-line bg-warning-soft p-3 text-xs text-fg-secondary">
+        <Callout tone="warning" className="mt-3 p-3 text-xs text-fg-secondary" role="alert">
           <p className="font-medium text-warning">The answer goes back to the caller</p>
           <p className="mt-1">
             {risk.items.length === 1 ? "This agent holds" : "These agents hold"} a secret and can run code (Bash), so a caller can ask for the secret in the answer. Take Bash or the secret away
@@ -146,7 +151,7 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
             {risk.items.map((r) => (
               <li key={r.agent}>
                 <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={r.accepted} disabled={!mayManage || busy} onChange={(e) => accept(r.agent, e.target.checked)} />
+                  <Checkbox checked={r.accepted} disabled={!mayManage || busy} onCheckedChange={(checked: boolean) => accept(r.agent, checked)} />
                   <span>
                     Accept for <span className="font-mono">{r.agent}</span> — holds <span className="font-mono">{r.secrets.slice(0, 3).join(", ")}{r.secrets.length > 3 ? ", …" : ""}</span>
                   </span>
@@ -155,19 +160,22 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
             ))}
           </ul>
           <p className="mt-2 text-fg-subtle">Written as a2a: accept_risk in the flow and in the audit log.</p>
-        </div>
+        </Callout>
       )}
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={save}
-          disabled={!mayManage || busy || !dirty || risk.blocks}
-          className={buttonClass("primary")}
-          title={!mayManage ? "Publishing a flow needs the admin role (workspace:manage)" : risk.blocks ? "Accept the risk for each agent above, or take Bash or the secret away from it" : undefined}
-        >
-          {busy ? "Saving…" : "Save"}
-        </button>
-        <button type="button" onClick={() => { setForm(saved); setError(null); setOpen(false); }} className={buttonClass("minimal")}>
+        <Tooltip label={!mayManage ? "Publishing a flow needs the admin role (workspace:manage)" : risk.blocks ? "Accept the risk for each agent above, or take Bash or the secret away from it" : undefined}>
+          <span className="inline-flex">
+            <button
+              type="button"
+              onClick={save}
+              disabled={!mayManage || busy || !dirty || risk.blocks}
+              className={buttonVariants({ variant: "primary", size: "md" })}
+            >
+              {busy ? "Saving…" : "Save"}
+            </button>
+          </span>
+        </Tooltip>
+        <button type="button" onClick={() => { setForm(saved); setError(null); setOpen(false); }} className={buttonVariants({ variant: "ghost", size: "md" })}>
           Close
         </button>
         {error && <span role="alert" className="text-xs text-danger">{error}</span>}
@@ -176,11 +184,11 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
       {where && saved.publish && (
         <div className="mt-3 space-y-2 border-t border-line-faint pt-3">
           <div>
-            <span className={FIELD_LABEL_CLASS}>Agent card</span>
+            <span className={labelClass}>Agent card</span>
             <CopyField value={where.card} className="mt-1" />
           </div>
           <div>
-            <span className={FIELD_LABEL_CLASS}>Try it — with an A2A key in $FOLDRUN_A2A_KEY</span>
+            <span className={labelClass}>Try it — with an A2A key in $FOLDRUN_A2A_KEY</span>
             <CopyBlock text={a2aCurl(where.url, { text: saved.examples.split("\n")[0]?.trim() || "Hello" })} />
           </div>
         </div>
@@ -207,7 +215,7 @@ function CopyBlock({ text }: { text: string }) {
             // the block is selectable; the button was a convenience
           }
         }}
-        className={buttonClass("secondary", "mt-1")}
+        className={cn(buttonVariants({ variant: "secondary", size: "md" }), "mt-1")}
       >
         {done ? "Copied" : "Copy curl"}
       </button>

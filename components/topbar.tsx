@@ -24,6 +24,8 @@ import { scoreHit } from "./find-model";
 import { workspaceOf } from "./nav-model";
 import { Avatar } from "./avatar";
 import { cn } from "./kit/cn";
+import { Popover, PopoverContent, PopoverTrigger } from "./kit/popover";
+import { Chip } from "./kit/page";
 
 interface WorkspaceRow {
   name: string;
@@ -103,8 +105,7 @@ function Switcher({
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
-  const ref = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   // A navigation closes it — adjusted during render rather than in an effect.
   const [seenPath, setSeenPath] = useState(pathname);
@@ -112,23 +113,6 @@ function Switcher({
     setSeenPath(pathname);
     if (open) setOpen(false);
   }
-  useEffect(() => {
-    if (!open) return;
-    const onPointer = (e: MouseEvent | TouchEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointer as EventListener, true);
-    document.addEventListener("keydown", onKey);
-    const t = setTimeout(() => inputRef.current?.focus(), 0);
-    return () => {
-      clearTimeout(t);
-      document.removeEventListener("pointerdown", onPointer as EventListener, true);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
 
   const shown = items
     .map((it) => ({ it, score: scoreHit(q, it.name) }))
@@ -137,81 +121,84 @@ function Switcher({
     .map(({ it }) => it);
 
   return (
-    <div ref={ref} className={cn("relative min-w-0", align === "stretch" && "w-full")}>
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label={`Switch ${label}`}
-        onClick={() => {
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (next) {
           setQ("");
           setActive(0);
-          setOpen(!open);
-        }}
-        className={cn(
-          "flex min-w-0 items-center gap-2 rounded-md text-sm font-medium text-fg transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus aria-expanded:bg-muted",
-          triggerClassName,
-        )}
-      >
-        {trigger}
-        <ChevronsUpDown className="size-3.5 shrink-0 text-fg-subtle" aria-hidden />
-      </button>
-      {open && (
-        <div className={cn("absolute top-full z-50 mt-1.5 overflow-hidden rounded-lg border border-line bg-surface shadow-menu", align === "stretch" ? "inset-x-0 min-w-64" : "left-0 w-72")}>
-          <div className="border-b border-line px-3">
-            <input
-              ref={inputRef}
-              value={q}
-              onChange={(e) => {
-                setQ(e.target.value);
-                setActive(0);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "ArrowDown") {
-                  e.preventDefault();
-                  setActive((a) => Math.min(shown.length - 1, a + 1));
-                } else if (e.key === "ArrowUp") {
-                  e.preventDefault();
-                  setActive((a) => Math.max(0, a - 1));
-                } else if (e.key === "Enter" && shown[active]) {
-                  e.preventDefault();
-                  ref.current?.querySelector<HTMLAnchorElement>(`[data-index="${active}"]`)?.click();
-                }
-              }}
-              placeholder={placeholder}
-              aria-label={placeholder}
-              className="h-10 w-full bg-transparent text-sm text-fg placeholder:text-fg-subtle focus:outline-none"
-            />
-          </div>
-          <ul role="listbox" className="max-h-72 overflow-auto p-1">
-            {shown.map((it, i) => (
-              <li key={it.name}>
-                <Link
-                  href={it.href}
-                  data-index={i}
-                  role="option"
-                  aria-selected={!!it.current}
-                  onMouseEnter={() => setActive(i)}
-                  onClick={() => setOpen(false)}
-                  className={cn("flex h-9 items-center gap-2.5 rounded-md px-2 text-sm", i === active && "bg-muted", it.current ? "font-medium text-fg" : "text-fg-secondary")}
-                >
-                  <Avatar name={it.name} src={it.avatar} size="xs" square={it.square} />
-                  <span className="min-w-0 flex-1 truncate">{it.name}</span>
-                  {it.badge && <span className="rounded-full border border-line px-1.5 text-[11px] text-fg-muted">{it.badge}</span>}
-                  {it.meta && <span className="shrink-0 text-xs text-fg-subtle">{it.meta}</span>}
-                  {it.current && <Check className="size-4 shrink-0 text-fg" aria-hidden />}
-                </Link>
-              </li>
-            ))}
-            {shown.length === 0 && <li className="px-3 py-6 text-center text-xs text-fg-subtle">{q ? `Nothing matches “${q}”.` : empty}</li>}
-          </ul>
-          <Link href={footer.href} onClick={() => setOpen(false)} className="flex h-10 items-center gap-2 border-t border-line px-3 text-sm text-fg-secondary hover:bg-sunken hover:text-fg">
-            <Plus className="size-4 text-fg-muted" aria-hidden />
-            {footer.title}
-          </Link>
+        }
+        setOpen(next);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-haspopup="listbox"
+          aria-label={`Switch ${label}`}
+          className={cn(
+            "flex min-w-0 items-center gap-2 rounded-md text-sm font-medium text-fg transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus aria-expanded:bg-muted",
+            align === "stretch" && "w-full",
+            triggerClassName,
+          )}
+        >
+          {trigger}
+          <ChevronsUpDown className="size-3.5 shrink-0 text-fg-subtle" aria-hidden />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className={align === "stretch" ? "w-(--radix-popover-trigger-width) min-w-64" : "w-72"}>
+        <div className="border-b border-line px-3">
+          <input
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setActive(0);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setActive((a) => Math.min(shown.length - 1, a + 1));
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setActive((a) => Math.max(0, a - 1));
+              } else if (e.key === "Enter" && shown[active]) {
+                e.preventDefault();
+                listRef.current?.querySelector<HTMLAnchorElement>(`[data-index="${active}"]`)?.click();
+              }
+            }}
+            placeholder={placeholder}
+            aria-label={placeholder}
+            className="h-10 w-full bg-transparent text-sm text-fg placeholder:text-fg-subtle focus:outline-none"
+          />
         </div>
-      )}
-    </div>
+        <ul ref={listRef} role="listbox" className="max-h-72 overflow-auto p-1">
+          {shown.map((it, i) => (
+            <li key={it.name}>
+              <Link
+                href={it.href}
+                data-index={i}
+                role="option"
+                aria-selected={!!it.current}
+                onMouseEnter={() => setActive(i)}
+                onClick={() => setOpen(false)}
+                className={cn("flex h-9 items-center gap-2.5 rounded-md px-2 text-sm", i === active && "bg-muted", it.current ? "font-medium text-fg" : "text-fg-secondary")}
+              >
+                <Avatar name={it.name} src={it.avatar} size="xs" square={it.square} />
+                <span className="min-w-0 flex-1 truncate">{it.name}</span>
+                {it.badge && <Chip className="h-5 px-1.5 text-[11px] font-normal">{it.badge}</Chip>}
+                {it.meta && <span className="shrink-0 text-xs text-fg-subtle">{it.meta}</span>}
+                {it.current && <Check className="size-4 shrink-0 text-fg" aria-hidden />}
+              </Link>
+            </li>
+          ))}
+          {shown.length === 0 && <li className="px-3 py-6 text-center text-xs text-fg-subtle">{q ? `Nothing matches “${q}”.` : empty}</li>}
+        </ul>
+        <Link href={footer.href} onClick={() => setOpen(false)} className="flex h-10 items-center gap-2 border-t border-line px-3 text-sm text-fg-secondary hover:bg-sunken hover:text-fg">
+          <Plus className="size-4 text-fg-muted" aria-hidden />
+          {footer.title}
+        </Link>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -231,7 +218,7 @@ export function AccountSwitcher({ collapsed = false }: { collapsed?: boolean }) 
           {!collapsed && (
             <>
               <span className="truncate">{account}</span>
-              {plan && <span className="shrink-0 rounded-full border border-line px-1.5 text-[11px] font-normal leading-4 text-fg-muted">{plan}</span>}
+              {plan && <Chip className="h-5 px-1.5 text-[11px] font-normal">{plan}</Chip>}
               <span className="flex-1" />
             </>
           )}

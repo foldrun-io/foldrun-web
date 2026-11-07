@@ -11,6 +11,7 @@ import { Sparkles } from "lucide-react";
 import { releases, versionInfo, type Release, type NoteLine } from "@/server/release";
 import { ComponentTable, VersionFacts } from "@/components/version-table";
 import { apiChangelog, type ApiChangelog } from "@/server/api-version";
+import { Tooltip } from "@/components/kit/tooltip";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "What's new" };
@@ -27,9 +28,11 @@ const day = (iso: string | null) => (iso ? new Date(iso).toISOString().slice(0, 
 function Line({ n }: { n: NoteLine }) {
   return (
     <li className="flex gap-2 py-0.5 text-sm text-fg-secondary">
-      <span className="mt-0.5 w-16 shrink-0 truncate font-mono text-xs text-fg-subtle" title={`foldrun-${n.repo} ${n.sha}`}>
-        {n.repo}
-      </span>
+      <Tooltip label={`foldrun-${n.repo} ${n.sha}`}>
+        <span className="mt-0.5 w-16 shrink-0 truncate font-mono text-xs text-fg-subtle">
+          {n.repo}
+        </span>
+      </Tooltip>
       <span>{n.subject}</span>
     </li>
   );

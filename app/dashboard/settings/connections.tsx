@@ -8,12 +8,14 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { buttonClass, inputClass, selectClass, SectionHeading } from "@/components/ui";
+import { buttonVariants, Button } from "@/components/kit/button";
+import { Input, Textarea } from "@/components/kit/input";
+import { Select } from "@/components/kit/select";
 import { KeyRound } from "lucide-react";
-import { Button } from "@/components/kit/button";
-import { EmptyState, IconBox, Tag, Chip } from "@/components/kit/page";
+import { EmptyState, IconBox, Tag, Chip, SectionTitle, Field, Callout } from "@/components/kit/page";
 import { cn } from "@/components/kit/cn";
-import { useConfirm } from "@/components/confirm";
+import { useConfirm } from "@/components/kit/confirm";
+import { Checkbox, RadioGroup, RadioGroupItem } from "@/components/kit/choice";
 
 type Kind = "key" | "api" | "ssh" | "oauth" | "oauth_m2m" | "service_account" | "file" | "client_cert" | "identity" | "token_exchange";
 
@@ -120,13 +122,6 @@ function SecretHealth({ health }: { health: ConnectionRow["health"] }) {
   );
 }
 
-const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <label className="block min-w-0">
-    <span className="mb-1.5 block text-sm font-medium text-fg">{label}</span>
-    {children}
-  </label>
-);
-
 /** Sites a secret may be bound to: typed as a comma- or space-separated line. */
 /** The App choice for entering a new app — not a valid app name, so it can never be one. */
 const NEW_APP = "+new";
@@ -200,13 +195,13 @@ function SecretSites({ row, tenant, workspace, editable }: { row: ConnectionRow;
         </p>
       ) : (
         <form onSubmit={(e) => { e.preventDefault(); void save(parseSites(text)); }} className="flex flex-wrap items-center gap-2">
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="api.example.com, *.example.org" autoFocus
-            aria-label={`Sites ${row.name} may be sent to`} className={inputClass("w-72 font-mono text-xs")} />
-          <button type="submit" disabled={busy} className={buttonClass("primary")}>Save</button>
+          <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="api.example.com, *.example.org" autoFocus
+            aria-label={`Sites ${row.name} may be sent to`} className="w-72 font-mono text-xs" />
+          <button type="submit" disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })}>Save</button>
           {sites.length > 0 && (
-            <button type="button" disabled={busy} onClick={() => void save([])} className={buttonClass("secondary")}>Unbind</button>
+            <button type="button" disabled={busy} onClick={() => void save([])} className={buttonVariants({ variant: "secondary", size: "md" })}>Unbind</button>
           )}
-          <button type="button" onClick={() => { setEditing(false); setText(sites.join(", ")); }} className={buttonClass("minimal")}>Cancel</button>
+          <button type="button" onClick={() => { setEditing(false); setText(sites.join(", ")); }} className={buttonVariants({ variant: "ghost", size: "md" })}>Cancel</button>
         </form>
       )}
       {error && <p className="mt-1 text-danger">{error}</p>}
@@ -279,22 +274,22 @@ function SecretWorkspaces({ row, tenant, choices }: { row: ConnectionRow; tenant
         </p>
       ) : (
         <form onSubmit={(e) => { e.preventDefault(); void save(); }} className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-3" role="radiogroup" aria-label={`Workspaces that may use ${row.name}`}>
+          <RadioGroup className="flex flex-wrap items-center gap-3" aria-label={`Workspaces that may use ${row.name}`} value={mode} onValueChange={(v) => setMode(v as typeof mode)}>
             <label className="flex items-center gap-1.5">
-              <input type="radio" name={`ws-${row.name}`} checked={mode === "all"} onChange={() => setMode("all")} />
+              <RadioGroupItem value="all" />
               All workspaces
             </label>
             <label className="flex items-center gap-1.5">
-              <input type="radio" name={`ws-${row.name}`} checked={mode === "selected"} onChange={() => setMode("selected")} />
+              <RadioGroupItem value="selected" />
               Selected workspaces
             </label>
-          </div>
+          </RadioGroup>
           {mode === "selected" && (
             <div className="flex flex-wrap gap-x-4 gap-y-1">
               {(choices ?? []).map((w) => (
                 <label key={w} className="flex items-center gap-1.5 font-mono">
-                  <input type="checkbox" checked={picked.includes(w)}
-                    onChange={(e) => setPicked(e.target.checked ? [...picked, w] : picked.filter((x) => x !== w))} />
+                  <Checkbox checked={picked.includes(w)}
+                    onCheckedChange={(checked: boolean) => setPicked(checked ? [...picked, w] : picked.filter((x) => x !== w))} />
                   {w}
                 </label>
               ))}
@@ -304,8 +299,8 @@ function SecretWorkspaces({ row, tenant, choices }: { row: ConnectionRow; tenant
             &quot;All&quot; includes workspaces made later. A change applies to runs that start after it — stop a running one to cut it off now.
           </p>
           <div className="flex items-center gap-2">
-            <button type="submit" disabled={busy} className={buttonClass("primary")}>Save</button>
-            <button type="button" onClick={() => setEditing(false)} className={buttonClass("minimal")}>Cancel</button>
+            <button type="submit" disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })}>Save</button>
+            <button type="button" onClick={() => setEditing(false)} className={buttonVariants({ variant: "ghost", size: "md" })}>Cancel</button>
           </div>
         </form>
       )}
@@ -677,7 +672,7 @@ export function Connections({
   return (
     <section className={heading ? "mb-8" : ""}>
       {confirmDialog}
-      {heading && <SectionHeading>Connections</SectionHeading>}
+      {heading && <SectionTitle title="Connections" />}
       <div className="mb-8 min-w-0 overflow-hidden rounded-lg border border-line bg-surface">
         <div className="p-5 sm:p-6">
         <div className="mb-4 min-w-0 space-y-1.5">
@@ -687,12 +682,12 @@ export function Connections({
         <form id="new-connection" onSubmit={(e) => { e.preventDefault(); void submit(); }} className="space-y-4" autoComplete="off">
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Name">
-              <input value={name} autoComplete="off"
+              <Input value={name} autoComplete="off"
                 onChange={(e) => { setError(null); setName(e.target.value.toUpperCase().replaceAll(/[^A-Z0-9_]/g, "_")); }}
-                placeholder="CRM_TOKEN" className={inputClass("w-full font-mono")} />
+                placeholder="CRM_TOKEN" className="w-full font-mono" />
             </Field>
             <Field label="Type">
-              <select
+              <Select
                 value={kind}
                 onChange={(e) => {
                   setError(null);
@@ -700,7 +695,7 @@ export function Connections({
                   setApp("");
                   setF({});
                 }}
-                className={selectClass("w-full")}
+                className="w-full"
               >
                 <option value="key">API key / token</option>
                 <option value="api">API — base URL + headers</option>
@@ -716,7 +711,7 @@ export function Connections({
                 <option value="oauth_m2m">OAuth — client credentials</option>
                 <option value="service_account">Service account (JSON key)</option>
                 <option value="file">File (SSH key, certificate)</option>
-              </select>
+              </Select>
             </Field>
           </div>
 
@@ -724,21 +719,23 @@ export function Connections({
             <div className="space-y-1.5 text-sm text-fg-secondary" role="radiogroup" aria-label="Workspaces that may use it">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-sm font-medium text-fg">Workspaces</span>
-                <label className="flex items-center gap-1.5">
-                  <input type="radio" name="new-secret-workspaces" checked={newLimit === null} onChange={() => setNewLimit(null)} />
-                  All workspaces
-                </label>
-                <label className="flex items-center gap-1.5">
-                  <input type="radio" name="new-secret-workspaces" checked={newLimit !== null} onChange={() => setNewLimit([])} />
-                  Selected workspaces
-                </label>
+                <RadioGroup className="flex flex-wrap items-center gap-3" aria-label="Workspaces that may use it" value={newLimit === null ? "all" : "selected"} onValueChange={(v) => setNewLimit(v === "all" ? null : [])}>
+                  <label className="flex items-center gap-1.5">
+                    <RadioGroupItem value="all" />
+                    All workspaces
+                  </label>
+                  <label className="flex items-center gap-1.5">
+                    <RadioGroupItem value="selected" />
+                    Selected workspaces
+                  </label>
+                </RadioGroup>
               </div>
               {newLimit !== null && (
                 <div className="flex flex-wrap gap-x-4 gap-y-1">
                   {limitTo.map((w) => (
                     <label key={w} className="flex items-center gap-1.5 font-mono">
-                      <input type="checkbox" checked={newLimit.includes(w)}
-                        onChange={(e) => setNewLimit(e.target.checked ? [...newLimit, w] : newLimit.filter((x) => x !== w))} />
+                      <Checkbox checked={newLimit.includes(w)}
+                        onCheckedChange={(checked: boolean) => setNewLimit(checked ? [...newLimit, w] : newLimit.filter((x) => x !== w))} />
                       {w}
                     </label>
                   ))}
@@ -750,10 +747,10 @@ export function Connections({
           {kind === "key" && (
             <>
               <Field label="Value (write-only)">
-                <input type="password" value={f.value ?? ""} onChange={set("value")} autoComplete="new-password" className={inputClass(cred)} />
+                <Input type="password" value={f.value ?? ""} onChange={set("value")} autoComplete="new-password" className={cred} />
               </Field>
               <Field label="Sites (optional)">
-                <input value={f.sites ?? ""} onChange={set("sites")} placeholder="api.example.com, *.example.org" autoComplete="off" className={inputClass(`w-72 ${cred}`)} />
+                <Input value={f.sites ?? ""} onChange={set("sites")} placeholder="api.example.com, *.example.org" autoComplete="off" className={`w-72 ${cred}`} />
               </Field>
               <p className="text-xs text-fg-muted">
                 Bound to sites, the value never enters a sandbox: scripts and Bash hold <code className="font-mono">{`\${${name || "NAME"}}`}</code> and
@@ -765,24 +762,24 @@ export function Connections({
           {kind === "ssh" && (
             <>
               <div className="flex flex-wrap gap-2">
-                <Field label="Host"><input value={f.host ?? ""} onChange={set("host")} placeholder="10.0.4.20" className={inputClass(`w-56 ${cred}`)} autoComplete="off" /></Field>
-                <Field label="Port"><input value={f.port ?? ""} onChange={set("port")} placeholder="22" className={inputClass(`w-20 ${cred}`)} autoComplete="off" /></Field>
-                <Field label="Username"><input value={f.user ?? ""} onChange={set("user")} placeholder="deploy" className={inputClass(`w-40 ${cred}`)} autoComplete="off" /></Field>
+                <Field label="Host"><Input value={f.host ?? ""} onChange={set("host")} placeholder="10.0.4.20" className={`w-56 ${cred}`} autoComplete="off" /></Field>
+                <Field label="Port"><Input value={f.port ?? ""} onChange={set("port")} placeholder="22" className={`w-20 ${cred}`} autoComplete="off" /></Field>
+                <Field label="Username"><Input value={f.user ?? ""} onChange={set("user")} placeholder="deploy" className={`w-40 ${cred}`} autoComplete="off" /></Field>
                 <Field label="Auth">
-                  <select value={f.auth ?? "key"} onChange={set("auth")} className={selectClass()}>
+                  <Select value={f.auth ?? "key"} onChange={set("auth")} >
                     <option value="key">Private key</option>
                     <option value="password">Password</option>
-                  </select>
+                  </Select>
                 </Field>
               </div>
               {(f.auth ?? "key") === "key" ? (
                 <Field label="Private key">
-                  <textarea value={f.key ?? ""} onChange={set("key")} rows={4}
-                    placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" className={inputClass(cred)} />
+                  <Textarea value={f.key ?? ""} onChange={set("key")} rows={4}
+                    placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" className={cred} />
                 </Field>
               ) : (
                 <Field label="Password">
-                  <input type="password" value={f.password ?? ""} onChange={set("password")} autoComplete="new-password" className={inputClass(cred)} />
+                  <Input type="password" value={f.password ?? ""} onChange={set("password")} autoComplete="new-password" className={cred} />
                 </Field>
               )}
               <p className="text-xs text-fg-muted">
@@ -794,18 +791,18 @@ export function Connections({
           {kind === "api" && (
             <>
               <Field label="Base URL (optional)">
-                <input value={f.base_url ?? ""} onChange={set("base_url")} placeholder="https://api.stripe.com" className={inputClass(cred)} autoComplete="off" />
+                <Input value={f.base_url ?? ""} onChange={set("base_url")} placeholder="https://api.stripe.com" className={cred} autoComplete="off" />
               </Field>
               <Field label="Headers — one per line, Name: value">
-                <textarea value={f.headers ?? ""} onChange={set("headers")} rows={3}
-                  placeholder={"Authorization: Bearer sk_live_…\nStripe-Version: 2026-01-28"} className={inputClass(cred)} />
+                <Textarea value={f.headers ?? ""} onChange={set("headers")} rows={3}
+                  placeholder={"Authorization: Bearer sk_live_…\nStripe-Version: 2026-01-28"} className={cred} />
               </Field>
               <div className="flex flex-wrap gap-2">
                 <Field label="Basic username (optional)">
-                  <input value={f.basic_user ?? ""} onChange={set("basic_user")} className={inputClass(cred)} autoComplete="off" />
+                  <Input value={f.basic_user ?? ""} onChange={set("basic_user")} className={cred} autoComplete="off" />
                 </Field>
                 <Field label="Basic password">
-                  <input type="password" value={f.basic_password ?? ""} onChange={set("basic_password")} className={inputClass(cred)} autoComplete="new-password" />
+                  <Input type="password" value={f.basic_password ?? ""} onChange={set("basic_password")} className={cred} autoComplete="new-password" />
                 </Field>
               </div>
               <p className="text-xs text-fg-muted">
@@ -816,26 +813,26 @@ export function Connections({
 
           {kind === "file" && (
             <Field label="File contents — written to a 0600 path at run time; the env var holds the path">
-              <textarea value={f.file ?? ""} onChange={set("file")} rows={4}
-                placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" className={inputClass(cred)} />
+              <Textarea value={f.file ?? ""} onChange={set("file")} rows={4}
+                placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" className={cred} />
             </Field>
           )}
 
           {kind === "token_exchange" && (
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Token URL"><input value={f.token_url ?? ""} onChange={set("token_url")} placeholder="https://auth.example.com/token" className={inputClass("font-mono")} autoComplete="off" /></Field>
-              <Field label="client_id"><input value={f.client_id ?? ""} onChange={set("client_id")} className={inputClass("font-mono")} autoComplete="off" /></Field>
-              <Field label="client_secret"><input type="password" value={f.client_secret ?? ""} onChange={set("client_secret")} className={inputClass("font-mono")} autoComplete="new-password" /></Field>
+              <Field label="Token URL"><Input value={f.token_url ?? ""} onChange={set("token_url")} placeholder="https://auth.example.com/token" className="font-mono" autoComplete="off" /></Field>
+              <Field label="client_id"><Input value={f.client_id ?? ""} onChange={set("client_id")} className="font-mono" autoComplete="off" /></Field>
+              <Field label="client_secret"><Input type="password" value={f.client_secret ?? ""} onChange={set("client_secret")} className="font-mono" autoComplete="new-password" /></Field>
               <Field label="Client authentication at the token URL">
-                <select value={f.token_auth ?? "client_secret_post"} onChange={set("token_auth")} className={selectClass("w-56")}>
+                <Select value={f.token_auth ?? "client_secret_post"} onChange={set("token_auth")} className="w-56">
                   <option value="client_secret_post">in the form body</option>
                   <option value="client_secret_basic">HTTP Basic</option>
-                </select>
+                </Select>
               </Field>
-              <Field label="Subject: the secret whose token is traded"><input value={f.subject_secret ?? ""} onChange={set("subject_secret")} placeholder="UPSTREAM_TOKEN" className={inputClass("font-mono")} autoComplete="off" /></Field>
-              <Field label="Audience (optional)"><input value={f.audience ?? ""} onChange={set("audience")} className={inputClass("font-mono")} autoComplete="off" /></Field>
-              <Field label="Scopes (optional, fewer than the subject's)"><input value={f.scope ?? ""} onChange={set("scope")} className={inputClass("font-mono")} autoComplete="off" /></Field>
-              <Field label="Requested token type (optional)"><input value={f.requested_token_type ?? ""} onChange={set("requested_token_type")} placeholder="urn:ietf:params:oauth:token-type:access_token" className={inputClass("font-mono")} autoComplete="off" /></Field>
+              <Field label="Subject: the secret whose token is traded"><Input value={f.subject_secret ?? ""} onChange={set("subject_secret")} placeholder="UPSTREAM_TOKEN" className="font-mono" autoComplete="off" /></Field>
+              <Field label="Audience (optional)"><Input value={f.audience ?? ""} onChange={set("audience")} className="font-mono" autoComplete="off" /></Field>
+              <Field label="Scopes (optional, fewer than the subject's)"><Input value={f.scope ?? ""} onChange={set("scope")} className="font-mono" autoComplete="off" /></Field>
+              <Field label="Requested token type (optional)"><Input value={f.requested_token_type ?? ""} onChange={set("requested_token_type")} placeholder="urn:ietf:params:oauth:token-type:access_token" className="font-mono" autoComplete="off" /></Field>
               <p className="text-xs sm:col-span-2 text-fg-muted">Declare the subject secret beside this one in an agent&apos;s secrets:. Each use trades its live token for the narrower one (RFC 8693), cached until it expires.</p>
             </div>
           )}
@@ -844,23 +841,23 @@ export function Connections({
           {kind === "client_cert" && (
             <>
               <Field label="Certificate (PEM, chain included)">
-                <textarea value={f.cert ?? ""} onChange={set("cert")} rows={3} placeholder="-----BEGIN CERTIFICATE-----" className={inputClass(cred)} />
+                <Textarea value={f.cert ?? ""} onChange={set("cert")} rows={3} placeholder="-----BEGIN CERTIFICATE-----" className={cred} />
               </Field>
               <Field label="Private key (PEM)">
-                <textarea value={f.cert_key ?? ""} onChange={set("cert_key")} rows={3} placeholder="-----BEGIN PRIVATE KEY-----" className={inputClass(cred)} />
+                <Textarea value={f.cert_key ?? ""} onChange={set("cert_key")} rows={3} placeholder="-----BEGIN PRIVATE KEY-----" className={cred} />
               </Field>
               <div className="flex flex-wrap gap-2">
                 <Field label="Passphrase (if the key has one)">
-                  <input type="password" value={f.passphrase ?? ""} onChange={set("passphrase")} className={inputClass(cred)} autoComplete="new-password" />
+                  <Input type="password" value={f.passphrase ?? ""} onChange={set("passphrase")} className={cred} autoComplete="new-password" />
                 </Field>
                 <Field label="Sites it is presented to (exact hosts)">
-                  <input value={f.sites ?? ""} onChange={set("sites")} placeholder="api.bank.example" className={inputClass(`w-72 ${cred}`)} autoComplete="off" />
+                  <Input value={f.sites ?? ""} onChange={set("sites")} placeholder="api.bank.example" className={`w-72 ${cred}`} autoComplete="off" />
                 </Field>
                 <Field label="In the sandbox">
-                  <select value={f.cert_export ?? "no"} onChange={set("cert_export")} className={selectClass("w-64")}>
+                  <Select value={f.cert_export ?? "no"} onChange={set("cert_export")} className="w-64">
                     <option value="no">never — the egress proxy presents it</option>
                     <option value="yes">as files too (a step with no proxy)</option>
-                  </select>
+                  </Select>
                 </Field>
               </div>
               <p className="text-xs text-fg-muted">
@@ -875,14 +872,14 @@ export function Connections({
                 {/* The placeholder shows the SHAPE of a key so a person knows what
                     to paste; the scanner sees the shape too. It is a prompt with
                     ellipses in it, not a credential. */}
-                <textarea value={f.json ?? ""} onChange={set("json")} rows={4}
-                  placeholder='{ "type": "service_account", "client_email": "…", "private_key": "…" }' className={inputClass(cred)} /> {/* nosemgrep: generic.secrets.security.detected-google-gcm-service-account.detected-google-gcm-service-account */}
+                <Textarea value={f.json ?? ""} onChange={set("json")} rows={4}
+                  placeholder='{ "type": "service_account", "client_email": "…", "private_key": "…" }' className={cred} /> {/* nosemgrep: generic.secrets.security.detected-google-gcm-service-account.detected-google-gcm-service-account */}
               </Field>
               <Field label="Scopes (space-separated)">
-                <input value={f.scope ?? ""} onChange={set("scope")} placeholder="the scopes the provider documents" className={inputClass(cred)} />
+                <Input value={f.scope ?? ""} onChange={set("scope")} placeholder="the scopes the provider documents" className={cred} />
               </Field>
               <Field label="Act as (optional) — the user it works as, where the provider allows it">
-                <input value={f.subject ?? ""} onChange={set("subject")} placeholder="ana@example.com" className={inputClass(cred)} autoComplete="off" />
+                <Input value={f.subject ?? ""} onChange={set("subject")} placeholder="ana@example.com" className={cred} autoComplete="off" />
               </Field>
             </>
           )}
@@ -891,17 +888,17 @@ export function Connections({
             <div className="grid gap-3 sm:grid-cols-2">
               {kind === "oauth" && clients.length > 0 && (
                 <Field label="App">
-                  <select
+                  <Select
                     value={app}
                     // Scopes are not carried over from the app: each connection
                     // asks for its own, typed for what it is for.
                     onChange={(e) => { setError(null); setApp(e.target.value); setF({ ...f, scope: "" }); }}
-                    className={selectClass("w-72")}
+                    className="w-72"
                   >
                     <option value="" disabled>Choose an app…</option>
                     {!workspace && <option value={NEW_APP}>A new app — enter its client id and secret</option>}
                     {clients.map((c) => <option key={c.name} value={c.name}>{c.name} (saved)</option>)}
-                  </select>
+                  </Select>
                 </Field>
               )}
               {savedApp && (
@@ -915,24 +912,24 @@ export function Connections({
                 // First, because it is the step people do somewhere else: the
                 // provider's console refuses a redirect it has not seen, and
                 // the address is whichever one this page was opened at.
-                <div className="sm:col-span-2 rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-xs text-warning">
+                <Callout tone="warning" className="sm:col-span-2 px-3 py-2 text-xs">
                   <div className="font-medium">1. Register this redirect URL on your app, then connect.</div>
                   <div className="mt-1 flex items-center gap-2">
                     <code className="font-mono break-all">{redirect || "…/api/oauth/callback"}</code>
-                    <button type="button" onClick={copyRedirect} className={buttonClass("secondary")}>{copied ? "Copied" : "Copy"}</button>
+                    <button type="button" onClick={copyRedirect} className={buttonVariants({ variant: "secondary", size: "md" })}>{copied ? "Copied" : "Copy"}</button>
                   </div>
                   <div className="mt-1">
                     It is the address you opened this dashboard at. Most providers accept https, or http on localhost only,
                     so open the dashboard from an address the provider allows before you click Save &amp; Connect.
                   </div>
-                </div>
+                </Callout>
               )}
               {newApp && (
                 <div className="sm:col-span-2">
                   <Field label="Issuer — fills the URLs below from the provider's own metadata (optional)">
                     <div className="flex items-center gap-2">
-                      <input value={f.issuer ?? ""} onChange={set("issuer")} placeholder="https://login.example.com" className={inputClass(cred)} autoComplete="off" />
-                      <button type="button" disabled={discovering || !f.issuer?.trim()} onClick={() => void discover()} className={buttonClass("secondary")}>{discovering ? "Reading…" : "Discover"}</button>
+                      <Input value={f.issuer ?? ""} onChange={set("issuer")} placeholder="https://login.example.com" className={cred} autoComplete="off" />
+                      <button type="button" disabled={discovering || !f.issuer?.trim()} onClick={() => void discover()} className={buttonVariants({ variant: "secondary", size: "md" })}>{discovering ? "Reading…" : "Discover"}</button>
                     </div>
                   </Field>
                   {f.iss_parameter && (
@@ -944,35 +941,35 @@ export function Connections({
                 </div>
               )}
               {newApp && (
-                <Field label="Authorize URL"><input value={f.authorize_url ?? ""} onChange={set("authorize_url")} placeholder="https://auth.example.com/authorize" className={inputClass(cred)} autoComplete="off" /></Field>
+                <Field label="Authorize URL"><Input value={f.authorize_url ?? ""} onChange={set("authorize_url")} placeholder="https://auth.example.com/authorize" className={cred} autoComplete="off" /></Field>
               )}
               {(kind === "oauth_m2m" || newApp) && <>
-              <Field label="Token URL"><input value={f.token_url ?? ""} onChange={set("token_url")} placeholder="https://auth.example.com/token" className={inputClass(cred)} autoComplete="off" /></Field>
-              <Field label="client_id"><input value={f.client_id ?? ""} onChange={set("client_id")} className={inputClass(cred)} autoComplete="off" /></Field>
+              <Field label="Token URL"><Input value={f.token_url ?? ""} onChange={set("token_url")} placeholder="https://auth.example.com/token" className={cred} autoComplete="off" /></Field>
+              <Field label="client_id"><Input value={f.client_id ?? ""} onChange={set("client_id")} className={cred} autoComplete="off" /></Field>
               {f.token_auth !== "private_key_jwt" && f.token_auth !== "tls_client_auth" && (
-                <Field label={kind === "oauth" ? "client_secret (empty for a public app)" : "client_secret"}><input type="password" value={f.client_secret ?? ""} onChange={set("client_secret")} className={inputClass(cred)} autoComplete="new-password" /></Field>
+                <Field label={kind === "oauth" ? "client_secret (empty for a public app)" : "client_secret"}><Input type="password" value={f.client_secret ?? ""} onChange={set("client_secret")} className={cred} autoComplete="new-password" /></Field>
               )}
               <Field label="Client authentication at the token URL">
-                <select value={f.token_auth ?? "client_secret_post"} onChange={set("token_auth")} className={selectClass("w-56")}>
+                <Select value={f.token_auth ?? "client_secret_post"} onChange={set("token_auth")} className="w-56">
                   <option value="client_secret_post">in the form body (most providers)</option>
                   <option value="client_secret_basic">HTTP Basic (Notion, Spotify, Reddit, Zoom)</option>
                   <option value="private_key_jwt">signed JWT with a key (Entra certificates, Okta, FAPI)</option>
                   <option value="tls_client_auth">client certificate — mutual TLS (banks, FAPI)</option>
-                </select>
+                </Select>
               </Field>
               <Field label="DPoP-bound tokens (Bluesky, Okta DPoP)">
-                <select value={f.dpop ?? "off"} onChange={set("dpop")} className={selectClass("w-56")}>
+                <Select value={f.dpop ?? "off"} onChange={set("dpop")} className="w-56">
                   <option value="off">off (most providers)</option>
                   <option value="on">on — use it through a site binding</option>
-                </select>
+                </Select>
               </Field>
               {f.token_auth === "tls_client_auth" && (
                 <div className="sm:col-span-2">
                   <Field label="Client certificate, PEM">
-                    <textarea value={f.tls_client_cert ?? ""} onChange={set("tls_client_cert")} rows={2} placeholder="-----BEGIN CERTIFICATE-----" className={inputClass(cred)} autoComplete="off" />
+                    <Textarea value={f.tls_client_cert ?? ""} onChange={set("tls_client_cert")} rows={2} placeholder="-----BEGIN CERTIFICATE-----" className={cred} autoComplete="off" />
                   </Field>
                   <Field label="Its private key, PEM">
-                    <textarea value={f.tls_client_key ?? ""} onChange={set("tls_client_key")} rows={2} placeholder="the PEM private key (BEGIN PRIVATE KEY …)" className={inputClass(cred)} autoComplete="off" />
+                    <Textarea value={f.tls_client_key ?? ""} onChange={set("tls_client_key")} rows={2} placeholder="the PEM private key (BEGIN PRIVATE KEY …)" className={cred} autoComplete="off" />
                   </Field>
                   <p className="mt-1 text-xs text-fg-muted">Presented to the token URL instead of a secret, and on the calls the token is bound to — bind this connection to the API&apos;s sites. The key is sealed and never shown again.</p>
                 </div>
@@ -980,10 +977,10 @@ export function Connections({
               {f.token_auth === "private_key_jwt" && (
                 <div className="sm:col-span-2">
                   <Field label="Private key, PEM or JWK — leave empty and foldrun makes one">
-                    <textarea value={f.client_assertion_key ?? ""} onChange={set("client_assertion_key")} rows={3} placeholder="the PEM private key (BEGIN PRIVATE KEY …)" className={inputClass(cred)} autoComplete="off" />
+                    <Textarea value={f.client_assertion_key ?? ""} onChange={set("client_assertion_key")} rows={3} placeholder="the PEM private key (BEGIN PRIVATE KEY …)" className={cred} autoComplete="off" />
                   </Field>
                   <Field label="Its certificate, PEM (optional — Microsoft Entra names keys by it)">
-                    <textarea value={f.client_assertion_cert ?? ""} onChange={set("client_assertion_cert")} rows={2} placeholder="-----BEGIN CERTIFICATE-----" className={inputClass(cred)} autoComplete="off" />
+                    <Textarea value={f.client_assertion_cert ?? ""} onChange={set("client_assertion_cert")} rows={2} placeholder="-----BEGIN CERTIFICATE-----" className={cred} autoComplete="off" />
                   </Field>
                   <p className="mt-1 text-xs text-fg-muted">
                     The key signs a short JWT at the token URL instead of sending a secret. It is stored sealed, like a secret, and never shown again.
@@ -992,16 +989,16 @@ export function Connections({
               )}
               {kind === "oauth" && (
                 <Field label="PKCE">
-                  <select value={f.pkce ?? "on"} onChange={set("pkce")} className={selectClass("w-56")}>
+                  <Select value={f.pkce ?? "on"} onChange={set("pkce")} className="w-56">
                     <option value="on">on (recommended)</option>
                     <option value="off">off — only if the provider refuses it</option>
-                  </select>
+                  </Select>
                 </Field>
               )}
               {kind === "oauth" && (
                 <div className="sm:col-span-2">
                   <Field label="Extra authorize parameters (optional) — one name=value per line, as the provider documents">
-                    <textarea value={f.authorize_extra ?? ""} onChange={set("authorize_extra")} rows={2} placeholder="name=value" className={inputClass(cred)} />
+                    <Textarea value={f.authorize_extra ?? ""} onChange={set("authorize_extra")} rows={2} placeholder="name=value" className={cred} />
                   </Field>
                   <p className="mt-1 text-xs text-fg-muted">
                     Whatever else the provider&apos;s authorize URL takes. Some issue a refresh token only when asked here
@@ -1012,7 +1009,7 @@ export function Connections({
               )}
               </>}
               {(kind === "oauth_m2m" || savedApp || newApp) && (
-                <Field label="Scopes (space-separated)"><input value={f.scope ?? ""} onChange={set("scope")} className={inputClass(cred)} autoComplete="off" /></Field>
+                <Field label="Scopes (space-separated)"><Input value={f.scope ?? ""} onChange={set("scope")} className={cred} autoComplete="off" /></Field>
               )}
             </div>
           )}
@@ -1031,9 +1028,9 @@ export function Connections({
             <div className="font-medium text-fg">Register this public key with the provider (as a JWK, or the JWKS it asks for). It is not secret.</div>
             <pre className="mt-2 overflow-x-auto font-mono text-xs text-fg-secondary">{jwk.key}</pre>
             <div className="mt-2 flex gap-2">
-              <button type="button" onClick={() => void navigator.clipboard?.writeText(jwk.key)} className={buttonClass("secondary")}>Copy</button>
-              {jwk.connect && <button type="button" onClick={() => { const n = jwk.connect!; setJwk(null); void connect(n); }} className={buttonClass("primary")}>Registered — connect</button>}
-              {!jwk.connect && <button type="button" onClick={() => setJwk(null)} className={buttonClass("minimal")}>Done</button>}
+              <button type="button" onClick={() => void navigator.clipboard?.writeText(jwk.key)} className={buttonVariants({ variant: "secondary", size: "md" })}>Copy</button>
+              {jwk.connect && <button type="button" onClick={() => { const n = jwk.connect!; setJwk(null); void connect(n); }} className={buttonVariants({ variant: "primary", size: "md" })}>Registered — connect</button>}
+              {!jwk.connect && <button type="button" onClick={() => setJwk(null)} className={buttonVariants({ variant: "ghost", size: "md" })}>Done</button>}
             </div>
           </div>
         )}
@@ -1114,7 +1111,7 @@ function IdentityFields({ tenant, workspace, audience, onAudience }: { tenant: s
   return (
     <>
       <Field label="Audience — the value your cloud's trust expects in aud">
-        <input value={audience} onChange={onAudience} placeholder="sts.amazonaws.com" className={inputClass("w-full max-w-md font-mono")} autoComplete="off" />
+        <Input value={audience} onChange={onAudience} placeholder="sts.amazonaws.com" className="w-full max-w-md font-mono" autoComplete="off" />
       </Field>
       {info && !info.enabled ? (
         <p className="text-xs text-danger">This install does not issue identity tokens yet (its operator sets FOLDRUN_OIDC_ISSUER).</p>

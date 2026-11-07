@@ -53,7 +53,6 @@ import {
   Network,
   Plus,
   RotateCcw,
-  Search,
   Workflow,
   Wrench,
   X,
@@ -62,11 +61,12 @@ import {
 import type { AgentInfo, AgentAssets, FlowInfo } from "@/lib/store";
 import { FlowPanel } from "./flow-panel";
 import { Button, buttonVariants } from "@/components/kit/button";
-import { EmptyState, Page, PageHeader } from "@/components/kit/page";
-import { Segmented } from "@/components/kit/inspect-extra";
+import { EmptyState, Page, PageHeader, IconBox } from "@/components/kit/page";
+import { Segmented } from "@/components/kit/segmented";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger, menuItemClass } from "@/components/kit/menu";
 import { Status, StatusDot } from "@/components/kit/status";
-import { Kbd, inputBase } from "@/components/kit/input";
+import { Kbd } from "@/components/kit/input";
+import { SearchField } from "@/components/kit/list";
 import { cn } from "@/components/kit/cn";
 import { outcomeOf, type Outcome } from "@/components/outcome-model";
 import { statsLine, fmtAgo, fmtCost } from "@/components/graph-stats-model";
@@ -75,6 +75,7 @@ import { idOf, isMajor, layoutGraph, workspaceOf, type LayoutName } from "@/comp
 // The model lives in server/graph.ts so the account view draws with the same
 // shapes rather than its own copy of them.
 import type { Kind, Scope, GNode, GLink, Graph, SharedAssets } from "@/server/graph";
+import { Tooltip } from "@/components/kit/tooltip";
 export type { SharedAssets };
 
 type AgentWithAssets = AgentInfo & { assets: AgentAssets };
@@ -171,8 +172,8 @@ const HIDDEN_HANDLE = { opacity: 0, width: 1, height: 1, minWidth: 0, minHeight:
 const Card = memo(function Card({ data }: NodeProps<CardNode>) {
   const major = isMajor(data.kind);
   return (
+    <Tooltip label={data.title}>
     <div
-      title={data.title}
       className={cn(
         "gcard flex h-full w-full items-center gap-2.5 rounded-lg border bg-surface px-2.5 shadow-xs transition-[border-color,box-shadow] duration-150",
         data.kind === "scope" ? "border-line-strong" : "border-line hover:border-line-strong",
@@ -194,6 +195,7 @@ const Card = memo(function Card({ data }: NodeProps<CardNode>) {
       </span>
       {data.outcome && <StatusDot outcome={data.outcome} className="mr-0.5" />}
     </div>
+    </Tooltip>
   );
 });
 
@@ -566,19 +568,7 @@ function GraphView({
                 if (matches[0]) select(matches[0], "zoom");
               }}
             >
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fg-muted" aria-hidden />
-              <input
-                ref={searchRef}
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Find a card…"
-                aria-label="Find a card"
-                className={cn(inputBase, "h-9 pl-9 pr-16 [&::-webkit-search-cancel-button]:appearance-none")}
-              />
-              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs tabular-nums text-fg-muted">
-                {q ? `${matches.length} found` : <Kbd>/</Kbd>}
-              </span>
+              <SearchField inputRef={searchRef} size="md" value={query} onChange={setQuery} placeholder="Find a card…" autoFocusKey={false} note={q ? `${matches.length} found` : <Kbd>/</Kbd>} />
             </form>
             <Segmented
               label="Layout"
@@ -626,10 +616,12 @@ function GraphView({
                 </MenuItem>
               </MenuContent>
             </Menu>
-            <Button size="md" onClick={fit} title="Fit everything in view (0)" className="max-sm:hidden">
-              <Maximize aria-hidden />
-              Fit
-            </Button>
+            <Tooltip label="Fit everything in view (0)">
+              <Button size="md" onClick={fit} className="max-sm:hidden">
+                <Maximize aria-hidden />
+                Fit
+              </Button>
+            </Tooltip>
             {/* Editing a flow needs a workspace to write into. The account
                 view spans many, so it shows the picture and links out. */}
             {workspace && (
@@ -819,25 +811,37 @@ function ZoomBar({ onFit, onReset, minimap, onMinimap }: { onFit: () => void; on
   const zoom = useStore((s) => s.transform[2]);
   return (
     <div className="flex items-center gap-0.5 rounded-md border border-line bg-surface p-0.5 text-fg-secondary shadow-xs">
-      <Button size="icon-sm" variant="ghost" onClick={() => void rf.zoomOut({ duration: 200 })} title="Zoom out (−)" aria-label="Zoom out">
-        <Minus />
-      </Button>
-      <button type="button" onClick={onFit} className="h-8 min-w-[3.25rem] rounded-sm px-1 text-[13px] tabular-nums hover:bg-muted" title="Fit everything in view (0)">
-        {Math.round(zoom * 100)}%
-      </button>
-      <Button size="icon-sm" variant="ghost" onClick={() => void rf.zoomIn({ duration: 200 })} title="Zoom in (+)" aria-label="Zoom in">
-        <Plus />
-      </Button>
+      <Tooltip label="Zoom out (−)">
+        <Button size="icon-sm" variant="ghost" onClick={() => void rf.zoomOut({ duration: 200 })} aria-label="Zoom out">
+          <Minus />
+        </Button>
+      </Tooltip>
+      <Tooltip label="Fit everything in view (0)">
+        <button type="button" onClick={onFit} className="h-8 min-w-[3.25rem] rounded-sm px-1 text-[13px] tabular-nums hover:bg-muted">
+          {Math.round(zoom * 100)}%
+        </button>
+      </Tooltip>
+      <Tooltip label="Zoom in (+)">
+        <Button size="icon-sm" variant="ghost" onClick={() => void rf.zoomIn({ duration: 200 })} aria-label="Zoom in">
+          <Plus />
+        </Button>
+      </Tooltip>
       <span className="mx-0.5 h-5 w-px bg-line" aria-hidden />
-      <Button size="icon-sm" variant="ghost" onClick={onFit} title="Fit everything in view (0)" aria-label="Fit">
-        <Maximize />
-      </Button>
-      <Button size="icon-sm" variant="ghost" onClick={onReset} title="Put dragged cards back" aria-label="Reset layout">
-        <RotateCcw />
-      </Button>
-      <Button size="icon-sm" variant="ghost" onClick={onMinimap} aria-pressed={minimap} title={minimap ? "Hide the minimap" : "Show the minimap"} aria-label="Minimap" className="max-md:hidden aria-pressed:bg-muted aria-pressed:text-fg">
-        <MapIcon />
-      </Button>
+      <Tooltip label="Fit everything in view (0)">
+        <Button size="icon-sm" variant="ghost" onClick={onFit} aria-label="Fit">
+          <Maximize />
+        </Button>
+      </Tooltip>
+      <Tooltip label="Put dragged cards back">
+        <Button size="icon-sm" variant="ghost" onClick={onReset} aria-label="Reset layout">
+          <RotateCcw />
+        </Button>
+      </Tooltip>
+      <Tooltip label={minimap ? "Hide the minimap" : "Show the minimap"}>
+        <Button size="icon-sm" variant="ghost" onClick={onMinimap} aria-pressed={minimap} aria-label="Minimap" className="max-md:hidden aria-pressed:bg-muted aria-pressed:text-fg">
+          <MapIcon />
+        </Button>
+      </Tooltip>
     </div>
   );
 }
@@ -845,7 +849,7 @@ function ZoomBar({ onFit, onReset, minimap, onMinimap }: { onFit: () => void; on
 function PanelHead({ icon, title, sub, onClose }: { icon: React.ReactNode; title: React.ReactNode; sub?: React.ReactNode; onClose: () => void }) {
   return (
     <div className="flex items-start gap-3 border-b border-line px-4 py-3">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-line bg-sunken text-fg-secondary [&_svg]:size-4">{icon}</span>
+      <IconBox className="bg-sunken text-fg-secondary">{icon}</IconBox>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-fg">{title}</p>
         {sub && <p className="truncate text-[13px] text-fg-muted">{sub}</p>}

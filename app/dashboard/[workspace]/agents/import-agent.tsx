@@ -5,9 +5,11 @@
 // its memory. POST /api/workspaces/<ws>/agents/import (core agent-import.ts).
 
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { buttonClass, inputClass, selectClass, FIELD_LABEL_CLASS } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
+import { Input, labelClass } from "@/components/kit/input";
+import { Select } from "@/components/kit/select";
+import { Dialog, DialogContent, DialogTitle } from "@/components/kit/dialog";
 
 interface Source {
   name: string;
@@ -81,26 +83,14 @@ export function ImportAgentButton({
 
   return (
     <>
-      <button onClick={() => setOpen(true)} className={buttonClass(color)}>
+      <button onClick={() => setOpen(true)} className={buttonVariants({ variant: color, size: "md" })}>
         Import agent
       </button>
-      {open &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/40 p-4 pt-[10vh] backdrop-blur-[2px]"
-            onPointerDown={(e) => {
-              if (e.target === e.currentTarget) close();
-            }}
-          >
-            <form
-              role="dialog"
-              aria-modal="true"
-              aria-label="Import agent"
-              onSubmit={submit}
-              className="w-full max-w-lg rounded-xl border border-line bg-surface shadow-2xl"
-            >
+      <Dialog open={open} onOpenChange={(o) => !o && close()}>
+        <DialogContent hideClose aria-describedby={undefined} className="top-[10vh] max-h-[85dvh] translate-y-0 rounded-xl" size="md">
+            <form onSubmit={submit} className="flex min-h-0 flex-col">
               <header className="border-b border-line-faint px-5 py-4">
-                <h2 className="font-cal text-base font-semibold text-fg">Import agent</h2>
+                <DialogTitle className="font-cal text-base font-semibold text-fg">Import agent</DialogTitle>
                 <p className="mt-0.5 text-xs text-fg-muted">
                   Copy an agent from another workspace into {workspace}: its agent.md and its own skills and scripts.
                   Its memory stays where it was learned.
@@ -119,16 +109,16 @@ export function ImportAgentButton({
               ) : (
                 <div className="space-y-4 px-5 py-4">
                   <label className="block space-y-1">
-                    <span className={FIELD_LABEL_CLASS}>Agent</span>
+                    <span className={labelClass}>Agent</span>
                     {sources === null && !error ? (
                       <p className="text-xs text-fg-muted">Loading the account&apos;s agents…</p>
                     ) : sources && sources.length === 0 ? (
                       <p className="text-xs text-fg-muted">No other workspace in this account has an agent yet.</p>
                     ) : (
-                      <select
+                      <Select
                         value={pick}
                         onChange={(e) => setPick(e.target.value)}
-                        className={selectClass("w-full")}
+                        className="w-full"
                         required
                       >
                         <option value="">Choose an agent…</option>
@@ -142,16 +132,15 @@ export function ImportAgentButton({
                             ))}
                           </optgroup>
                         ))}
-                      </select>
+                      </Select>
                     )}
                   </label>
                   <label className="block space-y-1">
-                    <span className={FIELD_LABEL_CLASS}>Name here (optional)</span>
-                    <input
+                    <span className={labelClass}>Name here (optional)</span>
+                    <Input
                       value={as}
                       onChange={(e) => setAs(e.target.value)}
                       placeholder={pick.split("/")[1] || "same name"}
-                      className={inputClass()}
                     />
                   </label>
                 </div>
@@ -160,24 +149,23 @@ export function ImportAgentButton({
               <footer className="flex items-center justify-end gap-2 border-t border-line-faint px-5 py-3">
                 {error && <p className="mr-auto text-xs text-red-600">{error}</p>}
                 {warnings ? (
-                  <button type="button" onClick={close} className={buttonClass("primary")}>
+                  <button type="button" onClick={close} className={buttonVariants({ variant: "primary", size: "md" })}>
                     Done
                   </button>
                 ) : (
                   <>
-                    <button type="button" onClick={close} className={buttonClass("minimal")}>
+                    <button type="button" onClick={close} className={buttonVariants({ variant: "ghost", size: "md" })}>
                       Cancel
                     </button>
-                    <button type="submit" disabled={busy || !pick} className={buttonClass("primary")}>
+                    <button type="submit" disabled={busy || !pick} className={buttonVariants({ variant: "primary", size: "md" })}>
                       {busy ? "Importing…" : "Import"}
                     </button>
                   </>
                 )}
               </footer>
             </form>
-          </div>,
-          document.body,
-        )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

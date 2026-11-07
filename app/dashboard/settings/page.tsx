@@ -24,7 +24,7 @@ import { avatarUrl } from "@/platform/avatars";
 import { listWorkspaces, listFlows } from "@/lib/store";
 import { parseCron, cronMatches } from "@/platform/scheduler";
 import { SettingsShell, SettingsSection, StatusRow } from "@/components/settings-shell";
-import { SettingsCard, EmptyState, Chip, Tag } from "@/components/kit/page";
+import { SettingsCard, EmptyState, Chip, Tag, Callout } from "@/components/kit/page";
 import { buttonVariants } from "@/components/kit/button";
 import { CalendarClock, ScrollText, Webhook } from "lucide-react";
 import { settingsTabs, SETTINGS_TABS, type SettingsTab } from "./tabs";
@@ -132,18 +132,15 @@ export default async function SettingsPage({
 
   const connectedNote =
     connected || connect_error ? (
-      <div role={connected ? "status" : "alert"} className={`rounded-lg border px-4 py-3 text-sm ${connected ? "border-success-line bg-success-soft" : "border-danger-line bg-danger-soft"}`}>
-        <p className={`font-medium ${connected ? "text-success" : "text-danger"}`}>{connected ? "Connected" : "Connect failed"}</p>
-        <p className="mt-0.5 text-fg-secondary">
-          {connected ? (
-            <>
-              The credential landed in the secret <code className="font-mono">{connected}</code>.
-            </>
-          ) : (
-            connect_error
-          )}
-        </p>
-      </div>
+      <Callout role={connected ? "status" : "alert"} tone={connected ? "success" : "danger"} title={connected ? "Connected" : "Connect failed"} className="px-4 py-3">
+        {connected ? (
+          <>
+            The credential landed in the secret <code className="font-mono">{connected}</code>.
+          </>
+        ) : (
+          connect_error
+        )}
+      </Callout>
     ) : undefined;
 
   return (

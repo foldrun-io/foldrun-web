@@ -12,8 +12,8 @@ import { viewerScope } from "@/server/users";
 import { scopeAllows } from "@/platform/scope";
 import { AutoRefresh } from "../run-button";
 import { Page, PageHeader } from "@/components/kit/page";
+import { Pager } from "@/components/kit/pager";
 import {
-  Pager,
   RunFilters,
   RunStats,
   RunsTable,
@@ -22,6 +22,7 @@ import {
   type RunRow,
   filterByWindow,
   pageOf,
+  RUNS_PAGE_SIZE,
 } from "@/components/runs-table";
 import { RunsSelection } from "@/components/runs-bulk";
 import { filterByQuery } from "@/components/list-search-model";
@@ -133,7 +134,9 @@ export default async function RunsPage({
         page={page}
         pages={pages}
         total={runs.length}
+        pageSize={RUNS_PAGE_SIZE}
         tenantParam={tenantParam}
+        labels={["Newer runs", "Older runs"]}
       />
     </Page>
   );

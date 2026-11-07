@@ -16,8 +16,9 @@ import { runHref } from "@/components/run-href";
 import { workspaceDir, listRuns, runDisplayStatus } from "@/lib/store";
 import { AutoRefresh } from "../../run-button";
 import { Page, PageHeader } from "@/components/kit/page";
+import { Pager } from "@/components/kit/pager";
 import { buttonVariants } from "@/components/kit/button";
-import { Pager, RunFilters, RunStats, RunsTable, whatRan, filterByWindow, pageOf, runSearchText, type RunRow } from "@/components/runs-table";
+import { RunFilters, RunStats, RunsTable, whatRan, filterByWindow, pageOf, RUNS_PAGE_SIZE, runSearchText, type RunRow } from "@/components/runs-table";
 import { filterByQuery } from "@/components/list-search-model";
 import { RunsSelection } from "@/components/runs-bulk";
 
@@ -143,7 +144,9 @@ export default async function WorkspaceRunsPage({
         page={page}
         pages={pages}
         total={runs.length}
+        pageSize={RUNS_PAGE_SIZE}
         tenantParam={tenantParam}
+        labels={["Newer runs", "Older runs"]}
       />
     </Page>
   );

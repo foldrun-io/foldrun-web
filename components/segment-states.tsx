@@ -7,7 +7,8 @@
 // dashboard's error screen with no way back to the page. These keep the
 // frame and say which it is.
 
-import { buttonClass, Card } from "./ui";
+import { buttonVariants } from "./kit/button";
+import { Card } from "./kit/page";
 
 export function SegmentLoading({ label }: { label: string }) {
   return (
@@ -34,7 +35,7 @@ export function SegmentError({ label, error, retry }: { label: string; error: Er
         <p className="mt-1 text-sm text-fg-tertiary">
           Nothing was changed — this page only reads. {error.digest ? <>If it keeps happening, quote <code className="font-mono">{error.digest}</code>.</> : null}
         </p>
-        <button onClick={() => retry()} className={`${buttonClass("secondary")} mt-4`}>
+        <button onClick={() => retry()} className={`${buttonVariants({ variant: "secondary" })} mt-4`}>
           Try again
         </button>
       </Card>

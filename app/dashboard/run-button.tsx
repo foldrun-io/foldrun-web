@@ -2,8 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { buttonClass, inputClass } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
+import { Input } from "@/components/kit/input";
 import { useCan } from "@/components/role";
+import { Checkbox } from "@/components/kit/choice";
+import { Tooltip } from "@/components/kit/tooltip";
 
 // Run trigger with an optional task prompt — click Run to reveal the task
 // input, submit to start. `withTask={false}` keeps the old one-click behavior.
@@ -86,24 +89,23 @@ export function RunButton({
           void start();
         }}
       >
-        <input
+        <Input
           autoFocus
           value={task}
           onChange={(e) => setTask(e.target.value)}
           placeholder="Task for this run (optional)"
-          className={inputClass("w-56")}
+          className="w-56"
         />
-        <label
-          className="flex items-center gap-1.5 text-xs text-fg-tertiary"
-          title="Every step runs; sends are refused or sunk, send-capable secrets are withheld, and state/ and storage/ writes are kept under the run instead"
-        >
-          <input type="checkbox" checked={testRun} onChange={(e) => setTestRun(e.target.checked)} />
-          Test run
-        </label>
-        <button disabled={busy} className={buttonClass("primary")}>
+        <Tooltip label="Every step runs; sends are refused or sunk, send-capable secrets are withheld, and state/ and storage/ writes are kept under the run instead">
+          <label className="flex items-center gap-1.5 text-xs text-fg-tertiary">
+            <Checkbox checked={testRun} onCheckedChange={(checked: boolean) => setTestRun(checked)} />
+            Test run
+          </label>
+        </Tooltip>
+        <button disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })}>
           {busy ? "Starting…" : testRun ? "Start test" : "Start"}
         </button>
-        <button type="button" onClick={() => setOpen(false)} className={buttonClass("minimal")}>
+        <button type="button" onClick={() => setOpen(false)} className={buttonVariants({ variant: "ghost", size: "md" })}>
           Cancel
         </button>
         {refusal}
@@ -113,14 +115,17 @@ export function RunButton({
 
   return (
     <span className="inline-flex flex-wrap items-center">
-      <button
-        disabled={!mayRun || busy}
-        title={mayRun ? undefined : "Your role is viewer — running needs editor or above"}
-        onClick={() => (withTask ? setOpen(true) : void start())}
-        className={buttonClass("secondary")}
-      >
-        {busy ? "Starting…" : label}
-      </button>
+      <Tooltip label={mayRun ? undefined : "Your role is viewer — running needs editor or above"}>
+        <span className="inline-flex">
+          <button
+            disabled={!mayRun || busy}
+            onClick={() => (withTask ? setOpen(true) : void start())}
+            className={buttonVariants({ variant: "secondary", size: "md" })}
+          >
+            {busy ? "Starting…" : label}
+          </button>
+        </span>
+      </Tooltip>
       {refusal}
     </span>
   );

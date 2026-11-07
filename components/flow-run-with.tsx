@@ -11,14 +11,20 @@
 // other edit, and the file `foldrun invoke <flow> --inputs <name>` reads.
 
 import { buttonVariants } from "@/components/kit/button";
-import { ChevronDown } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { cn } from "@/components/kit/cn";
+import { ChevronDown, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { buttonClass, inputClass } from "@/components/ui";
-import { useConfirm } from "@/components/confirm";
+import { Input, Textarea } from "@/components/kit/input";
+import { useConfirm } from "@/components/kit/confirm";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/kit/menu";
+import { Segmented } from "@/components/kit/segmented";
+import { IconButton, Tooltip } from "@/components/kit/tooltip";
 import { useCan, needs } from "@/components/role";
 import { inputSetsFor, inputsFile, upsertInputSet, type EvalLike, type InputSet } from "@/components/flow-inputs-model";
+import { RadioGroup, RadioGroupItem } from "@/components/kit/choice";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/kit/popover";
 
 export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; tenant: string; flow: string }) {
   const router = useRouter();
@@ -37,7 +43,6 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
   const [error, setError] = useState<string | null>(null);
   const [started, setStarted] = useState<{ runId: string; test: boolean } | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
-  const box = useRef<HTMLDivElement>(null);
 
   // The sets, read fresh each time the menu or the panel opens and after a
   // save: someone may have edited evals/ since.
@@ -58,16 +63,6 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
       live = false;
     };
   }, [shown, workspace, headers, flow, generation]);
-
-  // Click outside closes the menu (not the panel: it holds a typed task).
-  useEffect(() => {
-    if (!menu) return;
-    const onDown = (e: MouseEvent) => {
-      if (box.current && !box.current.contains(e.target as Node)) setMenu(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [menu]);
 
   const pick = (s: InputSet | null) => {
     setChosen(s?.name ?? null);
@@ -153,97 +148,98 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
   const runHref = (id: string) => `/dashboard/${workspace}/runs/${id}${tenant !== "default" ? `?tenant=${tenant}` : ""}`;
 
   return (
-    <div ref={box} className="relative inline-flex">
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
+    <PopoverAnchor asChild>
+    <div className="relative inline-flex">
       <div className="inline-flex rounded-md">
-        <button
-          type="button"
-          disabled={!mayRun}
-          title={mayRun ? "Start this flow with a saved input set" : needs("run:start")}
-          onClick={() => {
-            setOpen((o) => !o);
-            setMenu(false);
-          }}
-          className={buttonVariants({ variant: "secondary", className: "rounded-r-none" })}
-        >
-          Run with…
-        </button>
-        <button
-          type="button"
-          disabled={!mayRun}
-          aria-label="Pick a saved input set"
-          aria-expanded={menu}
-          onClick={() => setMenu((m) => !m)}
-          className={buttonVariants({ variant: "secondary", size: "icon-sm", className: "-ml-px rounded-l-none" })}
-        >
-          <ChevronDown aria-hidden />
-        </button>
-      </div>
-
-      {menu && (
-        <ul role="menu" className="absolute right-0 top-full z-30 mt-1 w-64 rounded-lg border border-line bg-surface p-1 text-[13px] shadow-menu">
-          {sets === null && <li className="px-3 py-1.5 text-fg-subtle">Loading…</li>}
-          {sets?.length === 0 && (
-            <li className="px-3 py-1.5 text-fg-muted">No saved inputs yet. Open Run with… and save the task you type.</li>
-          )}
-          {sets?.map((s) => (
-            <li key={`${s.file}:${s.name}`}>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
+        <Tooltip label={mayRun ? "Start this flow with a saved input set" : needs("run:start")}>
+          <span className="inline-flex">
+            <button
+              type="button"
+              disabled={!mayRun}
+              onClick={() => {
+                setOpen((o) => !o);
+                setMenu(false);
+              }}
+              className={buttonVariants({ variant: "secondary", className: "rounded-r-none" })}
+            >
+              Run with…
+            </button>
+          </span>
+        </Tooltip>
+        <Menu open={menu} onOpenChange={setMenu}>
+          <MenuTrigger asChild>
+            <button
+              type="button"
+              disabled={!mayRun}
+              aria-label="Pick a saved input set"
+              className={buttonVariants({ variant: "secondary", size: "icon-sm", className: "-ml-px rounded-l-none" })}
+            >
+              <ChevronDown aria-hidden />
+            </button>
+          </MenuTrigger>
+          <MenuContent className="w-64">
+            {sets === null && <p className="px-2 py-1.5 text-[13px] text-fg-subtle">Loading…</p>}
+            {sets?.length === 0 && <p className="px-2 py-1.5 text-[13px] text-fg-muted">No saved inputs yet. Open Run with… and save the task you type.</p>}
+            {sets?.map((s) => (
+              <MenuItem
+                key={`${s.file}:${s.name}`}
+                onSelect={() => {
                   pick(s);
-                  setMenu(false);
                   setOpen(true);
                 }}
-                className="block w-full px-3 py-1.5 text-left hover:bg-sunken"
+                className="block"
               >
                 <span className="block truncate font-medium text-fg">{s.name}</span>
                 <span className="block truncate text-[11px] text-fg-muted">{s.task}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+              </MenuItem>
+            ))}
+          </MenuContent>
+        </Menu>
+      </div>
+    </div>
+    </PopoverAnchor>
 
-      {open && (
-        <div
-          role="dialog"
-          aria-label={`Run ${flow} with saved inputs`}
-          className="absolute right-0 top-full z-30 mt-1 w-[min(28rem,calc(100vw-2rem))] rounded-lg border border-line bg-surface p-4 text-left shadow-menu"
-        >
+      <PopoverContent
+        align="end"
+        aria-label={`Run ${flow} with saved inputs`}
+        onInteractOutside={(e) => e.preventDefault()}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        className="w-[min(28rem,calc(100vw-2rem))] p-4 text-left"
+      >
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-fg">Run {flow} with…</h3>
-            <button type="button" onClick={() => setOpen(false)} className="text-xs text-fg-subtle hover:text-fg-secondary" aria-label="Close">
-              ✕
-            </button>
+            <IconButton label="Close" onClick={() => setOpen(false)}>
+              <X />
+            </IconButton>
           </div>
 
-          <div className="mt-2 flex flex-wrap gap-1">
-            <button
-              type="button"
-              onClick={() => pick(null)}
-              className={`rounded-full border px-2 py-0.5 text-[11px] ${chosen === null ? "border-transparent bg-ink text-on-ink" : "border-line text-fg-tertiary hover:bg-sunken"}`}
-            >
-              Custom
-            </button>
-            {sets?.map((s) => (
-              <button
-                key={`${s.file}:${s.name}`}
-                type="button"
-                onClick={() => pick(s)}
-                title={`evals/${s.file}${s.source === "eval" ? " — an eval case for this flow" : ""}`}
-                className={`rounded-full border px-2 py-0.5 text-[11px] ${chosen === s.name ? "border-transparent bg-ink text-on-ink" : "border-line text-fg-tertiary hover:bg-sunken"}`}
-              >
-                {s.name}
-                {s.source === "eval" && <span className="ml-1 opacity-60">eval</span>}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            role="radiogroup"
+            size="sm"
+            label="Input set"
+            className="mt-2"
+            value={chosen ?? ""}
+            onChange={(k) => pick(k ? sets?.find((s) => s.name === k) ?? null : null)}
+            items={[
+              { key: "", label: "Custom" },
+              ...(sets ?? []).map((s) => ({
+                key: s.name,
+                title: `evals/${s.file}${s.source === "eval" ? " — an eval case for this flow" : ""}`,
+                label: (
+                  <>
+                    {s.name}
+                    {s.source === "eval" && <span className="opacity-60">eval</span>}
+                  </>
+                ),
+              })),
+            ]}
+          />
 
           <label className="mt-3 block text-xs font-medium text-fg-muted" htmlFor={`task-${flow}`}>
             Task
           </label>
-          <textarea
+          <Textarea
             id={`task-${flow}`}
             value={task}
             onChange={(e) => {
@@ -252,28 +248,33 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
             }}
             rows={4}
             placeholder="What this run is for — reaches the first step as its task"
-            className={inputClass("mt-1 w-full font-mono text-xs")}
+            className="mt-1 w-full font-mono text-xs"
           />
 
-          <fieldset className="mt-2 flex items-center gap-3 text-xs text-fg-secondary">
-            <legend className="sr-only">Kind of run</legend>
-            <label className="flex items-center gap-1.5" title="Every step runs; nothing outward happens and state/ is left alone">
-              <input type="radio" name={`mode-${flow}`} checked={!live} onChange={() => setLive(false)} />
-              Test run
-            </label>
-            <label className="flex items-center gap-1.5" title="Does everything the flow does, for real">
-              <input type="radio" name={`mode-${flow}`} checked={live} onChange={() => setLive(true)} />
-              Live run
-            </label>
+          <div className="mt-2 flex items-center gap-3 text-xs text-fg-secondary">
+            <RadioGroup aria-label="Kind of run" value={live ? "live" : "test"} onValueChange={(v) => setLive(v === "live")} className="flex items-center gap-3">
+              <Tooltip label="Every step runs; nothing outward happens and state/ is left alone">
+                <label className="flex items-center gap-1.5">
+                  <RadioGroupItem value="test" />
+                  Test run
+                </label>
+              </Tooltip>
+              <Tooltip label="Does everything the flow does, for real">
+                <label className="flex items-center gap-1.5">
+                  <RadioGroupItem value="live" />
+                  Live run
+                </label>
+              </Tooltip>
+            </RadioGroup>
             <button
               type="button"
               disabled={busy !== null || !mayRun}
               onClick={() => void run()}
-              className={buttonClass(live ? "destructive" : "primary", "ml-auto px-2.5 py-1 text-xs")}
+              className={cn(buttonVariants({ variant: live ? "danger-outline" : "primary", size: "xs" }), "ml-auto")}
             >
               {busy === "run" ? "Starting…" : live ? "Start live run" : "Start test run"}
             </button>
-          </fieldset>
+          </div>
 
           {started && (
             <p className="mt-2 rounded-md bg-success-soft px-2 py-1.5 text-xs text-success">
@@ -286,22 +287,25 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
 
           <div className="mt-3 border-t border-line-faint pt-2">
             <div className="flex items-center gap-2">
-              <input
+              <Input
                 value={saveName}
                 onChange={(e) => setSaveName(e.target.value)}
                 placeholder="Name this input set"
                 aria-label="Input set name"
-                className={inputClass("min-w-0 flex-1 text-xs")}
+                className="min-w-0 flex-1 text-xs"
               />
-              <button
-                type="button"
-                disabled={busy !== null || !mayWrite}
-                title={mayWrite ? `Writes evals/${flow}-inputs.md` : needs("workspace:write")}
-                onClick={() => void save()}
-                className={buttonClass("secondary", "px-2 py-1 text-xs")}
-              >
-                {busy === "save" ? "Saving…" : "Save current as input set"}
-              </button>
+              <Tooltip label={mayWrite ? `Writes evals/${flow}-inputs.md` : needs("workspace:write")}>
+                <span className="inline-flex">
+                  <button
+                    type="button"
+                    disabled={busy !== null || !mayWrite}
+                    onClick={() => void save()}
+                    className={buttonVariants({ variant: "secondary", size: "xs" })}
+                  >
+                    {busy === "save" ? "Saving…" : "Save current as input set"}
+                  </button>
+                </span>
+              </Tooltip>
             </div>
             <p className="mt-1 text-[11px] text-fg-subtle">
               Kept in <span className="font-mono">{inputsFile(flow)}</span> — also{" "}
@@ -315,9 +319,8 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
               {error}
             </p>
           )}
-        </div>
-      )}
+      </PopoverContent>
       {dialog}
-    </div>
+    </Popover>
   );
 }

@@ -17,12 +17,17 @@
 import { Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Badge, buttonClass, inputClass } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
+import { Input, Textarea } from "@/components/kit/input";
+import { Select } from "@/components/kit/select";
+import { Chip } from "@/components/kit/page";
+import { cn } from "@/components/kit/cn";
 import { Markdown } from "@/components/markdown";
 import { useCan, needs } from "@/components/role";
 import { foldDiff, lineDiff } from "@/components/flow-history-model";
 import { DiffView } from "@/components/flow-history";
 import { postCreate } from "@/components/create";
+import { Disclosure } from "@/components/kit/disclosure";
 import {
   chatFromStored,
   continueKey,
@@ -44,6 +49,7 @@ import {
   type ConversationSummary,
   type ProposedWorkspace,
 } from "@/components/assistant-model";
+import { Tooltip } from "@/components/kit/tooltip";
 
 const MAX = 8000;
 
@@ -191,16 +197,21 @@ export function AssistantDock({ tenant }: { tenant: string }) {
   return (
     <>
       {!open && (
-        <button
-          type="button"
-          disabled={!mayWrite}
-          title={mayWrite ? "Ask how foldrun works, or have agents, flows, tools and skills written" : needs("workspace:write")}
-          onClick={() => setOpen(true)}
-          className={buttonClass("primary", "fixed bottom-5 right-5 z-30 h-9 gap-1.5 rounded-full px-3.5 py-0 text-[13px] shadow-overlay disabled:opacity-60 max-md:bottom-20 max-md:right-4")}
-        >
-          <Sparkles className="size-3.5" aria-hidden />
-          Ask AI
-        </button>
+        // The wrapper holds the fixed position so the tooltip still shows
+        // (why it is off) while the button is disabled.
+        <Tooltip label={mayWrite ? "Ask how foldrun works, or have agents, flows, tools and skills written" : needs("workspace:write")}>
+          <span className="fixed bottom-5 right-5 z-30 inline-flex max-md:bottom-20 max-md:right-4">
+            <button
+              type="button"
+              disabled={!mayWrite}
+              onClick={() => setOpen(true)}
+              className={cn(buttonVariants({ variant: "primary", size: "md" }), "gap-1.5 rounded-full text-[13px] shadow-overlay disabled:opacity-60")}
+            >
+              <Sparkles className="size-3.5" aria-hidden />
+              Ask AI
+            </button>
+          </span>
+        </Tooltip>
       )}
       {open &&
         (workspace && workspaces ? (
@@ -225,7 +236,7 @@ export function AssistantDock({ tenant }: { tenant: string }) {
           <aside role="dialog" aria-label="Assistant" className="fixed inset-y-0 right-0 z-40 flex w-full flex-col border-l border-line bg-surface shadow-xl sm:w-[440px]">
             <header className="flex items-center gap-2 border-b border-line px-4 py-3">
               <h2 className="text-sm font-semibold text-fg">Assistant</h2>
-              <button type="button" onClick={() => setOpen(false)} className={buttonClass("minimal", "ml-auto px-2 py-1 text-xs")}>
+              <button type="button" onClick={() => setOpen(false)} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ml-auto")}>
                 Close
               </button>
             </header>
@@ -550,19 +561,21 @@ function AssistantPanel({
             Assistant
             <span className="font-normal text-fg-muted">in</span>
             {workspaces.length > 1 ? (
-              <select
+              <Select
+                size="sm"
                 aria-label="Assistant's workspace"
                 value={workspace}
                 disabled={busy}
                 onChange={(e) => onPick(e.target.value)}
-                className="max-w-[12rem] truncate rounded border border-line bg-surface px-1 py-0.5 text-xs font-medium text-fg"
+                className="max-w-[12rem]"
+                selectClassName="h-6 truncate pl-1.5 pr-7 text-xs font-medium"
               >
                 {workspaces.map((w) => (
                   <option key={w} value={w}>
                     {w}
                   </option>
                 ))}
-              </select>
+              </Select>
             ) : (
               <span className="font-mono text-xs">{workspace}</span>
             )}
@@ -574,14 +587,14 @@ function AssistantPanel({
           onClick={() => setShowHistory((v) => !v)}
           disabled={busy}
           aria-pressed={showHistory}
-          className={buttonClass("minimal", "ml-auto px-2 py-1 text-xs")}
+          className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ml-auto")}
         >
           History
         </button>
-        <button type="button" onClick={reset} disabled={busy || (!messages.length && !files.length)} className={buttonClass("minimal", "px-2 py-1 text-xs")}>
+        <button type="button" onClick={reset} disabled={busy || (!messages.length && !files.length)} className={buttonVariants({ variant: "ghost", size: "xs" })}>
           New chat
         </button>
-        <button type="button" onClick={onClose} className={buttonClass("minimal", "px-2 py-1 text-xs")}>
+        <button type="button" onClick={onClose} className={buttonVariants({ variant: "ghost", size: "xs" })}>
           Close
         </button>
       </header>
@@ -605,13 +618,13 @@ function AssistantPanel({
               <span className="font-medium text-fg">
                 {files.length} proposed file{files.length === 1 ? "" : "s"}
               </span>
-              {errors === 0 ? <Badge variant="success">passes the check</Badge> : <Badge variant="error">{errors} error{errors === 1 ? "" : "s"}</Badge>}
+              {errors === 0 ? <Chip tone="good">passes the check</Chip> : <Chip tone="bad">{errors} error{errors === 1 ? "" : "s"}</Chip>}
               {files.length > 1 && (
                 <button
                   type="button"
                   disabled={busy || saving !== null}
                   onClick={() => void save(files)}
-                  className={buttonClass("primary", "ml-auto px-3 py-1 text-xs")}
+                  className={cn(buttonVariants({ variant: "primary", size: "xs" }), "ml-auto")}
                 >
                   {saving === "all" ? "Saving…" : `Save all ${files.length}`}
                 </button>
@@ -649,7 +662,7 @@ function AssistantPanel({
         <label htmlFor="assistant-input" className="sr-only">
           Message
         </label>
-        <textarea
+        <Textarea
           id="assistant-input"
           ref={box}
           value={input}
@@ -664,16 +677,16 @@ function AssistantPanel({
             }
           }}
           placeholder="Ask how something works, or describe an agent, flow, tool or skill…"
-          className={inputClass("w-full resize-none text-sm")}
+          className="w-full resize-none text-sm"
         />
         <div className="mt-1 flex items-center gap-2">
           <span className="text-[11px] text-fg-subtle">Enter to send · Shift+Enter for a new line</span>
           {busy ? (
-            <button type="button" onClick={() => abort.current?.abort()} className={buttonClass("secondary", "ml-auto px-3 py-1 text-xs")}>
+            <button type="button" onClick={() => abort.current?.abort()} className={cn(buttonVariants({ variant: "secondary", size: "xs" }), "ml-auto")}>
               Stop
             </button>
           ) : (
-            <button type="submit" disabled={!input.trim()} className={buttonClass("primary", "ml-auto px-3 py-1 text-xs")}>
+            <button type="submit" disabled={!input.trim()} className={cn(buttonVariants({ variant: "primary", size: "xs" }), "ml-auto")}>
               Send
             </button>
           )}
@@ -722,12 +735,12 @@ function History({ headers, current, onOpen }: { headers: Record<string, string>
       <label htmlFor="assistant-history-search" className="sr-only">
         Search conversations
       </label>
-      <input
+      <Input
         id="assistant-history-search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Search your conversations…"
-        className={inputClass("w-full text-sm")}
+        className="w-full text-sm"
         autoFocus
       />
       {error && <p className="text-xs text-danger">{error}</p>}
@@ -819,8 +832,7 @@ function Message({
     <div className="space-y-1">
       <Markdown text={linkCitations(message.content)} className="text-sm text-fg" />
       {message.sources && message.sources.length > 0 && (
-        <details className="text-[11px] text-fg-muted">
-          <summary className="cursor-pointer select-none">Read {message.sources.length} doc section{message.sources.length === 1 ? "" : "s"}</summary>
+        <Disclosure className="text-[11px] text-fg-muted" summaryClassName="select-none" summary={<>Read {message.sources.length} doc section{message.sources.length === 1 ? "" : "s"}</>}>
           <ul className="mt-1 space-y-0.5 pl-3">
             {message.sources.map((s) => (
               <li key={s.url}>
@@ -830,7 +842,7 @@ function Message({
               </li>
             ))}
           </ul>
-        </details>
+        </Disclosure>
       )}
       {message.meter && <p className="text-[11px] tabular-nums text-fg-subtle">{message.meter}</p>}
       {message.workspace && <WorkspaceCard proposal={message.workspace} tenant={tenant} exists={existing.includes(message.workspace.name)} busy={busy} onCreate={onCreate} />}
@@ -876,22 +888,25 @@ function WorkspaceCard({
         {exists ? (
           <span className="ml-auto text-fg-muted">exists</span>
         ) : (
-          <button
-            type="button"
-            disabled={busy || state === "creating" || !mayManage}
-            title={mayManage ? undefined : needs("workspace:manage")}
-            onClick={async () => {
-              setState("creating");
-              setError(null);
-              const refused = await createWorkspace(tenant, proposal.name);
-              setState("idle");
-              if (refused) setError(refused);
-              else onCreate(proposal);
-            }}
-            className={buttonClass("primary", "ml-auto px-2 py-0.5 text-[11px]")}
-          >
-            {state === "creating" ? "Creating…" : "Create workspace"}
-          </button>
+          <Tooltip label={mayManage ? undefined : needs("workspace:manage")}>
+            <span className="ml-auto inline-flex">
+              <button
+                type="button"
+                disabled={busy || state === "creating" || !mayManage}
+                onClick={async () => {
+                  setState("creating");
+                  setError(null);
+                  const refused = await createWorkspace(tenant, proposal.name);
+                  setState("idle");
+                  if (refused) setError(refused);
+                  else onCreate(proposal);
+                }}
+                className={buttonVariants({ variant: "primary", size: "xs" })}
+              >
+                {state === "creating" ? "Creating…" : "Create workspace"}
+              </button>
+            </span>
+          </Tooltip>
         )}
       </div>
       <p className="mt-1 text-fg-muted">{proposal.purpose}</p>
@@ -920,16 +935,20 @@ function CreateWorkspace({ tenant, onCreated }: { tenant: string; onCreated: (ws
       }}
     >
       <div className="flex gap-2">
-        <input
+        <Input
           aria-label="Workspace name"
           value={name}
           onChange={(e) => setName(e.target.value.toLowerCase())}
           placeholder="e.g. ads-desk"
-          className={inputClass("min-w-0 flex-1 text-sm")}
+          className="min-w-0 flex-1 text-sm"
         />
-        <button type="submit" disabled={busy || !name.trim() || !mayManage} title={mayManage ? undefined : needs("workspace:manage")} className={buttonClass("primary", "px-3 py-1 text-xs")}>
-          {busy ? "Creating…" : "Create"}
-        </button>
+        <Tooltip label={mayManage ? undefined : needs("workspace:manage")}>
+          <span className="inline-flex">
+            <button type="submit" disabled={busy || !name.trim() || !mayManage} className={buttonVariants({ variant: "primary", size: "xs" })}>
+              {busy ? "Creating…" : "Create"}
+            </button>
+          </span>
+        </Tooltip>
       </div>
       {error && <p className="text-xs text-danger">{error}</p>}
     </form>
@@ -958,11 +977,11 @@ function ProposedFile({
         <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="min-w-0 truncate text-left font-mono text-xs text-fg">
           {file.path}
         </button>
-        <Badge variant={file.before === null ? "success" : "warning"}>{file.before === null ? "new" : "changed"}</Badge>
-        <button type="button" disabled={busy} onClick={onDiscard} className={buttonClass("minimal", "ml-auto px-2 py-0.5 text-[11px]")}>
+        <Chip tone={file.before === null ? "good" : "warn"}>{file.before === null ? "new" : "changed"}</Chip>
+        <button type="button" disabled={busy} onClick={onDiscard} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ml-auto")}>
           Discard
         </button>
-        <button type="button" disabled={busy} onClick={onSave} className={buttonClass("secondary", "px-2 py-0.5 text-[11px]")}>
+        <button type="button" disabled={busy} onClick={onSave} className={buttonVariants({ variant: "secondary", size: "xs" })}>
           {saving ? "Saving…" : "Save"}
         </button>
       </header>
@@ -988,14 +1007,17 @@ function ProposedFile({
 export function AskAiButton({ prompt, label, title, variant = "secondary" }: { prompt?: string; label: string; title?: string; variant?: "minimal" | "secondary" }) {
   const mayWrite = useCan("workspace:write");
   return (
-    <button
-      type="button"
-      disabled={!mayWrite}
-      title={mayWrite ? title : needs("workspace:write")}
-      onClick={() => openAssistant(prompt)}
-      className={buttonClass(variant, variant === "minimal" ? "px-2 py-1 text-xs" : "")}
-    >
-      {label}
-    </button>
+    <Tooltip label={mayWrite ? title : needs("workspace:write")}>
+      <span className="inline-flex">
+        <button
+          type="button"
+          disabled={!mayWrite}
+          onClick={() => openAssistant(prompt)}
+          className={variant === "minimal" ? buttonVariants({ variant: "ghost", size: "xs" }) : buttonVariants({ variant: "secondary" })}
+        >
+          {label}
+        </button>
+      </span>
+    </Tooltip>
   );
 }

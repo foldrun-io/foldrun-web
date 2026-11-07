@@ -6,7 +6,7 @@
 import { Inbox as InboxIcon, LogIn } from "lucide-react";
 import { Page, PageHeader, EmptyState } from "@/components/kit/page";
 import { PageTabs } from "@/components/kit/page-tabs";
-import { Segmented } from "@/components/kit/inspect-extra";
+import { Segmented } from "@/components/kit/segmented";
 import { viewerEmail, viewerRole, viewerScope } from "@/server/users";
 import { inboxFor, type InboxItem, type InboxKind } from "@/server/inbox";
 import { InboxList } from "@/components/inbox-list";

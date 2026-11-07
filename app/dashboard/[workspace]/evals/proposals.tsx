@@ -8,7 +8,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Badge, buttonClass } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
+import { Chip, type Tone } from "@/components/kit/page";
 import { DiffView } from "@/components/flow-history";
 import { foldDiff, lineDiff } from "@/components/flow-history-model";
 import { Markdown } from "@/components/markdown";
@@ -16,14 +17,16 @@ import { runHref } from "@/components/run-href";
 import { useCan } from "@/components/role";
 import { WithEmails } from "@/components/email";
 import type { Proposal } from "@/platform/improve";
+import { Disclosure } from "@/components/kit/disclosure";
+import { Tooltip } from "@/components/kit/tooltip";
 
-const TONE: Record<Proposal["status"], "default" | "success" | "error" | "warning" | "info"> = {
+const TONE: Record<Proposal["status"], Tone> = {
   drafting: "info",
-  ready: "warning",
+  ready: "warn",
   applying: "info",
-  applied: "success",
-  partial: "error",
-  failed: "error",
+  applied: "good",
+  partial: "bad",
+  failed: "bad",
   dismissed: "default",
 };
 
@@ -89,14 +92,15 @@ export function Proposals({
       <div className="flex flex-wrap items-center gap-2">
         {shown.length === 0 && <span className="text-sm text-fg-muted">No fix proposed yet.</span>}
         {(
-          <button
-            onClick={propose}
-            disabled={busy === "propose"}
-            className={buttonClass("secondary")}
-            title="The assistant reads the failures and the files they used, and proposes the smallest change. Nothing is written until you apply it."
-          >
-            {busy === "propose" ? "Asking…" : "Propose a fix"}
-          </button>
+          <Tooltip label="The assistant reads the failures and the files they used, and proposes the smallest change. Nothing is written until you apply it.">
+            <button
+              onClick={propose}
+              disabled={busy === "propose"}
+              className={buttonVariants({ variant: "secondary" })}
+            >
+              {busy === "propose" ? "Asking…" : "Propose a fix"}
+            </button>
+          </Tooltip>
         )}
       </div>
       )}
@@ -106,7 +110,7 @@ export function Proposals({
         {shown.map((p) => (
           <li key={p.id} id={p.id} className="scroll-mt-24 rounded-lg border border-line bg-surface px-4 py-3">
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <Badge variant={TONE[p.status]}>{LABEL[p.status]}</Badge>
+              <Chip tone={TONE[p.status]}>{LABEL[p.status]}</Chip>
               <span className="text-fg-muted">
                 {p.createdAt.slice(0, 16).replace("T", " ")} UTC · {p.by === "auto" ? "opened after repeated failures" : <>asked by <WithEmails text={p.by} /></>} · covers {p.failures.length} failure{p.failures.length === 1 ? "" : "s"}
               </span>
@@ -117,12 +121,12 @@ export function Proposals({
               )}
               <span className="ml-auto flex gap-2">
                 {write && p.status === "ready" && (
-                  <button onClick={() => decide(p.id, "apply")} disabled={!!busy} className={buttonClass("primary")}>
+                  <button onClick={() => decide(p.id, "apply")} disabled={!!busy} className={buttonVariants({ variant: "primary" })}>
                     {busy === p.id ? "Applying…" : "Apply"}
                   </button>
                 )}
                 {write && (p.status === "ready" || p.status === "failed" || p.status === "drafting") && (
-                  <button onClick={() => decide(p.id, "dismiss")} disabled={!!busy} className={buttonClass("minimal")}>
+                  <button onClick={() => decide(p.id, "dismiss")} disabled={!!busy} className={buttonVariants({ variant: "ghost" })}>
                     Dismiss
                   </button>
                 )}
@@ -135,8 +139,7 @@ export function Proposals({
                 <WithEmails text={n} />
               </p>
             ))}
-            <details className="mt-1">
-              <summary className="cursor-pointer text-xs text-fg-tertiary">The failures it covers</summary>
+            <Disclosure className="mt-1" summaryClassName="text-xs text-fg-tertiary" summary="The failures it covers">
               <ul className="mt-1 space-y-0.5">
                 {p.failures.map((f, i) => (
                   <li key={i} className="text-xs text-fg-secondary">
@@ -144,7 +147,7 @@ export function Proposals({
                   </li>
                 ))}
               </ul>
-            </details>
+            </Disclosure>
             {p.reply && (
               <div className="mt-2 text-sm text-fg-secondary">
                 <Markdown text={p.reply} />

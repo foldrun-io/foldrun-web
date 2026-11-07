@@ -5,8 +5,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { buttonClass } from "@/components/ui";
-import { useConfirm } from "@/components/confirm";
+import { buttonVariants } from "@/components/kit/button";
+import { useConfirm } from "@/components/kit/confirm";
 
 export function RotateHookButton({ workspace, flow }: { workspace: string; flow: string }) {
   const router = useRouter();
@@ -28,7 +28,7 @@ export function RotateHookButton({ workspace, flow }: { workspace: string; flow:
           router.refresh();
           setBusy(false);
         }}
-        className={buttonClass("secondary")}
+        className={buttonVariants({ variant: "secondary" })}
       >
         Rotate
       </button>

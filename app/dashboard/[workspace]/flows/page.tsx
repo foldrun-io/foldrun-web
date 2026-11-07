@@ -41,8 +41,9 @@ import { runLite } from "@/server/run-lite";
 import { Page, PageHeader, IconBox, Tag, Fact, Panel, PanelList, SettingsCard, EmptyState, ResourceCard } from "@/components/kit/page";
 import { ResourceList, type Row } from "@/components/kit/list";
 import { PageTabs } from "@/components/kit/page-tabs";
-import { Status } from "@/components/kit/status";
+import { Status, StatusDot } from "@/components/kit/status";
 import { buttonVariants } from "@/components/kit/button";
+import { Tooltip } from "@/components/kit/tooltip";
 import { AlertTriangle, CircleDashed, Clock3, FilePen, Layers, Workflow, XCircle } from "lucide-react";
 import { FlowBoard } from "./flow-board";
 import { FlowCanvas } from "./flow-canvas";
@@ -209,12 +210,14 @@ export default async function FlowsPage({
                 <Fact label="Steps">{f.steps.length}</Fact>
                 {row?.nextFireAt && <Fact label="Next run">{fmtIn(Date.parse(row.nextFireAt) - now)}</Fact>}
                 {preview && (
-                  <span title={costTitle(preview)}>
-                    <Fact label="Usual cost">
-                      {preview.cost}
-                      {preview.time ? ` · ${preview.time}` : ""}
-                    </Fact>
-                  </span>
+                  <Tooltip label={costTitle(preview)}>
+                    <span>
+                      <Fact label="Usual cost">
+                        {preview.cost}
+                        {preview.time ? ` · ${preview.time}` : ""}
+                      </Fact>
+                    </span>
+                  </Tooltip>
                 )}
                 {f.model && <Fact label="Model">{f.model}</Fact>}
                 {f.a2a?.publish && <Fact label="A2A">{f.a2a.publicCard ? "published · public card" : "published"}</Fact>}
@@ -444,7 +447,7 @@ export default async function FlowsPage({
     const problems = errors ? plural(errors, "error") : warns ? plural(warns, "warning") : null;
     const lastLine = last ? (
       <>
-        <span className={`size-2 shrink-0 rounded-full ${OUTCOME[last.outcome].dot}`} />
+        <StatusDot outcome={last.outcome} label="" />
         <span className="truncate">
           {OUTCOME[last.outcome].label} {fmtSpan(now - Date.parse(last.startedAt))} ago
           {last.failure ? ` · ${last.failure.agent}: ${last.failure.reason}` : last.headline ? ` · ${last.headline}` : ""}
@@ -472,7 +475,7 @@ export default async function FlowsPage({
         status: last ? <Status outcome={last.outcome} /> : <span className="text-fg-muted">Never ran</span>,
         runs: beat && beat.cells.length ? <Cells beat={beat} n={12} tenant={tenant} /> : undefined,
         next: row?.nextFireAt ? fmtIn(Date.parse(row.nextFireAt) - now) : undefined,
-        cost: preview ? <span title={costTitle(preview)}>{preview.cost}</span> : undefined,
+        cost: preview ? <Tooltip label={costTitle(preview)}><span>{preview.cost}</span></Tooltip> : undefined,
       },
       action: <RunButton endpoint={`/api/workspaces/${workspace}/flows/${f.name}/run`} tenant={tenant} label="Run" />,
       card: (

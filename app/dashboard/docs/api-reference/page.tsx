@@ -4,8 +4,9 @@
 // and response schema.
 
 import Link from "next/link";
-import { Page, PageHeader, Panel } from "@/components/kit/page";
+import { Chip, Page, PageHeader, Panel, Tag } from "@/components/kit/page";
 import { openapiDocument } from "@/server/openapi";
+import { Disclosure } from "@/components/kit/disclosure";
 
 // Per request, not prerendered (28 Oct 2026): the enforced CSP's nonce is
 // minted per request, and a static page cannot carry one. The markdown ships
@@ -63,8 +64,8 @@ export default function ApiReference() {
       />
       <nav aria-label="Tags" className="mb-8 flex flex-wrap gap-1.5">
         {tags.map((t) => (
-          <a key={t} href={`#tag-${t}`} className="inline-flex h-7 items-center rounded-full border border-line bg-surface px-2.5 text-xs text-fg-secondary transition-colors hover:border-line-strong hover:text-fg">
-            {t}
+          <a key={t} href={`#tag-${t}`} className="group rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+            <Chip className="h-7 px-2.5 font-normal text-fg-secondary transition-colors group-hover:border-line-strong group-hover:text-fg">{t}</Chip>
           </a>
         ))}
       </nav>
@@ -79,15 +80,14 @@ export default function ApiReference() {
                 return (
                   <li key={`${method} ${path}`} id={`${method}-${path}`} className="px-5 py-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded px-1.5 py-0.5 font-mono text-xs font-semibold uppercase ${METHOD_TONE[method] ?? "bg-sunken text-fg-secondary"}`}>{method}</span>
+                      <Tag mono className={`h-5 border-transparent px-1.5 font-semibold uppercase ${METHOD_TONE[method] ?? ""}`}>{method}</Tag>
                       <code className="break-all font-mono text-xs text-fg">{path}</code>
-                      {op.security && op.security.length === 0 && <span className="rounded-full border border-line px-2 text-xs text-fg-muted">no key</span>}
-                      {idem && <span className="rounded-full border border-line px-2 text-xs text-fg-muted">idempotency-key</span>}
+                      {op.security && op.security.length === 0 && <Chip className="h-5">no key</Chip>}
+                      {idem && <Chip className="h-5">idempotency-key</Chip>}
                     </div>
                     {op.description && <p className="mt-1 text-sm text-fg-muted">{op.description}</p>}
                     {(body || (ok && ok.description !== GENERIC_DESC)) && (
-                      <details className="mt-2 text-xs">
-                        <summary className="cursor-pointer text-fg-muted">Schema</summary>
+                      <Disclosure className="mt-2 text-xs" summaryClassName="text-fg-muted" summary="Schema">
                         {body ? (
                           <>
                             <p className="mt-2 text-xs font-medium text-fg-secondary">Request body</p>
@@ -100,7 +100,7 @@ export default function ApiReference() {
                             <pre className="mt-1 overflow-x-auto rounded-md border border-line bg-sunken p-2 font-mono text-xs text-fg-secondary">{JSON.stringify(ok, null, 2)}</pre>
                           </>
                         ) : null}
-                      </details>
+                      </Disclosure>
                     )}
                   </li>
                 );

@@ -15,6 +15,7 @@ import { CopyField } from "@/components/copy-field";
 import { LocalTime } from "@/components/local-time";
 import { runHref } from "@/components/run-href";
 import { a2aStateWord } from "@/components/a2a-model";
+import { Tooltip } from "@/components/kit/tooltip";
 
 interface View {
   flows: { flow: string; published: boolean; publicCard: boolean; name: string; description: string | null; hasInputSchema: boolean; card: string; url: string }[];
@@ -82,8 +83,8 @@ export function A2aPanel({ workspace, tenant }: { workspace: string; tenant: str
                   <span className="font-mono">{f.flow}</span>
                   {f.name !== f.flow && <span className="font-normal text-fg-muted">— {f.name}</span>}
                   <Chip tone={f.published ? "good" : "default"}>{f.published ? "published" : "not published"}</Chip>
-                  {f.publicCard && <span title="The card is readable without a key; calling the flow never is"><Chip>public card</Chip></span>}
-                  {f.hasInputSchema && <span title="a2a: input: — the request's data part must match this JSON Schema"><Chip>input schema</Chip></span>}
+                  {f.publicCard && <Tooltip label="The card is readable without a key; calling the flow never is"><span><Chip>public card</Chip></span></Tooltip>}
+                  {f.hasInputSchema && <Tooltip label="a2a: input: — the request's data part must match this JSON Schema"><span><Chip>input schema</Chip></span></Tooltip>}
                 </p>
                 {f.description && <p className="mt-1 text-sm text-fg-muted">{f.description}</p>}
                 {f.published && (

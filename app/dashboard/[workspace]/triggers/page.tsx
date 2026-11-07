@@ -32,6 +32,7 @@ import { ResourceList, type Row } from "@/components/kit/list";
 import { PageTabs } from "@/components/kit/page-tabs";
 import { TableCard, Table, THead, TBody, TR, TH, TD } from "@/components/kit/table";
 import { buttonVariants } from "@/components/kit/button";
+import { Tooltip } from "@/components/kit/tooltip";
 import { CalendarClock, Clock3, Eye, FileJson, FolderInput, Hand, Link2, Mail, Webhook, Zap } from "lucide-react";
 import { triggerLine } from "../flows/trigger-line";
 import { WebhookDeliveries } from "./webhook-deliveries";
@@ -158,13 +159,15 @@ export default async function TriggersPage({
           <span className="text-fg-subtle">nothing fired</span>
         ),
         held: heldBack > 0 && top ? (
-          <span title={reasons} className="inline-flex items-center gap-1.5">
-            <Outcome outcome={top.outcome} />
-            <span className="text-fg-muted">
-              ×{top.count}
-              {s!.dropped.length > 1 ? ` +${s!.dropped.length - 1}` : ""}
+          <Tooltip label={reasons ? <span className="whitespace-pre-line">{reasons}</span> : undefined}>
+            <span className="inline-flex items-center gap-1.5">
+              <Outcome outcome={top.outcome} />
+              <span className="text-fg-muted">
+                ×{top.count}
+                {s!.dropped.length > 1 ? ` +${s!.dropped.length - 1}` : ""}
+              </span>
             </span>
-          </span>
+          </Tooltip>
         ) : undefined,
         last: s?.lastFiredAt ? <LocalTime iso={s.lastFiredAt} options={WHEN} /> : next ? <span className="text-fg-muted">next {next}</span> : undefined,
       },
@@ -272,7 +275,11 @@ export default async function TriggersPage({
                     <Outcome outcome={d.outcome} />
                     <span className="text-sm tabular-nums text-fg-muted">×{d.count}</span>
                     {REASON[d.outcome]?.key && <Tag mono>{REASON[d.outcome].key}</Tag>}
-                    {d.detail && <span className="w-full min-w-0 truncate text-sm text-fg-muted sm:ml-auto sm:w-auto sm:max-w-md" title={d.detail}>{d.detail}</span>}
+                    {d.detail && (
+                      <Tooltip label={d.detail}>
+                        <span className="w-full min-w-0 truncate text-sm text-fg-muted sm:ml-auto sm:w-auto sm:max-w-md">{d.detail}</span>
+                      </Tooltip>
+                    )}
                   </li>
                 ))}
               </PanelList>
@@ -350,9 +357,11 @@ export default async function TriggersPage({
                       <TD className="whitespace-nowrap">
                         <Chip tone={d.outcome === "accepted" ? "good" : d.outcome === "dropped" ? "default" : "bad"}>{d.outcome}</Chip>
                         {d.count && d.count > 1 ? (
-                          <span className="ml-1.5 text-fg-muted" title={d.first ? `first ${d.first}` : undefined}>
-                            ×{d.count}
-                          </span>
+                          <Tooltip label={d.first ? `first ${d.first}` : undefined}>
+                            <span className="ml-1.5 text-fg-muted">
+                              ×{d.count}
+                            </span>
+                          </Tooltip>
                         ) : null}
                       </TD>
                       <TD className="text-fg-muted">{d.detail || "—"}</TD>

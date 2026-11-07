@@ -7,7 +7,9 @@
 import { useState } from "react";
 import { GripVertical, Plus, X } from "lucide-react";
 import { Button } from "@/components/kit/button";
-import { Input, inputBase } from "@/components/kit/input";
+import { Tooltip } from "@/components/kit/tooltip";
+import { Input } from "@/components/kit/input";
+import { Select } from "@/components/kit/select";
 import { Chip } from "@/components/kit/page";
 import { cn } from "@/components/kit/cn";
 import type { FlowInfo, FlowStep } from "@/lib/store";
@@ -40,7 +42,6 @@ function toMarkdown(flow: FlowInfo, steps: EditableStep[]): string {
   return `---\n${front.join("\n")}\n---\n\n${lines.join("\n")}\n`;
 }
 
-const selectBase = cn(inputBase, "h-8 py-1 pr-7 text-[13px]");
 
 export function FlowPanel({
   workspace,
@@ -115,13 +116,13 @@ export function FlowPanel({
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         {flows.length > 1 ? (
-          <select value={flowName} onChange={(e) => switchFlow(e.target.value)} aria-label="Flow" className={cn(selectBase, "h-9 min-w-0 flex-1 font-medium")}>
+          <Select value={flowName} onChange={(e) => switchFlow(e.target.value)} aria-label="Flow" className="min-w-0 flex-1 font-medium">
             {flows.map((f) => (
               <option key={f.name} value={f.name}>
                 {f.name}
               </option>
             ))}
-          </select>
+          </Select>
         ) : (
           <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg">{flow.name}</span>
         )}
@@ -145,40 +146,46 @@ export function FlowPanel({
             className="space-y-1.5 rounded-md border border-line bg-sunken p-2"
           >
             <div className="flex items-center gap-1">
-              <span className="cursor-grab text-fg-subtle" title="drag to reorder">
-                <GripVertical className="size-4" aria-hidden />
-              </span>
+              <Tooltip label="drag to reorder">
+                <span className="cursor-grab text-fg-subtle">
+                  <GripVertical className="size-4" aria-hidden />
+                </span>
+              </Tooltip>
               <span className="w-5 shrink-0 text-center text-xs tabular-nums text-fg-muted">{groupOf[i]}</span>
-              <select value={s.agent} onChange={(e) => update(i, { agent: e.target.value })} aria-label={`Agent for step ${i + 1}`} className={cn(selectBase, "min-w-0 flex-1")}>
+              <Select size="sm" value={s.agent} onChange={(e) => update(i, { agent: e.target.value })} aria-label={`Agent for step ${i + 1}`} className="min-w-0 flex-1">
                 {agents.map((a) => (
                   <option key={a} value={a}>
                     {a}
                   </option>
                 ))}
-              </select>
+              </Select>
               {i > 0 && (
+                <Tooltip label="run in parallel with the step above">
+                  <button
+                    type="button"
+                    aria-label="Run in parallel with the step above"
+                    aria-pressed={s.parallelWithPrev}
+                    onClick={() => update(i, { parallelWithPrev: !s.parallelWithPrev })}
+                    className={toggle(s.parallelWithPrev, "good")}
+                  >
+                    ∥
+                  </button>
+                </Tooltip>
+              )}
+              <Tooltip label="optional — failure won't fail the flow">
                 <button
                   type="button"
-                  title="run in parallel with the step above"
-                  aria-pressed={s.parallelWithPrev}
-                  onClick={() => update(i, { parallelWithPrev: !s.parallelWithPrev })}
-                  className={toggle(s.parallelWithPrev, "good")}
+                  aria-label="Optional — failure won't fail the flow"
+                  aria-pressed={s.optional}
+                  onClick={() => update(i, { optional: !s.optional })}
+                  className={toggle(s.optional, "warn")}
                 >
-                  ∥
+                  ?
                 </button>
-              )}
+              </Tooltip>
+              <Tooltip label="remove step">
               <button
                 type="button"
-                title="optional — failure won't fail the flow"
-                aria-pressed={s.optional}
-                onClick={() => update(i, { optional: !s.optional })}
-                className={toggle(s.optional, "warn")}
-              >
-                ?
-              </button>
-              <button
-                type="button"
-                title="remove step"
                 aria-label="Remove step"
                 onClick={() =>
                   setSteps(
@@ -191,6 +198,7 @@ export function FlowPanel({
               >
                 <X className="size-4" aria-hidden />
               </button>
+              </Tooltip>
             </div>
             <Input
               value={s.instruction}

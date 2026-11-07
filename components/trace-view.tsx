@@ -10,6 +10,8 @@ import { classify, counts, type TraceKind, type TraceLine } from "@/components/t
 import { fmtDur } from "@/components/run-timeline";
 import { hookBadge, HOOK_TONE } from "@/components/hooks-model";
 import { grouped } from "@/components/money";
+import { Segmented } from "@/components/kit/segmented";
+import { Chip, Tag } from "@/components/kit/page";
 
 const FILTERS: { key: TraceKind | "all"; label: string }[] = [
   { key: "all", label: "All" },
@@ -81,18 +83,18 @@ function Row({ line, callRun, tenant }: { line: TraceLine; callRun?: CallRun; te
       {line.subagent && (
         // A sub-agent's call, made on this step's behalf: indented under the
         // step and named, so its work reads apart from the parent's.
-        <span className="ml-3 shrink-0 self-start rounded border border-line bg-sunken px-1.5 py-px text-xs text-fg-secondary" title="made by a sub-agent (subagents:)">
+        <Tag className="ml-3 h-5 self-start" hint="made by a sub-agent (subagents:)">
           ↳ {line.subagent}
-        </span>
+        </Tag>
       )}
       {line.hook && (() => {
         // A hook's line: named and toned by what it did, so a deny or a
         // rewrite reads at a glance rather than as one more trace line.
         const b = hookBadge(line.hook);
         return (
-          <span className={`shrink-0 self-start rounded px-1.5 py-px text-xs font-medium ring-1 ring-inset ${HOOK_TONE[b.tone]}`} title={`hook ${line.hook.hook} on ${line.hook.event}`}>
+          <Chip tone={HOOK_TONE[b.tone]} className="h-5 self-start" hint={`hook ${line.hook.hook} on ${line.hook.event}`}>
             ⚑ {b.label}
-          </span>
+          </Chip>
         );
       })()}
       <div className="min-w-0 flex-1">
@@ -100,7 +102,7 @@ function Row({ line, callRun, tenant }: { line: TraceLine; callRun?: CallRun; te
           <Markdown text={line.text} className="text-sm text-fg" />
         ) : line.kind === "verify" ? (
           <p className="text-[13px] leading-5">
-            <span className={`mr-2 rounded px-1.5 py-px text-xs font-medium ${line.ok ? "bg-success-soft text-success" : "bg-danger-soft text-danger"}`}>{line.ok ? "verified" : "verify failed"}</span>
+            <Chip tone={line.ok ? "good" : "bad"} className="mr-2 h-5">{line.ok ? "verified" : "verify failed"}</Chip>
             <span className="font-mono text-[12px] text-fg-tertiary">{line.text.replace(/^verify\s*/i, "")}</span>
           </p>
         ) : line.tool ? (
@@ -156,16 +158,13 @@ export function TraceView({
     <div>
       <div className="mb-1.5 flex flex-wrap items-center gap-1">
         <span className="mr-1 text-[13px] font-medium text-fg-secondary">Trace</span>
-        {FILTERS.filter((f) => f.key === "all" || n[f.key] > 0).map((f) => (
-          <button
-            key={f.key}
-            type="button"
-            onClick={() => setFilter(f.key)}
-            className={`inline-flex h-6 items-center rounded-full px-2 text-xs tabular-nums transition-colors ${filter === f.key ? "bg-ink text-on-ink" : f.key === "error" ? "bg-danger-soft text-danger hover:opacity-80" : "border border-line bg-surface text-fg-secondary hover:bg-sunken"}`}
-          >
-            {f.label} {n[f.key]}
-          </button>
-        ))}
+        <Segmented
+          size="sm"
+          label="Show"
+          value={filter}
+          onChange={(k) => setFilter(k as TraceKind | "all")}
+          items={FILTERS.filter((f) => f.key === "all" || n[f.key] > 0).map((f) => ({ key: f.key, label: f.label, count: n[f.key] }))}
+        />
         <button type="button" onClick={() => setTall((v) => !v)} className="ml-auto rounded px-1.5 py-0.5 text-xs text-fg-muted hover:bg-muted hover:text-fg">
           {tall ? "↑ compact" : "↕ full height"}
         </button>

@@ -13,7 +13,8 @@
 // noise.
 
 import { useEffect, useMemo, useState } from "react";
-import { inputClass, selectClass } from "@/components/ui";
+import { Input } from "@/components/kit/input";
+import { Select } from "@/components/kit/select";
 
 export interface Field {
   key: string;
@@ -153,10 +154,10 @@ export function FrontmatterForm({
             </span>
 
             {choicesFor(field) ? (
-              <select
+              <Select
                 value={value}
                 onChange={(e) => set(e.target.value)}
-                className={selectClass("w-full")}
+                className="w-full"
               >
                 <option value="">—</option>
                 {choicesFor(field)?.map((o) => (
@@ -164,14 +165,14 @@ export function FrontmatterForm({
                     {o.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             ) : (
-              <input
+              <Input
                 value={value}
                 onChange={(e) => set(e.target.value)}
                 placeholder={field.placeholder}
                 spellCheck={false}
-                className={inputClass("font-mono")}
+                className="font-mono"
               />
             )}
           </label>

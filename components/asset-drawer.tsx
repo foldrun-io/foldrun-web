@@ -36,10 +36,13 @@ import {
 } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/kit/dialog";
 import { Button } from "@/components/kit/button";
-import { IconBox, Tag } from "@/components/kit/page";
-import { Input, Textarea, inputBase } from "@/components/kit/input";
+import { Tooltip } from "@/components/kit/tooltip";
+import { IconBox, Tag, Callout } from "@/components/kit/page";
+import { Input, Textarea } from "@/components/kit/input";
+import { Select } from "@/components/kit/select";
 import { Menu, MenuContent, MenuTrigger } from "@/components/kit/menu";
 import { cn } from "@/components/kit/cn";
+import { PageTabs } from "@/components/kit/page-tabs";
 import { useCan, needs } from "@/components/role";
 import { InlineEditor } from "@/components/inline-editor";
 import { ToolTest } from "@/components/tool-test";
@@ -65,6 +68,8 @@ import {
   editableInPlace,
 } from "@/components/asset-fields";
 import { dump } from "js-yaml";
+import { Disclosure } from "@/components/kit/disclosure";
+import { Combobox } from "@/components/kit/combobox";
 
 const KIND_ICON: Record<string, LucideIcon> = { tools: Wrench, hooks: Webhook, skills: Sparkles, memory: Brain, knowledge: BookOpen, scripts: FileCode };
 
@@ -427,37 +432,19 @@ function AssetDetail({
             </span>
           )}
         </div>
-        <nav role="tablist" aria-label="Sections" className="-mx-2 mt-3 flex gap-0.5 overflow-x-auto">
-          {tabs.map((t) => (
-            <button
-              key={t}
-              type="button"
-              role="tab"
-              aria-selected={t === tab}
-              onClick={() => setTab(t)}
-              className={cn(
-                "relative flex h-10 shrink-0 items-center rounded-md px-2 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
-                t === tab ? "text-fg" : "text-fg-muted hover:text-fg",
-                "after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full",
-                t === tab ? "after:bg-fg" : "after:bg-transparent",
-              )}
-            >
-              {TAB_LABEL[t]}
-            </button>
-          ))}
-        </nav>
+        <PageTabs className="-mx-2 mb-0 mt-3 border-b-0 px-0 sm:-mx-2 sm:px-0" tabs={tabs.map((t) => ({ key: t, label: TAB_LABEL[t] }))} value={tab} onChange={setTab} />
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
         {tab === "overview" &&
           (loadError ? (
-            item.kind === "hooks" ? <HookFacts item={item} why={loadError} /> : <Note tone="warn">{loadError}</Note>
+            item.kind === "hooks" ? <HookFacts item={item} why={loadError} /> : <Callout tone="warning" role="status" className="mb-4 text-[13px]">{loadError}</Callout>
           ) : content === null ? (
             <OverviewSkeleton />
           ) : (
             <>
               {sourceDirty && (
-                <Note tone="warn">Source has unsaved changes. Save or discard them there before changing settings here.</Note>
+                <Callout tone="warning" role="status" className="mb-4 text-[13px]">Source has unsaved changes. Save or discard them there before changing settings here.</Callout>
               )}
               {item.notice && <div className="mb-4">{item.notice}</div>}
               {prose && !editing ? (
@@ -476,14 +463,14 @@ function AssetDetail({
         {tab === "test" && <TestPane item={item} workspace={workspace} tenant={tenant} stale={dirty || sourceDirty} />}
 
         {tab === "source" && dirty && (
-          <Note tone="warn" action={
+          <Callout tone="warning" role="status" className="mb-4 text-[13px]" actions={
             <span className="flex gap-2">
               <Button size="xs" variant="secondary" onClick={discard}>Discard</Button>
               <Button size="xs" variant="primary" onClick={() => void save()} disabled={!mayWrite}>Save</Button>
             </span>
           }>
             Overview has unsaved changes. Save or discard them before editing the file.
-          </Note>
+          </Callout>
         )}
         {tab === "source" && loadError && item.kind === "hooks" && <HookFacts item={item} why={loadError} brief />}
         {visitedSource && !(loadError && item.kind === "hooks") && (
@@ -510,14 +497,15 @@ function AssetDetail({
                 <X className="size-3.5 shrink-0" aria-hidden />
                 <span className="min-w-0 break-words">{state.text}</span>
                 {state.refused && mayWrite && (
-                  <button
-                    type="button"
-                    onClick={() => void save(true)}
-                    className="font-medium underline underline-offset-2 hover:opacity-80"
-                    title="Save with the errors: the file goes live as it is, and runs that read it may fail"
-                  >
-                    Save anyway
-                  </button>
+                  <Tooltip label="Save with the errors: the file goes live as it is, and runs that read it may fail">
+                    <button
+                      type="button"
+                      onClick={() => void save(true)}
+                      className="font-medium underline underline-offset-2 hover:opacity-80"
+                    >
+                      Save anyway
+                    </button>
+                  </Tooltip>
                 )}
               </span>
             ) : state?.kind === "saved" && !dirty ? (
@@ -535,15 +523,18 @@ function AssetDetail({
               Discard
             </Button>
           )}
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => void save()}
-            disabled={!dirty || !mayWrite || state?.kind === "saving"}
-            title={mayWrite ? "⌘S" : needs("workspace:write")}
-          >
-            {state?.kind === "saving" ? "Saving…" : "Save"}
-          </Button>
+          <Tooltip label={mayWrite ? "⌘S" : needs("workspace:write")}>
+            <span className="inline-flex">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => void save()}
+                disabled={!dirty || !mayWrite || state?.kind === "saving"}
+              >
+                {state?.kind === "saving" ? "Saving…" : "Save"}
+              </Button>
+            </span>
+          </Tooltip>
         </footer>
       )}
     </div>
@@ -559,21 +550,6 @@ function OverviewSkeleton() {
           <div className="h-9 animate-pulse rounded-md bg-muted" />
         </div>
       ))}
-    </div>
-  );
-}
-
-function Note({ tone, children, action }: { tone: "warn" | "info"; children: ReactNode; action?: ReactNode }) {
-  return (
-    <div
-      role="status"
-      className={cn(
-        "mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border px-3 py-2 text-[13px]",
-        tone === "warn" ? "border-warning-line bg-warning-soft text-warning" : "border-line bg-sunken text-fg-secondary",
-      )}
-    >
-      <span className="min-w-0 flex-1">{children}</span>
-      {action}
     </div>
   );
 }
@@ -600,11 +576,11 @@ function HookFacts({ item, why, brief = false }: { item: AssetItem; why: string;
           ))}
         </dl>
       )}
-      <Note tone="info">
+      <Callout role="status" className="mb-4 text-[13px]">
         A hook is your code, so it is changed in its folder — edit <span className="font-mono">hook.md</span> and{" "}
         <span className="font-mono">run.mjs</span> and deploy, or use <span className="font-mono">foldrun hook</span>. The dashboard reads it
         but does not write it ({why}).
-      </Note>
+      </Callout>
     </div>
   );
 }
@@ -636,9 +612,9 @@ function SettingsForm({
 
   if (error) {
     return (
-      <Note tone="warn">
+      <Callout tone="warning" role="status" className="mb-4 text-[13px]">
         The settings at the top of this file do not read as YAML ({error}). Fix them in Source.
-      </Note>
+      </Callout>
     );
   }
 
@@ -647,9 +623,9 @@ function SettingsForm({
   if (!safeAtOpen) {
     return (
       <div className="space-y-4">
-        <Note tone="warn">
+        <Callout tone="warning" role="status" className="mb-4 text-[13px]">
           This file&apos;s settings are written in a YAML style the form can&apos;t change without rewriting them. They are shown here; edit them in Source.
-        </Note>
+        </Callout>
         <dl className="divide-y divide-line overflow-hidden rounded-lg border border-line">
           {Object.entries(data).map(([k, v]) => (
             <div key={k} className="grid grid-cols-[10rem_1fr] gap-3 px-4 py-2.5 text-sm">
@@ -674,20 +650,17 @@ function SettingsForm({
         ))}
       </div>
       {more.length > 0 && (
-        <details className="group rounded-lg border border-line">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-fg [&::-webkit-details-marker]:hidden">
-            More settings
+        <Disclosure className="rounded-lg border border-line" summaryClassName="flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-fg" marker={false} summary={<>More settings
             <span className="text-xs font-normal text-fg-muted">
-              {more.length} optional · <span className="group-open:hidden">show</span>
-              <span className="hidden group-open:inline">hide</span>
-            </span>
-          </summary>
+              {more.length} optional · <span className="group-data-[state=open]/disclosure:hidden">show</span>
+              <span className="hidden group-data-[state=open]/disclosure:inline">hide</span>
+            </span></>}>
           <div className="space-y-5 border-t border-line px-4 py-4">
             {more.map((f) => (
               <FieldRow key={f.key} field={f} value={data[f.key]} onChange={(v) => set(f.key, v)} vocab={vocab} />
             ))}
           </div>
-        </details>
+        </Disclosure>
       )}
       {others.length > 0 && (
         <p className="text-xs text-fg-muted">
@@ -722,12 +695,11 @@ const SUGGEST: Record<string, string[]> = {
 function FieldRow({ field, value, onChange, vocab }: { field: UiField; value: unknown; onChange: (v: unknown) => void; vocab: Vocab }) {
   const id = `f-${field.key}`;
   const suggestions = field.suggest === "scripts" ? vocab.scripts : field.suggest === "secrets" ? vocab.secrets : field.suggest ? SUGGEST[field.suggest] : undefined;
-  const listId = suggestions?.length ? `${id}-options` : undefined;
   const control = (() => {
     switch (field.control) {
       case "select":
         return (
-          <select id={id} value={asText(value)} onChange={(e) => onChange(e.target.value || undefined)} className={cn(inputBase, "h-9 py-1.5")}>
+          <Select id={id} value={asText(value)} onChange={(e) => onChange(e.target.value || undefined)} className="w-full">
             <option value="">Not set</option>
             {/* A value outside the known set still shows, so saving never drops it. */}
             {value !== undefined && !field.options?.some((o) => o.value === asText(value)) && <option value={asText(value)}>{asText(value)}</option>}
@@ -736,22 +708,22 @@ function FieldRow({ field, value, onChange, vocab }: { field: UiField; value: un
                 {o.label}
               </option>
             ))}
-          </select>
+          </Select>
         );
       case "boolean":
         return (
-          <select id={id} value={value === true ? "true" : value === false ? "false" : ""} onChange={(e) => onChange(e.target.value === "" ? undefined : e.target.value === "true")} className={cn(inputBase, "h-9 py-1.5")}>
+          <Select id={id} value={value === true ? "true" : value === false ? "false" : ""} onChange={(e) => onChange(e.target.value === "" ? undefined : e.target.value === "true")} className="w-full">
             <option value="">Not set</option>
             <option value="true">Yes</option>
             <option value="false">No</option>
-          </select>
+          </Select>
         );
       case "number":
         return <Input id={id} type="number" value={asText(value)} onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))} className="max-w-40" />;
       case "textarea":
         return <Textarea id={id} rows={2} value={asText(value)} onChange={(e) => onChange(e.target.value)} className="min-h-0" />;
       case "list":
-        return <ListEditor id={id} values={asList(value)} onChange={(v) => onChange(v)} placeholder={field.placeholder} listId={listId} />;
+        return <ListEditor id={id} values={asList(value)} onChange={(v) => onChange(v)} placeholder={field.placeholder} suggestions={suggestions ?? []} />;
       case "map":
         return <MapEditor id={id} entries={asMap(value)} onChange={(v) => onChange(v)} />;
       case "complex":
@@ -762,10 +734,10 @@ function FieldRow({ field, value, onChange, vocab }: { field: UiField; value: un
         );
       default:
         return (
-          <Input
+          <Combobox
+            options={suggestions ?? []}
             id={id}
             value={asText(value)}
-            list={listId}
             placeholder={field.placeholder}
             spellCheck={false}
             onChange={(e) => {
@@ -784,13 +756,6 @@ function FieldRow({ field, value, onChange, vocab }: { field: UiField; value: un
         <span className="font-mono text-xs font-normal text-fg-subtle">{field.key}</span>
       </label>
       {control}
-      {listId && (
-        <datalist id={listId}>
-          {suggestions!.map((s) => (
-            <option key={s} value={s} />
-          ))}
-        </datalist>
-      )}
       <p className="text-xs text-fg-muted">
         {field.help.charAt(0).toUpperCase() + field.help.slice(1)}
         {field.control === "complex" && " — edited in Source."}
@@ -801,7 +766,7 @@ function FieldRow({ field, value, onChange, vocab }: { field: UiField; value: un
 
 /** Rows of one value each. Local rows, so an empty row being typed into is
  *  never written to the file as an empty item. */
-function ListEditor({ id, values, onChange, placeholder, listId }: { id: string; values: string[]; onChange: (v: string[]) => void; placeholder?: string; listId?: string }) {
+function ListEditor({ id, values, onChange, placeholder, suggestions }: { id: string; values: string[]; onChange: (v: string[]) => void; placeholder?: string; suggestions: string[] }) {
   const [rows, setRows] = useState<string[]>(values.length ? values : []);
   const emit = (next: string[]) => {
     setRows(next);
@@ -811,10 +776,10 @@ function ListEditor({ id, values, onChange, placeholder, listId }: { id: string;
     <div className="space-y-2">
       {rows.map((v, i) => (
         <div key={i} className="flex items-center gap-2">
-          <Input
+          <Combobox
+            options={suggestions}
             id={i === 0 ? id : undefined}
             value={v}
-            list={listId}
             placeholder={placeholder}
             spellCheck={false}
             onChange={(e) => emit(rows.map((r, j) => (j === i ? e.target.value : r)))}
@@ -947,10 +912,10 @@ function TestPane({ item, workspace, tenant, stale }: { item: AssetItem; workspa
     if (!workspace) {
       // A test runs from an agent's folder in a workspace — secrets, state
       // and paths all resolve there. The library has none of that.
-      return <Note tone="info">Test it from a workspace that grants it — a run stands in that workspace, not here.</Note>;
+      return <Callout role="status" className="mb-4 text-[13px]">Test it from a workspace that grants it — a run stands in that workspace, not here.</Callout>;
     }
     if (item.overridden) {
-      return <Note tone="info">This workspace has its own {item.name}, which runs instead of the shared one. Test that one.</Note>;
+      return <Callout role="status" className="mb-4 text-[13px]">This workspace has its own {item.name}, which runs instead of the shared one. Test that one.</Callout>;
     }
     return (
       <div className="space-y-3">
@@ -960,11 +925,11 @@ function TestPane({ item, workspace, tenant, stale }: { item: AssetItem; workspa
     );
   }
   const h = item.hook;
-  if (!workspace) return <Note tone="info">Test it from a workspace that turns it on — a hook runs inside a workspace&apos;s steps.</Note>;
-  if (!h) return <Note tone="info">Nothing to test yet.</Note>;
-  if (h.error) return <Note tone="warn">{h.error}</Note>;
-  if (h.shadowed) return <Note tone="info">A workspace hook with the same name runs instead of this one. Test that one.</Note>;
-  if (!h.on || !h.sample) return <Note tone="info">Say which event it runs on (Overview → Runs on) to test it.</Note>;
+  if (!workspace) return <Callout role="status" className="mb-4 text-[13px]">Test it from a workspace that turns it on — a hook runs inside a workspace&apos;s steps.</Callout>;
+  if (!h) return <Callout role="status" className="mb-4 text-[13px]">Nothing to test yet.</Callout>;
+  if (h.error) return <Callout tone="warning" role="status" className="mb-4 text-[13px]">{h.error}</Callout>;
+  if (h.shadowed) return <Callout role="status" className="mb-4 text-[13px]">A workspace hook with the same name runs instead of this one. Test that one.</Callout>;
+  if (!h.on || !h.sample) return <Callout role="status" className="mb-4 text-[13px]">Say which event it runs on (Overview → Runs on) to test it.</Callout>;
   return (
     <div className="space-y-3">
       <p className="text-sm text-fg-muted">
@@ -1058,14 +1023,15 @@ function SourcePane({
             );
           })}
           {folder && !adding && (
-            <button
-              type="button"
-              onClick={() => setAdding(true)}
-              className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-fg-muted hover:bg-muted hover:text-fg"
-              title="Add another file to this folder — a helper module, a requirements file"
-            >
-              <Plus className="size-3.5" aria-hidden /> Add file
-            </button>
+            <Tooltip label="Add another file to this folder — a helper module, a requirements file">
+              <button
+                type="button"
+                onClick={() => setAdding(true)}
+                className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-fg-muted hover:bg-muted hover:text-fg"
+              >
+                <Plus className="size-3.5" aria-hidden /> Add file
+              </button>
+            </Tooltip>
           )}
           {adding && (
             <form
@@ -1075,14 +1041,14 @@ function SourcePane({
                 void addFile();
               }}
             >
-              <input
+              <Input
                 autoFocus
                 value={newFile}
                 onChange={(e) => setNewFile(e.target.value)}
                 placeholder="helpers.py"
                 spellCheck={false}
                 aria-label="New file name"
-                className={cn(inputBase, "h-7 w-36 px-2 font-mono text-xs")}
+                className="h-7 w-36 px-2 py-0 font-mono text-xs"
               />
               <Button type="submit" variant="primary" size="xs" className="h-7 px-2.5">
                 Add

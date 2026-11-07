@@ -8,6 +8,7 @@ import { useState } from "react";
 import { Play } from "lucide-react";
 import { Button } from "@/components/kit/button";
 import { Textarea } from "@/components/kit/input";
+import { Callout } from "@/components/kit/page";
 
 interface Answer {
   ok: boolean;
@@ -108,7 +109,7 @@ export function HookTest({
         </div>
       )}
       {a && (
-        <div className={`rounded-md border p-2 text-xs ${!a.ok ? "border-danger-line bg-danger-soft text-danger" : a.decision === "deny" ? "border-warning-line bg-warning-soft text-warning" : "border-line bg-sunken text-fg-secondary"}`}>
+        <Callout tone={!a.ok ? "danger" : a.decision === "deny" ? "warning" : "neutral"} className="p-2 text-xs">
           <p className="font-medium">
             {!a.ok ? `failed: ${a.failure}` : a.decision === "deny" ? "deny" : a.decision === "allow" ? "allow" : "ok"}
             <span className="ml-2 font-normal text-fg-muted">{a.ms}ms</span>
@@ -118,7 +119,7 @@ export function HookTest({
           {a.context && <p>context: {a.context}</p>}
           {a.reply !== undefined && <p>reply: {a.reply}</p>}
           {a.note && <p>note: {a.note}</p>}
-        </div>
+        </Callout>
       )}
     </div>
   );

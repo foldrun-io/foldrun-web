@@ -8,7 +8,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Badge, buttonClass, Card, inputClass, selectClass, FIELD_LABEL_CLASS } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
+import { Input, labelClass } from "@/components/kit/input";
+import { Select } from "@/components/kit/select";
+import { Chip, Card, Callout } from "@/components/kit/page";
 import type { NetworkLevel } from "@/lib/network";
 
 export interface AgentNetworkProps {
@@ -79,14 +82,14 @@ export function AgentNetwork(p: AgentNetworkProps) {
     <Card className="mt-4 p-4">
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-sm font-medium text-fg">Network</h2>
-        <Badge variant={r.level === "open" ? "warning" : "success"}>{r.level}</Badge>
+        <Chip tone={r.level === "open" ? "warn" : "good"}>{r.level}</Chip>
         <span className="text-xs text-fg-subtle">
           {r.from === "agent" ? "set on this agent" : r.from.startsWith("default") ? (r.readsWeb ? "default — it reads the web" : "default") : `from the ${r.from}`}
           {" · "}
           {LEVEL_HELP[r.level]}
         </span>
         {p.editable && !editing && (
-          <button type="button" onClick={() => setEditing(true)} className={`ml-auto ${buttonClass("secondary")}`}>Change</button>
+          <button type="button" onClick={() => setEditing(true)} className={`ml-auto ${buttonVariants({ variant: "secondary", size: "md" })}`}>Change</button>
         )}
       </div>
       {r.level !== "open" && (
@@ -102,56 +105,56 @@ export function AgentNetwork(p: AgentNetworkProps) {
         </ul>
       )}
       {r.browses && p.browse === "hosted" && (
-        <p className="mt-2 rounded-md border border-success-line bg-success-soft px-2.5 py-1.5 text-xs text-success">
+        <Callout tone="success" size="sm" className="mt-2">
           Browsing is held to this list: the browser runs inside the step&apos;s sandbox, whose network reaches only the egress proxy.{" "}
           {p.dnsWalled
             ? "It has no DNS of its own either: every name goes to the proxy, which looks up only sites on the list."
             : "Its DNS lookups are not held to the list on this install."}
-        </p>
+        </Callout>
       )}
       {r.browses && p.browse === "refuse" && (
-        <p className="mt-2 rounded-md border border-warning-line bg-warning-soft px-2.5 py-1.5 text-xs text-warning">
+        <Callout tone="warning" size="sm" className="mt-2">
           This agent browses with <code className="font-mono">{r.browseVendor}</code>, which browses from its own network, so this list cannot hold it: its steps are refused before they connect.
           Drop <code className="font-mono">browse: {r.browseVendor}</code> to use foldrun&apos;s own browser, which is held to the list.
-        </p>
+        </Callout>
       )}
       {r.browses && r.level !== "open" && p.browse !== "hosted" && p.browse !== "refuse" && (
-        <p className="mt-2 rounded-md border border-warning-line bg-warning-soft px-2.5 py-1.5 text-xs text-warning">
+        <Callout tone="warning" size="sm" className="mt-2">
           This agent may browse, and here a browsing step is not held to this list: its browser and its other programs reach sites directly.
           Browsing is held where the platform confines it and the list is enforced; until then, to keep it inside the list, give it <code className="font-mono">web: {"{actions: [search, fetch]}"}</code>.
-        </p>
+        </Callout>
       )}
       {p.search === "door" && (
-        <p className="mt-2 rounded-md border border-info-line bg-info-soft px-2.5 py-1.5 text-xs text-info">
+        <Callout tone="info" size="sm" className="mt-2">
           Web search goes through the egress proxy: the account&apos;s search engine answers from a fixed set of engines
           {p.searchEngines?.length ? <> ({p.searchEngines.join(", ")})</> : null}. A query&apos;s words reach those engines, and each query is on the run&apos;s trace.
           Results are data: opening one is held to this list.
-        </p>
+        </Callout>
       )}
       {p.search === "unnamed" && (
-        <p className="mt-2 rounded-md border border-warning-line bg-warning-soft px-2.5 py-1.5 text-xs text-warning">
+        <Callout tone="warning" size="sm" className="mt-2">
           Web search is not offered under this list: it is narrow on purpose ({r.level === "none" ? "network: none" : "no trusted list"}), and the agent&apos;s web: block names no actions.
           Write <code className="font-mono">web: {"{actions: [search, …]}"}</code> to let it search through the egress proxy.
-        </p>
+        </Callout>
       )}
       {editing && (
         <form onSubmit={(e) => { e.preventDefault(); void save(); }} className="mt-3 flex flex-wrap items-end gap-2">
           <label className="block">
-            <span className={FIELD_LABEL_CLASS}>Level</span>
-            <select value={level} onChange={(e) => setLevel(e.target.value as NetworkLevel | "")} className={selectClass()}>
+            <span className={labelClass}>Level</span>
+            <Select value={level} onChange={(e) => setLevel(e.target.value as NetworkLevel | "")} >
               <option value="">Inherit ({r.from === "agent" ? "workspace or default" : r.level})</option>
               <option value="trusted">trusted</option>
               <option value="open">open</option>
               <option value="none">none</option>
-            </select>
+            </Select>
           </label>
           <label className="block">
-            <span className={FIELD_LABEL_CLASS}>Sites to add</span>
-            <input value={sites} onChange={(e) => setSites(e.target.value)} placeholder="api.example.com, *.example.org"
-              className={inputClass("w-80 font-mono")} />
+            <span className={labelClass}>Sites to add</span>
+            <Input value={sites} onChange={(e) => setSites(e.target.value)} placeholder="api.example.com, *.example.org"
+              className="w-80 font-mono" />
           </label>
-          <button type="submit" disabled={busy} className={buttonClass("primary")}>Save</button>
-          <button type="button" onClick={() => setEditing(false)} className={buttonClass("minimal")}>Cancel</button>
+          <button type="submit" disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })}>Save</button>
+          <button type="button" onClick={() => setEditing(false)} className={buttonVariants({ variant: "ghost", size: "md" })}>Cancel</button>
         </form>
       )}
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}

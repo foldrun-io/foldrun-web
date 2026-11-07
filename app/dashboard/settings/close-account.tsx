@@ -11,9 +11,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { inputClass } from "@/components/ui";
+import { Input } from "@/components/kit/input";
 import { Download } from "lucide-react";
-import { SettingsCard } from "@/components/kit/page";
+import { SettingsCard, Field, Callout } from "@/components/kit/page";
 import { Button, buttonVariants } from "@/components/kit/button";
 
 export function AccountData({ account, owner, hosted, closeRequestedAt }: { account: string; owner: boolean; hosted: boolean; closeRequestedAt: string | null }) {
@@ -110,20 +110,16 @@ export function AccountData({ account, owner, hosted, closeRequestedAt }: { acco
           >
             {(done || (open && !closeRequestedAt)) && (
               <div className="space-y-4">
-                {done && <p role="status" className="rounded-md border border-success-line bg-success-soft px-3 py-2 text-sm text-success">{done}</p>}
+                {done && <Callout tone="success" role="status">{done}</Callout>}
                 {open && !closeRequestedAt && (
                   <>
-                    <label className="block max-w-md">
-                      <span className="block text-sm font-medium text-fg">Why are you leaving? (optional)</span>
-                      <input value={reason} onChange={(e) => setReason(e.target.value)} className={inputClass("mt-1.5 w-full")} />
-                    </label>
-                    <label className="block max-w-xs">
-                      <span className="block text-sm font-medium text-fg">
-                        Type <span className="font-mono">{account}</span> to confirm
-                      </span>
-                      <input value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" className={inputClass("mt-1.5 w-full font-mono")} />
-                    </label>
-                    {error && <p role="alert" className="rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
+                    <Field label="Why are you leaving? (optional)" className="max-w-md">
+                      <Input value={reason} onChange={(e) => setReason(e.target.value)} className="w-full" />
+                    </Field>
+                    <Field label={<>Type <span className="font-mono">{account}</span> to confirm</>} className="max-w-xs">
+                      <Input value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" className="w-full font-mono" />
+                    </Field>
+                    {error && <Callout tone="danger" role="alert">{error}</Callout>}
                   </>
                 )}
               </div>

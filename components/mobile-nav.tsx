@@ -22,6 +22,7 @@ import { UserMenu } from "./user-menu";
 import { openFind } from "./find";
 import { useVersion } from "./version";
 import { cn } from "./kit/cn";
+import { Tooltip } from "./kit/tooltip";
 
 export function ShellBar({ actions }: { actions?: ReactNode }) {
   const hidden = useSidebarHidden();
@@ -29,15 +30,16 @@ export function ShellBar({ actions }: { actions?: ReactNode }) {
   return (
     <div className="sticky top-0 z-30 hidden h-14 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-line bg-paper/90 px-4 backdrop-blur md:grid">
       <div className="flex min-w-0 items-center gap-1">
-        <button
-          type="button"
-          onClick={() => setSidebarHidden(!hidden)}
-          aria-label={hidden ? "Show sidebar" : "Hide sidebar"}
-          title={`${hidden ? "Show" : "Hide"} sidebar (Ctrl B)`}
-          className="flex size-8 shrink-0 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-muted hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-        >
-          <PanelLeft className="size-4" />
-        </button>
+        <Tooltip label={`${hidden ? "Show" : "Hide"} sidebar (Ctrl B)`} side="bottom">
+          <button
+            type="button"
+            onClick={() => setSidebarHidden(!hidden)}
+            aria-label={hidden ? "Show sidebar" : "Hide sidebar"}
+            className="flex size-8 shrink-0 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-muted hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          >
+            <PanelLeft className="size-4" />
+          </button>
+        </Tooltip>
         <WorkspaceSwitcher />
       </div>
       <p className="max-w-[40vw] truncate text-center text-sm font-medium text-fg">{title}</p>

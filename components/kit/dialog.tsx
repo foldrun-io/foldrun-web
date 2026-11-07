@@ -72,8 +72,9 @@ export function SheetContent({
   className,
   children,
   side = "right",
+  hideClose = false,
   ...props
-}: React.ComponentProps<typeof D.Content> & { side?: "left" | "right" | "bottom" }) {
+}: React.ComponentProps<typeof D.Content> & { side?: "left" | "right" | "bottom"; hideClose?: boolean }) {
   const place = {
     left: "inset-y-0 left-0 h-full w-[min(20rem,85vw)] border-r data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left",
     right: "inset-y-0 right-0 h-full w-[min(32rem,92vw)] border-l data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right",
@@ -91,9 +92,11 @@ export function SheetContent({
         {...props}
       >
         {children}
-        <D.Close className="absolute right-3 top-3 rounded-md p-1 text-fg-muted hover:bg-muted hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus" aria-label="Close">
-          <X className="size-4" />
-        </D.Close>
+        {!hideClose && (
+          <D.Close className="absolute right-3 top-3 rounded-md p-1 text-fg-muted hover:bg-muted hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus" aria-label="Close">
+            <X className="size-4" />
+          </D.Close>
+        )}
       </D.Content>
     </D.Portal>
   );

@@ -8,8 +8,8 @@
 // fixed and want to prove.
 
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { buttonClass } from "@/components/ui";
-import { Chip, EmptyState } from "@/components/kit/page";
+import { buttonVariants } from "@/components/kit/button";
+import { Chip, EmptyState, Callout } from "@/components/kit/page";
 import { ChevronDown, ChevronRight, Send } from "lucide-react";
 import { LocalTime } from "@/components/local-time";
 import { useCan } from "@/components/role";
@@ -94,11 +94,11 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
   return (
     <div className="space-y-3">
       {endpoint?.disabledAt && (
-        <div role="alert" className="rounded-lg border border-danger-line bg-danger-soft p-4 text-sm text-danger">
+        <Callout tone="danger" className="p-4 text-sm" role="alert">
           This workspace&apos;s webhook is <strong>switched off</strong> since <LocalTime iso={endpoint.disabledAt} />: {endpoint.disabledReason}. New
           notifications are recorded below but not sent. Fix the receiver, then Redeliver any delivery (or send a test from Workspace settings) — an
           accepted one switches it back on. Changing the URL in <code>notify:</code> starts it fresh.
-        </div>
+        </Callout>
       )}
       {!endpoint?.disabledAt && endpoint?.failingSince && (
         <p className="text-sm text-warning">
@@ -179,7 +179,7 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
                     <td className="px-3 py-3 text-right">
                       {runs && (
                         <button
-                          className={buttonClass("secondary")}
+                          className={buttonVariants({ variant: "secondary" })}
                           disabled={busy === d.id}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -219,9 +219,9 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
       )}
       {total > PAGE && (
         <div className="flex items-center gap-2 text-sm">
-          <button className={buttonClass("minimal")} disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE))}>← Newer</button>
+          <button className={buttonVariants({ variant: "ghost" })} disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE))}>← Newer</button>
           <span className="text-xs text-fg-subtle">{offset + 1}–{Math.min(total, offset + PAGE)} of {total}</span>
-          <button className={buttonClass("minimal")} disabled={offset + PAGE >= total} onClick={() => setOffset(offset + PAGE)}>Older →</button>
+          <button className={buttonVariants({ variant: "ghost" })} disabled={offset + PAGE >= total} onClick={() => setOffset(offset + PAGE)}>Older →</button>
         </div>
       )}
     </div>

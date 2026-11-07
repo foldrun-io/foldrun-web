@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { selectClass } from "@/components/ui";
-import { SettingsCard } from "@/components/kit/page";
+import { Select } from "@/components/kit/select";
+import { SettingsCard, Callout } from "@/components/kit/page";
 import { Button } from "@/components/kit/button";
 import { useCan } from "@/components/role";
 
@@ -46,7 +46,7 @@ function ApiUsage({ usage, hidden }: { usage: ApiFacts["usage"]; hidden?: boolea
   return (
     <>
       {usage.deprecated.length > 0 && (
-        <div className="mt-2 rounded-md border border-warning-line bg-warning-soft p-3 text-xs text-warning" role="alert">
+        <Callout tone="warning" className="mt-2 p-3 text-xs" role="alert">
           <p className="font-semibold text-fg">This account still calls {usage.deprecated.length === 1 ? "a route" : "routes"} on its way out</p>
           <ul className="mt-1 space-y-2">
             {usage.deprecated.map((d) => (
@@ -69,7 +69,7 @@ function ApiUsage({ usage, hidden }: { usage: ApiFacts["usage"]; hidden?: boolea
               </li>
             ))}
           </ul>
-        </div>
+        </Callout>
       )}
       {total === 0 ? (
         <p className="text-sm text-fg-muted">No API requests in the last {usage.days} days.</p>
@@ -141,14 +141,14 @@ export function ApiSettings({ facts, qs }: { facts: ApiFacts; qs: string }) {
           </Button>
         }
       >
-        <select className={selectClass("h-9 w-full max-w-xs")} value={pick} onChange={(e) => setPick(e.target.value)} disabled={!manages || busy} aria-label="API version pin">
+        <Select className="w-full max-w-xs" value={pick} onChange={(e) => setPick(e.target.value)} disabled={!manages || busy} aria-label="API version pin">
           <option value="">Always current ({version.current})</option>
           {version.supported.map((v) => (
             <option key={v} value={v}>
               {v}
             </option>
           ))}
-        </select>
+        </Select>
       </SettingsCard>
 
       <SettingsCard

@@ -10,7 +10,9 @@
 // `foldrun notifications set` makes.
 
 import { useEffect, useState } from "react";
-import { Card } from "@/components/ui";
+import { Card, Tag } from "@/components/kit/page";
+import { Disclosure } from "@/components/kit/disclosure";
+import { Switch } from "@/components/kit/choice";
 
 interface Category {
   category: string;
@@ -21,22 +23,6 @@ interface Category {
   perWorkspace: boolean;
   enabled: boolean;
   workspaces: Record<string, boolean>;
-}
-
-function Switch({ on, disabled, onChange, label }: { on: boolean; disabled?: boolean; onChange: (v: boolean) => void; label: string }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
-      disabled={disabled}
-      onClick={() => onChange(!on)}
-      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${on ? "bg-ink" : "bg-line-strong"} ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
-    >
-      <span className={`inline-block h-4 w-4 rounded-full bg-surface transition-transform ${on ? "translate-x-4" : "translate-x-0.5"}`} />
-    </button>
-  );
 }
 
 export function NotificationPreferences({ workspaces }: { workspaces: string[] }) {
@@ -84,30 +70,27 @@ export function NotificationPreferences({ workspaces }: { workspaces: string[] }
             <div className="min-w-0">
               <p className="text-sm font-medium text-fg">
                 {c.label}
-                {c.required && <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-fg-muted">always sent</span>}
+                {c.required && <Tag className="ml-2">always sent</Tag>}
               </p>
               <p className="mt-0.5 text-xs text-fg-muted">{c.description}</p>
               {c.required && c.why && <p className="mt-1 text-xs text-fg-subtle">Cannot be turned off: {c.why}.</p>}
             </div>
-            <Switch label={c.label} on={c.required || c.enabled} disabled={c.required || busy} onChange={(v) => void set(c.category, v)} />
+            <Switch aria-label={c.label} checked={c.required || c.enabled} disabled={c.required || busy} onCheckedChange={(v) => void set(c.category, v)} />
           </div>
           {c.perWorkspace && !c.required && workspaces.length > 0 && (
-            <details className="mt-2">
-              <summary className="cursor-pointer text-xs text-fg-muted hover:text-fg">
-                Per workspace{Object.keys(c.workspaces).length ? ` · ${Object.keys(c.workspaces).length} set` : ""}
-              </summary>
+            <Disclosure className="mt-2" summaryClassName="text-xs text-fg-muted hover:text-fg" summary={<>Per workspace{Object.keys(c.workspaces).length ? ` · ${Object.keys(c.workspaces).length} set` : ""}</>}>
               <ul className="mt-2 space-y-1.5">
                 {workspaces.map((w) => {
                   const on = c.workspaces[w] ?? c.enabled;
                   return (
                     <li key={w} className="flex items-center justify-between gap-4 text-xs">
                       <span className="font-mono text-fg-secondary">{w}{w in c.workspaces ? "" : <span className="ml-1 font-sans text-fg-subtle">(as above)</span>}</span>
-                      <Switch label={`${c.label} from ${w}`} on={on} disabled={busy} onChange={(v) => void set(c.category, v, w)} />
+                      <Switch aria-label={`${c.label} from ${w}`} checked={on} disabled={busy} onCheckedChange={(v) => void set(c.category, v, w)} />
                     </li>
                   );
                 })}
               </ul>
-            </details>
+            </Disclosure>
           )}
         </div>
       ))}

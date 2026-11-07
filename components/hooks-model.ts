@@ -2,6 +2,7 @@
 // `hook` record (core hooks.ts HookRecord, store.ts RunEvent.hook): a deny, a
 // rewrite, context, a reply, a note, a failure. The Hooks page and the API
 // list them; the run page badges them. Pure, so the rules are tested.
+import type { Tone } from "@/components/kit/page";
 
 export interface HookRecordLike {
   hook: string;
@@ -86,9 +87,5 @@ export function hookBadge(r: Pick<HookRecordLike, "hook" | "did">): { label: str
 }
 
 /** Tailwind classes per tone — palette colours the dark theme re-points. */
-export const HOOK_TONE: Record<ReturnType<typeof hookBadge>["tone"], string> = {
-  error: "bg-red-50 text-red-700 ring-red-200",
-  warn: "bg-amber-50 text-amber-700 ring-amber-200",
-  info: "bg-sky-50 text-sky-700 ring-sky-200",
-  muted: "bg-muted text-fg-tertiary ring-line",
-};
+/** A hook badge's tone, as the kit's Chip draws it. */
+export const HOOK_TONE: Record<ReturnType<typeof hookBadge>["tone"], Tone> = { error: "bad", warn: "warn", info: "info", muted: "default" };

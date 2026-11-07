@@ -12,6 +12,7 @@
 // editor underneath; a chevron says so. Nothing else is an edit affordance.
 
 import type { ReactNode } from "react";
+import { Tooltip } from "@/components/kit/tooltip";
 
 export function Chevron({ open }: { open: boolean }) {
   return (
@@ -54,10 +55,10 @@ export function ExpandableTitle({
   meta?: ReactNode;
 }) {
   return (
+    <Tooltip label={open ? "Close the editor" : "Edit this file"}>
     <button
       type="button"
       onClick={onToggle}
-      title={open ? "Close the editor" : "Edit this file"}
       className="block w-full min-w-0 flex-1 text-left"
     >
       <span className="flex flex-wrap items-center gap-2">
@@ -70,5 +71,6 @@ export function ExpandableTitle({
       )}
       {meta && <span className="mt-1 block pl-5 font-mono text-xs text-fg-subtle">{meta}</span>}
     </button>
+    </Tooltip>
   );
 }

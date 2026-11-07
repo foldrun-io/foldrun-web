@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Page, PageHeader, EmptyState, Tag, Chip } from "@/components/kit/page";
 import { PageTabs } from "@/components/kit/page-tabs";
 import { buttonVariants } from "@/components/kit/button";
+import { Tooltip } from "@/components/kit/tooltip";
 import { toolsTabs, filesTabs } from "@/components/nav-model";
 import { BookOpen, Brain, FileCode, FolderTree, Sparkles, Webhook, Wrench } from "lucide-react";
 import { ResourceList, type Row } from "@/components/kit/list";
@@ -245,11 +246,13 @@ function okfBadges(dir: string, rel: string, kind: Kind, account = false) {
   ];
   const top = states[0];
   return (
-    <span className="inline-flex items-center gap-1.5" title={[doc.type, ...states.map((x) => x.label)].filter(Boolean).join(" · ")}>
-      {doc.type && <Tag>{doc.type}</Tag>}
-      {top && <Chip tone={top.tone}>{top.label.replace(/^human-reviewed .*/, "reviewed")}</Chip>}
-      {states.length > 1 && <span className="text-xs text-fg-muted">+{states.length - 1}</span>}
-    </span>
+    <Tooltip label={[doc.type, ...states.map((x) => x.label)].filter(Boolean).join(" · ")}>
+      <span className="inline-flex items-center gap-1.5">
+        {doc.type && <Tag>{doc.type}</Tag>}
+        {top && <Chip tone={top.tone}>{top.label.replace(/^human-reviewed .*/, "reviewed")}</Chip>}
+        {states.length > 1 && <span className="text-xs text-fg-muted">+{states.length - 1}</span>}
+      </span>
+    </Tooltip>
   );
 }
 

@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { Download, History, MoreHorizontal, Trash2 } from "lucide-react";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/kit/menu";
 import { Button } from "@/components/kit/button";
+import { Tooltip } from "@/components/kit/tooltip";
 import { HistoryDrawer } from "@/components/flow-history";
 import { useCan } from "@/components/role";
 
@@ -24,16 +25,20 @@ export function FlowMoreMenu({ workspace, tenant, flow, file, deleteHref }: { wo
           </Button>
         </MenuTrigger>
         <MenuContent>
-          <MenuItem onSelect={() => setHistory(true)} title={`Every saved version of flows/${file}`}>
-            <History />
-            Version history
-          </MenuItem>
-          <MenuItem asChild>
-            <a href={`/api/workspaces/${encodeURIComponent(workspace)}/export?kind=flow&name=${encodeURIComponent(flow)}`} download title="Download this flow and what it needs to run as a .zip">
-              <Download />
-              Export .zip
-            </a>
-          </MenuItem>
+          <Tooltip label={`Every saved version of flows/${file}`} side="left">
+            <MenuItem onSelect={() => setHistory(true)}>
+              <History />
+              Version history
+            </MenuItem>
+          </Tooltip>
+          <Tooltip label="Download this flow and what it needs to run as a .zip" side="left">
+            <MenuItem asChild>
+              <a href={`/api/workspaces/${encodeURIComponent(workspace)}/export?kind=flow&name=${encodeURIComponent(flow)}`} download>
+                <Download />
+                Export .zip
+              </a>
+            </MenuItem>
+          </Tooltip>
           {mayWrite && (
             <>
               <MenuSeparator />

@@ -8,9 +8,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Badge, buttonClass, inputClass, selectClass, FIELD_LABEL_CLASS } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
+import { Tooltip } from "@/components/kit/tooltip";
+import { Input, labelClass } from "@/components/kit/input";
+import { Select } from "@/components/kit/select";
+import { Chip } from "@/components/kit/page";
 import { runHref } from "@/components/run-href";
 import type { EvalComparison } from "@/lib/eval-compare";
+import { Combobox } from "@/components/kit/combobox";
 
 const TIERS = ["fast", "default", "max"];
 const EFFORTS = ["", "low", "medium", "high", "xhigh", "max"];
@@ -171,59 +176,54 @@ export function ComparePanel({
         {rows.map((r, i) => (
           <div key={i} className="flex flex-wrap items-end gap-2">
             <label>
-              <span className={FIELD_LABEL_CLASS}>Model</span>
-              <input list="foldrun-tiers" value={r.model} onChange={(e) => set(i, { model: e.target.value })} className={inputClass("w-44 font-mono text-xs")} />
+              <span className={labelClass}>Model</span>
+              <Combobox options={TIERS} value={r.model} onChange={(e) => set(i, { model: e.target.value })} className="w-44 font-mono text-xs" />
             </label>
             <label>
-              <span className={FIELD_LABEL_CLASS}>Effort</span>
-              <select value={r.effort} onChange={(e) => set(i, { effort: e.target.value })} className={selectClass()}>
+              <span className={labelClass}>Effort</span>
+              <Select value={r.effort} onChange={(e) => set(i, { effort: e.target.value })} >
                 {EFFORTS.map((e) => (
                   <option key={e} value={e}>{e || "as written"}</option>
                 ))}
-              </select>
+              </Select>
             </label>
             {flowAgents && (
               <label>
-                <span className={FIELD_LABEL_CLASS}>Steps</span>
-                <select value={r.agent} onChange={(e) => set(i, { agent: e.target.value })} className={selectClass()}>
+                <span className={labelClass}>Steps</span>
+                <Select value={r.agent} onChange={(e) => set(i, { agent: e.target.value })} >
                   <option value="">every step</option>
                   {flowAgents.map((a) => (
                     <option key={a} value={a}>{a} only</option>
                   ))}
-                </select>
+                </Select>
               </label>
             )}
             {rows.length > 2 && (
-              <button onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} className={buttonClass("minimal")} aria-label="remove this setting">
+              <button onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} className={buttonVariants({ variant: "ghost", size: "md" })} aria-label="remove this setting">
                 Remove
               </button>
             )}
           </div>
         ))}
-        <datalist id="foldrun-tiers">
-          {TIERS.map((t) => (
-            <option key={t} value={t} />
-          ))}
-        </datalist>
       </div>
       <div className="mt-3 flex flex-wrap items-end gap-3">
         {rows.length < MAX_CONFIGS && (
-          <button onClick={() => setRows((rs) => [...rs, { model: "max", effort: "", agent: "" }])} className={buttonClass("minimal")}>
+          <button onClick={() => setRows((rs) => [...rs, { model: "max", effort: "", agent: "" }])} className={buttonVariants({ variant: "ghost", size: "md" })}>
             + setting
           </button>
         )}
         <label>
-          <span className={FIELD_LABEL_CLASS}>Repeat</span>
-          <input type="number" min={1} max={5} value={repeat} onChange={(e) => setRepeat(Math.min(5, Math.max(1, Number(e.target.value) || 1)))} className={inputClass("w-16")} />
+          <span className={labelClass}>Repeat</span>
+          <Input type="number" min={1} max={5} value={repeat} onChange={(e) => setRepeat(Math.min(5, Math.max(1, Number(e.target.value) || 1)))} className="w-16" />
         </label>
         <label>
-          <span className={FIELD_LABEL_CLASS}>Spend limit, USD</span>
-          <input type="number" min={0.5} max={100} step={0.5} value={maxUsd} onChange={(e) => setMaxUsd(Math.min(100, Math.max(0.5, Number(e.target.value) || 5)))} className={inputClass("w-20")} />
+          <span className={labelClass}>Spend limit, USD</span>
+          <Input type="number" min={0.5} max={100} step={0.5} value={maxUsd} onChange={(e) => setMaxUsd(Math.min(100, Math.max(0.5, Number(e.target.value) || 5)))} className="w-20" />
         </label>
         <span className={`pb-2 text-xs ${trials > MAX_TRIALS ? "text-danger" : "text-fg-muted"}`}>
           {trials} runs{trials > MAX_TRIALS ? ` — at most ${MAX_TRIALS}` : ""}
         </span>
-        <button onClick={start} disabled={busy || trials > MAX_TRIALS || rows.some((r) => !r.model.trim())} className={buttonClass("primary")}>
+        <button onClick={start} disabled={busy || trials > MAX_TRIALS || rows.some((r) => !r.model.trim())} className={buttonVariants({ variant: "primary", size: "md" })}>
           {busy ? "Comparing…" : "Compare"}
         </button>
       </div>
@@ -275,7 +275,9 @@ export function ComparisonTable({ workspace, tenant, result }: { workspace: stri
             <th className="py-1 pr-3 font-medium">Per run</th>
             <th className="py-1 pr-3 font-medium">Time per run</th>
             {result.cases.map((c) => (
-              <th key={c.case} className="py-1 pr-3 font-medium normal-case" title={c.case}>{c.case.length > 18 ? `${c.case.slice(0, 17)}…` : c.case}</th>
+              <Tooltip key={c.case} label={c.case.length > 18 ? c.case : undefined}>
+                <th className="py-1 pr-3 font-medium normal-case">{c.case.length > 18 ? `${c.case.slice(0, 17)}…` : c.case}</th>
+              </Tooltip>
             ))}
           </tr>
         </thead>
@@ -284,7 +286,7 @@ export function ComparisonTable({ workspace, tenant, result }: { workspace: stri
             <tr key={c.label} className="border-t border-line-faint">
               <td className="py-1.5 pr-3 font-mono text-fg">{c.label}</td>
               <td className="py-1.5 pr-3">
-                <Badge variant={c.rate !== null && c.rate === best ? "success" : "default"}>{pct(c.rate)}</Badge>{" "}
+                <Chip tone={c.rate !== null && c.rate === best ? "good" : "default"}>{pct(c.rate)}</Chip>{" "}
                 <span className="text-fg-muted">{c.passed}/{c.trials - c.notRun}{c.notRun ? ` (${c.notRun} not run)` : ""}</span>
               </td>
               <td className="py-1.5 pr-3 tabular-nums">{usd(c.costUsd)}</td>

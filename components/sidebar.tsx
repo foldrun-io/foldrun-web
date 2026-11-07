@@ -22,6 +22,7 @@ import { AccountSwitcher } from "./topbar";
 import { UserMenu } from "./user-menu";
 import { InboxLink, useInboxUnread } from "./inbox-link";
 import { cn } from "./kit/cn";
+import { Count } from "./kit/page";
 
 export { workspaceOf, ACCOUNT_SEGMENTS } from "./nav-model";
 
@@ -129,7 +130,7 @@ export function NavList({ nav, onPick }: { nav: Nav; onPick?: () => void }) {
                 <Link href={it.href} onClick={onPick} aria-current={it.on ? "page" : undefined} className={rowClass(it.on)}>
                   <Icon className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
                   <span className="min-w-0 truncate">{it.name}</span>
-                  {!!it.badge && <span className="ml-auto shrink-0 rounded-full bg-warning-soft px-1.5 text-[11px] font-medium leading-4 tabular-nums text-warning">{it.badge > 99 ? "99+" : it.badge}</span>}
+                  {!!it.badge && <Count tone="warn" className="ml-auto min-w-0 text-[11px] leading-4">{it.badge > 99 ? "99+" : it.badge}</Count>}
                   {it.more && !it.badge && <ChevronRight className="ml-auto size-4 shrink-0 text-fg-subtle" aria-hidden />}
                 </Link>
               </li>

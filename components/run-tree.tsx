@@ -12,6 +12,7 @@ import { CallContent, type CallRun } from "@/components/trace-view";
 import { fmtDur } from "@/components/run-timeline";
 import { grouped } from "@/components/money";
 import { ChevronRight } from "lucide-react";
+import { Tooltip } from "@/components/kit/tooltip";
 
 const TONE: Record<TraceSpan["status"], string> = {
   ok: "bg-emerald-500/70",
@@ -84,9 +85,11 @@ function Row({
             <span className="w-4 shrink-0" />
           )}
           <span className={`w-3 shrink-0 text-center ${span.status === "error" ? "text-danger" : "text-fg-subtle"}`}>{ICON[span.kind]}</span>
-          <span className={`truncate ${span.kind === "step" || span.kind === "run" ? "font-medium text-fg" : span.status === "error" ? "text-danger" : "text-fg-secondary"}`} title={span.text ?? span.label}>
-            {span.kind === "error" ? span.text : span.label}
-          </span>
+          <Tooltip label={span.text ?? span.label}>
+            <span className={`truncate ${span.kind === "step" || span.kind === "run" ? "font-medium text-fg" : span.status === "error" ? "text-danger" : "text-fg-secondary"}`}>
+              {span.kind === "error" ? span.text : span.label}
+            </span>
+          </Tooltip>
           {facts.length > 0 && <span className="shrink-0 truncate text-xs text-fg-subtle">{facts.join(" · ")}</span>}
           {span.kind === "tool" && span.captured && (
             <button type="button" aria-expanded={io} onClick={() => setIo((v) => !v)} className="shrink-0 text-xs font-medium text-fg-muted hover:text-fg hover:underline">

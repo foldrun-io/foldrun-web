@@ -6,6 +6,7 @@
 
 import { useSyncExternalStore, type ReactNode } from "react";
 import { ListOrdered, Network } from "lucide-react";
+import { Segmented } from "@/components/kit/segmented";
 
 type View = "canvas" | "list";
 const KEY = "foldrun.flows.view";
@@ -48,27 +49,19 @@ export function FlowView({ canvas, list, toolbar }: { canvas: ReactNode; list: R
   // null on the server and the first client render: the choice lives in the
   // browser, so nothing is drawn until it is known — no flash of the wrong tab.
   const view = useSyncExternalStore<View | null>(subscribe, read, () => null);
-  const tab = (v: View, label: string, Icon: typeof Network) => (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={view === v}
-      onClick={() => choose(v)}
-      className={`flex h-full items-center gap-1.5 rounded-sm px-2.5 text-[13px] font-medium transition-colors ${
-        view === v ? "bg-surface text-fg shadow-[0_1px_2px_rgb(0_0_0/0.06)]" : "text-fg-muted hover:text-fg"
-      }`}
-    >
-      <Icon className="size-4" aria-hidden />
-      {label}
-    </button>
-  );
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div role="tablist" aria-label="How to show this flow" className="inline-flex h-9 items-center gap-0.5 rounded-md border border-line bg-sunken p-0.5">
-          {tab("canvas", "Canvas", Network)}
-          {tab("list", "List", ListOrdered)}
-        </div>
+        <Segmented
+          role="tablist"
+          label="How to show this flow"
+          value={view ?? ""}
+          onChange={(v) => choose(v as View)}
+          items={[
+            { key: "canvas", label: "Canvas", icon: <Network aria-hidden /> },
+            { key: "list", label: "List", icon: <ListOrdered aria-hidden /> },
+          ]}
+        />
         {toolbar && <div className="ml-auto flex flex-wrap items-center gap-2">{toolbar}</div>}
       </div>
       {view === null ? <div className="h-[300px]" /> : view === "canvas" ? canvas : list}

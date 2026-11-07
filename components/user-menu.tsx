@@ -11,7 +11,7 @@ import { BookOpen, CircleHelp, CreditCard, Ellipsis, ExternalLink, LogOut, Monit
 import { Avatar } from "./avatar";
 import { useHosted } from "./edition";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "./kit/menu";
-import { cn } from "./kit/cn";
+import { Segmented } from "./kit/segmented";
 import { THEMES, type Theme } from "./theme-model";
 
 const THEME_ICON = { system: Monitor, light: Sun, dark: Moon } as const;
@@ -126,24 +126,17 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
         <MenuSeparator />
         <div className="flex items-center justify-between px-2 py-1.5">
           <span className="text-sm text-fg-secondary">Theme</span>
-          <div role="radiogroup" aria-label="Theme" className="flex items-center rounded-full border border-line p-0.5">
-            {THEMES.map((t) => {
+          <Segmented
+            role="radiogroup"
+            size="sm"
+            label="Theme"
+            value={theme}
+            onChange={(t) => void setTheme(t as Theme)}
+            items={THEMES.map((t) => {
               const Icon = THEME_ICON[t];
-              return (
-                <button
-                  key={t}
-                  type="button"
-                  role="radio"
-                  aria-checked={theme === t}
-                  aria-label={t[0].toUpperCase() + t.slice(1)}
-                  onClick={() => void setTheme(t)}
-                  className={cn("flex size-6 items-center justify-center rounded-full transition-colors", theme === t ? "bg-muted text-fg" : "text-fg-muted hover:text-fg")}
-                >
-                  <Icon className="size-3.5" />
-                </button>
-              );
+              return { key: t, icon: <Icon />, title: t[0].toUpperCase() + t.slice(1) };
             })}
-          </div>
+          />
         </div>
         <MenuSeparator />
         <MenuItem

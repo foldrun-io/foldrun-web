@@ -13,14 +13,18 @@ import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
 import { Avatar } from "@/components/avatar";
 import { Email } from "@/components/email";
-import { inputClass, selectClass } from "@/components/ui";
+import { Input } from "@/components/kit/input";
+import { Select } from "@/components/kit/select";
 import { Mail } from "lucide-react";
 import { Button } from "@/components/kit/button";
-import { IconBox, Tag } from "@/components/kit/page";
-import { useConfirm } from "@/components/confirm";
+import { IconBox, Tag, Field } from "@/components/kit/page";
+import { useConfirm } from "@/components/kit/confirm";
 import { useRole } from "@/components/role";
 import { ASSIGNABLE, can, type Role } from "@/platform/permissions";
 import { describeScope } from "@/platform/scope";
+import { Checkbox, RadioGroup, RadioGroupItem } from "@/components/kit/choice";
+import { useCopyFallback } from "@/components/kit/prompt";
+import { Tooltip } from "@/components/kit/tooltip";
 
 interface Member {
   id: string;
@@ -56,26 +60,24 @@ function ScopePicker({ all, value, onChange, disabled = false }: { all: string[]
   const some = value !== null;
   return (
     <div className="space-y-1.5">
-      <div className="flex flex-wrap gap-3 text-sm">
+      <RadioGroup className="flex flex-wrap gap-3 text-sm" aria-label="Workspaces" value={some ? "some" : "all"} disabled={disabled} onValueChange={(v) => onChange(v === "all" ? null : [])}>
         <label className="flex items-center gap-1.5">
-          <input type="radio" checked={!some} disabled={disabled} onChange={() => onChange(null)} className="size-4 accent-fg" />
+          <RadioGroupItem value="all" />
           All workspaces
         </label>
         <label className="flex items-center gap-1.5">
-          <input type="radio" checked={some} disabled={disabled || all.length === 0} onChange={() => onChange([])} className="size-4 accent-fg" />
+          <RadioGroupItem value="some" disabled={disabled || all.length === 0} />
           Only some
         </label>
-      </div>
+      </RadioGroup>
       {some && (
         <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-md border border-line bg-sunken px-3 py-2 text-sm">
           {all.map((w) => (
             <label key={w} className="flex items-center gap-1.5 font-mono text-xs">
-              <input
-                type="checkbox"
+              <Checkbox
                 disabled={disabled}
                 checked={value!.includes(w)}
-                onChange={(e) => onChange(e.target.checked ? [...value!, w] : value!.filter((x) => x !== w))}
-                className="size-4 rounded accent-fg"
+                onCheckedChange={(checked: boolean) => onChange(checked ? [...value!, w] : value!.filter((x) => x !== w))}
               />
               {w}
             </label>
@@ -91,6 +93,7 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
   const mine = useRole();
   const router = useRouter();
   const [confirm, confirmDialog] = useConfirm();
+  const [copyFallback, copyDialog] = useCopyFallback();
   const [email, setEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<Role>("editor");
   const [inviteScope, setInviteScope] = useState<string[] | null>(null);
@@ -136,7 +139,7 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
     try {
       await navigator.clipboard.writeText(url);
     } catch {
-      window.prompt("Copy this link", url);
+      copyFallback(url);
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
@@ -165,8 +168,8 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
     const body = (
       <div className="space-y-2">
         <p>They take over billing and the admins. You stay on as an admin. This cannot be undone from your side.</p>
-        <input type="password" autoComplete="current-password" placeholder="your password" aria-label="Your password" onChange={(e) => { proof.password = e.target.value; }} className={inputClass("w-full")} />
-        <input inputMode="numeric" autoComplete="one-time-code" placeholder="code from your app, if two-step sign-in is on" aria-label="Two-step code" onChange={(e) => { proof.code = e.target.value; }} className={inputClass("w-full")} />
+        <Input type="password" autoComplete="current-password" placeholder="your password" aria-label="Your password" onChange={(e) => { proof.password = e.target.value; }} className="w-full" />
+        <Input inputMode="numeric" autoComplete="one-time-code" placeholder="code from your app, if two-step sign-in is on" aria-label="Two-step code" onChange={(e) => { proof.code = e.target.value; }} className="w-full" />
       </div>
     );
     if (!(await confirm({ title: `Make ${m.email} the owner?`, body, confirmLabel: "Transfer ownership" }))) return;
@@ -178,6 +181,7 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
   return (
     <div className="space-y-6">
       {confirmDialog}
+      {copyDialog}
       {manages && (
         <form
           onSubmit={(e) => {
@@ -192,18 +196,16 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
               <p className="text-sm text-fg-muted">An invite is a link that works once, for seven days, and can be revoked until it is used.</p>
             </div>
             <div className="flex flex-wrap items-end gap-3">
-              <label className="min-w-0 flex-1 basis-60">
-                <span className="block text-sm font-medium text-fg">Email</span>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="teammate@company.com" className={inputClass("mt-1.5 h-9 w-full")} />
-              </label>
-              <label>
-                <span className="block text-sm font-medium text-fg">Role</span>
-                <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as Role)} className={selectClass("mt-1.5 h-9")} title={DESCRIBE[inviteRole]}>
+              <Field label="Email" className="min-w-0 flex-1 basis-60">
+                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="teammate@company.com" className="w-full" />
+              </Field>
+              <Field label="Role">
+                <Select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as Role)}  title={DESCRIBE[inviteRole]}>
                   {offer.map((r) => (
                     <option key={r} value={r}>{r}</option>
                   ))}
-                </select>
-              </label>
+                </Select>
+              </Field>
             </div>
             <div>
               <span className="mb-1.5 block text-sm font-medium text-fg">Access</span>
@@ -224,9 +226,13 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
               <Button type="button" variant="secondary" disabled={busy} onClick={() => void invite(false)}>
                 {email.trim() ? "Just make the link" : "Make a link anyone can use"}
               </Button>
-              <Button type="submit" variant="primary" disabled={busy || !email.trim()} title={email.trim() ? undefined : "Enter an address to send to"}>
-                {busy ? "Working…" : "Send invite"}
-              </Button>
+              <Tooltip label={email.trim() ? undefined : "Enter an address to send to"}>
+                <span className="inline-flex">
+                  <Button type="submit" variant="primary" disabled={busy || !email.trim()}>
+                    {busy ? "Working…" : "Send invite"}
+                  </Button>
+                </span>
+              </Tooltip>
             </div>
           </div>
         </form>
@@ -261,7 +267,7 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
                     {describeScope(inv.workspaces)} · invited by <Email value={inv.invitedBy} /> · expires <LocalTime iso={inv.expiresAt} options={{ dateStyle: "medium", timeStyle: "short" }} />
                   </p>
                 </div>
-                <Tag><span title={DESCRIBE[inv.role]}>{inv.role}</span></Tag>
+                <Tag><Tooltip label={DESCRIBE[inv.role]}><span>{inv.role}</span></Tooltip></Tag>
                 {(inv.role !== "admin" || managesAdmins) && (
                   <Button variant="ghost" className="hover:text-danger" onClick={() => void revokeInvite(inv)}>Revoke</Button>
                 )}
@@ -306,16 +312,16 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   {mayTouch(m) ? (
-                    <select value={m.role} onChange={(e) => void setRole(m, e.target.value as Role)} className={selectClass("h-8 !py-1")} title={DESCRIBE[m.role]} aria-label={`Role for ${m.email}`}>
+                    <Select value={m.role} onChange={(e) => void setRole(m, e.target.value as Role)} size="sm" title={DESCRIBE[m.role]} aria-label={`Role for ${m.email}`}>
                       {offer.map((r) => (
                         <option key={r} value={r}>{r}</option>
                       ))}
-                    </select>
+                    </Select>
                   ) : (
-                    <Tag><span title={DESCRIBE[m.role]}>{m.role}</span></Tag>
+                    <Tag><Tooltip label={DESCRIBE[m.role]}><span>{m.role}</span></Tooltip></Tag>
                   )}
                   {mine === "owner" && !m.owner && m.email !== self && (
-                    <Button variant="ghost" onClick={() => transfer(m)} title="Make them the owner; you become an admin">Transfer</Button>
+                    <Tooltip label="Make them the owner; you become an admin"><Button variant="ghost" onClick={() => transfer(m)}>Transfer</Button></Tooltip>
                   )}
                   {mayTouch(m) && members.length > 1 && (
                     <Button variant="ghost" className="hover:text-danger" onClick={() => remove(m)}>Remove</Button>

@@ -38,11 +38,13 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { useConfirm } from "@/components/confirm";
+import { useConfirm } from "@/components/kit/confirm";
 import { runHref } from "@/components/run-href";
 import { Button, buttonVariants } from "@/components/kit/button";
-import { Chip, EmptyState } from "@/components/kit/page";
-import { Pager, SearchField } from "@/components/kit/list";
+import { Chip, EmptyState, IconBox } from "@/components/kit/page";
+import { SearchField } from "@/components/kit/list";
+import { Pager } from "@/components/kit/pager";
+import { Toast } from "@/components/kit/toast";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@/components/kit/menu";
 import { cn } from "@/components/kit/cn";
 import {
@@ -64,6 +66,9 @@ import {
 } from "@/components/file-browser-model";
 import { Markdown } from "@/components/markdown";
 import { relFor, uploadFile } from "@/components/upload";
+import { useFilePicker } from "@/components/kit/file-button";
+import { useCopyFallback } from "@/components/kit/prompt";
+import { Tooltip } from "@/components/kit/tooltip";
 
 const KIND_ICON: Record<FileKind, typeof FileIcon> = {
   image: FileImage,
@@ -102,9 +107,6 @@ function Thumb({ f, size = "size-9" }: { f: BrowserFile; size?: string }) {
   );
 }
 
-function MarkBox({ children }: { children: ReactNode }) {
-  return <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-line bg-surface text-fg-secondary [&_svg]:size-4">{children}</span>;
-}
 
 function SharePill({ share, now }: { share: BrowserShare | null; now: number }) {
   const s = shareState(share, now);
@@ -115,14 +117,6 @@ function SharePill({ share, now }: { share: BrowserShare | null; now: number }) 
       {s.label.replace(/^shared · /, "")}
     </Chip>
   );
-}
-
-function Toast({ text, onDone }: { text: string; onDone: () => void }) {
-  useEffect(() => {
-    const id = setTimeout(onDone, 2600);
-    return () => clearTimeout(id);
-  }, [text, onDone]);
-  return <div role="status" className="fixed bottom-6 left-1/2 z-[60] max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-full px-4 py-2 text-sm bg-ink text-on-ink shadow-menu">{text}</div>;
 }
 
 const th = "h-10 px-3 text-left align-middle text-[13px] font-medium whitespace-nowrap text-fg-muted";
@@ -182,7 +176,7 @@ function Row({
         </span>
       </td>
       <td className={cn(td, "text-right tabular-nums max-sm:hidden")}>{size}</td>
-      <td className={cn(td, "max-sm:hidden")} title={ageTitle}>{age}</td>
+      <Tooltip label={ageTitle}><td className={cn(td, "max-sm:hidden")}>{age}</td></Tooltip>
       <td className={cn(td, "max-md:hidden")}>{sharing}</td>
       <td className="relative z-10 w-px px-3 py-2 text-right align-middle whitespace-nowrap">{action}</td>
     </tr>
@@ -214,6 +208,7 @@ export function FileBrowser({
 }) {
   const router = useRouter();
   const [confirm, confirmDialog] = useConfirm();
+  const [copyFallback, copyDialog] = useCopyFallback();
   // Local edits (a share made, a file deleted) sit on the server's list until
   // the server sends a new one.
   const [desks, setDesks] = useState(initial);
@@ -233,7 +228,7 @@ export function FileBrowser({
   const [toast, setToast] = useState<string | null>(null);
   const [uploading, setUploading] = useState<{ workspace: string; done: number; total: number; name: string } | null>(null);
   const [dropOn, setDropOn] = useState<string | null>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
+  const picker = useFilePicker({ multiple: true, onFiles: (chosen) => void uploadTo(pending.current.desk, chosen, pending.current.dir) });
   const pending = useRef<{ desk: string; dir: string }>({ desk: "", dir: "" });
   const clearToast = useCallback(() => setToast(null), []);
   const headers = useMemo(() => ({ "x-foldrun-tenant": tenant }), [tenant]);
@@ -287,7 +282,7 @@ export function FileBrowser({
     setDesks((ds) => ds.map((d) => d.workspace !== f.workspace ? d : { ...d, files: change === null ? d.files.filter((x) => x.path !== f.path) : d.files.map((x) => (x.path === f.path ? { ...x, ...change } : x)) }));
 
   const copy = async (url: string, note: string) => {
-    try { await navigator.clipboard.writeText(url); setToast(note); } catch { window.prompt("Copy this link", url); }
+    try { await navigator.clipboard.writeText(url); setToast(note); } catch { copyFallback(url); }
   };
   const share = async (f: BrowserFile) => {
     // A live link this viewer may copy is copied; one whose token is masked
@@ -340,7 +335,7 @@ export function FileBrowser({
   };
   const pickFor = (desk: string, dir = "") => {
     pending.current = { desk, dir };
-    fileInput.current?.click();
+    picker.open();
   };
 
   const remove = async (f: BrowserFile) => {
@@ -407,9 +402,13 @@ export function FileBrowser({
             <Download /> Download
           </a>
         </MenuItem>
-        <MenuItem disabled={!canShare || busy === keyOf(f)} onSelect={() => void share(f)} title={shareTitle(f)}>
-          {isShared(f) ? <Link2 /> : <Share2 />} {shareLabel(f)}
-        </MenuItem>
+        <Tooltip label={shareTitle(f)} side="left">
+          <div>
+            <MenuItem disabled={!canShare || busy === keyOf(f)} onSelect={() => void share(f)}>
+              {isShared(f) ? <Link2 /> : <Share2 />} {shareLabel(f)}
+            </MenuItem>
+          </div>
+        </Tooltip>
         {f.share && shareState(f.share, now).state === "shared" && (
           <MenuItem onSelect={() => void unshare(f)}>
             <Unlink /> Stop sharing
@@ -473,27 +472,17 @@ export function FileBrowser({
     <div className="min-w-0">
       {/* Above the preview panel: a confirmation asked from inside it must
           not open underneath it. */}
-      <div className="relative z-[70]">{confirmDialog}</div>
-      {toast && <Toast text={toast} onDone={clearToast} />}
+      <div className="relative z-[70]">{confirmDialog}{copyDialog}</div>
+      {toast && <Toast onDone={clearToast}>{toast}</Toast>}
       {uploading && (
-        <div role="status" className="fixed bottom-6 left-1/2 z-[60] flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-3 rounded-full px-4 py-2 text-sm bg-ink text-on-ink shadow-menu">
+        <Toast>
           <span className="size-2 shrink-0 animate-pulse rounded-full bg-info" />
           <span className="truncate">
             Uploading {uploading.name} to {uploading.workspace} · {uploading.done + 1} of {uploading.total}
           </span>
-        </div>
+        </Toast>
       )}
-      <input
-        ref={fileInput}
-        type="file"
-        multiple
-        hidden
-        onChange={(e) => {
-          const chosen = e.target.files ? Array.from(e.target.files) : [];
-          e.target.value = "";
-          void uploadTo(pending.current.desk, chosen, pending.current.dir);
-        }}
-      />
+      {picker.input}
 
       {/* Find, and narrow. */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -529,9 +518,11 @@ export function FileBrowser({
         {toolbarExtra}
         {!single && uploadable.length > 0 && (
           at.desk ? (
-            <Button variant="primary" size="lg" onClick={() => pickFor(at.desk!, at.dir)} title={`Upload files to ${at.desk} — or drop them on the list`}>
-              <Upload /> Upload
-            </Button>
+            <Tooltip label={`Upload files to ${at.desk} — or drop them on the list`}>
+              <Button variant="primary" size="lg" onClick={() => pickFor(at.desk!, at.dir)}>
+                <Upload /> Upload
+              </Button>
+            </Tooltip>
           ) : (
             <Menu>
               <MenuTrigger asChild>
@@ -659,9 +650,11 @@ export function FileBrowser({
                             <MenuItem onSelect={() => go(d.workspace)}>
                               <Folder /> Open
                             </MenuItem>
-                            <MenuItem onSelect={() => pickFor(d.workspace)} title={`Upload files to ${d.workspace} — or drop them on its row`}>
-                              <Upload /> Upload files…
-                            </MenuItem>
+                            <Tooltip label={`Upload files to ${d.workspace} — or drop them on its row`} side="left">
+                              <MenuItem onSelect={() => pickFor(d.workspace)}>
+                                <Upload /> Upload files…
+                              </MenuItem>
+                            </Tooltip>
                             <MenuItem asChild>
                               <Link href={`/dashboard/${d.workspace}/storage${qs}`}>
                                 <HardDrive /> Open desk page
@@ -677,9 +670,9 @@ export function FileBrowser({
                 <Row
                   key={`dir:${d.name}`}
                   mark={
-                    <MarkBox>
+                    <IconBox className="text-fg-secondary">
                       <Folder />
-                    </MarkBox>
+                    </IconBox>
                   }
                   name={d.name}
                   sub={`${d.files} file${d.files === 1 ? "" : "s"}`}
@@ -695,7 +688,7 @@ export function FileBrowser({
           </table>
         </div>
       )}
-      {files.length > PAGE && <Pager total={files.length} offset={shownOffset} limit={PAGE} onChange={setOffset} />}
+      {files.length > PAGE && <Pager page={shownOffset / PAGE + 1} pages={Math.ceil(files.length / PAGE)} total={files.length} pageSize={PAGE} onPage={(n) => setOffset((n - 1) * PAGE)} />}
 
       {/* The preview: the file as itself, and what is known about it. */}
       {current && (
@@ -704,16 +697,18 @@ export function FileBrowser({
             <header className="flex items-start gap-3 border-b border-line px-5 py-4">
               <Thumb f={current} size="size-10" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-base font-semibold text-fg" title={current.path}>{current.path.split("/").pop()}</p>
+                <Tooltip label={current.path}><p className="truncate text-base font-semibold text-fg">{current.path.split("/").pop()}</p></Tooltip>
                 <p className="truncate text-[13px] text-fg-muted">{current.workspace} · storage/{current.path}</p>
               </div>
-              <Button variant="ghost" size="icon-sm" onClick={() => setPreviewKey(null)} title="Close (Esc)" aria-label="Close">
-                <X />
-              </Button>
+              <Tooltip label="Close (Esc)">
+                <Button variant="ghost" size="icon-sm" onClick={() => setPreviewKey(null)} aria-label="Close">
+                  <X />
+                </Button>
+              </Tooltip>
             </header>
             <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-line bg-sunken px-5 py-2.5 text-[13px] text-fg-secondary">
               <span className="tabular-nums">{fmtSize(current.size)}</span>
-              <span title={current.updatedAt}>modified {fmtAge(current.updatedAt, now)}</span>
+              <Tooltip label={current.updatedAt}><span>modified {fmtAge(current.updatedAt, now)}</span></Tooltip>
               {(() => {
                 const by = provenance(current.by);
                 if (by.kind === "run") return <Link href={runHref(current.workspace, by.runId, tenant)} className="font-medium text-link hover:underline">from {by.agent} · open the run</Link>;
@@ -726,12 +721,16 @@ export function FileBrowser({
               <Preview key={keyOf(current)} f={current} />
             </div>
             <footer className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-3">
-              <a href={downloadHref(current)} className={buttonVariants({ variant: "secondary", size: "md" })} title="Download">
+              <a href={downloadHref(current)} className={buttonVariants({ variant: "secondary", size: "md" })}>
                 <Download /> Download
               </a>
-              <Button variant={isShared(current) ? "secondary" : "primary"} size="md" disabled={!canShare || busy === keyOf(current)} onClick={() => void share(current)} title={shareTitle(current)}>
-                {isShared(current) ? <Link2 /> : <Share2 />} {shareLabel(current)}
-              </Button>
+              <Tooltip label={shareTitle(current)}>
+                <span className="inline-flex">
+                  <Button variant={isShared(current) ? "secondary" : "primary"} size="md" disabled={!canShare || busy === keyOf(current)} onClick={() => void share(current)}>
+                    {isShared(current) ? <Link2 /> : <Share2 />} {shareLabel(current)}
+                  </Button>
+                </span>
+              </Tooltip>
               {current.share && shareState(current.share, now).state === "shared" && (
                 <Button variant="ghost" size="md" onClick={() => void unshare(current)}>
                   Stop sharing
@@ -846,7 +845,7 @@ function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
                 {body.map((r, i) => (
                   <tr key={i} className="odd:bg-surface even:bg-sunken/60 hover:bg-muted">
                     <td className="border-r border-line-faint px-2 py-1 text-right tabular-nums text-fg-subtle">{i + 2}</td>
-                    {Array.from({ length: cols }, (_, c) => <td key={c} className="max-w-[24rem] truncate border-r border-line-faint px-3 py-1 text-fg-secondary" title={r[c] ?? ""}>{r[c] ?? ""}</td>)}
+                    {Array.from({ length: cols }, (_, c) => <Tooltip key={c} label={r[c] ?? ""}><td className="max-w-[24rem] truncate border-r border-line-faint px-3 py-1 text-fg-secondary">{r[c] ?? ""}</td></Tooltip>)}
                   </tr>
                 ))}
               </tbody>
@@ -958,7 +957,7 @@ function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
           {p.people.map((c, i) => (
             <div key={i} className="rounded-lg border border-line bg-surface p-4 shadow-sm">
               <p className="text-sm font-semibold text-fg">{c.name}</p>
-              {c.lines.map((l, j) => <p key={j} className="truncate text-xs text-fg-tertiary" title={l}>{l}</p>)}
+              {c.lines.map((l, j) => <Tooltip key={j} label={l}><p className="truncate text-xs text-fg-tertiary">{l}</p></Tooltip>)}
             </div>
           ))}
         </div>

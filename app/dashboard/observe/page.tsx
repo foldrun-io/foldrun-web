@@ -14,13 +14,14 @@ import { viewerScope } from "@/server/users";
 import { accountObservation } from "@/server/account-observe";
 import { runHref } from "@/components/run-href";
 import { fmtSpan } from "@/components/mission-model";
-import { Panel, PanelLink } from "@/components/mission-control";
 import { nowMs } from "@/components/overview-model";
 import { type CauseRow, type DayBucket } from "@/components/account-observe-model";
 import { ArrowDownRight, ArrowUpRight, ServerCrash } from "lucide-react";
-import { Page, PageHeader, PanelList, Stat, StatGrid, Chip, Tag, type Tone } from "@/components/kit/page";
+import { Page, PageHeader, Panel, PanelLink, PanelList, Stat, StatGrid, Chip, Tag, type Tone, Callout } from "@/components/kit/page";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/kit/table";
-import { Segmented, ChartLegend } from "@/components/kit/inspect-extra";
+import { ChartLegend } from "@/components/kit/chart";
+import { Segmented } from "@/components/kit/segmented";
+import { Tooltip } from "@/components/kit/tooltip";
 
 export const dynamic = "force-dynamic";
 
@@ -79,11 +80,13 @@ function OutcomeChart({ days, tz }: { days: DayBucket[]; tz: string }) {
           const total = d.good + d.attention + d.failed + d.other;
           const title = `${d.day}: ${total} run${total === 1 ? "" : "s"} — ${d.good} succeeded, ${d.attention} blocked/bad, ${d.failed - d.platform} failed (desk), ${d.platform} failed (platform) · ${money(d.spendUsd)}`;
           return (
-            <div key={d.day} title={title} className="flex h-full min-w-0 flex-1 flex-col-reverse gap-[2px] rounded-t hover:bg-sunken">
-              {SERIES.map((s) =>
-                parts[s.key] > 0 ? <div key={s.key} className={`w-full rounded-[3px] ${s.cls}`} style={{ height: `${(parts[s.key] / max) * 100}%` }} /> : null,
-              )}
-            </div>
+            <Tooltip key={d.day} label={title}>
+              <div className="flex h-full min-w-0 flex-1 flex-col-reverse gap-[2px] rounded-t hover:bg-sunken">
+                {SERIES.map((s) =>
+                  parts[s.key] > 0 ? <div key={s.key} className={`w-full rounded-[3px] ${s.cls}`} style={{ height: `${(parts[s.key] / max) * 100}%` }} /> : null,
+                )}
+              </div>
+            </Tooltip>
           );
         })}
       </div>
@@ -110,9 +113,11 @@ function SpendChart({ days }: { days: DayBucket[] }) {
       />
       <div className="flex h-36 items-end gap-1 border-b border-line">
         {days.map((d) => (
-          <div key={d.day} title={`${d.day}: ${money(d.spendUsd)}`} className="flex h-full min-w-0 flex-1 items-end hover:bg-sunken">
-            {d.spendUsd > 0 && <div className="w-full rounded-t-[3px] bg-sky-500" style={{ height: `${(d.spendUsd / max) * 100}%` }} />}
-          </div>
+          <Tooltip key={d.day} label={`${d.day}: ${money(d.spendUsd)}`}>
+            <div className="flex h-full min-w-0 flex-1 items-end hover:bg-sunken">
+              {d.spendUsd > 0 && <div className="w-full rounded-t-[3px] bg-sky-500" style={{ height: `${(d.spendUsd / max) * 100}%` }} />}
+            </div>
+          </Tooltip>
         ))}
       </div>
     </div>
@@ -154,7 +159,7 @@ export default async function AccountObservePage({ searchParams }: { searchParam
       <div className="space-y-8">
         {/* The one question first: is it the platform? */}
         {platformRows.length > 0 && (
-          <section className="flex gap-3 rounded-lg border border-info-line bg-info-soft px-4 py-3">
+          <Callout tone="info" className="px-4 py-3">
             <ServerCrash className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
             <div className="min-w-0 space-y-1 text-sm">
               <p className="font-medium text-fg">
@@ -174,7 +179,7 @@ export default async function AccountObservePage({ searchParams }: { searchParam
               </ul>
               <p className="text-xs text-fg-muted">No desk edit fixes these; once the platform is right, rerun them.</p>
             </div>
-          </section>
+          </Callout>
         )}
 
         <StatGrid className="xl:grid-cols-5">
@@ -186,10 +191,10 @@ export default async function AccountObservePage({ searchParams }: { searchParam
         </StatGrid>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <Panel title="What each day looked like" flush={false}>
+          <Panel title="What each day looked like">
             <OutcomeChart days={daily} tz={tz} />
           </Panel>
-          <Panel title="Cost" flush={false}>
+          <Panel title="Cost">
             <SpendChart days={daily} />
             <div className="mt-3 flex justify-end">
               <PanelLink href={`/dashboard/usage${qs}`}>Usage</PanelLink>
@@ -198,7 +203,7 @@ export default async function AccountObservePage({ searchParams }: { searchParam
         </div>
 
         {insights.length > 0 && (
-          <Panel title="What keeps costing you" count={insights.length}>
+          <Panel title="What keeps costing you" count={insights.length} flush>
             <PanelList>
               {insights.slice(0, 8).map((i) => (
                 <li key={i.id} className="space-y-1 px-5 py-3">
@@ -227,7 +232,7 @@ export default async function AccountObservePage({ searchParams }: { searchParam
           </Panel>
         )}
 
-        <Panel title="Why runs went wrong" count={why.length}>
+        <Panel title="Why runs went wrong" count={why.length} flush>
           {why.length === 0 ? (
             <p className="px-5 py-8 text-center text-sm text-fg-muted">Nothing went wrong in this window.</p>
           ) : (
@@ -262,9 +267,11 @@ export default async function AccountObservePage({ searchParams }: { searchParam
                         </div>
                       </TD>
                       <TD className="max-w-[34rem] align-top">
-                        <Link href={runHref(c.newest.workspace, c.newest.id, tenant)} className="line-clamp-2 text-fg-secondary hover:text-fg hover:underline" title={c.sample ?? ""}>
-                          {c.sample ?? "—"}
-                        </Link>
+                        <Tooltip label={c.sample ?? ""}>
+                          <Link href={runHref(c.newest.workspace, c.newest.id, tenant)} className="line-clamp-2 text-fg-secondary hover:text-fg hover:underline">
+                            {c.sample ?? "—"}
+                          </Link>
+                        </Tooltip>
                         <span className="text-xs text-fg-subtle">
                           {c.newest.workspace} · {fmtSpan(now - Date.parse(c.newest.startedAt))} ago
                         </span>
@@ -277,18 +284,22 @@ export default async function AccountObservePage({ searchParams }: { searchParam
           )}
         </Panel>
 
-        <Panel title="Desks, worst first" count={desks.length}>
+        <Panel title="Desks, worst first" count={desks.length} flush>
           <Table className="min-w-[760px]">
             <THead>
               <tr>
                 <TH>Desk</TH>
                 <TH className="text-right">Runs</TH>
-                <TH className="text-right" title="Ran to the end without failing, of completed + failed runs (stopped left out)">Completed</TH>
+                <Tooltip label="Ran to the end without failing, of completed + failed runs (stopped left out)">
+                  <TH className="text-right">Completed</TH>
+                </Tooltip>
                 <TH>Trend</TH>
                 <TH className="text-right">Went wrong</TH>
                 <TH>Worst flow</TH>
                 <TH className="text-right">Median run</TH>
-                <TH className="text-right" title="Credits charged">Credits</TH>
+                <Tooltip label="Credits charged">
+                  <TH className="text-right">Credits</TH>
+                </Tooltip>
               </tr>
             </THead>
             <TBody>
@@ -344,7 +355,7 @@ export default async function AccountObservePage({ searchParams }: { searchParam
         </Panel>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-          <Panel title="Agents to watch" count={agents.length}>
+          <Panel title="Agents to watch" count={agents.length} flush>
             {agents.length === 0 ? (
               <p className="px-5 py-8 text-center text-sm text-fg-muted">No agent ran in this window.</p>
             ) : (
@@ -355,7 +366,9 @@ export default async function AccountObservePage({ searchParams }: { searchParam
                     <TH className="text-right">Failed</TH>
                     <TH className="text-right">Retried</TH>
                     <TH className="text-right">p50</TH>
-                    <TH className="text-right" title="Credits charged">Credits</TH>
+                    <Tooltip label="Credits charged">
+                      <TH className="text-right">Credits</TH>
+                    </Tooltip>
                   </tr>
                 </THead>
                 <TBody>
@@ -380,7 +393,7 @@ export default async function AccountObservePage({ searchParams }: { searchParam
               </Table>
             )}
           </Panel>
-          <Panel title="Tools" count={tools.length}>
+          <Panel title="Tools" count={tools.length} flush>
             {tools.length === 0 ? (
               <p className="px-5 py-8 text-center text-sm text-fg-muted">No tool calls in this window.</p>
             ) : (
@@ -403,9 +416,11 @@ export default async function AccountObservePage({ searchParams }: { searchParam
                         {t.errors}
                         {t.errors > 0 && <span className="font-normal text-fg-subtle"> · {Math.round((t.errors / t.calls) * 100)}%</span>}
                       </TD>
-                      <TD className="text-right tabular-nums text-fg-muted" title="Only tools that time themselves report a latency">
-                        {t.p95ms === null ? "—" : t.p95ms >= 1000 ? `${(t.p95ms / 1000).toFixed(1)}s` : `${Math.round(t.p95ms)}ms`}
-                      </TD>
+                      <Tooltip label="Only tools that time themselves report a latency">
+                        <TD className="text-right tabular-nums text-fg-muted">
+                          {t.p95ms === null ? "—" : t.p95ms >= 1000 ? `${(t.p95ms / 1000).toFixed(1)}s` : `${Math.round(t.p95ms)}ms`}
+                        </TD>
+                      </Tooltip>
                       <TD className="text-xs text-fg-muted">{t.workspaces.length === 1 ? t.workspaces[0] : `${t.workspaces.length} desks`}</TD>
                     </TR>
                   ))}

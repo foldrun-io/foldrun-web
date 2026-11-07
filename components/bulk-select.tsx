@@ -16,10 +16,12 @@
 // all" that quietly meant every row on every page is how people delete the
 // wrong thousand things.
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { useConfirm } from "@/components/confirm";
-import { buttonClass } from "@/components/ui";
+import { useConfirm } from "@/components/kit/confirm";
+import { buttonVariants } from "@/components/kit/button";
+import { Checkbox } from "@/components/kit/choice";
+
 
 interface Selection {
   ids: string[];
@@ -79,25 +81,16 @@ export function useSelection(): Selection {
   return ctx;
 }
 
-const BOX = "h-3.5 w-3.5 cursor-pointer rounded border-line-strong text-fg focus:ring-gray-400";
-
 export function SelectAllCheckbox({ label = "Select all on this page" }: { label?: string }) {
   const { ids, selected, setAll, enabled } = useSelection();
-  const ref = useRef<HTMLInputElement>(null);
   const all = ids.length > 0 && ids.every((id) => selected.has(id));
   const some = !all && ids.some((id) => selected.has(id));
-  useEffect(() => {
-    if (ref.current) ref.current.indeterminate = some;
-  }, [some]);
   if (!enabled) return null;
   return (
-    <input
-      ref={ref}
-      type="checkbox"
+    <Checkbox
       aria-label={label}
-      checked={all}
-      onChange={(e) => setAll(e.target.checked)}
-      className={BOX}
+      checked={some ? "indeterminate" : all}
+      onCheckedChange={(checked) => setAll(checked === true)}
     />
   );
 }
@@ -106,12 +99,10 @@ export function RowCheckbox({ id, label }: { id: string; label?: string }) {
   const { selected, toggle, enabled } = useSelection();
   if (!enabled) return null;
   return (
-    <input
-      type="checkbox"
+    <Checkbox
       aria-label={label ?? `Select ${id}`}
       checked={selected.has(id)}
-      onChange={() => toggle(id)}
-      className={BOX}
+      onCheckedChange={() => toggle(id)}
     />
   );
 }
@@ -198,7 +189,7 @@ export function BulkActionBar({ actions, noun = "items" }: { actions: BulkAction
                 key={a.label}
                 type="button"
                 onClick={() => void run(a)}
-                className={buttonClass(a.tone === "destructive" ? "destructive" : "secondary", "!px-2.5 !py-1 !text-xs")}
+                className={buttonVariants({ variant: a.tone === "destructive" ? "danger-outline" : "secondary", size: "xs" })}
               >
                 {a.label}
                 {a.applies && (

@@ -12,9 +12,37 @@
 //
 // Widths: narrow (settings, forms), default (lists), wide (tables with many
 // columns), full (canvas, editor, graph, trace).
+//
+// The whole kit — one component per pattern (owner rule, 7 Nov 2026; the
+// guard is tests/kit-only.test.ts). Before writing markup, find it here:
+//
+//   page.tsx        Page, PageHeader, Fact, IconBox, Card, Count, Panel,
+//                   PanelLink, SectionTitle, StatusRing, Chip, Tag,
+//                   ResourceCard, CardGrid, RingProgress, UsageRows, PanelRow,
+//                   PanelList, FactRow, SummaryCard, SettingsCard, EmptyState,
+//                   StatGrid, Stat, Banner (bar), Callout (notice), Field
+//   list.tsx        ResourceList, RowTable, SearchField (also ?q= mode),
+//                   ViewToggle, usePaged
+//   pager.tsx       Pager (links or callback)
+//   page-tabs.tsx   PageTabs (links or state)
+//   segmented.tsx   Segmented (links or buttons; group, tablist, radiogroup)
+//   status.tsx      Status, StatusDot — run outcomes
+//   button.tsx      Button, buttonVariants
+//   input.tsx       Input, Textarea, Label, labelClass, inputBase, Kbd
+//   select.tsx      Select              choice.tsx   Checkbox, Switch, RadioGroup
+//   combobox.tsx    Combobox            time-field.tsx  TimeField
+//   slider.tsx      Slider              file-button.tsx FileButton, useFilePicker
+//   disclosure.tsx  Disclosure          tooltip.tsx  Tooltip, IconButton
+//   menu.tsx        Menu…               popover.tsx  Popover…
+//   dialog.tsx      Dialog, Sheet       confirm.tsx  useConfirm, ConfirmDialog
+//   prompt.tsx      usePrompt, useCopyFallback       toast.tsx  Toast
+//   table.tsx       Table parts, DataTable           chart.tsx  Sparkbars, Meter, ChartLegend
+//   overview.tsx    SplitOverview       skeleton.tsx Skeleton
 import * as React from "react";
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { cn } from "./cn";
+import { Tooltip } from "./tooltip";
 
 export type PageWidth = "narrow" | "default" | "wide" | "full";
 const WIDTH: Record<PageWidth, string> = {
@@ -86,11 +114,13 @@ export function Fact({ label, children }: { label: React.ReactNode; children: Re
 }
 
 /** A box for an icon: before a name in a row, a card or a title. */
-export function IconBox({ children, round = false, className }: { children: React.ReactNode; round?: boolean; className?: string }) {
+export function IconBox({ children, round = false, hint, className, ...props }: Omit<React.ComponentProps<"span">, "title"> & { round?: boolean; hint?: React.ReactNode }) {
   return (
-    <span className={cn("flex size-9 shrink-0 items-center justify-center border border-line bg-surface text-fg [&_svg]:size-4", round ? "rounded-full" : "rounded-md", className)}>
-      {children}
-    </span>
+    <Tooltip label={hint}>
+      <span className={cn("flex size-9 shrink-0 items-center justify-center border border-line bg-surface text-fg [&_svg]:size-4", round ? "rounded-full" : "rounded-md", className)} {...props}>
+        {children}
+      </span>
+    </Tooltip>
   );
 }
 
@@ -99,12 +129,29 @@ export function Card({ className, ...props }: React.ComponentProps<"div">) {
   return <div className={cn("min-w-0 overflow-hidden rounded-lg border border-line bg-surface", className)} {...props} />;
 }
 
+/** A count beside a title, a tab or a nav item. `strong` for one that asks
+ *  to be acted on (filters in force), `warn` for one that needs a look. */
+export function Count({ children, tone = "default", className }: { children: React.ReactNode; tone?: "default" | "strong" | "warn"; className?: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-xs font-medium leading-5 tabular-nums",
+        tone === "strong" ? "bg-ink text-on-ink" : tone === "warn" ? "bg-warning-soft text-warning" : "bg-muted text-fg-muted",
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
 /** A section: its title outside its card (cloudhost's Panel). `flush` when
- *  the body draws its own rows. */
+ *  the body draws its own rows; `count` beside the title. */
 export function Panel({
   title,
   description,
   actions,
+  count,
   children,
   className,
   bodyClassName,
@@ -114,6 +161,8 @@ export function Panel({
   title: React.ReactNode;
   description?: React.ReactNode;
   actions?: React.ReactNode;
+  /** How many: drawn beside the title. */
+  count?: number;
   children: React.ReactNode;
   className?: string;
   bodyClassName?: string;
@@ -124,13 +173,26 @@ export function Panel({
     <section id={id} className={cn("min-w-0 scroll-mt-20 space-y-3", className)}>
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="min-w-0">
-          <h2 className="px-1 text-base font-medium text-fg">{title}</h2>
+          <h2 className="flex items-center gap-2 px-1 text-base font-medium text-fg">
+            {title}
+            {count !== undefined && <Count>{count}</Count>}
+          </h2>
           {description && <p className="px-1 text-sm text-fg-muted">{description}</p>}
         </div>
         {actions && <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">{actions}</div>}
       </div>
       <div className={cn("min-w-0 overflow-hidden rounded-lg border border-line bg-surface", !flush && "p-5", bodyClassName)}>{children}</div>
     </section>
+  );
+}
+
+/** A panel's "see all" link, beside its title. */
+export function PanelLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link href={href} className="inline-flex h-8 items-center gap-0.5 rounded-md border border-line bg-surface px-3 text-[13px] font-medium text-fg transition-colors hover:bg-sunken">
+      {children}
+      <ChevronRight className="size-3.5 text-fg-muted" aria-hidden />
+    </Link>
   );
 }
 
@@ -144,16 +206,6 @@ export function SectionTitle({ title, description, actions, className }: { title
       </div>
       {actions && <div className="flex min-w-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>
-  );
-}
-
-/** Kept for older callers: a titled block (now a Panel without a card). */
-export function Section({ title, description, actions, children, className, id }: { title?: React.ReactNode; description?: React.ReactNode; actions?: React.ReactNode; children: React.ReactNode; className?: string; id?: string }) {
-  return (
-    <section id={id} className={cn("mb-10 min-w-0 scroll-mt-20", className)}>
-      {(title || actions) && <SectionTitle title={title} description={description} actions={actions} />}
-      {children}
-    </section>
   );
 }
 
@@ -171,12 +223,20 @@ const RING_DOT: Record<RingStatus, string> = { live: "bg-success", idle: "", bus
 
 export function StatusRing({ status, label }: { status: RingStatus; label: string }) {
   return (
-    <span role="img" aria-label={label} title={label} className={cn("flex size-5 shrink-0 items-center justify-center rounded-full border-2", RING[status])}>
-      {status !== "idle" && <span className={cn("size-1.5 rounded-full", RING_DOT[status])} />}
-    </span>
+    <Tooltip label={label}>
+      <span role="img" aria-label={label} className={cn("flex size-5 shrink-0 items-center justify-center rounded-full border-2", RING[status])}>
+        {status !== "idle" && <span className={cn("size-1.5 rounded-full", RING_DOT[status])} />}
+      </span>
+    </Tooltip>
   );
 }
 
+// The marks on a line, and when to use which (one each, no others):
+//   Status / StatusDot (status.tsx)  a run's outcome, from outcome-model
+//   Chip    a state or a fact with a tone: "Needs you", "regressed",
+//           "TEST", "×3" — round, coloured only when the tone means it
+//   Tag     what a thing is: a kind, a model, a trigger — square and quiet
+//   Count   a number beside a title or a tab
 export type Tone = "default" | "good" | "warn" | "bad" | "info";
 const CHIP: Record<Tone, string> = {
   default: "border border-line bg-surface text-fg-muted",
@@ -185,19 +245,25 @@ const CHIP: Record<Tone, string> = {
   bad: "bg-danger-soft text-danger",
   info: "bg-info-soft text-info",
 };
-export function Chip({ children, tone = "default", dot = false, className }: { children: React.ReactNode; tone?: Tone; dot?: boolean; className?: string }) {
+export function Chip({ children, tone = "default", dot = false, pulse = false, hint, className, ...props }: Omit<React.ComponentProps<"span">, "title"> & { tone?: Tone; dot?: boolean; pulse?: boolean; hint?: React.ReactNode }) {
   return (
-    <span className={cn("inline-flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 text-xs font-medium", CHIP[tone], className)}>
-      {dot && <span className="size-1.5 rounded-full bg-current" aria-hidden />}
-      {children}
-    </span>
+    <Tooltip label={hint}>
+      <span className={cn("inline-flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 text-xs font-medium [&_svg]:size-3", CHIP[tone], pulse && "animate-pulse", className)} {...props}>
+        {dot && <span className="size-1.5 rounded-full bg-current" aria-hidden />}
+        {children}
+      </span>
+    </Tooltip>
   );
 }
 
 /** A quiet label: a kind, a model name. */
-export function Tag({ children, mono = false, className }: { children: React.ReactNode; mono?: boolean; className?: string }) {
+export function Tag({ children, mono = false, hint, className, ...props }: Omit<React.ComponentProps<"span">, "title"> & { mono?: boolean; hint?: React.ReactNode }) {
   return (
-    <span className={cn("inline-flex h-6 shrink-0 items-center rounded-md border border-line bg-sunken px-2 text-xs text-fg-secondary", mono && "font-mono", className)}>{children}</span>
+    <Tooltip label={hint}>
+      <span className={cn("inline-flex h-6 shrink-0 items-center gap-1 rounded-md border border-line bg-sunken px-2 text-xs text-fg-secondary [&_svg]:size-3", mono && "font-mono", className)} {...props}>
+        {children}
+      </span>
+    </Tooltip>
   );
 }
 
@@ -516,7 +582,55 @@ export function Banner({
   );
 }
 
-/** A label above a control, with an optional hint under it. */
+/** A notice inside a page: what just happened, what is wrong, what to do.
+ *  (Banner is the full-width bar under the top bar; this sits in the
+ *  content.) One line is tinted in its tone; with a `title` the title leads
+ *  and the body reads quietly. `size="sm"` for a note under a control. */
+export type CalloutTone = "neutral" | "info" | "success" | "warning" | "danger";
+const CALLOUT: Record<CalloutTone, { box: string; text: string }> = {
+  neutral: { box: "border-line bg-sunken", text: "text-fg-secondary" },
+  info: { box: "border-info-line bg-info-soft", text: "text-info" },
+  success: { box: "border-success-line bg-success-soft", text: "text-success" },
+  warning: { box: "border-warning-line bg-warning-soft", text: "text-warning" },
+  danger: { box: "border-danger-line bg-danger-soft", text: "text-danger" },
+};
+export function Callout({
+  tone = "neutral",
+  icon,
+  title,
+  actions,
+  size = "md",
+  children,
+  className,
+  bodyClassName,
+  ...props
+}: Omit<React.ComponentProps<"div">, "title"> & {
+  tone?: CalloutTone;
+  icon?: React.ReactNode;
+  title?: React.ReactNode;
+  /** Right of the text: a link, a button. */
+  actions?: React.ReactNode;
+  size?: "sm" | "md" | "lg";
+  /** Classes for the text column (spacing between its paragraphs). */
+  bodyClassName?: string;
+}) {
+  const t = CALLOUT[tone];
+  const pad = size === "sm" ? "gap-2 rounded-md px-2.5 py-1.5 text-xs" : size === "lg" ? "gap-3 rounded-lg p-4 text-sm" : "gap-3 rounded-md px-3 py-2 text-sm";
+  return (
+    <div className={cn("flex min-w-0 flex-wrap items-start border sm:flex-nowrap", pad, t.box, !title && t.text, className)} {...props}>
+      {icon && <span className={cn("mt-0.5 shrink-0", size === "lg" ? "[&_svg]:size-5" : "[&_svg]:size-4", t.text)} aria-hidden>{icon}</span>}
+      <div className={cn("min-w-0 flex-1", bodyClassName)}>
+        {title && <p className="font-medium text-fg">{title}</p>}
+        {children != null && children !== false && <div className={cn(title && "mt-1 text-fg-secondary")}>{children}</div>}
+      </div>
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+    </div>
+  );
+}
+
+/** A label above a control, with an optional hint under it. Without
+ *  `htmlFor` the whole field is the <label>, so the control inside is named
+ *  by it; with one, the label points at that id. */
 export function Field({
   label,
   hint,
@@ -532,26 +646,23 @@ export function Field({
   htmlFor?: string;
   className?: string;
 }) {
+  const note = error ? <span className="block text-xs text-danger">{error}</span> : hint ? <span className="block text-xs text-fg-muted">{hint}</span> : null;
+  if (!htmlFor) {
+    return (
+      <label className={cn("flex min-w-0 flex-col gap-1.5", className)}>
+        <span className="block text-sm font-medium text-fg">{label}</span>
+        {children}
+        {note}
+      </label>
+    );
+  }
   return (
-    <div className={cn("flex flex-col gap-1.5", className)}>
+    <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
       <label htmlFor={htmlFor} className="text-sm font-medium text-fg">
         {label}
       </label>
       {children}
-      {error ? <p className="text-xs text-danger">{error}</p> : hint ? <p className="text-xs text-fg-muted">{hint}</p> : null}
-    </div>
-  );
-}
-
-/** Kept for older callers: a card's head row. */
-export function PanelHeader({ title, description, actions, className }: { title: React.ReactNode; description?: React.ReactNode; actions?: React.ReactNode; className?: string }) {
-  return (
-    <div className={cn("flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line px-5 py-3", className)}>
-      <div className="min-w-0">
-        <h3 className="text-sm font-medium text-fg">{title}</h3>
-        {description && <p className="mt-0.5 text-[13px] text-fg-muted">{description}</p>}
-      </div>
-      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+      {note}
     </div>
   );
 }

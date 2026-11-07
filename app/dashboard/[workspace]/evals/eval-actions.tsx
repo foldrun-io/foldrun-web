@@ -9,8 +9,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Ellipsis, FileText, Trash2 } from "lucide-react";
 import { Button } from "@/components/kit/button";
+import { Tooltip } from "@/components/kit/tooltip";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/kit/menu";
-import { useConfirm } from "@/components/confirm";
+import { useConfirm } from "@/components/kit/confirm";
 import { useCan } from "@/components/role";
 import { anchorId } from "@/components/collapse-model";
 import { runEval } from "./run-eval";
@@ -23,29 +24,34 @@ export function EvalRunButton({ workspace, tenant, name }: { workspace: string; 
   return (
     <span className="inline-flex items-center gap-2">
       {error && (
-        <span className="max-w-48 truncate text-xs text-danger" title={error}>
-          {error}
-        </span>
+        <Tooltip label={error}>
+          <span className="max-w-48 truncate text-xs text-danger">
+            {error}
+          </span>
+        </Tooltip>
       )}
-      <Button
-        size="sm"
-        disabled={busy}
-        title={busy ? "Each case starts a real run, so this takes as long as the agent does." : undefined}
-        onClick={async () => {
-          setBusy(true);
-          setError(null);
-          try {
-            await runEval(workspace, tenant, name);
-            router.refresh();
-          } catch (err) {
-            setError(err instanceof Error ? err.message : String(err));
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        {busy ? "Running…" : "Run"}
-      </Button>
+      <Tooltip label={busy ? "Each case starts a real run, so this takes as long as the agent does." : undefined}>
+        <span className="inline-flex">
+          <Button
+            size="sm"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              setError(null);
+              try {
+                await runEval(workspace, tenant, name);
+                router.refresh();
+              } catch (err) {
+                setError(err instanceof Error ? err.message : String(err));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {busy ? "Running…" : "Run"}
+          </Button>
+        </span>
+      </Tooltip>
     </span>
   );
 }

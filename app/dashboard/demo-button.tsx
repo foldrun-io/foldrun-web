@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { buttonClass } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
 
 export function DemoButton({ tenant, exists }: { tenant: string; exists: boolean }) {
   const router = useRouter();
@@ -34,7 +34,7 @@ export function DemoButton({ tenant, exists }: { tenant: string; exists: boolean
 
   return (
     <span className="inline-flex items-center gap-2">
-      <button onClick={() => void create()} disabled={busy} className={buttonClass("secondary")}>
+      <button onClick={() => void create()} disabled={busy} className={buttonVariants({ variant: "secondary" })}>
         {busy ? "Creating…" : "Try the demo pipeline"}
       </button>
       {error && <span className="text-xs text-red-600">{error}</span>}

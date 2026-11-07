@@ -4,16 +4,17 @@ import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
 import { WithEmails } from "@/components/email";
 import { useState } from "react";
-import { inputClass, selectClass } from "@/components/ui";
+import { Input } from "@/components/kit/input";
+import { Select } from "@/components/kit/select";
 import { Check, Copy, KeyRound, Play } from "lucide-react";
 import { Button } from "@/components/kit/button";
-import { SettingsCard, EmptyState, IconBox, Tag, Chip } from "@/components/kit/page";
+import { SettingsCard, EmptyState, IconBox, Tag, Chip, Field, Callout } from "@/components/kit/page";
 import { cn } from "@/components/kit/cn";
-import { useConfirm } from "@/components/confirm";
+import { useConfirm } from "@/components/kit/confirm";
 import { useCan } from "@/components/role";
 import { ASSIGNABLE, type Role } from "@/platform/permissions";
-
-const CHECK = "size-4 rounded border-line-strong accent-fg";
+import { Checkbox } from "@/components/kit/choice";
+import { Tooltip } from "@/components/kit/tooltip";
 
 interface KeyRow {
   createdBy?: string;
@@ -182,7 +183,6 @@ export function KeyManager({
     }
   };
 
-  const sel = selectClass("h-9");
   const createDisabled = busy || (kind === "api" ? narrow && chosen.length === 0 : !a2aWs || a2aChosen.length === 0);
   return (
     <div>
@@ -209,42 +209,38 @@ export function KeyManager({
           >
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block sm:col-span-2">
-                  <span className="block text-sm font-medium text-fg">Name</span>
-                  <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="laptop, CI" className={inputClass("mt-1.5 h-9 w-full max-w-md")} />
-                </label>
-                <label className="block">
-                  <span className="block text-sm font-medium text-fg">Kind</span>
-                  <select value={kind} onChange={(e) => setKind(e.target.value as "api" | "a2a")} className={selectClass("mt-1.5 h-9 w-full")} aria-label="What the key is for">
+                <Field label="Name" className="sm:col-span-2">
+                  <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="laptop, CI" className="w-full max-w-md" />
+                </Field>
+                <Field label="Kind">
+                  <Select value={kind} onChange={(e) => setKind(e.target.value as "api" | "a2a")} className="w-full" aria-label="What the key is for">
                     <option value="api">API key</option>
                     <option value="a2a">A2A key — an outside agent</option>
-                  </select>
-                </label>
+                  </Select>
+                </Field>
                 {/* A key carries a role like a member does. Editor is the default
                     and the right answer for CI; admin is for a key that manages
                     the account and should be rare. */}
                 {kind === "api" && (
-                  <label className="block">
-                    <span className="block text-sm font-medium text-fg">Role</span>
-                    <select value={role} onChange={(e) => setRole(e.target.value as Role)} className={selectClass("mt-1.5 h-9 w-full")} aria-label="Role for the key">
+                  <Field label="Role">
+                    <Select value={role} onChange={(e) => setRole(e.target.value as Role)} className="w-full" aria-label="Role for the key">
                       {ASSIGNABLE.map((r) => (
                         <option key={r} value={r}>
                           {r}
                         </option>
                       ))}
-                    </select>
-                  </label>
+                    </Select>
+                  </Field>
                 )}
-                <label className="block">
-                  <span className="block text-sm font-medium text-fg">Expires</span>
-                  <select value={expires} onChange={(e) => setExpires(e.target.value)} className={selectClass("mt-1.5 h-9 w-full")} aria-label="When the key expires">
+                <Field label="Expires">
+                  <Select value={expires} onChange={(e) => setExpires(e.target.value)} className="w-full" aria-label="When the key expires">
                     {EXPIRY.map((x) => (
                       <option key={x.v} value={x.v}>
                         {x.label}
                       </option>
                     ))}
-                  </select>
-                </label>
+                  </Select>
+                </Field>
               </div>
 
               {kind === "a2a" && (
@@ -257,44 +253,44 @@ export function KeyManager({
                   <div className="flex flex-wrap items-center gap-4">
                     <label className="inline-flex items-center gap-2 text-fg">
                       Workspace
-                      <select
+                      <Select
                         value={a2aWs}
                         onChange={(e) => {
                           setA2aWs(e.target.value);
                           setA2aChosen([]);
                         }}
-                        className={sel}
-                        aria-label="The workspace whose flows the A2A key may call"
+                                                aria-label="The workspace whose flows the A2A key may call"
                       >
                         {workspaces.map((w) => (
                           <option key={w} value={w}>
                             {w}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </label>
-                    <label className="inline-flex items-center gap-2 text-fg" title="How many of its tasks may be open at once; one more is refused until one ends">
-                      Open tasks at most
-                      <input type="number" min={1} max={A2A_MAX_TASKS} value={maxTasks} onChange={(e) => setMaxTasks(e.target.value)} className={inputClass("h-9 w-20")} />
-                    </label>
+                    <Tooltip label="How many of its tasks may be open at once; one more is refused until one ends">
+                      <label className="inline-flex items-center gap-2 text-fg">
+                        Open tasks at most
+                        <Input type="number" min={1} max={A2A_MAX_TASKS} value={maxTasks} onChange={(e) => setMaxTasks(e.target.value)} className="w-20" />
+                      </label>
+                    </Tooltip>
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                     {(a2aFlows[a2aWs] ?? []).map((f) => (
-                      <label
+                      <Tooltip
                         key={f.name}
-                        className="inline-flex items-center gap-1.5 font-mono text-fg-secondary"
-                        title={f.published ? "Published over A2A" : "Not published — publish it first (the flow's Publish over A2A control); a key names published flows only"}
+                        label={f.published ? "Published over A2A" : "Not published — publish it first (the flow's Publish over A2A control); a key names published flows only"}
                       >
-                        <input
-                          type="checkbox"
-                          disabled={!f.published}
-                          checked={a2aChosen.includes(f.name)}
-                          onChange={(e) => setA2aChosen((c) => (e.target.checked ? [...c, f.name] : c.filter((x) => x !== f.name)))}
-                          className={CHECK}
-                        />
-                        {f.name}
-                        {!f.published && <span className="font-sans text-fg-subtle">(not published)</span>}
-                      </label>
+                        <label className="inline-flex items-center gap-1.5 font-mono text-fg-secondary">
+                          <Checkbox
+                            disabled={!f.published}
+                            checked={a2aChosen.includes(f.name)}
+                            onCheckedChange={(checked: boolean) => setA2aChosen((c) => (checked ? [...c, f.name] : c.filter((x) => x !== f.name)))}
+                          />
+                          {f.name}
+                          {!f.published && <span className="font-sans text-fg-subtle">(not published)</span>}
+                        </label>
+                      </Tooltip>
                     ))}
                     {(a2aFlows[a2aWs] ?? []).length === 0 && <span>No flows in this workspace.</span>}
                   </div>
@@ -307,7 +303,7 @@ export function KeyManager({
                       key is never more than its minter: a role at or below yours,
                       and only workspaces you can open. */}
                   <label className="inline-flex items-center gap-2 text-fg">
-                    <input type="checkbox" checked={narrow} onChange={(e) => setNarrow(e.target.checked)} className={CHECK} />
+                    <Checkbox checked={narrow} onCheckedChange={(checked: boolean) => setNarrow(checked)} />
                     Limit to some workspaces
                   </label>
                   {!narrow && (
@@ -319,7 +315,7 @@ export function KeyManager({
                     <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1.5">
                       {workspaces.map((w) => (
                         <label key={w} className="inline-flex items-center gap-1.5 font-mono text-fg-secondary">
-                          <input type="checkbox" checked={chosen.includes(w)} onChange={(e) => setChosen((c) => (e.target.checked ? [...c, w] : c.filter((x) => x !== w)))} className={CHECK} />
+                          <Checkbox checked={chosen.includes(w)} onCheckedChange={(checked: boolean) => setChosen((c) => (checked ? [...c, w] : c.filter((x) => x !== w)))} />
                           {w}
                         </label>
                       ))}
@@ -344,7 +340,7 @@ export function KeyManager({
       )}
 
       {created && (
-        <div role="status" className="mb-6 rounded-lg border border-success-line bg-success-soft p-4 sm:p-5">
+        <Callout tone="success" className="mb-6 p-4 sm:p-5" role="status">
           <p className="text-sm font-medium text-success">Key created — copy it now, it won&apos;t be shown again.</p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <code className="min-w-0 flex-1 truncate rounded-md border border-line bg-surface px-3 py-2 font-mono text-xs text-fg">{created}</code>
@@ -367,7 +363,7 @@ export function KeyManager({
             export {createdKind === "a2a" ? "FOLDRUN_A2A_KEY" : "FOLDRUN_TOKEN"}={created.slice(0, 12)}…
           </p>
           {createdKind === "a2a" && <p className="mt-1 text-xs text-fg-secondary">Give it to the outside agent; it sends it as Authorization: Bearer to /a2a only.</p>}
-        </div>
+        </Callout>
       )}
 
       <section className="min-w-0 space-y-3">
@@ -393,11 +389,11 @@ export function KeyManager({
                         <span className="mr-0.5 truncate">{k.label}</span>
                         {k.purpose === "a2a" ? (
                           <Tag>
-                            <span title="An outside agent's key: it opens /a2a only — the published flows it names — and no /api route">A2A</span>
+                            <Tooltip label="An outside agent's key: it opens /a2a only — the published flows it names — and no /api route"><span>A2A</span></Tooltip>
                           </Tag>
                         ) : (
                           <Tag>
-                            <span title={k.role ? "What this key may do" : "Minted before roles existed — acts as admin"}>{k.role ?? "admin"}</span>
+                            <Tooltip label={k.role ? "What this key may do" : "Minted before roles existed — acts as admin"}><span>{k.role ?? "admin"}</span></Tooltip>
                           </Tag>
                         )}
                         {k.revokedAt && <Chip tone="bad">revoked</Chip>}
@@ -408,27 +404,29 @@ export function KeyManager({
                       </p>
                       <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-fg-muted">
                         {k.purpose === "a2a" && k.a2a && (
-                          <span title={`The flows this key may call in ${k.a2a.workspace}, each also published; at most ${k.a2a.maxTasks} tasks open at once`}>
-                            {k.a2a.workspace}: {k.a2a.flows.join(", ")} · {k.a2a.maxTasks} open
-                          </span>
+                          <Tooltip label={`The flows this key may call in ${k.a2a.workspace}, each also published; at most ${k.a2a.maxTasks} tasks open at once`}>
+                            <span>
+                              {k.a2a.workspace}: {k.a2a.flows.join(", ")} · {k.a2a.maxTasks} open
+                            </span>
+                          </Tooltip>
                         )}
                         {k.scope && (
-                          <span className="text-warning" title="A deploy key, for the platform's own git — which went on 17 Oct 2026, so it opens nothing now. Revoke it.">
-                            deploy key · opens nothing · revoke
-                          </span>
+                          <Tooltip label="A deploy key, for the platform's own git — which went on 17 Oct 2026, so it opens nothing now. Revoke it.">
+                            <span className="text-warning">deploy key · opens nothing · revoke</span>
+                          </Tooltip>
                         )}
                         {!k.scope && k.purpose !== "a2a" && (
-                          <span title={k.workspaces ? "The workspaces this key opens — its minter's at the time, or fewer" : "Every workspace in the account"}>
-                            {k.workspaces ? (k.workspaces.length === 0 ? "no workspaces" : k.workspaces.join(", ")) : "all workspaces"}
-                          </span>
+                          <Tooltip label={k.workspaces ? "The workspaces this key opens — its minter's at the time, or fewer" : "Every workspace in the account"}>
+                            <span>{k.workspaces ? (k.workspaces.length === 0 ? "no workspaces" : k.workspaces.join(", ")) : "all workspaces"}</span>
+                          </Tooltip>
                         )}
                         {k.origin === "cli-login" && !k.revokedAt && (
-                          <span title="Minted by foldrun login on that machine. It lasts 90 days and the CLI renews it while the machine is in use; revoke it to sign that machine out.">CLI sign-in · renews itself</span>
+                          <Tooltip label="Minted by foldrun login on that machine. It lasts 90 days and the CLI renews it while the machine is in use; revoke it to sign that machine out."><span>CLI sign-in · renews itself</span></Tooltip>
                         )}
                         {k.replacedBy && (
-                          <span title="Rotated: this key is not rotated again — rotate the new one (also if its secret was lost)">
-                            rotated → {next ? `${next.label} · ${next.prefix}…` : k.replacedBy}
-                          </span>
+                          <Tooltip label="Rotated: this key is not rotated again — rotate the new one (also if its secret was lost)">
+                            <span>rotated → {next ? `${next.label} · ${next.prefix}…` : k.replacedBy}</span>
+                          </Tooltip>
                         )}
                       </p>
                       <dl className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-fg-muted">
@@ -448,7 +446,7 @@ export function KeyManager({
                         </div>
                         <div>
                           <dt className="inline text-fg-subtle">Last used </dt>
-                          <dd className="inline" title={k.lastIp ? `from ${k.lastIp}` : undefined}>
+                          <dd className="inline">
                             {k.lastUsedAt ? (
                               <>
                                 {relative(k.lastUsedAt)}
@@ -470,13 +468,13 @@ export function KeyManager({
                       {rotating === k.id && (
                         <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-line bg-sunken p-3 text-sm">
                           <span className="text-fg-muted">A new key with this label, role and workspaces —</span>
-                          <select value={grace} onChange={(e) => setGrace(e.target.value)} className={selectClass("h-8")} aria-label="What happens to the old key">
+                          <Select value={grace} onChange={(e) => setGrace(e.target.value)} size="sm" aria-label="What happens to the old key">
                             {GRACE.map((g) => (
                               <option key={g.v} value={g.v}>
                                 {g.label}
                               </option>
                             ))}
-                          </select>
+                          </Select>
                           <Button variant="primary" onClick={() => void rotate(k.id)} disabled={busy}>
                             {busy ? "Rotating…" : "Rotate"}
                           </Button>

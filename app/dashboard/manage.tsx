@@ -3,7 +3,7 @@
 // Deleting a workspace. Creation is components/create.tsx.
 
 import { useRouter } from "next/navigation";
-import { useConfirm } from "@/components/confirm";
+import { useConfirm } from "@/components/kit/confirm";
 import { useCan } from "@/components/role";
 import type { Action } from "@/platform/permissions";
 

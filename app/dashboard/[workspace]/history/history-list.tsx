@@ -11,13 +11,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
-import { useConfirm } from "@/components/confirm";
+import { useConfirm } from "@/components/kit/confirm";
 import { DeployPreview } from "@/components/deploy-preview";
 import { WithEmails } from "@/components/email";
 import { ChevronRight, Eye, EyeOff, GitCommitHorizontal, RotateCcw } from "lucide-react";
 import { Button } from "@/components/kit/button";
-import { Chip } from "@/components/kit/page";
+import { Chip, IconBox, Callout } from "@/components/kit/page";
 import { cn } from "@/components/kit/cn";
+import { Tooltip } from "@/components/kit/tooltip";
 
 interface Summary {
   id: string;
@@ -113,7 +114,7 @@ export function HistoryList({
   return (
     <div className="min-w-0 space-y-3">
       {confirmDialog}
-      {note && <p role="alert" className="rounded-lg border border-danger-line bg-danger-soft px-4 py-2.5 text-sm text-danger">{note}</p>}
+      {note && <Callout tone="danger" className="px-4 py-2.5 text-sm" role="alert">{note}</Callout>}
       <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
         {revisions.map((r, index) => {
           const on = open === r.id;
@@ -122,9 +123,9 @@ export function HistoryList({
           return (
             <li key={r.id}>
               <div className={cn("relative flex min-w-0 items-center gap-3 px-3 py-3 transition-colors hover:bg-sunken sm:px-4", on && "bg-sunken")}>
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-line bg-surface text-fg [&_svg]:size-4">
+                <IconBox>
                   <GitCommitHorizontal aria-hidden />
-                </span>
+                </IconBox>
                 <button
                   type="button"
                   onClick={() => void toggle(r.id)}
@@ -136,9 +137,11 @@ export function HistoryList({
                     {page === 1 && index === 0 && <Chip tone="good" dot>Live</Chip>}
                   </span>
                   <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs text-fg-muted">
-                    <span className="font-mono text-fg-secondary" title={r.id}>
-                      {shortId(r)}
-                    </span>
+                    <Tooltip label={r.id}>
+                      <span className="font-mono text-fg-secondary">
+                        {shortId(r)}
+                      </span>
+                    </Tooltip>
                     <span aria-hidden>·</span>
                     <span className="min-w-0 truncate">
                       <WithEmails text={r.by} />

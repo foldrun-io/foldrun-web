@@ -8,8 +8,8 @@
 
 import Link from "next/link";
 import fs from "node:fs";
-import { Pager } from "@/components/pager";
-import { paginate, pageFrom } from "@/components/paging";
+import { Pager } from "@/components/kit/pager";
+import { paginate, pageFrom, PAGE_SIZE } from "@/components/paging";
 import { notFound } from "next/navigation";
 import { workspaceDir, listAgents, listAgentSteps, agentAssets, listFlows } from "@/lib/store";
 import { Email } from "@/components/email";
@@ -226,7 +226,7 @@ export default async function AgentPage({
                 ))}
               </ul>
             </div>
-            <Pager base={base} page={activity.page} pages={activity.pages} total={activity.total} tenantParam={`&tab=activity${amp}`} labels={["← Newer", "Older →"]} />
+            <Pager base={base} page={activity.page} pages={activity.pages} total={activity.total} pageSize={PAGE_SIZE} tenantParam={`&tab=activity${amp}`} labels={["Newer", "Older"]} />
           </>
         ))}
 

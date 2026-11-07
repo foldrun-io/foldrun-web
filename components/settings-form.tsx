@@ -8,7 +8,6 @@
 
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "./kit/button";
-import { cn } from "./kit/cn";
 
 export function useSettingsForm<T>(initial: T, submit: (value: T) => Promise<void | T>) {
   const [value, setValue] = useState<T>(initial);
@@ -123,16 +122,5 @@ export function SettingsForm({
         </div>
       </div>
     </form>
-  );
-}
-
-/** A labelled field: the label above, the control, one line under it. */
-export function Field({ label, help, children, className }: { label: string; help?: ReactNode; children: ReactNode; className?: string }) {
-  return (
-    <label className={cn("block", className)}>
-      <span className="block text-sm font-medium text-fg">{label}</span>
-      <div className="mt-1.5">{children}</div>
-      {help && <span className="mt-1.5 block text-xs text-fg-muted">{help}</span>}
-    </label>
   );
 }

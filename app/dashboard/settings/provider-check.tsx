@@ -8,11 +8,11 @@
 // run:start, as the route does.
 
 import { useState } from "react";
-import { Badge } from "@/components/ui";
-import { SettingsCard } from "@/components/kit/page";
+import { Chip, type Tone, SettingsCard } from "@/components/kit/page";
 import { Button } from "@/components/kit/button";
 import { LocalTime } from "@/components/local-time";
 import { needs } from "@/components/role";
+import { Tooltip } from "@/components/kit/tooltip";
 
 export interface ProviderConfigured {
   provider: string;
@@ -36,13 +36,13 @@ export interface ProviderLastCheck {
   results: ProviderResult[];
 }
 
-const VARIANT: Record<ProviderResult["verdict"], "success" | "warning" | "error"> = {
-  ok: "success",
-  busy: "warning",
-  credential: "error",
-  "not-found": "error",
-  unreachable: "error",
-  "provider-error": "warning",
+const VARIANT: Record<ProviderResult["verdict"], Tone> = {
+  ok: "good",
+  busy: "warn",
+  credential: "bad",
+  "not-found": "bad",
+  unreachable: "bad",
+  "provider-error": "warn",
 };
 
 export function ProviderCheck({
@@ -99,9 +99,13 @@ export function ProviderCheck({
       hint={error ? <span role="alert" className="text-danger">{error}</span> : undefined}
       footer={
         configured.length > 0 && (
-          <Button variant="secondary" onClick={() => void checkNow()} disabled={busy || !mayCheck} title={mayCheck ? "Sends one small model request to each provider now" : needs("run:start")}>
-            {busy ? "Checking…" : "Check now"}
-          </Button>
+          <Tooltip label={mayCheck ? "Sends one small model request to each provider now" : needs("run:start")}>
+            <span className="inline-flex">
+              <Button variant="secondary" onClick={() => void checkNow()} disabled={busy || !mayCheck}>
+                {busy ? "Checking…" : "Check now"}
+              </Button>
+            </span>
+          </Tooltip>
         )
       }
       flush={results.length > 0 || unchecked.length > 0}
@@ -110,7 +114,7 @@ export function ProviderCheck({
         <ul className="divide-y divide-line">
           {results.map((r) => (
             <li key={`${keyOf(r)}|${r.model}`} className="flex flex-wrap items-start gap-x-3 gap-y-0.5 px-5 py-3 sm:px-6">
-              <Badge variant={VARIANT[r.verdict] ?? "default"}>{r.verdict}</Badge>
+              <Chip tone={VARIANT[r.verdict] ?? "default"}>{r.verdict}</Chip>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-mono text-xs text-fg">
                   {r.provider} <span className="text-fg-subtle">· {r.model}</span>
@@ -125,7 +129,7 @@ export function ProviderCheck({
           ))}
           {unchecked.map((c) => (
             <li key={keyOf(c)} className="flex flex-wrap items-start gap-x-3 px-5 py-3 sm:px-6">
-              <Badge>unchecked</Badge>
+              <Chip>unchecked</Chip>
               <p className="min-w-0 flex-1 truncate font-mono text-xs text-fg">
                 {c.provider} <span className="text-fg-subtle">· {c.model}</span>
               </p>

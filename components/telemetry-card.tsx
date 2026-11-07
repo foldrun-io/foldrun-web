@@ -7,8 +7,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { inputClass } from "@/components/ui";
-import { SettingsCard } from "@/components/kit/page";
+import { Input } from "@/components/kit/input";
+import { SettingsCard, Field, Callout } from "@/components/kit/page";
 import { Button } from "@/components/kit/button";
 import type { TelemetryConfig } from "./defaults-model";
 
@@ -103,26 +103,23 @@ export function TelemetryCard({ tenant, initial, mayEdit }: { tenant: string; in
       }
     >
       <div className="space-y-4">
-        {note && <p role="status" className="rounded-md border border-success-line bg-success-soft px-3 py-2 text-sm text-success">{note}</p>}
-        {error && <p role="alert" className="rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
+        {note && <Callout tone="success" role="status">{note}</Callout>}
+        {error && <Callout tone="danger" role="alert">{error}</Callout>}
         {/* A member limited to some workspaces is told it is set, not where
             runs go or with which header (GET /api/account, 30 Oct 2026). */}
         {initial?.hidden && <p className="text-sm text-fg-muted">Runs are sent to a collector. Where, and with which header, is shown only to members with every workspace.</p>}
         {!initial?.hidden && (
           <>
-            <label className="block">
-              <span className="block text-sm font-medium text-fg">Collector URL (OTLP/HTTP traces)</span>
-              <input value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="https://otel.example.com/v1/traces" disabled={!mayEdit} className={inputClass("mt-1.5 w-full font-mono")} />
-            </label>
+            <Field label="Collector URL (OTLP/HTTP traces)">
+              <Input value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="https://otel.example.com/v1/traces" disabled={!mayEdit} className="w-full font-mono" />
+            </Field>
             <div className="flex flex-wrap gap-4">
-              <label className="block">
-                <span className="block text-sm font-medium text-fg">Header</span>
-                <input value={header} onChange={(e) => setHeader(e.target.value)} disabled={!mayEdit} className={inputClass("mt-1.5 w-48 font-mono")} />
-              </label>
-              <label className="block">
-                <span className="block text-sm font-medium text-fg">Its value: a vault secret, by name</span>
-                <input value={secret} onChange={(e) => setSecret(e.target.value.toUpperCase())} placeholder="OTEL_TOKEN" disabled={!mayEdit} className={inputClass("mt-1.5 w-56 font-mono")} />
-              </label>
+              <Field label="Header">
+                <Input value={header} onChange={(e) => setHeader(e.target.value)} disabled={!mayEdit} className="w-48 font-mono" />
+              </Field>
+              <Field label="Its value: a vault secret, by name">
+                <Input value={secret} onChange={(e) => setSecret(e.target.value.toUpperCase())} placeholder="OTEL_TOKEN" disabled={!mayEdit} className="w-56 font-mono" />
+              </Field>
             </div>
           </>
         )}

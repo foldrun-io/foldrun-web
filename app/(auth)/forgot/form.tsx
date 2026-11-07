@@ -1,6 +1,9 @@
 "use client";
 import { useState } from "react";
-import { buttonClass, inputClass } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
+import { Input } from "@/components/kit/input";
+import { cn } from "@/components/kit/cn";
+import { Field } from "@/components/kit/page";
 
 export function ForgotForm() {
   const [msg, setMsg] = useState<string | null>(null);
@@ -18,12 +21,11 @@ export function ForgotForm() {
         setBusy(false);
       }}
     >
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-fg">Email</span>
-        <input name="email" type="email" required autoFocus className={inputClass("w-full")} />
-      </label>
+      <Field label="Email">
+        <Input name="email" type="email" required autoFocus className="w-full" />
+      </Field>
       {msg && <p className="rounded-md border border-line bg-sunken px-3 py-2 text-sm text-fg-secondary">{msg}</p>}
-      <button disabled={busy} className={buttonClass("primary", "h-9 w-full")}>{busy ? "…" : "Send reset link"}</button>
+      <button disabled={busy} className={cn(buttonVariants({ variant: "primary", size: "md" }), "w-full")}>{busy ? "…" : "Send reset link"}</button>
     </form>
   );
 }

@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useConfirm } from "@/components/confirm";
+import { useConfirm } from "@/components/kit/confirm";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/kit/button";
+import { Tooltip } from "@/components/kit/tooltip";
 
 
 export function DeleteLibraryItem({
@@ -24,11 +25,11 @@ export function DeleteLibraryItem({
   return (
     <>
       {confirmDialog}
+      <Tooltip label="Delete">
       <Button
         variant="ghost"
         size="icon-sm"
         aria-label={`Delete ${name}`}
-        title="Delete"
         className="hover:text-danger"
         onClick={async () => {
           if (!(await confirm({ title: `Delete ${name} from the library?`, confirmLabel: "Delete" }))) return;
@@ -44,6 +45,7 @@ export function DeleteLibraryItem({
       >
         <Trash2 />
       </Button>
+      </Tooltip>
     </>
   );
 }

@@ -9,9 +9,13 @@ import { useEffect, useState } from "react";
 import { useResolvedTimeZone } from "@/components/viewer-time";
 import { useRouter } from "next/navigation";
 
-import { inputClass, selectClass, buttonClass, FIELD_LABEL_CLASS } from "@/components/ui";
+import { Input, labelClass } from "@/components/kit/input";
+import { Select } from "@/components/kit/select";
 import { buttonVariants } from "@/components/kit/button";
 import { Zap } from "lucide-react";
+import { Combobox } from "@/components/kit/combobox";
+import { Tooltip } from "@/components/kit/tooltip";
+import { TimeField } from "@/components/kit/time-field";
 import {
   SCHEDULE_DAYS as DAYS,
   SCHEDULE_DAY_NAMES as DAY_NAMES,
@@ -146,80 +150,71 @@ export function TriggerEditor({
     <div className="w-full rounded-lg border border-line bg-sunken p-4">
       <div className="flex flex-wrap items-end gap-3">
         <label>
-          <span className={FIELD_LABEL_CLASS}>Starts</span>
-          <select value={kind} onChange={(e) => setKind(e.target.value)} className={selectClass()}>
+          <span className={labelClass}>Starts</span>
+          <Select value={kind} onChange={(e) => setKind(e.target.value)} >
             <option value="manual">manually — Run button, CLI, API</option>
             <option value="schedule">on a schedule</option>
             <option value="webhook">when a URL is POSTed</option>
-          </select>
+          </Select>
         </label>
 
         {kind === "schedule" && (
           <>
             <label>
-              <span className={FIELD_LABEL_CLASS}>How often</span>
-              <select
+              <span className={labelClass}>How often</span>
+              <Select
                 value={preset}
                 onChange={(e) => setPreset(e.target.value as Preset)}
-                className={selectClass()}
               >
                 <option value="hourly">Every hour</option>
                 <option value="daily">Every day</option>
                 <option value="weekly">Every week</option>
                 <option value="monthly">Every month (the 1st)</option>
                 <option value="custom">Custom (cron)</option>
-              </select>
+              </Select>
             </label>
             {preset === "weekly" && (
               <label>
-                <span className={FIELD_LABEL_CLASS}>On</span>
-                <select value={day} onChange={(e) => setDay(e.target.value)} className={selectClass()}>
+                <span className={labelClass}>On</span>
+                <Select value={day} onChange={(e) => setDay(e.target.value)} >
                   {DAYS.map((d) => (
                     <option key={d} value={d}>
                       {DAY_NAMES[d]}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             )}
             {preset !== "custom" && (
-              <label>
-                <span className={FIELD_LABEL_CLASS}>{preset === "hourly" ? "At minute" : "At"}</span>
-                <input
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  className={inputClass("w-28")}
-                />
-              </label>
+              <div>
+                <span className={labelClass}>{preset === "hourly" ? "At minute" : "At"}</span>
+                <TimeField label={preset === "hourly" ? "At minute" : "At"} value={time} onChange={setTime} />
+              </div>
             )}
             {preset === "custom" && (
               <label>
-                <span className={FIELD_LABEL_CLASS}>Cron expression</span>
-                <input
-                  value={custom}
-                  onChange={(e) => setCustom(e.target.value)}
-                  placeholder="0 8 * * MON"
-                  className={inputClass("w-36 font-mono")}
-                  title="minute hour day-of-month month day-of-week, or @daily / @hourly / @weekly"
-                />
+                <span className={labelClass}>Cron expression</span>
+                <Tooltip label="minute hour day-of-month month day-of-week, or @daily / @hourly / @weekly">
+                  <Input
+                    value={custom}
+                    onChange={(e) => setCustom(e.target.value)}
+                    placeholder="0 8 * * MON"
+                    className="w-36 font-mono"
+                  />
+                </Tooltip>
               </label>
             )}
             <label>
-              <span className={FIELD_LABEL_CLASS}>Timezone</span>
-              <input
-                value={tz}
-                onChange={(e) => { setTouched(true); setTz(e.target.value); }}
-                placeholder="UTC"
-                list="foldrun-timezones"
-                className={inputClass("w-44")}
-                title="IANA timezone, e.g. Australia/Sydney"
-              />
-              <datalist id="foldrun-timezones">
-                {allZones.map((z) => (
-                  <option key={z} value={z} />
-                ))}
-              </datalist>
+              <span className={labelClass}>Timezone</span>
+              <Tooltip label="IANA timezone, e.g. Australia/Sydney">
+                <Combobox
+                  options={allZones}
+                  value={tz}
+                  onChange={(e) => { setTouched(true); setTz(e.target.value); }}
+                  placeholder="UTC"
+                  className="w-44"
+                />
+              </Tooltip>
             </label>
           </>
         )}
@@ -227,10 +222,10 @@ export function TriggerEditor({
           <span className="pb-2 text-xs text-fg-muted">The URL appears under Settings → Triggers.</span>
         )}
 
-        <button onClick={save} disabled={busy} className={buttonClass("primary")}>
+        <button onClick={save} disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })}>
           Save
         </button>
-        <button onClick={() => setOpen(false)} className={buttonClass("minimal")}>
+        <button onClick={() => setOpen(false)} className={buttonVariants({ variant: "ghost", size: "md" })}>
           Cancel
         </button>
       </div>

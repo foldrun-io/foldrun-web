@@ -2,9 +2,9 @@
 // person resolves it. Same list as GET /api/issues and `foldrun issues`.
 
 import Link from "next/link";
-import { AlertTriangle, Ban, CalendarX2, CheckCircle2, ChevronRight, ServerCrash, XCircle, X } from "lucide-react";
+import { AlertTriangle, Ban, CalendarX2, CheckCircle2, ServerCrash, XCircle, X } from "lucide-react";
 import { Page, PageHeader, Chip, Tag, EmptyState, type Tone } from "@/components/kit/page";
-import { Segmented } from "@/components/kit/inspect-extra";
+import { Segmented } from "@/components/kit/segmented";
 import { cn } from "@/components/kit/cn";
 import { viewerScope } from "@/server/users";
 import { accountIssues, filterIssues, ISSUE_STATUSES, type IssueFilter } from "@/server/issues";
@@ -15,6 +15,8 @@ import { runHref } from "@/components/run-href";
 import { fmtSpan } from "@/components/mission-model";
 import { nowMs } from "@/components/overview-model";
 import { issueDoctor, type Issue } from "@/lib/issues";
+import { Disclosure } from "@/components/kit/disclosure";
+import { Tooltip } from "@/components/kit/tooltip";
 
 export const dynamic = "force-dynamic";
 
@@ -59,14 +61,15 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Segmented label="Status" value={status} items={TABS.map((t) => ({ key: t.key, label: t.label, href: q(t.key), count: count(t.key) }))} />
         {workspace && (
-          <Link
-            href={`/dashboard/issues${tenant !== "default" ? `?tenant=${tenant}` : ""}`}
-            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-[13px] text-fg-secondary transition-colors hover:border-line-strong hover:text-fg"
-            title="Show every workspace"
-          >
-            Only <span className="font-medium text-fg">{workspace}</span>
-            <X className="size-3.5 text-fg-muted" aria-label="Every workspace" />
-          </Link>
+          <Tooltip label="Show every workspace">
+            <Link
+              href={`/dashboard/issues${tenant !== "default" ? `?tenant=${tenant}` : ""}`}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-[13px] text-fg-secondary transition-colors hover:border-line-strong hover:text-fg"
+            >
+              Only <span className="font-medium text-fg">{workspace}</span>
+              <X className="size-3.5 text-fg-muted" aria-label="Every workspace" />
+            </Link>
+          </Tooltip>
         )}
       </div>
 
@@ -125,19 +128,17 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
                         </Chip>
                       )}
                       {i.regressed && (
-                        <span title="It was resolved and came back">
-                          <Chip tone="bad">regressed{i.sinceRevision ? ` since ${i.sinceRevision.slice(0, 7)}` : ""}</Chip>
-                        </span>
+                        <Tooltip label="It was resolved and came back">
+                          <span>
+                            <Chip tone="bad">regressed{i.sinceRevision ? ` since ${i.sinceRevision.slice(0, 7)}` : ""}</Chip>
+                          </span>
+                        </Tooltip>
                       )}
                       <span className="text-xs text-fg-muted">
                         {i.count} time{i.count === 1 ? "" : "s"} · latest {fmtSpan(Math.max(0, now - Date.parse(i.lastSeen)))} ago
                       </span>
                     </div>
-                    <details className="group pt-1">
-                      <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-sm text-[13px] font-medium text-fg-secondary hover:text-fg [&::-webkit-details-marker]:hidden">
-                        <ChevronRight className="size-3.5 transition-transform group-open:rotate-90" aria-hidden />
-                        Details
-                      </summary>
+                    <Disclosure className="pt-1" summaryClassName="inline-flex items-center gap-1 rounded-sm text-[13px] font-medium text-fg-secondary hover:text-fg" summary="Details">
                       <div className="mt-2 space-y-2 rounded-md border border-line bg-sunken p-3 text-[13px]">
                         <p className="text-fg">
                           <span className="text-fg-muted">What to do:</span> {i.action}
@@ -188,7 +189,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
                           </ol>
                         )}
                       </div>
-                    </details>
+                    </Disclosure>
                   </div>
                   <IssueActions id={i.id} status={i.status} tenant={tenant} platform={i.kind === "platform"} accountWide={scope === null} doctor={issueDoctor(i)} />
                 </div>

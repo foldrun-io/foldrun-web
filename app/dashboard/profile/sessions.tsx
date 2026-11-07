@@ -9,8 +9,9 @@
 // now, so the honest answer is a list and a button.
 
 import { useEffect, useState } from "react";
-import { buttonClass } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
 import { LocalTime } from "@/components/local-time";
+import { Tag } from "@/components/kit/page";
 
 interface Row {
   id: string;
@@ -93,9 +94,7 @@ export function SessionList() {
               <p className="truncate text-fg">
                 {describe(s.userAgent)}
                 {s.isCurrent && (
-                  <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs text-fg-tertiary">
-                    this device
-                  </span>
+                  <Tag className="ml-2">this device</Tag>
                 )}
               </p>
               <p className="text-xs text-fg-muted">
@@ -120,7 +119,7 @@ export function SessionList() {
 
       <button
         type="button"
-        className={buttonClass()}
+        className={buttonVariants({ variant: "primary" })}
         disabled={busy === "others" || others.length === 0}
         onClick={() => end({ others: true }, "others")}
       >

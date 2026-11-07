@@ -14,7 +14,7 @@ import { useState } from "react";
 import type { StepRecord } from "@/lib/store";
 import { Button } from "./kit/button";
 import { Input } from "./kit/input";
-import { Tag } from "./kit/page";
+import { Tag, Callout } from "./kit/page";
 
 export function OperatorPanel({
   workspace,
@@ -97,7 +97,7 @@ export function OperatorPanel({
         const open = q.answer === undefined && !q.unanswered;
         const given = sent[q.id];
         return (
-          <div key={q.id} className={`space-y-2.5 rounded-lg border p-3 text-[13px] ${open && !given ? "border-info-line bg-info-soft" : "border-line bg-surface"}`}>
+          <Callout key={q.id} tone={open && !given ? "info" : "neutral"} className={`p-3 text-[13px] text-fg ${open && !given ? "" : "bg-surface"}`} bodyClassName="space-y-2.5">
             <div className="font-medium text-fg">
               <span className="mr-1.5 font-normal text-fg-muted">{step.agent} asks:</span>
               {q.question}
@@ -142,7 +142,7 @@ export function OperatorPanel({
             ) : (
               <div className="text-fg-muted">The step ended before it was answered.</div>
             )}
-          </div>
+          </Callout>
         );
       })}
 

@@ -12,13 +12,17 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { buttonClass, inputClass, Badge } from "@/components/ui";
-import { useConfirm } from "@/components/confirm";
+import { Textarea } from "@/components/kit/input";
+import { Chip } from "@/components/kit/page";
+import { cn } from "@/components/kit/cn";
+import { useConfirm } from "@/components/kit/confirm";
 import { useCan, needs } from "@/components/role";
 import { foldDiff, lineDiff } from "@/components/flow-history-model";
 import { buttonVariants } from "@/components/kit/button";
+import { Tooltip } from "@/components/kit/tooltip";
 import { Sparkles } from "lucide-react";
 import { DiffView } from "@/components/flow-history";
+import { Dialog, DialogContent, DialogTitle } from "@/components/kit/dialog";
 
 interface DraftFile {
   path: string;
@@ -58,16 +62,19 @@ export function FlowAiDraft({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
-        type="button"
-        disabled={!mayWrite}
-        title={mayWrite ? (flow ? `Describe a change and get a redrafted ${flow}` : "Describe a flow and get its markdown") : needs("workspace:write")}
-        onClick={() => setOpen(true)}
-        className={variant === "minimal" ? buttonVariants({ variant: "ghost", size: "sm" }) : buttonClass(variant)}
-      >
-        {variant === "minimal" && <Sparkles aria-hidden />}
-        {label ?? (flow ? "Redraft with AI" : "Draft with AI")}
-      </button>
+      <Tooltip label={mayWrite ? (flow ? `Describe a change and get a redrafted ${flow}` : "Describe a flow and get its markdown") : needs("workspace:write")}>
+        <span className="inline-flex">
+          <button
+            type="button"
+            disabled={!mayWrite}
+            onClick={() => setOpen(true)}
+            className={variant === "minimal" ? buttonVariants({ variant: "ghost", size: "sm" }) : buttonVariants({ variant: "secondary" })}
+          >
+            {variant === "minimal" && <Sparkles aria-hidden />}
+            {label ?? (flow ? "Redraft with AI" : "Draft with AI")}
+          </button>
+        </span>
+      </Tooltip>
       {open && <DraftDialog workspace={workspace} tenant={tenant} flow={flow} onClose={() => setOpen(false)} />}
     </>
   );
@@ -162,14 +169,14 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
 
   return (
     <>
-      <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-ink/30 p-4 sm:p-8" role="presentation">
-        <div role="dialog" aria-label={flow ? `Redraft ${flow} with AI` : "Draft a flow with AI"} className="w-full max-w-3xl rounded-lg border border-line bg-surface text-left shadow-menu">
+      <Dialog open onOpenChange={(o) => !o && onClose()}>
+        <DialogContent hideClose aria-describedby={undefined} size="xl" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()} className="top-[5vh] max-h-[90dvh] max-w-3xl translate-y-0 overflow-y-auto rounded-lg text-left">
           <header className="flex items-center gap-3 border-b border-line px-4 py-3">
             <div>
-              <h2 className="text-sm font-semibold text-fg">{flow ? `Redraft ${flow} with AI` : "Draft a flow with AI"}</h2>
+              <DialogTitle className="text-sm font-semibold text-fg">{flow ? `Redraft ${flow} with AI` : "Draft a flow with AI"}</DialogTitle>
               <p className="text-[11px] text-fg-muted">A proposal only — nothing is written until you save it.</p>
             </div>
-            <button type="button" onClick={onClose} className={buttonClass("minimal", "ml-auto px-2 py-1 text-xs")}>
+            <button type="button" onClick={onClose} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ml-auto")}>
               Close
             </button>
           </header>
@@ -179,7 +186,7 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
               <label htmlFor="draft-description" className="block text-xs font-medium text-fg-muted">
                 {flow ? "What should change" : "What should the flow do"}
               </label>
-              <textarea
+              <Textarea
                 id="draft-description"
                 value={description}
                 maxLength={MAX}
@@ -190,7 +197,7 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
                     ? "e.g. add a fact-check step before the writer, and ask me before anything is sent"
                     : "e.g. every Monday at 8, gather the week's industry news, check the facts, and email me a five-item digest after I approve it"
                 }
-                className={inputClass("mt-1 w-full text-sm")}
+                className="mt-1 w-full text-sm"
               />
               <div className="mt-1 flex items-center gap-2">
                 <span className="text-[11px] tabular-nums text-fg-subtle">
@@ -200,7 +207,7 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
                   type="button"
                   disabled={busy !== null || !description.trim()}
                   onClick={() => void request()}
-                  className={buttonClass("primary", "ml-auto px-3 py-1 text-xs")}
+                  className={cn(buttonVariants({ variant: "primary", size: "xs" }), "ml-auto")}
                 >
                   {busy === "draft" ? "Drafting…" : draft ? "Draft again" : "Draft"}
                 </button>
@@ -218,18 +225,18 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
                 {draft.notes && <p className="rounded-md bg-sunken px-3 py-2 text-xs text-fg-secondary">{draft.notes}</p>}
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   {errors.length === 0 ? (
-                    <Badge variant="success">passes the deploy check</Badge>
+                    <Chip tone="good">passes the deploy check</Chip>
                   ) : (
-                    <Badge variant="error">
+                    <Chip tone="bad">
                       {errors.length} error{errors.length === 1 ? "" : "s"}
-                    </Badge>
+                    </Chip>
                   )}
                   {draft.issues.length - errors.length > 0 && (
-                    <Badge variant="warning">
+                    <Chip tone="warn">
                       {draft.issues.length - errors.length} warning{draft.issues.length - errors.length === 1 ? "" : "s"}
-                    </Badge>
+                    </Chip>
                   )}
-                  {draft.repaired && <Badge variant="info">repaired once after the check</Badge>}
+                  {draft.repaired && <Chip tone="info">repaired once after the check</Chip>}
                 </div>
                 {draft.issues.length > 0 && (
                   <ul className="space-y-1">
@@ -247,7 +254,7 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
                   <section key={f.path} className="overflow-hidden rounded-lg border border-line">
                     <header className="flex items-center gap-2 border-b border-line-faint bg-sunken px-3 py-1.5">
                       <span className="font-mono text-xs text-fg-secondary">{f.path}</span>
-                      <Badge variant={f.before === null ? "success" : "warning"}>{f.before === null ? "new" : "changed"}</Badge>
+                      <Chip tone={f.before === null ? "good" : "warn"}>{f.before === null ? "new" : "changed"}</Chip>
                     </header>
                     <div className="max-h-80 overflow-auto">
                       <DiffView rows={foldDiff(lineDiff(f.before ?? "", f.content), 4)} empty="Same as the file in the workspace." />
@@ -261,16 +268,16 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
           {draft && draft.files.length > 0 && (
             <footer className="flex items-center gap-2 border-t border-line px-4 py-3">
               <span className="text-[11px] text-fg-muted">Saving writes these files as one edit each, through the same save as the editor.</span>
-              <button type="button" onClick={() => setDraft(null)} className={buttonClass("minimal", "ml-auto px-2 py-1 text-xs")}>
+              <button type="button" onClick={() => setDraft(null)} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ml-auto")}>
                 Discard
               </button>
-              <button type="button" disabled={busy !== null} onClick={() => void save()} className={buttonClass("primary", "px-3 py-1 text-xs")}>
+              <button type="button" disabled={busy !== null} onClick={() => void save()} className={buttonVariants({ variant: "primary", size: "xs" })}>
                 {busy === "save" ? "Saving…" : `Save ${draft.files.length} file${draft.files.length === 1 ? "" : "s"}…`}
               </button>
             </footer>
           )}
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
       {dialog}
     </>
   );

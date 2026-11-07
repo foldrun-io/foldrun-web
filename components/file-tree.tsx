@@ -10,7 +10,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { useConfirm } from "@/components/confirm";
+import { useConfirm } from "@/components/kit/confirm";
+import { Tooltip } from "@/components/kit/tooltip";
 import { matchesQuery } from "@/components/list-search-model";
 import { ChevronRight, FilePlus, FileText, Folder, FolderOpen, FolderPlus, Pencil, Trash2 } from "lucide-react";
 
@@ -192,49 +193,54 @@ function Node({
           e.dataTransfer.effectAllowed = "move";
         }}
       >
-        <Link
-          href={hrefFor(node.path!)}
-          style={{ paddingLeft: indent + 6 }}
-          title={node.path}
-          className={`flex min-h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md pr-2 text-[13px] transition-colors ${
-            active ? "bg-muted font-medium text-fg" : "text-fg-secondary hover:bg-muted hover:text-fg"
-          }`}
-        >
-          <span className="w-3.5 shrink-0" />
-          <FileText aria-hidden className={`size-3.5 shrink-0 ${active ? "text-fg" : "text-fg-subtle"}`} />
-          <span className="truncate">{node.name}</span>
-        </Link>
-        {canEdit && (
-          <button
-            type="button"
-            title={anchoredWhy(node.path!) ?? "Rename"}
-            onClick={() => {
-              const why = anchoredWhy(node.path!);
-              if (why) return onAnchored(why);
-              setRenaming(node.path!);
-            }}
-            className={`mr-1 shrink-0 rounded p-0.5 opacity-0 transition-opacity group-hover/file:opacity-100 ${
-              "text-fg-subtle hover:bg-muted-strong hover:text-fg"
+        <Tooltip label={node.path} side="right">
+          <Link
+            href={hrefFor(node.path!)}
+            style={{ paddingLeft: indent + 6 }}
+            className={`flex min-h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md pr-2 text-[13px] transition-colors ${
+              active ? "bg-muted font-medium text-fg" : "text-fg-secondary hover:bg-muted hover:text-fg"
             }`}
           >
-            <RenameIcon />
-          </button>
+            <span className="w-3.5 shrink-0" />
+            <FileText aria-hidden className={`size-3.5 shrink-0 ${active ? "text-fg" : "text-fg-subtle"}`} />
+            <span className="truncate">{node.name}</span>
+          </Link>
+        </Tooltip>
+        {canEdit && (
+          <Tooltip label={anchoredWhy(node.path!) ?? "Rename"}>
+            <button
+              type="button"
+              aria-label="Rename"
+              onClick={() => {
+                const why = anchoredWhy(node.path!);
+                if (why) return onAnchored(why);
+                setRenaming(node.path!);
+              }}
+              className={`mr-1 shrink-0 rounded p-0.5 opacity-0 transition-opacity group-hover/file:opacity-100 ${
+                "text-fg-subtle hover:bg-muted-strong hover:text-fg"
+              }`}
+            >
+              <RenameIcon />
+            </button>
+          </Tooltip>
         )}
         {canEdit && (
-          <button
-            type="button"
-            title={deleteWhy(node.path!) ?? "Delete"}
-            onClick={() => {
-              const why = deleteWhy(node.path!);
-              if (why) return onAnchored(why);
-              remove(node.path!, false);
-            }}
-            className={`mr-1 shrink-0 rounded p-0.5 opacity-0 transition-opacity group-hover/file:opacity-100 ${
-              "text-fg-subtle hover:bg-muted-strong hover:text-danger"
-            }`}
-          >
-            <TrashIcon />
-          </button>
+          <Tooltip label={deleteWhy(node.path!) ?? "Delete"}>
+            <button
+              type="button"
+              aria-label="Delete"
+              onClick={() => {
+                const why = deleteWhy(node.path!);
+                if (why) return onAnchored(why);
+                remove(node.path!, false);
+              }}
+              className={`mr-1 shrink-0 rounded p-0.5 opacity-0 transition-opacity group-hover/file:opacity-100 ${
+                "text-fg-subtle hover:bg-muted-strong hover:text-danger"
+              }`}
+            >
+              <TrashIcon />
+            </button>
+          </Tooltip>
         )}
       </span>
     );
@@ -270,37 +276,43 @@ function Node({
           <span className="truncate text-fg">{node.name}</span>
         </button>
         <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-          <button
-            type="button"
-            title="New file"
-            onClick={() => {
-              if (!open) toggle(node.id);
-              setDraft({ parent: node.id, kind: "file" });
-            }}
-            className="rounded p-0.5 text-fg-subtle hover:bg-muted-strong hover:text-fg"
-          >
-            <NewFileIcon />
-          </button>
-          <button
-            type="button"
-            title="New folder"
-            onClick={() => {
-              if (!open) toggle(node.id);
-              setDraft({ parent: node.id, kind: "folder" });
-            }}
-            className="rounded p-0.5 text-fg-subtle hover:bg-muted-strong hover:text-fg"
-          >
-            <NewFolderIcon />
-          </button>
-          {canEdit && deletableFolder(node.id) && (
+          <Tooltip label="New file">
             <button
               type="button"
-              title="Delete this and everything in it"
-              onClick={() => remove(node.id, true)}
-              className="rounded p-0.5 text-fg-subtle hover:bg-muted-strong hover:text-danger"
+              aria-label="New file"
+              onClick={() => {
+                if (!open) toggle(node.id);
+                setDraft({ parent: node.id, kind: "file" });
+              }}
+              className="rounded p-0.5 text-fg-subtle hover:bg-muted-strong hover:text-fg"
             >
-              <TrashIcon />
+              <NewFileIcon />
             </button>
+          </Tooltip>
+          <Tooltip label="New folder">
+            <button
+              type="button"
+              aria-label="New folder"
+              onClick={() => {
+                if (!open) toggle(node.id);
+                setDraft({ parent: node.id, kind: "folder" });
+              }}
+              className="rounded p-0.5 text-fg-subtle hover:bg-muted-strong hover:text-fg"
+            >
+              <NewFolderIcon />
+            </button>
+          </Tooltip>
+          {canEdit && deletableFolder(node.id) && (
+            <Tooltip label="Delete this and everything in it">
+              <button
+                type="button"
+                aria-label="Delete this and everything in it"
+                onClick={() => remove(node.id, true)}
+                className="rounded p-0.5 text-fg-subtle hover:bg-muted-strong hover:text-danger"
+              >
+                <TrashIcon />
+              </button>
+            </Tooltip>
           )}
         </span>
       </div>
@@ -625,22 +637,26 @@ export function FileTree({
           </span>
           {canCreate && (
           <span className="flex items-center gap-0.5">
-            <button
-              type="button"
-              title="New file at workspace root"
-              onClick={() => setDraft({ parent: "", kind: "file" })}
-              className="rounded p-0.5 text-fg-subtle hover:bg-muted hover:text-fg"
-            >
-              <NewFileIcon />
-            </button>
-            <button
-              type="button"
-              title="New folder at workspace root"
-              onClick={() => setDraft({ parent: "", kind: "folder" })}
-              className="rounded p-0.5 text-fg-subtle hover:bg-muted hover:text-fg"
-            >
-              <NewFolderIcon />
-            </button>
+            <Tooltip label="New file at workspace root">
+              <button
+                type="button"
+                aria-label="New file at workspace root"
+                onClick={() => setDraft({ parent: "", kind: "file" })}
+                className="rounded p-0.5 text-fg-subtle hover:bg-muted hover:text-fg"
+              >
+                <NewFileIcon />
+              </button>
+            </Tooltip>
+            <Tooltip label="New folder at workspace root">
+              <button
+                type="button"
+                aria-label="New folder at workspace root"
+                onClick={() => setDraft({ parent: "", kind: "folder" })}
+                className="rounded p-0.5 text-fg-subtle hover:bg-muted hover:text-fg"
+              >
+                <NewFolderIcon />
+              </button>
+            </Tooltip>
           </span>
           )}
         </div>

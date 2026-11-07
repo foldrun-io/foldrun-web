@@ -7,7 +7,8 @@
 
 import Link from "next/link";
 import { readUnsubscribeToken, mailCategory } from "@/lib/mail";
-import { buttonClass } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
+import { cn } from "@/components/kit/cn";
 import { AuthCard } from "../brand";
 
 export const metadata = { title: "Unsubscribe — foldrun" };
@@ -52,7 +53,7 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
         <form method="post" action="/api/unsubscribe">
           <input type="hidden" name="token" value={token} />
           <input type="hidden" name="from" value="page" />
-          <button type="submit" className={buttonClass("primary", "h-9 w-full")}>Unsubscribe</button>
+          <button type="submit" className={cn(buttonVariants({ variant: "primary", size: "md" }), "w-full")}>Unsubscribe</button>
         </form>
       </>
     );

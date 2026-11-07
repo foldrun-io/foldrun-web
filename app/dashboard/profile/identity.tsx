@@ -9,8 +9,10 @@
 // unverified until it clicks the mail; the old one is told it happened.
 
 import { useState } from "react";
-import { buttonClass, inputClass } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
+import { Input } from "@/components/kit/input";
 import { Email } from "@/components/email";
+import { useConfirm } from "@/components/kit/confirm";
 
 export function NameForm({ firstName, lastName }: { firstName: string | null; lastName: string | null }) {
   const [first, setFirst] = useState(firstName ?? "");
@@ -38,15 +40,15 @@ export function NameForm({ firstName, lastName }: { firstName: string | null; la
       <div className="grid grid-cols-1 max-w-md gap-3 sm:grid-cols-2">
         <label className="block">
           <span className="block pb-1.5 text-sm font-medium text-fg">First name</span>
-          <input value={first} onChange={(e) => setFirst(e.target.value)} className={inputClass("w-full")} maxLength={80} autoComplete="given-name" />
+          <Input value={first} onChange={(e) => setFirst(e.target.value)} className="w-full" maxLength={80} autoComplete="given-name" />
         </label>
         <label className="block">
           <span className="block pb-1.5 text-sm font-medium text-fg">Last name</span>
-          <input value={last} onChange={(e) => setLast(e.target.value)} className={inputClass("w-full")} maxLength={80} autoComplete="family-name" />
+          <Input value={last} onChange={(e) => setLast(e.target.value)} className="w-full" maxLength={80} autoComplete="family-name" />
         </label>
       </div>
       <div className="flex items-center gap-3">
-        <button type="submit" disabled={busy || !dirty} className={buttonClass("primary")}>{busy ? "Saving…" : "Save name"}</button>
+        <button type="submit" disabled={busy || !dirty} className={buttonVariants({ variant: "primary", size: "md" })}>{busy ? "Saving…" : "Save name"}</button>
         {state.done && <span className="text-xs text-success">Saved</span>}
         {state.error && <span className="text-xs text-danger">{state.error}</span>}
       </div>
@@ -56,6 +58,7 @@ export function NameForm({ firstName, lastName }: { firstName: string | null; la
 
 export function EmailForm({ current }: { current: string }) {
   const [email, setEmail] = useState("");
+  const [confirm, confirmDialog] = useConfirm();
   const [password, setPassword] = useState("");
   const [state, setState] = useState<{ error?: string; done?: string }>({});
   const [busy, setBusy] = useState(false);
@@ -65,7 +68,7 @@ export function EmailForm({ current }: { current: string }) {
       onSubmit={async (e) => {
         e.preventDefault();
         setState({});
-        if (!confirm(`Move your login from ${current} to ${email.trim()}? The move happens when you click the link in the mail that address receives.`)) return;
+        if (!(await confirm({ title: `Move your login from ${current} to ${email.trim()}?`, body: "The move happens when you click the link in the mail that address receives.", confirmLabel: "Move my login", destructive: false }))) return;
         setBusy(true);
         const res = await fetch("/api/auth/email", {
           method: "POST",
@@ -91,18 +94,19 @@ export function EmailForm({ current }: { current: string }) {
       <div className="grid grid-cols-1 max-w-md gap-3 sm:grid-cols-2">
         <label className="block">
           <span className="block pb-1.5 text-sm font-medium text-fg">New email</span>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass("w-full")} autoComplete="email" required />
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full" autoComplete="email" required />
         </label>
         <label className="block">
           <span className="block pb-1.5 text-sm font-medium text-fg">Your password</span>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass("w-full")} autoComplete="current-password" required />
+          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full" autoComplete="current-password" required />
         </label>
       </div>
       <div className="flex items-center gap-3">
-        <button type="submit" disabled={busy || !email.trim() || !password} className={buttonClass("primary")}>{busy ? "Moving…" : "Change email"}</button>
+        <button type="submit" disabled={busy || !email.trim() || !password} className={buttonVariants({ variant: "primary", size: "md" })}>{busy ? "Moving…" : "Change email"}</button>
         {state.done && <span className="text-xs text-success">{state.done}</span>}
         {state.error && <span className="text-xs text-danger">{state.error}</span>}
       </div>
+      {confirmDialog}
     </form>
   );
 }

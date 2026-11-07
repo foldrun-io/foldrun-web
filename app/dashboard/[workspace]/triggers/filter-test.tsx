@@ -7,8 +7,8 @@
 // (POST …/flows/<flow>/filter).
 
 import { useState } from "react";
-import { buttonClass, FIELD_LABEL_CLASS } from "@/components/ui";
-import { inputBase } from "@/components/kit/input";
+import { buttonVariants } from "@/components/kit/button";
+import { labelClass, Textarea } from "@/components/kit/input";
 import { WithEmails } from "@/components/email";
 
 /** What the trigger delivers, as a starting point for the box. */
@@ -75,22 +75,22 @@ export function FilterTest({
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <span className={FIELD_LABEL_CLASS}>filter:</span>
+          <span className={labelClass}>filter:</span>
           <pre className="mt-1.5 max-h-56 overflow-auto rounded-md border border-line bg-sunken p-3 font-mono text-xs text-fg-secondary"><WithEmails text={JSON.stringify(filter, null, 2)} /></pre>
         </div>
         <label className="block">
-          <span className={FIELD_LABEL_CLASS}>A delivery to test</span>
-          <textarea
+          <span className={labelClass}>A delivery to test</span>
+          <Textarea
             value={payload}
             onChange={(e) => setPayload(e.target.value)}
             spellCheck={false}
             rows={8}
-            className={`${inputBase} mt-1.5 p-3 font-mono text-xs`}
+            className="mt-1.5 p-3 font-mono text-xs"
           />
         </label>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <button onClick={test} disabled={busy} className={buttonClass("secondary")}>
+        <button onClick={test} disabled={busy} className={buttonVariants({ variant: "secondary" })}>
           {busy ? "Testing…" : "Test filter"}
         </button>
         {answer && (

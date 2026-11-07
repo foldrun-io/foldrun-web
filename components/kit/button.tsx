@@ -18,6 +18,8 @@ export const buttonVariants = cva(
         danger: "border-transparent bg-red-600 text-white hover:bg-red-700",
         "danger-outline": "border-line bg-surface text-danger hover:border-danger-line hover:bg-danger-soft",
         link: "h-auto border-transparent px-0 text-link underline-offset-4 hover:underline",
+        /** "+ Add …": a full-width dashed row that opens into a form. */
+        dashed: "w-full border-dashed border-line-strong text-fg-muted hover:border-fg-subtle hover:bg-surface hover:text-fg",
       },
       size: {
         sm: "h-8 px-3 text-[13px]",
@@ -32,6 +34,9 @@ export const buttonVariants = cva(
     defaultVariants: { variant: "secondary", size: "sm" },
   },
 );
+
+/** What an action is: primary, secondary, ghost, danger… */
+export type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>;
 
 export type ButtonProps = React.ComponentProps<"button"> & VariantProps<typeof buttonVariants> & { asChild?: boolean };
 

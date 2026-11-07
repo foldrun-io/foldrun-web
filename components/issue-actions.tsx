@@ -60,10 +60,16 @@ export function IssueActions({ id, status, tenant, platform = false, accountWide
         </Tooltip>
       ) : status !== "resolved" ? (
         <Tooltip label={title ?? "Close it; it opens again if it happens again"}>
-          <Button size="xs" disabled={off} onClick={() => act("resolve")}>Resolve</Button>
+          <span className="inline-flex">
+            <Button size="xs" disabled={off} onClick={() => act("resolve")}>Resolve</Button>
+          </span>
         </Tooltip>
       ) : (
-        <Button size="xs" disabled={off} title={title} onClick={() => act("reopen")}>Reopen</Button>
+        <Tooltip label={title}>
+          <span className="inline-flex">
+            <Button size="xs" disabled={off} onClick={() => act("reopen")}>Reopen</Button>
+          </span>
+        </Tooltip>
       )}
       <Menu>
         <MenuTrigger asChild>

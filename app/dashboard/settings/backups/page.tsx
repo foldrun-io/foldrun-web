@@ -17,6 +17,7 @@ import { settingsTabs } from "../tabs";
 import { verifySession, SESSION_COOKIE } from "@/server/users";
 import { cookies } from "next/headers";
 import { LocalTime } from "@/components/local-time";
+import { Tooltip } from "@/components/kit/tooltip";
 import { RestoreWorkspace, RequestRestore } from "./controls";
 
 export const dynamic = "force-dynamic";
@@ -112,7 +113,9 @@ export default async function BackupsPage({ searchParams }: { searchParams: Prom
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
                     {yes(b.verified, "verified", "not verified")}
-                    <span title={b.encrypted && b.recipient ? `sealed to key ${b.recipient}` : undefined}>{yes(b.encrypted, "encrypted", "not encrypted")}</span>
+                    <Tooltip label={b.encrypted && b.recipient ? `sealed to key ${b.recipient}` : undefined}>
+                      <span>{yes(b.encrypted, "encrypted", "not encrypted")}</span>
+                    </Tooltip>
                   </div>
                 </li>
               ))}

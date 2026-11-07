@@ -23,6 +23,7 @@ import {
   toolSpans, stepSpan, fmtDur, fmtTick, tickEvery, type ToolSpan,
   windowEdges, clampWindow, zoomWindow, panWindow, placeSpan, type Window,
 } from "./run-timeline-model";
+import { Tooltip } from "@/components/kit/tooltip";
 
 export { toolSpans, traceEvents, stepSpan, fmtDur } from "./run-timeline-model";
 
@@ -207,9 +208,20 @@ export function RunTimeline({
           {run.steps.map((step, i) => {
             const firstOfGroup = i === 0 || run.steps[i - 1].group !== step.group;
             const parallel = !firstOfGroup;
+            // One tooltip for the row: what its group number means, then the
+            // step's instruction (a nested one would open two at once).
             return (
-              <button
+              <Tooltip
                 key={i}
+                side="right"
+                label={
+                  <>
+                    <span className="block opacity-70">{firstOfGroup ? `group ${step.group}` : `runs in parallel with the step above (group ${step.group})`}</span>
+                    {step.instruction || step.agent}
+                  </>
+                }
+              >
+              <button
                 type="button"
                 onMouseEnter={() => setHover({ step: i })}
                 onMouseLeave={() => setHover(null)}
@@ -217,12 +229,8 @@ export function RunTimeline({
                 className={`flex h-8 w-full items-center gap-1.5 px-3 text-left text-[13px] transition-colors hover:bg-sunken ${
                   hover?.step === i ? "bg-sunken" : ""
                 }`}
-                title={step.instruction || step.agent}
               >
-                <span
-                  className="w-4 shrink-0 text-xs tabular-nums text-fg-subtle"
-                  title={firstOfGroup ? `group ${step.group}` : `runs in parallel with the step above (group ${step.group})`}
-                >
+                <span className="w-4 shrink-0 text-xs tabular-nums text-fg-subtle">
                   {firstOfGroup ? step.group : "‖"}
                 </span>
                 <span className={`min-w-0 truncate ${parallel ? "text-fg-secondary" : "font-medium text-fg"}`}>
@@ -230,6 +238,7 @@ export function RunTimeline({
                   {step.item && <span className="text-fg-subtle"> · {step.item}</span>}
                 </span>
               </button>
+              </Tooltip>
             );
           })}
         </div>
@@ -362,34 +371,37 @@ export function RunTimeline({
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line px-3 py-2 text-xs text-fg-muted">
         <span className="min-w-0 flex-1 truncate tabular-nums">{readout}</span>
         <span className="flex shrink-0 items-center gap-0.5 text-xs text-fg-muted">
-          <button
-            type="button"
-            onClick={() => zoomStep(1 / 1.6)}
-            disabled={win === null}
-            className="size-6 rounded hover:bg-muted hover:text-fg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
-            title="Zoom out"
-            aria-label="Zoom out"
-          >
-            −
-          </button>
-          <button
-            type="button"
-            onClick={() => zoomStep(1.6)}
-            className="size-6 rounded hover:bg-muted hover:text-fg-secondary"
-            title="Zoom in — or drag across the chart, or pinch"
-            aria-label="Zoom in"
-          >
-            +
-          </button>
-          {win && (
+          <Tooltip label="Zoom out">
             <button
               type="button"
-              onClick={() => setWin(null)}
-              className="ml-0.5 rounded px-1.5 hover:bg-muted hover:text-fg-secondary"
-              title="Show the whole run (double-click the chart)"
+              onClick={() => zoomStep(1 / 1.6)}
+              disabled={win === null}
+              className="size-6 rounded hover:bg-muted hover:text-fg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+              aria-label="Zoom out"
             >
-              whole run
+              −
             </button>
+          </Tooltip>
+          <Tooltip label="Zoom in — or drag across the chart, or pinch">
+            <button
+              type="button"
+              onClick={() => zoomStep(1.6)}
+              className="size-6 rounded hover:bg-muted hover:text-fg-secondary"
+              aria-label="Zoom in"
+            >
+              +
+            </button>
+          </Tooltip>
+          {win && (
+            <Tooltip label="Show the whole run (double-click the chart)">
+              <button
+                type="button"
+                onClick={() => setWin(null)}
+                className="ml-0.5 rounded px-1.5 hover:bg-muted hover:text-fg-secondary"
+              >
+                whole run
+              </button>
+            </Tooltip>
           )}
         </span>
         <span className="flex shrink-0 items-center gap-2 text-xs text-fg-muted max-sm:hidden">

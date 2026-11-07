@@ -44,11 +44,12 @@ import {
   type NodeChange,
 } from "@xyflow/react";
 import type { FlowStep } from "@/lib/store";
-import { Badge, buttonClass, inputClass, selectClass, FIELD_LABEL_CLASS } from "@/components/ui";
-import { useConfirm } from "@/components/confirm";
+import { Chip as KitChip, Tag } from "@/components/kit/page";
+import { useConfirm } from "@/components/kit/confirm";
 import { InlineEditor } from "@/components/inline-editor";
 import { humanSchedule } from "@/components/schedule-human";
 import { buttonVariants } from "@/components/kit/button";
+import { Tooltip } from "@/components/kit/tooltip";
 import { Command as CommandIcon, FileCode2, Keyboard, Map as MapIcon, Redo2, Settings2, Undo2 } from "lucide-react";
 import {
   buildCanvas,
@@ -89,6 +90,9 @@ import { STALE_FLOW } from "@/components/flow-write";
 import { removalImpact } from "@/lib/step-removal";
 import { TriggerEditor } from "./trigger-editor";
 import { InstructionEditor } from "./flow-board";
+import { usePrompt, type PromptField } from "@/components/kit/prompt";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/kit/dialog";
+import { Kbd } from "@/components/kit/input";
 
 // ---------- palette ----------
 
@@ -110,91 +114,6 @@ const PATTERNS: { pattern: Pattern; label: string; hint: string; where: "gap" | 
   { pattern: "workers", label: "Orchestrator + workers", hint: "onto a step's sub-agents dock", where: "dock" },
   { pattern: "consult", label: "Consult", hint: "onto a step's consults dock", where: "dock" },
 ];
-
-// ---------- the form every prompt uses ----------
-
-type Field =
-  | { name: string; label: string; type: "text" | "textarea"; placeholder?: string; required?: boolean; initial?: string }
-  | { name: string; label: string; type: "select"; options: { value: string; label: string }[]; required?: boolean; initial?: string };
-
-interface Ask {
-  title: string;
-  body?: ReactNode;
-  fields: Field[];
-  submit: string;
-  resolve: (v: Record<string, string> | null) => void;
-}
-
-function FormDialog({ ask }: { ask: Ask }) {
-  const [values, setValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(ask.fields.map((f) => [f.name, f.initial ?? ""])),
-  );
-  const missing = ask.fields.some((f) => f.required && !values[f.name]?.trim());
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4"
-      onClick={() => ask.resolve(null)}
-      role="presentation"
-    >
-      <form
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="canvas-ask-title"
-        className="w-full max-w-md space-y-3 rounded-lg border border-line bg-surface p-5 text-left shadow-menu"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.key === "Escape" && ask.resolve(null)}
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!missing) ask.resolve(values);
-        }}
-      >
-        <h2 id="canvas-ask-title" className="text-sm font-semibold text-fg">{ask.title}</h2>
-        {ask.body && <div className="text-xs leading-relaxed text-fg-muted">{ask.body}</div>}
-        {ask.fields.map((f, i) => (
-          <label key={f.name} className="block">
-            <span className={FIELD_LABEL_CLASS}>{f.label}</span>
-            {f.type === "select" ? (
-              <select
-                autoFocus={i === 0}
-                value={values[f.name]}
-                onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))}
-                className={selectClass("w-full")}
-              >
-                {!f.required && <option value="">—</option>}
-                {f.required && !values[f.name] && <option value="">Choose…</option>}
-                {f.options.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            ) : f.type === "textarea" ? (
-              <textarea
-                autoFocus={i === 0}
-                rows={2}
-                value={values[f.name]}
-                placeholder={f.placeholder}
-                onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))}
-                className={inputClass("text-sm")}
-              />
-            ) : (
-              <input
-                autoFocus={i === 0}
-                value={values[f.name]}
-                placeholder={f.placeholder}
-                onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))}
-                className={inputClass()}
-              />
-            )}
-          </label>
-        ))}
-        <div className="flex justify-end gap-2 pt-1">
-          <button type="button" onClick={() => ask.resolve(null)} className={buttonClass("secondary")}>Cancel</button>
-          <button type="submit" disabled={missing} className={buttonClass("primary")}>{ask.submit}</button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
 
 // ---------- node components ----------
 
@@ -279,7 +198,8 @@ function RunStrip({ v, mode, now }: { v: StepRunView; mode: RunMode; now: number
     mode === "watch" ? "bg-surface text-fg-secondary shadow-sm ring-1 ring-line" : "bg-muted/90 text-fg-muted"
   }`;
   return (
-    <div className="pointer-events-auto absolute bottom-full left-0 mb-1 flex max-w-full items-center gap-1" title={tip} data-run-strip={v.status}>
+    <Tooltip label={tip}>
+    <div className="pointer-events-auto absolute bottom-full left-0 mb-1 flex max-w-full items-center gap-1" data-run-strip={v.status}>
       <span className={chip}>
         <span aria-hidden className={`inline-block h-1.5 w-1.5 rounded-full ${STATUS_DOT[v.status]}`} />
         {mode === "last" ? `last: ${STATUS_WORD[v.status]}` : STATUS_WORD[v.status]}
@@ -287,12 +207,15 @@ function RunStrip({ v, mode, now }: { v: StepRunView; mode: RunMode; now: number
       {secs != null && <span className={`${chip} tabular-nums`}>{humanSecs(secs)}</span>}
       {v.costUsd != null && v.costUsd > 0 && <span className={`${chip} tabular-nums`}>{money(v.costUsd)}</span>}
       {v.instances && (
-        <span className={chip} title={`${v.instances.done} of ${v.instances.total} items done${v.instances.failed ? `, ${v.instances.failed} failed` : ""}`}>
-          {v.instances.done}/{v.instances.total}
-        </span>
+        <Tooltip label={`${v.instances.done} of ${v.instances.total} items done${v.instances.failed ? `, ${v.instances.failed} failed` : ""}`}>
+          <span className={chip}>
+            {v.instances.done}/{v.instances.total}
+          </span>
+        </Tooltip>
       )}
       {v.extras.length > 0 && <span className={chip}>+{v.extras.length}</span>}
     </div>
+    </Tooltip>
   );
 }
 
@@ -359,17 +282,20 @@ function StepNode({ id, data, selected }: NodeProps<StepRF>) {
 
       <div className="flex h-6 items-center gap-1.5">
         <span className="font-mono text-[10px] text-fg-subtle">{data.column + 1}</span>
-        <span className={`min-w-0 truncate text-sm font-medium ${s.subflow ? "text-emerald-700" : "text-fg"}`} title={name}>
-          {name}
-        </span>
-        {data.missing && <span className="rounded bg-red-100 px-1 text-[10px] font-medium text-red-800">not found</span>}
-        {data.model && !s.subflow && (
-          <span className="ml-auto shrink-0 rounded bg-muted px-1 text-[10px] text-fg-tertiary" title={s.model ? "this step's model" : "the agent's model"}>
-            {data.model}
+        <Tooltip label={name}>
+          <span className={`min-w-0 truncate text-sm font-medium ${s.subflow ? "text-emerald-700" : "text-fg"}`}>
+            {name}
           </span>
+        </Tooltip>
+        {data.missing && <KitChip tone="bad" className="h-4 px-1 text-[10px]">not found</KitChip>}
+        {data.model && !s.subflow && (
+          <Tag className="ml-auto h-4 px-1 text-[10px]" hint={s.model ? "this step's model" : "the agent's model"}>
+            {data.model}
+          </Tag>
         )}
         {/* The step's menu: on hover, on keyboard focus, always on the
             selected step — right-click opens the same menu. */}
+        <Tooltip label="Run from here, test alone, pause before, duplicate, copy, delete">
         <button
           type="button"
           onClick={(e) => {
@@ -379,15 +305,16 @@ function StepNode({ id, data, selected }: NodeProps<StepRF>) {
           }}
           aria-label={`Actions for step ${data.column + 1} · ${name}`}
           aria-haspopup="menu"
-          title="Run from here, test alone, pause before, duplicate, copy, delete"
           className={`nodrag shrink-0 rounded px-1 text-sm leading-none text-fg-subtle hover:bg-muted hover:text-fg focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-gray-500 group-hover/step:opacity-100 ${
             data.model && !s.subflow ? "" : "ml-auto"
           } ${selected ? "opacity-100" : "opacity-0"}`}
         >
           ⋯
         </button>
+        </Tooltip>
         {/* Delete: on hover, on keyboard focus, and always on the selected
             step — Delete/Backspace does the same. Confirmed first. */}
+        <Tooltip label={`Delete this step from the flow (Delete key)${s.subflow ? "" : ` — agents/${s.agent}/agent.md stays`}`}>
         <button
           type="button"
           onClick={(e) => {
@@ -395,25 +322,29 @@ function StepNode({ id, data, selected }: NodeProps<StepRF>) {
             ctx.removeStep(data.index);
           }}
           aria-label={`Delete step ${data.column + 1} · ${name}`}
-          title={`Delete this step from the flow (Delete key)${s.subflow ? "" : ` — agents/${s.agent}/agent.md stays`}`}
           className={`nodrag shrink-0 rounded px-1 text-sm leading-none text-fg-subtle hover:bg-red-50 hover:text-red-700 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-red-500 group-hover/step:opacity-100 ${
             selected ? "opacity-100" : "opacity-0"
           }`}
         >
           ×
         </button>
+        </Tooltip>
       </div>
       {s.instruction && (
-        <p className="line-clamp-2 h-8 text-[11px] leading-4 text-fg-muted" title={s.instruction}>
-          {s.instruction}
-        </p>
+        <Tooltip label={s.instruction}>
+          <p className="line-clamp-2 h-8 text-[11px] leading-4 text-fg-muted">
+            {s.instruction}
+          </p>
+        </Tooltip>
       )}
       {data.chips.length > 0 && (
         <div className="mt-1 flex flex-wrap gap-1">
           {data.chips.map((c) => (
-            <span key={c.label} title={c.title ?? c.label} className={`inline-flex h-[18px] max-w-full items-center truncate rounded px-1.5 text-[10.5px] font-medium ${CHIP_TONE[c.tone]}`}>
-              {c.label}
-            </span>
+            <Tooltip key={c.label} label={c.title ?? c.label}>
+              <span className={`inline-flex h-[18px] max-w-full items-center truncate rounded px-1.5 text-[10.5px] font-medium ${CHIP_TONE[c.tone]}`}>
+                {c.label}
+              </span>
+            </Tooltip>
           ))}
         </div>
       )}
@@ -421,6 +352,7 @@ function StepNode({ id, data, selected }: NodeProps<StepRF>) {
         <div className="mt-1 flex h-[22px] items-center gap-1.5 text-[10.5px] text-fg-muted">
           <span>{data.toolCount} tool{data.toolCount === 1 ? "" : "s"}</span>
           {data.agent?.effort && <span>· {data.agent.effort}</span>}
+          <Tooltip label={data.mayAsk ? "tools includes ask — this agent may ask you mid-step. Click to take it away." : "Let this agent ask you mid-step (adds ask to its tools:)"}>
           <button
             type="button"
             onClick={() => ctx.toggleAsk(data.index)}
@@ -428,17 +360,17 @@ function StepNode({ id, data, selected }: NodeProps<StepRF>) {
             className={`nodrag ml-auto rounded px-1.5 py-px font-medium ${
               data.mayAsk ? "bg-amber-100 text-amber-900 hover:bg-amber-200" : "border border-dashed border-line-strong text-fg-subtle hover:text-fg-secondary"
             }`}
-            title={data.mayAsk ? "tools includes ask — this agent may ask you mid-step. Click to take it away." : "Let this agent ask you mid-step (adds ask to its tools:)"}
           >
             {data.mayAsk ? "may ask you" : "can ask me: off"}
           </button>
+          </Tooltip>
         </div>
       )}
       {!s.subflow && (
         <div className="mt-1 grid h-6 grid-cols-2 gap-1">
           {(["sub", "consult"] as const).map((z) => (
+            <Tooltip key={z} label={z === "sub" ? "Drop an agent here to delegate jobs to it (subagents:)" : "Drop an agent here to consult it for answers (agents:)"}>
             <button
-              key={z}
               type="button"
               {...zone(z)}
               onClick={() => ctx.addToDock(data.index, z)}
@@ -446,22 +378,22 @@ function StepNode({ id, data, selected }: NodeProps<StepRF>) {
               className={`nodrag rounded border border-dashed text-[10.5px] ${
                 lit(z) ? "border-sky-500 bg-sky-50 text-sky-800" : "border-line-strong text-fg-subtle hover:border-gray-400 hover:text-fg-secondary"
               }`}
-              title={z === "sub" ? "Drop an agent here to delegate jobs to it (subagents:)" : "Drop an agent here to consult it for answers (agents:)"}
             >
               + {z === "sub" ? "sub-agent" : "consult"}
             </button>
+            </Tooltip>
           ))}
         </div>
       )}
       {data.problems.map((p, i) => (
-        <p
-          key={i}
-          title={p.message}
-          className={`mt-0.5 flex h-4 items-center gap-1 truncate text-[10.5px] font-medium ${p.level === "error" ? "text-red-700" : "text-amber-700"}`}
-        >
-          <span aria-hidden className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${p.level === "error" ? "bg-red-500" : "bg-amber-500"}`} />
-          <span className="truncate">{p.message}</span>
-        </p>
+        <Tooltip key={i} label={p.message}>
+          <p
+            className={`mt-0.5 flex h-4 items-center gap-1 truncate text-[10.5px] font-medium ${p.level === "error" ? "text-red-700" : "text-amber-700"}`}
+          >
+            <span aria-hidden className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${p.level === "error" ? "bg-red-500" : "bg-amber-500"}`} />
+            <span className="truncate">{p.message}</span>
+          </p>
+        </Tooltip>
       ))}
     </div>
   );
@@ -489,11 +421,11 @@ function SummaryNode({ data, selected }: NodeProps<SummaryRF>) {
     >
       {status && data.runMode && (
         <div className="absolute bottom-full left-0 mb-1 flex gap-1">
-          <span className="inline-flex h-4 items-center gap-1 rounded bg-surface px-1 text-[10px] font-medium text-fg-secondary shadow-sm ring-1 ring-line">
+          <Tag className="h-4 bg-surface px-1 text-[10px] font-medium shadow-sm">
             <span aria-hidden className={`inline-block h-1.5 w-1.5 rounded-full ${STATUS_DOT[status]}`} />
             {data.runMode === "last" ? `last: ${STATUS_WORD[status]}` : STATUS_WORD[status]}
-          </span>
-          {cost > 0 && <span className="inline-flex h-4 items-center rounded bg-surface px-1 text-[10px] font-medium tabular-nums text-fg-secondary shadow-sm ring-1 ring-line">{money(cost)}</span>}
+          </Tag>
+          {cost > 0 && <Tag className="h-4 bg-surface px-1 text-[10px] font-medium tabular-nums shadow-sm">{money(cost)}</Tag>}
         </div>
       )}
       <Handle type="target" position={Position.Left} id="in" style={HIDDEN_HANDLE} />
@@ -503,18 +435,21 @@ function SummaryNode({ data, selected }: NodeProps<SummaryRF>) {
       <div className="flex h-6 items-center gap-1.5">
         <span className="font-mono text-[10px] text-fg-subtle">{data.column + 1}</span>
         <span className="text-sm font-medium text-fg">{data.steps.length} steps in parallel</span>
-        <button
-          type="button"
-          onClick={() => ctx.unfold(data.group)}
-          className="nodrag ml-auto rounded border border-line-strong px-1.5 text-[10.5px] text-fg-tertiary hover:bg-sunken hover:text-fg"
-          title="Show every step of this group again"
-        >
-          Unfold
-        </button>
+        <Tooltip label="Show every step of this group again">
+          <button
+            type="button"
+            onClick={() => ctx.unfold(data.group)}
+            className="nodrag ml-auto rounded border border-line-strong px-1.5 text-[10.5px] text-fg-tertiary hover:bg-sunken hover:text-fg"
+          >
+            Unfold
+          </button>
+        </Tooltip>
       </div>
-      <p className="line-clamp-2 text-[11px] leading-4 text-fg-muted" title={data.names.join(", ")}>
-        {data.names.join(" · ")}
-      </p>
+      <Tooltip label={data.names.join(", ")}>
+        <p className="line-clamp-2 text-[11px] leading-4 text-fg-muted">
+          {data.names.join(" · ")}
+        </p>
+      </Tooltip>
       {data.errors > 0 && <p className="mt-auto text-[10.5px] font-medium text-red-700">{data.errors} problem{data.errors === 1 ? "" : "s"} inside — unfold to see</p>}
     </div>
   );
@@ -531,26 +466,28 @@ function ChildNode({ data, width, height }: NodeProps<ChildRF>) {
           ? "border-gray-900 text-fg"
           : "border-dotted border-gray-500 text-fg-secondary";
   return (
+    <Tooltip label={data.problem ?? (data.kind === "sub" ? `sub-agent of ${data.owner}` : data.kind === "consult" ? `${data.owner} consults ${data.name}` : `takes over when the step fails`)}>
     <div
       style={{ width, height }}
-      title={data.problem ?? (data.kind === "sub" ? `sub-agent of ${data.owner}` : data.kind === "consult" ? `${data.owner} consults ${data.name}` : `takes over when the step fails`)}
       className={`flex items-center gap-1 rounded-md border bg-surface px-1.5 text-[11px] shadow-sm ${style}`}
     >
       <Handle type="target" position={Position.Left} id="in" style={HIDDEN_HANDLE} />
       <span className="shrink-0 text-[9.5px] text-fg-subtle">{data.kind === "sub" ? "sub-agent" : data.kind === "consult" ? "consults" : "on fail →"}</span>
       <span className="min-w-0 flex-1 truncate font-medium">{data.name}</span>
       {data.kind !== "rescuer" && (
-        <button
-          type="button"
-          aria-label={`Remove ${data.name} from ${data.owner}'s ${data.kind === "sub" ? "sub-agents" : "consults"}`}
-          title={`Remove ${data.name} from ${data.owner}'s ${data.kind === "sub" ? "subagents:" : "agents:"}`}
-          onClick={() => ctx.removeChild(data.parent, data.kind as "sub" | "consult", data.name)}
-          className="nodrag rounded px-1 text-fg-muted hover:bg-red-50 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-red-500"
-        >
-          ×
-        </button>
+        <Tooltip label={`Remove ${data.name} from ${data.owner}'s ${data.kind === "sub" ? "subagents:" : "agents:"}`}>
+          <button
+            type="button"
+            aria-label={`Remove ${data.name} from ${data.owner}'s ${data.kind === "sub" ? "sub-agents" : "consults"}`}
+            onClick={() => ctx.removeChild(data.parent, data.kind as "sub" | "consult", data.name)}
+            className="nodrag rounded px-1 text-fg-muted hover:bg-red-50 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-red-500"
+          >
+            ×
+          </button>
+        </Tooltip>
       )}
     </div>
+    </Tooltip>
   );
 }
 
@@ -558,18 +495,19 @@ function TriggerNode({ data, selected }: NodeProps<TriggerRF>) {
   const ctx = useCtx();
   const human = data.schedule ? (humanSchedule(data.schedule) ?? data.schedule) : null;
   return (
+    <Tooltip label="Change how this flow starts">
     <button
       type="button"
       onClick={ctx.openTrigger}
       style={{ width: 150, height: 56 }}
       className={`nodrag flex flex-col items-start justify-center rounded-full border border-line-strong bg-sunken px-4 text-left shadow-sm hover:border-gray-500 ${selected ? "ring-2 ring-gray-900" : ""}`}
-      title="Change how this flow starts"
     >
       <Handle type="source" position={Position.Right} id="out" style={HIDDEN_HANDLE} />
       <span className="text-[10px] uppercase tracking-wide text-fg-subtle">starts</span>
       <span className="truncate text-sm font-medium text-fg">{data.trigger}</span>
       {human && <span className="w-full truncate text-[10px] text-fg-muted">{human}</span>}
     </button>
+    </Tooltip>
   );
 }
 
@@ -765,7 +703,6 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
   const rf = useReactFlow();
   const me = useId();
   const [confirmRaw, confirmDialog] = useConfirm();
-  const [ask, setAsk] = useState<Ask | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [selection, setSelection] = useState<string[]>([]);
   const [panel, setPanel] = useState<"options" | "instruction" | "agent" | "trigger" | null>(null);
@@ -904,16 +841,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
     // `shape` stands for the layout: re-fit when the drawing changes, not on every overlay tick.
   }, [paneW, shape]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const prompt = (a: Omit<Ask, "resolve">) =>
-    new Promise<Record<string, string> | null>((resolve) =>
-      setAsk({
-        ...a,
-        resolve: (v) => {
-          setAsk(null);
-          resolve(v);
-        },
-      }),
-    );
+  const [prompt, promptDialog, prompting] = usePrompt();
 
   const flash = (s: string) => {
     setStatus(s);
@@ -1012,7 +940,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
 
   const refuse = (why: string) => setStatus(`not saved — ${why}`);
 
-  const pickAgent = (title: string, extra: Field[] = [], body?: ReactNode) =>
+  const pickAgent = (title: string, extra: PromptField[] = [], body?: ReactNode) =>
     prompt({
       title,
       body,
@@ -1542,7 +1470,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
   useEffect(() => {
     keys.current = (e: KeyboardEvent) => {
       if (shared.active !== me) return;
-      if (ask || palette || sheet || dialogOpen.current) return;
+      if (prompting || palette || sheet || dialogOpen.current) return;
       if (typing(e.target)) return;
       const mod = e.metaKey || e.ctrlKey;
       const k = e.key.toLowerCase();
@@ -1582,7 +1510,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
       }
     };
     pasteRef.current = (e: ClipboardEvent) => {
-      if (shared.active !== me || ask || palette || dialogOpen.current || typing(e.target)) return;
+      if (shared.active !== me || prompting || palette || dialogOpen.current || typing(e.target)) return;
       const text = e.clipboardData?.getData("text/plain") ?? "";
       if (!looksLikeSteps(text)) return;
       e.preventDefault();
@@ -1639,7 +1567,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
   return (
     <CanvasCtx.Provider value={ctx}>
       {confirmDialog}
-      {ask && <FormDialog key={ask.title} ask={ask} />}
+      {promptDialog}
       {palette && <CommandPalette commands={palette} onClose={() => setPalette(null)} />}
       {sheet && <ShortcutSheet onClose={() => setSheet(false)} />}
       {menu && steps[menu.index] && (
@@ -1670,18 +1598,19 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
         className="flex min-h-5 flex-wrap items-center gap-3 text-xs"
         onPointerDown={() => touch(me)}
       >
-        <button
-          type="button"
-          onClick={() => setEditing((e) => !e)}
-          aria-expanded={editing}
-          title={editing ? `Close flows/${file}` : `Edit flows/${file} here — frontmatter, steps, the prose above them`}
-          className={buttonVariants({ variant: "secondary", size: "xs" })}
-        >
-          <FileCode2 aria-hidden />
-          {editing ? "Close" : "Edit"} <span className="font-mono">flows/{file}</span>
-        </button>
+        <Tooltip label={editing ? `Close flows/${file}` : `Edit flows/${file} here — frontmatter, steps, the prose above them`}>
+          <button
+            type="button"
+            onClick={() => setEditing((e) => !e)}
+            aria-expanded={editing}
+            className={buttonVariants({ variant: "secondary", size: "xs" })}
+          >
+            <FileCode2 aria-hidden />
+            {editing ? "Close" : "Edit"} <span className="font-mono">flows/{file}</span>
+          </button>
+        </Tooltip>
         {status && (
-          <Badge variant={status.startsWith("not ") ? "error" : status === "saved" || status === "undone" || status === "redone" ? "success" : "default"}>{status}</Badge>
+          <KitChip tone={status.startsWith("not ") ? "bad" : status === "saved" || status === "undone" || status === "redone" ? "good" : "default"}>{status}</KitChip>
         )}
       </div>
       {editing && <InlineEditor workspace={workspace} tenant={tenant} path={`flows/${file}`} />}
@@ -1691,21 +1620,21 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
             <p className="text-[13px] font-medium text-fg-muted">Agents</p>
             <div className="mt-2 flex flex-wrap gap-1">
               {agents.map((a) => (
-                <div
-                  key={a.name}
-                  draggable
-                  onDragStart={(e) => beginDrag(e, { kind: "agent", name: a.name })}
-                  onDragEnd={endDrag}
-                  title={`${a.model} · ${a.description || "no description"}`}
-                  className={`${paletteItem} border-line-strong font-medium text-fg`}
-                >
-                  {a.name}
-                </div>
+                <Tooltip key={a.name} label={`${a.model} · ${a.description || "no description"}`}>
+                  <div
+                    draggable
+                    onDragStart={(e) => beginDrag(e, { kind: "agent", name: a.name })}
+                    onDragEnd={endDrag}
+                    className={`${paletteItem} border-line-strong font-medium text-fg`}
+                  >
+                    {a.name}
+                  </div>
+                </Tooltip>
               ))}
+              <Tooltip label="Create agents/<name>/agent.md">
               <button
                 type="button"
                 className="rounded-md border border-dashed border-line-strong px-2 py-1 text-left text-xs text-fg-muted hover:border-fg-subtle hover:text-fg"
-                title="Create agents/<name>/agent.md"
                 onClick={async () => {
                   const v = await prompt({
                     title: "New agent",
@@ -1726,34 +1655,36 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
               >
                 + New agent
               </button>
+              </Tooltip>
             </div>
           </div>
           <div>
             <p className="text-[13px] font-medium text-fg-muted">Flows</p>
-            <div
-              draggable
-              onDragStart={(e) => beginDrag(e, { kind: "pattern", pattern: "subflow" })}
-              onDragEnd={endDrag}
-              className={`${paletteItem} mt-2 border-dashed border-emerald-500 text-emerald-800`}
-              title="[[flow:x]] — another flow of this workspace, as one step"
-            >
-              Run another flow
-            </div>
+            <Tooltip label="[[flow:x]] — another flow of this workspace, as one step">
+              <div
+                draggable
+                onDragStart={(e) => beginDrag(e, { kind: "pattern", pattern: "subflow" })}
+                onDragEnd={endDrag}
+                className={`${paletteItem} mt-2 border-dashed border-emerald-500 text-emerald-800`}
+              >
+                Run another flow
+              </div>
+            </Tooltip>
           </div>
           <div>
             <p className="text-[13px] font-medium text-fg-muted">Patterns</p>
             <div className="mt-2 grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-2">
               {PATTERNS.map((p) => (
-                <div
-                  key={p.pattern}
-                  draggable
-                  onDragStart={(e) => beginDrag(e, { kind: "pattern", pattern: p.pattern })}
-                  onDragEnd={endDrag}
-                  className={`${paletteItem} border-line`}
-                  title={p.hint}
-                >
-                  <span className="block font-medium leading-tight text-fg">{p.label}</span>
-                </div>
+                <Tooltip key={p.pattern} label={p.hint}>
+                  <div
+                    draggable
+                    onDragStart={(e) => beginDrag(e, { kind: "pattern", pattern: p.pattern })}
+                    onDragEnd={endDrag}
+                    className={`${paletteItem} border-line`}
+                  >
+                    <span className="block font-medium leading-tight text-fg">{p.label}</span>
+                  </div>
+                </Tooltip>
               ))}
             </div>
           </div>
@@ -1772,21 +1703,31 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
               onClear={() => setPicked("none")}
             />
             <span className="ml-auto flex items-center gap-0.5 rounded-md border border-line bg-surface p-0.5">
-              <button type="button" className={tool} onClick={() => void travel(false)} disabled={!history.past.length} title={`Undo the last edit made here (${MOD}Z)`} aria-label="Undo">
-                <Undo2 />
-              </button>
-              <button type="button" className={tool} onClick={() => void travel(true)} disabled={!history.future.length} title={`Redo (Shift+${MOD}Z)`} aria-label="Redo">
-                <Redo2 />
-              </button>
-              <button type="button" className={tool} onClick={toggleMinimap} aria-pressed={minimap} title="Show or hide the minimap (M)" aria-label="Minimap">
-                <MapIcon />
-              </button>
-              <button type="button" className={tool} onClick={openPalette} title={`Commands: add, run, go to a step (${MOD}K)`} aria-label="Commands">
-                <CommandIcon />
-              </button>
-              <button type="button" className={tool} onClick={() => setSheet(true)} title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">
-                <Keyboard />
-              </button>
+              <Tooltip label={`Undo the last edit made here (${MOD}Z)`}>
+                <button type="button" className={tool} onClick={() => void travel(false)} disabled={!history.past.length} aria-label="Undo">
+                  <Undo2 />
+                </button>
+              </Tooltip>
+              <Tooltip label={`Redo (Shift+${MOD}Z)`}>
+                <button type="button" className={tool} onClick={() => void travel(true)} disabled={!history.future.length} aria-label="Redo">
+                  <Redo2 />
+                </button>
+              </Tooltip>
+              <Tooltip label="Show or hide the minimap (M)">
+                <button type="button" className={tool} onClick={toggleMinimap} aria-pressed={minimap} aria-label="Minimap">
+                  <MapIcon />
+                </button>
+              </Tooltip>
+              <Tooltip label={`Commands: add, run, go to a step (${MOD}K)`}>
+                <button type="button" className={tool} onClick={openPalette} aria-label="Commands">
+                  <CommandIcon />
+                </button>
+              </Tooltip>
+              <Tooltip label="Keyboard shortcuts (?)">
+                <button type="button" className={tool} onClick={() => setSheet(true)} aria-label="Keyboard shortcuts">
+                  <Keyboard />
+                </button>
+              </Tooltip>
             </span>
           </div>
           <div className="mb-2 flex min-h-5 items-center gap-2 text-xs text-fg-muted">
@@ -1863,16 +1804,20 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
                 </ViewportPortal>
               )}
               <Controls showInteractive={false} showFitView={false} position="bottom-right">
-                <ControlButton onClick={fitAll} title="Fit the whole flow" aria-label="Fit the whole flow">
-                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
-                    <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" />
-                  </svg>
-                </ControlButton>
-                <ControlButton onClick={toggleFull} title={full ? "Exit full screen (Esc)" : "Full screen"} aria-label={full ? "Exit full screen" : "Full screen"}>
-                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
-                    {full ? <path d="M2 7h5V2M14 9H9v5M7 7L2 2M9 9l5 5" /> : <path d="M9 2h5v5M14 2L9 7M7 14H2V9M2 14l5-5" />}
-                  </svg>
-                </ControlButton>
+                <Tooltip label="Fit the whole flow" side="left">
+                  <ControlButton onClick={fitAll} aria-label="Fit the whole flow">
+                    <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+                      <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" />
+                    </svg>
+                  </ControlButton>
+                </Tooltip>
+                <Tooltip label={full ? "Exit full screen (Esc)" : "Full screen"} side="left">
+                  <ControlButton onClick={toggleFull} aria-label={full ? "Exit full screen" : "Full screen"}>
+                    <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+                      {full ? <path d="M2 7h5V2M14 9H9v5M7 7L2 2M9 9l5 5" /> : <path d="M9 2h5v5M14 2L9 7M7 14H2V9M2 14l5-5" />}
+                    </svg>
+                  </ControlButton>
+                </Tooltip>
               </Controls>
               {minimap && (
                 <MiniMap
@@ -2050,29 +1995,33 @@ function RunPicker({
       <span className="text-fg-subtle">{mode === "watch" ? (followingLive ? "Live run" : "Showing run") : "Last run"}</span>
       <span className="flex items-center gap-0.5" role="group" aria-label="Pick a run to show on the canvas">
         {recent.map((r) => (
-          <button
-            key={r.id}
-            type="button"
-            onClick={() => onPick(r.id)}
-            title={`${r.id} · ${word(r)}${r.test ? " · test" : ""} — show it on the canvas`}
-            aria-label={`Show run ${r.id} (${word(r)}) on the canvas`}
-            aria-pressed={shown?.id === r.id}
-            className={`h-2.5 w-2.5 rounded-sm ${RUN_DOT[word(r)] ?? "bg-gray-300"} ${shown?.id === r.id ? "ring-2 ring-gray-900 ring-offset-1" : "opacity-70 hover:opacity-100"}`}
-          />
+          <Tooltip key={r.id} label={`${r.id} · ${word(r)}${r.test ? " · test" : ""} — show it on the canvas`}>
+            <button
+              type="button"
+              onClick={() => onPick(r.id)}
+              aria-label={`Show run ${r.id} (${word(r)}) on the canvas`}
+              aria-pressed={shown?.id === r.id}
+              className={`h-2.5 w-2.5 rounded-sm ${RUN_DOT[word(r)] ?? "bg-gray-300"} ${shown?.id === r.id ? "ring-2 ring-gray-900 ring-offset-1" : "opacity-70 hover:opacity-100"}`}
+            />
+          </Tooltip>
         ))}
       </span>
       {shown && (
-        <span className="truncate font-mono text-[11px] text-fg-muted" title={shown.id}>
-          {shown.id}
-          {shown.test ? " · test" : ""} · {word(shown)}
-          {cost > 0 ? ` · ${money(cost)}` : ""}
-          {mode === "watch" && link === "reconnecting" ? " · reconnecting…" : ""}
-        </span>
+        <Tooltip label={shown.id}>
+          <span className="truncate font-mono text-[11px] text-fg-muted">
+            {shown.id}
+            {shown.test ? " · test" : ""} · {word(shown)}
+            {cost > 0 ? ` · ${money(cost)}` : ""}
+            {mode === "watch" && link === "reconnecting" ? " · reconnecting…" : ""}
+          </span>
+        </Tooltip>
       )}
       {mode === "watch" && (
-        <button type="button" onClick={onClear} className="rounded px-1 text-fg-subtle hover:bg-muted hover:text-fg" title="Stop showing this run; idle steps show the last finished run" aria-label="Stop showing this run">
-          ×
-        </button>
+        <Tooltip label="Stop showing this run; idle steps show the last finished run">
+          <button type="button" onClick={onClear} className="rounded px-1 text-fg-subtle hover:bg-muted hover:text-fg" aria-label="Stop showing this run">
+            ×
+          </button>
+        </Tooltip>
       )}
     </span>
   );
@@ -2126,18 +2075,21 @@ function NodeMenu({
   const left = typeof window !== "undefined" ? Math.min(at.x, window.innerWidth - 236) : at.x;
   const top = typeof window !== "undefined" ? Math.min(at.y, window.innerHeight - 320) : at.y;
   const item = (a: MenuAction, label: ReactNode, o: { disabled?: string | false; hint?: string; danger?: boolean } = {}) => (
-    <button
-      type="button"
-      role="menuitem"
-      disabled={!!o.disabled}
-      title={o.disabled || o.hint}
-      onClick={() => act(a)}
-      className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] disabled:cursor-not-allowed disabled:opacity-45 ${
-        o.danger ? "text-danger hover:bg-danger-soft" : "text-fg-secondary hover:bg-muted hover:text-fg"
-      }`}
-    >
-      {label}
-    </button>
+    <Tooltip label={o.disabled || o.hint} side="left">
+      <span className="flex">
+        <button
+          type="button"
+          role="menuitem"
+          disabled={!!o.disabled}
+          onClick={() => act(a)}
+          className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] disabled:cursor-not-allowed disabled:opacity-45 ${
+            o.danger ? "text-danger hover:bg-danger-soft" : "text-fg-secondary hover:bg-muted hover:text-fg"
+          }`}
+        >
+          {label}
+        </button>
+      </span>
+    </Tooltip>
   );
   return (
     <div
@@ -2189,8 +2141,9 @@ function CommandPalette({ commands, onClose }: { commands: Command[]; onClose: (
     c.run();
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-ink/30 p-4 pt-[12vh]" onClick={onClose} role="presentation">
-      <div role="dialog" aria-modal="true" aria-label="Commands" className="w-full max-w-lg overflow-hidden rounded-lg border border-line bg-surface shadow-menu" onClick={(e) => e.stopPropagation()}>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent hideClose aria-describedby={undefined} className="top-[12vh] translate-y-0 rounded-lg">
+        <DialogTitle className="sr-only">Commands</DialogTitle>
         <input
           autoFocus
           value={q}
@@ -2208,7 +2161,7 @@ function CommandPalette({ commands, onClose }: { commands: Command[]; onClose: (
             } else if (e.key === "Enter") {
               e.preventDefault();
               run(list[pick]);
-            } else if (e.key === "Escape") onClose();
+            }
           }}
           placeholder="Add a step, run, go to step 3…"
           aria-label="Search commands"
@@ -2223,48 +2176,40 @@ function CommandPalette({ commands, onClose }: { commands: Command[]; onClose: (
                 onMouseEnter={() => setAt(i)}
                 onClick={() => run(c)}
                 disabled={!!c.disabled}
-                title={c.disabled || c.hint}
                 className={`flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm disabled:cursor-not-allowed disabled:opacity-45 ${i === pick ? "bg-muted text-fg" : "text-fg-secondary"}`}
               >
                 <span className="min-w-0 flex-1 truncate">{c.label}</span>
                 {c.disabled ? <span className="shrink-0 text-[11px] text-fg-subtle">{c.disabled}</span> : c.hint && <span className="shrink-0 text-[11px] text-fg-subtle">{c.hint}</span>}
-                {c.keys && <kbd className="shrink-0 rounded border border-line bg-sunken px-1 font-sans text-[10.5px] text-fg-muted">{c.keys}</kbd>}
+                {c.keys && <Kbd className="shrink-0">{c.keys}</Kbd>}
               </button>
             </li>
           ))}
         </ul>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 function ShortcutSheet({ onClose }: { onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-4" onClick={onClose} role="presentation">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="canvas-keys-title"
-        className="w-full max-w-md rounded-lg border border-line bg-surface p-5 shadow-menu"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.key === "Escape" && onClose()}
-      >
-        <h2 id="canvas-keys-title" className="text-base font-semibold text-fg">Canvas shortcuts</h2>
-        <p className="mt-1 text-sm text-fg-muted">For the canvas you last clicked; never while you type in a field or editor.</p>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent hideClose size="sm" className="max-w-md p-5">
+        <DialogTitle className="text-base font-semibold text-fg">Canvas shortcuts</DialogTitle>
+        <DialogDescription className="mt-1">For the canvas you last clicked; never while you type in a field or editor.</DialogDescription>
         <dl className="mt-4 space-y-2 text-[13px]">
           {SHORTCUTS.map(([k, what]) => (
             <div key={k} className="flex gap-3">
               <dt className="w-36 shrink-0">
-                <kbd className="rounded border border-line bg-sunken px-1.5 py-0.5 font-sans text-[11px] text-fg-secondary">{k}</kbd>
+                <Kbd>{k}</Kbd>
               </dt>
               <dd className="text-fg-tertiary">{what}</dd>
             </div>
           ))}
         </dl>
         <div className="mt-4 flex justify-end">
-          <button type="button" autoFocus onClick={onClose} className={buttonClass("secondary")}>Close</button>
+          <button type="button" autoFocus onClick={onClose} className={buttonVariants({ variant: "secondary", size: "md" })}>Close</button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -25,7 +25,9 @@ import { Activity, Braces } from "lucide-react";
 import { Page, PageHeader, Panel, PanelList, Stat, StatGrid, EmptyState, Chip } from "@/components/kit/page";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/kit/table";
 import { buttonVariants } from "@/components/kit/button";
-import { Segmented, ChartLegend } from "@/components/kit/inspect-extra";
+import { ChartLegend } from "@/components/kit/chart";
+import { Segmented } from "@/components/kit/segmented";
+import { Tooltip } from "@/components/kit/tooltip";
 
 export const dynamic = "force-dynamic";
 
@@ -56,15 +58,19 @@ function Spread({ s, unit }: { s: Sampled; unit: (v: number | null) => string })
   if (s.p50 === null) {
     // Too few to summarise; the worst one is still a fact.
     return (
-      <span className="text-fg-tertiary" title={`${s.n} sample${s.n === 1 ? "" : "s"} — too few for percentiles`}>
-        ≤{unit(s.max)} <span className="text-fg-subtle">(n={s.n})</span>
-      </span>
+      <Tooltip label={`${s.n} sample${s.n === 1 ? "" : "s"} — too few for percentiles`}>
+        <span className="text-fg-tertiary">
+          ≤{unit(s.max)} <span className="text-fg-subtle">(n={s.n})</span>
+        </span>
+      </Tooltip>
     );
   }
   return (
-    <span className="text-fg-tertiary" title={`over ${s.n} samples`}>
-      {unit(s.p50)} <span className="text-fg-subtle">/ p95 {unit(s.p95)}</span>
-    </span>
+    <Tooltip label={`over ${s.n} samples`}>
+      <span className="text-fg-tertiary">
+        {unit(s.p50)} <span className="text-fg-subtle">/ p95 {unit(s.p95)}</span>
+      </span>
+    </Tooltip>
   );
 }
 
@@ -217,14 +223,12 @@ export default async function ObservePage({
                   const h = Math.max(4, Math.round((d.runs / maxDayRuns) * 100));
                   const failH = d.runs ? (d.failed / d.runs) * h : 0;
                   return (
-                    <div
-                      key={d.day}
-                      className="flex h-full min-w-0 flex-1 flex-col justify-end rounded-t-sm hover:bg-sunken"
-                      title={`${d.day}: ${d.runs} run${d.runs === 1 ? "" : "s"}, ${d.failed} failed, ${usd(d.chargedUsd)}`}
-                    >
-                      {failH > 0 && <div className="w-full rounded-t-sm bg-danger" style={{ height: `${failH}%` }} />}
-                      <div className={`w-full bg-muted-strong ${failH > 0 ? "" : "rounded-t-sm"}`} style={{ height: `${h - failH}%` }} />
-                    </div>
+                    <Tooltip key={d.day} label={`${d.day}: ${d.runs} run${d.runs === 1 ? "" : "s"}, ${d.failed} failed, ${usd(d.chargedUsd)}`}>
+                      <div className="flex h-full min-w-0 flex-1 flex-col justify-end rounded-t-sm hover:bg-sunken">
+                        {failH > 0 && <div className="w-full rounded-t-sm bg-danger" style={{ height: `${failH}%` }} />}
+                        <div className={`w-full bg-muted-strong ${failH > 0 ? "" : "rounded-t-sm"}`} style={{ height: `${h - failH}%` }} />
+                      </div>
+                    </Tooltip>
                   );
                 })}
               </div>
@@ -249,7 +253,7 @@ export default async function ObservePage({
                     <TH className="text-right">Retried</TH>
                     <TH className="text-right">Skipped</TH>
                     <TH>Step time</TH>
-                    <TH title="model turns per step — the agent's whole context is sent again on each">Turns</TH>
+                    <Tooltip label="model turns per step — the agent's whole context is sent again on each"><TH>Turns</TH></Tooltip>
                     <TH>Tokens in / out</TH>
                     <TH className="text-right">Cached</TH>
                     <TH className="text-right">Credits</TH>
@@ -270,18 +274,19 @@ export default async function ObservePage({
                       <TD>
                         <Spread s={a.seconds} unit={secs} />
                       </TD>
-                      <TD title={a.systemPromptChars?.max != null ? `system prompt ${chars(a.systemPromptChars.max)} characters, sent on every turn` : undefined}>
-                        {a.turns ? <Spread s={a.turns} unit={count} /> : dash}
-                      </TD>
+                      <Tooltip label={a.systemPromptChars?.max != null ? `system prompt ${chars(a.systemPromptChars.max)} characters, sent on every turn` : undefined} side="bottom">
+                        <TD>
+                          {a.turns ? <Spread s={a.turns} unit={count} /> : dash}
+                        </TD>
+                      </Tooltip>
                       <TD className="tabular-nums text-fg-muted">
                         {num(a.inputTokens)} / {num(a.outputTokens)}
                       </TD>
-                      <TD
-                        className="text-right tabular-nums text-fg-muted"
-                        title={a.cacheHitRate == null ? "no step reports cache reads yet" : `${num(a.cacheReadTokens)} input tokens read from the prompt cache`}
-                      >
-                        {a.cacheHitRate == null ? "—" : `${Math.round(a.cacheHitRate * 100)}%`}
-                      </TD>
+                      <Tooltip label={a.cacheHitRate == null ? "no step reports cache reads yet" : `${num(a.cacheReadTokens)} input tokens read from the prompt cache`}>
+                        <TD className="text-right tabular-nums text-fg-muted">
+                          {a.cacheHitRate == null ? "—" : `${Math.round(a.cacheHitRate * 100)}%`}
+                        </TD>
+                      </Tooltip>
                       <TD className="text-right tabular-nums text-fg">{usd(a.chargedUsd)}</TD>
                     </TR>
                   ))}
@@ -300,7 +305,7 @@ export default async function ObservePage({
                       <TH className="text-right">Calls</TH>
                       <TH className="text-right">Errors</TH>
                       <TH>Latency</TH>
-                      <TH title="characters each result put into the conversation — sent again on every later turn">Result size</TH>
+                      <Tooltip label="characters each result put into the conversation — sent again on every later turn"><TH>Result size</TH></Tooltip>
                       <TH>Called by</TH>
                     </tr>
                   </THead>
@@ -312,23 +317,27 @@ export default async function ObservePage({
                         <TD className={`text-right tabular-nums ${t.errors ? "font-medium text-danger" : "text-fg-subtle"}`}>{t.errors || "—"}</TD>
                         <TD>
                           {t.measured === 0 ? (
-                            <span className="text-fg-subtle" title="this tool does not report its own duration; the gap to the next event includes model thinking, so no latency is invented for it">
-                              —
-                            </span>
+                            <Tooltip label="this tool does not report its own duration; the gap to the next event includes model thinking, so no latency is invented for it">
+                              <span className="text-fg-subtle">
+                                —
+                              </span>
+                            </Tooltip>
                           ) : (
                             <Spread s={t.ms} unit={ms} />
                           )}
                         </TD>
-                        <TD title={t.resultSize && t.resultSize.n > 0 ? `${num(t.resultChars)} characters over ${t.resultSize.n} results; ${t.heavyCalls} over 10k` : "no result sizes recorded yet (from 18 Oct 2026)"}>
-                          {t.resultSize && t.resultSize.n > 0 ? (
-                            <span className="inline-flex items-center gap-1.5">
-                              <Spread s={t.resultSize} unit={chars} />
-                              {t.heavyCalls > 0 && <Chip tone="warn">{t.heavyCalls} heavy</Chip>}
-                            </span>
-                          ) : (
-                            dash
-                          )}
-                        </TD>
+                        <Tooltip label={t.resultSize && t.resultSize.n > 0 ? `${num(t.resultChars)} characters over ${t.resultSize.n} results; ${t.heavyCalls} over 10k` : "no result sizes recorded yet (from 18 Oct 2026)"} side="bottom">
+                          <TD>
+                            {t.resultSize && t.resultSize.n > 0 ? (
+                              <span className="inline-flex items-center gap-1.5">
+                                <Spread s={t.resultSize} unit={chars} />
+                                {t.heavyCalls > 0 && <Chip tone="warn">{t.heavyCalls} heavy</Chip>}
+                              </span>
+                            ) : (
+                              dash
+                            )}
+                          </TD>
+                        </Tooltip>
                         <TD className="text-xs text-fg-muted">{t.agents.join(", ")}</TD>
                       </TR>
                     ))}
@@ -347,10 +356,10 @@ export default async function ObservePage({
                 <Table className="min-w-[560px]">
                   <THead>
                     <tr>
-                      <TH title="in the order a step goes through them">Phase</TH>
-                      <TH title="this phase's own share: from when it could begin to when it ended">Took</TH>
-                      <TH title="when it began, counted from the moment the step started — the services pods boot alongside the step pod, from 0">Started</TH>
-                      <TH title="counted from the moment the step started">Done by</TH>
+                      <Tooltip label="in the order a step goes through them"><TH>Phase</TH></Tooltip>
+                      <Tooltip label="this phase's own share: from when it could begin to when it ended"><TH>Took</TH></Tooltip>
+                      <Tooltip label="when it began, counted from the moment the step started — the services pods boot alongside the step pod, from 0"><TH>Started</TH></Tooltip>
+                      <Tooltip label="counted from the moment the step started"><TH>Done by</TH></Tooltip>
                     </tr>
                   </THead>
                   <TBody>
@@ -359,14 +368,18 @@ export default async function ObservePage({
                         <TD>
                           <span className="font-mono text-xs text-fg">{p.phase}</span>
                           {p.parallel > 0 && (
-                            <span className="ml-2 text-xs text-fg-muted" title="booted alongside the step pod, not before it">
-                              in parallel{p.parallel < p.took.n ? ` on ${p.parallel} of ${p.took.n}` : ""}
-                            </span>
+                            <Tooltip label="booted alongside the step pod, not before it">
+                              <span className="ml-2 text-xs text-fg-muted">
+                                in parallel{p.parallel < p.took.n ? ` on ${p.parallel} of ${p.took.n}` : ""}
+                              </span>
+                            </Tooltip>
                           )}
                           {(p.waited.max ?? 0) > 0 && (
-                            <span className="ml-2 text-xs text-fg-muted" title="how long it was held for the services pods, before its own share">
-                              held for services <Spread s={p.waited} unit={fine} />
-                            </span>
+                            <Tooltip label="how long it was held for the services pods, before its own share" side="bottom">
+                              <span className="ml-2 text-xs text-fg-muted">
+                                held for services <Spread s={p.waited} unit={fine} />
+                              </span>
+                            </Tooltip>
                           )}
                         </TD>
                         <TD>

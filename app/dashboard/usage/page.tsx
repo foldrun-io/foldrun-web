@@ -4,12 +4,13 @@
 // records and file stores at render time; there is no second counter to
 // drift from the facts.
 
-import { Page, PageHeader, SectionTitle, StatGrid, Stat } from "@/components/kit/page";
+import { Page, PageHeader, SectionTitle, StatGrid, Stat, Callout } from "@/components/kit/page";
 import { accountUsage, spendHistory, type UsageBucket, type SpendSeries } from "@/platform/usage";
 import { LocalTime } from "@/components/local-time";
 import { credits, usd, usdExact } from "@/components/money";
-import { DataTable, Sparkbars } from "@/components/data";
-import { Banner } from "@/components/banner";
+import { DataTable } from "@/components/kit/table";
+import { Tooltip } from "@/components/kit/tooltip";
+import { Sparkbars } from "@/components/kit/chart";
 import { CollapsibleCard, CollapseAll } from "@/components/collapsible-card";
 import { anchorId } from "@/components/collapse-model";
 import { BillingTabs } from "@/components/billing-tabs";
@@ -46,15 +47,19 @@ function bucketCells(b: UsageBucket) {
     b.runs,
     b.steps,
     b.inputTokens + b.outputTokens > 0 ? `${fmtTokens(b.inputTokens)} / ${fmtTokens(b.outputTokens)}` : "—",
-    <span key="c" title={b.cacheHitRate == null ? "no step here reports cache reads yet" : `${fmtTokens(b.cacheReadTokens)} of ${fmtTokens(b.measuredInputTokens)} input tokens read from the prompt cache`}>
-      {fmtHit(b) ?? dim}
-    </span>,
+    <Tooltip key="c" label={b.cacheHitRate == null ? "no step here reports cache reads yet" : `${fmtTokens(b.cacheReadTokens)} of ${fmtTokens(b.measuredInputTokens)} input tokens read from the prompt cache`}>
+      <span>{fmtHit(b) ?? dim}</span>
+    </Tooltip>,
     fmtMins(b.computeSecs),
-    <span key="m" title={`${usdExact(b.modelUsd)} · provider cost ${usdExact(b.tokenCostUsd)}`}>{b.modelUsd > 0 ? credits(b.modelUsd) : dim}</span>,
-    <span key="p" title={`${usdExact(b.platformUsd)} · ${fmtMins(b.cpuSecs)} CPU·s and ${fmtMins(b.gibSecs)} GiB·s reserved`}>
-      {b.platformUsd > 0 ? credits(b.platformUsd) : dim}
-    </span>,
-    <span key="t" className="font-medium" title={`${usdExact(b.listUsd)} at today's rates`}>{credits(b.listUsd)}</span>,
+    <Tooltip key="m" label={`${usdExact(b.modelUsd)} · provider cost ${usdExact(b.tokenCostUsd)}`}>
+      <span>{b.modelUsd > 0 ? credits(b.modelUsd) : dim}</span>
+    </Tooltip>,
+    <Tooltip key="p" label={`${usdExact(b.platformUsd)} · ${fmtMins(b.cpuSecs)} CPU·s and ${fmtMins(b.gibSecs)} GiB·s reserved`}>
+      <span>{b.platformUsd > 0 ? credits(b.platformUsd) : dim}</span>
+    </Tooltip>,
+    <Tooltip key="t" label={`${usdExact(b.listUsd)} at today's rates`}>
+      <span className="font-medium">{credits(b.listUsd)}</span>
+    </Tooltip>,
   ];
 }
 
@@ -129,11 +134,11 @@ export default async function UsagePage({
       <BillingTabs current="usage" tenant={tenant} hosted={platform.edition() === "hosted"} />
 
       {u.waived && u.waived.length > 0 && (
-        <Banner tone="ok">
+        <Callout tone="success" role="status" className="mb-4">
           This account is not charged for{" "}
           {u.waived.map((w) => (w === "models" ? "model tokens" : w === "compute" ? "sandbox time" : "network")).join(", ")}
           . Everything below is still measured — it is simply not billed, and each run&apos;s ledger line says so.
-        </Banner>
+        </Callout>
       )}
 
       <StatGrid className="mb-10 md:grid-cols-4 xl:grid-cols-4">

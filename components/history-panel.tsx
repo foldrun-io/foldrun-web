@@ -12,7 +12,10 @@
 import { useEffect, useState } from "react";
 import { LocalTime } from "@/components/local-time";
 import { Button } from "@/components/kit/button";
-import { usePaged, PagerControls } from "@/components/pager";
+import { Tooltip } from "@/components/kit/tooltip";
+import { usePaged } from "@/components/kit/list";
+import { Pager } from "@/components/kit/pager";
+import { PAGE_SIZE } from "@/components/paging";
 
 interface Summary {
   id: string;
@@ -120,7 +123,7 @@ export function HistoryPanel({
         })}
       </ul>
       <div className="px-2 pb-2">
-        <PagerControls page={paged.page} pages={paged.pages} onPage={paged.setPage} labels={["← Newer", "Older →"]} />
+        <Pager page={paged.page} pages={paged.pages} total={paged.total} pageSize={PAGE_SIZE} onPage={paged.setPage} labels={["Newer", "Older"]} />
       </div>
 
       {open && (
@@ -157,9 +160,11 @@ export function HistoryPanel({
                   <span className="text-xs text-fg-muted">This revision deleted the file.</span>
                 )}
                 {file.before !== null && file.after !== null && (
-                  <Button size="xs" variant="ghost" onClick={() => onUse(file.before!)} title="What the file said before this change">
-                    Use the version before it
-                  </Button>
+                  <Tooltip label="What the file said before this change">
+                    <Button size="xs" variant="ghost" onClick={() => onUse(file.before!)}>
+                      Use the version before it
+                    </Button>
+                  </Tooltip>
                 )}
                 <span className="ml-auto text-xs text-fg-muted">
                   Loads into the editor — nothing changes until you save.

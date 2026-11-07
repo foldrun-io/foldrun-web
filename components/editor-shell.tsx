@@ -16,17 +16,18 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowRight, ChevronRight, PanelRightClose, PanelRightOpen, Search } from "lucide-react";
+import { ArrowRight, ChevronRight, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { FileTree } from "./file-tree";
 import { InlineEditor } from "./inline-editor";
 import { ToolTest } from "./tool-test";
 import { Page, Tag, Chip } from "./kit/page";
 import { Button } from "./kit/button";
-import { inputBase } from "./kit/input";
+import { SearchField } from "./kit/list";
 import { cn } from "./kit/cn";
 import { fmtAgo } from "./overview-model";
-import { useConfirm } from "./confirm";
+import { useConfirm } from "./kit/confirm";
 import type { Chip as FileChip } from "./editor-context-model";
+import { Tooltip } from "@/components/kit/tooltip";
 
 export interface ContextItem {
   label: string;
@@ -162,24 +163,7 @@ export function EditorShell({
           className="flex shrink-0 flex-col border-line bg-sunken max-md:max-h-[40vh] max-md:border-b md:w-64 md:border-r"
         >
           <div className="shrink-0 p-2">
-            <label className="relative block">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-fg-muted" aria-hidden />
-              <input
-                id="editor-tree-filter"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") {
-                    setFilter("");
-                    (e.target as HTMLInputElement).blur();
-                  }
-                }}
-                placeholder="Find a file…"
-                aria-label="Find a file"
-                className={cn(inputBase, "h-8 pl-8 pr-8 text-[13px]")}
-              />
-              <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-sm border border-line bg-sunken px-1.5 font-mono text-[11px] leading-4 text-fg-muted">/</kbd>
-            </label>
+            <SearchField id="editor-tree-filter" size="sm" value={filter} onChange={setFilter} placeholder="Find a file…" autoFocusKey={false} slashHint />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
             <FileTree
@@ -208,7 +192,8 @@ export function EditorShell({
           <header className="shrink-0 border-b border-line px-4 py-2.5">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <div className="flex min-w-0 flex-1 items-center gap-2">
-                <nav className="flex min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap text-[13px] text-fg-muted" aria-label="Path" title={crumbs.map((c) => c.label).join("/")}>
+                <Tooltip label={crumbs.map((c) => c.label).join("/")} side="bottom" align="start">
+                <nav className="flex min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap text-[13px] text-fg-muted" aria-label="Path">
                   {folded && (
                     <span className="flex items-center gap-1">
                       {folded.href ? <Link href={folded.href} className="hover:text-fg">…</Link> : <span>…</span>}
@@ -226,26 +211,30 @@ export function EditorShell({
                     </span>
                   ))}
                 </nav>
+                </Tooltip>
               </div>
               <div className="flex shrink-0 flex-wrap items-center gap-2">
                 <div ref={setToolbar} className="flex flex-wrap items-center gap-2" />
                 {actions}
                 {content !== null && lastChange && (
-                  <Link href={lastChange.href} className="hidden text-xs text-fg-muted hover:text-fg xl:inline" title={lastChange.at}>
-                    {lastChange.by} · {fmtAgo(now - Date.parse(lastChange.at))}
-                  </Link>
+                  <Tooltip label={lastChange.at}>
+                    <Link href={lastChange.href} className="hidden text-xs text-fg-muted hover:text-fg xl:inline">
+                      {lastChange.by} · {fmtAgo(now - Date.parse(lastChange.at))}
+                    </Link>
+                  </Tooltip>
                 )}
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => setShowContext((v) => !v)}
-                  className="max-lg:hidden"
-                  aria-pressed={showContext}
-                  aria-label={showContext ? "Hide the context panel" : "Show the context panel"}
-                  title={showContext ? "Hide the context panel" : "Show the context panel"}
-                >
-                  {showContext ? <PanelRightClose /> : <PanelRightOpen />}
-                </Button>
+                <Tooltip label={showContext ? "Hide the context panel" : "Show the context panel"}>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setShowContext((v) => !v)}
+                    className="max-lg:hidden"
+                    aria-pressed={showContext}
+                    aria-label={showContext ? "Hide the context panel" : "Show the context panel"}
+                  >
+                    {showContext ? <PanelRightClose /> : <PanelRightOpen />}
+                  </Button>
+                </Tooltip>
               </div>
             </div>
             {/* What the file says about itself, quietly, under the path. */}
@@ -253,7 +242,7 @@ export function EditorShell({
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 {kindLabel && <Tag>{kindLabel}</Tag>}
                 {chips.map((c) => (
-                  <span key={c.label} title={c.title} className="inline-flex h-6 items-center rounded-md bg-muted px-2 text-xs text-fg-secondary">{c.label}</span>
+                  <Tag key={c.label} hint={c.title}>{c.label}</Tag>
                 ))}
               </div>
             )}

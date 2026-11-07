@@ -14,6 +14,7 @@
 
 import Link from "next/link";
 import { useViewerTime } from "@/components/viewer-time";
+import { Tooltip } from "@/components/kit/tooltip";
 
 export function RunDot({
   href,
@@ -31,6 +32,8 @@ export function RunDot({
   const when = useViewerTime(startedAt);
 
   return (
-    <Link href={href} title={when ? `${label} · ${when}` : label} className={className} />
+    <Tooltip label={when ? `${label} · ${when}` : label}>
+      <Link href={href} aria-label={when ? `${label} · ${when}` : label} className={className} />
+    </Tooltip>
   );
 }

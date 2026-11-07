@@ -7,11 +7,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { inputClass } from "@/components/ui";
-import { SettingsCard } from "@/components/kit/page";
+import { Input } from "@/components/kit/input";
+import { SettingsCard, Field, Callout } from "@/components/kit/page";
 import { Button } from "@/components/kit/button";
 import { WithEmails } from "@/components/email";
-import { useConfirm } from "@/components/confirm";
+import { useConfirm } from "@/components/kit/confirm";
+import { Checkbox } from "@/components/kit/choice";
 
 export interface PauseMarkView {
   at: string;
@@ -119,19 +120,19 @@ export function PauseCard({
   const notes = (
     <>
       {note && (
-        <p role="status" className="rounded-md border border-success-line bg-success-soft px-3 py-2 text-sm text-success">
+        <Callout tone="success" role="status">
           {note}
-        </p>
+        </Callout>
       )}
       {error && (
-        <p role="alert" className="rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger">
+        <Callout tone="danger" role="alert">
           {error}
-        </p>
+        </Callout>
       )}
       {heldByAccount && (
-        <p className="rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-sm text-warning">
+        <Callout tone="warning">
           The account is paused, so nothing here runs either — <WithEmails text={since(heldByAccount)} />. Resume it in the account&apos;s Settings.
-        </p>
+        </Callout>
       )}
     </>
   );
@@ -191,12 +192,11 @@ export function PauseCard({
             {notes}
             {mayManage && (
               <>
-                <label className="block max-w-md">
-                  <span className="block text-sm font-medium text-fg">Why</span>
-                  <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} placeholder="Optional — shown to everyone who opens it" className={inputClass("mt-1.5 w-full")} />
-                </label>
+                <Field label="Why" className="max-w-md">
+                  <Input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} placeholder="Optional — shown to everyone who opens it" className="w-full" />
+                </Field>
                 <label className="flex items-center gap-2 text-sm text-fg">
-                  <input type="checkbox" checked={stop} onChange={(e) => setStop(e.target.checked)} className="size-4 rounded border-line-strong accent-fg" />
+                  <Checkbox checked={stop} onCheckedChange={(checked: boolean) => setStop(checked)} />
                   Also stop the runs going now
                 </label>
               </>

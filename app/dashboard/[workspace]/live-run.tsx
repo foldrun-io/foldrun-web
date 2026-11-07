@@ -15,7 +15,6 @@ import { OperatorPanel } from "@/components/operator-panel";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { announceDecision } from "@/components/pending-approvals";
-import { StatusBadge, TestBadge, VerdictBadge } from "@/components/ui";
 import type { RunRecord } from "@/lib/store";
 import { testEffects, testEffectSummary } from "@/components/test-run-model";
 
@@ -24,7 +23,7 @@ import { testEffects, testEffectSummary } from "@/components/test-run-model";
 const runDisplayStatus = (r: Pick<RunRecord, "status" | "stopRequested">) =>
   r.status === "failed" && r.stopRequested ? "stopped" : r.status;
 import { Markdown } from "@/components/markdown";
-import { useConfirm } from "@/components/confirm";
+import { useConfirm } from "@/components/kit/confirm";
 import { useCan } from "@/components/role";
 import { SmartTextarea } from "@/components/smart-textarea";
 import { RunTimeline, traceEvents, stepSpan, fmtDur } from "@/components/run-timeline";
@@ -40,13 +39,16 @@ import { EventWaitBox } from "@/components/event-wait-box";
 import { LocalTime } from "@/components/local-time";
 import { AskAiButton } from "@/components/assistant";
 import { outcomeOf, type Outcome } from "@/components/outcome-model";
-import { PageHeader, SummaryCard, SectionTitle, Tag, EmptyState } from "@/components/kit/page";
+import { PageHeader, SummaryCard, SectionTitle, Tag, EmptyState, Callout } from "@/components/kit/page";
 import { Status, StatusDot } from "@/components/kit/status";
 import { Button } from "@/components/kit/button";
 import { Menu, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "@/components/kit/menu";
 import { Textarea, inputBase } from "@/components/kit/input";
 import { cn } from "@/components/kit/cn";
 import { AlertTriangle, ChevronRight, CircleHelp, Code2, Ellipsis, FlaskConical, Hand, Pencil, RotateCcw, Square, Trash2, Webhook, XCircle } from "lucide-react";
+import { Disclosure } from "@/components/kit/disclosure";
+import { Tooltip } from "@/components/kit/tooltip";
+const TEST_RUN = "A test run: every step ran, nothing outward happened, state/ and storage/ were left alone";
 // Mirrored from store.ts#runVerdict, for the same reason.
 const runVerdict = (r: Pick<RunRecord, "verdict" | "summary">) => {
   if (r.verdict !== undefined) return r.verdict;
@@ -501,15 +503,17 @@ export function LiveRun({
     />
   ) : null;
   const liveDot = live ? (
-    <button
-      type="button"
-      onClick={() => { const i = activeStep(run); if (i >= 0) showStep(i); }}
-      title={
+    <Tooltip
+      label={
         link === "live" ? "Live — updates arrive as the run writes them. Click to jump to the active step."
         : link === "reconnecting" ? "Stream dropped — reconnecting. The run is still going; the page catches up when it does."
         : link === "connecting" ? "Connecting to the run…"
         : "Stream closed"
       }
+    >
+    <button
+      type="button"
+      onClick={() => { const i = activeStep(run); if (i >= 0) showStep(i); }}
       className="inline-flex items-center gap-1.5 rounded text-[13px] text-fg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
     >
       <span
@@ -520,6 +524,7 @@ export function LiveRun({
       />
       {link === "live" ? "live" : link === "reconnecting" ? "reconnecting" : link === "connecting" ? "connecting" : "closed"}
     </button>
+    </Tooltip>
   ) : null;
   const elapsedText = run.finishedAt || hydrated ? fmtDur(elapsed(run, clock) * 1000) : "…";
   const doneSteps = run.steps.filter((st) => st.status === "completed" || st.status === "skipped").length;
@@ -538,34 +543,38 @@ export function LiveRun({
         </Button>
       )}
       {run.status === "completed" && !wentWrong && (
-        <Button size="md" onClick={() => void promote()} disabled={busy} title="Write this run's task and conclusion into evals/ as a regression case">
-          <FlaskConical aria-hidden />
-          Save as eval
-        </Button>
+        <Tooltip label="Write this run's task and conclusion into evals/ as a regression case">
+          <Button size="md" onClick={() => void promote()} disabled={busy}>
+            <FlaskConical aria-hidden />
+            Save as eval
+          </Button>
+        </Tooltip>
       )}
       {finished && wentWrong && (
-        <Button
-          size="md"
-          onClick={() => setShouldOpen((v) => !v)}
-          disabled={busy}
-          aria-expanded={shouldOpen}
-          title="Write this run's task into evals/ with what it should have done, so the fix stays fixed"
-        >
-          <FlaskConical aria-hidden />
-          Turn into a test
-        </Button>
+        <Tooltip label="Write this run's task into evals/ with what it should have done, so the fix stays fixed">
+          <Button
+            size="md"
+            onClick={() => setShouldOpen((v) => !v)}
+            disabled={busy}
+            aria-expanded={shouldOpen}
+          >
+            <FlaskConical aria-hidden />
+            Turn into a test
+          </Button>
+        </Tooltip>
       )}
       {finished && run.steps.length > 0 && (
-        <Button
-          size="md"
-          variant="primary"
-          onClick={() => void rerun(failedAt > 0 ? failedAt : 0)}
-          disabled={busy}
-          title={failedAt > 0 ? "Start a new run: the steps before the failed one carried as context, it and later ones run again" : "Start this run again as a new run"}
-        >
-          <RotateCcw aria-hidden />
-          {failedAt > 0 ? `Rerun from step ${failedAt + 1}` : "Rerun"}
-        </Button>
+        <Tooltip label={failedAt > 0 ? "Start a new run: the steps before the failed one carried as context, it and later ones run again" : "Start this run again as a new run"}>
+          <Button
+            size="md"
+            variant="primary"
+            onClick={() => void rerun(failedAt > 0 ? failedAt : 0)}
+            disabled={busy}
+          >
+            <RotateCcw aria-hidden />
+            {failedAt > 0 ? `Rerun from step ${failedAt + 1}` : "Rerun"}
+          </Button>
+        </Tooltip>
       )}
       <Menu>
         <MenuTrigger asChild>
@@ -574,12 +583,14 @@ export function LiveRun({
           </Button>
         </MenuTrigger>
         <MenuContent>
-          <MenuItem asChild>
-            <a href={`/api/workspaces/${encodeURIComponent(workspace)}/runs/${run.id}`} target="_blank" rel="noreferrer" title="The run record as the runner wrote it — every event, every stamp">
-              <Code2 aria-hidden />
-              Run record (JSON)
-            </a>
-          </MenuItem>
+          <Tooltip label="The run record as the runner wrote it — every event, every stamp" side="left">
+            <MenuItem asChild>
+              <a href={`/api/workspaces/${encodeURIComponent(workspace)}/runs/${run.id}`} target="_blank" rel="noreferrer">
+                <Code2 aria-hidden />
+                Run record (JSON)
+              </a>
+            </MenuItem>
+          </Tooltip>
           {finished && mayErase && (
             <>
               <MenuSeparator />
@@ -608,9 +619,7 @@ export function LiveRun({
               <>
                 <Status outcome={outcome} className="text-sm" />
                 {run.test && (
-                  <span title="A test run: every step ran, nothing outward happened, state/ and storage/ were left alone">
-                    <Tag>test</Tag>
-                  </span>
+                  <Tag hint={TEST_RUN}>test</Tag>
                 )}
                 {page.tags}
                 {liveDot}
@@ -624,7 +633,7 @@ export function LiveRun({
           {/* The answer first: if it went wrong, where and why, and what to
               do about it; if it waits on a person, who and for what. */}
           {page.failure && run.status === "failed" ? (
-            <Callout
+            <Callout size="lg" role="alert"
               tone="danger"
               icon={<XCircle />}
               title={failedAt >= 0 ? `Step ${failedAt + 1} · ${page.failure.agent} failed` : `${page.failure.agent} failed`}
@@ -649,21 +658,21 @@ export function LiveRun({
           ) : outcome === "failed" ? (
             // A run can fail with no failed step (a budget hit between
             // groups), and that one needs the doctor too.
-            <Callout tone="danger" icon={<XCircle />} title="The run failed" actions={doctor}>
+            <Callout size="lg" role="alert" tone="danger" icon={<XCircle />} title="The run failed" actions={doctor}>
               <p className="text-fg-secondary">No step failed on its own; the run was ended between steps. The run doctor reads its record and says why.</p>
             </Callout>
           ) : outcome === "blocked" || outcome === "bad" ? (
-            <Callout tone="warning" icon={<AlertTriangle />} title={`The run completed, and the agent reported ${runVerdict(run)}`} actions={doctor}>
+            <Callout size="lg" role="alert" tone="warning" icon={<AlertTriangle />} title={`The run completed, and the agent reported ${runVerdict(run)}`} actions={doctor}>
               {run.summary?.trim() ? <p className="line-clamp-4 break-words text-fg-secondary">{run.summary.trim()}</p> : <p className="text-fg-secondary">The last step says why, below.</p>}
             </Callout>
           ) : null}
           {gates.map(({ st, i }) =>
             st.waitFor === "event" ? (
-              <Callout key={`g${i}`} tone="info" icon={<Webhook />} title={`Step ${i + 1} · ${st.agent} is waiting for an external event`} actions={<Button size="sm" variant="primary" onClick={() => showStep(i)}>Release or reject</Button>}>
+              <Callout size="lg" role="status" key={`g${i}`} tone="info" icon={<Webhook />} title={`Step ${i + 1} · ${st.agent} is waiting for an external event`} actions={<Button size="sm" variant="primary" onClick={() => showStep(i)}>Release or reject</Button>}>
                 <p className="text-fg-secondary">Whatever POSTs its event URL releases it. You can also release it from the step.</p>
               </Callout>
             ) : (
-              <Callout
+              <Callout size="lg" role="alert"
                 key={`g${i}`}
                 tone="warning"
                 icon={<Hand />}
@@ -675,7 +684,7 @@ export function LiveRun({
             ),
           )}
           {asks.map(({ q, i, agent }) => (
-            <Callout key={q.id} tone="info" icon={<CircleHelp />} title={`Step ${i + 1} · ${agent} is asking you`} actions={<Button size="sm" variant="primary" onClick={() => showStep(i)}>Answer</Button>}>
+            <Callout size="lg" role="status" key={q.id} tone="info" icon={<CircleHelp />} title={`Step ${i + 1} · ${agent} is asking you`} actions={<Button size="sm" variant="primary" onClick={() => showStep(i)}>Answer</Button>}>
               <p className="break-words text-fg-secondary">{q.question}</p>
             </Callout>
           ))}
@@ -695,10 +704,9 @@ export function LiveRun({
           <span className="font-mono">{run.id}</span>
           <span className="text-fg-subtle">·</span>
           <span className="font-medium text-fg-secondary">{run.flow}</span>
-          <StatusBadge status={runDisplayStatus(run)} />
-          {run.status === "completed" && <VerdictBadge verdict={runVerdict(run)} />}
+          <Status outcome={outcome} />
         </>)}
-        {run.test && <TestBadge />}
+        {run.test && <Tag hint={TEST_RUN}>test</Tag>}
         {liveDot}
         {(!compactHeader || live) && <span className="tabular-nums">{run.finishedAt || hydrated ? `${elapsed(run, clock).toFixed(1)}s` : "…"}</span>}
         {!compactHeader && totalCost > 0 && <span className="tabular-nums">${totalCost.toFixed(4)}</span>}
@@ -727,7 +735,7 @@ export function LiveRun({
         // without the checkbox.
         const effects = testEffects(run);
         return (
-          <section className="rounded-lg border border-info-line bg-info-soft px-4 py-3 text-[13px] text-fg-secondary">
+          <Callout tone="info" className="px-4 py-3 text-[13px] text-fg-secondary">
             <p>
               <span className="font-medium text-info">Test run — {testEffectSummary(effects)}.</span>{" "}
               Every step ran against the real files and real read APIs; nothing outward happened, and state/ and storage/ were left as they were.
@@ -743,7 +751,7 @@ export function LiveRun({
                 ))}
               </ul>
             )}
-          </section>
+          </Callout>
         );
       })()}
       {run.memoryWrites && run.memoryWrites.length > 0 && (
@@ -821,9 +829,11 @@ export function LiveRun({
         const shownStatus = step.skipReason === "run stopped" ? "stopped" : (step.status === "pending" || step.status === "running") && step.roomWait ? "waiting for room" : step.status;
         const chip = (c: { label: string; title: string } | null | undefined) =>
           c ? (
-            <span title={c.title} className="shrink-0">
-              <Tag className="h-5 tabular-nums">{c.label}</Tag>
-            </span>
+            <Tooltip label={c.title}>
+              <span className="shrink-0">
+                <Tag className="h-5 tabular-nums">{c.label}</Tag>
+              </span>
+            </Tooltip>
           ) : null;
         return (
         <div
@@ -839,7 +849,6 @@ export function LiveRun({
               type="button"
               onClick={() => toggleFold(i)}
               aria-expanded={unfolded}
-              title={unfolded ? "Fold this step" : "Unfold this step"}
               className="flex min-w-0 flex-1 items-center gap-2.5 rounded text-left text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
               <ChevronRight className={cn("size-4 shrink-0 text-fg-muted transition-transform", unfolded && "rotate-90")} aria-hidden />
@@ -850,21 +859,25 @@ export function LiveRun({
                 {/* sandbox: own — a job another step handed this agent; it ran
                     in its own sandbox and only its reply went back. */}
                 {step.subagentOf && (
-                  <span className="text-xs text-fg-muted" title="a sub-agent with sandbox: own — its own sandbox, tools, secrets and network; only its reply went back">
-                    ↳ job from {step.subagentOf} · own sandbox
-                  </span>
+                  <Tooltip label="a sub-agent with sandbox: own — its own sandbox, tools, secrets and network; only its reply went back">
+                    <span className="text-xs text-fg-muted">
+                      ↳ job from {step.subagentOf} · own sandbox
+                    </span>
+                  </Tooltip>
                 )}
                 {step.optional && !step.subagentOf && <span className="text-xs text-fg-muted">optional</span>}
                 {step.delegations?.length ? (
-                  <span className="text-xs text-fg-muted" title="jobs this step handed to sub-agents with sandbox: own">
-                    handed{" "}
-                    {step.delegations
-                      .map((d) => {
-                        const at = run.steps.findIndex((s) => s.delegation === d.id);
-                        return `${d.agent} (${at >= 0 ? `step ${at + 1}, ` : ""}${d.status})`;
-                      })
-                      .join(", ")}
-                  </span>
+                  <Tooltip label="jobs this step handed to sub-agents with sandbox: own">
+                    <span className="text-xs text-fg-muted">
+                      handed{" "}
+                      {step.delegations
+                        .map((d) => {
+                          const at = run.steps.findIndex((s) => s.delegation === d.id);
+                          return `${d.agent} (${at >= 0 ? `step ${at + 1}, ` : ""}${d.status})`;
+                        })
+                        .join(", ")}
+                    </span>
+                  </Tooltip>
                 ) : null}
                 {step.approve && <span className="text-xs text-warning">needs approval</span>}
                 {(step.attempts ?? 0) > 1 && <span className="text-xs text-fg-muted">attempt {step.attempts}</span>}
@@ -885,12 +898,14 @@ export function LiveRun({
                   time and the money go" without opening a card. */}
               <span className="hidden items-center gap-3 text-xs tabular-nums text-fg-muted md:flex">
                 {span && (
-                  <span title={span.live ? "running for" : "took"}>{span.live && !hydrated ? "…" : fmtDur(span.end - span.start)}</span>
+                  <Tooltip label={span.live ? "running for" : "took"}><span>{span.live && !hydrated ? "…" : fmtDur(span.end - span.start)}</span></Tooltip>
                 )}
                 {tokens > 0 && (
-                  <span title={fmtTokenDetail(step.tokens) ?? undefined}>
-                    {fmtTokens(tokens)} tok{fmtCached(step.tokens) ? ` · ${fmtCached(step.tokens)}` : ""}
-                  </span>
+                  <Tooltip label={fmtTokenDetail(step.tokens)}>
+                    <span>
+                      {fmtTokens(tokens)} tok{fmtCached(step.tokens) ? ` · ${fmtCached(step.tokens)}` : ""}
+                    </span>
+                  </Tooltip>
                 )}
                 {step.costUsd != null && <span>${step.costUsd.toFixed(4)}</span>}
               </span>
@@ -907,20 +922,23 @@ export function LiveRun({
                     </Button>
                   </MenuTrigger>
                   <MenuContent>
-                    <MenuItem onSelect={() => void rerun(i)} title="Start a new run: earlier steps carried as context, this step and later ones run again">
-                      <RotateCcw aria-hidden />
-                      Re-run from here
-                    </MenuItem>
-                    <MenuItem
-                      onSelect={() => {
-                        setDraft(step.instruction ?? "");
-                        setEditing(editing === i ? null : i);
-                      }}
-                      title="Re-run from here with a different instruction for this step, this once — the flow file is not changed"
-                    >
-                      <Pencil aria-hidden />
-                      Edit &amp; re-run
-                    </MenuItem>
+                    <Tooltip label="Start a new run: earlier steps carried as context, this step and later ones run again" side="left">
+                      <MenuItem onSelect={() => void rerun(i)}>
+                        <RotateCcw aria-hidden />
+                        Re-run from here
+                      </MenuItem>
+                    </Tooltip>
+                    <Tooltip label="Re-run from here with a different instruction for this step, this once — the flow file is not changed" side="left">
+                      <MenuItem
+                        onSelect={() => {
+                          setDraft(step.instruction ?? "");
+                          setEditing(editing === i ? null : i);
+                        }}
+                      >
+                        <Pencil aria-hidden />
+                        Edit &amp; re-run
+                      </MenuItem>
+                    </Tooltip>
                   </MenuContent>
                 </Menu>
               )}
@@ -981,23 +999,23 @@ export function LiveRun({
             const refused = stepRefused(step);
             if (!refused) return null;
             return (
-              <div className="mb-3 rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-[13px] text-fg">
+              <Callout tone="warning" className="mb-3 px-3 py-2 text-[13px] text-fg">
                 <span className="block"><span className="font-medium">Not kept:</span> {refused.line}</span>
                 <span className="mt-0.5 block font-mono">{refused.paths.join(", ")}</span>
-              </div>
+              </Callout>
             );
           })()}
           {/* Waiting for room to start (27 Oct 2026): no time limit, its
               place in line kept, nothing charged meanwhile. */}
           {(step.status === "pending" || step.status === "running") && step.roomWait && (
-            <div className="mb-3 rounded-lg border border-info-line bg-info-soft px-3 py-2.5 text-[13px] text-fg-secondary">
+            <Callout tone="info" className="mb-3 px-3 py-2.5 text-[13px] text-fg-secondary">
               <span className="block font-medium text-info">
                 Waiting for room to start{run.status === "queued" ? " — the run waits in the queue" : ""}, since <LocalTime iso={step.roomWait.since} />
               </span>
               <span className="block">
                 {step.roomWait.why}. It needs {step.roomWait.cpus} vCPU · {step.roomWait.memGiB} GiB{step.roomWait.diskGiB ? ` · ${step.roomWait.diskGiB} GiB disk` : ""}, starts in turn when there is room, and is not charged while it waits.
               </span>
-            </div>
+            </Callout>
           )}
           {/* A `wait: event` step waits on the outside world, not a person:
               its own box, with the URL that releases it and a payload. */}
@@ -1005,7 +1023,7 @@ export function LiveRun({
             <EventWaitBox workspace={workspace} tenant={tenant} runId={run.id} index={i} step={step} />
           )}
           {step.status === "awaiting-approval" && step.waitFor !== "event" && (
-            <div className="mb-4 space-y-3 rounded-lg border border-warning-line bg-warning-soft p-3 sm:p-4">
+            <Callout tone="warning" className="mb-4 p-3 sm:p-4" bodyClassName="space-y-3">
               <span className="flex items-center gap-2 text-sm font-medium text-fg">
                 <Hand className="size-4 shrink-0 text-warning" aria-hidden />
                 {step.ask ? `This step asks you: ${step.ask}` : "Waiting for you before this step runs."}
@@ -1121,7 +1139,7 @@ export function LiveRun({
                   Approve
                 </Button>
               </span>
-            </div>
+            </Callout>
           )}
 
           {/* What went in and what came out, as facts beside each other —
@@ -1192,9 +1210,11 @@ export function LiveRun({
                   {io.data && <IoRow k="data from">{io.data.from.map(stepLink)}</IoRow>}
                   {io.event && (
                     <IoRow k="event">
-                      <span className="break-all font-mono text-[11px]" title={io.event}>
-                        {io.event.length > 200 ? `${io.event.slice(0, 199)}…` : io.event}
-                      </span>
+                      <Tooltip label={io.event.length > 200 ? io.event : undefined}>
+                        <span className="break-all font-mono text-[11px]">
+                          {io.event.length > 200 ? `${io.event.slice(0, 199)}…` : io.event}
+                        </span>
+                      </Tooltip>
                     </IoRow>
                   )}
                   {io.note && (
@@ -1294,22 +1314,21 @@ export function LiveRun({
                   )}
                   {(step.calls?.length ?? 0) > 0 && (
                     <IoRow k="model calls">
-                      <details>
-                        <summary className="cursor-pointer text-fg-muted hover:text-fg">
-                          {step.calls!.length} call{step.calls!.length === 1 ? "" : "s"} · slowest {fmtDur(Math.max(...step.calls!.map((c) => c.ms)))} · largest {fmtCount(Math.max(...step.calls!.map((c) => c.tokens.input)))} in
-                        </summary>
+                      <Disclosure summaryClassName="text-fg-muted hover:text-fg" summary={<>{step.calls!.length} call{step.calls!.length === 1 ? "" : "s"} · slowest {fmtDur(Math.max(...step.calls!.map((c) => c.ms)))} · largest {fmtCount(Math.max(...step.calls!.map((c) => c.tokens.input)))} in</>}>
                         <ol className="mt-1 space-y-0.5 font-mono text-[11px] tabular-nums text-fg-muted">
                           {step.calls!.map((c) => (
-                            <li key={c.id} title={c.id}>
+                            <Tooltip key={c.id} label={c.id}>
+                            <li>
                               {c.n}. {c.model ?? "model"}
                               {c.subagent ? ` ↳ ${c.subagent}` : ""} · {fmtDur(c.ms)} · {fmtCount(c.tokens.input)} in
                               {c.tokens.input > 0 && c.tokens.cacheRead > 0 ? ` (${Math.round((100 * c.tokens.cacheRead) / c.tokens.input)}% cached)` : ""} · {fmtCount(c.tokens.output)} out
                               {c.stop ? ` · ${c.stop}` : ""}
                               {c.tools ? ` · ${c.tools} tool${c.tools === 1 ? "" : "s"}` : ""}
                             </li>
+                            </Tooltip>
                           ))}
                         </ol>
-                      </details>
+                      </Disclosure>
                     </IoRow>
                   )}
                 </IoPanel>
@@ -1353,28 +1372,6 @@ export function LiveRun({
       </section>
       <div ref={bottomRef} />
     </div>
-  );
-}
-
-/** What needs a person, at the top of the run page: a failure, a gate, a
- *  question — the title says what, the body why, the actions what to do. */
-function Callout({ tone, icon, title, actions, children }: { tone: "danger" | "warning" | "info"; icon: React.ReactNode; title: React.ReactNode; actions?: React.ReactNode; children?: React.ReactNode }) {
-  const t = {
-    danger: { box: "border-danger-line bg-danger-soft", icon: "text-danger" },
-    warning: { box: "border-warning-line bg-warning-soft", icon: "text-warning" },
-    info: { box: "border-info-line bg-info-soft", icon: "text-info" },
-  }[tone];
-  return (
-    <section role={tone === "info" ? "status" : "alert"} className={cn("flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-start", t.box)}>
-      <span className={cn("mt-0.5 shrink-0 [&_svg]:size-5", t.icon)} aria-hidden>
-        {icon}
-      </span>
-      <div className="min-w-0 flex-1 text-sm">
-        <h2 className="font-medium text-fg">{title}</h2>
-        {children && <div className="mt-1">{children}</div>}
-      </div>
-      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
-    </section>
   );
 }
 

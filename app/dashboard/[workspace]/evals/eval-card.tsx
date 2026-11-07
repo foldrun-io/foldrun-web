@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { Check, Circle, FlaskConical, X } from "lucide-react";
 import { Page, PageHeader, IconBox, Panel, PanelList, SummaryCard, Chip, Tag } from "@/components/kit/page";
 import { Button } from "@/components/kit/button";
+import { Tooltip } from "@/components/kit/tooltip";
 import { CollapsibleCard } from "@/components/collapsible-card";
 import { anchorId } from "@/components/collapse-model";
 import { InlineEditor } from "@/components/inline-editor";
@@ -89,9 +90,11 @@ export function EvalDetail({
             {result && <Chip tone={result.failed === 0 ? "good" : "bad"}>{result.passed}/{result.passed + result.failed} passing</Chip>}
             {result?.error && <Chip tone="bad">could not run</Chip>}
             {info.trigger === "manual" && (
-              <span title="Not run after a deploy — a person runs it, because it costs a whole run.">
-                <Tag>manual</Tag>
-              </span>
+              <Tooltip label="Not run after a deploy — a person runs it, because it costs a whole run.">
+                <span>
+                  <Tag>manual</Tag>
+                </span>
+              </Tooltip>
             )}
           </>
         }
@@ -103,9 +106,11 @@ export function EvalDetail({
         actions={
           <>
             {info.cases.length > 0 && (
-              <Button variant="secondary" size="md" onClick={() => setComparing((v) => !v)} aria-expanded={comparing} title={canRun ? "Run the cases under two to four models, side by side" : "The comparisons run so far"}>
-                {comparing ? "Close compare" : canRun ? "Compare models" : "Comparisons"}
-              </Button>
+              <Tooltip label={canRun ? "Run the cases under two to four models, side by side" : "The comparisons run so far"}>
+                <Button variant="secondary" size="md" onClick={() => setComparing((v) => !v)} aria-expanded={comparing}>
+                  {comparing ? "Close compare" : canRun ? "Compare models" : "Comparisons"}
+                </Button>
+              </Tooltip>
             )}
             <Button variant="primary" size="md" onClick={run} disabled={busy}>
               {busy ? "Running…" : "Run"}

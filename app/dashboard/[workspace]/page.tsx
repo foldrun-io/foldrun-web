@@ -13,7 +13,7 @@ import { avatarUrl } from "@/platform/avatars";
 import { Avatar } from "@/components/avatar";
 import { platform } from "@/lib/platform";
 import { workspaceBudgetStanding } from "@/platform/limits";
-import { AttentionPanel, Cells, NowNext, Panel, PanelLink, SpendPanel, outcomeRing } from "@/components/mission-control";
+import { AttentionPanel, Cells, NowNext, SpendPanel, outcomeRing } from "@/components/mission-control";
 import { needsList, flowStrips, nowBoard, spendWithin, fmtSpan, DAY_MS } from "@/components/mission-model";
 import { accountIssues } from "@/server/issues";
 import { flowRows, agentRows, fmtIn, type NextFire } from "@/components/workspace-overview-model";
@@ -25,10 +25,10 @@ import { runCharges, runCharge, agentCharge } from "@/server/run-charges";
 import { AutoRefresh, RunButton } from "../run-button";
 import { workspaceRuntimeReport } from "@/platform/runtime-warm.ts";
 import { RuntimesPanel } from "@/components/workspace-runtimes";
-import { Page, PageHeader, Fact, ResourceCard, EmptyState, IconBox } from "@/components/kit/page";
+import { Page, PageHeader, Fact, ResourceCard, EmptyState, IconBox, Panel, PanelLink } from "@/components/kit/page";
 import { buttonVariants } from "@/components/kit/button";
 import { SplitOverview } from "@/components/kit/overview";
-import { Status } from "@/components/kit/status";
+import { Status, StatusDot } from "@/components/kit/status";
 import type { Row } from "@/components/kit/list";
 import { OUTCOME } from "@/components/outcome-model";
 import { humanSchedule } from "@/components/schedule-human";
@@ -84,7 +84,7 @@ export default async function ProjectPage({
     const when = f.schedule ? (humanSchedule(f.schedule) ?? f.schedule) : f.trigger === "webhook" ? "Webhook" : f.trigger === "manual" ? "Run by hand" : f.trigger;
     const lastLine = last ? (
       <>
-        <span className={`size-2 shrink-0 rounded-full ${OUTCOME[last.outcome].dot}`} />
+        <StatusDot outcome={last.outcome} label="" />
         <span className="truncate">
           {OUTCOME[last.outcome].label} {fmtSpan(now - Date.parse(last.startedAt))} ago
           {last.failure ? ` · ${last.failure.agent}: ${last.failure.reason}` : last.headline ? ` · ${last.headline}` : ""}
@@ -210,7 +210,7 @@ export default async function ProjectPage({
         after={
           <>
             <RuntimesPanel runtimes={runtimes} />
-            <Panel title="Agents" count={agentList.length} action={<PanelLink href={`/dashboard/${workspace}/agents${qs}`}>All agents</PanelLink>}>
+            <Panel title="Agents" count={agentList.length} actions={<PanelLink href={`/dashboard/${workspace}/agents${qs}`}>All agents</PanelLink>} flush>
               {agentList.length === 0 ? (
                 <p className="px-5 py-8 text-center text-sm text-fg-muted">No agents yet.</p>
               ) : (

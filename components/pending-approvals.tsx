@@ -21,6 +21,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/kit/button";
 import { Tag } from "@/components/kit/page";
+import { Tooltip } from "@/components/kit/tooltip";
 
 interface Question {
   id: string;
@@ -205,7 +206,7 @@ export function PendingApprovals() {
                     {q.workspace} · {q.flow}
                   </Link>
                   <Tag mono className="h-5">{q.agent}</Tag>
-                  <span className="min-w-0 flex-1 truncate text-fg-secondary" title={q.question}>{q.question}</span>
+                  <Tooltip label={q.question}><span className="min-w-0 flex-1 truncate text-fg-secondary">{q.question}</span></Tooltip>
                   <span className="text-xs text-fg-muted">{waitedFor(q.askedAt)}</span>
                   {(q.options ?? []).slice(0, 4).map((o) => (
                     <Button key={o} size="xs" disabled={busy.has(`q:${q.id}`)} onClick={() => answer(q, o)}>
@@ -248,9 +249,11 @@ export function PendingApprovals() {
                   {g.workspace} · {g.flow}
                 </Link>
                 <Tag mono className="h-5">{g.agent}</Tag>
-                <span className="min-w-0 flex-1 truncate text-fg-secondary" title={g.question}>
-                  {g.asked ? g.question : `approve “${g.question}”?`}
-                </span>
+                <Tooltip label={g.question}>
+                  <span className="min-w-0 flex-1 truncate text-fg-secondary">
+                    {g.asked ? g.question : `approve “${g.question}”?`}
+                  </span>
+                </Tooltip>
                 <span className="text-xs text-fg-muted">{waitedFor(g.waitingSince)}</span>
                 <Button size="xs" variant="primary" disabled={busy.has(key(g))} onClick={() => decide(g, "approve")}>
                   Approve

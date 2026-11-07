@@ -15,6 +15,8 @@ import { useState } from "react";
 import { Check, Play, X } from "lucide-react";
 import { Button } from "@/components/kit/button";
 import { Input } from "@/components/kit/input";
+import { Tooltip } from "@/components/kit/tooltip";
+import { Callout } from "@/components/kit/page";
 
 interface Result {
   ok: boolean;
@@ -109,15 +111,18 @@ export function ToolTest({
             className="w-56 font-mono text-[13px]"
           />
         )}
-        <Button
-          variant="primary"
-          size="md"
-          onClick={run}
-          disabled={busy || stale}
-          title={stale ? "Save first — a test runs the file on disk, not the text on screen" : undefined}
-        >
-          <Play /> {busy ? "Calling…" : "Test"}
-        </Button>
+        <Tooltip label={stale ? "Save first — a test runs the file on disk, not the text on screen" : undefined}>
+          <span className="inline-flex">
+            <Button
+              variant="primary"
+              size="md"
+              onClick={run}
+              disabled={busy || stale}
+            >
+              <Play /> {busy ? "Calling…" : "Test"}
+            </Button>
+          </span>
+        </Tooltip>
         {stale && (
           <span className="text-xs text-warning">Save first — the test runs what is on disk.</span>
         )}
@@ -134,11 +139,11 @@ export function ToolTest({
       )}
 
       {result?.missingSecrets.length ? (
-        <p className="rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-xs text-warning">
+        <Callout tone="warning" className="px-3 py-2 text-xs">
           Unset secret{result.missingSecrets.length === 1 ? "" : "s"}:{" "}
           <span className="font-mono">{result.missingSecrets.join(", ")}</span> — the call went out
           without {result.missingSecrets.length === 1 ? "it" : "them"}.
-        </p>
+        </Callout>
       ) : null}
 
       {result?.detail ? (

@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { buttonClass, inputClass } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
+import { Input } from "@/components/kit/input";
 import { LocalTime } from "@/components/local-time";
+import { Field, Callout } from "@/components/kit/page";
 
 type Request = {
   code: string;
@@ -108,16 +110,15 @@ export function CliAuthorize() {
         A terminal ran <span className="font-mono">foldrun login</span> and is waiting for you to say it is yours.
       </p>
 
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-fg">Code shown in the terminal</span>
-        <input
+      <Field label="Code shown in the terminal">
+        <Input
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
           placeholder="ABCD-1234"
           autoFocus
-          className={inputClass("font-mono tracking-widest")}
+          className="font-mono tracking-widest"
         />
-      </label>
+      </Field>
 
       {request === null && code.replace(/[^A-Za-z0-9]/g, "").length === 8 && (
         <p className="mt-3 text-sm text-danger">No sign-in request has that code. It may have expired — run <span className="font-mono">foldrun login</span> again.</p>
@@ -134,9 +135,9 @@ export function CliAuthorize() {
             <div className="flex justify-between gap-4"><dt className="text-fg-muted">Role</dt><dd className="text-fg">{me.role === "owner" ? "admin (a key is never an owner)" : me.role}</dd></div>
           </dl>
           {request.sameNetwork === false && (
-            <p className="mt-3 rounded-md border border-danger-line bg-danger-soft p-2 text-xs text-danger">
+            <Callout tone="danger" className="mt-3 p-2 text-xs">
               This request came from a different network than the one this browser is on. If you did not just run <span className="font-mono">foldrun login</span> on another machine of your own, deny it.
-            </p>
+            </Callout>
           )}
           <p className="mt-3 text-xs text-fg-muted">
             Approving creates an API key for that machine at your role. The machine name is whatever that terminal said — it proves nothing.
@@ -144,10 +145,10 @@ export function CliAuthorize() {
             If someone sent you this link, deny it.
           </p>
           <div className="mt-4 flex gap-2">
-            <button type="button" disabled={busy} onClick={() => decide("approve")} className={buttonClass("primary")}>
+            <button type="button" disabled={busy} onClick={() => decide("approve")} className={buttonVariants({ variant: "primary", size: "md" })}>
               {busy ? "…" : "Yes, that's me"}
             </button>
-            <button type="button" disabled={busy} onClick={() => decide("deny")} className={buttonClass("secondary")}>
+            <button type="button" disabled={busy} onClick={() => decide("deny")} className={buttonVariants({ variant: "secondary", size: "md" })}>
               Deny
             </button>
           </div>

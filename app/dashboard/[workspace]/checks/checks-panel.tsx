@@ -8,9 +8,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { LocalTime } from "@/components/local-time";
 import { Check, RefreshCw, ShieldCheck } from "lucide-react";
-import { Chip, EmptyState, Stat, StatGrid, Tag, type Tone } from "@/components/kit/page";
+import { Chip, Count, EmptyState, Stat, StatGrid, Tag, type Tone, Callout } from "@/components/kit/page";
 import { Button } from "@/components/kit/button";
 import { cn } from "@/components/kit/cn";
+import { Tooltip } from "@/components/kit/tooltip";
 
 interface Finding {
   rule: string;
@@ -93,7 +94,7 @@ export function ChecksPanel({ workspace, tenantQuery, canOnline = true }: { work
     }
   };
 
-  if (error) return <p className="rounded-lg border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">{error}</p>;
+  if (error) return <Callout tone="danger" className="px-4 py-3 text-sm">{error}</Callout>;
   if (!data) return <p className="text-sm text-fg-muted">Checking…</p>;
 
   const byRule = new Map<string, Finding[]>();
@@ -125,16 +126,17 @@ export function ChecksPanel({ workspace, tenantQuery, canOnline = true }: { work
             Security only
           </Button>
           {canOnline && (
-            <Button
-              size="md"
-              className={toggle(online)}
-              onClick={() => setOnline((o) => !o)}
-              aria-pressed={online}
-              title="Also ask OSV.dev about exact runtime pins, and read what remote MCP servers tell the model about their tools"
-            >
-              {online && <Check aria-hidden />}
-              Online checks
-            </Button>
+            <Tooltip label="Also ask OSV.dev about exact runtime pins, and read what remote MCP servers tell the model about their tools">
+              <Button
+                size="md"
+                className={toggle(online)}
+                onClick={() => setOnline((o) => !o)}
+                aria-pressed={online}
+              >
+                {online && <Check aria-hidden />}
+                Online checks
+              </Button>
+            </Tooltip>
           )}
           <Button size="md" variant="ghost" onClick={() => void again()} disabled={busy}>
             <RefreshCw className={cn(busy && "animate-spin")} aria-hidden />
@@ -153,14 +155,14 @@ export function ChecksPanel({ workspace, tenantQuery, canOnline = true }: { work
       </div>
 
       {online && (data.online?.problems.length ?? 0) > 0 && (
-        <div role="alert" className="rounded-lg border border-warning-line bg-warning-soft px-4 py-3 text-sm text-warning">
+        <Callout tone="warning" className="px-4 py-3 text-sm" role="alert">
           <p className="font-medium">Not checked — this is not a pass:</p>
           <ul className="mt-1 list-disc pl-5">
             {data.online!.problems.map((p) => (
               <li key={p}>{p}</li>
             ))}
           </ul>
-        </div>
+        </Callout>
       )}
 
       {groups.length === 0 ? (
@@ -172,7 +174,7 @@ export function ChecksPanel({ workspace, tenantQuery, canOnline = true }: { work
       ) : (
         <section className="min-w-0 space-y-3">
           <h2 className="px-1 text-base font-medium text-fg">
-            Findings <span className="ml-1 rounded-full bg-muted px-1.5 text-xs font-medium tabular-nums text-fg-muted">{data.findings.length}</span>
+            Findings <Count className="ml-1">{data.findings.length}</Count>
           </h2>
           <div className="overflow-hidden rounded-lg border border-line bg-surface">
             <table className="w-full text-sm">
@@ -192,9 +194,11 @@ export function ChecksPanel({ workspace, tenantQuery, canOnline = true }: { work
                           <code className="font-mono text-[13px] font-semibold text-fg">{id}</code>
                           {rule?.title && <span className="text-sm text-fg-secondary">{rule.title}</span>}
                           {rule?.owasp?.map((o) => (
-                            <span key={o} title="OWASP Top 10 for Agentic Applications (2026)">
-                              <Tag mono>{o}</Tag>
-                            </span>
+                            <Tooltip key={o} label="OWASP Top 10 for Agentic Applications (2026)">
+                              <span>
+                                <Tag mono>{o}</Tag>
+                              </span>
+                            </Tooltip>
                           ))}
                           <span className="ml-auto text-[13px] tabular-nums text-fg-muted">{list.length}</span>
                         </div>

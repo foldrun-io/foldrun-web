@@ -12,9 +12,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ExternalLink, MoreHorizontal, Share2, Trash2 } from "lucide-react";
-import { useConfirm } from "@/components/confirm";
+import { useConfirm } from "@/components/kit/confirm";
 import { useCan, needs } from "@/components/role";
 import { Button } from "@/components/kit/button";
+import { Tooltip } from "@/components/kit/tooltip";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/kit/menu";
 import type { AssetItem } from "@/components/asset-fields";
 
@@ -107,28 +108,34 @@ export function AssetMenuItems({
   return (
     <>
       <MenuItem asChild>
-        <Link href={editorHref} title="Open in the file editor">
+        <Link href={editorHref}>
           <ExternalLink /> Open in Files
         </Link>
       </MenuItem>
       {canPromote && (
-        <MenuItem
-          onSelect={() => void promote().then((ok) => ok && onDone?.())}
-          disabled={moving || !mayWrite}
-          title={mayWrite ? "Move to the shared library, usable by every workspace" : needs("workspace:write")}
-        >
-          <Share2 /> Move to shared
-        </MenuItem>
+        <Tooltip label={mayWrite ? "Move to the shared library, usable by every workspace" : needs("workspace:write")} side="left">
+          <span className="block">
+            <MenuItem
+              onSelect={() => void promote().then((ok) => ok && onDone?.())}
+              disabled={moving || !mayWrite}
+            >
+              <Share2 /> Move to shared
+            </MenuItem>
+          </span>
+        </Tooltip>
       )}
       <MenuSeparator />
-      <MenuItem
-        tone="danger"
-        disabled={!mayWrite}
-        title={mayWrite ? undefined : needs("workspace:write")}
-        onSelect={() => void remove().then((ok) => ok && onDone?.())}
-      >
-        <Trash2 /> Delete
-      </MenuItem>
+      <Tooltip label={mayWrite ? undefined : needs("workspace:write")} side="left">
+        <span className="block">
+          <MenuItem
+            tone="danger"
+            disabled={!mayWrite}
+            onSelect={() => void remove().then((ok) => ok && onDone?.())}
+          >
+            <Trash2 /> Delete
+          </MenuItem>
+        </span>
+      </Tooltip>
     </>
   );
 }
@@ -140,9 +147,11 @@ export function AssetMenu({ item, workspace, tenant }: { item: Pick<AssetItem, "
     <span className="inline-flex items-center gap-2">
       {actions.confirmDialog}
       {actions.status && (
-        <span role="status" aria-live="polite" className={`max-w-48 truncate text-xs font-medium ${actions.status.failed ? "text-danger" : "text-fg-muted"}`} title={actions.status.text}>
-          {actions.status.text}
-        </span>
+        <Tooltip label={actions.status.text}>
+          <span role="status" aria-live="polite" className={`max-w-48 truncate text-xs font-medium ${actions.status.failed ? "text-danger" : "text-fg-muted"}`}>
+            {actions.status.text}
+          </span>
+        </Tooltip>
       )}
       <Menu>
         <MenuTrigger asChild>

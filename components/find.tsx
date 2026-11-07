@@ -13,9 +13,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { createPortal } from "react-dom";
 import { rank, groupHits, pagesFor, type FindHit, type FindKind } from "./find-model";
 import { workspaceOf } from "./sidebar";
+import { Tag } from "@/components/kit/page";
+import { Tooltip } from "@/components/kit/tooltip";
+import { Dialog, DialogContent, DialogTitle } from "@/components/kit/dialog";
+import { Kbd } from "@/components/kit/input";
+import { Search } from "lucide-react";
 
 export const FIND_EVENT = "foldrun:find";
 export function openFind() {
@@ -49,28 +53,20 @@ const STATUS_DOT: Record<string, string> = {
   stopped: "var(--color-gray-400)",
 };
 
-function SearchIcon({ size = 14 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="7" />
-      <path d="m20 20-3.5-3.5" />
-    </svg>
-  );
-}
-
 /** The sidebar's box: looks like a search field, opens the palette. */
 export function FindTrigger({ compact = false }: { compact?: boolean } = {}) {
   if (compact) {
     return (
-      <button
-        type="button"
-        onClick={openFind}
-        title="Find (F)"
-        aria-label="Find"
-        className="flex size-8 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-muted hover:text-fg"
-      >
-        <SearchIcon />
-      </button>
+      <Tooltip label="Find (F)" side="right">
+        <button
+          type="button"
+          onClick={openFind}
+          aria-label="Find"
+          className="flex size-8 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-muted hover:text-fg"
+        >
+          <Search className="size-3.5" aria-hidden />
+        </button>
+      </Tooltip>
     );
   }
   return (
@@ -79,9 +75,9 @@ export function FindTrigger({ compact = false }: { compact?: boolean } = {}) {
       onClick={openFind}
       className="flex h-9 w-full items-center gap-2 rounded-md border border-line bg-surface px-2.5 text-left text-sm text-fg-muted transition-colors hover:border-line-strong"
     >
-      <SearchIcon />
+      <Search className="size-3.5" aria-hidden />
       <span className="flex-1">Find…</span>
-      <kbd className="rounded border border-line bg-sunken px-1.5 font-mono text-[10px] leading-4 text-fg-muted">F</kbd>
+      <Kbd>F</Kbd>
     </button>
   );
 }
@@ -190,18 +186,12 @@ export function Find() {
     router.push(hit.href);
   };
 
-  if (!open || typeof document === "undefined") return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 bg-ink/30 backdrop-blur-[1px]" onPointerDown={() => setOpen(false)}>
-      <div
-        role="dialog"
-        aria-label="Find"
-        onPointerDown={(e) => e.stopPropagation()}
-        className="mx-auto mt-[10vh] w-[640px] max-w-[92vw] overflow-hidden rounded-xl border border-line bg-surface shadow-2xl"
-      >
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent hideClose aria-describedby={undefined} onOpenAutoFocus={(e) => { e.preventDefault(); inputRef.current?.focus(); }} className="top-[10vh] w-[640px] max-w-[92vw] translate-y-0 rounded-xl">
+        <DialogTitle className="sr-only">Find</DialogTitle>
         <div className="flex items-center gap-2.5 border-b border-line-faint px-3.5">
-          <span className="text-fg-subtle"><SearchIcon size={16} /></span>
+          <span className="text-fg-subtle"><Search className="size-4" aria-hidden /></span>
           <input
             ref={inputRef}
             value={q}
@@ -216,9 +206,6 @@ export function Find() {
               } else if (e.key === "Enter") {
                 e.preventDefault();
                 go(flat[active]);
-              } else if (e.key === "Escape") {
-                e.preventDefault();
-                setOpen(false);
               }
             }}
             placeholder={workspace ? `Find in ${workspace} or anywhere…` : "Find a workspace, agent, flow, run, tool, page…"}
@@ -256,7 +243,7 @@ export function Find() {
                       <span className="flex items-center gap-2">
                         <span className={`truncate text-sm ${h.kind === "run" ? "font-mono text-xs" : "font-medium"} text-fg`}>{h.title}</span>
                         {h.workspace && (
-                          <span className="shrink-0 rounded bg-muted px-1.5 text-[10px] text-fg-muted">{h.workspace}</span>
+                          <Tag className="h-5 px-1.5 text-[11px] text-fg-muted">{h.workspace}</Tag>
                         )}
                       </span>
                       {h.subtitle && <span className="block truncate text-xs text-fg-muted">{h.subtitle}</span>}
@@ -274,8 +261,7 @@ export function Find() {
           <span><kbd className="font-mono">esc</kbd> close</span>
           <span className="ml-auto"><kbd className="font-mono">F</kbd> or <kbd className="font-mono">⌘K</kbd> from anywhere</span>
         </div>
-      </div>
-    </div>,
-    document.body,
+      </DialogContent>
+    </Dialog>
   );
 }

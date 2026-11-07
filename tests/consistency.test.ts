@@ -386,23 +386,8 @@ test("content pages share one width; only editors and file trees go wide", () =>
   assert.deepEqual(offenders, [], "pages jumped width — max-w-7xl is the standard");
 });
 
-test("no component rolls its own dark primary button", () => {
-  const offenders: string[] = [];
-  const walk = (dir: string) => {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory() && entry.name !== "node_modules") walk(full);
-      else if (entry.name.endsWith(".tsx") && !full.endsWith("components/ui.tsx")) {
-        if (/bg-(gray-900|ink) px-/.test(fs.readFileSync(full, "utf8"))) {
-          offenders.push(path.relative(WEB, full));
-        }
-      }
-    }
-  };
-  walk(path.join(WEB, "app"));
-  walk(path.join(WEB, "components"));
-  assert.deepEqual(offenders, [], "a primary button outside buttonClass() is a fork of the design system");
-});
+// "No component rolls its own dark primary button" lives in tests/kit-only.test.ts
+// now, with the other one-implementation-per-pattern rules.
 
 test("nothing asks for confirmation through the browser", () => {
   // window.confirm renders with the *origin* as its title, so a destructive
@@ -422,7 +407,7 @@ test("nothing asks for confirmation through the browser", () => {
   };
   walk(path.join(WEB, "app"));
   walk(path.join(WEB, "components"));
-  assert.deepEqual(offenders, [], "use useConfirm() from components/confirm.tsx");
+  assert.deepEqual(offenders, [], "use useConfirm() from components/kit/confirm.tsx");
 });
 
 test("every workspace subpage draws the one page header", () => {

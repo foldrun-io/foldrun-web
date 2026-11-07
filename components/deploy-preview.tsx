@@ -12,7 +12,8 @@
 // that tree: `issues` refuse it, `warnings` do not.
 
 import { useEffect, useState } from "react";
-import { Chip } from "@/components/kit/page";
+import { Chip, Callout } from "@/components/kit/page";
+import { Disclosure } from "@/components/kit/disclosure";
 
 type DiffOp = { kind: "same" | "add" | "del"; text: string };
 
@@ -93,35 +94,32 @@ export function DeployPreview({ workspace, tenant, to }: { workspace: string; te
         </p>
       )}
       {plan.issues && plan.issues.length > 0 && (
-        <div className="rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-xs text-danger">
+        <Callout tone="danger" className="px-3 py-2 text-xs">
           It would not pass the deploy checks:
           <ul className="mt-0.5 list-inside list-disc font-mono text-[11px]">
             {plan.issues.map((i, n) => (
               <li key={n}>{(i.where ? `${i.where}: ` : "") + i.message}</li>
             ))}
           </ul>
-        </div>
+        </Callout>
       )}
       {plan.warnings && plan.warnings.length > 0 && (
-        <div className="rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-xs text-warning">
+        <Callout tone="warning" className="px-3 py-2 text-xs">
           It would deploy, with {plan.warnings.length === 1 ? "a warning" : "warnings"}:
           <ul className="mt-0.5 list-inside list-disc font-mono text-[11px]">
             {plan.warnings.map((i, n) => (
               <li key={n}>{(i.where ? `${i.where}: ` : "") + i.message}</li>
             ))}
           </ul>
-        </div>
+        </Callout>
       )}
       <ul className="space-y-1">
         {plan.files.map((f) => (
           <li key={f.path} className="overflow-hidden rounded-md border border-line bg-surface">
-            <details>
-              <summary className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-sunken">
-                <Chip tone={f.change === "removed" ? "bad" : f.change === "added" ? "good" : "info"}>{f.change}</Chip>
-                <span className="truncate font-mono">{f.path}</span>
-              </summary>
+            <Disclosure summaryClassName="flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-sunken" summary={<><Chip tone={f.change === "removed" ? "bad" : f.change === "added" ? "good" : "info"}>{f.change}</Chip>
+                <span className="truncate font-mono">{f.path}</span></>}>
               <Diff ops={f.diff} />
-            </details>
+            </Disclosure>
           </li>
         ))}
       </ul>

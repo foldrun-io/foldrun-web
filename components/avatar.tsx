@@ -6,9 +6,10 @@
 // face with Change and Remove under it, for the pages where it is yours
 // to set.
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { buttonClass } from "./ui";
+import { buttonVariants } from "./kit/button";
+import { useFilePicker } from "./kit/file-button";
 
 const SIZE = {
   xs: "h-4 w-4 text-[9px]",
@@ -61,7 +62,7 @@ export function AvatarEditor({
   square?: boolean;
 }) {
   const router = useRouter();
-  const input = useRef<HTMLInputElement>(null);
+  const picker = useFilePicker({ accept: "image/png,image/jpeg,image/webp", onFiles: ([f]) => void upload(f) });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const endpoint = `/api/avatars/${kind}/${encodeURIComponent(id)}`;
@@ -83,7 +84,6 @@ export function AvatarEditor({
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
-      if (input.current) input.current.value = "";
     }
   };
   const remove = async () => {
@@ -105,15 +105,15 @@ export function AvatarEditor({
       <Avatar name={name} src={src} size="xl" square={square} />
       <div className="space-y-1.5">
         <div className="flex items-center gap-2">
-          <button type="button" disabled={busy} onClick={() => input.current?.click()} className={buttonClass("secondary", "!px-3 !py-1 !text-xs")}>
+          <button type="button" disabled={busy} onClick={picker.open} className={buttonVariants({ variant: "secondary", size: "xs" })}>
             {busy ? "Working…" : src ? "Change" : "Add a picture"}
           </button>
           {src && (
-            <button type="button" disabled={busy} onClick={() => void remove()} className={buttonClass("minimal", "!px-2 !py-1 !text-xs")}>
+            <button type="button" disabled={busy} onClick={() => void remove()} className={buttonVariants({ variant: "ghost", size: "xs" })}>
               Remove
             </button>
           )}
-          <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => e.target.files?.[0] && void upload(e.target.files[0])} />
+          {picker.input}
         </div>
         <p className="text-xs text-fg-subtle">PNG, JPEG or WebP, up to 1 MB. Square looks best.</p>
         {error && <p className="text-xs text-red-600">{error}</p>}

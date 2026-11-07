@@ -13,7 +13,7 @@
 // card that repeated the empty Running panel's "Next:" line.
 
 import Link from "next/link";
-import { CheckCircle2, ChevronRight, Clock3, Coins } from "lucide-react";
+import { CheckCircle2, Clock3, Coins } from "lucide-react";
 import { OUTCOME, type Outcome } from "@/components/outcome-model";
 import { runHref } from "@/components/run-href";
 import { fmtSpan, type AttentionItem, type Heartbeat, type NowItem } from "@/components/mission-model";
@@ -24,8 +24,9 @@ import { issueDoctor } from "@/lib/issues";
 import { WithEmails } from "@/components/email";
 import { fmtIn } from "@/components/workspace-overview-model";
 import { LocalTime } from "@/components/local-time";
-import { Chip, Stat, StatGrid, UsageRows, type RingStatus, type Tone, type UsageRow } from "@/components/kit/page";
-import { cn } from "@/components/kit/cn";
+import { Chip, EmptyState, Panel, PanelLink, Stat, StatGrid, UsageRows, type RingStatus, type Tone, type UsageRow } from "@/components/kit/page";
+import { StatusDot } from "@/components/kit/status";
+import { Tooltip } from "@/components/kit/tooltip";
 
 const KIND: Record<AttentionItem["kind"], { label: string; tone: Tone }> = {
   platform: { label: "Platform", tone: "default" },
@@ -46,33 +47,6 @@ export function outcomeRing(o: Outcome | null | undefined): RingStatus {
   if (o === "failed" || o === "bad" || o === "blocked") return "error";
   if (o === "stopped") return "idle";
   return "live";
-}
-
-/** cloudhost's Panel, with the older props: the title (and a count) outside
- *  the card, an action beside it. */
-export function Panel({ title, count, action, children, className = "", flush = true }: { title: string; count?: number; action?: React.ReactNode; children: React.ReactNode; className?: string; flush?: boolean }) {
-  return (
-    <section className={cn("min-w-0 space-y-3", className)}>
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <h2 className="flex items-center gap-2 px-1 text-base font-medium text-fg">
-          {title}
-          {count !== undefined && <span className="rounded-full bg-muted px-1.5 text-xs font-medium tabular-nums text-fg-muted">{count}</span>}
-        </h2>
-        {action && <div className="flex items-center gap-2">{action}</div>}
-      </div>
-      <div className={cn("min-w-0 overflow-hidden rounded-lg border border-line bg-surface", !flush && "p-5")}>{children}</div>
-    </section>
-  );
-}
-
-/** A panel header's "see all" link. */
-export function PanelLink({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <Link href={href} className="inline-flex h-8 items-center gap-0.5 rounded-md border border-line bg-surface px-3 text-[13px] font-medium text-fg transition-colors hover:bg-sunken">
-      {children}
-      <ChevronRight className="size-3.5 text-fg-muted" aria-hidden />
-    </Link>
-  );
 }
 
 export interface StatusFacts {
@@ -141,7 +115,7 @@ export function SpendPanel({
     ...(balanceUsd !== undefined && balanceUsd !== null ? [{ key: "balance", label: "Balance", used: balanceUsd <= 0 ? 1 : 0, limit: 1, shown: creditsShort(balanceUsd), href: balanceHref ?? href }] : []),
   ];
   return (
-    <Panel title="Usage" action={<PanelLink href={href}>Usage</PanelLink>}>
+    <Panel title="Usage" actions={<PanelLink href={href}>Usage</PanelLink>} flush>
       <UsageRows rows={rows} heading="This week" />
     </Panel>
   );
@@ -152,15 +126,9 @@ export function SpendPanel({
 export function AttentionPanel({ items, alerts = [], tenant, showWorkspace = true, issuesHref, accountWide = true, limit = 6 }: { items: AttentionItem[]; alerts?: Alert[]; tenant: string; showWorkspace?: boolean; issuesHref?: string; accountWide?: boolean; limit?: number }) {
   const total = items.length + alerts.length;
   return (
-    <Panel title="Needs attention" count={total || undefined} action={issuesHref ? <PanelLink href={issuesHref}>All issues</PanelLink> : undefined}>
+    <Panel title="Needs attention" count={total || undefined} actions={issuesHref ? <PanelLink href={issuesHref}>All issues</PanelLink> : undefined} flush>
       {total === 0 ? (
-        <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
-          <span className="flex size-10 items-center justify-center rounded-lg border border-line text-success">
-            <CheckCircle2 className="size-5" />
-          </span>
-          <p className="font-medium text-fg">All clear</p>
-          <p className="text-sm text-fg-muted">Nothing failed, stuck or waiting for you.</p>
-        </div>
+        <EmptyState bare icon={<CheckCircle2 className="text-success" />} title="All clear" description="Nothing failed, stuck or waiting for you." />
       ) : (
         <ul id="attention" className="divide-y divide-line">
           {items.slice(0, limit).map((a) => {
@@ -233,7 +201,7 @@ export function NowNext({ board, upcoming, now, tenant, showWorkspace = true, ru
   return (
     <>
       {board.length > 0 && (
-        <Panel title="Running now" count={board.length} action={<PanelLink href={runsHref}>All runs</PanelLink>}>
+        <Panel title="Running now" count={board.length} actions={<PanelLink href={runsHref}>All runs</PanelLink>} flush>
           <ul className="divide-y divide-line">
             {board.slice(0, 6).map((r) => {
               const pct = r.steps ? Math.round((100 * r.done) / r.steps) : 0;
@@ -241,7 +209,7 @@ export function NowNext({ board, upcoming, now, tenant, showWorkspace = true, ru
                 <li key={`${r.workspace}/${r.id}`}>
                   <Link href={runHref(r.workspace, r.id, tenant)} className="group block px-5 py-3 hover:bg-sunken">
                     <div className="flex items-center gap-2 text-sm">
-                      <span className={`size-2 shrink-0 rounded-full ${OUTCOME[r.outcome].dot}`} />
+                      <StatusDot outcome={r.outcome} label="" />
                       <span className="truncate font-medium text-fg group-hover:underline">{r.what}</span>
                       {showWorkspace && <span className="shrink-0 text-fg-muted">{r.workspace}</span>}
                       <span className="ml-auto shrink-0 text-xs tabular-nums text-fg-muted">{fmtSpan(r.elapsedMs)}</span>
@@ -260,7 +228,7 @@ export function NowNext({ board, upcoming, now, tenant, showWorkspace = true, ru
           </ul>
         </Panel>
       )}
-      <Panel title="Up next">
+      <Panel title="Up next" flush>
         {upcoming.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-fg-muted">Nothing scheduled.</p>
         ) : (
@@ -273,9 +241,11 @@ export function NowNext({ board, upcoming, now, tenant, showWorkspace = true, ru
                     <span className="font-medium text-fg group-hover:underline">{u.flow}</span>
                     {showWorkspace && <span className="ml-1.5 text-fg-muted">{u.workspace}</span>}
                   </span>
-                  <span className="shrink-0 text-xs tabular-nums text-fg-muted" title={u.at}>
-                    {fmtIn(Math.max(0, Date.parse(u.at) - now))}
-                  </span>
+                  <Tooltip label={u.at}>
+                    <span className="shrink-0 text-xs tabular-nums text-fg-muted">
+                      {fmtIn(Math.max(0, Date.parse(u.at) - now))}
+                    </span>
+                  </Tooltip>
                 </Link>
               </li>
             ))}
@@ -293,14 +263,18 @@ export function Cells({ beat, n, tenant }: { beat: Heartbeat; n: number; tenant:
       {Array.from({ length: Math.max(0, n - beat.cells.length) }).map((_, i) => (
         <span key={`e${i}`} className="h-5 w-1.5 rounded-full bg-muted" />
       ))}
-      {beat.cells.map((r) => (
-        <Link
-          key={r.id}
-          href={runHref(r.workspace, r.id, tenant)}
-          title={`${r.what} · ${OUTCOME[r.outcome].hint} · ${r.startedAt.slice(0, 16).replace("T", " ")} UTC${r.headline ? `\n${r.headline}` : ""}`}
-          className={`h-5 w-1.5 rounded-full ${OUTCOME[r.outcome].cell} transition-transform hover:scale-y-110`}
-        />
-      ))}
+      {beat.cells.map((r) => {
+        const tip = `${r.what} · ${OUTCOME[r.outcome].hint} · ${r.startedAt.slice(0, 16).replace("T", " ")} UTC${r.headline ? `\n${r.headline}` : ""}`;
+        return (
+          <Tooltip key={r.id} label={<span className="whitespace-pre-line">{tip}</span>}>
+            <Link
+              href={runHref(r.workspace, r.id, tenant)}
+              aria-label={tip}
+              className={`h-5 w-1.5 rounded-full ${OUTCOME[r.outcome].cell} transition-transform hover:scale-y-110`}
+            />
+          </Tooltip>
+        );
+      })}
     </div>
   );
 }

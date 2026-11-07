@@ -20,9 +20,10 @@ import { RowCheckbox, SelectAllCheckbox } from "@/components/bulk-select";
 import { runKey } from "@/components/run-key";
 import { outcomeOf, tally } from "@/components/outcome-model";
 import { Status } from "@/components/kit/status";
-import { EmptyState, SummaryCard, Tag } from "@/components/kit/page";
+import { EmptyState, SummaryCard, Tag, IconBox } from "@/components/kit/page";
 import { cn } from "@/components/kit/cn";
-import { Bot, ChevronLeft, ChevronRight, FlaskConical, Play, Workflow } from "lucide-react";
+import { Tooltip } from "@/components/kit/tooltip";
+import { Bot, FlaskConical, Play, Workflow } from "lucide-react";
 
 export type RunRow = RunRecord & { workspace: string };
 
@@ -153,9 +154,9 @@ export function RunsTable({
                 </td>
                 <td className={cn(TD, "w-full max-w-0")}>
                   <span className="flex min-w-0 items-center gap-3">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-line bg-surface text-fg [&_svg]:size-4" title={kind}>
+                    <IconBox hint={kind}>
                       <KindIcon flow={r.flow} />
-                    </span>
+                    </IconBox>
                     <span className="min-w-0 flex-1">
                       <span className="flex min-w-0 items-baseline gap-2">
                         <Link
@@ -171,12 +172,18 @@ export function RunsTable({
                           start by opening the run — the sentence was in the
                           record all along. */}
                       {failure ? (
-                        <span
-                          className="block truncate text-xs text-fg-muted"
-                          title={`${failure.agent}: ${failure.message}${failure.fix ? ` — ${failure.fix}` : ""}${failure.reason !== failure.message ? `\n${failure.reason}` : ""}`}
+                        <Tooltip
+                          label={
+                            <>
+                              {`${failure.agent}: ${failure.message}${failure.fix ? ` — ${failure.fix}` : ""}`}
+                              {failure.reason !== failure.message ? <><br />{failure.reason}</> : null}
+                            </>
+                          }
                         >
-                          {failure.agent}: {failure.message}
-                        </span>
+                          <span className="block truncate text-xs text-fg-muted">
+                            {failure.agent}: {failure.message}
+                          </span>
+                        </Tooltip>
                       ) : active.length > 0 ? (
                         <span className={cn("block truncate text-xs", r.status === "awaiting-approval" ? "text-warning" : "text-info")}>
                           {active
@@ -187,9 +194,11 @@ export function RunsTable({
                             .join(" · ")}
                         </span>
                       ) : summary ? (
-                        <span className="block truncate text-xs text-fg-muted" title={summary}>
-                          {summary}
-                        </span>
+                        <Tooltip label={summary}>
+                          <span className="block truncate text-xs text-fg-muted">
+                            {summary}
+                          </span>
+                        </Tooltip>
                       ) : (
                         <span className="block truncate text-xs text-fg-muted">
                           {kind} · {done} of {r.steps.length} step{r.steps.length === 1 ? "" : "s"}
@@ -206,14 +215,14 @@ export function RunsTable({
                         "blocked" here too, not "completed". */}
                     <Status outcome={outcomeOf(runDisplayStatus(r), r.status === "completed" ? runVerdict(r) : null)} />
                     {r.test && (
-                      <span title="A test run: every step ran, nothing outward happened, state/ and storage/ were left alone">
-                        <Tag className="h-5">test</Tag>
-                      </span>
+                      <Tag className="h-5" hint="A test run: every step ran, nothing outward happened, state/ and storage/ were left alone">test</Tag>
                     )}
                     {a2a && (
-                      <span title="Started by an outside agent over A2A, with this A2A key">
-                        <Tag className="h-5 max-w-40 truncate">{a2a}</Tag>
-                      </span>
+                      <Tooltip label="Started by an outside agent over A2A, with this A2A key">
+                        <span>
+                          <Tag className="h-5 max-w-40 truncate">{a2a}</Tag>
+                        </span>
+                      </Tooltip>
                     )}
                   </span>
                 </td>
@@ -228,10 +237,12 @@ export function RunsTable({
                 </td>
                 <td className={cn(TD, "text-right tabular-nums max-md:hidden")}>
                   {money?.[r.id] ? (
-                    <span title={money[r.id].charged ? "Charged" : "Estimated: list price until the run is settled"}>
-                      {money[r.id].charged ? "" : "~"}
-                      {creditsShort(money[r.id].usd).replace(/ credits?$/, "")}
-                    </span>
+                    <Tooltip label={money[r.id].charged ? "Charged" : "Estimated: list price until the run is settled"}>
+                      <span>
+                        {money[r.id].charged ? "" : "~"}
+                        {creditsShort(money[r.id].usd).replace(/ credits?$/, "")}
+                      </span>
+                    </Tooltip>
                   ) : (
                     `$${runCost(r).toFixed(4)}`
                   )}
@@ -281,41 +292,12 @@ export function filterByWindow(runs: RunRow[], since?: string): RunRow[] {
 }
 
 /** The runs list turns like every other list — see components/paging.ts.
- *  `pageOf` and this `Pager` remain as the runs pages' names for them, with
- *  the chronological labels a runs list reads by. */
+ *  `pageOf` remains the runs pages' name for it; they draw the kit's Pager
+ *  with the chronological labels a runs list reads by. */
 export const RUNS_PAGE_SIZE = PAGE_SIZE;
 
 export function pageOf(runs: RunRow[], page: number): { rows: RunRow[]; pages: number; page: number; total: number } {
   return paginate(runs, page);
-}
-
-export function Pager({ base, page, pages, total, tenantParam }: { base: string; page: number; pages: number; total?: number; tenantParam: string }) {
-  if (pages <= 1 && !total) return null;
-  const sep = base.includes("?") ? "&" : "?";
-  const at = (n: number) => `${base}${sep}page=${n}${tenantParam}`;
-  const from = (page - 1) * RUNS_PAGE_SIZE + 1;
-  const to = total !== undefined ? Math.min(total, page * RUNS_PAGE_SIZE) : null;
-  const step = (n: number, label: string, enabled: boolean, Icon: typeof ChevronLeft) =>
-    enabled ? (
-      <Link href={at(n)} aria-label={label} title={label} className="flex size-8 items-center justify-center rounded-md border border-line bg-surface text-fg hover:bg-sunken">
-        <Icon className="size-4" />
-      </Link>
-    ) : (
-      <span aria-hidden className="flex size-8 items-center justify-center rounded-md border border-line bg-surface text-fg opacity-40">
-        <Icon className="size-4" />
-      </span>
-    );
-  return (
-    <div className="flex items-center justify-between gap-3 pt-3 text-sm text-fg-muted">
-      <span className="tabular-nums">{to !== null ? `${from}–${to} of ${total}` : `Page ${page} of ${pages}`}</span>
-      {pages > 1 && (
-        <span className="flex items-center gap-1">
-          {step(page - 1, "Newer runs", page > 1, ChevronLeft)}
-          {step(page + 1, "Older runs", page < pages, ChevronRight)}
-        </span>
-      )}
-    </div>
-  );
 }
 
 /** What a run's `flow` field means to a reader — the same transformation the

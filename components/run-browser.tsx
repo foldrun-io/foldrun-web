@@ -9,6 +9,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LIVE_POLL_MS, REWIND_FRAMES, frameAge, mediaFiles, mediaKind, recordingLabel } from "@/components/run-browser-model";
 import { useViewerTime } from "@/components/viewer-time";
+import { Slider } from "@/components/kit/slider";
+import { Tooltip } from "@/components/kit/tooltip";
 
 interface Frame {
   src: string;
@@ -149,28 +151,28 @@ export function BrowserTheater({
   const tiles = (
     <div className="flex gap-2 overflow-x-auto px-3 py-2.5">
       {latest && (
+        <Tooltip label={live ? "Watch live" : "The last frame seen"}>
         <button
           type="button"
           onClick={() => pick({ kind: "live" })}
           className={`group relative h-20 w-36 shrink-0 overflow-hidden rounded-md border ${current.kind === "live" ? "border-red-500 ring-2 ring-red-500/30" : "border-gray-700 hover:border-gray-500"}`}
-          title={live ? "Watch live" : "The last frame seen"}
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- live frame thumbnail */}
           <img src={latest.src} alt="" className="h-full w-full object-cover object-top opacity-80 group-hover:opacity-100" />
           <span className={`absolute bottom-1 left-1 rounded px-1 text-[9px] font-semibold uppercase ${live ? "bg-red-600 text-white" : "bg-black/70 text-gray-200"}`}>{live ? "live" : "last"}</span>
         </button>
+        </Tooltip>
       )}
       {media.map((f) => {
         const isVideo = mediaKind(f.path) === "video";
         const label = isVideo ? recordingLabel(f.path) : null;
         const on = current.kind === "file" && current.file.path === f.path && current.file.agent === f.agent;
         return (
+          <Tooltip key={`${f.agent}/${f.path}`} label={f.path}>
           <button
-            key={`${f.agent}/${f.path}`}
             type="button"
             onClick={() => pick({ kind: "file", file: f })}
             className={`group relative h-20 w-36 shrink-0 overflow-hidden rounded-md border bg-neutral-900 ${on ? "border-sky-400 ring-2 ring-sky-400/30" : "border-gray-700 hover:border-gray-500"}`}
-            title={f.path}
           >
             {isVideo ? (
               <video src={`${hrefOf(f)}#t=0.5`} muted preload="metadata" playsInline className="pointer-events-none h-full w-full object-cover object-top opacity-80 group-hover:opacity-100" />
@@ -183,6 +185,7 @@ export function BrowserTheater({
               {isVideo && label!.at && <RecTime at={label!.at} />}
             </span>
           </button>
+          </Tooltip>
         );
       })}
     </div>
@@ -197,18 +200,28 @@ export function BrowserTheater({
           <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
           <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
         </span>
-        <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md bg-neutral-900 px-2.5 py-1 font-mono text-[11px] text-gray-300" title={address}>
+        <Tooltip label={address}>
+        <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md bg-neutral-900 px-2.5 py-1 font-mono text-[11px] text-gray-300">
           <span className="text-fg-muted">{address.startsWith("https://") ? "🔒" : current.kind === "file" ? "▶" : "○"}</span>
           <span className="truncate">{current.kind === "live" ? address : `${agent} · ${address}`}</span>
           {current.kind === "live" && address && <span className="ml-auto hidden shrink-0 text-fg-muted sm:inline">{hostOf(address)}</span>}
         </div>
+        </Tooltip>
         {latest?.engine && <span className="hidden rounded bg-neutral-700 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-gray-300 sm:inline">{latest.engine}</span>}
-        {videos.length > 0 && <span className="rounded bg-neutral-700 px-1.5 py-0.5 text-[10px] font-medium text-gray-200" title="recordings of this step">● rec {videos.length}</span>}
-        <button type="button" onClick={() => setTheater((t) => !t)} className="rounded px-1.5 py-0.5 text-[11px] text-gray-300 hover:bg-neutral-700 hover:text-white" title={theater ? "Close (Esc)" : "Watch full screen"}>
-          {theater ? "✕ close" : "⤢ theater"}
-        </button>
+        {videos.length > 0 && (
+          <Tooltip label="recordings of this step">
+            <span className="rounded bg-neutral-700 px-1.5 py-0.5 text-[10px] font-medium text-gray-200">● rec {videos.length}</span>
+          </Tooltip>
+        )}
+        <Tooltip label={theater ? "Close (Esc)" : "Watch full screen"}>
+          <button type="button" onClick={() => setTheater((t) => !t)} className="rounded px-1.5 py-0.5 text-[11px] text-gray-300 hover:bg-neutral-700 hover:text-white">
+            {theater ? "✕ close" : "⤢ theater"}
+          </button>
+        </Tooltip>
         {file && (
-          <a href={hrefOf(file)} target="_blank" rel="noreferrer" className="rounded px-1.5 py-0.5 text-[11px] text-gray-300 hover:bg-neutral-700 hover:text-white" title="Open the file on its own">↗</a>
+          <Tooltip label="Open the file on its own">
+            <a href={hrefOf(file)} target="_blank" rel="noreferrer" aria-label="Open the file on its own" className="rounded px-1.5 py-0.5 text-[11px] text-gray-300 hover:bg-neutral-700 hover:text-white">↗</a>
+          </Tooltip>
         )}
       </div>
       <div className={theater ? "min-h-0 flex-1" : ""}>{stage}</div>
@@ -216,13 +229,13 @@ export function BrowserTheater({
       {current.kind === "live" && frames.length > 1 && (
         <div className="flex items-center gap-3 border-t border-gray-800 px-3 py-2 text-[11px] text-fg-subtle">
           <span className="shrink-0">rewind</span>
-          <input
-            type="range"
+          <Slider
             min={0}
             max={frames.length - 1}
             value={rewind ?? frames.length - 1}
-            onChange={(e) => { const v = Number(e.target.value); setRewind(v === frames.length - 1 ? null : v); }}
-            className="h-1 flex-1 cursor-pointer accent-red-500"
+            onValueChange={(v) => setRewind(v === frames.length - 1 ? null : v)}
+            tone="danger"
+            className="flex-1"
             aria-label="Rewind the live view"
           />
           <span className="w-24 shrink-0 text-right tabular-nums">{rewind === null ? `${frames.length} frames` : `${behind}s behind`}</span>

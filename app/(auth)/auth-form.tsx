@@ -7,9 +7,12 @@
 import { useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { inputClass, buttonClass } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
+import { Input } from "@/components/kit/input";
+import { Tooltip } from "@/components/kit/tooltip";
+import { cn } from "@/components/kit/cn";
+import { Field, Callout } from "@/components/kit/page";
 
-const FIELD = inputClass();
 
 export function AuthForm({ mode, invite, setup }: { mode: "login" | "signup"; invite?: string; setup?: string }) {
   const next = useSearchParams().get("next") ?? "/dashboard";
@@ -80,53 +83,44 @@ export function AuthForm({ mode, invite, setup }: { mode: "login" | "signup"; in
       {challenge && (
         // The second step replaces the form: the email and password were
         // right, and the only thing left is the code.
-        <label className="block">
-          <span className="mb-1.5 block text-sm font-medium text-fg">Code from your authenticator app</span>
-          <input name="code" inputMode="numeric" autoComplete="one-time-code" autoFocus required placeholder="123 456 — or a backup code" className={FIELD} />
-          <span className="mt-1 block text-xs text-fg-muted">Lost the app? A backup code works once.</span>
-        </label>
+        <Field label="Code from your authenticator app" hint="Lost the app? A backup code works once.">
+          <Input name="code" inputMode="numeric" autoComplete="one-time-code" autoFocus required placeholder="123 456 — or a backup code" />
+        </Field>
       )}
       {!challenge && mode === "signup" && !invite && (
-        <label className="block">
-          <span className="mb-1.5 block text-sm font-medium text-fg">Account name</span>
-          <input
-            name="account"
-            required
-            pattern="[a-z0-9]+(-[a-z0-9]+)*"
-            title="lowercase letters, digits and single hyphens — like a good directory name"
-            placeholder="acme"
-            className={FIELD}
-          />
-          <span className="mt-1 block text-xs text-fg-muted">
-            Lowercase, hyphens allowed. This names your workspace URLs.
-          </span>
-        </label>
+        <Field label="Account name" hint="Lowercase, hyphens allowed. This names your workspace URLs.">
+          <Tooltip label="lowercase letters, digits and single hyphens — like a good directory name">
+            <Input
+              name="account"
+              required
+              pattern="[a-z0-9]+(-[a-z0-9]+)*"
+              placeholder="acme"
+            />
+          </Tooltip>
+        </Field>
       )}
-      {!challenge && <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-fg">Email</span>
-        <input name="email" type="email" required placeholder="you@example.com" className={FIELD} />
-      </label>}
-      {!challenge && <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-fg">Password</span>
-        <input
+      {!challenge && <Field label="Email">
+        <Input name="email" type="email" required placeholder="you@example.com" />
+      </Field>}
+      {!challenge && <Field label="Password">
+        <Input
           name="password"
           type="password"
           required
           minLength={mode === "signup" ? 10 : 1}
           placeholder={mode === "signup" ? "at least 10 characters" : ""}
-          className={FIELD}
         />
         {mode === "login" && (
-          <a href="/forgot" className="mt-1 block text-xs text-fg-muted hover:text-fg">Forgot your password?</a>
+          <a href="/forgot" className="block text-xs text-fg-muted hover:text-fg">Forgot your password?</a>
         )}
-      </label>}
+      </Field>}
       {error && (
-        <p className="rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>
+        <Callout tone="danger">{error}</Callout>
       )}
       <button
         type="submit"
         disabled={busy}
-        className={buttonClass("primary", "h-9 w-full")}
+        className={cn(buttonVariants({ variant: "primary", size: "md" }), "w-full")}
       >
         {busy ? "…" : challenge ? "Verify" : mode === "signup" ? "Create account" : "Sign in"}
       </button>

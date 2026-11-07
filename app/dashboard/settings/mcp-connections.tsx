@@ -8,10 +8,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Cpu, Plug } from "lucide-react";
 import { Button } from "@/components/kit/button";
-import { IconBox } from "@/components/kit/page";
+import { IconBox, Field, Callout } from "@/components/kit/page";
 import { LocalTime } from "@/components/local-time";
-import { useConfirm } from "@/components/confirm";
+import { useConfirm } from "@/components/kit/confirm";
 import { Email } from "@/components/email";
+import { Input } from "@/components/kit/input";
+import { Select } from "@/components/kit/select";
 
 export interface ConnectionRow {
   id: string;
@@ -55,25 +57,24 @@ export function McpConnections({ connections, everyone }: { connections: Connect
     router.refresh();
   }
 
-  const field = "mt-1.5 h-9 w-full rounded-md border border-line bg-surface px-3 text-sm text-fg";
   const machineForm = everyone ? (
     <div className="border-t border-line bg-sunken px-5 py-3 text-sm sm:px-6">
       {made && (
-        <div role="status" className="mb-3 rounded-md border border-success-line bg-success-soft p-3 text-xs text-fg">
+        <Callout tone="success" className="mb-3 p-3 text-xs text-fg" role="status">
           <div className="font-medium text-success">Copy the secret now — it is not shown again.</div>
           <div className="mt-1 break-all font-mono">client_id: {made.client_id}</div>
           {made.client_secret && <div className="break-all font-mono">client_secret: {made.client_secret}</div>}
           <div className="mt-1 text-fg-muted">POST {made.token_endpoint} with grant_type=client_credentials, the id and secret as HTTP Basic; then Bearer the access token to /api/mcp.</div>
           <Button variant="ghost" className="mt-2" onClick={() => setMade(null)}>Done</Button>
-        </div>
+        </Callout>
       )}
       {adding ? (
         <div className="space-y-3 py-1">
           <div className="grid gap-3 sm:grid-cols-3">
-            <label className="block text-sm font-medium text-fg">Name<input value={m.name} onChange={(e) => setM({ ...m, name: e.target.value })} placeholder="Nightly report bot" className={field} /></label>
-            <label className="block text-sm font-medium text-fg">Role<select value={m.role} onChange={(e) => setM({ ...m, role: e.target.value })} className={field}>{["viewer", "editor", "admin"].map((r) => <option key={r} value={r}>{r}</option>)}</select></label>
-            <label className="block text-sm font-medium text-fg">Access<select value={m.access} onChange={(e) => setM({ ...m, access: e.target.value as "read" | "write" })} className={field}><option value="read">read only</option><option value="write">read and act</option></select></label>
-            <label className="block text-sm font-medium text-fg sm:col-span-3">Workspaces <span className="font-normal text-fg-muted">— comma-separated; empty for all you can open</span><input value={m.workspaces} onChange={(e) => setM({ ...m, workspaces: e.target.value })} className={field} /></label>
+            <Field label="Name"><Input value={m.name} onChange={(e) => setM({ ...m, name: e.target.value })} placeholder="Nightly report bot" /></Field>
+            <Field label="Role"><Select value={m.role} onChange={(e) => setM({ ...m, role: e.target.value })} className="w-full">{["viewer", "editor", "admin"].map((r) => <option key={r} value={r}>{r}</option>)}</Select></Field>
+            <Field label="Access"><Select value={m.access} onChange={(e) => setM({ ...m, access: e.target.value as "read" | "write" })} className="w-full"><option value="read">read only</option><option value="write">read and act</option></Select></Field>
+            <Field label={<>Workspaces <span className="font-normal text-fg-muted">— comma-separated; empty for all you can open</span></>} className="sm:col-span-3"><Input value={m.workspaces} onChange={(e) => setM({ ...m, workspaces: e.target.value })} /></Field>
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setAdding(false)}>Cancel</Button>

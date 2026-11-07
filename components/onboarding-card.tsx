@@ -12,6 +12,8 @@ import type { Onboarding } from "./onboarding-model";
 import { ArrowRight, ChevronDown, Circle, CircleCheck, X } from "lucide-react";
 import { Button, buttonVariants } from "./kit/button";
 import { cn } from "./kit/cn";
+import { IconBox } from "@/components/kit/page";
+import { Tooltip } from "@/components/kit/tooltip";
 
 function withQs(href: string, qs: string): string {
   if (!qs) return href;
@@ -62,6 +64,7 @@ export function OnboardingCard({ data, qs, canDismiss }: { data: Onboarding; qs:
             <ChevronDown aria-hidden className={cn("transition-transform", open && "rotate-180")} />
           </Button>
           {canDismiss && (
+            <Tooltip label="Hide this card — bring it back from the bottom of this page or with `foldrun onboarding --show`">
             <Button
               variant="ghost"
               size="icon-sm"
@@ -78,10 +81,10 @@ export function OnboardingCard({ data, qs, canDismiss }: { data: Onboarding; qs:
                   setBusy(false);
                 }
               }}
-              title="Hide this card — bring it back from the bottom of this page or with `foldrun onboarding --show`"
             >
               <X aria-hidden />
             </Button>
+            </Tooltip>
           )}
         </div>
         {error && (
@@ -91,9 +94,9 @@ export function OnboardingCard({ data, qs, canDismiss }: { data: Onboarding; qs:
         )}
       </header>
       <div className="flex flex-wrap items-center gap-3 px-5 pb-4 pt-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-line bg-sunken text-fg-muted [&_svg]:size-4">
+        <IconBox round className="bg-sunken text-fg-muted">
           <ArrowRight aria-hidden />
-        </span>
+        </IconBox>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-fg">{next.title}</p>
           <p className="text-sm text-fg-muted">{next.why}</p>

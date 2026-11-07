@@ -11,6 +11,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { Bell } from "lucide-react";
 import { cn } from "./kit/cn";
+import { Tooltip } from "@/components/kit/tooltip";
 
 const EVERY_MS = 60_000;
 
@@ -56,10 +57,10 @@ export function InboxLink({ className }: { className?: string }) {
   if (n === null) return null;
   const on = pathname === "/dashboard/inbox";
   return (
+    <Tooltip label={n ? `${n} unread in your inbox` : "Inbox"}>
     <Link
       href={`/dashboard/inbox${t !== "default" ? `?tenant=${encodeURIComponent(t)}` : ""}`}
       aria-label={n ? `Inbox, ${n} unread` : "Inbox"}
-      title={n ? `${n} unread in your inbox` : "Inbox"}
       className={cn(
         "relative flex size-8 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
         on ? "bg-muted text-fg" : "text-fg-muted hover:bg-muted hover:text-fg",
@@ -69,5 +70,6 @@ export function InboxLink({ className }: { className?: string }) {
       <Bell className="size-4" strokeWidth={1.75} aria-hidden />
       {n > 0 && <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-blue-600 ring-2 ring-paper" aria-hidden />}
     </Link>
+    </Tooltip>
   );
 }

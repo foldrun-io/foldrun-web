@@ -4,7 +4,7 @@
 // the rest by bouncing the next dashboard request to /login.
 
 import { useRouter } from "next/navigation";
-import { buttonClass } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
 
 export function SignOutButton() {
   const router = useRouter();
@@ -15,7 +15,7 @@ export function SignOutButton() {
         router.push("/login");
         router.refresh();
       }}
-      className={buttonClass("secondary")}
+      className={buttonVariants({ variant: "secondary" })}
     >
       Sign out
     </button>

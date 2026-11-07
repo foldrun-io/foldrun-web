@@ -6,18 +6,18 @@
 import Link from "next/link";
 import { listRuns } from "@/lib/store";
 import { listWorkspaceHooks, HOOK_SAMPLE } from "@/server/hooks";
-import { hookActivity, hookTally, hookBadge } from "@/components/hooks-model";
+import { hookActivity, hookTally, hookBadge, HOOK_TONE } from "@/components/hooks-model";
 import { HookTest } from "@/components/hook-test";
-import { Panel, Chip, EmptyState, type Tone } from "@/components/kit/page";
+import { Panel, Chip, EmptyState } from "@/components/kit/page";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/kit/table";
 import { ShieldCheck } from "lucide-react";
+import { Tooltip } from "@/components/kit/tooltip";
 
 /** How far back "lately" reaches: the newest runs, not a date window, so a
  *  quiet workspace still shows its last deny. */
 export const HOOK_RUNS_READ = 50;
 
 const when = (iso: string) => iso.replace("T", " ").slice(0, 16);
-const CHIP_TONE: Record<ReturnType<typeof hookBadge>["tone"], Tone> = { error: "bad", warn: "warn", info: "info", muted: "default" };
 
 export function HooksPanel({ tenant, workspace }: { tenant: string; workspace: string }) {
   const qs = tenant !== "default" ? `?tenant=${tenant}` : "";
@@ -71,9 +71,9 @@ export function HooksPanel({ tenant, workspace }: { tenant: string; workspace: s
                     <TD className="align-top text-fg-muted">
                       {h.scope === "workspace" ? workspace : "shared"}
                       {h.shadowed && (
-                        <span className="ml-1 text-xs text-fg-subtle" title="a workspace hook of the same name is the one that runs">
-                          (shadowed)
-                        </span>
+                        <Tooltip label="a workspace hook of the same name is the one that runs">
+                          <span className="ml-1 text-xs text-fg-subtle">(shadowed)</span>
+                        </Tooltip>
                       )}
                     </TD>
                     <TD className="align-top">
@@ -134,7 +134,7 @@ export function HooksPanel({ tenant, workspace }: { tenant: string; workspace: s
                   <TR key={`${a.runId}-${a.step}-${i}`}>
                     <TD className="whitespace-nowrap text-fg-muted">{when(a.t)}</TD>
                     <TD>
-                      <Chip tone={CHIP_TONE[b.tone]}>{b.label}</Chip>
+                      <Chip tone={HOOK_TONE[b.tone]}>{b.label}</Chip>
                     </TD>
                     <TD className="font-mono text-xs">{a.record.tool ?? a.record.event}</TD>
                     <TD className="text-fg-tertiary">{a.record.reason || "—"}</TD>

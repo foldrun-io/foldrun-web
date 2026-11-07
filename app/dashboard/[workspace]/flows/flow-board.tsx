@@ -12,9 +12,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, buttonClass, inputClass, selectClass, dashedButtonClass, IconButton, PlayIcon } from "@/components/ui";
+import { Input, inputBase } from "@/components/kit/input";
+import { Select } from "@/components/kit/select";
+import { cn } from "@/components/kit/cn";
+import { IconButton, Tooltip } from "@/components/kit/tooltip";
 import { Chip, Tag } from "@/components/kit/page";
-import { ArrowDown, ArrowUp, ChevronsUp, FileCode2, GripVertical, Plus, Settings2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronsUp, FileCode2, GripVertical, Play, Plus, Settings2, X } from "lucide-react";
 import { buttonVariants } from "@/components/kit/button";
 import { StepOptionsEditor } from "./step-options";
 import { InlineEditor } from "@/components/inline-editor";
@@ -22,7 +25,7 @@ import { SmartTextarea } from "@/components/smart-textarea";
 import type { FlowStep } from "@/lib/store";
 
 import { joinGroup, splitToRail, type Groups } from "@/lib/arrange.ts";
-import { useConfirm } from "@/components/confirm";
+import { useConfirm } from "@/components/kit/confirm";
 import { flowWrite } from "@/components/flow-write";
 
 function toGroups(steps: FlowStep[]): Groups {
@@ -260,9 +263,9 @@ export function FlowBoard({
           </span>
         )}
         {status && (
-          <Badge variant={status.startsWith("not saved") ? "error" : status === "saved" ? "success" : "default"}>
+          <Chip tone={status.startsWith("not saved") ? "bad" : status === "saved" ? "good" : "default"}>
             {status}
-          </Badge>
+          </Chip>
         )}
       </div>
 
@@ -300,7 +303,7 @@ export function FlowBoard({
                       side="right"
                       onClick={() => void runFrom(steps[group[0]].group)}
                     >
-                      <PlayIcon />
+                      <Play className="size-3 fill-current" />
                     </IconButton>
                   </span>
                 )}
@@ -336,34 +339,37 @@ export function FlowBoard({
                         {s.subflow ? (
                           <span className="text-sm font-medium text-fg">flow: {s.subflow}</span>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => setAgentFor(agentFor === index ? null : index)}
-                            title={
+                          <Tooltip
+                            label={
                               agentFor === index
                                 ? "Close this agent's file"
                                 : `Edit agents/${s.agent}/agent.md`
                             }
-                            className="text-sm font-medium text-fg underline decoration-line-strong decoration-dashed underline-offset-4 hover:decoration-fg"
                           >
-                            {s.agent}
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => setAgentFor(agentFor === index ? null : index)}
+                              className="text-sm font-medium text-fg underline decoration-line-strong decoration-dashed underline-offset-4 hover:decoration-fg"
+                            >
+                              {s.agent}
+                            </button>
+                          </Tooltip>
                         )}
                         {missing && <Chip tone="bad">not found</Chip>}
                         {s.optional && <Tag>optional</Tag>}
                         {s.approve && <Chip tone="warn">needs approval</Chip>}
-                        {s.when && <Tag className="max-w-full"><span className="truncate" title={s.when}>when: {s.when}</span></Tag>}
+                        {s.when && <Tag className="max-w-full"><Tooltip label={s.when}><span className="truncate">when: {s.when}</span></Tooltip></Tag>}
                         {s.case && <Tag>case: {s.case}</Tag>}
                         {s.else && <Tag>else</Tag>}
                         {s.retry != null && <Tag>retry ×{s.retry}</Tag>}
                         {s.timeout != null && <Tag>{s.timeout}s</Tag>}
                         {s.waitSecs != null && <Tag>wait {s.waitSecs >= 86400 ? `${Math.round(s.waitSecs / 86400)}d` : s.waitSecs >= 3600 ? `${Math.round(s.waitSecs / 3600)}h` : `${s.waitSecs}s`}</Tag>}
                         {s.onFail && <Tag>on-fail → {s.onFail}</Tag>}
-                        {s.ask && <Chip tone="warn"><span title={s.ask}>asks a human</span></Chip>}
+                        {s.ask && <Chip tone="warn"><Tooltip label={s.ask}><span>asks a human</span></Tooltip></Chip>}
                         {s.delegate && s.delegate.length > 0 && <Tag>delegates: {s.delegate.join(", ")}</Tag>}
                         {s.model && <Tag mono>{s.model}</Tag>}
-                        {s.verify && <Tag className="max-w-full"><span className="truncate" title={s.verify}>verify: {s.verify}</span></Tag>}
-                        {s.loop != null && s.until && <Tag className="max-w-full"><span className="truncate" title={s.until}>loop ×{s.loop} until “{s.until}”</span></Tag>}
+                        {s.verify && <Tag className="max-w-full"><Tooltip label={s.verify}><span className="truncate">verify: {s.verify}</span></Tooltip></Tag>}
+                        {s.loop != null && s.until && <Tag className="max-w-full"><Tooltip label={s.until}><span className="truncate">loop ×{s.loop} until “{s.until}”</span></Tooltip></Tag>}
                         {s.each && <Tag>fan-out {s.each}{s.max != null ? ` ×${s.max}` : ""}</Tag>}
 
                         {/* Drag is not reachable by keyboard, so the same two
@@ -399,7 +405,7 @@ export function FlowBoard({
                           </IconButton>
                           <IconButton
                             label="Remove this step"
-                            tone="destructive"
+                            tone="danger"
                             onClick={async () => {
                               if (
                                 await confirm({
@@ -425,16 +431,17 @@ export function FlowBoard({
                           onSave={(text) => void saveInstruction(index, text)}
                         />
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => setInstructionFor(index)}
-                          title="Edit what this step tells the agent to do — this flow only"
-                          className="mt-1 block w-full rounded-md px-5 py-1 text-left text-[13px] leading-relaxed text-fg-muted hover:bg-sunken hover:text-fg"
-                        >
-                          {s.instruction || (
-                            <span className="text-fg-subtle">no instruction — click to write one</span>
-                          )}
-                        </button>
+                        <Tooltip label="Edit what this step tells the agent to do — this flow only">
+                          <button
+                            type="button"
+                            onClick={() => setInstructionFor(index)}
+                            className="mt-1 block w-full rounded-md px-5 py-1 text-left text-[13px] leading-relaxed text-fg-muted hover:bg-sunken hover:text-fg"
+                          >
+                            {s.instruction || (
+                              <span className="text-fg-subtle">no instruction — click to write one</span>
+                            )}
+                          </button>
+                        </Tooltip>
                       )}
                       {agentFor === index && !s.subflow && (
                         <div className="mt-2 rounded-lg border border-line bg-sunken px-3 pb-3">
@@ -552,13 +559,13 @@ export function InstructionEditor({
             onSave(text);
           }
         }}
-        className={inputClass("text-xs leading-relaxed")}
+        className={cn(inputBase, "py-1.5 text-xs leading-relaxed")}
       />
       <div className="mt-1 flex items-center gap-2">
-        <button type="button" onClick={() => onSave(text)} className={buttonClass("primary", "px-2 py-0.5 text-xs")}>
+        <button type="button" onClick={() => onSave(text)} className={buttonVariants({ variant: "primary", size: "xs" })}>
           Save
         </button>
-        <button type="button" onClick={onCancel} className={buttonClass("minimal", "px-2 py-0.5 text-xs")}>
+        <button type="button" onClick={onCancel} className={buttonVariants({ variant: "ghost", size: "xs" })}>
           Cancel
         </button>
         <span className="text-xs text-fg-subtle">this flow only — the agent{"'"}s own file is unchanged</span>
@@ -586,7 +593,7 @@ function AddStep({
     return (
       <button
         onClick={() => setOpen(true)}
-        className={dashedButtonClass("mt-3 inline-flex items-center justify-center gap-1.5")}
+        className={cn(buttonVariants({ variant: "dashed", size: "lg" }), "mt-3")}
       >
         <Plus className="size-4" aria-hidden />
         Add step
@@ -607,11 +614,10 @@ function AddStep({
         setInstruction("");
       }}
     >
-      <select
+      <Select
         autoFocus
         value={target}
         onChange={(e) => setTarget(e.target.value)}
-        className={selectClass()}
       >
         <option value="">Choose an agent…</option>
         {knownAgents.map((a) => (
@@ -628,17 +634,17 @@ function AddStep({
             ))}
           </optgroup>
         )}
-      </select>
-      <input
+      </Select>
+      <Input
         value={instruction}
         onChange={(e) => setInstruction(e.target.value)}
         placeholder="what this step should do (optional)"
-        className={inputClass("min-w-0 flex-1")}
+        className="min-w-0 flex-1"
       />
-      <button className={buttonClass("primary")} disabled={!target}>
+      <button className={buttonVariants({ variant: "primary", size: "md" })} disabled={!target}>
         Add
       </button>
-      <button type="button" onClick={() => setOpen(false)} className={buttonClass("minimal")}>
+      <button type="button" onClick={() => setOpen(false)} className={buttonVariants({ variant: "ghost", size: "md" })}>
         Cancel
       </button>
     </form>

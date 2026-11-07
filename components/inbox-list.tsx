@@ -12,7 +12,8 @@ import { WithEmails } from "@/components/email";
 import type { InboxItem } from "@/server/inbox";
 import { AlertTriangle, ArchiveRestore, CheckCheck, Archive, Mail, MailOpen, MessageCircleQuestion, MoreHorizontal, Play, ShieldCheck, Wand2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/kit/button";
-import { Chip, type Tone } from "@/components/kit/page";
+import { Tooltip } from "@/components/kit/tooltip";
+import { Chip, type Tone, IconBox, Callout } from "@/components/kit/page";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/kit/menu";
 import { cn } from "@/components/kit/cn";
 
@@ -70,16 +71,16 @@ export function InboxList({ items, tenant, dismissedView }: { items: InboxItem[]
           )}
         </div>
       )}
-      {error && <p role="alert" className="rounded-lg border border-danger-line bg-danger-soft px-4 py-2.5 text-sm text-danger">{error}</p>}
+      {error && <Callout tone="danger" className="px-4 py-2.5 text-sm" role="alert">{error}</Callout>}
       <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
         {items.map((i) => {
           const k = KIND[i.kind];
           return (
             <li key={i.id} className={cn("relative flex min-w-0 items-center gap-3 px-3 py-3 transition-colors hover:bg-sunken sm:px-4", !i.read && "bg-accent-soft/30")}>
-              <span className="relative flex size-9 shrink-0 items-center justify-center rounded-md border border-line bg-surface text-fg [&_svg]:size-4" aria-hidden>
+              <IconBox className="relative" aria-hidden>
                 {k.icon}
                 {!i.read && <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-surface bg-info" />}
-              </span>
+              </IconBox>
               <div className="min-w-0 flex-1">
                 <Link
                   href={i.href}
@@ -111,10 +112,12 @@ export function InboxList({ items, tenant, dismissedView }: { items: InboxItem[]
               </div>
               <span className="relative z-10 flex shrink-0 items-center gap-1">
                 {dismissedView ? (
-                  <Button size="sm" onClick={() => mark([i.id], "restore", `${i.id}-d`)} disabled={!!busy} title="Put it back in your inbox">
-                    <ArchiveRestore aria-hidden />
-                    Put back
-                  </Button>
+                  <Tooltip label="Put it back in your inbox">
+                    <Button size="sm" onClick={() => mark([i.id], "restore", `${i.id}-d`)} disabled={!!busy}>
+                      <ArchiveRestore aria-hidden />
+                      Put back
+                    </Button>
+                  </Tooltip>
                 ) : (
                   <Link href={i.href} onClick={() => open(i)} className={cn(buttonVariants({ variant: "secondary", size: "sm" }), "max-sm:hidden")}>
                     {k.open}

@@ -9,9 +9,10 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Gauge } from "lucide-react";
-import { Page, PageHeader, IconBox, Panel, PanelList, SummaryCard, StatGrid, Stat, Chip, type Tone } from "@/components/kit/page";
+import { Page, PageHeader, IconBox, Panel, PanelList, SummaryCard, StatGrid, Stat, Chip, type Tone, Callout } from "@/components/kit/page";
 import { Button } from "@/components/kit/button";
 import { Input } from "@/components/kit/input";
+import { Tooltip } from "@/components/kit/tooltip";
 import { EvalMenu } from "./eval-actions";
 import { EvalSource } from "./eval-card";
 import { runHref } from "@/components/run-href";
@@ -107,9 +108,11 @@ export function GraderDetail({
         badge={
           <>
             {summary.graded > 0 ? (
-              <span title={`${week.passed} passed, ${week.failed} failed in 7 days; ${pct(summary.rate)} over 30`}>
-                <Chip tone={rateTone(week.rate)}>{pct(week.rate)} passing · 7 days</Chip>
-              </span>
+              <Tooltip label={`${week.passed} passed, ${week.failed} failed in 7 days; ${pct(summary.rate)} over 30`}>
+                <span>
+                  <Chip tone={rateTone(week.rate)}>{pct(week.rate)} passing · 7 days</Chip>
+                </span>
+              </Tooltip>
             ) : (
               <Chip>no runs graded yet</Chip>
             )}
@@ -126,14 +129,14 @@ export function GraderDetail({
 
       <div className="space-y-8 pb-12">
         {(info.problems.length > 0 || missingTarget) && (
-          <div className="space-y-1 rounded-lg border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
+          <Callout tone="danger" className="px-4 py-3 text-sm" bodyClassName="space-y-1">
             {missingTarget && <p>{kind} &quot;{target}&quot; not found in this workspace.</p>}
             {info.problems.map((p) => (
               <p key={p}>
                 <WithEmails text={p} />
               </p>
             ))}
-          </div>
+          </Callout>
         )}
 
         <SummaryCard
@@ -150,12 +153,20 @@ export function GraderDetail({
             },
             {
               label: "Grades",
-              value: <span title="The share of finished runs this grader reads, chosen by a hash of the run id — the same run is always in or out.">{info.sample}% of runs</span>,
+              value: (
+                <Tooltip label="The share of finished runs this grader reads, chosen by a hash of the run id — the same run is always in or out.">
+                  <span>{info.sample}% of runs</span>
+                </Tooltip>
+              ),
             },
             { label: "Judge", value: <span className="font-mono">{info.model}</span> },
             {
               label: "Proposes a fix",
-              value: info.improve ? <span title={`A fix is proposed once ${info.improve} graded runs failed and nobody has looked.`}>after {info.improve} failures</span> : "Only when asked",
+              value: info.improve ? (
+                <Tooltip label={`A fix is proposed once ${info.improve} graded runs failed and nobody has looked.`}>
+                  <span>after {info.improve} failures</span>
+                </Tooltip>
+              ) : "Only when asked",
             },
           ]}
         />
@@ -171,10 +182,12 @@ export function GraderDetail({
           <Panel title="Per day" description="A bar per day graded — passed under failed.">
             <div className="flex h-16 items-end gap-1 overflow-x-auto" aria-label="grades per day, passed over failed">
               {days.map((d) => (
-                <div key={d.day} className="flex w-3 shrink-0 flex-col justify-end gap-px" title={`${d.day}: ${d.passed} passed, ${d.failed} failed of ${d.graded}`}>
-                  <div className="rounded-t-sm bg-danger" style={{ height: `${(d.failed / tallest) * 64}px` }} />
-                  <div className="rounded-b-sm bg-success" style={{ height: `${(d.passed / tallest) * 64}px` }} />
-                </div>
+                <Tooltip key={d.day} label={`${d.day}: ${d.passed} passed, ${d.failed} failed of ${d.graded}`}>
+                  <div className="flex w-3 shrink-0 flex-col justify-end gap-px">
+                    <div className="rounded-t-sm bg-danger" style={{ height: `${(d.failed / tallest) * 64}px` }} />
+                    <div className="rounded-b-sm bg-success" style={{ height: `${(d.passed / tallest) * 64}px` }} />
+                  </div>
+                </Tooltip>
               ))}
             </div>
           </Panel>

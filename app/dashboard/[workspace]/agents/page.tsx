@@ -15,6 +15,7 @@ import { RunButton } from "../../run-button";
 import { BookOpen, Bot, User, Workflow, Wrench } from "lucide-react";
 import { Page, PageHeader, ResourceCard, EmptyState, Tag, Chip } from "@/components/kit/page";
 import { ResourceList, type Row } from "@/components/kit/list";
+import { Tooltip } from "@/components/kit/tooltip";
 
 export const dynamic = "force-dynamic";
 
@@ -62,9 +63,9 @@ export default async function AgentsPage({
       sub: a.description || "No description",
       cells: {
         model: <Tag mono>{a.model}</Tag>,
-        tools: <span title={tools}>{tools}</span>,
+        tools: <Tooltip label={tools}><span>{tools}</span></Tooltip>,
         flows: callers.length ? callers.join(", ") : <span className="text-fg-subtle">no flow</span>,
-        last: a.stale ? <Chip tone="warn">not run in {staleDays}+ days</Chip> : <span title={a.lastRunAt ?? undefined}>{ran}</span>,
+        last: a.stale ? <Chip tone="warn">not run in {staleDays}+ days</Chip> : <Tooltip label={a.lastRunAt}><span>{ran}</span></Tooltip>,
       },
       action: <RunButton endpoint={`/api/workspaces/${workspace}/agents/${a.name}/run`} tenant={tenant} label="Run" withTask={false} />,
       card: (

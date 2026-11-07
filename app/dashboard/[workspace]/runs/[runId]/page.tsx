@@ -26,6 +26,7 @@ import { fmtTokenDetail, fmtTokenLine } from "@/components/step-io-model";
 import { Page, IconBox, Fact, Tag, Panel } from "@/components/kit/page";
 import { buttonVariants } from "@/components/kit/button";
 import { cn } from "@/components/kit/cn";
+import { Tooltip } from "@/components/kit/tooltip";
 import { Bot, ChevronLeft, ChevronRight, FlaskConical, Workflow } from "lucide-react";
 import { gradesOfRun } from "@/lib/grades";
 import { WithEmails } from "@/components/email";
@@ -83,9 +84,11 @@ export default async function RunPage({
   const tokenLine = fmtTokenLine(tokens, measuredHitRate(run.steps.map((s) => s.tokens)));
   const navButton = (href: string | null, label: string, Icon: typeof ChevronLeft, keyHint: string) =>
     href ? (
-      <Link href={href} aria-label={label} title={`${label} (${keyHint})`} className={buttonVariants({ variant: "secondary", size: "icon" })}>
-        <Icon aria-hidden />
-      </Link>
+      <Tooltip label={`${label} (${keyHint})`}>
+        <Link href={href} aria-label={label} className={buttonVariants({ variant: "secondary", size: "icon" })}>
+          <Icon aria-hidden />
+        </Link>
+      </Tooltip>
     ) : (
       <span aria-hidden className={cn(buttonVariants({ variant: "secondary", size: "icon" }), "pointer-events-none opacity-40")}>
         <Icon />
@@ -98,16 +101,25 @@ export default async function RunPage({
     same.length > 1 ? (
       <span className="flex flex-wrap items-center gap-[3px] py-0.5">
         {same.map((r) => (
-          <Link
+          <Tooltip
             key={r.id}
-            href={runHref(workspace, r.id, tenant)}
-            title={`${OUTCOME[r.outcome].hint} · ${r.startedAt.slice(0, 16).replace("T", " ")} UTC${r.headline ? `\n${r.headline}` : ""}`}
-            className={cn(
-              "h-4 w-2.5 rounded-[2px] transition-transform",
-              OUTCOME[r.outcome].cell,
-              r.id === run.id ? "ring-2 ring-fg ring-offset-1 ring-offset-surface" : "hover:scale-y-125",
-            )}
-          />
+            label={
+              <>
+                {OUTCOME[r.outcome].hint} · {r.startedAt.slice(0, 16).replace("T", " ")} UTC
+                {r.headline ? <><br />{r.headline}</> : null}
+              </>
+            }
+          >
+            <Link
+              href={runHref(workspace, r.id, tenant)}
+              aria-label={`${OUTCOME[r.outcome].hint} · ${r.startedAt.slice(0, 16).replace("T", " ")} UTC`}
+              className={cn(
+                "h-4 w-2.5 rounded-[2px] transition-transform",
+                OUTCOME[r.outcome].cell,
+                r.id === run.id ? "ring-2 ring-fg ring-offset-1 ring-offset-surface" : "hover:scale-y-125",
+              )}
+            />
+          </Tooltip>
         ))}
       </span>
     ) : null;
@@ -163,9 +175,11 @@ export default async function RunPage({
           ),
           title: what,
           tags: a2aLabel ? (
-            <span title="Started by an outside agent over A2A, with this A2A key">
-              <Tag>{a2aLabel}</Tag>
-            </span>
+            <Tooltip label="Started by an outside agent over A2A, with this A2A key">
+              <span>
+                <Tag>{a2aLabel}</Tag>
+              </span>
+            </Tooltip>
           ) : undefined,
           // What it concluded, when the callout below does not already say.
           description: headline && !failure && outcome !== "blocked" && outcome !== "bad" ? <span className="line-clamp-3 break-words">{headline}</span> : undefined,
@@ -175,16 +189,20 @@ export default async function RunPage({
                 <span className="font-mono">{run.id}</span>
               </Fact>
               {run.revision && (
-                <span title={`deployed commit ${run.revision} — the files this run ran`}>
-                  <Fact label="Ran on">
-                    <span className="font-mono">{run.revision.slice(0, 7)}</span>
-                  </Fact>
-                </span>
+                <Tooltip label={`deployed commit ${run.revision} — the files this run ran`}>
+                  <span>
+                    <Fact label="Ran on">
+                      <span className="font-mono">{run.revision.slice(0, 7)}</span>
+                    </Fact>
+                  </span>
+                </Tooltip>
               )}
               {run.drivenAt && (
-                <span title="from the run being created to a worker picking it up">
-                  <Fact label="Queued">{fmtSpan(Math.max(0, Date.parse(run.drivenAt) - Date.parse(run.startedAt)))}</Fact>
-                </span>
+                <Tooltip label="from the run being created to a worker picking it up">
+                  <span>
+                    <Fact label="Queued">{fmtSpan(Math.max(0, Date.parse(run.drivenAt) - Date.parse(run.startedAt)))}</Fact>
+                  </span>
+                </Tooltip>
               )}
               <span className="hidden text-xs text-fg-subtle lg:inline">
                 <kbd className="rounded border border-line px-1 font-mono">←</kbd> <kbd className="rounded border border-line px-1 font-mono">→</kbd> older and newer runs ·{" "}
@@ -203,12 +221,14 @@ export default async function RunPage({
             {
               label: charged ? "Charged" : "Est. charge",
               value: (
-                <span className="tabular-nums" title={`${charged ? "What the ledger charged" : "List price — the run is not settled yet"}${cost ? ` · token cost $${cost.toFixed(4)}` : ""}`}>
-                  {runCharge(run, charges) ? credits(runCharge(run, charges)) : "—"}
-                </span>
+                <Tooltip label={`${charged ? "What the ledger charged" : "List price — the run is not settled yet"}${cost ? ` · token cost $${cost.toFixed(4)}` : ""}`}>
+                  <span className="tabular-nums">
+                    {runCharge(run, charges) ? credits(runCharge(run, charges)) : "—"}
+                  </span>
+                </Tooltip>
               ),
             },
-            { label: "Tokens", value: <span className="tabular-nums" title={fmtTokenDetail(tokens) ?? undefined}>{tokenLine ?? "—"}</span> },
+            { label: "Tokens", value: <Tooltip label={fmtTokenDetail(tokens)}><span className="tabular-nums">{tokenLine ?? "—"}</span></Tooltip> },
             ...(history
               ? [{ label: <>Last {same.length} runs{sameTally.completedPct === null ? "" : ` · ${sameTally.completedPct}% completed`}</>, value: history }]
               : []),

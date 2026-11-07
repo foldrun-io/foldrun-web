@@ -19,6 +19,9 @@ import { useCan, needs } from "@/components/role";
 import { announceDecision } from "@/components/pending-approvals";
 import { eventRelease, eventBody } from "@/components/live-run-model";
 import type { StepRecord } from "@/lib/store";
+import { Callout } from "@/components/kit/page";
+import { Disclosure } from "@/components/kit/disclosure";
+import { Tooltip } from "@/components/kit/tooltip";
 
 export function EventWaitBox({
   workspace,
@@ -75,7 +78,7 @@ export function EventWaitBox({
     : `curl -X POST "$FOLDRUN_URL/api/events/<account>/${workspace}/${runId}?token=<token>" \\\n  -H 'content-type: application/json' \\\n  -d '{"status":"done"}'`;
 
   return (
-    <div className="mb-4 space-y-3 rounded-lg border border-info-line bg-info-soft p-3 text-[13px] sm:p-4">
+    <Callout tone="info" className="mb-4 p-3 text-[13px] sm:p-4" bodyClassName="space-y-3">
       <span className="flex items-center gap-2 text-sm font-medium text-fg">
         <Webhook className="size-4 shrink-0 text-info" aria-hidden />
         Waiting for an external event before this step runs.
@@ -102,10 +105,9 @@ export function EventWaitBox({
           The step&apos;s trace does not show its event URL. It carries a token the server derives from the run and is printed in the trace when the step parks; you can still release the step from here.
         </p>
       )}
-      <details>
-        <summary className="cursor-pointer text-[13px] font-medium text-fg-muted hover:text-fg">From a terminal</summary>
+      <Disclosure summaryClassName="text-[13px] font-medium text-fg-muted hover:text-fg" summary="From a terminal">
         <pre className="mt-1.5 overflow-x-auto rounded-md border border-line bg-surface p-2.5 font-mono text-xs text-fg-secondary">{curl}</pre>
-      </details>
+      </Disclosure>
       <Textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -117,25 +119,31 @@ export function EventWaitBox({
       {parsed.error && <p className="text-danger">{parsed.error}</p>}
       {error && <p className="text-danger">{error}</p>}
       <span className="flex flex-wrap items-center justify-end gap-2">
-        <Button
-          size="md"
-          variant="danger-outline"
-          onClick={() => void viaApprove("reject")}
-          disabled={busy || !mayRelease}
-          title={mayRelease ? "Stops waiting: the step fails and the run ends" : needs("run:start")}
-        >
-          Reject
-        </Button>
-        <Button
-          size="md"
-          variant="primary"
-          onClick={() => void viaApprove("approve")}
-          disabled={busy || !mayRelease || !!parsed.error}
-          title={mayRelease ? "Releases the step with this payload, recorded as released by you" : needs("run:start")}
-        >
-          {text.trim() ? "Release with payload" : "Release with empty payload"}
-        </Button>
+        <Tooltip label={mayRelease ? "Stops waiting: the step fails and the run ends" : needs("run:start")}>
+          <span className="inline-flex">
+            <Button
+              size="md"
+              variant="danger-outline"
+              onClick={() => void viaApprove("reject")}
+              disabled={busy || !mayRelease}
+            >
+              Reject
+            </Button>
+          </span>
+        </Tooltip>
+        <Tooltip label={mayRelease ? "Releases the step with this payload, recorded as released by you" : needs("run:start")}>
+          <span className="inline-flex">
+            <Button
+              size="md"
+              variant="primary"
+              onClick={() => void viaApprove("approve")}
+              disabled={busy || !mayRelease || !!parsed.error}
+            >
+              {text.trim() ? "Release with payload" : "Release with empty payload"}
+            </Button>
+          </span>
+        </Tooltip>
       </span>
-    </div>
+    </Callout>
   );
 }

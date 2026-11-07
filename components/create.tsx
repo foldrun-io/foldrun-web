@@ -27,12 +27,15 @@
 // sharing the interaction without claiming a workspace is a kind of document.
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { createPortal } from "react-dom";
-import { buttonClass, inputClass, selectClass, FIELD_LABEL_CLASS } from "@/components/ui";
+import { useMemo, useState } from "react";
+import { buttonVariants } from "@/components/kit/button";
+import { Tooltip } from "@/components/kit/tooltip";
+import { Input, labelClass } from "@/components/kit/input";
+import { Select } from "@/components/kit/select";
 import { KINDS, type Kind } from "@/lib/kinds";
 import { useCan } from "@/components/role";
 import { createdHref } from "@/components/create-model";
+import { Dialog, DialogContent, DialogTitle } from "@/components/kit/dialog";
 
 /** The scope a new document lands in. `agent:<name>` is one agent's own. */
 export type Where = "account" | "workspace" | `agent:${string}`;
@@ -142,14 +145,6 @@ export function CreateForm({
   // Adjusting state to a prop, the React way: during render, once, rather
   // than in an effect that would paint closed and then open.
   const [openedFor, setOpenedFor] = useState(false);
-  // The dialog is a portal into document.body, which exists only in the
-  // browser: a page loaded with ?create= opens it on the first client paint,
-  // not during the server render (that threw "document is not defined").
-  const mounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
   if (autoOpen && !openedFor) {
     setOpenedFor(true);
     setOpen(true);
@@ -169,15 +164,6 @@ export function CreateForm({
     setError(null);
   };
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
 
   // The follow-up question the selected card asks, if it asks one, and the
   // answer standing for it. Rendered beside the name so the whole dialog is
@@ -236,34 +222,18 @@ export function CreateForm({
   return (
     <>
       {trigger && (
-      <button onClick={() => setOpen(true)} className={buttonClass("primary")}>
+      <button onClick={() => setOpen(true)} className={buttonVariants({ variant: "primary", size: "md" })}>
         {label ?? `New ${noun}`}
       </button>
       )}
 
-      {open &&
-        mounted &&
-        createPortal(
-          // A portal to <body>: the trigger lives inside page headers whose
-          // ancestors are free to clip or transform, and a fixed overlay
-          // inside a transformed ancestor is fixed to it, not the viewport.
-          <div
-            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/40 p-4 pt-[10vh] backdrop-blur-[2px]"
-            onPointerDown={(e) => {
-              if (e.target === e.currentTarget) close();
-            }}
-          >
-            <form
-              role="dialog"
-              aria-modal="true"
-              aria-label={`New ${noun}`}
-              onSubmit={submit}
-              className="w-full max-w-lg rounded-xl border border-line bg-surface shadow-2xl"
-            >
+      <Dialog open={open} onOpenChange={(o) => !o && close()}>
+        <DialogContent hideClose aria-describedby={undefined} className="top-[10vh] max-h-[85dvh] translate-y-0 rounded-xl" size="md">
+            <form onSubmit={submit} className="flex min-h-0 flex-col">
               <header className="border-b border-line-faint px-5 py-4">
-                <h2 className="font-cal text-base font-semibold text-fg">
+                <DialogTitle className="font-cal text-base font-semibold text-fg">
                   New {noun}
-                </h2>
+                </DialogTitle>
                 <p className="mt-0.5 text-xs text-fg-muted">{hint}</p>
               </header>
 
@@ -276,7 +246,7 @@ export function CreateForm({
                     the whole of the feedback. */}
                 {primary.length > 1 && (
                   <fieldset>
-                    <legend className={`${FIELD_LABEL_CLASS} pb-1.5`}>Type</legend>
+                    <legend className={`${labelClass} pb-1.5`}>Type</legend>
                     <div className={`grid gap-2 ${primary.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
                       {primary.map((c) => {
                         const on = variant === c.value;
@@ -310,17 +280,17 @@ export function CreateForm({
                     matter is what made the list need a search box. */}
                 {templates.length > 0 && (
                   <label className="block">
-                    <span className={`${FIELD_LABEL_CLASS} pb-1`}>
+                    <span className={`${labelClass} pb-1`}>
                       {primary.length > 1 ? "Or start from a template" : "Start from"}
                     </span>
-                    <select
+                    <Select
                       value={templates.some((t) => t.value === variant) ? variant : ""}
                       onChange={(e) => {
                         const t = templates.find((c) => c.value === e.target.value);
                         if (t) pick(t);
                         else pick(primary[0]);
                       }}
-                      className={selectClass("w-full py-2")}
+                      className="w-full"
                     >
                       <option value="">{primary.length > 1 ? "— none, start from scratch —" : "Blank"}</option>
                       {templates.map((t) => (
@@ -329,14 +299,14 @@ export function CreateForm({
                           {t.hint ? ` — ${t.hint.slice(0, 60)}${t.hint.length > 60 ? "…" : ""}` : ""}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </label>
                 )}
 
                 <div className="flex flex-wrap items-end gap-3">
                   <label className="min-w-0 flex-1">
-                    <span className={`${FIELD_LABEL_CLASS} pb-1`}>Name</span>
-                    <input
+                    <span className={`${labelClass} pb-1`}>Name</span>
+                    <Input
                       autoFocus
                       value={name}
                       onChange={(e) => {
@@ -345,49 +315,48 @@ export function CreateForm({
                       }}
                       placeholder={placeholder}
                       spellCheck={false}
-                      className={inputClass("w-full py-2")}
+                      className="w-full"
                     />
                   </label>
 
                   {options.length > 1 && (
                     <label className="shrink-0">
-                      <span className={`${FIELD_LABEL_CLASS} pb-1`}>Where it lives</span>
-                      <select
+                      <span className={`${labelClass} pb-1`}>Where it lives</span>
+                      <Select
                         value={where}
                         onChange={(e) => setWhere(e.target.value as Where)}
-                        className={selectClass("py-2")}
                       >
                         {options.map((o) => (
                           <option key={o.where} value={o.where}>
                             {o.label}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </label>
                   )}
                 </div>
 
                 {followUp && (
                   <fieldset>
-                    <legend className={`${FIELD_LABEL_CLASS} pb-1.5`}>{followUp.label}</legend>
+                    <legend className={`${labelClass} pb-1.5`}>{followUp.label}</legend>
                     <div className="flex flex-wrap gap-2">
                       {followUp.choices.map((c) => {
                         const on = thenValue === c.value;
                         return (
-                          <button
-                            key={c.value}
-                            type="button"
-                            aria-pressed={on}
-                            title={c.hint}
-                            onClick={() => setThenBy((m) => ({ ...m, [variant]: c.value }))}
-                            className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
-                              on
-                                ? "border-gray-900 bg-sunken text-fg ring-1 ring-gray-900"
-                                : "border-line text-fg-tertiary hover:border-line-strong hover:bg-sunken"
-                            }`}
-                          >
-                            {c.label}
-                          </button>
+                          <Tooltip key={c.value} label={c.hint}>
+                            <button
+                              type="button"
+                              aria-pressed={on}
+                              onClick={() => setThenBy((m) => ({ ...m, [variant]: c.value }))}
+                              className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                                on
+                                  ? "border-gray-900 bg-sunken text-fg ring-1 ring-gray-900"
+                                  : "border-line text-fg-tertiary hover:border-line-strong hover:bg-sunken"
+                              }`}
+                            >
+                              {c.label}
+                            </button>
+                          </Tooltip>
                         );
                       })}
                     </div>
@@ -398,21 +367,20 @@ export function CreateForm({
               </div>
 
               <footer className="flex items-center justify-end gap-2 border-t border-line-faint px-5 py-3">
-                <button type="button" onClick={close} className={buttonClass("minimal")}>
+                <button type="button" onClick={close} className={buttonVariants({ variant: "ghost", size: "md" })}>
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={!name.trim() || busy}
-                  className={buttonClass("primary")}
+                  className={buttonVariants({ variant: "primary", size: "md" })}
                 >
                   {busy ? "Creating…" : `Create ${noun}`}
                 </button>
               </footer>
             </form>
-          </div>,
-          document.body,
-        )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

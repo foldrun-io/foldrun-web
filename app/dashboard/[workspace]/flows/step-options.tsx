@@ -9,13 +9,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FlowStep } from "@/lib/store";
 
-import { inputClass, buttonClass, FIELD_LABEL_CLASS } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
+import { Input, labelClass } from "@/components/kit/input";
 import { limitRows, limitProblems, limitKeyProblem, limitCountProblem, limitsText, type LimitRow } from "@/components/step-limits-model";
 import { WEB_ACTIONS } from "@/lib/providers.ts";
 import { flowWrite } from "@/components/flow-write";
+import { Checkbox } from "@/components/kit/choice";
+import { Combobox } from "@/components/kit/combobox";
 
-const FIELD = inputClass();
-const LABEL = FIELD_LABEL_CLASS;
+const LABEL = labelClass;
 
 export function StepOptionsEditor({
   workspace,
@@ -108,74 +110,69 @@ export function StepOptionsEditor({
     }
   }
 
+  const limitKeys = ["calls", "web", ...WEB_ACTIONS.map((a) => `web.${a}`), ...(agentTools ?? []).filter((t) => t !== "web")];
   return (
     <div className="mt-2 grid grid-cols-2 gap-2 rounded-md border border-line bg-sunken p-3 sm:grid-cols-4">
       <label>
         <span className={LABEL}>Model</span>
-        <input value={model} onChange={(e) => setModel(e.target.value)} placeholder="fast · default · max" className={FIELD} />
+        <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="fast · default · max" />
       </label>
       <label>
         <span className={LABEL}>Effort</span>
-        <input
+        <Input
           value={effort}
           onChange={(e) => setEffort(e.target.value)}
           placeholder="low · medium · high · xhigh · max"
-          className={FIELD}
         />
       </label>
       <label>
         <span className={LABEL}>Longest reply (tokens)</span>
-        <input value={maxOut} onChange={(e) => setMaxOut(e.target.value)} inputMode="numeric" placeholder="the agent's" className={FIELD} />
+        <Input value={maxOut} onChange={(e) => setMaxOut(e.target.value)} inputMode="numeric" placeholder="the agent's" />
       </label>
       <label>
         <span className={LABEL}>Retries on failure</span>
-        <input value={retry} onChange={(e) => setRetry(e.target.value)} placeholder="0–5" className={FIELD} />
+        <Input value={retry} onChange={(e) => setRetry(e.target.value)} placeholder="0–5" />
       </label>
       <label>
         <span className={LABEL}>Timeout (s)</span>
-        <input value={timeout_} onChange={(e) => setTimeout_(e.target.value)} placeholder="none" className={FIELD} />
+        <Input value={timeout_} onChange={(e) => setTimeout_(e.target.value)} placeholder="none" />
       </label>
       <label>
         <span className={LABEL}>Run only when a line of the previous result begins with — or a CSV has rows</span>
-        <input value={when} onChange={(e) => setWhen(e.target.value)} placeholder="e.g. URGENT, or rows of workspace/storage/queue.csv" className={FIELD} />
+        <Input value={when} onChange={(e) => setWhen(e.target.value)} placeholder="e.g. URGENT, or rows of workspace/storage/queue.csv" />
       </label>
       <label>
         <span className={LABEL}>Route: run when results say (first match wins)</span>
-        <input value={case_} onChange={(e) => setCase(e.target.value)} placeholder="e.g. BUG" className={FIELD} />
+        <Input value={case_} onChange={(e) => setCase(e.target.value)} placeholder="e.g. BUG" />
       </label>
       <label className="flex items-end gap-2 pb-1">
-        <input type="checkbox" checked={else_} onChange={(e) => setElse(e.target.checked)} />
+        <Checkbox checked={else_} onCheckedChange={(checked: boolean) => setElse(checked)} />
         <span className="text-xs text-fg-secondary">Else — run when no route matched</span>
       </label>
       <label className="col-span-2">
         <span className={LABEL}>Verify — shell command that must exit 0 (the reply is in $FOLDRUN_REPLY_FILE)</span>
-        <input value={verify} onChange={(e) => setVerify(e.target.value)} placeholder="test -s outputs/report.md" className={`${FIELD} font-mono`} />
+        <Input value={verify} onChange={(e) => setVerify(e.target.value)} placeholder="test -s outputs/report.md" className="font-mono" />
       </label>
       <label>
         <span className={LABEL}>Loop back (cycles, 1–5)</span>
-        <input value={loop} onChange={(e) => setLoop(e.target.value)} placeholder="off" className={FIELD} />
+        <Input value={loop} onChange={(e) => setLoop(e.target.value)} placeholder="off" />
       </label>
       <label>
         <span className={LABEL}>…until result says</span>
-        <input value={until} onChange={(e) => setUntil(e.target.value)} placeholder="APPROVED" className={FIELD} />
+        <Input value={until} onChange={(e) => setUntil(e.target.value)} placeholder="APPROVED" />
       </label>
       <label className="flex items-end gap-2 pb-1">
-        <input type="checkbox" checked={each} onChange={(e) => setEach(e.target.checked)} />
+        <Checkbox checked={each} onCheckedChange={(checked: boolean) => setEach(checked)} />
         <span className="text-xs text-fg-secondary">Fan out per line of previous result</span>
       </label>
       {each && (
         <label>
           <span className={LABEL}>Max items (1–20)</span>
-          <input value={max} onChange={(e) => setMax(e.target.value)} placeholder="10" className={FIELD} />
+          <Input value={max} onChange={(e) => setMax(e.target.value)} placeholder="10" />
         </label>
       )}
       <fieldset className="col-span-2 sm:col-span-4">
         <legend className={LABEL}>Call limits — how many calls this step may make before the next is refused (over the agent&apos;s own limits:)</legend>
-        <datalist id={`limit-keys-${index}`}>
-          {["calls", "web", ...WEB_ACTIONS.map((a) => `web.${a}`), ...(agentTools ?? []).filter((t) => t !== "web")].map((k) => (
-            <option key={k} value={k} />
-          ))}
-        </datalist>
         <div className="mt-1 space-y-1">
           {limits.map((r, i) => {
             const keyIssue = r.key.trim() || r.count.trim() ? limitKeyProblem(r.key, granted) : null;
@@ -184,25 +181,25 @@ export function StepOptionsEditor({
             return (
               <div key={i} className="flex flex-wrap items-center gap-1.5" data-limit-row={i}>
                 <span className="w-48 shrink-0">
-                <input
+                <Combobox
+                  options={limitKeys}
                   value={r.key}
                   onChange={(e) => set({ key: e.target.value })}
-                  list={`limit-keys-${index}`}
                   placeholder="web.search"
                   aria-label={`Limit ${i + 1}: tool`}
                   aria-invalid={!!keyIssue}
-                  className={inputClass(`font-mono ${keyIssue ? "border-danger" : ""}`)}
+                  className={`font-mono ${keyIssue ? "border-danger" : ""}`}
                 />
                 </span>
                 <span className="w-24 shrink-0">
-                <input
+                <Input
                   value={r.count}
                   onChange={(e) => set({ count: e.target.value })}
                   inputMode="numeric"
                   placeholder="10"
                   aria-label={`Limit ${i + 1}: calls`}
                   aria-invalid={!!countIssue}
-                  className={inputClass(countIssue ? "border-danger" : "")}
+                  className={countIssue ? "border-danger" : ""}
                 />
                 </span>
                 <button
@@ -227,10 +224,10 @@ export function StepOptionsEditor({
         </div>
       </fieldset>
       <div className="col-span-2 flex items-center gap-2 sm:col-span-4">
-        <button onClick={save} disabled={busy || limitIssues.length > 0} className={buttonClass("primary")}>
+        <button onClick={save} disabled={busy || limitIssues.length > 0} className={buttonVariants({ variant: "primary", size: "md" })}>
           Save options
         </button>
-        <button onClick={onClose} className={buttonClass("minimal")}>
+        <button onClick={onClose} className={buttonVariants({ variant: "ghost", size: "md" })}>
           Cancel
         </button>
         {error && <span role="alert" className="text-xs text-danger">{error}</span>}

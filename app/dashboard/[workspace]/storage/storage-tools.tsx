@@ -11,19 +11,21 @@
 // there is no bucket, `url` comes back null, and the bytes go to the
 // platform instead.
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Upload } from "lucide-react";
 import { Button } from "@/components/kit/button";
 import { Chip, RingProgress } from "@/components/kit/page";
 import { fmtBytes as humanSize } from "@/components/step-io-model";
 import { uploadFile } from "@/components/upload";
+import { useFilePicker } from "@/components/kit/file-button";
+import { Tooltip } from "@/components/kit/tooltip";
 
 /** The header's Upload: a file picker that checks each file against the
  *  size limit before sending it. Drop files on the list to upload too. */
 export function UploadZone({ workspace, tenant, maxMb }: { workspace: string; tenant: string; maxMb: number; used?: number; quotaMb?: number; count?: number; driver?: "fs" | "s3" }) {
   const router = useRouter();
-  const input = useRef<HTMLInputElement>(null);
+  const picker = useFilePicker({ multiple: true, onFiles: (files) => void upload(files) });
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,7 +44,6 @@ export function UploadZone({ workspace, tenant, maxMb }: { workspace: string; te
       }
     }
     setBusy(null);
-    if (input.current) input.current.value = "";
     router.refresh();
   };
 
@@ -50,14 +51,18 @@ export function UploadZone({ workspace, tenant, maxMb }: { workspace: string; te
     <>
       {busy && <Chip tone="info">Uploading {busy}…</Chip>}
       {error && (
-        <span role="alert" className="max-w-xs truncate text-[13px] text-danger" title={error}>
-          {error}
-        </span>
+        <Tooltip label={error}>
+          <span role="alert" className="max-w-xs truncate text-[13px] text-danger">
+            {error}
+          </span>
+        </Tooltip>
       )}
-      <Button variant="primary" size="md" onClick={() => input.current?.click()} disabled={!!busy} title={`Any file, up to ${maxMb} MB each — or drop files on the list`}>
-        <Upload /> Upload
-      </Button>
-      <input ref={input} type="file" multiple hidden onChange={(e) => e.target.files && void upload(e.target.files)} />
+      <Tooltip label={`Any file, up to ${maxMb} MB each — or drop files on the list`}>
+        <Button variant="primary" size="md" onClick={picker.open} disabled={!!busy}>
+          <Upload /> Upload
+        </Button>
+      </Tooltip>
+      {picker.input}
     </>
   );
 }

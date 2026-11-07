@@ -17,12 +17,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
-import { buttonClass } from "@/components/ui";
+import { cn } from "@/components/kit/cn";
 import { buttonVariants } from "@/components/kit/button";
+import { Tooltip } from "@/components/kit/tooltip";
+import { Segmented } from "@/components/kit/segmented";
 import { History } from "lucide-react";
-import { useConfirm } from "@/components/confirm";
+import { useConfirm } from "@/components/kit/confirm";
 import { useCan, needs } from "@/components/role";
 import { diffStats, foldDiff, lineDiff, restoreMessage, type DiffOp, type DiffRow } from "@/components/flow-history-model";
+import { Tag } from "@/components/kit/page";
+import { Sheet, SheetContent, SheetTitle } from "@/components/kit/dialog";
 
 interface Summary {
   id: string;
@@ -72,10 +76,12 @@ export function FlowHistory({ workspace, tenant, flow, file }: { workspace: stri
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={buttonVariants({ variant: "ghost", size: "sm" })} title={`Every saved version of flows/${file}`}>
-        <History aria-hidden />
-        History
-      </button>
+      <Tooltip label={`Every saved version of flows/${file}`}>
+        <button type="button" onClick={() => setOpen(true)} className={buttonVariants({ variant: "ghost", size: "sm" })}>
+          <History aria-hidden />
+          History
+        </button>
+      </Tooltip>
       {open && <HistoryDrawer workspace={workspace} tenant={tenant} flow={flow} file={file} onClose={() => setOpen(false)} />}
     </>
   );
@@ -111,13 +117,6 @@ export function HistoryDrawer({
   const [busy, setBusy] = useState(false);
   const [generation, setGeneration] = useState(0);
 
-  useEffect(() => {
-    // Escape closes the drawer — unless a confirmation is up, which Escape
-    // answers on its own.
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !document.querySelector('[role="alertdialog"]') && onClose();
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   // One load per open and per restore: the file and its revisions together,
   // so the sha and the list describe the same moment.
@@ -221,19 +220,15 @@ export function HistoryDrawer({
 
   return (
     <>
-    <div className="fixed inset-0 z-40 flex justify-end bg-ink/20" onClick={onClose} role="presentation">
-      <aside
-        role="dialog"
-        aria-label={`History of ${flow}`}
-        className="flex h-full w-full max-w-3xl flex-col border-l border-line bg-surface shadow-menu"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Sheet open onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" hideClose aria-label={`History of ${flow}`} aria-describedby={undefined} className="w-full max-w-3xl">
+        <SheetTitle className="sr-only">History of {flow}</SheetTitle>
         <header className="flex items-center gap-3 border-b border-line px-4 py-3">
           <div className="min-w-0">
             <h2 className="text-base font-semibold text-fg">History</h2>
             <p className="truncate font-mono text-[11px] text-fg-muted">{path}</p>
           </div>
-          <button type="button" onClick={onClose} className={buttonClass("minimal", "ml-auto px-2 py-1 text-xs")} aria-label="Close history">
+          <button type="button" onClick={onClose} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ml-auto")} aria-label="Close history">
             Close
           </button>
         </header>
@@ -267,7 +262,7 @@ export function HistoryDrawer({
                     <span className="truncate">{r.by}</span>
                     <span>·</span>
                     <LocalTime iso={r.at} options={{ dateStyle: "medium", timeStyle: "short" }} />
-                    {i === 0 && <span className="ml-auto rounded bg-muted-strong px-1 text-[11px] text-fg-secondary">latest</span>}
+                    {i === 0 && <Tag className="ml-auto h-5 px-1.5 text-[11px]">latest</Tag>}
                   </span>
                 </button>
               </li>
@@ -277,25 +272,17 @@ export function HistoryDrawer({
           <section className="flex min-h-0 flex-1 flex-col">
             {selected && (
               <div className="flex flex-wrap items-center gap-2 border-b border-line-faint px-3 py-2">
-                <div role="tablist" className="inline-flex gap-1 rounded-lg border border-line p-0.5">
-                  {(
-                    [
-                      ["change", "What it changed"],
-                      ["current", "Compare with current"],
-                    ] as const
-                  ).map(([m, label]) => (
-                    <button
-                      key={m}
-                      type="button"
-                      role="tab"
-                      aria-selected={mode === m}
-                      onClick={() => setMode(m)}
-                      className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${mode === m ? "bg-ink text-on-ink" : "text-fg-tertiary hover:bg-muted"}`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
+                <Segmented
+                  role="tablist"
+                  size="sm"
+                  label="What to compare"
+                  value={mode}
+                  onChange={(m) => setMode(m as typeof mode)}
+                  items={[
+                    { key: "change", label: "What it changed" },
+                    { key: "current", label: "Compare with current" },
+                  ]}
+                />
                 {stats && mode === "change" && (
                   <span className="text-[11px] tabular-nums text-fg-muted">
                     <span className="text-success">+{stats.added}</span> <span className="text-danger">−{stats.removed}</span>
@@ -308,15 +295,18 @@ export function HistoryDrawer({
                 ) : isCurrent ? (
                   <span className="text-[11px] text-fg-muted">This is what the file says now.</span>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => void restore()}
-                    disabled={!mayWrite || busy || !revFile || !current}
-                    title={mayWrite ? undefined : needs("workspace:write")}
-                    className={buttonClass("secondary", "px-2 py-1 text-xs")}
-                  >
-                    {busy ? "Restoring…" : "Restore this version"}
-                  </button>
+                  <Tooltip label={mayWrite ? undefined : needs("workspace:write")}>
+                    <span className="inline-flex">
+                      <button
+                        type="button"
+                        onClick={() => void restore()}
+                        disabled={!mayWrite || busy || !revFile || !current}
+                        className={buttonVariants({ variant: "secondary", size: "xs" })}
+                      >
+                        {busy ? "Restoring…" : "Restore this version"}
+                      </button>
+                    </span>
+                  </Tooltip>
                 )}
               </div>
             )}
@@ -331,8 +321,8 @@ export function HistoryDrawer({
             </div>
           </section>
         </div>
-      </aside>
-    </div>
+      </SheetContent>
+    </Sheet>
     {dialog}
     </>
   );

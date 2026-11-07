@@ -21,8 +21,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown } from "lucide-react";
 import { cn } from "@/components/kit/cn";
+import { Select } from "@/components/kit/select";
+import { Segmented } from "@/components/kit/segmented";
+import { buttonVariants } from "@/components/kit/button";
 
 export interface FilterOption {
   value: string;
@@ -50,15 +52,10 @@ export interface FilterDimension {
 
 const CHIPS_UP_TO = 6;
 
-// The kit's look (UI refactor, Nov 2026): a select is a 36px box like an
-// input; a short dimension is a segmented control like the view switch —
-// one sunken box, the chosen value raised in it. The dimension's name is the
-// control's accessible label and its "all" value, not a micro-label above it.
-const SELECT =
-  "h-9 w-full min-w-0 appearance-none rounded-md border border-line bg-surface pl-3 pr-8 text-[13px] text-fg transition-colors hover:border-line-strong focus-visible:border-focus focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-focus-soft";
-const CHIP = "flex h-full shrink-0 items-center whitespace-nowrap rounded-sm px-2.5 text-[13px] transition-colors";
-const CHIP_ON = "bg-surface font-medium text-fg shadow-[0_1px_2px_rgb(0_0_0/0.06)]";
-const CHIP_OFF = "text-fg-muted hover:text-fg";
+// The kit's controls (UI refactor, Nov 2026): a long dimension is the kit's
+// Select; a short one is the kit's Segmented in link mode. The dimension's
+// name is the control's accessible label and its "all" value, not a
+// micro-label above it.
 
 export function FilterBar({
   base,
@@ -121,26 +118,24 @@ export function FilterBar({
                 <input key={k} type="hidden" name={k} value={v} />
               ))}
             {tenant && <input type="hidden" name="tenant" value={tenant.replace(/^tenant=/, "")} />}
-            <span className="relative min-w-0">
-              <select
-                name={d.key}
-                aria-label={d.label}
-                title={d.label}
-                value={value}
-                onChange={(e) => router.push(href(patchFor(d, e.target.value)))}
-                className={cn(SELECT, "max-w-56", value && "border-line-strong font-medium")}
-              >
-                <option value="">{all}</option>
-                {d.options.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label ?? o.value}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-fg-muted" aria-hidden />
-            </span>
+            <Select
+              name={d.key}
+              aria-label={d.label}
+              title={d.label}
+              value={value}
+              onChange={(e) => router.push(href(patchFor(d, e.target.value)))}
+              className="max-w-56"
+              selectClassName={cn("text-[13px]", value && "border-line-strong font-medium")}
+            >
+              <option value="">{all}</option>
+              {d.options.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label ?? o.value}
+                </option>
+              ))}
+            </Select>
             <noscript>
-              <button type="submit" className="h-9 rounded-md border border-line bg-surface px-3 text-[13px] text-fg">
+              <button type="submit" className={buttonVariants({ variant: "secondary", size: "md" })}>
                 Go
               </button>
             </noscript>
@@ -149,29 +144,16 @@ export function FilterBar({
           // A segmented control: one box, the chips joined inside it, so
           // five statuses read as one question rather than five buttons.
           // Too many for a phone's width, it scrolls inside its box.
-          <div
+          <Segmented
             key={d.key}
-            role="group"
-            aria-label={d.label}
-            className="inline-flex h-9 max-w-full items-center gap-0.5 overflow-x-auto rounded-md border border-line bg-sunken p-0.5"
-          >
-            <Link href={href(patchFor(d, undefined))} aria-current={!value ? "true" : undefined} className={cn(CHIP, !value ? CHIP_ON : CHIP_OFF)}>
-              {all}
-            </Link>
-            {d.options.map((o) => {
-              const on = value === o.value;
-              return (
-                <Link
-                  key={o.value}
-                  href={href(patchFor(d, on ? undefined : o.value))}
-                  aria-current={on ? "true" : undefined}
-                  className={cn(CHIP, on ? CHIP_ON : CHIP_OFF)}
-                >
-                  {o.label ?? o.value}
-                </Link>
-              );
-            })}
-          </div>
+            label={d.label}
+            current="true"
+            value={value}
+            items={[
+              { key: "", label: all, href: href(patchFor(d, undefined)) },
+              ...d.options.map((o) => ({ key: o.value, label: o.label ?? o.value, href: href(patchFor(d, value === o.value ? undefined : o.value)) })),
+            ]}
+          />
         );
       })}
       {(active.length > 0 || total !== undefined) && (

@@ -6,7 +6,8 @@
 // wrong field.
 
 import { useState } from "react";
-import { buttonClass, inputClass } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
+import { Input } from "@/components/kit/input";
 
 export function PasswordForm() {
   const [current, setCurrent] = useState("");
@@ -45,33 +46,33 @@ export function PasswordForm() {
       <div className="grid gap-3">
         <label className="block sm:max-w-xs">
           <span className="block pb-1.5 text-sm font-medium text-fg">Current password</span>
-          <input
+          <Input
             type="password"
             autoComplete="current-password"
             value={current}
             onChange={(e) => setCurrent(e.target.value)}
-            className={inputClass("w-full py-2")}
+            className="w-full"
           />
         </label>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block">
           <span className="block pb-1.5 text-sm font-medium text-fg">New password</span>
-          <input
+          <Input
             type="password"
             autoComplete="new-password"
             value={next}
             onChange={(e) => setNext(e.target.value)}
-            className={inputClass("w-full py-2")}
+            className="w-full"
           />
         </label>
         <label className="block">
           <span className="block pb-1.5 text-sm font-medium text-fg">New password again</span>
-          <input
+          <Input
             type="password"
             autoComplete="new-password"
             value={again}
             onChange={(e) => setAgain(e.target.value)}
-            className={inputClass("w-full py-2")}
+            className="w-full"
           />
         </label>
         </div>
@@ -81,7 +82,7 @@ export function PasswordForm() {
         <button
           type="submit"
           disabled={busy || !current || next.length < 8 || mismatch}
-          className={buttonClass("primary")}
+          className={buttonVariants({ variant: "primary", size: "md" })}
         >
           {busy ? "Changing…" : "Change password"}
         </button>

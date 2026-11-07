@@ -11,11 +11,15 @@
 // secrets, library tools, an agent it consults — before anything is written.
 // See core package.ts.
 
-import { useRef, useState, useSyncExternalStore } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { buttonClass, inputClass, FIELD_LABEL_CLASS } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
+import { Input, labelClass } from "@/components/kit/input";
 import { suggestName } from "@/components/package-name";
+import { Checkbox } from "@/components/kit/choice";
+import { FileButton } from "@/components/kit/file-button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/kit/dialog";
+import { Tooltip } from "@/components/kit/tooltip";
 
 export function ExportLink({
   workspace,
@@ -32,18 +36,21 @@ export function ExportLink({
 }) {
   const qs = kind === "workspace" ? "" : `?kind=${kind}&name=${encodeURIComponent(name ?? "")}`;
   return (
-    <a
-      href={`/api/workspaces/${encodeURIComponent(workspace)}/export${qs}`}
-      download
-      className={className ?? buttonClass("secondary")}
-      title={
+    <Tooltip
+      label={
         kind === "workspace"
           ? "Download this workspace's agents, flows, tools and knowledge as a .zip — never memory, state or secret values"
           : `Download this ${kind} and what it needs to run as a .zip`
       }
     >
-      {label}
-    </a>
+      <a
+        href={`/api/workspaces/${encodeURIComponent(workspace)}/export${qs}`}
+        download
+        className={className ?? buttonVariants({ variant: "secondary", size: "md" })}
+      >
+        {label}
+      </a>
+    </Tooltip>
   );
 }
 
@@ -86,11 +93,6 @@ export function ImportPackageButton({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Plan | null>(null);
-  const input = useRef<HTMLInputElement>(null);
-  // In the browser only: the dialog is portalled to document.body, and with
-  // autoOpen (/dashboard?import=workspace) it is open on the server's render,
-  // where there is no document — that render 500'd before this.
-  const inBrowser = useSyncExternalStore(noop, () => true, () => false);
 
   const close = () => {
     setOpen(false);
@@ -161,29 +163,16 @@ export function ImportPackageButton({
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={buttonClass(color)}>
+      <button type="button" onClick={() => setOpen(true)} className={buttonVariants({ variant: color, size: "md" })}>
         {label ?? (newWorkspace ? "Import workspace" : "Import .zip")}
       </button>
-      {open &&
-        inBrowser &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/40 p-4 pt-[10vh] backdrop-blur-[2px]"
-            onPointerDown={(e) => {
-              if (e.target === e.currentTarget) close();
-            }}
-          >
-            <form
-              role="dialog"
-              aria-modal="true"
-              aria-label="Import a package"
-              onSubmit={preview}
-              className="w-full max-w-lg rounded-xl border border-line bg-surface shadow-2xl"
-            >
+      <Dialog open={open} onOpenChange={(o) => !o && close()}>
+        <DialogContent hideClose aria-describedby={undefined} className="top-[10vh] max-h-[85dvh] translate-y-0 rounded-xl" size="md">
+            <form onSubmit={preview} className="flex min-h-0 flex-col">
               <header className="border-b border-line-faint px-5 py-4">
-                <h2 className="font-cal text-base font-semibold text-fg">
+                <DialogTitle className="font-cal text-base font-semibold text-fg">
                   {newWorkspace ? "Import a workspace" : `Import into ${workspace}`}
-                </h2>
+                </DialogTitle>
                 <p className="mt-0.5 text-xs text-fg-muted">
                   A .zip from Export — a workspace, a flow or an agent, from this account or another. You see what it adds and
                   needs before anything is written. Nothing is deleted.
@@ -211,10 +200,12 @@ export function ImportPackageButton({
                       </li>
                       {plan.unchanged.length > 0 && <li>{plan.unchanged.length} already identical — left alone</li>}
                       {(plan.skipped?.length ?? 0) > 0 && (
-                        <li title={plan.skipped!.join("\n")}>
-                          {plan.skipped!.length} not imported — memory, state and anything outside agents, flows, evals, knowledge, skills, tools
-                          and scripts
-                        </li>
+                        <Tooltip label={<span className="whitespace-pre-line">{plan.skipped!.join("\n")}</span>}>
+                          <li>
+                            {plan.skipped!.length} not imported — memory, state and anything outside agents, flows, evals, knowledge, skills, tools
+                            and scripts
+                          </li>
+                        </Tooltip>
                       )}
                       {plan.overwritten.length > 0 && (
                         <li className="text-amber-700 dark:text-amber-400">
@@ -230,7 +221,7 @@ export function ImportPackageButton({
                     </ul>
                     {plan.overwritten.length > 0 && (
                       <label className="flex items-center gap-2 text-xs text-fg-secondary">
-                        <input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} />
+                        <Checkbox checked={overwrite} onCheckedChange={(checked: boolean) => setOverwrite(checked)} />
                         Replace {plan.overwritten.length === 1 ? "that file" : `those ${plan.overwritten.length} files`} (History can restore {plan.overwritten.length === 1 ? "it" : "them"})
                       </label>
                     )}
@@ -239,34 +230,36 @@ export function ImportPackageButton({
                 ) : (
                   <>
                     <div>
-                      <label className={FIELD_LABEL_CLASS} htmlFor="pkg-file">
+                      <span className={labelClass} id="pkg-file-label">
                         Package
-                      </label>
-                      <input
-                        id="pkg-file"
-                        ref={input}
-                        type="file"
-                        accept=".zip,application/zip"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0] ?? null;
-                          setFile(f);
-                          // `blog.zip` → offer `blog` as the new workspace's name.
-                          if (newWorkspace && f && !target) setTarget(suggestName(f.name));
-                        }}
-                        className="mt-1 block w-full text-sm text-fg-secondary file:mr-3 file:rounded-md file:border file:border-line-strong file:bg-surface file:px-3 file:py-1.5 file:text-sm"
-                      />
+                      </span>
+                      <div className="mt-1">
+                        <FileButton
+                          id="pkg-file"
+                          aria-labelledby="pkg-file-label pkg-file"
+                          accept=".zip,application/zip"
+                          chosen={file ? file.name : "No file chosen"}
+                          onFiles={([f]) => {
+                            setFile(f);
+                            // `blog.zip` → offer `blog` as the new workspace's name.
+                            if (newWorkspace && f && !target) setTarget(suggestName(f.name));
+                          }}
+                        >
+                          Choose a .zip
+                        </FileButton>
+                      </div>
                     </div>
                     {newWorkspace && (
                       <div>
-                        <label className={FIELD_LABEL_CLASS} htmlFor="pkg-target">
+                        <label className={labelClass} htmlFor="pkg-target">
                           Workspace name
                         </label>
-                        <input
+                        <Input
                           id="pkg-target"
                           value={target}
                           onChange={(e) => setTarget(e.target.value)}
                           placeholder="marketing"
-                          className={inputClass("mt-1 w-full font-mono")}
+                          className="mt-1 w-full font-mono"
                         />
                         <p className="mt-1 text-[11px] text-fg-subtle">A new name makes a new workspace; an existing one imports into it.</p>
                       </div>
@@ -277,7 +270,7 @@ export function ImportPackageButton({
               </div>
 
               <footer className="flex justify-end gap-2 border-t border-line-faint px-5 py-3">
-                <button type="button" onClick={close} className={buttonClass("secondary")}>
+                <button type="button" onClick={close} className={buttonVariants({ variant: "secondary", size: "md" })}>
                   {done ? "Close" : "Cancel"}
                 </button>
                 {!done &&
@@ -288,25 +281,23 @@ export function ImportPackageButton({
                       // An import that would replace files waits for the tick —
                       // the server refuses it (409) otherwise.
                       disabled={busy || (plan.overwritten.length > 0 && !overwrite) || plan.added.length + plan.overwritten.length === 0}
-                      className={buttonClass("primary")}
+                      className={buttonVariants({ variant: "primary", size: "md" })}
                     >
                       {busy ? "Importing…" : plan.added.length + plan.overwritten.length === 0 ? "Nothing to import" : "Import"}
                     </button>
                   ) : (
-                    <button type="submit" disabled={busy || !file || !target.trim()} className={buttonClass("primary")}>
+                    <button type="submit" disabled={busy || !file || !target.trim()} className={buttonVariants({ variant: "primary", size: "md" })}>
                       {busy ? "Reading…" : "Preview"}
                     </button>
                   ))}
               </footer>
             </form>
-          </div>,
-          document.body,
-        )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
 
-const noop = () => () => {};
 
 function NeedsBlock({ items }: { items: (readonly [string, readonly string[]])[] }) {
   return (

@@ -9,23 +9,106 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import * as React from "react";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, LayoutGrid, List as ListIcon, Search, X } from "lucide-react";
+import { LayoutGrid, List as ListIcon, Search, X } from "lucide-react";
 import { cn } from "./cn";
 import { inputBase } from "./input";
 import { CardGrid, EmptyState } from "./page";
+import { Pager } from "./pager";
+import { Segmented } from "./segmented";
+import { withQuery } from "@/components/list-search-model";
+import { paginate, PAGE_SIZE } from "@/components/paging";
 
 const typing = (el: EventTarget | null) => {
   const e = el as HTMLElement | null;
   return !!e && (e.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(e.tagName));
 };
 
-export function SearchField({ value, onChange, placeholder, className, autoFocusKey = true }: { value: string; onChange: (v: string) => void; placeholder: string; className?: string; autoFocusKey?: boolean }) {
+/**
+ * The one search box: a magnifier, a clear button, "/" to focus it.
+ *
+ *   controlled  `value` + `onChange`: the caller filters (a list in the
+ *               browser, ResourceList)
+ *   url         `url`: the query lives in ?q= — typing waits a beat, then
+ *               replaces the URL (dropping ?page=, so the answer starts at its
+ *               first page). For a list the server filters before it pages.
+ *               `value` is the query the page was drawn with.
+ */
+export function SearchField(props: {
+  value?: string;
+  onChange?: (v: string) => void;
+  /** Keep the query in ?q= instead of handing it to onChange. */
+  url?: boolean;
+  placeholder: string;
+  className?: string;
+  /** "/" focuses the box. Off where two boxes share a page, or where the
+   *  page routes "/" itself (then `slashHint` still shows the key). */
+  autoFocusKey?: boolean;
+  slashHint?: boolean;
+  /** lg (40px) beside a list's toolbar, md (36px) in a page header, sm
+   *  (32px) in a side panel. */
+  size?: "sm" | "md" | "lg";
+  /** A note at the right end of the box ("3 found"), in place of the "/" hint. */
+  note?: ReactNode;
+  id?: string;
+  inputRef?: React.Ref<HTMLInputElement>;
+}) {
+  return props.url ? <UrlSearchField {...props} /> : <SearchBox {...props} value={props.value ?? ""} onChange={props.onChange ?? (() => {})} />;
+}
+
+function UrlSearchField({ value = "", ...rest }: Parameters<typeof SearchField>[0]) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const [q, setQ] = useState(value);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+  const change = (next: string) => {
+    setQ(next);
+    rest.onChange?.(next);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      router.replace(`${pathname}${withQuery(params.toString(), next)}`, { scroll: false });
+    }, 220);
+  };
+  return <SearchBox {...rest} value={q} onChange={change} />;
+}
+
+function SearchBox({
+  value,
+  onChange,
+  placeholder,
+  className,
+  autoFocusKey = true,
+  slashHint = autoFocusKey,
+  size = "lg",
+  note,
+  id,
+  inputRef,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  className?: string;
+  autoFocusKey?: boolean;
+  slashHint?: boolean;
+  size?: "sm" | "md" | "lg";
+  note?: ReactNode;
+  id?: string;
+  inputRef?: React.Ref<HTMLInputElement>;
+}) {
   const box = useRef<HTMLInputElement>(null);
+  React.useImperativeHandle(inputRef, () => box.current as HTMLInputElement);
   useEffect(() => {
     if (!autoFocusKey) return;
     const k = (e: KeyboardEvent) => {
-      if (e.key === "/" && !typing(e.target)) {
+      if (e.key === "/" && !typing(e.target) && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         box.current?.focus();
       }
@@ -35,17 +118,33 @@ export function SearchField({ value, onChange, placeholder, className, autoFocus
   }, [autoFocusKey]);
   return (
     <div className={cn("relative min-w-0", className)}>
-      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fg-muted" aria-hidden />
+      <Search className={cn("pointer-events-none absolute top-1/2 -translate-y-1/2 text-fg-muted", size === "sm" ? "left-2.5 size-3.5" : "left-3 size-4")} aria-hidden />
       <input
         ref={box}
+        id={id}
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          // Escape clears and lets go, the way every list's box did.
+          if (e.key === "Escape") {
+            e.preventDefault();
+            if (value) onChange("");
+            e.currentTarget.blur();
+          }
+        }}
         placeholder={placeholder}
         aria-label={placeholder}
-        className={cn(inputBase, "h-10 pl-9 pr-10 [&::-webkit-search-cancel-button]:appearance-none")}
+        className={cn(
+          inputBase,
+          size === "sm" ? "h-8 pl-8 text-[13px]" : size === "md" ? "h-9 pl-9" : "h-10 pl-9",
+          "pr-10 [&::-webkit-search-cancel-button]:appearance-none",
+          note != null && "pr-24",
+        )}
       />
-      {value ? (
+      {note != null ? (
+        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs tabular-nums text-fg-muted">{note}</span>
+      ) : value ? (
         <button
           type="button"
           aria-label="Clear"
@@ -58,7 +157,7 @@ export function SearchField({ value, onChange, placeholder, className, autoFocus
           <X className="size-4" />
         </button>
       ) : (
-        autoFocusKey && <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded-sm border border-line bg-sunken px-1.5 font-mono text-[10px] leading-4 text-fg-muted">/</kbd>
+        slashHint && <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded-sm border border-line bg-sunken px-1.5 font-mono text-[10px] leading-4 text-fg-muted">/</kbd>
       )}
     </div>
   );
@@ -68,25 +167,25 @@ export type View = "list" | "grid";
 
 export function ViewToggle({ value, onChange }: { value: View; onChange: (v: View) => void }) {
   return (
-    <div role="group" aria-label="View" className="inline-flex h-10 items-center gap-0.5 rounded-md border border-line bg-sunken p-0.5">
-      {(["list", "grid"] as const).map((v) => {
-        const C = v === "grid" ? LayoutGrid : ListIcon;
-        return (
-          <button
-            key={v}
-            type="button"
-            aria-pressed={value === v}
-            aria-label={v === "grid" ? "Cards" : "Table"}
-            title={v === "grid" ? "Cards" : "Table"}
-            onClick={() => onChange(v)}
-            className={cn("flex h-full w-9 items-center justify-center rounded-sm transition-colors", value === v ? "bg-surface text-fg shadow-[0_1px_2px_rgb(0_0_0/0.06)]" : "text-fg-muted hover:text-fg")}
-          >
-            <C className="size-4" />
-          </button>
-        );
-      })}
-    </div>
+    <Segmented
+      label="View"
+      size="lg"
+      value={value}
+      onChange={(v) => onChange(v as View)}
+      items={[
+        { key: "list", icon: <ListIcon />, title: "Table" },
+        { key: "grid", icon: <LayoutGrid />, title: "Cards" },
+      ]}
+    />
   );
+}
+
+/** A page of an array a client component owns. A delete on the last page
+ *  can leave the stored page past the end; `paginate` clamps, and the
+ *  clamped page is what is shown and what the Pager steps from. */
+export function usePaged<T>(items: T[], size = PAGE_SIZE) {
+  const [page, setPage] = useState(1);
+  return { ...paginate(items, page, size), setPage };
 }
 
 // The chosen view, remembered per list in this browser, read as an outside
@@ -147,28 +246,6 @@ export type Row = {
 };
 
 const HIDE = { sm: "max-sm:hidden", md: "max-md:hidden", lg: "max-lg:hidden" } as const;
-
-export function Pager({ total, offset, limit, onChange }: { total: number; offset: number; limit: number; onChange: (offset: number) => void }) {
-  if (total === 0) return null;
-  const end = Math.min(total, offset + limit);
-  return (
-    <div className="flex items-center justify-between gap-3 pt-3 text-sm text-fg-muted">
-      <span className="tabular-nums">
-        {offset + 1}–{end} of {total}
-      </span>
-      {total > limit && (
-        <span className="flex items-center gap-1">
-          <button type="button" disabled={offset === 0} onClick={() => onChange(Math.max(0, offset - limit))} aria-label="Previous page" className="flex size-8 items-center justify-center rounded-md border border-line bg-surface text-fg disabled:opacity-40">
-            <ChevronLeft className="size-4" />
-          </button>
-          <button type="button" disabled={end >= total} onClick={() => onChange(offset + limit)} aria-label="Next page" className="flex size-8 items-center justify-center rounded-md border border-line bg-surface text-fg disabled:opacity-40">
-            <ChevronRight className="size-4" />
-          </button>
-        </span>
-      )}
-    </div>
-  );
-}
 
 /** The table on its own (no search): a card with the head and tall rows. */
 export function RowTable({ columns, rows, nameHeader = "Name", empty }: { columns: Column[]; rows: Row[]; nameHeader?: ReactNode; empty?: ReactNode }) {
@@ -316,7 +393,13 @@ export function ResourceList({
       ) : (
         <RowTable columns={columns} rows={pageRows} nameHeader={nameHeader} />
       )}
-      <Pager total={shown.length} offset={offset} limit={pageSize} onChange={(o) => setUrl({ page: o ? String(o / pageSize + 1) : null })} />
+      <Pager
+        page={offset / pageSize + 1}
+        pages={Math.max(1, Math.ceil(shown.length / pageSize))}
+        total={shown.length}
+        pageSize={pageSize}
+        onPage={(n) => setUrl({ page: n > 1 ? String(n) : null })}
+      />
     </div>
   );
 }

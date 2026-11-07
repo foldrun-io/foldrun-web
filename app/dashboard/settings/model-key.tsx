@@ -9,8 +9,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, buttonClass } from "@/components/ui";
-import { SettingsCard } from "@/components/kit/page";
+import { buttonVariants } from "@/components/kit/button";
+import { Chip, Field, SettingsCard } from "@/components/kit/page";
+import { Input } from "@/components/kit/input";
+import { Select } from "@/components/kit/select";
+import { Tooltip } from "@/components/kit/tooltip";
 import type { AccountModel } from "@/server/account-model";
 import type { FoldrunModelsView } from "@/platform/model-choice";
 
@@ -85,13 +88,13 @@ export function ModelKey({
   const status =
     model.runsOn === "foldrun"
       ? fm.refused || !chosen?.available
-        ? { label: "foldrun's models — refused", variant: "error" as const, text: `${chosen?.title ?? model.supply}: ${fm.refused ?? chosen?.reason ?? "not available"}. Runs are refused until this is resolved or you switch to your own key.` }
-        : { label: "foldrun's models", variant: "success" as const, text: `${chosen.title} · billed in credits at the price list` }
+        ? { label: "foldrun's models — refused", variant: "bad" as const, text: `${chosen?.title ?? model.supply}: ${fm.refused ?? chosen?.reason ?? "not available"}. Runs are refused until this is resolved or you switch to your own key.` }
+        : { label: "foldrun's models", variant: "good" as const, text: `${chosen.title} · billed in credits at the price list` }
       : model.runsOn === "account"
-      ? { label: "Your own key", variant: "success" as const, text: `${model.provider ?? "custom"} ${model.keyHint ?? ""} · ${model.baseUrl ?? ""}` }
+      ? { label: "Your own key", variant: "good" as const, text: `${model.provider ?? "custom"} ${model.keyHint ?? ""} · ${model.baseUrl ?? ""}` }
       : model.runsOn === "platform"
-        ? { label: "Platform key", variant: "warning" as const, text: "This account runs on the platform's own credential." }
-        : { label: "No key", variant: "error" as const, text: "Runs on this account are refused until you add an API key." };
+        ? { label: "Platform key", variant: "warn" as const, text: "This account runs on the platform's own credential." }
+        : { label: "No key", variant: "bad" as const, text: "Runs on this account are refused until you add an API key." };
 
   return (
     <SettingsCard
@@ -101,7 +104,7 @@ export function ModelKey({
       hint={error ? <span role="alert" className="text-danger">{error}</span> : <>An agent, workspace or AGENTS.md may name its own <code className="font-mono text-xs">provider:</code>.</>}
     >
       <div className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-sunken px-3 py-2">
-        <Badge variant={status.variant}>{status.label}</Badge>
+        <Chip tone={status.variant}>{status.label}</Chip>
         <span className="min-w-0 break-all font-mono text-xs text-fg-muted">{status.text}</span>
       </div>
       {fm.offered && (
@@ -153,44 +156,40 @@ export function ModelKey({
               void send("PUT");
             }}
           >
-            <label className="grid gap-1.5 text-sm font-medium text-fg">
-              Provider
-              <select className="h-9 rounded-md border border-line bg-surface px-3 py-1.5 font-normal text-sm text-fg" value={provider} onChange={(e) => setProvider(e.target.value)}>
+            <Field label="Provider">
+              <Select className="w-full" value={provider} onChange={(e) => setProvider(e.target.value)}>
                 {presets.map((p) => (
                   <option key={p.name} value={p.name}>{p.title}</option>
                 ))}
                 <option value="custom">Custom endpoint…</option>
-              </select>
-            </label>
-            <label className="grid gap-1.5 text-sm font-medium text-fg">
-              API key
-              <input type="password" autoComplete="off" required className="h-9 rounded-md border border-line bg-surface px-3 py-1.5 font-normal font-mono text-sm text-fg" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={model.set ? "replace the current key" : "paste your API key"} />
-            </label>
+              </Select>
+            </Field>
+            <Field label="API key">
+              <Input type="password" autoComplete="off" required className="font-mono" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={model.set ? "replace the current key" : "paste your API key"} />
+            </Field>
             {showBaseUrl && (
-              <label className="grid gap-1.5 text-sm font-medium text-fg sm:col-span-2">
-                Base URL
-                <input type="url" required className="h-9 rounded-md border border-line bg-surface px-3 py-1.5 font-normal font-mono text-sm text-fg" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://…" />
-              </label>
+              <Field label="Base URL" className="sm:col-span-2">
+                <Input type="url" required className="font-mono" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://…" />
+              </Field>
             )}
             {custom && (
-              <label className="grid gap-1.5 text-sm font-medium text-fg">
-                Format
-                <select className="h-9 rounded-md border border-line bg-surface px-3 py-1.5 font-normal text-sm text-fg" value={format} onChange={(e) => setFormat(e.target.value)}>
+              <Field label="Format">
+                <Select className="w-full" value={format} onChange={(e) => setFormat(e.target.value)}>
                   <option value="anthropic">Anthropic Messages</option>
                   <option value="openai">OpenAI Chat Completions</option>
-                </select>
-              </label>
+                </Select>
+              </Field>
             )}
             <div className="flex items-end gap-2 sm:col-span-2">
-              <button type="submit" disabled={busy || !apiKey} className={buttonClass("primary")}>{model.source === "foldrun" ? "Save key and use it" : model.set ? "Replace key" : "Save key"}</button>
+              <button type="submit" disabled={busy || !apiKey} className={buttonVariants({ variant: "primary" })}>{model.source === "foldrun" ? "Save key and use it" : model.set ? "Replace key" : "Save key"}</button>
               {model.set && (
-                <button type="button" disabled={busy} onClick={() => void send("DELETE")} className={buttonClass("secondary")}>Remove</button>
+                <button type="button" disabled={busy} onClick={() => void send("DELETE")} className={buttonVariants({ variant: "secondary" })}>Remove</button>
               )}
             </div>
           </form>
         )}
           {model.source === "foldrun" && mayEdit && (
-            <button type="button" disabled={busy} onClick={() => void send("PUT", { source: "own" })} className={`mt-2 ${buttonClass("secondary")}`}>
+            <button type="button" disabled={busy} onClick={() => void send("PUT", { source: "own" })} className={`mt-2 ${buttonVariants({ variant: "secondary" })}`}>
               {model.set ? `Use my key ${model.keyHint ?? ""} instead of foldrun's models` : "Stop using foldrun's models"}
             </button>
           )}
@@ -225,17 +224,16 @@ function FoldrunPanel({
   return (
     <div className="mt-3 grid min-w-0 gap-3">
       {fm.refused && <p className="text-sm text-danger">{fm.refused}</p>}
-      <label className="grid gap-1.5 text-sm font-medium text-fg sm:w-64">
-        Provider
-        <select className="h-9 rounded-md border border-line bg-surface px-3 py-1.5 font-normal text-sm text-fg" value={supply} onChange={(e) => setSupply(e.target.value)}>
+      <Field label="Provider" className="sm:w-64">
+        <Select className="w-full" value={supply} onChange={(e) => setSupply(e.target.value)}>
           {fm.providers.map((x) => (
             <option key={x.name} value={x.name} disabled={!x.available}>
               {x.title}
               {x.available ? "" : " — not available"}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Field>
       {tiers.length > 0 && (
         <p className="text-xs text-fg-muted">
           <span className="mr-1.5">An agent&apos;s <code className="font-mono">model:</code></span>
@@ -256,8 +254,10 @@ function FoldrunPanel({
                 <th className="py-1 pr-3 font-medium">Model</th>
                 <th className="py-1 pr-3 font-medium">In</th>
                 <th className="py-1 pr-3 font-medium">Out</th>
-                <th className="py-1 pr-3 font-medium" title="cache read">Cached in</th>
-                <th className="py-1 font-medium" title="cache write">Cache write</th>
+                <Tooltip label="cache read">
+                  <th className="py-1 pr-3 font-medium">Cached in</th>
+                </Tooltip>
+                <th className="py-1 font-medium">Cache write</th>
               </tr>
             </thead>
             <tbody className="font-mono text-fg-secondary">
@@ -290,7 +290,7 @@ function FoldrunPanel({
       </p>
       {mayEdit && (
         <div>
-          <button type="button" disabled={busy || !p?.available || Boolean(fm.refused) || inUse === supply} onClick={onUse} className={buttonClass("primary")}>
+          <button type="button" disabled={busy || !p?.available || Boolean(fm.refused) || inUse === supply} onClick={onUse} className={buttonVariants({ variant: "primary" })}>
             {inUse === supply ? `Running on ${p?.title ?? supply}` : `Use foldrun's ${p?.title ?? supply} models`}
           </button>
         </div>

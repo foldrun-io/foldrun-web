@@ -8,14 +8,14 @@
 // so any of them can be rolled back to.
 
 import fs from "node:fs";
-import { Pager } from "@/components/pager";
-import { paginate, pageFrom } from "@/components/paging";
+import { Pager } from "@/components/kit/pager";
+import { paginate, pageFrom, PAGE_SIZE } from "@/components/paging";
 import { notFound } from "next/navigation";
 import { workspaceDir } from "@/lib/store";
 import { ensureBaseline, hasSnapshot, listRevisions } from "@/lib/history";
 import { History as HistoryIcon } from "lucide-react";
 import { Page, PageHeader, EmptyState } from "@/components/kit/page";
-import { UrlSearch } from "@/components/kit/inspect-search";
+import { SearchField } from "@/components/kit/list";
 import { filterByQuery } from "@/components/list-search-model";
 import { HistoryList } from "./history-list";
 
@@ -52,7 +52,7 @@ export default async function HistoryPage({
       ) : (
         <div className="min-w-0 space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            <UrlSearch value={q} placeholder="Search changes — message, path, author…" className="min-w-48 flex-1" />
+            <SearchField url value={q} placeholder="Search changes — message, path, author…" className="min-w-48 flex-1" />
             {q && (
               <span className="text-[13px] tabular-nums text-fg-muted">
                 {found.length} {found.length === 1 ? "change" : "changes"}
@@ -62,7 +62,7 @@ export default async function HistoryPage({
           <HistoryList workspace={workspace} tenant={tenant} revisions={rows} page={page} />
         </div>
       )}
-      <Pager base={`/dashboard/${workspace}/history${q ? `?q=${encodeURIComponent(q)}` : ""}`} page={page} pages={pages} total={total} tenantParam={qs.replace("?", "&")} labels={["← Newer", "Older →"]} />
+      <Pager base={`/dashboard/${workspace}/history${q ? `?q=${encodeURIComponent(q)}` : ""}`} page={page} pages={pages} total={total} pageSize={PAGE_SIZE} tenantParam={qs.replace("?", "&")} labels={["Newer", "Older"]} />
     </Page>
   );
 }

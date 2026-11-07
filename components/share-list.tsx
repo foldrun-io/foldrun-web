@@ -12,12 +12,15 @@
 // again (router.refresh), and a new server list replaces the local one — the
 // file browser above does the same, so the two never contradict each other.
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { WithEmails } from "@/components/email";
-import { useConfirm } from "@/components/confirm";
-import { buttonClass, Card } from "@/components/ui";
+import { useConfirm } from "@/components/kit/confirm";
+import { buttonVariants } from "@/components/kit/button";
+import { Card } from "@/components/kit/page";
+import { Toast } from "@/components/kit/toast";
 import { LocalTime } from "@/components/local-time";
+import { useCopyFallback } from "@/components/kit/prompt";
 import {
   isLiveShare,
   shareStatus,
@@ -25,16 +28,6 @@ import {
   visibleShares,
   type ShareRow,
 } from "@/components/share-list-model";
-
-function Toast({ text, onDone }: { text: string; onDone: () => void }) {
-  useEffect(() => {
-    const id = setTimeout(onDone, 2600);
-    return () => clearTimeout(id);
-  }, [text, onDone]);
-  return (
-    <div className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-full bg-ink/95 px-4 py-2 text-sm text-on-ink shadow-lg">{text}</div>
-  );
-}
 
 export function ShareList({
   rows: initial,
@@ -62,6 +55,7 @@ export function ShareList({
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [confirm, confirmDialog] = useConfirm();
+  const [copyFallback, copyDialog] = useCopyFallback();
 
   const shown = useMemo(() => visibleShares(rows, now, all), [rows, now, all]);
   const liveCount = useMemo(() => rows.filter((r) => isLiveShare(r, now)).length, [rows, now]);
@@ -72,7 +66,7 @@ export function ShareList({
       await navigator.clipboard.writeText(url);
       setToast("Link copied");
     } catch {
-      window.prompt("Copy this link", url);
+      copyFallback(url);
     }
   };
 
@@ -137,12 +131,12 @@ export function ShareList({
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   {status.live && s.url && (
-                    <button type="button" className={buttonClass("secondary", "text-xs")} onClick={() => copy(s.url!)}>
+                    <button type="button" className={buttonVariants({ variant: "secondary", size: "xs" })} onClick={() => copy(s.url!)}>
                       Copy link
                     </button>
                   )}
                   {status.live && canRevoke && (
-                    <button type="button" className={buttonClass("destructive", "text-xs")} disabled={busy === s.id} onClick={() => revoke(s)}>
+                    <button type="button" className={buttonVariants({ variant: "danger-outline", size: "xs" })} disabled={busy === s.id} onClick={() => revoke(s)}>
                       {busy === s.id ? "Revoking…" : "Revoke"}
                     </button>
                   )}
@@ -153,7 +147,8 @@ export function ShareList({
         </Card>
       )}
       {confirmDialog}
-      {toast && <Toast text={toast} onDone={() => setToast(null)} />}
+      {copyDialog}
+      {toast && <Toast onDone={() => setToast(null)}>{toast}</Toast>}
     </section>
   );
 }

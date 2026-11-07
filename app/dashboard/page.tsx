@@ -42,7 +42,7 @@ import { fmtIn } from "@/components/workspace-overview-model";
 import { creditsShort } from "@/components/money";
 import { Page, ResourceCard, EmptyState } from "@/components/kit/page";
 import { SplitOverview } from "@/components/kit/overview";
-import { Status } from "@/components/kit/status";
+import { Status, StatusDot } from "@/components/kit/status";
 import { buttonVariants } from "@/components/kit/button";
 import type { Row } from "@/components/kit/list";
 
@@ -108,7 +108,7 @@ export default async function Dashboard({
     const mark = <Avatar name={d.name} src={d.avatar ?? null} size="lg" square />;
     const lastLine = last ? (
       <>
-        <span className={`size-2 shrink-0 rounded-full ${OUTCOME[last.outcome].dot}`} />
+        <StatusDot outcome={last.outcome} label="" />
         <span className="truncate">
           {last.what} · {OUTCOME[last.outcome].label} {fmtSpan(now - Date.parse(last.startedAt))} ago
         </span>

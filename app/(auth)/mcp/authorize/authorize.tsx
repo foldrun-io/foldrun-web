@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { buttonClass } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
 import { Email } from "@/components/email";
+import { Checkbox, RadioGroup, RadioGroupItem } from "@/components/kit/choice";
 
 type Ask = {
   client: { name: string; id: string; kind: "dcr" | "cimd"; uri: string | null };
@@ -105,30 +106,33 @@ export function McpAuthorize() {
 
       <fieldset className="mb-4">
         <legend className="mb-1 text-sm font-medium text-fg-secondary">What it may do</legend>
+        <RadioGroup value={access} onValueChange={(v) => setAccess(v as typeof access)} className="gap-1">
         <label className="flex items-center gap-2 text-sm">
-          <input type="radio" checked={access === "read"} onChange={() => setAccess("read")} /> Read only — inbox, runs, flows, files
+          <RadioGroupItem value="read" /> Read only — inbox, runs, flows, files
         </label>
         <label className={`flex items-center gap-2 text-sm ${canWrite ? "" : "opacity-50"}`}>
-          <input type="radio" disabled={!canWrite} checked={access === "write"} onChange={() => setAccess("write")} /> Read and act — also start, stop, approve, answer, message
+          <RadioGroupItem value="write" disabled={!canWrite} /> Read and act — also start, stop, approve, answer, message
         </label>
+        </RadioGroup>
       </fieldset>
 
       <fieldset className="mb-6">
         <legend className="mb-1 text-sm font-medium text-fg-secondary">Which workspaces</legend>
+        <RadioGroup value={scope} onValueChange={(v) => setScope(v as typeof scope)} className="gap-1">
         <label className="flex items-center gap-2 text-sm">
-          <input type="radio" checked={scope === "all"} onChange={() => setScope("all")} /> {ask.allWorkspaces ? "All of them, and new ones" : "All you may open"}
+          <RadioGroupItem value="all" /> {ask.allWorkspaces ? "All of them, and new ones" : "All you may open"}
         </label>
         <label className="flex items-center gap-2 text-sm">
-          <input type="radio" checked={scope === "some"} onChange={() => setScope("some")} /> Only these:
+          <RadioGroupItem value="some" /> Only these:
         </label>
+        </RadioGroup>
         {scope === "some" && (
           <div className="ml-6 mt-1 space-y-1">
             {ask.workspaces.map((w) => (
               <label key={w} className="flex items-center gap-2 font-mono text-xs">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={chosen.includes(w)}
-                  onChange={(e) => setChosen(e.target.checked ? [...chosen, w] : chosen.filter((x) => x !== w))}
+                  onCheckedChange={(checked: boolean) => setChosen(checked ? [...chosen, w] : chosen.filter((x) => x !== w))}
                 />
                 {w}
               </label>
@@ -138,10 +142,10 @@ export function McpAuthorize() {
       </fieldset>
 
       <div className="flex gap-2">
-        <button type="button" disabled={busy || (scope === "some" && !chosen.length)} onClick={() => decide("approve")} className={buttonClass("primary")}>
+        <button type="button" disabled={busy || (scope === "some" && !chosen.length)} onClick={() => decide("approve")} className={buttonVariants({ variant: "primary" })}>
           Connect
         </button>
-        <button type="button" disabled={busy} onClick={() => decide("deny")} className={buttonClass("secondary")}>
+        <button type="button" disabled={busy} onClick={() => decide("deny")} className={buttonVariants({ variant: "secondary" })}>
           Deny
         </button>
       </div>

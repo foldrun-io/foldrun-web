@@ -5,8 +5,7 @@
 // installer's own error when it failed. A workspace whose agents declare no
 // `runtime:` renders nothing.
 
-import { Badge } from "./ui";
-import { Panel } from "./mission-control";
+import { Chip, Panel, type Tone } from "./kit/page";
 import { LocalTime } from "./local-time";
 
 export interface RuntimeRow {
@@ -24,9 +23,9 @@ export interface RuntimeRow {
   at: string | null;
 }
 
-const VARIANT: Record<string, "success" | "error" | "info" | "default"> = {
-  ready: "success",
-  failed: "error",
+const VARIANT: Record<string, Tone> = {
+  ready: "good",
+  failed: "bad",
   building: "info",
   pending: "default",
 };
@@ -46,13 +45,14 @@ export function RuntimesPanel({ runtimes }: { runtimes: RuntimeRow[] }) {
     <Panel
       title="Runtimes"
       count={runtimes.length}
-      action={failed > 0 ? <span className="text-sm font-medium text-danger">{failed} failed</span> : undefined}
+      actions={failed > 0 ? <span className="text-sm font-medium text-danger">{failed} failed</span> : undefined}
+      flush
     >
       <ul className="divide-y divide-line">
         {runtimes.map((r) => (
           <li key={r.fingerprint} className="px-5 py-3 text-sm">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={VARIANT[r.state] ?? "default"} pulse={r.state === "building"}>{r.state}</Badge>
+              <Chip tone={VARIANT[r.state] ?? "default"} pulse={r.state === "building"}>{r.state}</Chip>
               <span className="min-w-0 truncate font-mono text-xs text-fg">
                 {[
                   r.python ? `python${typeof r.python === "string" ? ` ${r.python}` : ""}` : null,

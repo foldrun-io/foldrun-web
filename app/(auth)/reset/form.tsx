@@ -1,6 +1,9 @@
 "use client";
 import { useState } from "react";
-import { buttonClass, inputClass } from "@/components/ui";
+import { buttonVariants } from "@/components/kit/button";
+import { Input } from "@/components/kit/input";
+import { cn } from "@/components/kit/cn";
+import { Field, Callout } from "@/components/kit/page";
 
 export function ResetForm({ token }: { token: string }) {
   const [error, setError] = useState<string | null>(null);
@@ -24,12 +27,11 @@ export function ResetForm({ token }: { token: string }) {
         setBusy(false);
       }}
     >
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-fg">New password</span>
-        <input name="password" type="password" required minLength={10} autoFocus autoComplete="new-password" className={inputClass("w-full")} />
-      </label>
-      {error && <p className="rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
-      <button disabled={busy} className={buttonClass("primary", "h-9 w-full")}>{busy ? "…" : "Set password and sign in"}</button>
+      <Field label="New password">
+        <Input name="password" type="password" required minLength={10} autoFocus autoComplete="new-password" className="w-full" />
+      </Field>
+      {error && <Callout tone="danger">{error}</Callout>}
+      <button disabled={busy} className={cn(buttonVariants({ variant: "primary", size: "md" }), "w-full")}>{busy ? "…" : "Set password and sign in"}</button>
     </form>
   );
 }

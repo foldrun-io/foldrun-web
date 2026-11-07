@@ -5,7 +5,7 @@
 // character short of.
 
 import { useState } from "react";
-import { inputClass } from "@/components/ui";
+import { Input } from "@/components/kit/input";
 import { Button } from "@/components/kit/button";
 import { Check, Copy } from "lucide-react";
 
@@ -13,7 +13,7 @@ export function CopyField({ value, className = "" }: { value: string; className?
   const [done, setDone] = useState(false);
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <input readOnly value={value} onFocus={(e) => e.currentTarget.select()} className={inputClass("h-8 flex-1 font-mono text-xs")} />
+      <Input readOnly value={value} onFocus={(e) => e.currentTarget.select()} className="h-8 flex-1 font-mono text-xs" />
       <Button
         type="button"
         variant="secondary"

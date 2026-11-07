@@ -6,10 +6,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { buttonClass, inputClass, selectClass, Card, Badge } from "@/components/ui";
-import { Banner } from "@/components/banner";
+import { buttonVariants } from "@/components/kit/button";
+import { Input, Textarea } from "@/components/kit/input";
+import { Select } from "@/components/kit/select";
+import { Chip, Card, Field, Callout } from "@/components/kit/page";
 import { LocalTime } from "@/components/local-time";
 import { useViewerTime } from "@/components/viewer-time";
+import { Disclosure } from "@/components/kit/disclosure";
 
 type DiffOp = { kind: "same" | "add" | "del"; text: string };
 interface Plan {
@@ -102,24 +105,22 @@ export function RestoreWorkspace({
   const current = workspaces.find((w) => w.name === ws);
   return (
     <Card className="space-y-4 p-5 sm:p-6">
-      {done && <Banner tone="ok">{done}</Banner>}
-      {error && <Banner tone="error">{error}</Banner>}
+      {done && <Callout tone="success" role="status" className="mb-4">{done}</Callout>}
+      {error && <Callout tone="danger" role="alert" className="mb-4">{error}</Callout>}
       <form onSubmit={preview} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto] sm:items-end">
-        <label className="block">
-          <span className="block text-sm font-medium text-fg">Workspace</span>
-          <select className={selectClass("mt-1.5 w-full")} value={ws} onChange={(e) => { setWs(e.target.value); setPlan(null); }}>
+        <Field label="Workspace">
+          <Select className="w-full" value={ws} onChange={(e) => { setWs(e.target.value); setPlan(null); }}>
             {workspaces.map((w) => (
               <option key={w.name} value={w.name} disabled={!w.history}>
                 {w.name}{w.history ? "" : " (no history)"}
               </option>
             ))}
-          </select>
-        </label>
-        <label className="block">
-          <span className="block text-sm font-medium text-fg">Back to</span>
-          <input className={inputClass("mt-1.5 w-full")} value={to} onChange={(e) => { setTo(e.target.value); setPlan(null); }} placeholder="2026-09-28 14:00 · 3d · a commit" required />
-        </label>
-        <button type="submit" disabled={busy || !ws || !to.trim()} className={buttonClass("secondary")}>
+          </Select>
+        </Field>
+        <Field label="Back to">
+          <Input className="w-full" value={to} onChange={(e) => { setTo(e.target.value); setPlan(null); }} placeholder="2026-09-28 14:00 · 3d · a commit" required />
+        </Field>
+        <button type="submit" disabled={busy || !ws || !to.trim()} className={buttonVariants({ variant: "secondary", size: "md" })}>
           Preview
         </button>
       </form>
@@ -134,7 +135,7 @@ export function RestoreWorkspace({
             Restoring to <code className="font-mono text-xs">{plan.to.sha.slice(0, 7)}</code> — <LocalTime iso={plan.to.at} />, “{plan.to.message}” by {plan.to.by}.
           </p>
           {plan.noop ? (
-            <Banner tone="info">{ws} already matches that point. Nothing would change.</Banner>
+            <Callout tone="neutral" role="status" className="mb-4">{ws} already matches that point. Nothing would change.</Callout>
           ) : (
             <>
               <p className="text-sm text-fg-secondary">
@@ -144,22 +145,18 @@ export function RestoreWorkspace({
               <ul className="space-y-1.5">
                 {plan.files.map((f) => (
                   <li key={f.path} className="rounded-md border border-line">
-                    <details>
-                      <summary className="flex cursor-pointer items-center gap-2 px-2 py-1.5 text-xs">
-                        <Badge variant={f.change === "removed" ? "error" : f.change === "added" ? "success" : "info"}>{f.change}</Badge>
-                        <span className="truncate font-mono">{f.path}</span>
-                      </summary>
+                    <Disclosure summaryClassName="flex items-center gap-2 px-2 py-1.5 text-xs" summary={<><Chip tone={f.change === "removed" ? "bad" : f.change === "added" ? "good" : "info"}>{f.change}</Chip>
+                        <span className="truncate font-mono">{f.path}</span></>}>
                       <Diff ops={f.diff} />
-                    </details>
+                    </Disclosure>
                   </li>
                 ))}
               </ul>
               <div className="flex flex-wrap items-end gap-2">
-                <label className="block">
-                  <span className="block text-sm font-medium text-fg">Type {ws} to confirm</span>
-                  <input className={inputClass("mt-1.5 w-56 max-w-full")} value={typed} onChange={(e) => setTyped(e.target.value)} />
-                </label>
-                <button type="button" onClick={restore} disabled={busy || typed !== ws} className={buttonClass("primary")}>
+                <Field label={<>Type {ws} to confirm</>}>
+                  <Input className="w-56 max-w-full" value={typed} onChange={(e) => setTyped(e.target.value)} />
+                </Field>
+                <button type="button" onClick={restore} disabled={busy || typed !== ws} className={buttonVariants({ variant: "primary", size: "md" })}>
                   Restore {ws}
                 </button>
               </div>
@@ -172,9 +169,10 @@ export function RestoreWorkspace({
 }
 
 /** One snapshot, in the viewer's clock (filled after hydration). */
-function SnapshotOption({ id, at }: { id: string; at: string }) {
+/** A snapshot's time, in the viewer's clock — an option's label. */
+function SnapshotTime({ at }: { at: string }) {
   const text = useViewerTime(at, { dateStyle: "medium", timeStyle: "short" });
-  return <option value={id}>{text || at.slice(0, 16).replace("T", " ")}</option>;
+  return <>{text || at.slice(0, 16).replace("T", " ")}</>;
 }
 
 interface RequestRow {
@@ -227,43 +225,38 @@ export function RequestRestore({
 
   return (
     <Card className="space-y-4 p-5 sm:p-6">
-      {done && <Banner tone="ok">{done}</Banner>}
-      {error && <Banner tone="error">{error}</Banner>}
+      {done && <Callout tone="success" role="status" className="mb-4">{done}</Callout>}
+      {error && <Callout tone="danger" role="alert" className="mb-4">{error}</Callout>}
       {canAsk ? (
         <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="block text-sm font-medium text-fg">What</span>
-            <select className={selectClass("mt-1.5 w-full")} value={what} onChange={(e) => setWhat(e.target.value)}>
+          <Field label="What">
+            <Select className="w-full" value={what} onChange={(e) => setWhat(e.target.value)}>
               <option value="runs">Run records</option>
               <option value="state">state/ files</option>
               <option value="storage">Storage files</option>
               <option value="everything">Everything</option>
-            </select>
-          </label>
-          <label className="block">
-            <span className="block text-sm font-medium text-fg">Workspace</span>
-            <select className={selectClass("mt-1.5 w-full")} value={workspace} onChange={(e) => setWorkspace(e.target.value)}>
+            </Select>
+          </Field>
+          <Field label="Workspace">
+            <Select className="w-full" value={workspace} onChange={(e) => setWorkspace(e.target.value)}>
               <option value="">All of them</option>
               {workspaces.map((w) => <option key={w} value={w}>{w}</option>)}
-            </select>
-          </label>
-          <label className="block">
-            <span className="block text-sm font-medium text-fg">As it was at</span>
-            <input className={inputClass("mt-1.5 w-full")} value={target} onChange={(e) => setTarget(e.target.value)} placeholder="2026-09-28 14:00 Sydney" required />
-          </label>
-          <label className="block">
-            <span className="block text-sm font-medium text-fg">Snapshot (optional)</span>
-            <select className={selectClass("mt-1.5 w-full")} value={backupId} onChange={(e) => setBackupId(e.target.value)}>
+            </Select>
+          </Field>
+          <Field label="As it was at">
+            <Input className="w-full" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="2026-09-28 14:00 Sydney" required />
+          </Field>
+          <Field label="Snapshot (optional)">
+            <Select className="w-full" value={backupId} onChange={(e) => setBackupId(e.target.value)}>
               <option value="">The nearest before that time</option>
-              {backups.map((b) => <SnapshotOption key={b.id} id={b.id} at={b.at} />)}
-            </select>
-          </label>
-          <label className="block sm:col-span-2">
-            <span className="block text-sm font-medium text-fg">Note</span>
-            <textarea className={inputClass("mt-1.5 w-full")} rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="What went wrong, and what you need back" />
-          </label>
+              {backups.map((b) => <option key={b.id} value={b.id}><SnapshotTime at={b.at} /></option>)}
+            </Select>
+          </Field>
+          <Field label="Note" className="sm:col-span-2">
+            <Textarea className="w-full" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="What went wrong, and what you need back" />
+          </Field>
           <div className="sm:col-span-2">
-            <button type="submit" disabled={busy || !target.trim()} className={buttonClass("primary")}>Send request</button>
+            <button type="submit" disabled={busy || !target.trim()} className={buttonVariants({ variant: "primary", size: "md" })}>Send request</button>
           </div>
         </form>
       ) : (
@@ -280,7 +273,7 @@ export function RequestRestore({
                 <span>{r.workspace ?? "all workspaces"}</span>
                 <span>to {r.target}</span>
                 <span className="text-fg-subtle">by {r.by}</span>
-                <Badge>{r.status}</Badge>
+                <Chip>{r.status}</Chip>
               </li>
             ))}
           </ul>

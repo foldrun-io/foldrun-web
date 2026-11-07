@@ -11,7 +11,9 @@
 
 import Link from "next/link";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { buttonClass } from "./ui";
+import { buttonVariants } from "./kit/button";
+import { cn } from "./kit/cn";
+import { Tooltip } from "./kit/tooltip";
 
 const VersionContext = createContext<string>("dev");
 
@@ -26,13 +28,14 @@ export function VersionFooter({ collapsed, query = "" }: { collapsed?: boolean; 
   const version = useVersion();
   if (collapsed) return null;
   return (
-    <Link
-      href={`/dashboard/whats-new${query}`}
-      title="What's new in this version"
-      className="mt-2 block truncate px-2 py-1 font-mono text-[10px] text-fg-subtle hover:text-fg-secondary"
-    >
-      foldrun {version}
-    </Link>
+    <Tooltip label="What's new in this version">
+      <Link
+        href={`/dashboard/whats-new${query}`}
+        className="mt-2 block truncate px-2 py-1 font-mono text-[10px] text-fg-subtle hover:text-fg-secondary"
+      >
+        foldrun {version}
+      </Link>
+    </Tooltip>
   );
 }
 
@@ -98,7 +101,7 @@ export function UpdateToast({ pollMs = POLL_MS }: { pollMs?: number }) {
       <button
         type="button"
         onClick={() => window.location.reload()}
-        className={buttonClass("primary", "shrink-0")}
+        className={cn(buttonVariants({ variant: "primary" }), "shrink-0")}
       >
         Reload
       </button>

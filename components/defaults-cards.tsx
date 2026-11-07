@@ -6,11 +6,15 @@
 // it would inherit from the account beside each empty field.
 
 import { useEffect, useState } from "react";
-import { SettingsForm, Field, useSettingsForm } from "./settings-form";
-import { inputClass, selectClass } from "./ui";
+import { SettingsForm, useSettingsForm } from "./settings-form";
+import { Field } from "./kit/page";
+import { Input } from "./kit/input";
+import { Select } from "./kit/select";
 import { WithEmails } from "./email";
 import { Button } from "./kit/button";
 import { NOTIFY_EVENTS, DEPLOY_BLOCKS, type Defaults, type Notify, type Budget, type Alerts, type Judge } from "./defaults-model";
+import { Switch, Checkbox } from "@/components/kit/choice";
+import { Combobox } from "@/components/kit/combobox";
 
 async function patch(endpoint: string, tenant: string, body: Record<string, unknown>): Promise<Defaults> {
   const res = await fetch(endpoint, {
@@ -47,19 +51,14 @@ export function TimezoneCard({ endpoint, tenant, initial, inherited }: { endpoin
       description={inherited && !form.value ? `Empty — schedules here use ${inherited}, the account's.` : "Schedules written here fire in this zone unless the flow names its own."}
       hint={<><code className="font-mono text-xs">timezone:</code> in AGENTS.md</>}
     >
-      <input
-        list="foldrun-zones"
+      <Combobox
+        options={zones}
         aria-label="Timezone"
         value={form.value}
         onChange={(e) => form.setValue(e.target.value)}
         placeholder={inherited ?? "UTC"}
-        className={inputClass("w-full max-w-sm font-mono")}
+        className="w-full max-w-sm font-mono"
       />
-      {zones.length > 0 && (
-        <datalist id="foldrun-zones">
-          {zones.map((z) => <option key={z} value={z} />)}
-        </datalist>
-      )}
     </SettingsForm>
   );
 }
@@ -92,21 +91,21 @@ export function BudgetCard({ endpoint, tenant, initial, spent, compact = false }
     <div className="flex flex-wrap items-center gap-2">
           <div className="relative max-w-[10rem]">
             <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-fg-subtle">$</span>
-            <input
+            <Input
               type="number"
               min={0}
               step={1}
               value={form.value.usd}
               onChange={(e) => form.setValue({ ...form.value, usd: e.target.value })}
               placeholder="no limit"
-              className={inputClass("w-full pl-6")}
+              className="w-full pl-6"
             />
           </div>
           <span className="text-sm text-fg-muted">per</span>
-          <select
+          <Select
             value={form.value.period}
             onChange={(e) => form.setValue({ ...form.value, period: e.target.value as Budget["period"] })}
-            className={selectClass("w-32")}
+            className="w-32"
             aria-label="budget period"
           >
             {PERIODS.map((p) => (
@@ -114,7 +113,7 @@ export function BudgetCard({ endpoint, tenant, initial, spent, compact = false }
                 {p.label.replace(/^a /, "")}
               </option>
             ))}
-          </select>
+          </Select>
     </div>
   );
   if (compact) {
@@ -154,7 +153,7 @@ export function ConcurrencyCard({ endpoint, tenant, initial, plan }: { endpoint:
       description={form.value.trim() === "" ? (plan ? `Empty — the plan's ${plan} at a time.` : "No cap — as many as the install can drive.") : `At most ${Number(form.value) || 0} runs drive at the same time; the rest wait their turn in the queue, never refused.`}
       hint={<><code className="font-mono text-xs">concurrency:</code> in AGENTS.md</>}
     >
-      <input type="number" min={1} max={64} step={1} aria-label="Runs at once" value={form.value} onChange={(e) => form.setValue(e.target.value)} placeholder="plan" className={inputClass("max-w-[8rem]")} />
+      <Input type="number" min={1} max={64} step={1} aria-label="Runs at once" value={form.value} onChange={(e) => form.setValue(e.target.value)} placeholder="plan" className="max-w-[8rem]" />
     </SettingsForm>
   );
 }
@@ -294,11 +293,11 @@ export function ComputeCard({
           </div>
         )}
       </div>
-      <Field label={words.own} help={words.help}>
+      <Field label={words.own} hint={words.help}>
         <div className="flex flex-wrap gap-2">
-          <input type="number" min={0.5} step={0.5} value={form.value.vcpu} onChange={(e) => form.setValue({ ...form.value, vcpu: e.target.value })} placeholder="vCPU" aria-label="vCPU" className={inputClass("max-w-[7rem]")} />
-          <input type="number" min={0.25} step={0.25} value={form.value.memGiB} onChange={(e) => form.setValue({ ...form.value, memGiB: e.target.value })} placeholder="GiB" aria-label="GiB" className={inputClass("max-w-[7rem]")} />
-          <input type="number" min={1} step={1} value={form.value.diskGiB} onChange={(e) => form.setValue({ ...form.value, diskGiB: e.target.value })} placeholder="GiB disk" aria-label="GiB disk" className={inputClass("max-w-[7rem]")} />
+          <Input type="number" min={0.5} step={0.5} value={form.value.vcpu} onChange={(e) => form.setValue({ ...form.value, vcpu: e.target.value })} placeholder="vCPU" aria-label="vCPU" className="max-w-[7rem]" />
+          <Input type="number" min={0.25} step={0.25} value={form.value.memGiB} onChange={(e) => form.setValue({ ...form.value, memGiB: e.target.value })} placeholder="GiB" aria-label="GiB" className="max-w-[7rem]" />
+          <Input type="number" min={1} step={1} value={form.value.diskGiB} onChange={(e) => form.setValue({ ...form.value, diskGiB: e.target.value })} placeholder="GiB disk" aria-label="GiB disk" className="max-w-[7rem]" />
         </div>
       </Field>
     </SettingsForm>
@@ -325,7 +324,7 @@ export function OwnerCard({ endpoint, tenant, initial, inherited }: { endpoint: 
       description={form.value.trim() ? "Shown on every agent and flow here that names no owner of its own, and on its traces." : inherited ? <WithEmails text={`Empty — the account's owner, ${inherited}.`} /> : "Empty — nobody named. Each agent's own owner: still shows."}
       hint={<><code className="font-mono text-xs">owner:</code> in AGENTS.md</>}
     >
-      <input aria-label="Owner" value={form.value} onChange={(e) => form.setValue(e.target.value)} placeholder="ops@example.com" maxLength={200} className={inputClass("max-w-sm")} />
+      <Input aria-label="Owner" value={form.value} onChange={(e) => form.setValue(e.target.value)} placeholder="ops@example.com" maxLength={200} className="max-w-sm" />
     </SettingsForm>
   );
 }
@@ -382,27 +381,27 @@ export function AlertsCard({ endpoint, tenant, initial, inherited }: { endpoint:
       hint={<><code className="font-mono text-xs">alerts:</code> in AGENTS.md</>}
     >
       {workspace && (
-        <Field label="Thresholds" help={own ? "Set here, these replace the account's thresholds whole — an empty set means no alerts for this workspace." : "The account's thresholds apply here."}>
-          <select value={own ? "own" : "account"} onChange={(e) => form.setValue({ ...form.value, own: e.target.value === "own" })} className={selectClass("max-w-[14rem]")}>
+        <Field label="Thresholds" hint={own ? "Set here, these replace the account's thresholds whole — an empty set means no alerts for this workspace." : "The account's thresholds apply here."}>
+          <Select value={own ? "own" : "account"} onChange={(e) => form.setValue({ ...form.value, own: e.target.value === "own" })} className="max-w-[14rem]">
             <option value="account">the account&apos;s</option>
             <option value="own">this workspace&apos;s own</option>
-          </select>
+          </Select>
         </Field>
       )}
       {own && (
         <div className="grid gap-4 sm:grid-cols-2">
           {ALERT_FIELDS.map((f) => (
-            <Field key={f.key} label={f.label} help={f.help}>
-              <input
+            <Field key={f.key} label={f.label} hint={f.help}>
+              <Input
                 value={String(form.value[f.key] ?? "")}
                 onChange={(e) => form.setValue({ ...form.value, [f.key]: e.target.value })}
                 placeholder={inherited?.[f.key] !== undefined ? `account: ${String(inherited[f.key])}` : f.placeholder}
-                className={inputClass("max-w-[10rem]")}
+                className="max-w-[10rem]"
               />
             </Field>
           ))}
-          <Field label="A new site" help={`an agent reached a site it never reached before${inherited?.new_host ? " (on for the account)" : ""}`}>
-            <input type="checkbox" checked={form.value.new_host === true} onChange={(e) => form.setValue({ ...form.value, new_host: e.target.checked })} className="size-4 rounded border-line-strong accent-fg" />
+          <Field label="A new site" hint={`an agent reached a site it never reached before${inherited?.new_host ? " (on for the account)" : ""}`}>
+            <Switch checked={form.value.new_host === true} onCheckedChange={(checked: boolean) => form.setValue({ ...form.value, new_host: checked })} />
           </Field>
         </div>
       )}
@@ -427,21 +426,21 @@ export function JudgeCard({ endpoint, tenant, initial, inherited }: { endpoint: 
       hint={<><code className="font-mono text-xs">judge:</code> in AGENTS.md</>}
     >
       <div className="flex flex-wrap gap-4">
-        <Field label="Judges grade with" help={form.value.model ? "Every judge: in an eval and every verify: judge: here. An eval that names its own model: keeps it." : `Unset — ${from}.`}>
-          <select value={form.value.model} onChange={(e) => form.setValue({ ...form.value, model: e.target.value })} className={selectClass("max-w-[12rem]")}>
+        <Field label="Judges grade with" hint={form.value.model ? "Every judge: in an eval and every verify: judge: here. An eval that names its own model: keeps it." : `Unset — ${from}.`}>
+          <Select value={form.value.model} onChange={(e) => form.setValue({ ...form.value, model: e.target.value })} className="max-w-[12rem]">
             <option value="">{inherited?.model ? `the account's (${inherited.model})` : "fast (default)"}</option>
             <option value="fast">fast</option>
             <option value="default">default</option>
             <option value="max">max</option>
             {/* An alias or a model id written in AGENTS.md is shown as itself, so a save keeps it. */}
             {form.value.model && !["fast", "default", "max"].includes(form.value.model) && <option value={form.value.model}>{form.value.model}</option>}
-          </select>
+          </Select>
         </Field>
-        <Field label="Effort" help="how long a judge thinks">
-          <select value={form.value.effort} onChange={(e) => form.setValue({ ...form.value, effort: e.target.value })} className={selectClass("max-w-[10rem]")}>
+        <Field label="Effort" hint="how long a judge thinks">
+          <Select value={form.value.effort} onChange={(e) => form.setValue({ ...form.value, effort: e.target.value })} className="max-w-[10rem]">
             <option value="">{inherited?.effort ? `the account's (${inherited.effort})` : "the model's default"}</option>
             {["low", "medium", "high", "xhigh", "max"].map((e) => <option key={e} value={e}>{e}</option>)}
-          </select>
+          </Select>
         </Field>
       </div>
     </SettingsForm>
@@ -469,11 +468,11 @@ export function DeployBlockCard({ endpoint, tenant, initial }: { endpoint: strin
       description={`${BLOCK_HELP[value] ?? ""} A workspace's own AGENTS.md can say otherwise.`}
       hint={<><code className="font-mono text-xs">deploy_block:</code> in AGENTS.md</>}
     >
-      <select aria-label="Refuse a deploy on" value={value} onChange={(e) => form.setValue(e.target.value)} className={selectClass("max-w-[14rem]")}>
+      <Select aria-label="Refuse a deploy on" value={value} onChange={(e) => form.setValue(e.target.value)} className="max-w-[14rem]">
         <option value="none">nothing — warn only</option>
         <option value="secrets">a written-in secret</option>
         <option value="security">any security finding</option>
-      </select>
+      </Select>
     </SettingsForm>
   );
 }
@@ -498,10 +497,10 @@ export function NetworkEnforceCard({ endpoint, tenant, initial, inherited }: { e
       }
       hint={<><code className="font-mono text-xs">network_enforce:</code> in AGENTS.md</>}
     >
-      <select aria-label="A site off an agent's network: list" value={form.value} onChange={(e) => form.setValue(e.target.value)} className={selectClass("max-w-[14rem]")} disabled={inherited}>
+      <Select aria-label="A site off an agent's network: list" value={form.value} onChange={(e) => form.setValue(e.target.value)} className="max-w-[14rem]" disabled={inherited}>
         <option value="report">allowed — report only</option>
         <option value="refuse">refused</option>
-      </select>
+      </Select>
     </SettingsForm>
   );
 }
@@ -552,7 +551,7 @@ export function NotifyCard({
       hint={<><code className="font-mono text-xs">notify:</code> in AGENTS.md</>}
     >
       <label className="flex items-center gap-2 text-sm text-fg">
-        <input type="checkbox" checked={v.enabled} onChange={(e) => set({ enabled: e.target.checked })} className="size-4 rounded border-line-strong accent-fg" />
+        <Switch checked={v.enabled} onCheckedChange={(checked: boolean) => set({ enabled: checked })} />
         {v.enabled ? "Notifications set here" : inheritedLine ? <WithEmails text={`Inherit the account's: ${inheritedLine}`} /> : "No notifications"}
       </label>
       {(initial?.hidden || inherited?.hidden) && (
@@ -560,18 +559,18 @@ export function NotifyCard({
       )}
       {v.enabled && (
         <>
-          <Field label="Email" help="Sent through the account's RESEND_API_KEY connection.">
-            <input type="email" value={v.email ?? ""} onChange={(e) => set({ email: e.target.value })} placeholder="ops@example.com" className={inputClass("w-full max-w-sm")} />
+          <Field label="Email" hint="Sent through the account's RESEND_API_KEY connection.">
+            <Input type="email" value={v.email ?? ""} onChange={(e) => set({ email: e.target.value })} placeholder="ops@example.com" className="w-full max-w-sm" />
           </Field>
-          <Field label="Webhook URL" help="Slack, Discord, ntfy, any relay — a URL, or the name of a secret that holds one, as ${SLACK_WEBHOOK_URL}.">
-            <input value={v.url ?? ""} onChange={(e) => set({ url: e.target.value })} placeholder="${SLACK_WEBHOOK_URL}" className={inputClass("w-full font-mono")} />
+          <Field label="Webhook URL" hint="Slack, Discord, ntfy, any relay — a URL, or the name of a secret that holds one, as ${SLACK_WEBHOOK_URL}.">
+            <Input value={v.url ?? ""} onChange={(e) => set({ url: e.target.value })} placeholder="${SLACK_WEBHOOK_URL}" className="w-full font-mono" />
           </Field>
           <fieldset>
             <legend className="block text-sm font-medium text-fg">Notify when</legend>
             <div className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1">
               {NOTIFY_EVENTS.map((e) => (
                 <label key={e} className="flex items-center gap-2 text-sm text-fg-secondary">
-                  <input type="checkbox" checked={v.events.includes(e)} onChange={() => toggleEvent(e)} className="size-4 rounded border-line-strong accent-fg" />
+                  <Checkbox checked={v.events.includes(e)} onCheckedChange={() => toggleEvent(e)} />
                   {EVENT_LABEL[e]}
                 </label>
               ))}

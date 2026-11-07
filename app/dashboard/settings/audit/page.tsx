@@ -6,21 +6,22 @@
 // admins who can see the whole account.
 
 import Link from "next/link";
-import { inputClass, selectClass } from "@/components/ui";
+import { Input } from "@/components/kit/input";
+import { Select } from "@/components/kit/select";
 import { SettingsShell } from "@/components/settings-shell";
 import { EmptyState, Chip, type Tone } from "@/components/kit/page";
 import { Button, buttonVariants } from "@/components/kit/button";
 import { Download, ScrollText } from "lucide-react";
 import { settingsTabs } from "../tabs";
-import { verifySession, SESSION_COOKIE } from "@/server/users";
+import { verifySession, SESSION_COOKIE, viewerRole, viewerScope } from "@/server/users";
 import { cookies } from "next/headers";
 import { LocalTime } from "@/components/local-time";
-import { viewerRole, viewerScope } from "@/server/users";
 import { can } from "@/platform/permissions";
 import { scopeAllows } from "@/platform/scope";
 import { listWorkspaces } from "@/lib/store";
 import { queryAudit, parseWhen, type AuditEntry } from "@/server/audit";
 import { WithEmails } from "@/components/email";
+import { Tooltip } from "@/components/kit/tooltip";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Audit log · Settings" };
@@ -150,39 +151,39 @@ export default async function AuditLogPage({
           <div className="grid gap-3 sm:grid-cols-2">
             <label className={field}>
               When
-              <select name="since" defaultValue={since} className={selectClass("h-9 w-full font-normal")}>
+              <Select name="since" defaultValue={since} className="w-full font-normal">
                 {WINDOWS.map((w) => (
                   <option key={w.v} value={w.v}>
                     {w.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className={field}>
               Action
-              <select name="action" defaultValue={sp.action ?? ""} className={selectClass("h-9 w-full font-normal")}>
+              <Select name="action" defaultValue={sp.action ?? ""} className="w-full font-normal">
                 <option value="">Everything</option>
                 {FAMILIES.map((f) => (
                   <option key={f} value={f}>
                     {f}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className={field}>
               Who
-              <input name="actor" defaultValue={sp.actor ?? ""} placeholder="email, key:label, support:…" className={inputClass("h-9 font-normal")} />
+              <Input name="actor" defaultValue={sp.actor ?? ""} placeholder="email, key:label, support:…" className="font-normal" />
             </label>
             <label className={field}>
               Workspace
-              <select name="workspace" defaultValue={sp.workspace ?? ""} className={selectClass("h-9 w-full font-normal")}>
+              <Select name="workspace" defaultValue={sp.workspace ?? ""} className="w-full font-normal">
                 <option value="">Any</option>
                 {workspaces.map((w) => (
                   <option key={w} value={w}>
                     {w}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           </div>
           <div className="mt-3 flex justify-end gap-2">
@@ -217,9 +218,11 @@ export default async function AuditLogPage({
                     <span className="min-w-0 flex-1 text-sm text-fg [overflow-wrap:anywhere]">{describe(e) || <span className="text-fg-muted">{e.subject ?? ""}</span>}</span>
                   </div>
                   <p className="mt-1 flex min-w-0 flex-wrap gap-x-2 text-xs text-fg-muted">
-                    <span className="max-w-full truncate font-mono" title={e.actor}>
-                      <WithEmails text={e.actor} />
-                    </span>
+                    <Tooltip label={<WithEmails text={e.actor} />}>
+                      <span className="max-w-full truncate font-mono">
+                        <WithEmails text={e.actor} />
+                      </span>
+                    </Tooltip>
                     <span aria-hidden>·</span>
                     <LocalTime iso={e.at} />
                   </p>

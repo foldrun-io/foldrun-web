@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import { THEMES, THEME_LABELS, type Theme } from "@/components/theme-model";
+import { Segmented } from "@/components/kit/segmented";
 
 const HINT: Record<Theme, string> = {
   system: "Follows your computer's light or dark setting.",
@@ -41,23 +42,7 @@ export function AppearanceForm({ current }: { current: Theme }) {
 
   return (
     <div className="space-y-2">
-      <div role="radiogroup" aria-label="Theme" className="inline-flex rounded-md border border-line-strong bg-sunken p-0.5">
-        {THEMES.map((t) => (
-          <button
-            key={t}
-            type="button"
-            role="radio"
-            aria-checked={theme === t}
-            disabled={busy}
-            onClick={() => choose(t)}
-            className={`rounded px-3 py-1 text-sm font-medium transition-colors ${
-              theme === t ? "bg-surface text-fg shadow-sm ring-1 ring-line" : "text-fg-muted hover:text-fg"
-            }`}
-          >
-            {THEME_LABELS[t]}
-          </button>
-        ))}
-      </div>
+      <Segmented role="radiogroup" label="Theme" value={theme} disabled={busy} onChange={(t) => choose(t as Theme)} items={THEMES.map((t) => ({ key: t, label: THEME_LABELS[t] }))} />
       <p className="text-xs text-fg-muted">{HINT[theme]}</p>
       {error && <p className="text-xs text-danger">{error}</p>}
     </div>

@@ -12,6 +12,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/kit/button";
+import { Tooltip } from "@/components/kit/tooltip";
 import { Chip } from "@/components/kit/page";
 import { useCan } from "@/components/role";
 import { SmartTextarea } from "@/components/smart-textarea";
@@ -367,50 +368,58 @@ export function InlineEditor({
                 >
                   Edit
                 </button>
-                <button
-                  type="button"
-                  onClick={() => altNode && chooseView(true)}
-                  disabled={!altNode}
-                  title={!altNode && "why" in alt ? alt.why : undefined}
-                  className={`h-full rounded-sm px-2.5 text-xs font-medium transition-colors ${!altNode ? "cursor-not-allowed text-fg-subtle opacity-60" : showAlt ? "bg-surface text-fg shadow-[0_1px_2px_rgb(0_0_0/0.06)]" : "text-fg-muted hover:text-fg"}`}
-                >
-                  {alt.label}
-                </button>
+                <Tooltip label={!altNode && "why" in alt ? alt.why : undefined}>
+                  <span className="inline-flex h-full">
+                    <button
+                      type="button"
+                      onClick={() => altNode && chooseView(true)}
+                      disabled={!altNode}
+                      className={`h-full rounded-sm px-2.5 text-xs font-medium transition-colors ${!altNode ? "cursor-not-allowed text-fg-subtle opacity-60" : showAlt ? "bg-surface text-fg shadow-[0_1px_2px_rgb(0_0_0/0.06)]" : "text-fg-muted hover:text-fg"}`}
+                    >
+                      {alt.label}
+                    </button>
+                  </span>
+                </Tooltip>
               </div>
             )}
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => void save()}
-              disabled={!dirty || !mayWrite}
-              title={mayWrite ? "⌘S" : "Your role is viewer — saving needs editor or above"}
-            >
-              Save
-            </Button>
+            <Tooltip label={mayWrite ? "⌘S" : "Your role is viewer — saving needs editor or above"}>
+              <span className="inline-flex">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => void save()}
+                  disabled={!dirty || !mayWrite}
+                >
+                  Save
+                </Button>
+              </span>
+            </Tooltip>
             {dirty && <Chip tone="warn">unsaved</Chip>}
             {status && <Chip tone="good">{status}</Chip>}
             {error && <Chip tone="bad" className="max-w-full whitespace-normal">{error}</Chip>}
             {refused !== null && refused === `${path}\n${content}` && mayWrite && (
-              <button
-                type="button"
-                onClick={() => void save(true)}
-                className="text-xs font-medium text-danger underline underline-offset-2 hover:opacity-80"
-                title="Save with the errors: the file goes live as it is, and runs that read it may fail"
-              >
-                Save anyway
-              </button>
+              <Tooltip label="Save with the errors: the file goes live as it is, and runs that read it may fail">
+                <button
+                  type="button"
+                  onClick={() => void save(true)}
+                  className="text-xs font-medium text-danger underline underline-offset-2 hover:opacity-80"
+                >
+                  Save anyway
+                </button>
+              </Tooltip>
             )}
             {workspace && !libraryKind && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowHistory((v) => !v)}
-                aria-pressed={showHistory}
-                className={showHistory ? "bg-muted text-fg" : undefined}
-                title="Every saved version of this file, with diffs"
-              >
-                History
-              </Button>
+              <Tooltip label="Every saved version of this file, with diffs">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowHistory((v) => !v)}
+                  aria-pressed={showHistory}
+                  className={showHistory ? "bg-muted text-fg" : undefined}
+                >
+                  History
+                </Button>
+              </Tooltip>
             )}
             {!toolbarTarget && <span className="ml-auto font-mono text-xs text-fg-subtle">{path}</span>}
           </div>
