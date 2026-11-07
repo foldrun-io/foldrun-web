@@ -112,8 +112,14 @@ test("one caller cannot spend the install's reset mail: past its share, its asks
     // Another caller still gets a reset sent — the share, not the ceiling, stopped the first.
     const other = await ask(users[0].email, { "x-forwarded-for": "198.51.100.77" });
     assert.equal(other.status, 200);
-    const after = await shareLines(13);
-    assert.notEqual(after[0].detail.error, "this caller's hourly share of reset mail was reached");
+    await shareLines(13);
+    // Read the other caller's line by its account, not as "the newest": two
+    // lines in the same millisecond sort either way (a flaky gate, 7 Nov 2026).
+    // users[0]'s first ask came from the first caller inside its share, so
+    // neither of that account's two lines may be the share refusal.
+    const mine = (await recentAudit("forgot-share-0")).filter((e) => e.action === "password.reset_requested");
+    assert.equal(mine.length, 2, "users[0] asked twice: once from each caller");
+    for (const l of mine) assert.notEqual(l.detail.error, "this caller's hourly share of reset mail was reached");
   } finally {
     delete process.env.FOLDRUN_TRUST_PROXY;
   }
