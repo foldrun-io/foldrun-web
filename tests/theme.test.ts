@@ -134,8 +134,6 @@ const ALLOWED_LITERALS: Record<string, { literal: string; why: string }[]> = {
     { literal: "-[#febc2e]", why: "traffic light" },
     { literal: "-[#28c840]", why: "traffic light" },
   ],
-  "components/sidebar.tsx": [{ literal: `"#10b981"`, why: "the logo's green dot is the brand, not the theme" }],
-  "app/(auth)/brand.tsx": [{ literal: `"#10b981"`, why: "the logo's green dot" }],
   "components/file-browser.tsx": [
     { literal: "rgb(", why: "a 3D model's shading is the model's own light, not the page's" },
     { literal: "rgba(", why: "the model's edge lines" },
