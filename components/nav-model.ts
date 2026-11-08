@@ -119,11 +119,12 @@ export function accountNav(pathname: string, tenant: string, hosted: boolean, co
           { name: "Graph", href: `/dashboard/graph${first}`, icon: "graph", on: at("/graph") },
         ],
       },
+      // Billing and Settings are the account's, and live in the user menu
+      // only (owner, 8 Nov 2026, FOL-150): the sidebar listed the same two
+      // pages a second time. Their bar titles come from pageTitle below.
       {
         items: [
           { name: "Usage", href: `/dashboard/usage${first}`, icon: "usage", on: at("/usage") || at("/limits") },
-          ...(hosted ? [{ name: "Billing", href: `/dashboard/billing${first}`, icon: "billing" as const, on: at("/billing") || at("/wallet"), more: true }] : []),
-          { name: "Settings", href: `/dashboard/settings${first}`, icon: "settings", on: at("/settings") || at("/profile"), more: true },
         ],
       },
     ],
@@ -134,7 +135,7 @@ export function accountNav(pathname: string, tenant: string, hosted: boolean, co
 export function pageTitle(pathname: string): string | null {
   const seg = pathname.split("/")[2] ?? "";
   return (
-    ({ docs: "Docs", help: "Help", welcome: "Get started", "whats-new": "What's new", profile: "Profile", connect: "Connect", wallet: "Wallet", limits: "Limits" } as Record<string, string>)[seg] ?? null
+    ({ docs: "Docs", help: "Help", welcome: "Get started", "whats-new": "What's new", profile: "Profile", connect: "Connect", wallet: "Wallet", limits: "Limits", billing: "Billing", settings: "Settings" } as Record<string, string>)[seg] ?? null
   );
 }
 
