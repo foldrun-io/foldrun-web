@@ -57,11 +57,11 @@ const REASON: Record<TriggerOutcome, { label: string; key: string; tone: Tone }>
   debounced: { label: "held for the burst", key: "debounce:", tone: "info" },
   quarantined: { label: "flow switched off", key: "disable_after:", tone: "bad" },
   paused: { label: "work is done, paused", key: "pause_when:", tone: "good" },
-  halted: { label: "paused by a person", key: "Settings → Governance → Pause", tone: "bad" },
+  halted: { label: "paused by a person", key: "Settings → Policies → Pause runs", tone: "bad" },
   "overlap-skipped": { label: "previous run still live", key: "overlap: skip", tone: "warn" },
   missed: { label: "missed while down", key: "catchup: none", tone: "warn" },
   filtered: { label: "did not match the filter", key: "filter:", tone: "default" },
-  "queue-full": { label: "too many runs waiting", key: "Settings → Governance → Compute", tone: "warn" },
+  "queue-full": { label: "too many runs waiting", key: "Settings → Policies → Governance", tone: "warn" },
   failed: { label: "could not start", key: "", tone: "bad" },
 };
 

@@ -1344,7 +1344,7 @@ export async function verifySession(token: string | undefined): Promise<UserReco
   }
   // v1: the pre-database form, minted only where an install has no database.
   // Where there is one, a v1 token cannot be revoked by sign-out, a reset or
-  // Settings → Sessions, and carries no MFA fact — refused (29 Oct 2026; v2
+  // Profile → Sessions, and carries no MFA fact — refused (29 Oct 2026; v2
   // has been minted there for well over the 30-day life of any v1).
   if (databaseEnabled()) return null;
   const user = (await readUsers()).find((u) => u.id === subject);

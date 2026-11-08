@@ -96,7 +96,7 @@ export default async function WorkspaceSettingsPage({
     ? { label: wsProvider.baseUrl, source: "this workspace's AGENTS.md", models: wsProvider.models }
     : acctProvider?.baseUrl
       ? { label: acctProvider.baseUrl, source: "the account's AGENTS.md", models: acctProvider.models }
-      : { label: "The account's model provider", source: "Settings → Model provider", models: {} as Record<string, string> };
+      : { label: "The account's model provider", source: "Settings → Models", models: {} as Record<string, string> };
   const remaps = Object.entries(effective.models ?? {});
   const agentsMd = `/dashboard/${workspace}/edit?path=AGENTS.md${rest}`;
 

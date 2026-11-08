@@ -1,4 +1,4 @@
-// What GET /api/account/api and Settings → API show: the account's rate
+// What GET /api/account/api and Settings → API keys → API show: the account's rate
 // limits, its API version pin, and how it has met the API lately — the
 // versions that answered its requests, and any route on its way out it still
 // calls, with who calls it and when it stops. One function so the page, the

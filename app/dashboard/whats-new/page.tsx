@@ -88,7 +88,7 @@ function ApiCard({ api }: { api: ApiChangelog }) {
         <p className="text-sm text-fg-muted">
           Pin a version in{" "}
           <Link href="/dashboard/settings?tab=api#api" className="text-link hover:underline">
-            Settings → API
+            Settings → API keys → API
           </Link> · each one works for at least{" "}
           {api.supportMonths} months after the next · <Link href="/dashboard/docs/api-usage" className="text-link hover:underline">how versions work</Link>
         </p>

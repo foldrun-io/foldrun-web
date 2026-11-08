@@ -1,6 +1,6 @@
 "use client";
 
-// telemetry: on the account's Settings → API — where each finished run goes
+// telemetry: on the account's Settings → API keys → API — where each finished run goes
 // as an OpenTelemetry trace. One header here (the one a collector's token
 // rides in); more are written in AGENTS.md. The token itself is a vault
 // secret, named, never typed into this form.

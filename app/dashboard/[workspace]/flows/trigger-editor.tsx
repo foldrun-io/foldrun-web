@@ -219,7 +219,7 @@ export function TriggerEditor({
           </>
         )}
         {kind === "webhook" && (
-          <span className="pb-2 text-xs text-fg-muted">The URL appears under Settings → Triggers.</span>
+          <span className="pb-2 text-xs text-fg-muted">{"The URL appears under this workspace's Settings → Triggers."}</span>
         )}
 
         <button onClick={save} disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })}>

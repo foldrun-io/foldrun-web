@@ -97,7 +97,7 @@ function ApiUsage({ usage, hidden }: { usage: ApiFacts["usage"]; hidden?: boolea
   );
 }
 
-/** Settings → API: the account's rate limits, and the API version its
+/** Settings → API keys → API: the account's rate limits, and the API version its
  *  requests get when they send no Foldrun-Version header. */
 export function ApiSettings({ facts, qs }: { facts: ApiFacts; qs: string }) {
   const router = useRouter();
