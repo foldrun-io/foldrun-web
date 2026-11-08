@@ -61,7 +61,10 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
   const items = [
     { name: "Profile", href: `/dashboard/profile${qs}`, icon: User },
     hosted ? { name: "Billing", href: `/dashboard/billing${qs}`, icon: CreditCard } : { name: "Usage", href: `/dashboard/usage${qs}`, icon: BarChart3 },
-    { name: "Account settings", href: `/dashboard/settings${qs}`, icon: Settings },
+    // "Settings": the sidebar, the page title and every pointer to it in the
+    // docs and messages use that word (8 Nov 2026); under the person's name
+    // the menu already says whose it is.
+    { name: "Settings", href: `/dashboard/settings${qs}`, icon: Settings },
   ];
   const help = [
     { name: "Docs", href: `/dashboard/docs${qs}`, icon: BookOpen },
