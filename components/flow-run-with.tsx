@@ -300,7 +300,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
                     type="button"
                     disabled={busy !== null || !mayWrite}
                     onClick={() => void save()}
-                    className={buttonVariants({ variant: "secondary", size: "xs" })}
+                    className={buttonVariants({ variant: "secondary", size: "md" })}
                   >
                     {busy === "save" ? "Saving…" : "Save current as input set"}
                   </button>

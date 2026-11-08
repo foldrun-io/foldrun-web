@@ -945,7 +945,7 @@ function CreateWorkspace({ tenant, onCreated }: { tenant: string; onCreated: (ws
         />
         <Tooltip label={mayManage ? undefined : needs("workspace:manage")}>
           <span className="inline-flex">
-            <button type="submit" disabled={busy || !name.trim() || !mayManage} className={buttonVariants({ variant: "primary", size: "xs" })}>
+            <button type="submit" disabled={busy || !name.trim() || !mayManage} className={buttonVariants({ variant: "primary", size: "md" })}>
               {busy ? "Creating…" : "Create"}
             </button>
           </span>
