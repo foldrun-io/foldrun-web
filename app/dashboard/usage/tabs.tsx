@@ -115,12 +115,19 @@ export function ComputeTab({ u }: { u: UsageBreakdowns }) {
         rows={c.meters.map((m) => ({
           key: m.meter,
           cells: [
-            <span key="n" className="font-medium">{METER_NAMES[m.meter] ?? m.meter}</span>,
+            <span key="n">
+              <span className="font-medium">{METER_NAMES[m.meter] ?? m.meter}</span>
+              {m.note && <span className="block max-w-xs text-xs text-fg-muted">{m.note}</span>}
+            </span>,
             m.quantity === null ? dim : (
               <span key="q">
                 {fmtQuantity(m.quantity)} <span className="text-fg-subtle">{m.unit}</span>
                 {m.meter === "storage" && m.includedGb !== undefined && (
                   <span className="block text-xs text-fg-muted">{fmtQuantity(m.includedGb)} GB included · {fmtQuantity(m.overGb ?? 0)} GB over</span>
+                )}
+                {m.meter === "storage" && <span className="block text-xs text-fg-muted">Your files and run history, as of now</span>}
+                {m.sessions !== undefined && (
+                  <span className="block text-xs text-fg-muted">{m.sessions} {m.sessions === 1 ? "session" : "sessions"} · {fmtQuantity(m.networkGb ?? 0)} GB moved</span>
                 )}
               </span>
             ),

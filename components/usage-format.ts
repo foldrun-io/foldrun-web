@@ -25,7 +25,9 @@ export const METER_NAMES: Record<string, string> = {
   disk: "Step disk",
   storage: "Storage",
   network: "Network",
-  pods: "Search and browser pods",
+  search: "Search pods",
+  browser: "Browser pods",
+  warm: "Warm builds",
 };
 
 export const SUPPLY_NAMES: Record<string, string> = {

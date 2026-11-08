@@ -29,7 +29,7 @@ test("credits are whole at a glance, exact when small, grouped", () => {
 test("storage is priced per GB-month; every other meter per its own unit", () => {
   assert.equal(rateUnit("storage", "GB"), "GB-month");
   assert.equal(rateUnit("vcpu", "vCPU-hour"), "vCPU-hour");
-  for (const m of ["vcpu", "ram", "disk", "storage", "network", "pods"]) assert.ok(METER_NAMES[m], `${m} has a name`);
+  for (const m of ["vcpu", "ram", "disk", "storage", "network", "search", "browser", "warm"]) assert.ok(METER_NAMES[m], `${m} has a name`);
 });
 
 test("the tab links keep the tenant and the period, and the overview is the bare page", () => {
@@ -79,4 +79,14 @@ test("the credits block keeps the pots apart and says plan credits never pay for
   assert.match(tabs, /label="Plan credits"/);
   assert.match(tabs, /label="Bought credits"/);
   assert.match(tabs, /tokens on foldrun's models/);
+});
+
+test("Compute lists the pods and storage as meters of their own: sessions, GB moved, who pays, and where storage was measured (8 Nov 2026)", () => {
+  const tabs = read("app/dashboard/usage/tabs.tsx");
+  assert.match(tabs, /m\.sessions !== undefined/, "a pod meter says its sessions and the GB it moved");
+  assert.match(tabs, /m\.note/, "and who pays");
+  assert.match(tabs, /m\.meter === "storage" &&/, "storage keeps its allowance line");
+  assert.match(tabs, /Your files and run history/, "and says what it counts");
+  for (const m of ["search", "browser", "warm"]) assert.match(read("components/usage-format.ts"), new RegExp(`${m}: "`), `${m} has a name`);
+  assert.doesNotMatch(read("components/usage-format.ts"), /\bpods: "/, "the one 'pods' line is split into the three");
 });
