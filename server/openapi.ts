@@ -460,7 +460,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       runsWaiting: obj({
         waiting: { type: ["integer", "null"], description: "the account's runs waiting for their turn now — lined up, back for room, or out of a gate and waiting for a worker (not those asleep on a wait: timer); null for a caller scoped to some workspaces" },
         limit: { type: ["integer", "null"], description: "new runs are refused (409, code waiting_cap) while this many wait; null is no limit" },
-        source: { type: ["string", "null"], description: "install (FOLDRUN_MAX_WAITING_RUNS) | derived (20 × slots, at least 50) | null" },
+        source: { type: ["string", "null"], description: "install (FOLDRUN_MAX_WAITING_RUNS) | plan (the account's plan sets it) | derived (20 × slots, at least 50) | null" },
         slots: { type: "integer", description: "with derived: the runs at once the limit was worked from" },
       }, ["limit", "source"]),
       workspaces: {
@@ -548,12 +548,16 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       }),
       compute: obj({
         meters: arr(obj({
-          meter: str("vcpu | ram | disk | storage | network | pods"),
+          meter: str("vcpu | ram | disk | storage | network | search | browser | warm (the last three are the account's pods, charged for the vCPU and GiB they hold while they live and the bytes they move; warm is the runtime build when a workspace is deployed)"),
           quantity: { type: ["number", "null"] }, unit: str(),
           rateCreditsPerUnit: { type: ["number", "null"], description: "credits per unit; null where nothing is priced" },
           credits: { type: "number" },
           includedGb: { type: "number", description: "storage: the plan's allowance" },
           overGb: { type: "number", description: "storage: GB over it, which is what is charged" },
+          basis: str("storage: where the figure was measured (filesystem | revisions)"),
+          sessions: { ...int, description: "pods: sessions in the period" },
+          networkGb: { type: "number", description: "pods: GB the pods moved, charged inside the pod line" },
+          note: str("pods: who pays and why"),
         })),
         planFee: { ...nullable(obj({ usd: { type: "number" }, credits: { type: "number" }, label: str(), includedCredits: { type: "number" } })), description: "the monthly plan fee as its own line; null for a caller limited to some workspaces and on Free" },
         bySize: arr(obj({

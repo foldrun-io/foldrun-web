@@ -167,7 +167,7 @@ test("GET /api/usage: ?from&to bound the period; default the month so far; the n
   const def = (await (await call(usage, "/api/usage", k)).json()) as Usage;
   assert.match(def.period.from, /^\d{4}-\d{2}-01$/);
   assert.equal(def.period.basis, "consumption");
-  assert.deepEqual(def.compute.meters.map((m) => m.meter), ["vcpu", "ram", "disk", "storage", "network", "pods"]);
+  assert.deepEqual(def.compute.meters.map((m) => m.meter), ["vcpu", "ram", "disk", "storage", "network", "search", "browser", "warm"]);
   assert.equal(def.tokens.totals.calls, 0);
   assert.deepEqual(def.tokens.byModel, []);
   const chosen = (await (await call(usage, "/api/usage?from=2026-10-01&to=2026-10-31", k)).json()) as Usage;
@@ -195,4 +195,26 @@ test("GET /api/usage: credits come from the billing hook, and a scoped key gets 
     assert.equal(scoped.compute.planFee, null);
     assert.equal(scoped.billed, null);
   });
+});
+
+// ------------------------------------------------------------ the waiting-runs limit, per plan
+
+test("GET /api/usage/compute: the waiting-runs limit is the plan's own figure, named as such", async () => {
+  const computeRoute = await import("../app/api/usage/compute/route.ts");
+  const b = billing() as { plan: unknown };
+  const prev = b.plan;
+  b.plan = async () => ({ name: "starter", concurrency: 20, waitingRuns: 100 });
+  try {
+    const body = (await (await call(computeRoute, "/api/usage/compute", await key())).json()) as { runsWaiting: { limit: number; source: string } };
+    assert.deepEqual([body.runsWaiting.limit, body.runsWaiting.source], [100, "plan"]);
+  } finally {
+    b.plan = prev;
+  }
+});
+
+test("GET /api/usage: every pod meter and the storage basis are in the answer", async () => {
+  const body = (await (await call(usage, "/api/usage", await key())).json()) as { compute: { meters: { meter: string; sessions?: number; networkGb?: number; basis?: string }[] } };
+  const by = Object.fromEntries(body.compute.meters.map((m) => [m.meter, m]));
+  for (const k of ["search", "browser", "warm"]) assert.deepEqual([by[k]!.sessions, by[k]!.networkGb], [0, 0], k);
+  assert.equal(by.storage!.basis, "filesystem");
 });
