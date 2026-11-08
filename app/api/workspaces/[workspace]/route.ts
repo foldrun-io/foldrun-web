@@ -4,8 +4,8 @@ import { audit } from "@/server/audit";
 import fs from "node:fs";
 import {
   workspaceDir,
-  deleteWorkspace,
-  renameWorkspace,
+  deleteWorkspaceAsync,
+  renameWorkspaceAsync,
   renameImpact,
   setWorkspaceDescription,
   listAgents,
@@ -82,7 +82,9 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ workspac
     // workspace given this name. Links first: they are the public part.
     await revokeWorkspaceShares(tenant, workspace);
     await purgeWorkspaceStorage(tenant, workspace);
-    deleteWorkspace(tenant, workspace);
+    // Its history goes with it (8 Nov 2026): a new workspace of this name
+    // starts empty. A store that cannot be reached stops the delete here.
+    await deleteWorkspaceAsync(tenant, workspace);
     // And again: a limit saved while the folder still existed (the secrets
     // route checks the name under the vault lock) is taken off now.
     secretsLetGo(tenant, workspace, null, `${workspace} was deleted`);
@@ -166,7 +168,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
       // find those secrets not set: closed, never open.
       secretsLetGo(tenant, workspace, body.name, "Nothing was renamed");
       try {
-        renameWorkspace(tenant, workspace, body.name);
+        // The history follows the name (8 Nov 2026), or the rename is refused.
+        await renameWorkspaceAsync(tenant, workspace, body.name);
         // Its stored files and public links follow it (30 Oct 2026); they are
         // kept by name, and used to stay behind for whoever took the old one.
         // A store that cannot be moved puts the folder back, so the workspace
@@ -174,7 +177,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
         try {
           await moveWorkspaceStorage(tenant, workspace, body.name);
         } catch (err) {
-          renameWorkspace(tenant, body.name, workspace);
+          await renameWorkspaceAsync(tenant, body.name, workspace);
           throw err;
         }
       } catch (err) {
