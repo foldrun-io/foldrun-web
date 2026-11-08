@@ -4,13 +4,13 @@
 // Danger zone last.
 
 import { HashTab } from "../../settings/anchor";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
 import path from "node:path";
 import { configMatter } from "@/lib/matter";
 import { notFound } from "next/navigation";
 import { DeleteButton } from "../../manage";
-import { buttonVariants } from "@/components/kit/button";
+import { buttonVariants } from "@foldrun/ui/react/button";
 import { workspaceDir, listFlows, parseProvider, accountDir, listWorkspaces } from "@/lib/store";
 import { listSecrets } from "@/lib/secrets";
 import { secretHealth, healthKey } from "@/lib/secret-health";
@@ -24,8 +24,8 @@ import { readAgentsMdKeys } from "@/lib/agents-md";
 import { defaultsOf, accountDefaultsFor } from "@/components/defaults-model";
 import { BudgetCard, TimezoneCard, NotifyCard, NetworkEnforceCard, OwnerCard, AlertsCard, JudgeCard, ComputeCard } from "@/components/defaults-cards";
 
-import { Page, PageHeader, SettingsCard, EmptyState, Chip, Tag } from "@/components/kit/page";
-import { PageTabs } from "@/components/kit/page-tabs";
+import { Page, PageHeader, SettingsCard, EmptyState, Chip, Tag } from "@foldrun/ui/react/page";
+import { PageTabs } from "@foldrun/ui/react/page-tabs";
 import { CalendarClock, Webhook, Zap } from "lucide-react";
 import { WorkspaceIdentity } from "@/components/workspace-identity";
 import { AvatarEditor } from "@/components/avatar";

@@ -4,12 +4,12 @@
 // its saved versions, its .zip, and the way to delete it (which asks on the
 // Settings tab, where the danger card says what breaks).
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useEffect, useState } from "react";
 import { Download, History, MoreHorizontal, Trash2 } from "lucide-react";
-import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/kit/menu";
-import { Button } from "@/components/kit/button";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@foldrun/ui/react/menu";
+import { Button } from "@foldrun/ui/react/button";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 import { HistoryDrawer } from "@/components/flow-history";
 import { useCan } from "@/components/role";
 

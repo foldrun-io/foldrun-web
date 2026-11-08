@@ -4,7 +4,7 @@
 // the rest by bouncing the next dashboard request to /login.
 
 import { useRouter } from "next/navigation";
-import { buttonVariants } from "@/components/kit/button";
+import { buttonVariants } from "@foldrun/ui/react/button";
 
 export function SignOutButton() {
   const router = useRouter();

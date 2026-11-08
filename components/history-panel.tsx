@@ -11,11 +11,11 @@
 
 import { useEffect, useState } from "react";
 import { LocalTime } from "@/components/local-time";
-import { Button } from "@/components/kit/button";
-import { Tooltip } from "@/components/kit/tooltip";
-import { usePaged } from "@/components/kit/list";
-import { Pager } from "@/components/kit/pager";
-import { PAGE_SIZE } from "@/components/paging";
+import { Button } from "@foldrun/ui/react/button";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
+import { usePaged } from "@foldrun/ui/react/list";
+import { Pager } from "@foldrun/ui/react/pager";
+import { PAGE_SIZE } from "@foldrun/ui/react/paging";
 
 interface Summary {
   id: string;

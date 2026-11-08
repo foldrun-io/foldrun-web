@@ -28,14 +28,14 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
-import { buttonVariants } from "@/components/kit/button";
-import { Tooltip } from "@/components/kit/tooltip";
-import { Input, labelClass } from "@/components/kit/input";
-import { Select } from "@/components/kit/select";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
+import { Input, labelClass } from "@foldrun/ui/react/input";
+import { Select } from "@foldrun/ui/react/select";
 import { KINDS, type Kind } from "@/lib/kinds";
 import { useCan } from "@/components/role";
 import { createdHref } from "@/components/create-model";
-import { Dialog, DialogContent, DialogTitle } from "@/components/kit/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@foldrun/ui/react/dialog";
 
 /** The scope a new document lands in. `agent:<name>` is one agent's own. */
 export type Where = "account" | "workspace" | `agent:${string}`;

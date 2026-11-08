@@ -1,6 +1,6 @@
 // One implementation per pattern (owner rule, 7 Nov 2026: "everything
 // component based, reusable components so we stay consistent and we don't
-// double code"). The dashboard is drawn from components/kit/ — one Panel,
+// double code"). The dashboard is drawn from @foldrun/ui/react — one Panel,
 // one search box, one pager, one tab bar, one segmented switch, one set of
 // marks (Status, Chip, Tag, Count), one Button, one set of form controls,
 // one EmptyState, one Stat, one Callout. This file fails when a copy creeps
@@ -15,9 +15,10 @@
 //
 //   node --import ./tests/register.mjs --test tests/kit-only.test.ts
 //
-// The kit is components/kit/; when a page needs something the kit does not
-// have, add it there once (and to the inventory in the kit's files), then use
-// it everywhere.
+// The kit is @foldrun/ui's src/react (foldrun-ui), shared with the operator
+// console (8 Nov 2026: one component set across every app). When a page needs
+// something it does not have, add it there once, release, then use it
+// everywhere. Nothing under app/ or components/ defines a kit part again.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -25,7 +26,6 @@ import fs from "node:fs";
 import path from "node:path";
 
 const WEB = path.join(import.meta.dirname, "..");
-const KIT = path.join(WEB, "components/kit");
 
 /** Every .tsx/.ts under app/ and components/, overlay copies included —
  *  the hosted build compiles those too. */
@@ -46,7 +46,8 @@ function sources(): { rel: string; src: string }[] {
   return out;
 }
 const ALL = sources();
-const OUTSIDE_KIT = ALL.filter((f) => !path.join(WEB, f.rel).startsWith(KIT + path.sep));
+// The kit is a package now: every file here is outside it.
+const OUTSIDE_KIT = ALL;
 
 const where = (src: string, at: number) => src.slice(0, at).split("\n").length;
 
@@ -232,32 +233,32 @@ test("every link is the kit Link, which prefetches on intent, not on sight", () 
   // next/link prefetches each route as its link scrolls into view: 7–26
   // server renders per page load on dev (7 Nov 2026). kit/link waits for a
   // hover, focus or touch.
-  const bad = ALL.filter((f) => f.rel !== path.join("components", "kit", "link.tsx") && /from\s+["']next\/link["']/.test(f.src)).map((f) => f.rel);
-  assert.deepEqual(bad, [], 'import Link from "@/components/kit/link"');
+  const bad = ALL.filter((f) => /from\s+["']next\/link["']/.test(f.src)).map((f) => f.rel);
+  assert.deepEqual(bad, [], 'import Link from "@foldrun/ui/react/link"');
 });
 
 // ---------- one mark ----------
 
 test("the foldrun mark is drawn once, in kit/mark (one colour, 7 Nov 2026)", () => {
   // Its folder path is the signature: any other file drawing it is a copy.
-  const bad = ALL.filter((f) => f.rel !== path.join("components", "kit", "mark.tsx") && f.src.includes("M3 7a2 2 0 0 1 2-2h4l2 2h8")).map((f) => f.rel);
-  assert.deepEqual(bad, [], "use FoldrunMark from @/components/kit/mark");
+  const bad = ALL.filter((f) => f.src.includes("M3 7a2 2 0 0 1 2-2h4l2 2h8")).map((f) => f.rel);
+  assert.deepEqual(bad, [], "use FoldrunMark from @foldrun/ui/react/mark");
 });
 
 // ---------- the kit itself ----------
 
-test("the kit's server-safe parts stay server-safe", () => {
-  // A server page composes these directly; a hook or "use client" here
-  // would turn every page that draws a Panel into a client bundle.
-  for (const f of ["mark.tsx", "page.tsx", "button.tsx", "input.tsx", "segmented.tsx", "pager.tsx", "status.tsx", "table.tsx", "chart.tsx", "cn.ts", "skeleton.tsx"]) {
-    const src = fs.readFileSync(path.join(KIT, f), "utf8");
-    assert.doesNotMatch(src, /^["']use client["']/m, `kit/${f} must stay server-safe`);
-    assert.doesNotMatch(src, /\buse(State|Effect|Ref|Router|Pathname|SearchParams|SyncExternalStore)\(/, `kit/${f} calls a hook — move that part to a client file`);
+test("the dashboard's own server-safe parts stay server-safe", () => {
+  // A server page composes these directly. The kit's own server-safe files
+  // are checked where they live (foldrun-ui tests/kit.test.ts).
+  for (const f of ["components/status.tsx"]) {
+    const src = fs.readFileSync(path.join(WEB, f), "utf8");
+    assert.doesNotMatch(src, /^["']use client["']/m, `${f} must stay server-safe`);
+    assert.doesNotMatch(src, /\buse(State|Effect|Ref|Router|Pathname|SearchParams|SyncExternalStore)\(/, `${f} calls a hook — move that part to a client file`);
   }
 });
 
 test("one Panel, one search box, one pager, one tab bar, one segmented switch", () => {
-  // Each pattern is defined exactly once, in the kit.
+  // Each pattern is defined exactly once, in the kit (@foldrun/ui) — so here, never.
   const once: Record<string, string> = {
     Panel: "page.tsx",
     EmptyState: "page.tsx",
@@ -290,6 +291,18 @@ test("one Panel, one search box, one pager, one tab bar, one segmented switch", 
   };
   for (const [name, file] of Object.entries(once)) {
     const defs = ALL.filter((f) => new RegExp(`(?:^|\\n)\\s*export\\s+function\\s+${name}\\b`).test(f.src)).map((f) => f.rel);
-    assert.deepEqual([...new Set(defs)], [`components/kit/${file}`], `${name} must be defined once, in components/kit/${file}`);
+    assert.deepEqual([...new Set(defs)], [], `${name} is defined once, in @foldrun/ui/react/${file.replace(/\.tsx?$/, "")} — import it, never redefine it`);
   }
+});
+
+// ---------- no injection doors (OWASP A03) ----------
+
+test("no raw HTML, script URLs or code from text — @foldrun/ui's check-security over the app", async () => {
+  // The same scanner the console, the sites and the kit itself run: refuses
+  // dangerouslySetInnerHTML, innerHTML=, eval, javascript: URLs and
+  // target=_blank without rel, unless a foldrun-allow-html: line says why.
+  const { spawnSync } = await import("node:child_process");
+  const scanner = path.join(WEB, "node_modules/@foldrun/ui/scripts/check-security.mjs");
+  const r = spawnSync(process.execPath, [scanner, "app", "components", "server", "proxy.ts", "instrumentation.ts"], { cwd: WEB, encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr || r.stdout);
 });

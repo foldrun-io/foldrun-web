@@ -17,16 +17,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
-import { cn } from "@/components/kit/cn";
-import { buttonVariants } from "@/components/kit/button";
-import { Tooltip } from "@/components/kit/tooltip";
-import { Segmented } from "@/components/kit/segmented";
+import { cn } from "@foldrun/ui/react/cn";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
+import { Segmented } from "@foldrun/ui/react/segmented";
 import { History } from "lucide-react";
-import { useConfirm } from "@/components/kit/confirm";
+import { useConfirm } from "@foldrun/ui/react/confirm";
 import { useCan, needs } from "@/components/role";
 import { diffStats, foldDiff, lineDiff, restoreMessage, type DiffOp, type DiffRow } from "@/components/flow-history-model";
-import { Tag } from "@/components/kit/page";
-import { Sheet, SheetContent, SheetTitle } from "@/components/kit/dialog";
+import { Tag } from "@foldrun/ui/react/page";
+import { Sheet, SheetContent, SheetTitle } from "@foldrun/ui/react/dialog";
 
 interface Summary {
   id: string;

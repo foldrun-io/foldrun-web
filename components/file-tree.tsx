@@ -7,12 +7,12 @@
 // link *template* rather than a function (functions can't cross the server
 // component boundary).
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { useConfirm } from "@/components/kit/confirm";
-import { Tooltip } from "@/components/kit/tooltip";
-import { matchesQuery } from "@/components/list-search-model";
+import { useConfirm } from "@foldrun/ui/react/confirm";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
+import { matchesQuery } from "@foldrun/ui/react/list-search-model";
 import { ChevronRight, FilePlus, FileText, Folder, FolderOpen, FolderPlus, Pencil, Trash2 } from "lucide-react";
 
 interface TreeNode {

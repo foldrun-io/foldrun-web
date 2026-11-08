@@ -12,16 +12,16 @@
 // meant to call it. Reject goes through the approve route, as for any gate.
 
 import { useState } from "react";
-import { Button } from "@/components/kit/button";
-import { Textarea } from "@/components/kit/input";
+import { Button } from "@foldrun/ui/react/button";
+import { Textarea } from "@foldrun/ui/react/input";
 import { Webhook } from "lucide-react";
 import { useCan, needs } from "@/components/role";
 import { announceDecision } from "@/components/pending-approvals";
 import { eventRelease, eventBody } from "@/components/live-run-model";
 import type { StepRecord } from "@/lib/store";
-import { Callout } from "@/components/kit/page";
-import { Disclosure } from "@/components/kit/disclosure";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Callout } from "@foldrun/ui/react/page";
+import { Disclosure } from "@foldrun/ui/react/disclosure";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 export function EventWaitBox({
   workspace,

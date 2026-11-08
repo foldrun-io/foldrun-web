@@ -6,12 +6,12 @@
 // navigation, by one shared poll; hidden when there is no person to have an
 // inbox (dev mode with nobody signed in).
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { Bell } from "lucide-react";
-import { cn } from "./kit/cn";
-import { Tooltip } from "@/components/kit/tooltip";
+import { cn } from "@foldrun/ui/react/cn";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 const EVERY_MS = 60_000;
 

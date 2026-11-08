@@ -5,9 +5,9 @@
 // the thing that makes a stolen password not enough.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { buttonVariants } from "@/components/kit/button";
-import { Input } from "@/components/kit/input";
-import { Disclosure } from "@/components/kit/disclosure";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Input } from "@foldrun/ui/react/input";
+import { Disclosure } from "@foldrun/ui/react/disclosure";
 
 export function MfaSection({ enabled }: { enabled: boolean }) {
   const router = useRouter();

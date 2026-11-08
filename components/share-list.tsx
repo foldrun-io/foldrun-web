@@ -15,12 +15,12 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { WithEmails } from "@/components/email";
-import { useConfirm } from "@/components/kit/confirm";
-import { buttonVariants } from "@/components/kit/button";
-import { Card } from "@/components/kit/page";
-import { Toast } from "@/components/kit/toast";
+import { useConfirm } from "@foldrun/ui/react/confirm";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Card } from "@foldrun/ui/react/page";
+import { Toast } from "@foldrun/ui/react/toast";
 import { LocalTime } from "@/components/local-time";
-import { useCopyFallback } from "@/components/kit/prompt";
+import { useCopyFallback } from "@foldrun/ui/react/prompt";
 import {
   isLiveShare,
   shareStatus,

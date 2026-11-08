@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { hasUsers, peekInvite, setupTokenRequired } from "@/server/users";
 import { signupModesNow, signupPageState, SIGNUP_CONTACT } from "@/server/signup";
 import { platform } from "@/lib/platform";

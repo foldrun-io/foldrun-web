@@ -6,8 +6,8 @@
 // wrong field.
 
 import { useState } from "react";
-import { buttonVariants } from "@/components/kit/button";
-import { Input } from "@/components/kit/input";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Input } from "@foldrun/ui/react/input";
 
 export function PasswordForm() {
   const [current, setCurrent] = useState("");

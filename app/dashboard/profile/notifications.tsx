@@ -10,9 +10,9 @@
 // `foldrun notifications set` makes.
 
 import { useEffect, useState } from "react";
-import { Card, Tag } from "@/components/kit/page";
-import { Disclosure } from "@/components/kit/disclosure";
-import { Switch } from "@/components/kit/choice";
+import { Card, Tag } from "@foldrun/ui/react/page";
+import { Disclosure } from "@foldrun/ui/react/disclosure";
+import { Switch } from "@foldrun/ui/react/choice";
 
 interface Category {
   category: string;

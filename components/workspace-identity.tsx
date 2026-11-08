@@ -10,8 +10,8 @@
 
 import { useRouter } from "next/navigation";
 import { SettingsForm, useSettingsForm } from "./settings-form";
-import { Field, Callout } from "./kit/page";
-import { Input } from "./kit/input";
+import { Field, Callout } from "@foldrun/ui/react/page";
+import { Input } from "@foldrun/ui/react/input";
 
 export function WorkspaceIdentity({
   tenant,

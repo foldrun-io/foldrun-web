@@ -12,7 +12,7 @@
 // attention, a Recent runs list that repeated the heartbeat, and an Up next
 // card that repeated the empty Running panel's "Next:" line.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { CheckCircle2, Clock3, Coins } from "lucide-react";
 import { OUTCOME, type Outcome } from "@/components/outcome-model";
 import { runHref } from "@/components/run-href";
@@ -24,9 +24,9 @@ import { issueDoctor } from "@/lib/issues";
 import { WithEmails } from "@/components/email";
 import { fmtIn } from "@/components/workspace-overview-model";
 import { LocalTime } from "@/components/local-time";
-import { Chip, EmptyState, Panel, PanelLink, Stat, StatGrid, UsageRows, type RingStatus, type Tone, type UsageRow } from "@/components/kit/page";
-import { StatusDot } from "@/components/kit/status";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Chip, EmptyState, Panel, PanelLink, Stat, StatGrid, UsageRows, type RingStatus, type Tone, type UsageRow } from "@foldrun/ui/react/page";
+import { StatusDot } from "@/components/status";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 const KIND: Record<AttentionItem["kind"], { label: string; tone: Tone }> = {
   platform: { label: "Platform", tone: "default" },

@@ -23,7 +23,7 @@ import {
   toolSpans, stepSpan, fmtDur, fmtTick, tickEvery, type ToolSpan,
   windowEdges, clampWindow, zoomWindow, panWindow, placeSpan, type Window,
 } from "./run-timeline-model";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 export { toolSpans, traceEvents, stepSpan, fmtDur } from "./run-timeline-model";
 

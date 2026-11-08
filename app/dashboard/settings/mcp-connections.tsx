@@ -7,13 +7,13 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Cpu, Plug } from "lucide-react";
-import { Button } from "@/components/kit/button";
-import { IconBox, Field, Callout } from "@/components/kit/page";
+import { Button } from "@foldrun/ui/react/button";
+import { IconBox, Field, Callout } from "@foldrun/ui/react/page";
 import { LocalTime } from "@/components/local-time";
-import { useConfirm } from "@/components/kit/confirm";
+import { useConfirm } from "@foldrun/ui/react/confirm";
 import { Email } from "@/components/email";
-import { Input } from "@/components/kit/input";
-import { Select } from "@/components/kit/select";
+import { Input } from "@foldrun/ui/react/input";
+import { Select } from "@foldrun/ui/react/select";
 
 export interface ConnectionRow {
   id: string;

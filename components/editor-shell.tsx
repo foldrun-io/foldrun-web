@@ -13,21 +13,21 @@
 // editor keeps its own state (InlineEditor) and renders its controls into
 // the header through a portal, so nothing about saving moved.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowRight, ChevronRight, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { FileTree } from "./file-tree";
 import { InlineEditor } from "./inline-editor";
 import { ToolTest } from "./tool-test";
-import { Page, Tag, Chip } from "./kit/page";
-import { Button } from "./kit/button";
-import { SearchField } from "./kit/list";
-import { cn } from "./kit/cn";
+import { Page, Tag, Chip } from "@foldrun/ui/react/page";
+import { Button } from "@foldrun/ui/react/button";
+import { SearchField } from "@foldrun/ui/react/list";
+import { cn } from "@foldrun/ui/react/cn";
 import { fmtAgo } from "./overview-model";
-import { useConfirm } from "./kit/confirm";
+import { useConfirm } from "@foldrun/ui/react/confirm";
 import type { Chip as FileChip } from "./editor-context-model";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 export interface ContextItem {
   label: string;

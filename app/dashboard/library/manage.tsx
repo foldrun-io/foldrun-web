@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useConfirm } from "@/components/kit/confirm";
+import { useConfirm } from "@foldrun/ui/react/confirm";
 import { Trash2 } from "lucide-react";
-import { Button } from "@/components/kit/button";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Button } from "@foldrun/ui/react/button";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 
 export function DeleteLibraryItem({

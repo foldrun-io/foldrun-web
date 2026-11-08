@@ -6,12 +6,12 @@
 
 import { useState } from "react";
 import { GripVertical, Plus, X } from "lucide-react";
-import { Button } from "@/components/kit/button";
-import { Tooltip } from "@/components/kit/tooltip";
-import { Input } from "@/components/kit/input";
-import { Select } from "@/components/kit/select";
-import { Chip } from "@/components/kit/page";
-import { cn } from "@/components/kit/cn";
+import { Button } from "@foldrun/ui/react/button";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
+import { Input } from "@foldrun/ui/react/input";
+import { Select } from "@foldrun/ui/react/select";
+import { Chip } from "@foldrun/ui/react/page";
+import { cn } from "@foldrun/ui/react/cn";
 import type { FlowInfo, FlowStep } from "@/lib/store";
 
 interface EditableStep {

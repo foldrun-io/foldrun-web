@@ -41,27 +41,14 @@ test("system follows the OS; a choice ignores it", () => {
   assert.equal(effectiveTheme("dark", false), "dark");
 });
 
-test("the stylesheet's two dark selectors are the model's two dark cases", () => {
-  // data-theme="dark" always; no choice / "system" only on a dark OS; "light" never.
-  const css = fs.readFileSync(path.join(root, "app/theme-dark.css"), "utf8");
-  assert.match(css, /:root\[data-theme="dark"\] \{/);
-  assert.match(css, /@media \(prefers-color-scheme: dark\) \{\n {2}:root:not\(\[data-theme="light"\]\):not\(\[data-theme="dark"\]\) \{/);
+// The palette itself (theme-dark.css, its generator, AA contrast in both
+// themes) is @foldrun/ui's, shared with the operator console, and tested
+// there (foldrun-ui tests/palette.test.ts).
+
+test("the dashboard draws with @foldrun/ui's colours", () => {
   const globals = fs.readFileSync(path.join(root, "app/globals.css"), "utf8");
-  assert.match(globals, /@import "\.\/theme-dark\.css";/);
-});
-
-test("app/theme-dark.css is what the generator writes", async () => {
-  const { render } = await import("../scripts/gen-dark-palette.mjs");
-  assert.equal(fs.readFileSync(path.join(root, "app/theme-dark.css"), "utf8"), render(), "run node scripts/gen-dark-palette.mjs");
-});
-
-test("the text a page leans on is AA in both themes", async () => {
-  const { contrast, darkVars } = await import("../scripts/gen-dark-palette.mjs");
-  const dark: Record<string, string> = darkVars();
-  const v = (k: string) => dark[`--color-${k}`];
-  for (const [fg, bg] of [["gray-900", "white"], ["gray-700", "white"], ["gray-500", "white"], ["gray-500", "gray-50"], ["white", "gray-900"], ["red-700", "red-50"], ["amber-800", "amber-50"], ["emerald-700", "emerald-50"], ["sky-700", "sky-50"], ["white", "red-600"]]) {
-    assert.ok(contrast(v(fg), v(bg)) >= 4.5, `dark ${fg} on ${bg}: ${contrast(v(fg), v(bg)).toFixed(2)}`);
-  }
+  assert.match(globals, /@import "@foldrun\/ui\/kit\.css";/);
+  assert.ok(!fs.existsSync(path.join(root, "app/theme-dark.css")), "the palette lives in @foldrun/ui, once");
 });
 
 // ---------- the route ----------
@@ -120,7 +107,7 @@ function walk(dir: string, keep: (f: string) => boolean, out: string[] = []): st
   return out;
 }
 
-// The greys that have a name in globals.css. Every grey still follows the
+// The greys that have a name in @foldrun/ui's tokens.css. Every grey still follows the
 // theme (the palette is re-pointed in dark), but these say what a colour is
 // FOR — surface, line, fg-muted — and are the vocabulary new code writes.
 const RAW_GREY = /(?<![\w-])(?:[a-z-]+:)*(bg-white|bg-gray-(?:50|100|200|900)|text-gray-(?:400|500|600|700|900)|border-gray-(?:100|200|300)|divide-gray-(?:100|200)|ring-gray-(?:100|200|300))(?![\w-])/g;
@@ -166,6 +153,6 @@ test("components and pages paint in theme tokens, not light-only colours", () =>
       else literal.push(`${rel}: ${m[0]}`);
     }
   }
-  assert.deepEqual(grey, [], "use the tokens in app/globals.css: bg-surface, bg-sunken, bg-muted, bg-ink, text-fg / -secondary / -tertiary / -muted / -subtle, border-line-faint / line / line-strong");
+  assert.deepEqual(grey, [], "use the tokens in @foldrun/ui (src/styles/tokens.css): bg-surface, bg-sunken, bg-muted, bg-ink, text-fg / -secondary / -tertiary / -muted / -subtle, border-line-faint / line / line-strong");
   assert.deepEqual(literal, [], "a literal colour is light-only: use var(--color-…) or a token, or add it to ALLOWED_LITERALS with the reason");
 });

@@ -12,7 +12,7 @@
 // editor underneath; a chevron says so. Nothing else is an edit affordance.
 
 import type { ReactNode } from "react";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 export function Chevron({ open }: { open: boolean }) {
   return (

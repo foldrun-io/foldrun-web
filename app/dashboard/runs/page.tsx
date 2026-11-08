@@ -11,11 +11,11 @@ import { listAllRuns, runDisplayStatus } from "@/lib/store";
 import { viewerScope } from "@/server/users";
 import { scopeAllows } from "@/platform/scope";
 import { AutoRefresh } from "../run-button";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { Play } from "lucide-react";
-import { Page, PageHeader, EmptyState } from "@/components/kit/page";
-import { Pager } from "@/components/kit/pager";
-import { buttonVariants } from "@/components/kit/button";
+import { Page, PageHeader, EmptyState } from "@foldrun/ui/react/page";
+import { Pager } from "@foldrun/ui/react/pager";
+import { buttonVariants } from "@foldrun/ui/react/button";
 import {
   RunFilters,
   RunStats,
@@ -28,7 +28,7 @@ import {
   RUNS_PAGE_SIZE,
 } from "@/components/runs-table";
 import { RunsSelection } from "@/components/runs-bulk";
-import { filterByQuery } from "@/components/list-search-model";
+import { filterByQuery } from "@foldrun/ui/react/list-search-model";
 
 export const dynamic = "force-dynamic";
 

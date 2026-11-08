@@ -7,12 +7,12 @@
 // gets, so the dashboard and the API cannot disagree about a finding.
 
 import fs from "node:fs";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { notFound } from "next/navigation";
 import { workspaceDir } from "@/lib/store";
 import { BookOpen } from "lucide-react";
-import { Page, PageHeader } from "@/components/kit/page";
-import { buttonVariants } from "@/components/kit/button";
+import { Page, PageHeader } from "@foldrun/ui/react/page";
+import { buttonVariants } from "@foldrun/ui/react/button";
 import { ChecksPanel } from "./checks-panel";
 import { can } from "@/platform/permissions";
 import { viewerRole } from "@/server/users";

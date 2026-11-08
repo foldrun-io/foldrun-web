@@ -12,7 +12,7 @@ import { CallContent, type CallRun } from "@/components/trace-view";
 import { fmtDur } from "@/components/run-timeline";
 import { grouped } from "@/components/money";
 import { ChevronRight } from "lucide-react";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 const TONE: Record<TraceSpan["status"], string> = {
   ok: "bg-emerald-500/70",

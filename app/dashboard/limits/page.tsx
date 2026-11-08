@@ -3,13 +3,13 @@
 // cap is over a day, a week or a month; unset is no limit.
 
 import fs from "node:fs";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { accountDir, listWorkspaces } from "@/lib/store";
 import { readAgentsMdKeys } from "@/lib/agents-md";
 import { accountBudgetStanding, workspaceBudgetStanding, type BudgetStanding } from "@/platform/limits";
-import { Page, PageHeader, Panel, EmptyState } from "@/components/kit/page";
+import { Page, PageHeader, Panel, EmptyState } from "@foldrun/ui/react/page";
 import { Wallet } from "lucide-react";
-import { Meter } from "@/components/kit/chart";
+import { Meter } from "@foldrun/ui/react/chart";
 import { BudgetCard } from "@/components/defaults-cards";
 import { usd } from "@/components/money";
 import { viewerScope } from "@/server/users";

@@ -1,9 +1,9 @@
 "use client";
 import { useState } from "react";
-import { buttonVariants } from "@/components/kit/button";
-import { Input } from "@/components/kit/input";
-import { cn } from "@/components/kit/cn";
-import { Field } from "@/components/kit/page";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Input } from "@foldrun/ui/react/input";
+import { cn } from "@foldrun/ui/react/cn";
+import { Field } from "@foldrun/ui/react/page";
 
 export function ForgotForm() {
   const [msg, setMsg] = useState<string | null>(null);

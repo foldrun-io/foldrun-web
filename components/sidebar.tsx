@@ -7,7 +7,7 @@
 // the foot. It can be hidden (Ctrl/⌘ B, remembered in this browser); on a
 // phone it opens as a sheet from the floating bar (mobile-nav.tsx).
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import {
@@ -21,8 +21,8 @@ import { accountNav, workspaceNav, workspaceOf, pageTitle, type Nav, type NavIco
 import { AccountSwitcher } from "./topbar";
 import { UserMenu } from "./user-menu";
 import { InboxLink, useInboxUnread } from "./inbox-link";
-import { cn } from "./kit/cn";
-import { Count } from "./kit/page";
+import { cn } from "@foldrun/ui/react/cn";
+import { Count } from "@foldrun/ui/react/page";
 
 export { workspaceOf, ACCOUNT_SEGMENTS } from "./nav-model";
 
@@ -80,7 +80,7 @@ export function useSidebarHidden() {
 }
 
 /** The foldrun mark: a folder with its run light. */
-export { FoldrunMark } from "./kit/mark";
+export { FoldrunMark } from "@foldrun/ui/react/mark";
 
 /** The navigation for the current page. */
 export function useNav(): Nav & { workspace: string | null; tenant: string; title: string | null } {

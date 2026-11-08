@@ -4,14 +4,14 @@
 // the editor. "Security only" is the CLI's --security; the command line
 // under the list is how to get the same answer in a terminal or CI.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useCallback, useEffect, useState } from "react";
 import { LocalTime } from "@/components/local-time";
 import { Check, RefreshCw, ShieldCheck } from "lucide-react";
-import { Chip, Count, EmptyState, Stat, StatGrid, Tag, type Tone, Callout } from "@/components/kit/page";
-import { Button } from "@/components/kit/button";
-import { cn } from "@/components/kit/cn";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Chip, Count, EmptyState, Stat, StatGrid, Tag, type Tone, Callout } from "@foldrun/ui/react/page";
+import { Button } from "@foldrun/ui/react/button";
+import { cn } from "@foldrun/ui/react/cn";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 interface Finding {
   rule: string;

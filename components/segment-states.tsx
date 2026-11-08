@@ -7,8 +7,8 @@
 // dashboard's error screen with no way back to the page. These keep the
 // frame and say which it is.
 
-import { buttonVariants } from "./kit/button";
-import { Card } from "./kit/page";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Card } from "@foldrun/ui/react/page";
 
 export function SegmentLoading({ label }: { label: string }) {
   return (

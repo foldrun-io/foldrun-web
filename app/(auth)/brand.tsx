@@ -3,8 +3,8 @@
 // sign-in page (sign in, sign up, an invite, a reset, the CLI's and an AI
 // app's approval) draws it.
 import type { ReactNode } from "react";
-import { cn } from "@/components/kit/cn";
-import { FoldrunMark } from "@/components/kit/mark";
+import { cn } from "@foldrun/ui/react/cn";
+import { FoldrunMark } from "@foldrun/ui/react/mark";
 
 // The mark, on the way in: the same FoldrunMark the sidebar draws — a person who
 // signs in should see the thing they are signing in to, not a bare heading.

@@ -23,7 +23,7 @@ import { testEffects, testEffectSummary } from "@/components/test-run-model";
 const runDisplayStatus = (r: Pick<RunRecord, "status" | "stopRequested">) =>
   r.status === "failed" && r.stopRequested ? "stopped" : r.status;
 import { Markdown } from "@/components/markdown";
-import { useConfirm } from "@/components/kit/confirm";
+import { useConfirm } from "@foldrun/ui/react/confirm";
 import { useCan } from "@/components/role";
 import { SmartTextarea } from "@/components/smart-textarea";
 import { RunTimeline, traceEvents, stepSpan, fmtDur } from "@/components/run-timeline";
@@ -39,15 +39,15 @@ import { EventWaitBox } from "@/components/event-wait-box";
 import { LocalTime } from "@/components/local-time";
 import { AskAiButton } from "@/components/assistant";
 import { outcomeOf, type Outcome } from "@/components/outcome-model";
-import { PageHeader, SummaryCard, SectionTitle, Tag, EmptyState, Callout } from "@/components/kit/page";
-import { Status, StatusDot } from "@/components/kit/status";
-import { Button } from "@/components/kit/button";
-import { Menu, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "@/components/kit/menu";
-import { Textarea, inputBase } from "@/components/kit/input";
-import { cn } from "@/components/kit/cn";
+import { PageHeader, SummaryCard, SectionTitle, Tag, EmptyState, Callout } from "@foldrun/ui/react/page";
+import { Status, StatusDot } from "@/components/status";
+import { Button } from "@foldrun/ui/react/button";
+import { Menu, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "@foldrun/ui/react/menu";
+import { Textarea, inputBase } from "@foldrun/ui/react/input";
+import { cn } from "@foldrun/ui/react/cn";
 import { AlertTriangle, ChevronRight, CircleHelp, Code2, Ellipsis, FlaskConical, Hand, Pencil, RotateCcw, Square, Trash2, Webhook, XCircle } from "lucide-react";
-import { Disclosure } from "@/components/kit/disclosure";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Disclosure } from "@foldrun/ui/react/disclosure";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 const TEST_RUN = "A test run: every step ran, nothing outward happened, state/ and storage/ were left alone";
 // Mirrored from store.ts#runVerdict, for the same reason.
 const runVerdict = (r: Pick<RunRecord, "verdict" | "summary">) => {

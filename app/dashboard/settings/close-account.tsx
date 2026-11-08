@@ -11,10 +11,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Input } from "@/components/kit/input";
+import { Input } from "@foldrun/ui/react/input";
 import { Download } from "lucide-react";
-import { SettingsCard, Field, Callout } from "@/components/kit/page";
-import { Button, buttonVariants } from "@/components/kit/button";
+import { SettingsCard, Field, Callout } from "@foldrun/ui/react/page";
+import { Button, buttonVariants } from "@foldrun/ui/react/button";
 
 export function AccountData({ account, owner, hosted, closeRequestedAt }: { account: string; owner: boolean; hosted: boolean; closeRequestedAt: string | null }) {
   const router = useRouter();

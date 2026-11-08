@@ -8,14 +8,14 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { buttonVariants, Button } from "@/components/kit/button";
-import { Input, Textarea } from "@/components/kit/input";
-import { Select } from "@/components/kit/select";
+import { buttonVariants, Button } from "@foldrun/ui/react/button";
+import { Input, Textarea } from "@foldrun/ui/react/input";
+import { Select } from "@foldrun/ui/react/select";
 import { KeyRound } from "lucide-react";
-import { EmptyState, IconBox, Tag, Chip, SectionTitle, Field, Callout } from "@/components/kit/page";
-import { cn } from "@/components/kit/cn";
-import { useConfirm } from "@/components/kit/confirm";
-import { Checkbox, RadioGroup, RadioGroupItem } from "@/components/kit/choice";
+import { EmptyState, IconBox, Tag, Chip, SectionTitle, Field, Callout } from "@foldrun/ui/react/page";
+import { cn } from "@foldrun/ui/react/cn";
+import { useConfirm } from "@foldrun/ui/react/confirm";
+import { Checkbox, RadioGroup, RadioGroupItem } from "@foldrun/ui/react/choice";
 
 type Kind = "key" | "api" | "ssh" | "oauth" | "oauth_m2m" | "service_account" | "file" | "client_cert" | "identity" | "token_exchange";
 

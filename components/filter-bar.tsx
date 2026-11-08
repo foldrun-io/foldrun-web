@@ -19,12 +19,12 @@
 // is the same thing the pager already is. The select cannot be a link, so it
 // stays a navigation, with a plain submit for anyone without script.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
-import { cn } from "@/components/kit/cn";
-import { Select } from "@/components/kit/select";
-import { Segmented } from "@/components/kit/segmented";
-import { buttonVariants } from "@/components/kit/button";
+import { cn } from "@foldrun/ui/react/cn";
+import { Select } from "@foldrun/ui/react/select";
+import { Segmented } from "@foldrun/ui/react/segmented";
+import { buttonVariants } from "@foldrun/ui/react/button";
 
 export interface FilterOption {
   value: string;

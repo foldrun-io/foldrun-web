@@ -10,7 +10,7 @@
 // desk's row) to upload them there.
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
 import {
   Box,
@@ -38,15 +38,15 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { useConfirm } from "@/components/kit/confirm";
+import { useConfirm } from "@foldrun/ui/react/confirm";
 import { runHref } from "@/components/run-href";
-import { Button, buttonVariants } from "@/components/kit/button";
-import { Chip, EmptyState, IconBox } from "@/components/kit/page";
-import { SearchField } from "@/components/kit/list";
-import { Pager } from "@/components/kit/pager";
-import { Toast } from "@/components/kit/toast";
-import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@/components/kit/menu";
-import { cn } from "@/components/kit/cn";
+import { Button, buttonVariants } from "@foldrun/ui/react/button";
+import { Chip, EmptyState, IconBox } from "@foldrun/ui/react/page";
+import { SearchField } from "@foldrun/ui/react/list";
+import { Pager } from "@foldrun/ui/react/pager";
+import { Toast } from "@foldrun/ui/react/toast";
+import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@foldrun/ui/react/menu";
+import { cn } from "@foldrun/ui/react/cn";
 import {
   FILTERS,
   fmtAge,
@@ -66,9 +66,9 @@ import {
 } from "@/components/file-browser-model";
 import { Markdown } from "@/components/markdown";
 import { relFor, uploadFile } from "@/components/upload";
-import { useFilePicker } from "@/components/kit/file-button";
-import { useCopyFallback } from "@/components/kit/prompt";
-import { Tooltip } from "@/components/kit/tooltip";
+import { useFilePicker } from "@foldrun/ui/react/file-button";
+import { useCopyFallback } from "@foldrun/ui/react/prompt";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 const KIND_ICON: Record<FileKind, typeof FileIcon> = {
   image: FileImage,

@@ -28,7 +28,7 @@
 
 import { useEffect, useState, useSyncExternalStore, type HTMLAttributes, type ReactNode } from "react";
 import { collapseKey, readStored, writeStored, resolveOpen, hashTargets, LIST_SEARCH_EVENT, type CollapseStorage } from "./collapse-model";
-import { matchesQuery } from "./list-search-model";
+import { matchesQuery } from "@foldrun/ui/react/list-search-model";
 
 const CHANGE = "foldrun:collapse";
 const ALL = "foldrun:collapse-all";

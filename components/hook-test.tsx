@@ -6,9 +6,9 @@
 
 import { useState } from "react";
 import { Play } from "lucide-react";
-import { Button } from "@/components/kit/button";
-import { Textarea } from "@/components/kit/input";
-import { Callout } from "@/components/kit/page";
+import { Button } from "@foldrun/ui/react/button";
+import { Textarea } from "@foldrun/ui/react/input";
+import { Callout } from "@foldrun/ui/react/page";
 
 interface Answer {
   ok: boolean;

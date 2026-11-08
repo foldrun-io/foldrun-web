@@ -18,9 +18,9 @@
 
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { useConfirm } from "@/components/kit/confirm";
-import { buttonVariants } from "@/components/kit/button";
-import { Checkbox } from "@/components/kit/choice";
+import { useConfirm } from "@foldrun/ui/react/confirm";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Checkbox } from "@foldrun/ui/react/choice";
 
 
 interface Selection {

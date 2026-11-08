@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Chip, Tag } from "@/components/kit/page";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Chip, Tag } from "@foldrun/ui/react/page";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 /**
  * The badge beside a library tool that came from the gallery: current, or

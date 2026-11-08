@@ -6,7 +6,7 @@
 
 import { useState } from "react";
 import { THEMES, THEME_LABELS, type Theme } from "@/components/theme-model";
-import { Segmented } from "@/components/kit/segmented";
+import { Segmented } from "@foldrun/ui/react/segmented";
 
 const HINT: Record<Theme, string> = {
   system: "Follows your computer's light or dark setting.",

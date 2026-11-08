@@ -13,18 +13,18 @@ import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
 import { Avatar } from "@/components/avatar";
 import { Email } from "@/components/email";
-import { Input } from "@/components/kit/input";
-import { Select } from "@/components/kit/select";
+import { Input } from "@foldrun/ui/react/input";
+import { Select } from "@foldrun/ui/react/select";
 import { Mail } from "lucide-react";
-import { Button } from "@/components/kit/button";
-import { IconBox, Tag, Field } from "@/components/kit/page";
-import { useConfirm } from "@/components/kit/confirm";
+import { Button } from "@foldrun/ui/react/button";
+import { IconBox, Tag, Field } from "@foldrun/ui/react/page";
+import { useConfirm } from "@foldrun/ui/react/confirm";
 import { useRole } from "@/components/role";
 import { ASSIGNABLE, can, type Role } from "@/platform/permissions";
 import { describeScope } from "@/platform/scope";
-import { Checkbox, RadioGroup, RadioGroupItem } from "@/components/kit/choice";
-import { useCopyFallback } from "@/components/kit/prompt";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Checkbox, RadioGroup, RadioGroupItem } from "@foldrun/ui/react/choice";
+import { useCopyFallback } from "@foldrun/ui/react/prompt";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 interface Member {
   id: string;

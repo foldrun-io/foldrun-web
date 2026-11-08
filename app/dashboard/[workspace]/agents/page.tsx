@@ -13,9 +13,9 @@ import { ImportAgentButton } from "./import-agent";
 import { ImportPackageButton } from "@/components/package-buttons";
 import { RunButton } from "../../run-button";
 import { BookOpen, Bot, User, Workflow, Wrench } from "lucide-react";
-import { Page, PageHeader, ResourceCard, EmptyState, Tag, Chip } from "@/components/kit/page";
-import { ResourceList, type Row } from "@/components/kit/list";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Page, PageHeader, ResourceCard, EmptyState, Tag, Chip } from "@foldrun/ui/react/page";
+import { ResourceList, type Row } from "@foldrun/ui/react/list";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 export const dynamic = "force-dynamic";
 

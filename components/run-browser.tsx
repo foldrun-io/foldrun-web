@@ -9,8 +9,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LIVE_POLL_MS, REWIND_FRAMES, frameAge, mediaFiles, mediaKind, recordingLabel } from "@/components/run-browser-model";
 import { useViewerTime } from "@/components/viewer-time";
-import { Slider } from "@/components/kit/slider";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Slider } from "@foldrun/ui/react/slider";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 interface Frame {
   src: string;

@@ -2,7 +2,7 @@
 // `hook` record (core hooks.ts HookRecord, store.ts RunEvent.hook): a deny, a
 // rewrite, context, a reply, a note, a failure. The Hooks page and the API
 // list them; the run page badges them. Pure, so the rules are tested.
-import type { Tone } from "@/components/kit/page";
+import type { Tone } from "@foldrun/ui/react/page";
 
 export interface HookRecordLike {
   hook: string;

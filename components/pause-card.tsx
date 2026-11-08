@@ -7,12 +7,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Input } from "@/components/kit/input";
-import { SettingsCard, Field, Callout } from "@/components/kit/page";
-import { Button } from "@/components/kit/button";
+import { Input } from "@foldrun/ui/react/input";
+import { SettingsCard, Field, Callout } from "@foldrun/ui/react/page";
+import { Button } from "@foldrun/ui/react/button";
 import { WithEmails } from "@/components/email";
-import { useConfirm } from "@/components/kit/confirm";
-import { Checkbox } from "@/components/kit/choice";
+import { useConfirm } from "@foldrun/ui/react/confirm";
+import { Checkbox } from "@foldrun/ui/react/choice";
 
 export interface PauseMarkView {
   at: string;

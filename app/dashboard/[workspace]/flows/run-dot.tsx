@@ -12,9 +12,9 @@
 // server still owns everything it can and only the timestamp waits for the
 // browser to say what timezone it is in.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useViewerTime } from "@/components/viewer-time";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 export function RunDot({
   href,

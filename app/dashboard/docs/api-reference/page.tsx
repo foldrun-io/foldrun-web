@@ -3,10 +3,10 @@
 // tag, each with its description and, where the spec has one, its request
 // and response schema.
 
-import Link from "@/components/kit/link";
-import { Chip, Page, PageHeader, Panel, Tag } from "@/components/kit/page";
+import Link from "@foldrun/ui/react/link";
+import { Chip, Page, PageHeader, Panel, Tag } from "@foldrun/ui/react/page";
 import { openapiDocument } from "@/server/openapi";
-import { Disclosure } from "@/components/kit/disclosure";
+import { Disclosure } from "@foldrun/ui/react/disclosure";
 
 // Per request, not prerendered (28 Oct 2026): the enforced CSP's nonce is
 // minted per request, and a static page cannot carry one. The markdown ships

@@ -13,8 +13,8 @@
 // noise.
 
 import { useEffect, useMemo, useState } from "react";
-import { Input } from "@/components/kit/input";
-import { Select } from "@/components/kit/select";
+import { Input } from "@foldrun/ui/react/input";
+import { Select } from "@foldrun/ui/react/select";
 
 export interface Field {
   key: string;

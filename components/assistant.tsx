@@ -17,17 +17,17 @@
 import { Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { buttonVariants } from "@/components/kit/button";
-import { Input, Textarea } from "@/components/kit/input";
-import { Select } from "@/components/kit/select";
-import { Chip } from "@/components/kit/page";
-import { cn } from "@/components/kit/cn";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Input, Textarea } from "@foldrun/ui/react/input";
+import { Select } from "@foldrun/ui/react/select";
+import { Chip } from "@foldrun/ui/react/page";
+import { cn } from "@foldrun/ui/react/cn";
 import { Markdown } from "@/components/markdown";
 import { useCan, needs } from "@/components/role";
 import { foldDiff, lineDiff } from "@/components/flow-history-model";
 import { DiffView } from "@/components/flow-history";
 import { postCreate } from "@/components/create";
-import { Disclosure } from "@/components/kit/disclosure";
+import { Disclosure } from "@foldrun/ui/react/disclosure";
 import {
   chatFromStored,
   continueKey,
@@ -49,7 +49,7 @@ import {
   type ConversationSummary,
   type ProposedWorkspace,
 } from "@/components/assistant-model";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 const MAX = 8000;
 

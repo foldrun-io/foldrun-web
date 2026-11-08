@@ -11,8 +11,8 @@ import type { ReactNode } from "react";
 import { Bell, CalendarClock, FlaskConical, Play, UserRound, X } from "lucide-react";
 import type { ChecklistItemId, WorkspaceChecklist as Checklist } from "./workspace-checklist-model";
 import { useOnboardingPatch, withQs } from "./onboarding-card";
-import { ChecklistCard } from "./kit/checklist";
-import { MenuItem } from "./kit/menu";
+import { ChecklistCard } from "@foldrun/ui/react/checklist";
+import { MenuItem } from "@foldrun/ui/react/menu";
 
 const ICON: Record<ChecklistItemId, ReactNode> = {
   run: <Play />,

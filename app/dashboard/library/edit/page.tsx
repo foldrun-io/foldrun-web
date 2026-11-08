@@ -10,8 +10,8 @@ import { listSecrets } from "@/lib/secrets";
 import { EditorShell, type ContextSection } from "@/components/editor-shell";
 import { kindOf, chipsFor, secretRefs, DOC_FOR, type FileKind } from "@/components/editor-context-model";
 import { nowMs } from "@/components/overview-model";
-import { EmptyState, PageHeader } from "@/components/kit/page";
-import { PageTabs } from "@/components/kit/page-tabs";
+import { EmptyState, PageHeader } from "@foldrun/ui/react/page";
+import { PageTabs } from "@foldrun/ui/react/page-tabs";
 import { libraryTabs } from "@/components/nav-model";
 import { FileText } from "lucide-react";
 

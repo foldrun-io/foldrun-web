@@ -4,18 +4,18 @@
 // it read; Set aside hides it from your view only — a gate still waits, an
 // issue stays open for everyone else (POST /api/me/inbox).
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LocalTime } from "@/components/local-time";
 import { WithEmails } from "@/components/email";
 import type { InboxItem } from "@/server/inbox";
 import { AlertTriangle, ArchiveRestore, CheckCheck, Archive, Mail, MailOpen, MessageCircleQuestion, MoreHorizontal, Play, ShieldCheck, Wand2 } from "lucide-react";
-import { Button, buttonVariants } from "@/components/kit/button";
-import { Tooltip } from "@/components/kit/tooltip";
-import { Chip, type Tone, IconBox, Callout } from "@/components/kit/page";
-import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/kit/menu";
-import { cn } from "@/components/kit/cn";
+import { Button, buttonVariants } from "@foldrun/ui/react/button";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
+import { Chip, type Tone, IconBox, Callout } from "@foldrun/ui/react/page";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@foldrun/ui/react/menu";
+import { cn } from "@foldrun/ui/react/cn";
 
 const KIND: Record<InboxItem["kind"], { label: string; tone: Tone; icon: React.ReactNode; open: string }> = {
   approval: { label: "approval", tone: "warn", icon: <ShieldCheck />, open: "Review" },

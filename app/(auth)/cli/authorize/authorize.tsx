@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { buttonVariants } from "@/components/kit/button";
-import { Input } from "@/components/kit/input";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Input } from "@foldrun/ui/react/input";
 import { LocalTime } from "@/components/local-time";
-import { Field, Callout } from "@/components/kit/page";
+import { Field, Callout } from "@foldrun/ui/react/page";
 
 type Request = {
   code: string;

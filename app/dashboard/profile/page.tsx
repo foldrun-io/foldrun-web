@@ -3,12 +3,12 @@
 // settings shell like every other settings page.
 
 import { cookies } from "next/headers";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { notFound } from "next/navigation";
 import { verifySession, listMembers, allowedWorkspaces, SESSION_COOKIE } from "@/server/users";
 import { listWorkspaces } from "@/lib/store";
 import { scopeAllows, describeScope } from "@/platform/scope";
-import { SettingsCard, EmptyState } from "@/components/kit/page";
+import { SettingsCard, EmptyState } from "@foldrun/ui/react/page";
 import { UserRound } from "lucide-react";
 import { HashTab } from "../settings/anchor";
 import { LocalTime } from "@/components/local-time";

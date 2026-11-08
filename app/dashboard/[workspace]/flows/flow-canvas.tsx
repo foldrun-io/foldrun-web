@@ -44,12 +44,12 @@ import {
   type NodeChange,
 } from "@xyflow/react";
 import type { FlowStep } from "@/lib/store";
-import { Chip as KitChip, Tag } from "@/components/kit/page";
-import { useConfirm } from "@/components/kit/confirm";
+import { Chip as KitChip, Tag } from "@foldrun/ui/react/page";
+import { useConfirm } from "@foldrun/ui/react/confirm";
 import { InlineEditor } from "@/components/inline-editor";
 import { humanSchedule } from "@/components/schedule-human";
-import { buttonVariants } from "@/components/kit/button";
-import { Tooltip } from "@/components/kit/tooltip";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 import { Command as CommandIcon, FileCode2, Keyboard, Map as MapIcon, Redo2, Settings2, Undo2 } from "lucide-react";
 import {
   buildCanvas,
@@ -90,9 +90,9 @@ import { STALE_FLOW } from "@/components/flow-write";
 import { removalImpact } from "@/lib/step-removal";
 import { TriggerEditor } from "./trigger-editor";
 import { InstructionEditor } from "./flow-board";
-import { usePrompt, type PromptField } from "@/components/kit/prompt";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/kit/dialog";
-import { Kbd } from "@/components/kit/input";
+import { usePrompt, type PromptField } from "@foldrun/ui/react/prompt";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@foldrun/ui/react/dialog";
+import { Kbd } from "@foldrun/ui/react/input";
 
 // ---------- palette ----------
 

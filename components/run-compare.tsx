@@ -5,10 +5,10 @@
 // GET …/runs/<id>/compare, the route `foldrun report --compare` reads.
 
 import { useState } from "react";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import type { RunComparison } from "@/lib/compare";
 import { runHref } from "@/components/run-href";
-import { Button } from "@/components/kit/button";
+import { Button } from "@foldrun/ui/react/button";
 import { GitCompare, X } from "lucide-react";
 
 export function RunCompare({ workspace, runId, tenant }: { workspace: string; runId: string; tenant: string }) {

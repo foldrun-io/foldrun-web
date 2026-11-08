@@ -6,13 +6,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { buttonVariants } from "@/components/kit/button";
-import { Input, Textarea } from "@/components/kit/input";
-import { Select } from "@/components/kit/select";
-import { Chip, Card, Field, Callout } from "@/components/kit/page";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Input, Textarea } from "@foldrun/ui/react/input";
+import { Select } from "@foldrun/ui/react/select";
+import { Chip, Card, Field, Callout } from "@foldrun/ui/react/page";
 import { LocalTime } from "@/components/local-time";
 import { useViewerTime } from "@/components/viewer-time";
-import { Disclosure } from "@/components/kit/disclosure";
+import { Disclosure } from "@foldrun/ui/react/disclosure";
 
 type DiffOp = { kind: "same" | "add" | "del"; text: string };
 interface Plan {

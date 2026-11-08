@@ -4,17 +4,17 @@ import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
 import { WithEmails } from "@/components/email";
 import { useState } from "react";
-import { Input } from "@/components/kit/input";
-import { Select } from "@/components/kit/select";
+import { Input } from "@foldrun/ui/react/input";
+import { Select } from "@foldrun/ui/react/select";
 import { Check, Copy, KeyRound, Play } from "lucide-react";
-import { Button } from "@/components/kit/button";
-import { SettingsCard, EmptyState, IconBox, Tag, Chip, Field, Callout } from "@/components/kit/page";
-import { cn } from "@/components/kit/cn";
-import { useConfirm } from "@/components/kit/confirm";
+import { Button } from "@foldrun/ui/react/button";
+import { SettingsCard, EmptyState, IconBox, Tag, Chip, Field, Callout } from "@foldrun/ui/react/page";
+import { cn } from "@foldrun/ui/react/cn";
+import { useConfirm } from "@foldrun/ui/react/confirm";
 import { useCan } from "@/components/role";
 import { ASSIGNABLE, type Role } from "@/platform/permissions";
-import { Checkbox } from "@/components/kit/choice";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Checkbox } from "@foldrun/ui/react/choice";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 interface KeyRow {
   createdBy?: string;

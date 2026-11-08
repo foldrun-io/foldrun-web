@@ -6,11 +6,11 @@
 // Each item opens the existing create dialog on its own page (?create=<kind>),
 // so there is one create flow per noun, not two. Hidden for viewers.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Bot, Boxes, FlaskConical, Plus, Webhook, Workflow, Wrench, BookOpen } from "lucide-react";
-import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "./kit/menu";
-import { Button } from "./kit/button";
+import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@foldrun/ui/react/menu";
+import { Button } from "@foldrun/ui/react/button";
 import { workspaceOf } from "./nav-model";
 import { useCan } from "./role";
 

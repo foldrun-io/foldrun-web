@@ -6,7 +6,7 @@
 
 import { useSyncExternalStore, type ReactNode } from "react";
 import { ListOrdered, Network } from "lucide-react";
-import { Segmented } from "@/components/kit/segmented";
+import { Segmented } from "@foldrun/ui/react/segmented";
 
 type View = "canvas" | "list";
 const KEY = "foldrun.flows.view";

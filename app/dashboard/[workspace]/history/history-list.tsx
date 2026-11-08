@@ -8,17 +8,17 @@
 // and the page should open in the time it takes to read one line per row.
 
 import { useState } from "react";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
-import { useConfirm } from "@/components/kit/confirm";
+import { useConfirm } from "@foldrun/ui/react/confirm";
 import { DeployPreview } from "@/components/deploy-preview";
 import { WithEmails } from "@/components/email";
 import { ChevronRight, Eye, EyeOff, GitCommitHorizontal, RotateCcw } from "lucide-react";
-import { Button } from "@/components/kit/button";
-import { Chip, IconBox, Callout } from "@/components/kit/page";
-import { cn } from "@/components/kit/cn";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Button } from "@foldrun/ui/react/button";
+import { Chip, IconBox, Callout } from "@foldrun/ui/react/page";
+import { cn } from "@foldrun/ui/react/cn";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 interface Summary {
   id: string;

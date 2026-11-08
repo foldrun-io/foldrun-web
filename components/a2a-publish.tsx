@@ -15,16 +15,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Input, Textarea, labelClass } from "@/components/kit/input";
-import { cn } from "@/components/kit/cn";
-import { buttonVariants } from "@/components/kit/button";
+import { Input, Textarea, labelClass } from "@foldrun/ui/react/input";
+import { cn } from "@foldrun/ui/react/cn";
+import { buttonVariants } from "@foldrun/ui/react/button";
 import { Globe } from "lucide-react";
 import { CopyField } from "@/components/copy-field";
 import { useCan } from "@/components/role";
 import { a2aBodyOf, a2aCurl, a2aFormOf, a2aRiskState, type A2aForm, type A2aRisk } from "@/components/a2a-model";
-import { Callout } from "@/components/kit/page";
-import { Switch, Checkbox } from "@/components/kit/choice";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Callout } from "@foldrun/ui/react/page";
+import { Switch, Checkbox } from "@foldrun/ui/react/choice";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 interface Published {
   publish: boolean;

@@ -9,9 +9,9 @@
 // now, so the honest answer is a list and a button.
 
 import { useEffect, useState } from "react";
-import { buttonVariants } from "@/components/kit/button";
+import { buttonVariants } from "@foldrun/ui/react/button";
 import { LocalTime } from "@/components/local-time";
-import { Tag } from "@/components/kit/page";
+import { Tag } from "@foldrun/ui/react/page";
 
 interface Row {
   id: string;

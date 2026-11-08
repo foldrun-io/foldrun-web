@@ -34,15 +34,15 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/kit/dialog";
-import { Button } from "@/components/kit/button";
-import { Tooltip } from "@/components/kit/tooltip";
-import { IconBox, Tag, Callout } from "@/components/kit/page";
-import { Input, Textarea } from "@/components/kit/input";
-import { Select } from "@/components/kit/select";
-import { Menu, MenuContent, MenuTrigger } from "@/components/kit/menu";
-import { cn } from "@/components/kit/cn";
-import { PageTabs } from "@/components/kit/page-tabs";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@foldrun/ui/react/dialog";
+import { Button } from "@foldrun/ui/react/button";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
+import { IconBox, Tag, Callout } from "@foldrun/ui/react/page";
+import { Input, Textarea } from "@foldrun/ui/react/input";
+import { Select } from "@foldrun/ui/react/select";
+import { Menu, MenuContent, MenuTrigger } from "@foldrun/ui/react/menu";
+import { cn } from "@foldrun/ui/react/cn";
+import { PageTabs } from "@foldrun/ui/react/page-tabs";
 import { useCan, needs } from "@/components/role";
 import { InlineEditor } from "@/components/inline-editor";
 import { ToolTest } from "@/components/tool-test";
@@ -68,8 +68,8 @@ import {
   editableInPlace,
 } from "@/components/asset-fields";
 import { dump } from "js-yaml";
-import { Disclosure } from "@/components/kit/disclosure";
-import { Combobox } from "@/components/kit/combobox";
+import { Disclosure } from "@foldrun/ui/react/disclosure";
+import { Combobox } from "@foldrun/ui/react/combobox";
 
 const KIND_ICON: Record<string, LucideIcon> = { tools: Wrench, hooks: Webhook, skills: Sparkles, memory: Brain, knowledge: BookOpen, scripts: FileCode };
 

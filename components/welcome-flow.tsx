@@ -8,24 +8,24 @@
 // store. The one thing kept is that this person has seen it, so the home
 // page stops sending them here.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { BookOpen, Boxes, CircleCheck, FileArchive, KeyRound, PlugZap, Sparkles, Terminal } from "lucide-react";
 import type { Onboarding, OnboardingStepId, WelcomeFlow as Flow, WelcomeStepId } from "./onboarding-model";
 import { welcomeAfter } from "./onboarding-model";
-import { StepRail, StepPanel, StepLayout, type RailStep } from "./kit/steps";
-import { ChoiceCards } from "./kit/choice-cards";
-import { CopyBlock } from "./kit/copy-block";
-import { Callout } from "@/components/kit/page";
-import { ChecklistCard } from "./kit/checklist";
+import { StepRail, StepPanel, StepLayout, type RailStep } from "@foldrun/ui/react/steps";
+import { ChoiceCards } from "@foldrun/ui/react/choice-cards";
+import { CopyBlock } from "@foldrun/ui/react/copy-block";
+import { Callout } from "@foldrun/ui/react/page";
+import { ChecklistCard } from "@foldrun/ui/react/checklist";
 import { STEP_ICON, withQs } from "./onboarding-card";
 import { FirstRun, type FirstRunTarget } from "./first-run";
 import { CreateForm } from "./create";
 import { ImportPackageButton } from "./package-buttons";
 import { DemoButton } from "@/app/dashboard/demo-button";
-import { Button, buttonVariants } from "./kit/button";
-import { Card, EmptyState } from "./kit/page";
+import { Button, buttonVariants } from "@foldrun/ui/react/button";
+import { Card, EmptyState } from "@foldrun/ui/react/page";
 
 export interface WelcomeProps {
   tenant: string;

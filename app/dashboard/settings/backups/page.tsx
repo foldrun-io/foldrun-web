@@ -11,13 +11,13 @@ import { scopeAllows } from "@/platform/scope";
 import { can } from "@/platform/permissions";
 import { viewerRole, viewerScope } from "@/server/users";
 import { SettingsShell, SettingsSection } from "@/components/settings-shell";
-import { SettingsCard, EmptyState, Chip } from "@/components/kit/page";
+import { SettingsCard, EmptyState, Chip } from "@foldrun/ui/react/page";
 import { Archive } from "lucide-react";
 import { settingsTabs } from "../tabs";
 import { verifySession, SESSION_COOKIE } from "@/server/users";
 import { cookies } from "next/headers";
 import { LocalTime } from "@/components/local-time";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 import { RestoreWorkspace, RequestRestore } from "./controls";
 
 export const dynamic = "force-dynamic";

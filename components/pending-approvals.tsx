@@ -16,12 +16,12 @@
 // in the same frame; the refetch confirms it against the step's own status,
 // so the gate cannot come back while the worker is still picking the run up.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/kit/button";
-import { Tag } from "@/components/kit/page";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Button } from "@foldrun/ui/react/button";
+import { Tag } from "@foldrun/ui/react/page";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 interface Question {
   id: string;

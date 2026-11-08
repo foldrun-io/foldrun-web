@@ -7,7 +7,7 @@
 import { cookies } from "next/headers";
 import { peekHandoff } from "@/platform/oauth-connect";
 import { verifySession, SESSION_COOKIE } from "@/server/users";
-import { Page, PageHeader, SettingsCard, EmptyState } from "@/components/kit/page";
+import { Page, PageHeader, SettingsCard, EmptyState } from "@foldrun/ui/react/page";
 import { Link2Off } from "lucide-react";
 import { HandoffAccept } from "./accept";
 import { WithEmails } from "@/components/email";

@@ -8,7 +8,7 @@
 // failed is the server's (runFailure), handed in after the stream's `done`
 // refreshes the page.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CircleCheck, Hand, Play, RotateCcw, Stethoscope, TriangleAlert, Workflow } from "lucide-react";
@@ -18,11 +18,11 @@ import { outcomeOf, type Outcome } from "@/components/outcome-model";
 import { useCan, needs } from "@/components/role";
 import { openAssistant } from "@/components/assistant";
 import { issueDoctor } from "@/lib/issues";
-import { Button, buttonVariants } from "@/components/kit/button";
-import { Status, StatusDot } from "@/components/kit/status";
-import { cn } from "@/components/kit/cn";
-import { Callout, IconBox } from "@/components/kit/page";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Button, buttonVariants } from "@foldrun/ui/react/button";
+import { Status, StatusDot } from "@/components/status";
+import { cn } from "@foldrun/ui/react/cn";
+import { Callout, IconBox } from "@foldrun/ui/react/page";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 export interface FirstRunTarget {
   workspace: string;

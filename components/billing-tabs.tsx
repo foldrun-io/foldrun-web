@@ -3,7 +3,7 @@
 // entries behind the avatar; a customer's money is one subject and every
 // serious SaaS treats it as one section with tabs.
 
-import { PageTabs } from "@/components/kit/page-tabs";
+import { PageTabs } from "@foldrun/ui/react/page-tabs";
 
 export const BILLING_TABS = [
   { key: "balance", name: "Balance", href: "/dashboard/billing" },

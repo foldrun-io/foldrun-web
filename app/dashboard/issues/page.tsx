@@ -1,11 +1,11 @@
 // Issues (FOL-54 step 3): what went wrong, grouped, and kept open until a
 // person resolves it. Same list as GET /api/issues and `foldrun issues`.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { AlertTriangle, Ban, CalendarX2, CheckCircle2, ServerCrash, XCircle, X } from "lucide-react";
-import { Page, PageHeader, Chip, Tag, EmptyState, type Tone } from "@/components/kit/page";
-import { Segmented } from "@/components/kit/segmented";
-import { cn } from "@/components/kit/cn";
+import { Page, PageHeader, Chip, Tag, EmptyState, type Tone } from "@foldrun/ui/react/page";
+import { Segmented } from "@foldrun/ui/react/segmented";
+import { cn } from "@foldrun/ui/react/cn";
 import { viewerScope } from "@/server/users";
 import { accountIssues, filterIssues, ISSUE_STATUSES, type IssueFilter } from "@/server/issues";
 import { IssueActions } from "@/components/issue-actions";
@@ -15,8 +15,8 @@ import { runHref } from "@/components/run-href";
 import { fmtSpan } from "@/components/mission-model";
 import { nowMs } from "@/components/overview-model";
 import { issueDoctor, type Issue } from "@/lib/issues";
-import { Disclosure } from "@/components/kit/disclosure";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Disclosure } from "@foldrun/ui/react/disclosure";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 export const dynamic = "force-dynamic";
 
