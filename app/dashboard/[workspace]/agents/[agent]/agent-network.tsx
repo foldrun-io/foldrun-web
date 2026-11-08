@@ -23,9 +23,10 @@ export interface AgentNetworkProps {
   /** The resolved policy, the way a run resolves it. */
   resolved: { level: NetworkLevel; from: string; added: string[]; implied: string[]; defaults: boolean; readsWeb: boolean; browses?: boolean; browseVendor?: string | null };
   /** How a browsing step of this agent is held here (core browseVerdict):
-   *  hosted, refused (a vendor's browser), or legacy — not held. Null when
-   *  it does not browse. */
-  browse?: "hosted" | "refuse" | "legacy" | null;
+   *  hosted, through the vendor door (a vendor's browser, FOL-145), refused
+   *  (a vendor's browser no door holds), or legacy — not held. Null when it
+   *  does not browse. */
+  browse?: "hosted" | "vendor" | "refuse" | "legacy" | null;
   /** Whether a walled sandbox here has no DNS of its own either
    *  (FOLDRUN_RUN_DNS_WALL, platform run-dns.ts — FOL-128). */
   dnsWalled?: boolean;
@@ -112,13 +113,19 @@ export function AgentNetwork(p: AgentNetworkProps) {
             : "Its DNS lookups are not held to the list on this install."}
         </Callout>
       )}
+      {r.browses && p.browse === "vendor" && (
+        <Callout tone="success" size="sm" className="mt-2">
+          Browsing is held to this list through foldrun&apos;s vendor door: <code className="font-mono">{r.browseVendor}</code>&apos;s browser runs on the vendor&apos;s machines, and the session it starts has foldrun&apos;s door as its only proxy.
+          A site one of its secrets is bound to is refused there (a vendor&apos;s browser cannot trust foldrun&apos;s certificate); use foldrun&apos;s own browser for those.
+        </Callout>
+      )}
       {r.browses && p.browse === "refuse" && (
         <Callout tone="warning" size="sm" className="mt-2">
           This agent browses with <code className="font-mono">{r.browseVendor}</code>, which browses from its own network, so this list cannot hold it: its steps are refused before they connect.
           Drop <code className="font-mono">browse: {r.browseVendor}</code> to use foldrun&apos;s own browser, which is held to the list.
         </Callout>
       )}
-      {r.browses && r.level !== "open" && p.browse !== "hosted" && p.browse !== "refuse" && (
+      {r.browses && r.level !== "open" && p.browse !== "hosted" && p.browse !== "vendor" && p.browse !== "refuse" && (
         <Callout tone="warning" size="sm" className="mt-2">
           This agent may browse, and here a browsing step is not held to this list: its browser and its other programs reach sites directly.
           Browsing is held where the platform confines it and the list is enforced; until then, to keep it inside the list, give it <code className="font-mono">web: {"{actions: [search, fetch]}"}</code>.

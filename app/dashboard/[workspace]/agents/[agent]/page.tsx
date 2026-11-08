@@ -19,7 +19,7 @@ import path from "node:path";
 import { configMatter } from "@/lib/matter";
 import { readNetwork, TRUSTED_SITES } from "@/lib/network";
 import { AgentNetwork } from "./agent-network";
-import { browseVerdict } from "@/lib/browse-egress";
+import { browseVerdict, vendorDoorFor } from "@/lib/browse-egress";
 import { confinesBrowsing, wallsRestrictedSteps } from "@/platform/browse-confine";
 import { searchDoorWanted } from "@/lib/search-egress";
 import { DOOR_CATEGORIES } from "@/platform/search-door";
@@ -90,6 +90,8 @@ export default async function AgentPage({
         enforce: n.enforceWanted || process.env.FOLDRUN_NETWORK_ENFORCE === "1",
         vendor: n.browseVendor,
         confines: confinesBrowsing(process.env.FOLDRUN_RUN_ISOLATION ?? ""),
+        // FOL-145: a vendor this install holds through its vendor door.
+        door: !!vendorDoorFor(n.browseVendor),
       }).kind
     : null;
   // How its web search goes when a step is walled to its list (FOL-128):
