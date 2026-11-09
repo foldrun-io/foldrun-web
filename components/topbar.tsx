@@ -16,16 +16,16 @@
 // page's is (on the box it came back empty), and a list fetched the way the
 // pages read their data is the one that agrees with them.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { scoreHit } from "./find-model";
 import { workspaceOf } from "./nav-model";
 import { Avatar } from "./avatar";
-import { cn } from "./kit/cn";
-import { Popover, PopoverContent, PopoverTrigger } from "./kit/popover";
-import { Chip } from "./kit/page";
+import { cn } from "@foldrun/ui/react/cn";
+import { Popover, PopoverContent, PopoverTrigger } from "@foldrun/ui/react/popover";
+import { Chip } from "@foldrun/ui/react/page";
 
 interface WorkspaceRow {
   name: string;

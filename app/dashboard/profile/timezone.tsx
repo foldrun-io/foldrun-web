@@ -12,9 +12,9 @@
 // and it is a property of the schedule, not of whoever is looking at it.
 
 import { useState } from "react";
-import { buttonVariants } from "@/components/kit/button";
+import { buttonVariants } from "@foldrun/ui/react/button";
 import { useDetectedTimeZone, useViewerTime } from "@/components/viewer-time";
-import { Select } from "@/components/kit/select";
+import { Select } from "@foldrun/ui/react/select";
 
 const AUTOMATIC = "";
 

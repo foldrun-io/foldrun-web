@@ -11,6 +11,9 @@ const root = path.join(__dirname, "..");
 
 const nextConfig: NextConfig = {
   turbopack: { root },
+  // The kit (@foldrun/ui/react) ships as TypeScript source, shared with the
+  // operator console: Next compiles it like the app's own files.
+  transpilePackages: ["@foldrun/ui"],
   outputFileTracingRoot: root,
   // The same number proxy.ts refuses above (server/body-limit.ts): Next
   // truncates a body past this silently, so the proxy says 413 first.

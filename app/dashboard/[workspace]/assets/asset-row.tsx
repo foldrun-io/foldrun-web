@@ -8,15 +8,15 @@
 // happens in the detail drawer — components/asset-drawer.tsx — and the row is
 // one link.)
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ExternalLink, MoreHorizontal, Share2, Trash2 } from "lucide-react";
-import { useConfirm } from "@/components/kit/confirm";
+import { useConfirm } from "@foldrun/ui/react/confirm";
 import { useCan, needs } from "@/components/role";
-import { Button } from "@/components/kit/button";
-import { Tooltip } from "@/components/kit/tooltip";
-import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/kit/menu";
+import { Button } from "@foldrun/ui/react/button";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@foldrun/ui/react/menu";
 import type { AssetItem } from "@/components/asset-fields";
 
 export function useAssetActions(item: Pick<AssetItem, "path" | "name" | "kind" | "account">, { workspace, tenant }: { workspace: string; tenant: string }) {

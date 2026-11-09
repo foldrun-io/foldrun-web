@@ -1,6 +1,6 @@
 // A provider's base_url is fetched by the host (a draft, a judge, the
 // assistant), so on a platform it may not be plain http or an internal
-// address (FOL-95). Settings → Model refuses one when it is saved; a draft
+// address (FOL-95). Settings → Models refuses one when it is saved; a draft
 // whose workspace's provider: block points inward is refused before any
 // model call. On a laptop nothing changes: its own localhost is fine.
 //
@@ -47,7 +47,7 @@ async function guarded(fn: (asked: string[]) => Promise<void>) {
   }
 }
 
-test("on a platform, Settings → Model refuses an internal base URL, and stores nothing", () =>
+test("on a platform, Settings → Models refuses an internal base URL, and stores nothing", () =>
   guarded(async () => {
     for (const url of ["https://127.0.0.1:3000", "https://10.43.0.1", "https://169.254.169.254/latest", "https://[::ffff:7f00:1]", "https://foldrun-postgres", "https://redis.foldrun.svc.cluster.local"]) {
       const res = await put(url);

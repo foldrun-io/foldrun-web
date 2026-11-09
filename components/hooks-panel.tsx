@@ -3,15 +3,15 @@
 // the hooks stopped or changed lately, read off the runs' own trails, where
 // every line a hook wrote carries a `hook` record (core store.ts RunEvent.hook).
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { listRuns } from "@/lib/store";
 import { listWorkspaceHooks, HOOK_SAMPLE } from "@/server/hooks";
 import { hookActivity, hookTally, hookBadge, HOOK_TONE } from "@/components/hooks-model";
 import { HookTest } from "@/components/hook-test";
-import { Panel, Chip, EmptyState } from "@/components/kit/page";
-import { Table, THead, TBody, TR, TH, TD } from "@/components/kit/table";
+import { Panel, Chip, EmptyState } from "@foldrun/ui/react/page";
+import { Table, THead, TBody, TR, TH, TD } from "@foldrun/ui/react/table";
 import { ShieldCheck } from "lucide-react";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 /** How far back "lately" reaches: the newest runs, not a date window, so a
  *  quiet workspace still shows its last deny. */

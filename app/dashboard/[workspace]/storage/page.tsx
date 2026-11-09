@@ -8,7 +8,7 @@ import { notFound } from "next/navigation";
 import { workspaceDir } from "@/lib/store";
 import { usedBytes, driverFor, fileStoreEnabled, listStorage } from "@/lib/storage";
 import { nowMs } from "@/components/overview-model";
-import { Page, PageHeader, EmptyState } from "@/components/kit/page";
+import { Page, PageHeader, EmptyState } from "@foldrun/ui/react/page";
 import { HardDrive } from "lucide-react";
 import { UploadZone, StorageUsage } from "./storage-tools";
 import { FileBrowser } from "@/components/file-browser";

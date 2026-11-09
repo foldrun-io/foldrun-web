@@ -11,9 +11,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/kit/button";
-import { Tooltip } from "@/components/kit/tooltip";
-import { Chip } from "@/components/kit/page";
+import { Button } from "@foldrun/ui/react/button";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
+import { Chip } from "@foldrun/ui/react/page";
 import { useCan } from "@/components/role";
 import { SmartTextarea } from "@/components/smart-textarea";
 import { CodeEditor, isCodePath } from "@/components/code-editor";

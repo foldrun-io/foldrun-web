@@ -6,7 +6,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { notFound } from "next/navigation";
 import matter, { configMatter } from "@/lib/matter";
 import { schemaKindOf } from "@/lib/frontmatter-fields";
@@ -21,9 +21,9 @@ import { workspaceCheck } from "@/server/checks";
 import { EditorShell, type ContextSection, type Issue } from "@/components/editor-shell";
 import { kindOf, chipsFor, secretRefs, crumbs, DOC_FOR, type FileKind } from "@/components/editor-context-model";
 import { nowMs } from "@/components/overview-model";
-import { EmptyState, PageHeader } from "@/components/kit/page";
-import { PageTabs } from "@/components/kit/page-tabs";
-import { buttonVariants } from "@/components/kit/button";
+import { EmptyState, PageHeader } from "@foldrun/ui/react/page";
+import { PageTabs } from "@foldrun/ui/react/page-tabs";
+import { buttonVariants } from "@foldrun/ui/react/button";
 import { filesTabs } from "@/components/nav-model";
 import { FileText, LayoutGrid, Library } from "lucide-react";
 import { NewFile } from "./new-file";

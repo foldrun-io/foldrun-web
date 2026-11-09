@@ -5,8 +5,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Button } from "@/components/kit/button";
-import { Input } from "@/components/kit/input";
+import { Button } from "@foldrun/ui/react/button";
+import { Input } from "@foldrun/ui/react/input";
 import { Plus } from "lucide-react";
 import { KINDS } from "@/lib/kinds";
 

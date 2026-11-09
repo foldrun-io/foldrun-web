@@ -7,7 +7,7 @@
 // flow — its steps on the canvas, its runs and its settings, in tabs
 // (`&tab=runs|settings`). `?create=flows` opens the New flow dialog.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
 import path from "node:path";
 import { notFound } from "next/navigation";
@@ -38,12 +38,12 @@ import { creditsShort } from "@/components/money";
 import { nowMs } from "@/components/overview-model";
 import { OUTCOME } from "@/components/outcome-model";
 import { runLite } from "@/server/run-lite";
-import { Page, PageHeader, IconBox, Tag, Fact, Panel, PanelList, SettingsCard, EmptyState, ResourceCard } from "@/components/kit/page";
-import { ResourceList, type Row } from "@/components/kit/list";
-import { PageTabs } from "@/components/kit/page-tabs";
-import { Status, StatusDot } from "@/components/kit/status";
-import { buttonVariants } from "@/components/kit/button";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Page, PageHeader, IconBox, Tag, Fact, Panel, PanelList, SettingsCard, EmptyState, ResourceCard } from "@foldrun/ui/react/page";
+import { ResourceList, type Row } from "@foldrun/ui/react/list";
+import { PageTabs } from "@foldrun/ui/react/page-tabs";
+import { Status, StatusDot } from "@/components/status";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 import { AlertTriangle, CircleDashed, Clock3, FilePen, Layers, Workflow, XCircle } from "lucide-react";
 import { FlowBoard } from "./flow-board";
 import { FlowCanvas } from "./flow-canvas";

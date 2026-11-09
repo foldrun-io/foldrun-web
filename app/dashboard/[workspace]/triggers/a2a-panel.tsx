@@ -7,15 +7,15 @@
 // with the key that asked and the run that served each. One read: GET
 // /api/workspaces/<ws>/a2a. Publishing is on each flow's card (Flows page).
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useEffect, useState } from "react";
-import { Chip, EmptyState, Panel } from "@/components/kit/page";
+import { Chip, EmptyState, Panel } from "@foldrun/ui/react/page";
 import { Globe } from "lucide-react";
 import { CopyField } from "@/components/copy-field";
 import { LocalTime } from "@/components/local-time";
 import { runHref } from "@/components/run-href";
 import { a2aStateWord } from "@/components/a2a-model";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 interface View {
   flows: { flow: string; published: boolean; publicCard: boolean; name: string; description: string | null; hasInputSchema: boolean; card: string; url: string }[];

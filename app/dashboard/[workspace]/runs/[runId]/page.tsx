@@ -8,13 +8,13 @@
 // LiveRun from the stream, so the outcome and the actions change the moment
 // the run does; this page hands it what only the server knows.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
 import { notFound } from "next/navigation";
 import { workspaceDir, listRuns, listRunOutputs, readRun, runCost, runTokens, measuredHitRate, runDisplayStatus, runFailure, runVerdict } from "@/lib/store";
 import { LiveRun } from "../../live-run";
 import { OUTCOME, outcomeOf, tally } from "@/components/outcome-model";
-import { Status } from "@/components/kit/status";
+import { Status } from "@/components/status";
 import { runHref } from "@/components/run-href";
 import { runLite } from "@/server/run-lite";
 import { runCharges, runCharge } from "@/server/run-charges";
@@ -23,10 +23,10 @@ import { RunPageKeys } from "@/components/run-page-nav";
 import { LocalTime } from "@/components/local-time";
 import { fmtSpan } from "@/components/mission-model";
 import { fmtTokenDetail, fmtTokenLine } from "@/components/step-io-model";
-import { Page, IconBox, Fact, Tag, Panel } from "@/components/kit/page";
-import { buttonVariants } from "@/components/kit/button";
-import { cn } from "@/components/kit/cn";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Page, IconBox, Fact, Tag, Panel } from "@foldrun/ui/react/page";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { cn } from "@foldrun/ui/react/cn";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 import { Bot, ChevronLeft, ChevronRight, FlaskConical, Workflow } from "lucide-react";
 import { gradesOfRun } from "@/lib/grades";
 import { WithEmails } from "@/components/email";

@@ -12,9 +12,9 @@
 
 import { useState } from "react";
 import type { StepRecord } from "@/lib/store";
-import { Button } from "./kit/button";
-import { Input } from "./kit/input";
-import { Tag, Callout } from "./kit/page";
+import { Button } from "@foldrun/ui/react/button";
+import { Input } from "@foldrun/ui/react/input";
+import { Tag, Callout } from "@foldrun/ui/react/page";
 
 export function OperatorPanel({
   workspace,

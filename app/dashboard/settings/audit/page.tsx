@@ -5,12 +5,12 @@
 // The same reader as GET /api/audit, with the same gate: the owner and
 // admins who can see the whole account.
 
-import Link from "@/components/kit/link";
-import { Input } from "@/components/kit/input";
-import { Select } from "@/components/kit/select";
+import Link from "@foldrun/ui/react/link";
+import { Input } from "@foldrun/ui/react/input";
+import { Select } from "@foldrun/ui/react/select";
 import { SettingsShell } from "@/components/settings-shell";
-import { EmptyState, Chip, type Tone } from "@/components/kit/page";
-import { Button, buttonVariants } from "@/components/kit/button";
+import { EmptyState, Chip, type Tone } from "@foldrun/ui/react/page";
+import { Button, buttonVariants } from "@foldrun/ui/react/button";
 import { Download, ScrollText } from "lucide-react";
 import { settingsTabs } from "../tabs";
 import { verifySession, SESSION_COOKIE, viewerRole, viewerScope } from "@/server/users";
@@ -21,7 +21,7 @@ import { scopeAllows } from "@/platform/scope";
 import { listWorkspaces } from "@/lib/store";
 import { queryAudit, parseWhen, type AuditEntry } from "@/server/audit";
 import { WithEmails } from "@/components/email";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Audit log · Settings" };

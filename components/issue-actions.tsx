@@ -9,9 +9,9 @@ import { needs, useCan } from "@/components/role";
 import { openAssistant } from "@/components/assistant";
 import type { IssueStatus } from "@/lib/issues";
 import { AlarmClock, BellOff, CheckCircle2, Eye, MoreHorizontal, RotateCcw, Stethoscope } from "lucide-react";
-import { Button } from "@/components/kit/button";
-import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/kit/menu";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Button } from "@foldrun/ui/react/button";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@foldrun/ui/react/menu";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 
 /** `accountWide`: the caller may see every workspace. A platform issue is the

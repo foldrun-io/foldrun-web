@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { AuthForm } from "../auth-form";
 import { AuthCard } from "../brand";
 

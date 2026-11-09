@@ -10,21 +10,21 @@
 // the box into the inputs file through the source PUT — a revision like any
 // other edit, and the file `foldrun invoke <flow> --inputs <name>` reads.
 
-import { buttonVariants } from "@/components/kit/button";
-import { cn } from "@/components/kit/cn";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { cn } from "@foldrun/ui/react/cn";
 import { ChevronDown, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
-import { Input, Textarea } from "@/components/kit/input";
-import { useConfirm } from "@/components/kit/confirm";
-import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/kit/menu";
-import { Segmented } from "@/components/kit/segmented";
-import { IconButton, Tooltip } from "@/components/kit/tooltip";
+import { Input, Textarea } from "@foldrun/ui/react/input";
+import { useConfirm } from "@foldrun/ui/react/confirm";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@foldrun/ui/react/menu";
+import { Segmented } from "@foldrun/ui/react/segmented";
+import { IconButton, Tooltip } from "@foldrun/ui/react/tooltip";
 import { useCan, needs } from "@/components/role";
 import { inputSetsFor, inputsFile, upsertInputSet, type EvalLike, type InputSet } from "@/components/flow-inputs-model";
-import { RadioGroup, RadioGroupItem } from "@/components/kit/choice";
-import { Popover, PopoverAnchor, PopoverContent } from "@/components/kit/popover";
+import { RadioGroup, RadioGroupItem } from "@foldrun/ui/react/choice";
+import { Popover, PopoverAnchor, PopoverContent } from "@foldrun/ui/react/popover";
 
 export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; tenant: string; flow: string }) {
   const router = useRouter();
@@ -300,7 +300,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
                     type="button"
                     disabled={busy !== null || !mayWrite}
                     onClick={() => void save()}
-                    className={buttonVariants({ variant: "secondary", size: "xs" })}
+                    className={buttonVariants({ variant: "secondary", size: "md" })}
                   >
                     {busy === "save" ? "Saving…" : "Save current as input set"}
                   </button>

@@ -1,6 +1,6 @@
 import { scopeAllows } from "@/platform/scope";
 import { platform } from "@/lib/platform";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { CopyField } from "@/components/copy-field";
 import { McpConnections } from "./mcp-connections";
 import { connectionView, listGrants } from "@/server/mcp-oauth";
@@ -24,8 +24,8 @@ import { avatarUrl } from "@/platform/avatars";
 import { listWorkspaces, listFlows } from "@/lib/store";
 import { parseCron, cronMatches } from "@/platform/scheduler";
 import { SettingsShell, SettingsSection, StatusRow } from "@/components/settings-shell";
-import { SettingsCard, EmptyState, Chip, Tag, Callout } from "@/components/kit/page";
-import { buttonVariants } from "@/components/kit/button";
+import { SettingsCard, EmptyState, Chip, Tag, Callout } from "@foldrun/ui/react/page";
+import { buttonVariants } from "@foldrun/ui/react/button";
 import { CalendarClock, ScrollText, Webhook } from "lucide-react";
 import { settingsTabs, SETTINGS_TABS, type SettingsTab } from "./tabs";
 import { SettingsAnchor } from "./anchor";

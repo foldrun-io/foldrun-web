@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Select } from "@/components/kit/select";
-import { SettingsCard, Callout } from "@/components/kit/page";
-import { Button } from "@/components/kit/button";
+import { Select } from "@foldrun/ui/react/select";
+import { SettingsCard, Callout } from "@foldrun/ui/react/page";
+import { Button } from "@foldrun/ui/react/button";
 import { useCan } from "@/components/role";
 
 export interface ApiFacts {
@@ -97,7 +97,7 @@ function ApiUsage({ usage, hidden }: { usage: ApiFacts["usage"]; hidden?: boolea
   );
 }
 
-/** Settings → API: the account's rate limits, and the API version its
+/** Settings → API keys → API: the account's rate limits, and the API version its
  *  requests get when they send no Foldrun-Version header. */
 export function ApiSettings({ facts, qs }: { facts: ApiFacts; qs: string }) {
   const router = useRouter();

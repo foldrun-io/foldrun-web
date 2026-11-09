@@ -5,13 +5,13 @@
 // the API's own changelog: its dated versions, what each one broke, and the
 // routes on their way out, from server/api-version.ts.
 
-import Link from "@/components/kit/link";
-import { Page, PageHeader, Card, Chip, EmptyState, Panel } from "@/components/kit/page";
+import Link from "@foldrun/ui/react/link";
+import { Page, PageHeader, Card, Chip, EmptyState, Panel } from "@foldrun/ui/react/page";
 import { Sparkles } from "lucide-react";
 import { releases, versionInfo, type Release, type NoteLine } from "@/server/release";
 import { ComponentTable, VersionFacts } from "@/components/version-table";
 import { apiChangelog, type ApiChangelog } from "@/server/api-version";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "What's new" };
@@ -88,7 +88,7 @@ function ApiCard({ api }: { api: ApiChangelog }) {
         <p className="text-sm text-fg-muted">
           Pin a version in{" "}
           <Link href="/dashboard/settings?tab=api#api" className="text-link hover:underline">
-            Settings → API
+            Settings → API keys → API
           </Link> · each one works for at least{" "}
           {api.supportMonths} months after the next · <Link href="/dashboard/docs/api-usage" className="text-link hover:underline">how versions work</Link>
         </p>

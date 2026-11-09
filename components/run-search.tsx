@@ -8,14 +8,14 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { SlidersHorizontal } from "lucide-react";
 import type { RunView } from "@/components/run-views-model";
-import { SearchField } from "@/components/kit/list";
-import { Button } from "@/components/kit/button";
-import { Input } from "@/components/kit/input";
-import { cn } from "@/components/kit/cn";
-import { Count } from "@/components/kit/page";
-import { Checkbox } from "@/components/kit/choice";
-import { usePrompt } from "@/components/kit/prompt";
-import { Tooltip } from "@/components/kit/tooltip";
+import { SearchField } from "@foldrun/ui/react/list";
+import { Button } from "@foldrun/ui/react/button";
+import { Input } from "@foldrun/ui/react/input";
+import { cn } from "@foldrun/ui/react/cn";
+import { Count } from "@foldrun/ui/react/page";
+import { Checkbox } from "@foldrun/ui/react/choice";
+import { usePrompt } from "@foldrun/ui/react/prompt";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 /** The runs list's free-text search: the kit's search box in URL mode. The
  *  list is paged on the server, so typing writes ?q= (debounced, page

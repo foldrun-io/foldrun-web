@@ -6,12 +6,12 @@
 
 import { useState } from "react";
 import type React from "react";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
 import { Check, Circle, FlaskConical, X } from "lucide-react";
-import { Page, PageHeader, IconBox, Panel, PanelList, SummaryCard, Chip, Tag } from "@/components/kit/page";
-import { Button } from "@/components/kit/button";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Page, PageHeader, IconBox, Panel, PanelList, SummaryCard, Chip, Tag } from "@foldrun/ui/react/page";
+import { Button } from "@foldrun/ui/react/button";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 import { CollapsibleCard } from "@/components/collapsible-card";
 import { anchorId } from "@/components/collapse-model";
 import { InlineEditor } from "@/components/inline-editor";

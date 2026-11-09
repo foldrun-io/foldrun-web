@@ -8,8 +8,8 @@
 // fixed and want to prove.
 
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { buttonVariants } from "@/components/kit/button";
-import { Chip, EmptyState, Callout } from "@/components/kit/page";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Chip, EmptyState, Callout } from "@foldrun/ui/react/page";
 import { ChevronDown, ChevronRight, Send } from "lucide-react";
 import { LocalTime } from "@/components/local-time";
 import { useCan } from "@/components/role";

@@ -1,7 +1,7 @@
 // The reset link lands here with its token; a new password signs you in.
 import { ResetForm } from "./form";
 import { AuthCard } from "../brand";
-import { Callout } from "@/components/kit/page";
+import { Callout } from "@foldrun/ui/react/page";
 
 export const metadata = { title: "Choose a new password — foldrun" };
 

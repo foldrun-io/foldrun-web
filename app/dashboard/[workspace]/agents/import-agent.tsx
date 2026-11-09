@@ -6,10 +6,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { buttonVariants } from "@/components/kit/button";
-import { Input, labelClass } from "@/components/kit/input";
-import { Select } from "@/components/kit/select";
-import { Dialog, DialogContent, DialogTitle } from "@/components/kit/dialog";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Input, labelClass } from "@foldrun/ui/react/input";
+import { Select } from "@foldrun/ui/react/select";
+import { Dialog, DialogContent, DialogTitle } from "@foldrun/ui/react/dialog";
 
 interface Source {
   name: string;

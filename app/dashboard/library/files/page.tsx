@@ -10,15 +10,15 @@
 
 import { scopeAllows } from "@/platform/scope";
 import { viewerScope } from "@/server/users";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { readLibraryFile } from "@/lib/library";
 import { listAccountFiles, readAccountFile, accountFileSealed, listWorkspaces, readWorkspaceFile } from "@/lib/store";
 import { EditorShell, type ContextSection } from "@/components/editor-shell";
 import { CodeView } from "@/components/code-view";
 import { kindOf, crumbs } from "@/components/editor-context-model";
 import { nowMs } from "@/components/overview-model";
-import { Card, EmptyState, PageHeader } from "@/components/kit/page";
-import { PageTabs } from "@/components/kit/page-tabs";
+import { Card, EmptyState, PageHeader } from "@foldrun/ui/react/page";
+import { PageTabs } from "@foldrun/ui/react/page-tabs";
 import { libraryTabs } from "@/components/nav-model";
 import { FileText, Lock } from "lucide-react";
 

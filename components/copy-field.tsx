@@ -5,8 +5,8 @@
 // character short of.
 
 import { useState } from "react";
-import { Input } from "@/components/kit/input";
-import { Button } from "@/components/kit/button";
+import { Input } from "@foldrun/ui/react/input";
+import { Button } from "@foldrun/ui/react/button";
 import { Check, Copy } from "lucide-react";
 
 export function CopyField({ value, className = "" }: { value: string; className?: string }) {

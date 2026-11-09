@@ -7,11 +7,11 @@
 import { useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { buttonVariants } from "@/components/kit/button";
-import { Input } from "@/components/kit/input";
-import { Tooltip } from "@/components/kit/tooltip";
-import { cn } from "@/components/kit/cn";
-import { Field, Callout } from "@/components/kit/page";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Input } from "@foldrun/ui/react/input";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
+import { cn } from "@foldrun/ui/react/cn";
+import { Field, Callout } from "@foldrun/ui/react/page";
 
 
 export function AuthForm({ mode, invite, setup }: { mode: "login" | "signup"; invite?: string; setup?: string }) {

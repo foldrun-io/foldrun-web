@@ -2,7 +2,7 @@
 //
 // A caller says which contract it was written against with
 // `Foldrun-Version: YYYY-MM-DD`. Without the header it gets its account's
-// pin (Settings → API), and without a pin, the current version. Every API
+// pin (Settings → API keys → API), and without a pin, the current version. Every API
 // response says which one it was answered under, in `Foldrun-Version`.
 //
 // The current version is API_VERSION in server/release.ts — one constant, the

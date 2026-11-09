@@ -12,8 +12,8 @@
 // that tree: `issues` refuse it, `warnings` do not.
 
 import { useEffect, useState } from "react";
-import { Chip, Callout } from "@/components/kit/page";
-import { Disclosure } from "@/components/kit/disclosure";
+import { Chip, Callout } from "@foldrun/ui/react/page";
+import { Disclosure } from "@foldrun/ui/react/disclosure";
 
 type DiffOp = { kind: "same" | "add" | "del"; text: string };
 

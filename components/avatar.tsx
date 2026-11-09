@@ -8,8 +8,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { buttonVariants } from "./kit/button";
-import { useFilePicker } from "./kit/file-button";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { useFilePicker } from "@foldrun/ui/react/file-button";
 
 const SIZE = {
   xs: "h-4 w-4 text-[9px]",

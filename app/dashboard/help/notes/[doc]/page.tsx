@@ -12,7 +12,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { notFound } from "next/navigation";
-import { Page, PageHeader, Card } from "@/components/kit/page";
+import { Page, PageHeader, Card } from "@foldrun/ui/react/page";
 import { Markdown } from "@/components/markdown";
 import { designNotes, docsDir, noteTitle } from "../../design-notes";
 

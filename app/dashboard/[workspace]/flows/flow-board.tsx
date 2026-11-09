@@ -12,20 +12,20 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Input, inputBase } from "@/components/kit/input";
-import { Select } from "@/components/kit/select";
-import { cn } from "@/components/kit/cn";
-import { IconButton, Tooltip } from "@/components/kit/tooltip";
-import { Chip, Tag } from "@/components/kit/page";
+import { Input, inputBase } from "@foldrun/ui/react/input";
+import { Select } from "@foldrun/ui/react/select";
+import { cn } from "@foldrun/ui/react/cn";
+import { IconButton, Tooltip } from "@foldrun/ui/react/tooltip";
+import { Chip, Tag } from "@foldrun/ui/react/page";
 import { ArrowDown, ArrowUp, ChevronsUp, FileCode2, GripVertical, Play, Plus, Settings2, X } from "lucide-react";
-import { buttonVariants } from "@/components/kit/button";
+import { buttonVariants } from "@foldrun/ui/react/button";
 import { StepOptionsEditor } from "./step-options";
 import { InlineEditor } from "@/components/inline-editor";
 import { SmartTextarea } from "@/components/smart-textarea";
 import type { FlowStep } from "@/lib/store";
 
 import { joinGroup, splitToRail, type Groups } from "@/lib/arrange.ts";
-import { useConfirm } from "@/components/kit/confirm";
+import { useConfirm } from "@foldrun/ui/react/confirm";
 import { flowWrite } from "@/components/flow-write";
 
 function toGroups(steps: FlowStep[]): Groups {

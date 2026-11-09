@@ -7,15 +7,15 @@
 // the settings differ — plus the comparisons kept before.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "@/components/kit/link";
-import { buttonVariants } from "@/components/kit/button";
-import { Tooltip } from "@/components/kit/tooltip";
-import { Input, labelClass } from "@/components/kit/input";
-import { Select } from "@/components/kit/select";
-import { Chip } from "@/components/kit/page";
+import Link from "@foldrun/ui/react/link";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
+import { Input, labelClass } from "@foldrun/ui/react/input";
+import { Select } from "@foldrun/ui/react/select";
+import { Chip } from "@foldrun/ui/react/page";
 import { runHref } from "@/components/run-href";
 import type { EvalComparison } from "@/lib/eval-compare";
-import { Combobox } from "@/components/kit/combobox";
+import { Combobox } from "@foldrun/ui/react/combobox";
 
 const TIERS = ["fast", "default", "max"];
 const EFFORTS = ["", "low", "medium", "high", "xhigh", "max"];

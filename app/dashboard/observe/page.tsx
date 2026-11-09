@@ -9,7 +9,7 @@
 
 import { cachedAccountInsights } from "@/server/insights";
 import { creditsShort } from "@/components/money";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { viewerScope } from "@/server/users";
 import { accountObservation } from "@/server/account-observe";
 import { runHref } from "@/components/run-href";
@@ -17,11 +17,11 @@ import { fmtSpan } from "@/components/mission-model";
 import { nowMs } from "@/components/overview-model";
 import { type CauseRow, type DayBucket } from "@/components/account-observe-model";
 import { ArrowDownRight, ArrowUpRight, ServerCrash } from "lucide-react";
-import { Page, PageHeader, Panel, PanelLink, PanelList, Stat, StatGrid, Chip, Tag, type Tone, Callout } from "@/components/kit/page";
-import { Table, THead, TBody, TR, TH, TD } from "@/components/kit/table";
-import { ChartLegend } from "@/components/kit/chart";
-import { Segmented } from "@/components/kit/segmented";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Page, PageHeader, Panel, PanelLink, PanelList, Stat, StatGrid, Chip, Tag, type Tone, Callout } from "@foldrun/ui/react/page";
+import { Table, THead, TBody, TR, TH, TD } from "@foldrun/ui/react/table";
+import { ChartLegend } from "@foldrun/ui/react/chart";
+import { Segmented } from "@foldrun/ui/react/segmented";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 export const dynamic = "force-dynamic";
 

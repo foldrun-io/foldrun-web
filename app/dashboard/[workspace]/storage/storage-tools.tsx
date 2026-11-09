@@ -14,12 +14,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Upload } from "lucide-react";
-import { Button } from "@/components/kit/button";
-import { Chip, RingProgress } from "@/components/kit/page";
+import { Button } from "@foldrun/ui/react/button";
+import { Chip, RingProgress } from "@foldrun/ui/react/page";
 import { fmtBytes as humanSize } from "@/components/step-io-model";
 import { uploadFile } from "@/components/upload";
-import { useFilePicker } from "@/components/kit/file-button";
-import { Tooltip } from "@/components/kit/tooltip";
+import { useFilePicker } from "@foldrun/ui/react/file-button";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 /** The header's Upload: a file picker that checks each file against the
  *  size limit before sending it. Drop files on the list to upload too. */

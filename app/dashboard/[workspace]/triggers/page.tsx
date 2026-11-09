@@ -17,7 +17,7 @@
 // the notify: webhooks this workspace sent; and the flows outside agents
 // call over A2A.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
 import { notFound } from "next/navigation";
 import { workspaceDir, listFlows, type FlowInfo } from "@/lib/store";
@@ -27,12 +27,12 @@ import { parseCron, nextFire } from "@/platform/scheduler";
 import { fmtIn } from "@/components/workspace-overview-model";
 import { nowMs } from "@/components/overview-model";
 import { LocalTime } from "@/components/local-time";
-import { Page, PageHeader, Panel, PanelList, EmptyState, StatGrid, Stat, Tag, Chip, ResourceCard, type Tone } from "@/components/kit/page";
-import { ResourceList, type Row } from "@/components/kit/list";
-import { PageTabs } from "@/components/kit/page-tabs";
-import { TableCard, Table, THead, TBody, TR, TH, TD } from "@/components/kit/table";
-import { buttonVariants } from "@/components/kit/button";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Page, PageHeader, Panel, PanelList, EmptyState, StatGrid, Stat, Tag, Chip, ResourceCard, type Tone } from "@foldrun/ui/react/page";
+import { ResourceList, type Row } from "@foldrun/ui/react/list";
+import { PageTabs } from "@foldrun/ui/react/page-tabs";
+import { TableCard, Table, THead, TBody, TR, TH, TD } from "@foldrun/ui/react/table";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 import { CalendarClock, Clock3, Eye, FileJson, FolderInput, Hand, Link2, Mail, Webhook, Zap } from "lucide-react";
 import { triggerLine } from "../flows/trigger-line";
 import { WebhookDeliveries } from "./webhook-deliveries";
@@ -57,11 +57,11 @@ const REASON: Record<TriggerOutcome, { label: string; key: string; tone: Tone }>
   debounced: { label: "held for the burst", key: "debounce:", tone: "info" },
   quarantined: { label: "flow switched off", key: "disable_after:", tone: "bad" },
   paused: { label: "work is done, paused", key: "pause_when:", tone: "good" },
-  halted: { label: "paused by a person", key: "Settings → Governance → Pause", tone: "bad" },
+  halted: { label: "paused by a person", key: "Settings → Policies → Pause runs", tone: "bad" },
   "overlap-skipped": { label: "previous run still live", key: "overlap: skip", tone: "warn" },
   missed: { label: "missed while down", key: "catchup: none", tone: "warn" },
   filtered: { label: "did not match the filter", key: "filter:", tone: "default" },
-  "queue-full": { label: "too many runs waiting", key: "Settings → Governance → Compute", tone: "warn" },
+  "queue-full": { label: "too many runs waiting", key: "Settings → Policies → Governance", tone: "warn" },
   failed: { label: "could not start", key: "", tone: "bad" },
 };
 

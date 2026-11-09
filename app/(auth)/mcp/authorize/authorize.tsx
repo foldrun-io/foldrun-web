@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { buttonVariants } from "@/components/kit/button";
+import { buttonVariants } from "@foldrun/ui/react/button";
 import { Email } from "@/components/email";
-import { Checkbox, RadioGroup, RadioGroupItem } from "@/components/kit/choice";
+import { Checkbox, RadioGroup, RadioGroupItem } from "@foldrun/ui/react/choice";
 
 type Ask = {
   client: { name: string; id: string; kind: "dcr" | "cimd"; uri: string | null };

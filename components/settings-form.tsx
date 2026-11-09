@@ -7,7 +7,7 @@
 // the same way, disable the same way, and say "Saved" the same way.
 
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Button } from "./kit/button";
+import { Button } from "@foldrun/ui/react/button";
 
 export function useSettingsForm<T>(initial: T, submit: (value: T) => Promise<void | T>) {
   const [value, setValue] = useState<T>(initial);

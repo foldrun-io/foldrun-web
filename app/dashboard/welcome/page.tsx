@@ -8,7 +8,7 @@
 // (welcomeFlow), so it ticks however the work was done and resumes where the
 // account is. Nothing here is a second progress store.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { cookies, headers } from "next/headers";
 import { verifySession, SESSION_COOKIE, viewerScope, viewerRole } from "@/server/users";
 import { onboardingFor, onboardingPrefs } from "@/server/onboarding";
@@ -25,8 +25,8 @@ import { installOrigin } from "@/server/auth-flows";
 import { describeAccountModel, modelPresetChoices } from "@/server/account-model";
 import { foldrunModelsView } from "@/platform/model-choice";
 import { ModelKey } from "../settings/model-key";
-import { Page, PageHeader } from "@/components/kit/page";
-import { buttonVariants } from "@/components/kit/button";
+import { Page, PageHeader } from "@foldrun/ui/react/page";
+import { buttonVariants } from "@foldrun/ui/react/button";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Welcome" };

@@ -1,5 +1,5 @@
 // Usage of the dated API and the warnings before a sunset: the gate counts
-// who calls what, Settings → API / GET /api/account/api show it, and an
+// who calls what, Settings → API keys → API / GET /api/account/api show it, and an
 // account still calling a deprecated route is mailed once per step, the most
 // urgent one due, naming the key that calls it.
 //
@@ -88,7 +88,7 @@ test("a mail that did not go out is tried again next hour", async () => {
   assert.equal(n, 1);
 });
 
-test("Settings → API and GET /api/account/api: usage by version, and a deprecated route with its dates and callers", async () => {
+test("Settings → API keys → API and GET /api/account/api: usage by version, and a deprecated route with its dates and callers", async () => {
   fresh();
   const now = new Date();
   usage.recordApiCall({ tenant: "dep", version: "2026-10-01", at: now });

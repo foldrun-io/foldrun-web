@@ -47,7 +47,7 @@ fs.writeFileSync(path.join(ws, "flows/daily.md"), "---\nname: daily\n---\n\n1. [
 const { key } = await createApiKey(TENANT, "test", "owner@acme.test", undefined, "admin");
 const headers = { authorization: `Bearer ${key}`, "content-type": "application/json" };
 
-const NO_KEY = "no model key: this account runs on its own API key, and none is set — add one in Settings → Model";
+const NO_KEY = "no model key: this account runs on its own API key, and none is set — add one in Settings → Models";
 
 /** Play the worker: the first queued run that appears is finished as told. */
 function finishNextRun(status: "failed" | "completed", seen: Set<string>) {

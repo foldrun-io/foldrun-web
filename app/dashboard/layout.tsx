@@ -6,7 +6,7 @@
 // for code (both from the root layout).
 
 import { Suspense } from "react";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { cookies } from "next/headers";
 import { Sidebar } from "@/components/sidebar";
 import { PendingApprovals } from "@/components/pending-approvals";
@@ -19,8 +19,8 @@ import { Find } from "@/components/find";
 import { WithEmails } from "@/components/email";
 import { PhoneBar, PhoneHeader, ShellBar, StatusFooter } from "@/components/mobile-nav";
 import { NewMenu } from "@/components/new-menu";
-import { Banner } from "@/components/kit/page";
-import { TooltipProvider } from "@/components/kit/tooltip";
+import { Banner } from "@foldrun/ui/react/page";
+import { TooltipProvider } from "@foldrun/ui/react/tooltip";
 import { platform } from "@/lib/platform";
 import { EditionProvider } from "@/components/edition";
 import { adminState } from "@/platform/admin";

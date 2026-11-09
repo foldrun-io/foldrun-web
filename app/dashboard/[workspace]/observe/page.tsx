@@ -15,19 +15,19 @@
 
 import { creditsShort } from "@/components/money";
 import { runCharges } from "@/server/run-charges";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
 import { notFound } from "next/navigation";
 import { workspaceDir } from "@/lib/store";
 import { observeWorkspace, type Sampled } from "@/platform/observe";
 import { evalTrends } from "@/lib/evals";
 import { Activity, Braces } from "lucide-react";
-import { Page, PageHeader, Panel, PanelList, Stat, StatGrid, EmptyState, Chip } from "@/components/kit/page";
-import { Table, THead, TBody, TR, TH, TD } from "@/components/kit/table";
-import { buttonVariants } from "@/components/kit/button";
-import { ChartLegend } from "@/components/kit/chart";
-import { Segmented } from "@/components/kit/segmented";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Page, PageHeader, Panel, PanelList, Stat, StatGrid, EmptyState, Chip } from "@foldrun/ui/react/page";
+import { Table, THead, TBody, TR, TH, TD } from "@foldrun/ui/react/table";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { ChartLegend } from "@foldrun/ui/react/chart";
+import { Segmented } from "@foldrun/ui/react/segmented";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 export const dynamic = "force-dynamic";
 

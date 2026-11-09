@@ -4,14 +4,14 @@
 // billing, docs, help, what's new, status, settings), the theme, sign out.
 // The sidebar is for the work; this is for who you are.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BookOpen, CircleHelp, CreditCard, Ellipsis, ExternalLink, LogOut, Monitor, Moon, Settings, Sparkles, Sun, User, BarChart3, Activity } from "lucide-react";
 import { Avatar } from "./avatar";
 import { useHosted } from "./edition";
-import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "./kit/menu";
-import { Segmented } from "./kit/segmented";
+import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@foldrun/ui/react/menu";
+import { Segmented } from "@foldrun/ui/react/segmented";
 import { THEMES, type Theme } from "./theme-model";
 
 const THEME_ICON = { system: Monitor, light: Sun, dark: Moon } as const;
@@ -61,7 +61,10 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
   const items = [
     { name: "Profile", href: `/dashboard/profile${qs}`, icon: User },
     hosted ? { name: "Billing", href: `/dashboard/billing${qs}`, icon: CreditCard } : { name: "Usage", href: `/dashboard/usage${qs}`, icon: BarChart3 },
-    { name: "Account settings", href: `/dashboard/settings${qs}`, icon: Settings },
+    // "Settings": the sidebar, the page title and every pointer to it in the
+    // docs and messages use that word (8 Nov 2026); under the person's name
+    // the menu already says whose it is.
+    { name: "Settings", href: `/dashboard/settings${qs}`, icon: Settings },
   ];
   const help = [
     { name: "Docs", href: `/dashboard/docs${qs}`, icon: BookOpen },

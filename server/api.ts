@@ -191,7 +191,7 @@ export async function personOf(req: NextRequest): Promise<UserRecord | null | Ne
     const auth = await resolveTenant(req);
     if (auth.tenant === null) return refuse(auth.message, auth.status);
     const person = await cliLoginPerson(auth.tenant, auth.actor);
-    if (!person) return refuse("a key cannot change a person's profile — their own `foldrun login` can, or Settings → Profile in the browser", 401);
+    if (!person) return refuse("a key cannot change a person's profile — their own `foldrun login` can, or Profile in the browser", 401);
     return findUser(person.name);
   }
   return sessionUser(req);

@@ -8,8 +8,8 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import Link from "@/components/kit/link";
-import { Page, PageHeader, Panel, SectionTitle, IconBox } from "@/components/kit/page";
+import Link from "@foldrun/ui/react/link";
+import { Page, PageHeader, Panel, SectionTitle, IconBox } from "@foldrun/ui/react/page";
 import { BookOpen, FileText, Bot } from "lucide-react";
 import { docsDir, groupedDocs, docTitle, docSummary } from "@/docs-index";
 

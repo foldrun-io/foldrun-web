@@ -9,11 +9,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { buttonVariants } from "@/components/kit/button";
-import { Chip, Field, SettingsCard } from "@/components/kit/page";
-import { Input } from "@/components/kit/input";
-import { Select } from "@/components/kit/select";
-import { Tooltip } from "@/components/kit/tooltip";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Chip, Field, SettingsCard } from "@foldrun/ui/react/page";
+import { Input } from "@foldrun/ui/react/input";
+import { Select } from "@foldrun/ui/react/select";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 import type { AccountModel } from "@/server/account-model";
 import type { FoldrunModelsView } from "@/platform/model-choice";
 

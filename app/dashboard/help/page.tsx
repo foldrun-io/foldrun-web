@@ -5,10 +5,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import type { ReactNode } from "react";
 import { WithEmails } from "@/components/email";
-import { Page, PageHeader, Panel } from "@/components/kit/page";
+import { Page, PageHeader, Panel } from "@foldrun/ui/react/page";
 import { ChevronRight } from "lucide-react";
 import { designNotes, docsDir, noteTitle, noteSummary } from "./design-notes";
 

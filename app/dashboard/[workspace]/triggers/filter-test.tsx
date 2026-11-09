@@ -7,8 +7,8 @@
 // (POST …/flows/<flow>/filter).
 
 import { useState } from "react";
-import { buttonVariants } from "@/components/kit/button";
-import { labelClass, Textarea } from "@/components/kit/input";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { labelClass, Textarea } from "@foldrun/ui/react/input";
 import { WithEmails } from "@/components/email";
 
 /** What the trigger delivers, as a starting point for the box. */

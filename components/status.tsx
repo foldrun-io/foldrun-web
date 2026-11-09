@@ -5,8 +5,8 @@
 // "needs you".
 import * as React from "react";
 import { OUTCOME, type Outcome } from "@/components/outcome-model";
-import { cn } from "./cn";
-import { Tooltip } from "./tooltip";
+import { cn } from "@foldrun/ui/react/cn";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 export function StatusDot({ outcome, className, label }: { outcome: Outcome; className?: string; label?: string }) {
   const o = OUTCOME[outcome];

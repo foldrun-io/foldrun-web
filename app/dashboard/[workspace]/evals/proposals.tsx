@@ -7,9 +7,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "@/components/kit/link";
-import { buttonVariants } from "@/components/kit/button";
-import { Chip, type Tone } from "@/components/kit/page";
+import Link from "@foldrun/ui/react/link";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Chip, type Tone } from "@foldrun/ui/react/page";
 import { DiffView } from "@/components/flow-history";
 import { foldDiff, lineDiff } from "@/components/flow-history-model";
 import { Markdown } from "@/components/markdown";
@@ -17,8 +17,8 @@ import { runHref } from "@/components/run-href";
 import { useCan } from "@/components/role";
 import { WithEmails } from "@/components/email";
 import type { Proposal } from "@/platform/improve";
-import { Disclosure } from "@/components/kit/disclosure";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Disclosure } from "@foldrun/ui/react/disclosure";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 const TONE: Record<Proposal["status"], Tone> = {
   drafting: "info",

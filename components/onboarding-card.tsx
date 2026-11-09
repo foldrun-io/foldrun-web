@@ -9,14 +9,14 @@
 // once every step is done or hidden. The steps come from the server; this
 // only draws them.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import type { Onboarding, OnboardingStepId } from "./onboarding-model";
 import { Bot, Boxes, CalendarClock, CircleCheck, Cpu, CreditCard, Eye, KeyRound, Play, Terminal, UserPlus, X } from "lucide-react";
-import { Button, buttonVariants } from "./kit/button";
-import { ChecklistCard } from "./kit/checklist";
-import { MenuItem } from "./kit/menu";
+import { Button, buttonVariants } from "@foldrun/ui/react/button";
+import { ChecklistCard } from "@foldrun/ui/react/checklist";
+import { MenuItem } from "@foldrun/ui/react/menu";
 
 export function withQs(href: string, qs: string): string {
   if (!qs) return href;

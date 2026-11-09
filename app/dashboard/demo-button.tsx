@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/kit/button";
+import { Button } from "@foldrun/ui/react/button";
 
 /** `then`: where to go once it is made (the welcome flow's next step);
  *  without it, the demo's flows. */

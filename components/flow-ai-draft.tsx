@@ -12,17 +12,17 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Textarea } from "@/components/kit/input";
-import { Chip } from "@/components/kit/page";
-import { cn } from "@/components/kit/cn";
-import { useConfirm } from "@/components/kit/confirm";
+import { Textarea } from "@foldrun/ui/react/input";
+import { Chip } from "@foldrun/ui/react/page";
+import { cn } from "@foldrun/ui/react/cn";
+import { useConfirm } from "@foldrun/ui/react/confirm";
 import { useCan, needs } from "@/components/role";
 import { foldDiff, lineDiff } from "@/components/flow-history-model";
-import { buttonVariants } from "@/components/kit/button";
-import { Tooltip } from "@/components/kit/tooltip";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 import { Sparkles } from "lucide-react";
 import { DiffView } from "@/components/flow-history";
-import { Dialog, DialogContent, DialogTitle } from "@/components/kit/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@foldrun/ui/react/dialog";
 
 interface DraftFile {
   path: string;

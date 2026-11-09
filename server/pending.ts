@@ -6,7 +6,8 @@
 
 import { listAllRunSummaries } from "@/lib/store";
 import { scopeAllows } from "@/platform/scope";
-import { openQuestions } from "@/platform/operator-store";
+import { openQuestions, type OpenQuestion } from "@/platform/operator-store";
+import { opsError } from "@/lib/ops-log.ts";
 
 export interface PendingGate {
   workspace: string;
@@ -73,7 +74,16 @@ export async function pendingForPeople(tenant: string, scope: string[] | null): 
     // closed (its ask timed out) never comes back from openQuestions.
     const runs = new Map(listAllRunSummaries(tenant).map((r) => [r.id, r]));
     const questions: PendingQuestion[] = [];
-    for (const q of await openQuestions(tenant)) {
+    // Questions live in Redis. One that cannot be read lists none here and
+    // says so in the log, rather than failing the banner, the approvals list
+    // and the inbox with it (FOL-134); gates come from the run records.
+    let open: OpenQuestion[] = [];
+    try {
+      open = await openQuestions(tenant);
+    } catch (err) {
+      opsError("inbox.questions_unreadable", err);
+    }
+    for (const q of open) {
       const r = runs.get(q.runId);
       if (!r || r.status !== "running" || !scopeAllows(actor.workspaces, r.workspace)) continue;
       const named = typeof q.step === "number" ? r.steps[q.step] : undefined;

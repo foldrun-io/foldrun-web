@@ -1,4 +1,4 @@
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -11,9 +11,9 @@ import {
   type LibraryKind,
   type LibraryUse,
 } from "@/lib/library";
-import { Page, PageHeader, EmptyState, Tag, Chip, Panel } from "@/components/kit/page";
-import { PageTabs } from "@/components/kit/page-tabs";
-import { ResourceList, type Row } from "@/components/kit/list";
+import { Page, PageHeader, EmptyState, Tag, Chip, Panel } from "@foldrun/ui/react/page";
+import { PageTabs } from "@foldrun/ui/react/page-tabs";
+import { ResourceList, type Row } from "@foldrun/ui/react/list";
 import { libraryTabs } from "@/components/nav-model";
 import { BookOpen, Brain, FileCode, Sparkles, Webhook, Wrench } from "lucide-react";
 import { CreateButton } from "@/components/create";

@@ -5,10 +5,10 @@
 // A mail client's own Unsubscribe button skips this page and posts directly
 // (RFC 8058).
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { readUnsubscribeToken, mailCategory } from "@/lib/mail";
-import { buttonVariants } from "@/components/kit/button";
-import { cn } from "@/components/kit/cn";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { cn } from "@foldrun/ui/react/cn";
 import { AuthCard } from "../brand";
 
 export const metadata = { title: "Unsubscribe — foldrun" };

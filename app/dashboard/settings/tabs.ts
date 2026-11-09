@@ -3,7 +3,7 @@
 // by anchor — `/dashboard/settings#provider`. Each anchor now lives on one
 // tab; `settingsHref("provider")` is the link to it, and SettingsAnchor sends
 // an old `#provider` link (in a sent email, say) to its tab.
-import type { PageTab } from "@/components/kit/page-tabs";
+import type { PageTab } from "@foldrun/ui/react/page-tabs";
 
 export type SettingsTab = "general" | "team" | "policies" | "models" | "api" | "secrets" | "schedules" | "security";
 

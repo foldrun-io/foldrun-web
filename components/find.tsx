@@ -15,10 +15,10 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { rank, groupHits, pagesFor, type FindHit, type FindKind } from "./find-model";
 import { workspaceOf } from "./sidebar";
-import { Tag } from "@/components/kit/page";
-import { Tooltip } from "@/components/kit/tooltip";
-import { Dialog, DialogContent, DialogTitle } from "@/components/kit/dialog";
-import { Kbd } from "@/components/kit/input";
+import { Tag } from "@foldrun/ui/react/page";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
+import { Dialog, DialogContent, DialogTitle } from "@foldrun/ui/react/dialog";
+import { Kbd } from "@foldrun/ui/react/input";
 import { Search } from "lucide-react";
 
 export const FIND_EVENT = "foldrun:find";

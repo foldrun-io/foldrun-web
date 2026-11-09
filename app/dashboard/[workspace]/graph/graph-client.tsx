@@ -12,7 +12,7 @@
 
 import "@xyflow/react/dist/style.css";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   applyNodeChanges,
@@ -60,14 +60,14 @@ import {
 } from "lucide-react";
 import type { AgentInfo, AgentAssets, FlowInfo } from "@/lib/store";
 import { FlowPanel } from "./flow-panel";
-import { Button, buttonVariants } from "@/components/kit/button";
-import { EmptyState, Page, PageHeader, IconBox } from "@/components/kit/page";
-import { Segmented } from "@/components/kit/segmented";
-import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger, menuItemClass } from "@/components/kit/menu";
-import { Status, StatusDot } from "@/components/kit/status";
-import { Kbd } from "@/components/kit/input";
-import { SearchField } from "@/components/kit/list";
-import { cn } from "@/components/kit/cn";
+import { Button, buttonVariants } from "@foldrun/ui/react/button";
+import { EmptyState, Page, PageHeader, IconBox } from "@foldrun/ui/react/page";
+import { Segmented } from "@foldrun/ui/react/segmented";
+import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger, menuItemClass } from "@foldrun/ui/react/menu";
+import { Status, StatusDot } from "@/components/status";
+import { Kbd } from "@foldrun/ui/react/input";
+import { SearchField } from "@foldrun/ui/react/list";
+import { cn } from "@foldrun/ui/react/cn";
 import { outcomeOf, type Outcome } from "@/components/outcome-model";
 import { statsLine, fmtAgo, fmtCost } from "@/components/graph-stats-model";
 import { idOf, isMajor, layoutGraph, workspaceOf, type LayoutName } from "@/components/graph-layout-model";
@@ -75,7 +75,7 @@ import { idOf, isMajor, layoutGraph, workspaceOf, type LayoutName } from "@/comp
 // The model lives in server/graph.ts so the account view draws with the same
 // shapes rather than its own copy of them.
 import type { Kind, Scope, GNode, GLink, Graph, SharedAssets } from "@/server/graph";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 export type { SharedAssets };
 
 type AgentWithAssets = AgentInfo & { assets: AgentAssets };

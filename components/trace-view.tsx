@@ -10,8 +10,8 @@ import { classify, counts, type TraceKind, type TraceLine } from "@/components/t
 import { fmtDur } from "@/components/run-timeline";
 import { hookBadge, HOOK_TONE } from "@/components/hooks-model";
 import { grouped } from "@/components/money";
-import { Segmented } from "@/components/kit/segmented";
-import { Chip, Tag } from "@/components/kit/page";
+import { Segmented } from "@foldrun/ui/react/segmented";
+import { Chip, Tag } from "@foldrun/ui/react/page";
 
 const FILTERS: { key: TraceKind | "all"; label: string }[] = [
   { key: "all", label: "All" },

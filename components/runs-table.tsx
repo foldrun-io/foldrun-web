@@ -9,8 +9,8 @@
 // what it cost.
 
 import { creditsShort } from "@/components/money";
-import Link from "@/components/kit/link";
-import { paginate, PAGE_SIZE } from "@/components/paging";
+import Link from "@foldrun/ui/react/link";
+import { paginate, PAGE_SIZE } from "@foldrun/ui/react/paging";
 import { runCost, runDisplayStatus, runDurationSecs, runFailure, runVerdict, type RunRecord } from "@/lib/store";
 import { a2aRunLabel } from "@/components/a2a-model";
 import { LocalTime } from "@/components/local-time";
@@ -19,10 +19,10 @@ import { FilterBar, type FilterDimension } from "@/components/filter-bar";
 import { RowCheckbox, SelectAllCheckbox } from "@/components/bulk-select";
 import { runKey } from "@/components/run-key";
 import { outcomeOf, tally } from "@/components/outcome-model";
-import { Status } from "@/components/kit/status";
-import { EmptyState, SummaryCard, Tag, IconBox } from "@/components/kit/page";
-import { cn } from "@/components/kit/cn";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Status } from "@/components/status";
+import { EmptyState, SummaryCard, Tag, IconBox } from "@foldrun/ui/react/page";
+import { cn } from "@foldrun/ui/react/cn";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 import { Bot, FlaskConical, Play, Workflow } from "lucide-react";
 
 export type RunRow = RunRecord & { workspace: string };

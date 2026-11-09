@@ -59,7 +59,7 @@ export function tierOf(planId: string | null | undefined): TierName {
   return planId && planId in TIERS ? (planId as TierName) : "free";
 }
 
-/** What Settings → API and GET /api/account/api show. */
+/** What Settings → API keys → API and GET /api/account/api show. */
 export function limitsFor(tier: TierName) {
   const t = TIERS[tier];
   return {
@@ -215,7 +215,7 @@ export async function apiGate(req: NextRequest): Promise<Gate> {
   const dep = deprecationFor(req.method, req.nextUrl.pathname);
   if (dep) Object.assign(headers, deprecationHeaders(dep));
   // Who meets which version, and who still calls a route on its way out —
-  // what Settings → API shows and the sunset warnings are sent from
+  // what Settings → API keys → API shows and the sunset warnings are sent from
   // (platform api-usage.ts). Counted in memory; never waits, never throws.
   if (caller) recordApiCall({ tenant: caller.tenant, version: version.version, ...(dep ? { route: dep.route, credential: caller.who } : {}) });
 

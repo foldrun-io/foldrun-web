@@ -36,17 +36,17 @@ import { verifySession, SESSION_COOKIE, viewerRole } from "@/server/users";
 import { can } from "@/platform/permissions";
 import { onboardingFor, onboardingPrefs } from "@/server/onboarding";
 import { OnboardingCard, OnboardingReopen } from "@/components/onboarding-card";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { Boxes, CircleDashed, Clock3, ListChecks, Plus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { OUTCOME } from "@/components/outcome-model";
 import { fmtIn } from "@/components/workspace-overview-model";
 import { creditsShort } from "@/components/money";
-import { Page, ResourceCard, EmptyState } from "@/components/kit/page";
-import { SplitOverview } from "@/components/kit/overview";
-import { Status, StatusDot } from "@/components/kit/status";
-import { buttonVariants } from "@/components/kit/button";
-import type { Row } from "@/components/kit/list";
+import { Page, ResourceCard, EmptyState } from "@foldrun/ui/react/page";
+import { SplitOverview } from "@foldrun/ui/react/overview";
+import { Status, StatusDot } from "@/components/status";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import type { Row } from "@foldrun/ui/react/list";
 
 export const dynamic = "force-dynamic";
 

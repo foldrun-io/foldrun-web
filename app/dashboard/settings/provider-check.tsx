@@ -8,11 +8,11 @@
 // run:start, as the route does.
 
 import { useState } from "react";
-import { Chip, type Tone, SettingsCard } from "@/components/kit/page";
-import { Button } from "@/components/kit/button";
+import { Chip, type Tone, SettingsCard } from "@foldrun/ui/react/page";
+import { Button } from "@foldrun/ui/react/button";
 import { LocalTime } from "@/components/local-time";
 import { needs } from "@/components/role";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 export interface ProviderConfigured {
   provider: string;

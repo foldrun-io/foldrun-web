@@ -5,14 +5,14 @@
 // that failed and why, and a box to grade one run now (POST …/evals/<e>/grade).
 // Nothing here starts a run; a grader only reads the ones that happened.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Gauge } from "lucide-react";
-import { Page, PageHeader, IconBox, Panel, PanelList, SummaryCard, StatGrid, Stat, Chip, type Tone, Callout } from "@/components/kit/page";
-import { Button } from "@/components/kit/button";
-import { Input } from "@/components/kit/input";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Page, PageHeader, IconBox, Panel, PanelList, SummaryCard, StatGrid, Stat, Chip, type Tone, Callout } from "@foldrun/ui/react/page";
+import { Button } from "@foldrun/ui/react/button";
+import { Input } from "@foldrun/ui/react/input";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 import { EvalMenu } from "./eval-actions";
 import { EvalSource } from "./eval-card";
 import { runHref } from "@/components/run-href";

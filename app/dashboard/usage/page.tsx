@@ -4,13 +4,13 @@
 // records and file stores at render time; there is no second counter to
 // drift from the facts.
 
-import { Page, PageHeader, SectionTitle, StatGrid, Stat, Callout } from "@/components/kit/page";
+import { Page, PageHeader, SectionTitle, StatGrid, Stat, Callout } from "@foldrun/ui/react/page";
 import { accountUsage, spendHistory, type UsageBucket, type SpendSeries } from "@/platform/usage";
 import { LocalTime } from "@/components/local-time";
 import { credits, usd, usdExact } from "@/components/money";
-import { DataTable } from "@/components/kit/table";
-import { Tooltip } from "@/components/kit/tooltip";
-import { Sparkbars } from "@/components/kit/chart";
+import { DataTable } from "@foldrun/ui/react/table";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
+import { Sparkbars } from "@foldrun/ui/react/chart";
 import { CollapsibleCard, CollapseAll } from "@/components/collapsible-card";
 import { anchorId } from "@/components/collapse-model";
 import { BillingTabs } from "@/components/billing-tabs";

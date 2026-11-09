@@ -9,11 +9,11 @@
 // guess. The notice never reloads anything by itself — a reload loop on a
 // mid-rollout box (two pods, two versions) is the failure it must not have.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { buttonVariants } from "./kit/button";
-import { cn } from "./kit/cn";
-import { Tooltip } from "./kit/tooltip";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { cn } from "@foldrun/ui/react/cn";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 const VersionContext = createContext<string>("dev");
 

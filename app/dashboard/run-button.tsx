@@ -2,11 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { buttonVariants } from "@/components/kit/button";
-import { Input } from "@/components/kit/input";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Input } from "@foldrun/ui/react/input";
 import { useCan } from "@/components/role";
-import { Checkbox } from "@/components/kit/choice";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Checkbox } from "@foldrun/ui/react/choice";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 // Run trigger with an optional task prompt — click Run to reveal the task
 // input, submit to start. `withTask={false}` keeps the old one-click behavior.

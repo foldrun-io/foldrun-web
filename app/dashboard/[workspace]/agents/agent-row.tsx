@@ -8,7 +8,7 @@
 // name and badges, actions on hover, editor underneath.
 
 import { useState } from "react";
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { ExpandableTitle } from "@/components/expandable";
 import { InlineEditor } from "@/components/inline-editor";
 import { RunButton } from "../../run-button";

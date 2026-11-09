@@ -5,8 +5,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { buttonVariants } from "@/components/kit/button";
-import { useConfirm } from "@/components/kit/confirm";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { useConfirm } from "@foldrun/ui/react/confirm";
 
 export function RotateHookButton({ workspace, flow }: { workspace: string; flow: string }) {
   const router = useRouter();

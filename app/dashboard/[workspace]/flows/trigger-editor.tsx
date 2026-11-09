@@ -9,13 +9,13 @@ import { useEffect, useState } from "react";
 import { useResolvedTimeZone } from "@/components/viewer-time";
 import { useRouter } from "next/navigation";
 
-import { Input, labelClass } from "@/components/kit/input";
-import { Select } from "@/components/kit/select";
-import { buttonVariants } from "@/components/kit/button";
+import { Input, labelClass } from "@foldrun/ui/react/input";
+import { Select } from "@foldrun/ui/react/select";
+import { buttonVariants } from "@foldrun/ui/react/button";
 import { Zap } from "lucide-react";
-import { Combobox } from "@/components/kit/combobox";
-import { Tooltip } from "@/components/kit/tooltip";
-import { TimeField } from "@/components/kit/time-field";
+import { Combobox } from "@foldrun/ui/react/combobox";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
+import { TimeField } from "@foldrun/ui/react/time-field";
 import {
   SCHEDULE_DAYS as DAYS,
   SCHEDULE_DAY_NAMES as DAY_NAMES,
@@ -219,7 +219,7 @@ export function TriggerEditor({
           </>
         )}
         {kind === "webhook" && (
-          <span className="pb-2 text-xs text-fg-muted">The URL appears under Settings → Triggers.</span>
+          <span className="pb-2 text-xs text-fg-muted">{"The URL appears under this workspace's Settings → Triggers."}</span>
         )}
 
         <button onClick={save} disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })}>

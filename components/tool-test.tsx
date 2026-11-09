@@ -13,10 +13,10 @@
 
 import { useState } from "react";
 import { Check, Play, X } from "lucide-react";
-import { Button } from "@/components/kit/button";
-import { Input } from "@/components/kit/input";
-import { Tooltip } from "@/components/kit/tooltip";
-import { Callout } from "@/components/kit/page";
+import { Button } from "@foldrun/ui/react/button";
+import { Input } from "@foldrun/ui/react/input";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
+import { Callout } from "@foldrun/ui/react/page";
 
 interface Result {
   ok: boolean;

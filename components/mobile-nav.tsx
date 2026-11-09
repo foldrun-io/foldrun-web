@@ -11,20 +11,20 @@
 //   StatusFooter a quiet line under every page: the platform's status and
 //                the version.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useState, type ReactNode } from "react";
 import { Menu as MenuIcon, PanelLeft, Search, Sparkles } from "lucide-react";
 import { openAssistant } from "./assistant";
 import { useCan } from "./role";
 import { FoldrunMark, NavList, setSidebarHidden, useNav, useSidebarHidden } from "./sidebar";
-import { Sheet, SheetContent, SheetTitle } from "./kit/dialog";
+import { Sheet, SheetContent, SheetTitle } from "@foldrun/ui/react/dialog";
 import { AccountSwitcher, WorkspaceSwitcher } from "./topbar";
 import { InboxLink } from "./inbox-link";
 import { UserMenu } from "./user-menu";
 import { openFind } from "./find";
 import { useVersion } from "./version";
-import { cn } from "./kit/cn";
-import { Tooltip } from "./kit/tooltip";
+import { cn } from "@foldrun/ui/react/cn";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 export function ShellBar({ actions }: { actions?: ReactNode }) {
   const hidden = useSidebarHidden();

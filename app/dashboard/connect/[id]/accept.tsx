@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "@/components/kit/link";
-import { Button, buttonVariants } from "@/components/kit/button";
+import Link from "@foldrun/ui/react/link";
+import { Button, buttonVariants } from "@foldrun/ui/react/button";
 
 /** Accept: the hand-off becomes a consent bound to this browser. */
 export function HandoffAccept({ id, tenant }: { id: string; tenant: string }) {

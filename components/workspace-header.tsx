@@ -10,8 +10,8 @@
 // workspace's; the balance is shared — the wording keeps them straight,
 // and the whole line is a door to the wallet.
 
-import Link from "@/components/kit/link";
-import { Tooltip } from "@/components/kit/tooltip";
+import Link from "@foldrun/ui/react/link";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 import { billing } from "@/platform/billing";
 import { platform } from "@/lib/platform";
 import { workspaceBudgetStanding } from "@/platform/limits";

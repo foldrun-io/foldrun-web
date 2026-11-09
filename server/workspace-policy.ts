@@ -403,7 +403,7 @@ export function changedFlowPublications(
 /**
  * Refuse (400) a write that adds or changes a `remotes:` card at a private,
  * loopback or cluster address on an install that guards untrusted URLs — the
- * same early refusal Settings → Model gives a provider's base URL. Whoever
+ * same early refusal Settings → Models gives a provider's base URL. Whoever
  * writes it: no role makes such a card callable. A card the file already had
  * is left to the run, which refuses it too (platform checkUntrustedUrl), so a
  * workspace saved before this check still deploys.

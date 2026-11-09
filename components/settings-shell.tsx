@@ -4,9 +4,9 @@
 // Danger zone last. Server-safe: the tabs are the kit's client PageTabs.
 
 import type { ReactNode } from "react";
-import { Page, PageHeader, type PageWidth } from "./kit/page";
-import { PageTabs, type PageTab } from "./kit/page-tabs";
-import { cn } from "./kit/cn";
+import { Page, PageHeader, type PageWidth } from "@foldrun/ui/react/page";
+import { PageTabs, type PageTab } from "@foldrun/ui/react/page-tabs";
+import { cn } from "@foldrun/ui/react/cn";
 
 /** Kept for older callers: one entry of the old left-hand section list. */
 export interface SettingsNavItem {

@@ -7,14 +7,14 @@
 
 import { useEffect, useState } from "react";
 import { SettingsForm, useSettingsForm } from "./settings-form";
-import { Field } from "./kit/page";
-import { Input } from "./kit/input";
-import { Select } from "./kit/select";
+import { Field } from "@foldrun/ui/react/page";
+import { Input } from "@foldrun/ui/react/input";
+import { Select } from "@foldrun/ui/react/select";
 import { WithEmails } from "./email";
-import { Button } from "./kit/button";
+import { Button } from "@foldrun/ui/react/button";
 import { NOTIFY_EVENTS, DEPLOY_BLOCKS, type Defaults, type Notify, type Budget, type Alerts, type Judge } from "./defaults-model";
-import { Switch, Checkbox } from "@/components/kit/choice";
-import { Combobox } from "@/components/kit/combobox";
+import { Switch, Checkbox } from "@foldrun/ui/react/choice";
+import { Combobox } from "@foldrun/ui/react/combobox";
 
 async function patch(endpoint: string, tenant: string, body: Record<string, unknown>): Promise<Defaults> {
   const res = await fetch(endpoint, {

@@ -9,10 +9,10 @@
 // unverified until it clicks the mail; the old one is told it happened.
 
 import { useState } from "react";
-import { buttonVariants } from "@/components/kit/button";
-import { Input } from "@/components/kit/input";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Input } from "@foldrun/ui/react/input";
 import { Email } from "@/components/email";
-import { useConfirm } from "@/components/kit/confirm";
+import { useConfirm } from "@foldrun/ui/react/confirm";
 
 export function NameForm({ firstName, lastName }: { firstName: string | null; lastName: string | null }) {
   const [first, setFirst] = useState(firstName ?? "");

@@ -9,13 +9,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FlowStep } from "@/lib/store";
 
-import { buttonVariants } from "@/components/kit/button";
-import { Input, labelClass } from "@/components/kit/input";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Input, labelClass } from "@foldrun/ui/react/input";
 import { limitRows, limitProblems, limitKeyProblem, limitCountProblem, limitsText, type LimitRow } from "@/components/step-limits-model";
 import { WEB_ACTIONS } from "@/lib/providers.ts";
 import { flowWrite } from "@/components/flow-write";
-import { Checkbox } from "@/components/kit/choice";
-import { Combobox } from "@/components/kit/combobox";
+import { Checkbox } from "@foldrun/ui/react/choice";
+import { Combobox } from "@foldrun/ui/react/combobox";
 
 const LABEL = labelClass;
 

@@ -8,15 +8,15 @@
 // so any of them can be rolled back to.
 
 import fs from "node:fs";
-import { Pager } from "@/components/kit/pager";
-import { paginate, pageFrom, PAGE_SIZE } from "@/components/paging";
+import { Pager } from "@foldrun/ui/react/pager";
+import { paginate, pageFrom, PAGE_SIZE } from "@foldrun/ui/react/paging";
 import { notFound } from "next/navigation";
 import { workspaceDir } from "@/lib/store";
 import { ensureBaseline, listRevisionsRestorable } from "@/lib/history";
 import { History as HistoryIcon } from "lucide-react";
-import { Page, PageHeader, EmptyState } from "@/components/kit/page";
-import { SearchField } from "@/components/kit/list";
-import { filterByQuery } from "@/components/list-search-model";
+import { Page, PageHeader, EmptyState } from "@foldrun/ui/react/page";
+import { SearchField } from "@foldrun/ui/react/list";
+import { filterByQuery } from "@foldrun/ui/react/list-search-model";
 import { HistoryList } from "./history-list";
 
 export const dynamic = "force-dynamic";

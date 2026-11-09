@@ -4,14 +4,14 @@
 // (open its file, delete it), and the old in-page anchors (#eval-<name>,
 // from a run's grades and the inbox) turned into the eval's own view.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Ellipsis, FileText, Trash2 } from "lucide-react";
-import { Button } from "@/components/kit/button";
-import { Tooltip } from "@/components/kit/tooltip";
-import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/kit/menu";
-import { useConfirm } from "@/components/kit/confirm";
+import { Button } from "@foldrun/ui/react/button";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@foldrun/ui/react/menu";
+import { useConfirm } from "@foldrun/ui/react/confirm";
 import { useCan } from "@/components/role";
 import { anchorId } from "@/components/collapse-model";
 import { runEval } from "./run-eval";

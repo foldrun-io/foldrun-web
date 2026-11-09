@@ -13,13 +13,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { buttonVariants } from "@/components/kit/button";
-import { Input, labelClass } from "@/components/kit/input";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { Input, labelClass } from "@foldrun/ui/react/input";
 import { suggestName } from "@/components/package-name";
-import { Checkbox } from "@/components/kit/choice";
-import { FileButton } from "@/components/kit/file-button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/kit/dialog";
-import { Tooltip } from "@/components/kit/tooltip";
+import { Checkbox } from "@foldrun/ui/react/choice";
+import { FileButton } from "@foldrun/ui/react/file-button";
+import { Dialog, DialogContent, DialogTitle } from "@foldrun/ui/react/dialog";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 export function ExportLink({
   workspace,

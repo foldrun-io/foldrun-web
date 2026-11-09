@@ -6,10 +6,10 @@
 // is only findable by knowing the `adhoc:` prefix. This is the other axis:
 // what it is allowed to do at the top, what it has produced underneath.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
-import { Pager } from "@/components/kit/pager";
-import { paginate, pageFrom, PAGE_SIZE } from "@/components/paging";
+import { Pager } from "@foldrun/ui/react/pager";
+import { paginate, pageFrom, PAGE_SIZE } from "@foldrun/ui/react/paging";
 import { notFound } from "next/navigation";
 import { workspaceDir, listAgents, listAgentSteps, agentAssets, listFlows } from "@/lib/store";
 import { Email } from "@/components/email";
@@ -19,16 +19,16 @@ import path from "node:path";
 import { configMatter } from "@/lib/matter";
 import { readNetwork, TRUSTED_SITES } from "@/lib/network";
 import { AgentNetwork } from "./agent-network";
-import { browseVerdict } from "@/lib/browse-egress";
+import { browseVerdict, vendorDoorFor } from "@/lib/browse-egress";
 import { confinesBrowsing, wallsRestrictedSteps } from "@/platform/browse-confine";
 import { searchDoorWanted } from "@/lib/search-egress";
 import { DOOR_CATEGORIES } from "@/platform/search-door";
 import { dnsWallEnabled } from "@/platform/run-dns";
 import { Bot, FilePen } from "lucide-react";
-import { Page, PageHeader, IconBox, Tag, Chip, Panel, SummaryCard, FactRow, SettingsCard, EmptyState } from "@/components/kit/page";
-import { PageTabs } from "@/components/kit/page-tabs";
-import { Status } from "@/components/kit/status";
-import { buttonVariants } from "@/components/kit/button";
+import { Page, PageHeader, IconBox, Tag, Chip, Panel, SummaryCard, FactRow, SettingsCard, EmptyState } from "@foldrun/ui/react/page";
+import { PageTabs } from "@foldrun/ui/react/page-tabs";
+import { Status } from "@/components/status";
+import { buttonVariants } from "@foldrun/ui/react/button";
 import type { Outcome } from "@/components/outcome-model";
 import { RunButton } from "../../../run-button";
 import { DeleteButton } from "../../../manage";
@@ -90,6 +90,8 @@ export default async function AgentPage({
         enforce: n.enforceWanted || process.env.FOLDRUN_NETWORK_ENFORCE === "1",
         vendor: n.browseVendor,
         confines: confinesBrowsing(process.env.FOLDRUN_RUN_ISOLATION ?? ""),
+        // FOL-145: a vendor this install holds through its vendor door.
+        door: !!vendorDoorFor(n.browseVendor),
       }).kind
     : null;
   // How its web search goes when a step is walled to its list (FOL-128):

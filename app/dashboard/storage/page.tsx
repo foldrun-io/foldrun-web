@@ -7,14 +7,14 @@
 // of another's uploads — so uploading happens on a desk's own page, a link
 // away on each card. Genuinely shared assets belong in the account library.
 
-import Link from "@/components/kit/link";
+import Link from "@foldrun/ui/react/link";
 import { listWorkspaces } from "@/lib/store";
 import { scopeAllows } from "@/platform/scope";
 import { viewerScope } from "@/server/users";
 import { fileStoreEnabled } from "@/lib/storage";
 import { nowMs } from "@/components/overview-model";
-import { Page, PageHeader, EmptyState } from "@/components/kit/page";
-import { buttonVariants } from "@/components/kit/button";
+import { Page, PageHeader, EmptyState } from "@foldrun/ui/react/page";
+import { buttonVariants } from "@foldrun/ui/react/button";
 import { HardDrive, Library } from "lucide-react";
 import { FileBrowser } from "@/components/file-browser";
 import { browserDesks, dashboardShareReader } from "@/server/storage-browser";

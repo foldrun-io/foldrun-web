@@ -5,7 +5,7 @@
 // installer's own error when it failed. A workspace whose agents declare no
 // `runtime:` renders nothing.
 
-import { Chip, Panel, type Tone } from "./kit/page";
+import { Chip, Panel, type Tone } from "@foldrun/ui/react/page";
 import { LocalTime } from "./local-time";
 
 export interface RuntimeRow {
