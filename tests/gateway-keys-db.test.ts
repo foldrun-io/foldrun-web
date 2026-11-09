@@ -51,6 +51,27 @@ test("a gateway key keeps its limits through the table and a rotation, and opens
   assert.equal(list.gatewayUrl, "https://gateway.example.test");
   assert.deepEqual(list.keys.find((k) => k.id === ok.body.id)!.gateway, { capUsd: 12.35, dailyUsd: 3, spentUsd: 0, todayUsd: 0 });
 
+  // On the operator's Claude login: only for an account the operator allows
+  // its credential (FOLDRUN_PLATFORM_KEY_ACCOUNTS here), and with no limit.
+  const prevAllowed = process.env.FOLDRUN_PLATFORM_KEY_ACCOUNTS;
+  process.env.FOLDRUN_PLATFORM_KEY_ACCOUNTS = "someone-else";
+  try {
+    const refused = await post({ purpose: "gateway", credential: "login" });
+    assert.equal(refused.status, 403, JSON.stringify(refused.body));
+    assert.match(refused.body.error, /not one the operator's Claude login is for/);
+    process.env.FOLDRUN_PLATFORM_KEY_ACCOUNTS = tenant;
+    assert.equal((await post({ purpose: "gateway", credential: "login", capUsd: 5 })).status, 400, "a login key takes no dollar limit");
+    assert.equal((await post({ purpose: "gateway", credential: "other" })).status, 400);
+    const login = await post({ purpose: "gateway", credential: "login", label: "mine" });
+    assert.equal(login.status, 200, JSON.stringify(login.body));
+    assert.equal(login.body.credential, "login");
+    const listed = (await (await keysRoute.GET(new NextRequest("https://app.example.test/api/keys", { headers: { authorization: `Bearer ${admin}` } }))).json()) as { keys: { id: string; gateway?: Record<string, unknown> }[] };
+    assert.deepEqual(listed.keys.find((k) => k.id === login.body.id)!.gateway, { capUsd: null, dailyUsd: null, credential: "login" }, "no spend: not metered");
+  } finally {
+    if (prevAllowed === undefined) delete process.env.FOLDRUN_PLATFORM_KEY_ACCOUNTS;
+    else process.env.FOLDRUN_PLATFORM_KEY_ACCOUNTS = prevAllowed;
+  }
+
   const { record: next } = await rotateApiKey(tenant, record.id, 0);
   assert.equal(next.purpose, "gateway");
   assert.deepEqual(next.gateway, { capUsd: 20, dailyUsd: 5 });

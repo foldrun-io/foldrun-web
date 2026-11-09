@@ -30,7 +30,7 @@ import { CalendarClock, ScrollText, Webhook } from "lucide-react";
 import { settingsTabs, SETTINGS_TABS, type SettingsTab } from "./tabs";
 import { SettingsAnchor } from "./anchor";
 import { KeyManager, TickButton } from "./keys";
-import { gatewayOffered, gatewayUrl, withGatewaySpend } from "@/server/gateway-keys";
+import { gatewayLoginOffered, gatewayOffered, gatewayUrl, withGatewaySpend } from "@/server/gateway-keys";
 import { listSecrets } from "@/lib/secrets";
 import { secretHealth, healthKey } from "@/lib/secret-health";
 import { masterKeySource } from "@/lib/secrets";
@@ -421,7 +421,7 @@ async function ApiTab({
           scoped={scope !== null}
           // A gateway key (Claude Code): offered where the door can read it,
           // to an admin of every workspace; the URL it is pointed at.
-          gateway={gatewayOffered() && scope === null ? { url: gatewayUrl() } : null}
+          gateway={gatewayOffered() && scope === null ? { url: gatewayUrl(), login: gatewayLoginOffered(tenant) } : null}
           // For an A2A key: each workspace's flows, and which are published.
           a2aFlows={Object.fromEntries(workspaces.map((w) => [w, listFlows(tenant, w).map((f) => ({ name: f.name, published: f.a2a?.publish === true }))]))}
         />

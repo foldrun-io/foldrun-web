@@ -10,7 +10,7 @@ import { listWorkspaces, listFlows } from "@/lib/store";
 import { isA2aPublished } from "@/lib/a2a-publish";
 import { errorResponse, ApiError, refuse } from "@/server/api";
 import { idempotent } from "@/server/idempotency";
-import { gatewayOffered, gatewayUrl, withGatewaySpend } from "@/server/gateway-keys";
+import { gatewayLoginOffered, gatewayOffered, gatewayUrl, withGatewaySpend } from "@/server/gateway-keys";
 
 /**
  * Who may touch keys, decided BEFORE any body is read.
@@ -96,6 +96,8 @@ async function postOnce(req: NextRequest) {
       /** "gateway" keys: the most the key may spend in all, and per UTC day, USD. */
       capUsd?: unknown;
       dailyUsd?: unknown;
+      /** "gateway" keys: "login" for the operator's own Claude login. */
+      credential?: unknown;
     };
     if (body.purpose !== undefined) {
       if (body.purpose === "gateway") return await mintGatewayKey(req, tenant, minter, who, by, body);
@@ -240,13 +242,32 @@ async function mintGatewayKey(
   minter: Pick<Actor, "role" | "workspaces">,
   who: string | undefined,
   by: string,
-  body: { label?: string; capUsd?: unknown; dailyUsd?: unknown; expires?: string | number | null; role?: unknown; workspaces?: unknown; workspace?: unknown; flows?: unknown },
+  body: { label?: string; capUsd?: unknown; dailyUsd?: unknown; credential?: unknown; expires?: string | number | null; role?: unknown; workspaces?: unknown; workspace?: unknown; flows?: unknown },
 ) {
   if (body.role !== undefined || body.workspaces !== undefined || body.workspace !== undefined || body.flows !== undefined) {
     return refuse("a gateway key takes capUsd and dailyUsd, not role, workspaces or flows — it opens the gateway only, never the API", 400);
   }
   if (minter.workspaces !== null) return refuse("a gateway key spends the whole account's balance — only an admin of every workspace may mint one", 403);
   if (!gatewayOffered()) return refuse("gateway keys are for the hosted platform — the gateway reads its keys from the database", 400);
+  if (body.credential !== undefined && body.credential !== "login") return refuse(`credential must be "login" (the operator's Claude login) or left out (foldrun's models) — got ${JSON.stringify(body.credential)}`, 400);
+  if (body.credential === "login") {
+    // The operator's own Claude login (owner, 10 Nov 2026): only for an
+    // account the operator allows its credential — the one its desks run
+    // on — and asked again on every call at the gateway. Not metered, so no
+    // dollar limit could hold it.
+    if (body.capUsd !== undefined || body.dailyUsd !== undefined) return refuse("a login gateway key takes no capUsd or dailyUsd — the operator's Claude login is not metered, so a dollar limit could not hold it", 400);
+    if (!gatewayLoginOffered(tenant)) return refuse("this account is not one the operator's Claude login is for — mint a gateway key on foldrun's models instead (capUsd or dailyUsd)", 403);
+    const expiresAt = parseKeyExpiry(body.expires);
+    const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, "viewer", null, { expiresAt, gateway: { capUsd: null, dailyUsd: null, credential: "login" } });
+    await audit("apikey.created", {
+      actor: by,
+      tenant,
+      subject: record.id,
+      detail: { label: record.label, prefix: record.prefix, purpose: "gateway", credential: "login", expiresAt: record.expiresAt ?? null },
+    });
+    if (who) sendSecurityNotice(tenant, who, "a new gateway key on the operator's Claude login was created", clientIp(req));
+    return NextResponse.json({ ok: true, key, id: record.id, prefix: record.prefix, purpose: "gateway", credential: "login", capUsd: null, dailyUsd: null, expiresAt: record.expiresAt ?? null, gatewayUrl: gatewayUrl() });
+  }
   const capUsd = usdLimit(body.capUsd, "capUsd");
   const dailyUsd = usdLimit(body.dailyUsd, "dailyUsd");
   if (capUsd === null && dailyUsd === null) return refuse("a gateway key needs a limit of its own: { capUsd } in all, or { dailyUsd } per UTC day (or both)", 400);

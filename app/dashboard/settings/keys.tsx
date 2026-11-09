@@ -41,7 +41,7 @@ interface KeyRow {
   purpose?: "a2a" | "gateway";
   /** "gateway": a coding agent's key — its own spending limits, and what it
    *  has spent in all and today (UTC), USD. */
-  gateway?: { capUsd: number | null; dailyUsd: number | null; spentUsd?: number; todayUsd?: number };
+  gateway?: { capUsd: number | null; dailyUsd: number | null; spentUsd?: number; todayUsd?: number; credential?: "login" };
   a2a?: { workspace: string; flows: string[]; principal?: string; maxTasks: number };
 }
 
@@ -101,7 +101,7 @@ export function KeyManager({
   /** Gateway keys, where offered (an admin of every workspace, on the
    *  hosted platform): the URL a coding agent is pointed at, or null when
    *  none is set yet. */
-  gateway?: { url: string | null } | null;
+  gateway?: { url: string | null; login?: boolean } | null;
 }) {
   const router = useRouter();
   const [confirm, confirmDialog] = useConfirm();
@@ -127,6 +127,10 @@ export function KeyManager({
   // A gateway key (10 Nov 2026): what it may spend, in all and per day.
   const [capUsd, setCapUsd] = useState("20");
   const [dailyUsd, setDailyUsd] = useState("");
+  // Where a gateway key's calls run: foldrun's models (billed, with limits)
+  // or, for the operator's own accounts, the operator's Claude login.
+  const [runsOn, setRunsOn] = useState<"models" | "login">("models");
+  const onLogin = kind === "gateway" && runsOn === "login" && gateway?.login === true;
   const [a2aWs, setA2aWs] = useState<string>(workspaces[0] ?? "");
   const [a2aChosen, setA2aChosen] = useState<string[]>([]);
   const [maxTasks, setMaxTasks] = useState("10");
@@ -147,7 +151,9 @@ export function KeyManager({
           kind === "a2a"
             ? { tenant, label, expires, purpose: "a2a", workspace: a2aWs, flows: a2aChosen, maxTasks: Number(maxTasks) }
             : kind === "gateway"
-              ? { tenant, label, expires, purpose: "gateway", ...(capUsd.trim() ? { capUsd: Number(capUsd) } : {}), ...(dailyUsd.trim() ? { dailyUsd: Number(dailyUsd) } : {}) }
+              ? onLogin
+                ? { tenant, label, expires, purpose: "gateway", credential: "login" }
+                : { tenant, label, expires, purpose: "gateway", ...(capUsd.trim() ? { capUsd: Number(capUsd) } : {}), ...(dailyUsd.trim() ? { dailyUsd: Number(dailyUsd) } : {}) }
               : { tenant, label, role, expires, ...(narrow ? { workspaces: chosen } : {}) },
         ),
       });
@@ -210,7 +216,7 @@ export function KeyManager({
   };
 
   const createDisabled =
-    busy || (kind === "api" ? narrow && chosen.length === 0 : kind === "gateway" ? !capUsd.trim() && !dailyUsd.trim() : !a2aWs || a2aChosen.length === 0);
+    busy || (kind === "api" ? narrow && chosen.length === 0 : kind === "gateway" ? !onLogin && !capUsd.trim() && !dailyUsd.trim() : !a2aWs || a2aChosen.length === 0);
   return (
     <div>
       {confirmDialog}
@@ -337,7 +343,20 @@ export function KeyManager({
                       an Anthropic base URL and key) spends the account's
                       credits on foldrun's Anthropic models through the
                       gateway, up to the limits set here. No /api route. */}
-                  <p>A gateway key lets Claude Code use foldrun&apos;s Anthropic models on this account&apos;s credits, up to the limits below. It opens nothing else: every /api route refuses it.</p>
+                  {gateway.login && (
+                    <Field label="Runs on">
+                      <Select value={runsOn} onChange={(e) => setRunsOn(e.target.value as "models" | "login")} className="w-full max-w-md" aria-label="What the key's calls run on">
+                        <option value="models">foldrun&apos;s models — billed, with limits</option>
+                        <option value="login">The operator&apos;s Claude login — not metered</option>
+                      </Select>
+                    </Field>
+                  )}
+                  {onLogin ? (
+                    <p>Claude Code runs on the operator&apos;s Claude login, as this account&apos;s desks do. Its calls are not metered or billed, so it has no limits, and they count against the same subscription&apos;s weekly cap as the desks. It opens nothing else: every /api route refuses it.</p>
+                  ) : (
+                    <p>A gateway key lets Claude Code use foldrun&apos;s Anthropic models on this account&apos;s credits, up to the limits below. It opens nothing else: every /api route refuses it.</p>
+                  )}
+                  {!onLogin && (
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Spending limit, USD">
                       <Input type="number" min={0.01} step={0.01} value={capUsd} onChange={(e) => setCapUsd(e.target.value)} placeholder="none" className="w-full" aria-label="The most the key may spend in all, USD" />
@@ -346,7 +365,8 @@ export function KeyManager({
                       <Input type="number" min={0.01} step={0.01} value={dailyUsd} onChange={(e) => setDailyUsd(e.target.value)} placeholder="none" className="w-full" aria-label="The most the key may spend per UTC day, USD" />
                     </Field>
                   </div>
-                  <p>Set at least one. Each call is held at its most it could cost, so a call that would pass a limit is refused before it is sent.</p>
+                  )}
+                  {!onLogin && <p>Set at least one. Each call is held at its most it could cost, so a call that would pass a limit is refused before it is sent.</p>}
                 </div>
               )}
 
@@ -479,7 +499,12 @@ export function KeyManager({
                             <span className="text-warning">deploy key · opens nothing · revoke</span>
                           </Tooltip>
                         )}
-                        {k.purpose === "gateway" && k.gateway && (
+                        {k.purpose === "gateway" && k.gateway?.credential === "login" && (
+                          <Tooltip label="Runs on the operator's Claude login, as this account's desks do: not metered or billed, and it shares that subscription's weekly cap">
+                            <span>Claude login · not metered</span>
+                          </Tooltip>
+                        )}
+                        {k.purpose === "gateway" && k.gateway && k.gateway.credential !== "login" && (
                           <Tooltip label="What it has spent against its limits; calls in flight count at their estimate">
                             <span>{gatewaySpend(k.gateway)}</span>
                           </Tooltip>

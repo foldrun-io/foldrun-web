@@ -5,7 +5,8 @@
 
 import { databaseEnabled } from "@/platform/db";
 import { dayOf, spentByJob } from "@/platform/model-usage";
-import { billing } from "@/platform/billing";
+import { chargeMargin } from "@/platform/model-gateway";
+import { loginAllowed } from "@/platform/gateway-door";
 
 /** The gateway's address, for ANTHROPIC_BASE_URL: FOLDRUN_GATEWAY_URL, or
  *  null where this install has none (infra routes a host to the door). */
@@ -17,6 +18,14 @@ export function gatewayUrl(): string | null {
  *  the platform's database. */
 export const gatewayOffered = (): boolean => databaseEnabled();
 
+/** Whether this account may mint a gateway key on the operator's own Claude
+ *  login: one the operator allows its model credential (the console's grant
+ *  or FOLDRUN_PLATFORM_KEY_ACCOUNTS) — the rule its desks' runs follow. The
+ *  gateway's own function, so minting and every call ask the same thing. */
+export function gatewayLoginOffered(tenant: string): boolean {
+  return gatewayOffered() && loginAllowed(tenant);
+}
+
 export interface GatewaySpend {
   capUsd: number | null;
   dailyUsd: number | null;
@@ -25,14 +34,17 @@ export interface GatewaySpend {
 }
 
 /** Each gateway key with what it has spent in all and today (UTC). */
-export async function withGatewaySpend<K extends { id: string; tenant: string; purpose?: string; gateway?: { capUsd: number | null; dailyUsd: number | null } }>(keys: K[], now = new Date()): Promise<(K | (K & { gateway: GatewaySpend }))[]> {
+export async function withGatewaySpend<K extends { id: string; tenant: string; purpose?: string; gateway?: { capUsd: number | null; dailyUsd: number | null; credential?: "login" } }>(keys: K[], now = new Date()): Promise<(K | (K & { gateway: GatewaySpend }))[]> {
   const day = dayOf(now);
   return Promise.all(
     keys.map(async (k) => {
-      if (k.purpose !== "gateway" || !k.gateway) return k;
+      // A login key is not metered: there is no spend to show.
+      if (k.purpose !== "gateway" || !k.gateway || k.gateway.credential === "login") return k;
       const job = `gateway:${k.id}`;
-      // As charged (the price list × the margin), the unit the limits are in.
-      const [spentUsd, todayUsd] = (await Promise.all([spentByJob(k.tenant, job), spentByJob(k.tenant, job, day)])).map((usd) => billing().modelChargeOf?.(usd) ?? usd);
+      // As charged — each call at the margin it was held at — the unit the
+      // limits are in (and the gateway door's own check).
+      const m = chargeMargin();
+      const [spentUsd, todayUsd] = await Promise.all([spentByJob(k.tenant, job, undefined, m), spentByJob(k.tenant, job, day, m)]);
       return { ...k, gateway: { capUsd: k.gateway.capUsd ?? null, dailyUsd: k.gateway.dailyUsd ?? null, spentUsd, todayUsd } };
     }),
   );

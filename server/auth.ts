@@ -231,7 +231,11 @@ export async function createApiKey(
     // database, so a key minted without one could never be used.
     if (!databaseEnabled()) throw new Error("gateway keys need the platform's database");
     record.purpose = "gateway";
-    record.gateway = { capUsd: opts.gateway.capUsd ?? null, dailyUsd: opts.gateway.dailyUsd ?? null };
+    record.gateway = {
+      capUsd: opts.gateway.capUsd ?? null,
+      dailyUsd: opts.gateway.dailyUsd ?? null,
+      ...(opts.gateway.credential === "login" ? { credential: "login" as const } : {}),
+    };
   }
   if (databaseEnabled()) await insertApiKeyDb(record as ApiKeyRow);
   else writeKeys([...readKeys(), record]);
