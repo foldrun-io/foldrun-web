@@ -56,6 +56,17 @@ export const SHAPES: Record<string, Shape> = {
         "every file the run archived, by agent then path; empty when it archived none",
       ),
       totalBytes: int,
+      refused: arr(
+        obj({
+          agent: str(),
+          path: str("relative to that agent's outputs/"),
+          bytes: int,
+          reason: str("file-cap | run-cap | name | count"),
+          limit: int,
+        }),
+        "files that were NOT kept (over the install's size limits for run outputs, or a name that cannot be stored), at most 100; empty when none",
+      ),
+      refusedCount: int,
     }),
   },
   "GET /api/workspaces/{workspace}/runs/{runId}/live": {

@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "node:fs";
 import path from "node:path";
-import { Readable } from "node:stream";
 import { requireTenant, errorResponse, refuse } from "@/server/api";
-import { readRun, runOutputPath } from "@/lib/store";
+import { readRun } from "@/lib/store";
+import { openRunOutput } from "@/lib/run-outputs";
+import { BlobMissing } from "@/lib/publish";
+import { BlobTransientError } from "@/lib/blob-store";
+import { opsError } from "@/lib/ops-log";
 import { byteRange } from "@/server/byte-range";
 import { contentDisposition } from "@/server/content-disposition";
 
 // One file a run archived. When a run finishes, whatever its agents left in
-// outputs/ is copied under runs/<id>/outputs/<agent>/ so the next run's
-// reset does not erase history — and until now nothing could read that copy
-// back out. The run page's Out column lists the files and links here —
+// outputs/ is archived — published to the object store, or copied under
+// runs/<id>/outputs/<agent>/ — so the next run's reset does not erase
+// history, and this reads it back out (core run-outputs.ts asks both). The run page's Out column lists the files and links here —
 // at /archive, because a route directory called outputs/ is gitignored.
 //
 // Read-only, and the bytes are served as what they are, never as a page:
@@ -34,16 +36,6 @@ const TYPES: Record<string, string> = {
   ".cpuprofile": "application/json; charset=utf-8",
 };
 
-/**
- * The bytes from start to end (inclusive), streamed (30 Oct 2026). Both
- * answers used to buffer what they sent — the whole file without a Range,
- * and `bytes=0-` asked for the same — so a few parallel fetches of a
- * multi-GB browser recording held it all on the web pod.
- */
-function streamOf(file: string, start: number, end: number): ReadableStream<Uint8Array> {
-  return Readable.toWeb(fs.createReadStream(file, { start, end })) as unknown as ReadableStream<Uint8Array>;
-}
-
 export async function GET(
   req: NextRequest,
   ctx: { params: Promise<{ workspace: string; runId: string }> },
@@ -54,16 +46,28 @@ export async function GET(
     if (!readRun(tenant, workspace, runId)) return refuse("run not found", 404);
     const agent = req.nextUrl.searchParams.get("agent") ?? "";
     const rel = req.nextUrl.searchParams.get("path") ?? "";
-    const file = runOutputPath(tenant, workspace, runId, agent, rel);
-    if (!file) return refuse("no such output", 404);
-    const ext = path.extname(file).toLowerCase();
+    // From the object store, or (a run archived before outputs moved there, or
+    // on an install without one) from the volume: core run-outputs.ts asks both.
+    let out: Awaited<ReturnType<typeof openRunOutput>>;
+    try {
+      out = await openRunOutput(tenant, workspace, runId, agent, rel);
+    } catch (err) {
+      // The store lost the bytes or cannot be reached: a fault on our side, said as one (never an empty file).
+      if (err instanceof BlobMissing || err instanceof BlobTransientError) {
+        opsError("run_outputs.read_failed", err, { tenant, workspace, run: runId });
+        return refuse("this output could not be read from storage", 502);
+      }
+      throw err;
+    }
+    if (!out) return refuse("no such output", 404);
+    const ext = path.extname(rel).toLowerCase();
     const type = TEXT.has(ext) ? "text/plain; charset=utf-8" : (TYPES[ext] ?? "application/octet-stream");
-    const size = fs.statSync(file).size;
-    const disposition = contentDisposition("inline", path.basename(file));
+    const size = out.size;
+    const disposition = contentDisposition("inline", path.basename(rel));
     const range = byteRange(req.headers.get("range"), size);
     if (range === "bad") return new NextResponse(null, { status: 416, headers: { "content-range": `bytes */${size}` } });
     if (range) {
-      return new NextResponse(streamOf(file, range.start, range.end), {
+      return new NextResponse(out.read({ start: range.start, end: range.end }), {
         status: 206,
         headers: {
           "content-type": type,
@@ -76,12 +80,12 @@ export async function GET(
         },
       });
     }
-    return new NextResponse(size === 0 ? null : streamOf(file, 0, size - 1), {
+    return new NextResponse(size === 0 ? null : out.read(), {
       headers: {
         "content-type": type,
         "accept-ranges": "bytes",
         "content-length": String(size),
-        "content-disposition": contentDisposition("inline", path.basename(file)),
+        "content-disposition": disposition,
         "x-content-type-options": "nosniff",
         "cache-control": "private, no-store",
       },
