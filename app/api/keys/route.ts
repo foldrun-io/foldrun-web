@@ -10,6 +10,7 @@ import { listWorkspaces, listFlows } from "@/lib/store";
 import { isA2aPublished } from "@/lib/a2a-publish";
 import { errorResponse, ApiError, refuse } from "@/server/api";
 import { idempotent } from "@/server/idempotency";
+import { gatewayOffered, gatewayUrl, withGatewaySpend } from "@/server/gateway-keys";
 
 /**
  * Who may touch keys, decided BEFORE any body is read.
@@ -53,7 +54,9 @@ export async function GET(req: NextRequest) {
   try {
     const { tenant, minter } = await authorize(req, async () => req.nextUrl.searchParams.get("tenant") ?? undefined);
     // A scoped admin sees the keys it could have minted, not the account's.
-    return NextResponse.json({ keys: (await listApiKeys(tenant)).filter((k) => keyWithin(minter, k)) });
+    // A gateway key carries what it has spent; `gatewayUrl` is where a coding
+    // agent points ANTHROPIC_BASE_URL (null where this install has none).
+    return NextResponse.json({ keys: await withGatewaySpend((await listApiKeys(tenant)).filter((k) => keyWithin(minter, k))), gatewayUrl: gatewayUrl() });
   } catch (err) {
     return errorResponse(err);
   }
@@ -90,9 +93,13 @@ async function postOnce(req: NextRequest) {
       purpose?: string;
       flows?: unknown;
       maxTasks?: unknown;
+      /** "gateway" keys: the most the key may spend in all, and per UTC day, USD. */
+      capUsd?: unknown;
+      dailyUsd?: unknown;
     };
     if (body.purpose !== undefined) {
-      if (body.purpose !== "a2a") return refuse(`purpose must be "a2a" (or left out, for an API key) — got ${JSON.stringify(body.purpose)}`, 400);
+      if (body.purpose === "gateway") return await mintGatewayKey(req, tenant, minter, who, by, body);
+      if (body.purpose !== "a2a") return refuse(`purpose must be "a2a" or "gateway" (or left out, for an API key) — got ${JSON.stringify(body.purpose)}`, 400);
       // Awaited, so its throws (a bad expiry, a workspace outside the
       // minter's scope) reach the catch below and answer 400/403.
       return await mintA2aKey(req, tenant, minter, who, by, body);
@@ -203,6 +210,58 @@ async function mintA2aKey(
     workspaces: record.workspaces ?? null,
     expiresAt: record.expiresAt ?? null,
   });
+}
+
+/** The most a gateway key's limit may be set to: a typo, not a plan. */
+const GATEWAY_MAX_USD = 100_000;
+
+/** A limit from the body, in cents: at least $0.01 once rounded (Codex
+ *  review: $0.001 rounded to a $0 limit, a key refused on its first call),
+ *  or null when unsaid. */
+function usdLimit(v: unknown, name: string): number | null {
+  if (v === undefined || v === null) return null;
+  const n = typeof v === "boolean" || typeof v === "object" ? NaN : Math.round(Number(v) * 100) / 100;
+  if (!Number.isFinite(n) || n < 0.01 || n > GATEWAY_MAX_USD) throw new ApiError(`${name} must be a number of dollars from 0.01 to ${GATEWAY_MAX_USD}`, 400);
+  return n;
+}
+
+/**
+ * Mint a gateway key (10 Nov 2026): what a coding agent such as Claude Code
+ * sends to the gateway door as ANTHROPIC_API_KEY. It spends the account's
+ * balance on the platform's models, so it is an ACCOUNT-wide power: only an
+ * admin whose scope is the whole account may mint one (a workspace-scoped
+ * admin cannot spend what is not theirs), and it must carry a limit of its
+ * own — `capUsd` in all or `dailyUsd` a UTC day, never neither. It opens no
+ * /api route (resolveTenant), so it cannot read a workspace or mint a key.
+ */
+async function mintGatewayKey(
+  req: NextRequest,
+  tenant: string,
+  minter: Pick<Actor, "role" | "workspaces">,
+  who: string | undefined,
+  by: string,
+  body: { label?: string; capUsd?: unknown; dailyUsd?: unknown; expires?: string | number | null; role?: unknown; workspaces?: unknown; workspace?: unknown; flows?: unknown },
+) {
+  if (body.role !== undefined || body.workspaces !== undefined || body.workspace !== undefined || body.flows !== undefined) {
+    return refuse("a gateway key takes capUsd and dailyUsd, not role, workspaces or flows — it opens the gateway only, never the API", 400);
+  }
+  if (minter.workspaces !== null) return refuse("a gateway key spends the whole account's balance — only an admin of every workspace may mint one", 403);
+  if (!gatewayOffered()) return refuse("gateway keys are for the hosted platform — the gateway reads its keys from the database", 400);
+  const capUsd = usdLimit(body.capUsd, "capUsd");
+  const dailyUsd = usdLimit(body.dailyUsd, "dailyUsd");
+  if (capUsd === null && dailyUsd === null) return refuse("a gateway key needs a limit of its own: { capUsd } in all, or { dailyUsd } per UTC day (or both)", 400);
+  const expiresAt = parseKeyExpiry(body.expires);
+  // Its role is the lowest, as an A2A key's: only what keeps it in scope
+  // checks (who may see and end it).
+  const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, "viewer", null, { expiresAt, gateway: { capUsd, dailyUsd } });
+  await audit("apikey.created", {
+    actor: by,
+    tenant,
+    subject: record.id,
+    detail: { label: record.label, prefix: record.prefix, purpose: "gateway", capUsd, dailyUsd, expiresAt: record.expiresAt ?? null },
+  });
+  if (who) sendSecurityNotice(tenant, who, "a new gateway key was created", clientIp(req));
+  return NextResponse.json({ ok: true, key, id: record.id, prefix: record.prefix, purpose: "gateway", capUsd, dailyUsd, expiresAt: record.expiresAt ?? null, gatewayUrl: gatewayUrl() });
 }
 
 export async function DELETE(req: NextRequest) {

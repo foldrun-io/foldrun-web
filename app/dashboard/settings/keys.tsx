@@ -38,7 +38,10 @@ interface KeyRow {
   /** "cli-login" for a key `foldrun login` minted: it renews itself. */
   origin?: "cli-login";
   /** "a2a": an outside agent's key — it opens /a2a only, for `a2a.flows`. */
-  purpose?: "a2a";
+  purpose?: "a2a" | "gateway";
+  /** "gateway": a coding agent's key — its own spending limits, and what it
+   *  has spent in all and today (UTC), USD. */
+  gateway?: { capUsd: number | null; dailyUsd: number | null; spentUsd?: number; todayUsd?: number };
   a2a?: { workspace: string; flows: string[]; principal?: string; maxTasks: number };
 }
 
@@ -57,6 +60,18 @@ const GRACE = [
   { v: "24h", label: "Keep the old key 24 hours" },
 ];
 
+type Kind = "api" | "a2a" | "gateway";
+const usd = (n: number | null | undefined) => `$${(n ?? 0).toFixed(2)}`;
+
+/** A gateway key's limits and spend, in one line. */
+function gatewaySpend(g: NonNullable<KeyRow["gateway"]>): string {
+  const parts: string[] = [];
+  if (g.capUsd !== null) parts.push(`${usd(g.spentUsd)} of ${usd(g.capUsd)}`);
+  else parts.push(`${usd(g.spentUsd)} spent`);
+  if (g.dailyUsd !== null) parts.push(`${usd(g.todayUsd)} of ${usd(g.dailyUsd)} today`);
+  return parts.join(" · ");
+}
+
 /** "3 days ago", "in 5 days" — coarse on purpose. */
 function relative(iso: string, now = Date.now()): string {
   const d = Date.parse(iso) - now;
@@ -72,6 +87,7 @@ export function KeyManager({
   workspaces,
   scoped,
   a2aFlows = {},
+  gateway = null,
 }: {
   tenant: string;
   keys: KeyRow[];
@@ -82,6 +98,10 @@ export function KeyManager({
   workspaces: string[];
   /** Whether that list is a scope (some workspaces) rather than everything. */
   scoped: boolean;
+  /** Gateway keys, where offered (an admin of every workspace, on the
+   *  hosted platform): the URL a coding agent is pointed at, or null when
+   *  none is set yet. */
+  gateway?: { url: string | null } | null;
 }) {
   const router = useRouter();
   const [confirm, confirmDialog] = useConfirm();
@@ -102,8 +122,11 @@ export function KeyManager({
   const [created, setCreated] = useState<string | null>(null);
   // An A2A key (1 Nov 2026): one workspace, the flows it may call, how many
   // tasks it may have open — instead of a role and workspaces.
-  const [kind, setKind] = useState<"api" | "a2a">("api");
-  const [createdKind, setCreatedKind] = useState<"api" | "a2a">("api");
+  const [kind, setKind] = useState<Kind>("api");
+  const [createdKind, setCreatedKind] = useState<Kind>("api");
+  // A gateway key (10 Nov 2026): what it may spend, in all and per day.
+  const [capUsd, setCapUsd] = useState("20");
+  const [dailyUsd, setDailyUsd] = useState("");
   const [a2aWs, setA2aWs] = useState<string>(workspaces[0] ?? "");
   const [a2aChosen, setA2aChosen] = useState<string[]>([]);
   const [maxTasks, setMaxTasks] = useState("10");
@@ -123,7 +146,9 @@ export function KeyManager({
         body: JSON.stringify(
           kind === "a2a"
             ? { tenant, label, expires, purpose: "a2a", workspace: a2aWs, flows: a2aChosen, maxTasks: Number(maxTasks) }
-            : { tenant, label, role, expires, ...(narrow ? { workspaces: chosen } : {}) },
+            : kind === "gateway"
+              ? { tenant, label, expires, purpose: "gateway", ...(capUsd.trim() ? { capUsd: Number(capUsd) } : {}), ...(dailyUsd.trim() ? { dailyUsd: Number(dailyUsd) } : {}) }
+              : { tenant, label, role, expires, ...(narrow ? { workspaces: chosen } : {}) },
         ),
       });
       const data = await res.json();
@@ -172,7 +197,8 @@ export function KeyManager({
       const data = await res.json();
       if (res.ok) {
         setCreated(data.key);
-        setCreatedKind(keys.find((k) => k.id === id)?.purpose === "a2a" ? "a2a" : "api");
+        const was = keys.find((k) => k.id === id)?.purpose;
+        setCreatedKind(was === "a2a" || was === "gateway" ? was : "api");
         setRotating(null);
         router.refresh();
       } else setError(data.error ?? "failed to rotate the key");
@@ -183,7 +209,8 @@ export function KeyManager({
     }
   };
 
-  const createDisabled = busy || (kind === "api" ? narrow && chosen.length === 0 : !a2aWs || a2aChosen.length === 0);
+  const createDisabled =
+    busy || (kind === "api" ? narrow && chosen.length === 0 : kind === "gateway" ? !capUsd.trim() && !dailyUsd.trim() : !a2aWs || a2aChosen.length === 0);
   return (
     <div>
       {confirmDialog}
@@ -200,7 +227,13 @@ export function KeyManager({
             id="create-key"
             title="Create a key"
             description="A key is you, on a machine: the CLI and the HTTP API. It carries a role no higher than yours and opens no workspace you cannot."
-            hint={kind === "a2a" ? "Opens /a2a only — every /api route refuses it." : "Shown once. Copy it when it appears."}
+            hint={
+              kind === "a2a"
+                ? "Opens /a2a only — every /api route refuses it."
+                : kind === "gateway"
+                  ? "Opens the gateway only — every /api route refuses it."
+                  : "Shown once. Copy it when it appears."
+            }
             footer={
               <Button type="submit" variant="primary" disabled={createDisabled}>
                 {busy ? "Creating…" : "Create key"}
@@ -213,9 +246,10 @@ export function KeyManager({
                   <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="laptop, CI" className="w-full max-w-md" />
                 </Field>
                 <Field label="Kind">
-                  <Select value={kind} onChange={(e) => setKind(e.target.value as "api" | "a2a")} className="w-full" aria-label="What the key is for">
+                  <Select value={kind} onChange={(e) => setKind(e.target.value as Kind)} className="w-full" aria-label="What the key is for">
                     <option value="api">API key</option>
                     <option value="a2a">A2A key — an outside agent</option>
+                    {gateway && <option value="gateway">Gateway key — Claude Code</option>}
                   </Select>
                 </Field>
                 {/* A key carries a role like a member does. Editor is the default
@@ -297,6 +331,25 @@ export function KeyManager({
                 </div>
               )}
 
+              {kind === "gateway" && gateway && (
+                <div className="space-y-3 rounded-md border border-line bg-sunken p-4 text-sm text-fg-muted">
+                  {/* A coding agent's key: Claude Code (or any tool that takes
+                      an Anthropic base URL and key) spends the account's
+                      credits on foldrun's Anthropic models through the
+                      gateway, up to the limits set here. No /api route. */}
+                  <p>A gateway key lets Claude Code use foldrun&apos;s Anthropic models on this account&apos;s credits, up to the limits below. It opens nothing else: every /api route refuses it.</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Spending limit, USD">
+                      <Input type="number" min={0.01} step={0.01} value={capUsd} onChange={(e) => setCapUsd(e.target.value)} placeholder="none" className="w-full" aria-label="The most the key may spend in all, USD" />
+                    </Field>
+                    <Field label="Daily limit, USD (UTC day)">
+                      <Input type="number" min={0.01} step={0.01} value={dailyUsd} onChange={(e) => setDailyUsd(e.target.value)} placeholder="none" className="w-full" aria-label="The most the key may spend per UTC day, USD" />
+                    </Field>
+                  </div>
+                  <p>Set at least one. Each call is held at its most it could cost, so a call that would pass a limit is refused before it is sent.</p>
+                </div>
+              )}
+
               {kind === "api" && (
                 <div className="text-sm text-fg-muted">
                   {/* What the key will be able to reach, said before it exists. A
@@ -359,9 +412,16 @@ export function KeyManager({
               Done
             </Button>
           </div>
-          <p className="mt-2 font-mono text-xs leading-relaxed text-fg-secondary">
-            export {createdKind === "a2a" ? "FOLDRUN_A2A_KEY" : "FOLDRUN_TOKEN"}={created.slice(0, 12)}…
-          </p>
+          {createdKind === "gateway" ? (
+            <pre className="mt-2 overflow-x-auto font-mono text-xs leading-relaxed text-fg-secondary">
+              {`export ANTHROPIC_BASE_URL=${gateway?.url ?? "<not set on this platform yet>"}\nexport ANTHROPIC_API_KEY=${created.slice(0, 12)}…`}
+            </pre>
+          ) : (
+            <p className="mt-2 font-mono text-xs leading-relaxed text-fg-secondary">
+              export {createdKind === "a2a" ? "FOLDRUN_A2A_KEY" : "FOLDRUN_TOKEN"}={created.slice(0, 12)}…
+            </p>
+          )}
+          {createdKind === "gateway" && <p className="mt-1 text-xs text-fg-secondary">Set both, then run claude. It opens the gateway only.</p>}
           {createdKind === "a2a" && <p className="mt-1 text-xs text-fg-secondary">Give it to the outside agent; it sends it as Authorization: Bearer to /a2a only.</p>}
         </Callout>
       )}
@@ -391,6 +451,10 @@ export function KeyManager({
                           <Tag>
                             <Tooltip label="An outside agent's key: it opens /a2a only — the published flows it names — and no /api route"><span>A2A</span></Tooltip>
                           </Tag>
+                        ) : k.purpose === "gateway" ? (
+                          <Tag>
+                            <Tooltip label="A coding agent's key (Claude Code): it spends the account's credits on foldrun's models through the gateway, up to its own limits, and opens no /api route"><span>gateway</span></Tooltip>
+                          </Tag>
                         ) : (
                           <Tag>
                             <Tooltip label={k.role ? "What this key may do" : "Minted before roles existed — acts as admin"}><span>{k.role ?? "admin"}</span></Tooltip>
@@ -415,7 +479,12 @@ export function KeyManager({
                             <span className="text-warning">deploy key · opens nothing · revoke</span>
                           </Tooltip>
                         )}
-                        {!k.scope && k.purpose !== "a2a" && (
+                        {k.purpose === "gateway" && k.gateway && (
+                          <Tooltip label="What it has spent against its limits; calls in flight count at their estimate">
+                            <span>{gatewaySpend(k.gateway)}</span>
+                          </Tooltip>
+                        )}
+                        {!k.scope && k.purpose !== "a2a" && k.purpose !== "gateway" && (
                           <Tooltip label={k.workspaces ? "The workspaces this key opens — its minter's at the time, or fewer" : "Every workspace in the account"}>
                             <span>{k.workspaces ? (k.workspaces.length === 0 ? "no workspaces" : k.workspaces.join(", ")) : "all workspaces"}</span>
                           </Tooltip>
@@ -467,7 +536,7 @@ export function KeyManager({
                       </dl>
                       {rotating === k.id && (
                         <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-line bg-sunken p-3 text-sm">
-                          <span className="text-fg-muted">A new key with this label, role and workspaces —</span>
+                          <span className="text-fg-muted">{k.purpose === "gateway" ? "A new key with this label and limits (its spend starts afresh) —" : "A new key with this label, role and workspaces —"}</span>
                           <Select value={grace} onChange={(e) => setGrace(e.target.value)} size="sm" aria-label="What happens to the old key">
                             {GRACE.map((g) => (
                               <option key={g.v} value={g.v}>

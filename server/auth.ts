@@ -34,9 +34,10 @@ import {
   markApiKeyReplacedDb,
   type ApiKeyRow,
   type A2aGrant,
+  type GatewayGrant,
 } from "@/platform/api-keys-db.ts";
 
-export type { A2aGrant } from "@/platform/api-keys-db.ts";
+export type { A2aGrant, GatewayGrant } from "@/platform/api-keys-db.ts";
 
 // Follows FOLDRUN_DATA like everything else. This was the tenth copy of the
 // data-root path and the last one still reading process.cwd() directly, so
@@ -106,9 +107,18 @@ export interface ApiKeyRecord {
    * Minted by an admin with POST /api/keys { purpose: "a2a", workspace,
    * flows }. Absent on every API key.
    */
-  purpose?: "a2a";
+  purpose?: "a2a" | "gateway";
   /** An A2A key's grant: its workspace, flows, principal and task cap. */
   a2a?: A2aGrant;
+  /**
+   * "gateway" (10 Nov 2026): a key a coding agent (Claude Code) sends to the
+   * gateway door — `ANTHROPIC_BASE_URL` + this key — and nowhere else:
+   * every /api route refuses it (resolveTenant), so it can never read a
+   * workspace or mint a key. Its grant is its own spending limits, on top of
+   * the account's balance. Minted by an admin with POST /api/keys
+   * { purpose: "gateway", capUsd?, dailyUsd? }.
+   */
+  gateway?: GatewayGrant;
 }
 
 /** How long a `foldrun login` key lives; the CLI renews it with under
@@ -178,7 +188,7 @@ export async function createApiKey(
   scope?: ApiKeyRecord["scope"],
   role: Role = "editor",
   workspaces: string[] | null = null,
-  opts: { expiresAt?: Date | null; origin?: ApiKeyRecord["origin"]; a2a?: Omit<A2aGrant, "principal"> & { principal?: string } } = {},
+  opts: { expiresAt?: Date | null; origin?: ApiKeyRecord["origin"]; a2a?: Omit<A2aGrant, "principal"> & { principal?: string }; gateway?: GatewayGrant } = {},
 ): Promise<{ record: ApiKeyRecord; key: string }> {
   assertSafeName(tenant, "tenant");
   if (scope) throw new Error("deploy keys went with the platform's own git (17 Oct 2026)");
@@ -215,6 +225,13 @@ export async function createApiKey(
     // The principal owns the tasks: this key's own id, unless it continues
     // a chain (a rotation hands its predecessor's on).
     record.a2a = { workspace: opts.a2a.workspace, flows: [...new Set(opts.a2a.flows)], principal: opts.a2a.principal ?? record.id, maxTasks: opts.a2a.maxTasks };
+  }
+  if (opts.gateway) {
+    // The gateway door is the hosted platform's: it reads keys from the
+    // database, so a key minted without one could never be used.
+    if (!databaseEnabled()) throw new Error("gateway keys need the platform's database");
+    record.purpose = "gateway";
+    record.gateway = { capUsd: opts.gateway.capUsd ?? null, dailyUsd: opts.gateway.dailyUsd ?? null };
   }
   if (databaseEnabled()) await insertApiKeyDb(record as ApiKeyRow);
   else writeKeys([...readKeys(), record]);
@@ -366,6 +383,9 @@ export async function rotateApiKey(
     // so the tasks the old key made are still the new one's to read and
     // cancel (a deliberate choice: rotation is the same caller's new secret).
     ...(old.purpose === "a2a" && old.a2a ? { a2a: { ...old.a2a, principal: old.a2a.principal || old.id } } : {}),
+    // A gateway key stays one, with the same limits. (What it has spent is
+    // booked against the key's id, so the new key starts its cap afresh.)
+    ...(old.purpose === "gateway" && old.gateway ? { gateway: old.gateway } : {}),
   });
   // Claim the old key before ending it. Two rotations at once both pass the
   // check above; only one claim lands, and the loser's key is revoked unseen.
@@ -509,7 +529,7 @@ export async function apiKeyFor(
    *  the once-a-minute guard then skips the route's own note — so a lookup
    *  without them left lastIp empty for every Bearer caller. */
   headers: Headers = new Headers(),
-): Promise<{ tenant: string; label: string; prefix: string; role: Role; workspaces: string[] | null; scope?: ApiKeyRecord["scope"]; purpose?: "a2a" } | null> {
+): Promise<{ tenant: string; label: string; prefix: string; role: Role; workspaces: string[] | null; scope?: ApiKeyRecord["scope"]; purpose?: "a2a" | "gateway" } | null> {
   const record = await keyByHash(hash(presented.trim()));
   // A deploy key opens nothing since the platform's own git went: refused
   // here as well as in resolveTenant, so no caller of this lookup (the rate
@@ -525,7 +545,7 @@ export async function apiKeyFor(
     role: record.role ?? "admin",
     workspaces: record.workspaces ?? null,
     ...(record.scope ? { scope: record.scope } : {}),
-    ...(record.purpose === "a2a" ? { purpose: "a2a" as const } : {}),
+    ...(record.purpose === "a2a" || record.purpose === "gateway" ? { purpose: record.purpose } : {}),
   };
 }
 
@@ -585,6 +605,8 @@ export async function resolveTenant(req: NextRequest): Promise<AuthResult> {
     // not answers, not storage, not source. Refused in the funnel every
     // /api route goes through, so no route can forget to.
     if (record.purpose === "a2a") return { tenant: null, status: 403, message: "this is an A2A key — it opens /a2a/<account>/<workspace>/… (the agent card and the A2A endpoint of the flows it names) and no /api route; use an API key here" };
+    // A gateway key opens the gateway door and nothing here, the same way.
+    if (record.purpose === "gateway") return { tenant: null, status: 403, message: "this is a gateway key — it is for a coding agent's ANTHROPIC_BASE_URL (the gateway's /v1/messages) and opens no /api route; use an API key here" };
     await noteKeyUse(record, req.headers);
     return {
       tenant: record.tenant,

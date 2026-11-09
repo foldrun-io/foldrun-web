@@ -30,6 +30,7 @@ import { CalendarClock, ScrollText, Webhook } from "lucide-react";
 import { settingsTabs, SETTINGS_TABS, type SettingsTab } from "./tabs";
 import { SettingsAnchor } from "./anchor";
 import { KeyManager, TickButton } from "./keys";
+import { gatewayOffered, gatewayUrl, withGatewaySpend } from "@/server/gateway-keys";
 import { listSecrets } from "@/lib/secrets";
 import { secretHealth, healthKey } from "@/lib/secret-health";
 import { masterKeySource } from "@/lib/secrets";
@@ -402,7 +403,7 @@ async function ApiTab({
   role: Awaited<ReturnType<typeof viewerRole>>;
   workspaces: string[];
 }) {
-  const keys = await listApiKeys(tenant);
+  const keys = await withGatewaySpend(await listApiKeys(tenant));
   // Connected AI apps (MCP over OAuth): an admin sees every one, anyone else their own.
   const seesAllConnections = role === null || can(role, "keys:manage");
   const me = (await viewerEmail())?.toLowerCase() ?? null;
@@ -418,6 +419,9 @@ async function ApiTab({
           keys={keys}
           workspaces={workspaces}
           scoped={scope !== null}
+          // A gateway key (Claude Code): offered where the door can read it,
+          // to an admin of every workspace; the URL it is pointed at.
+          gateway={gatewayOffered() && scope === null ? { url: gatewayUrl() } : null}
           // For an A2A key: each workspace's flows, and which are published.
           a2aFlows={Object.fromEntries(workspaces.map((w) => [w, listFlows(tenant, w).map((f) => ({ name: f.name, published: f.a2a?.publish === true }))]))}
         />
