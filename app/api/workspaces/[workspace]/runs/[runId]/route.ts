@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, errorResponse, requirePermission, refuse } from "@/server/api";
-import { readRun, runFailure } from "@/lib/store";
+import { readRunAsync, runFailure } from "@/lib/store";
 import { eraseRun } from "@/server/run-erase";
 import { wantsWait, waitAndRespond } from "@/server/wait";
 
@@ -11,7 +11,8 @@ export async function GET(
   try {
     const { workspace, runId } = await ctx.params;
     const tenant = await requireTenant(req);
-    const run = readRun(tenant, workspace, runId);
+    // Off the event loop where the records are in the database.
+    const run = await readRunAsync(tenant, workspace, runId);
     if (!run) return refuse("run not found", 404);
     // ?wait=true[&timeout=N] on a run already started: the same verdict
     // shape the run routes give, so a caller can keep waiting in short

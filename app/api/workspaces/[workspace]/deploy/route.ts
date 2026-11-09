@@ -10,6 +10,7 @@
 // is live, and the swap is refused while a run is still reading the files.
 
 import { NextRequest, NextResponse } from "next/server";
+import { flushRevisions } from "@/lib/workspace-revisions";
 import { evaluateDeployed } from "@/lib/evals";
 import { errorResponse, requirePermission, refuse } from "@/server/api";
 import { audit } from "@/server/audit";
@@ -165,6 +166,9 @@ async function postOnce(
       );
     }
 
+    // Committed as a revision before the answer (when revisions are on): the
+    // folder is already changed, so a store that is down only leaves it queued.
+    await flushRevisions({ tenant, workspace });
     return NextResponse.json({
       ok: true,
       applied: true,

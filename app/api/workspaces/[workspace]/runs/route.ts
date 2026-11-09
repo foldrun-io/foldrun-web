@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, errorResponse, ApiError } from "@/server/api";
 import { parseRunFilter, matchesRunFilter, isEmptyFilter } from "@/lib/runs-filter";
-import { listRunSummaries, runTokens, runDisplayStatus, runVerdict, runFailure, runFromSummary } from "@/lib/store";
+import { listRunSummariesAsync, runTokens, runDisplayStatus, runVerdict, runFailure, runFromSummary } from "@/lib/store";
 import { outcomeOf } from "@/lib/outcome";
 import { intParam } from "@/server/query";
 import { runCharges } from "@/server/run-charges";
@@ -22,7 +22,7 @@ export async function GET(
     if (problems.length) throw new ApiError(problems.join("; "), 400);
     // The index, not the records: a list never parses every run.
     // Newest first, a tie broken by id, so a page boundary has one place.
-    const all = listRunSummaries(tenant, workspace).sort(byPosition);
+    const all = (await listRunSummariesAsync(tenant, workspace)).sort(byPosition);
     // Paging (5 Nov 2026): `before` is the `next` of the page before — or a
     // time, or a run id — and the page is the matches older than it. Absent,
     // the newest page, as before.

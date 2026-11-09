@@ -7,9 +7,8 @@
 // ~10x sooner.
 
 import { NextRequest } from "next/server";
-import fs from "node:fs";
 import { requireTenant, errorResponse, refuse } from "@/server/api";
-import { runFilePath } from "@/lib/store";
+import { runFilePath, runStamp, readRunText } from "@/lib/store";
 import { isRunTerminal, sseFrame } from "@/components/live-run-model";
 
 export const dynamic = "force-dynamic";
@@ -54,13 +53,14 @@ export async function GET(
 
   // A name the store refuses (control characters, a path) cannot be a run:
   // 404, not the 500 an uncaught throw gave (27 Oct 2026, the API fuzz).
-  let file: string;
   try {
-    file = runFilePath(tenant, workspace, runId);
+    runFilePath(tenant, workspace, runId);
   } catch {
     return refuse("run not found", 404);
   }
-  if (!fs.existsSync(file)) return refuse("run not found", 404);
+  // The record's stamp is its file's stat, or its row's last write when the
+  // records are in the database.
+  if (runStamp(tenant, workspace, runId) === null) return refuse("run not found", 404);
 
   const encoder = new TextEncoder();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -105,13 +105,8 @@ export async function GET(
       let lastRead = 0;
       let wait = POLL_MS;
       const changed = (): boolean => {
-        let now = "";
-        try {
-          const st = fs.statSync(file);
-          now = `${st.ino}:${st.size}:${st.mtimeMs}`;
-        } catch {
-          now = ""; // gone for a moment (a rename in flight): read to find out
-        }
+        // Null: gone for a moment (a rename in flight): read to find out.
+        const now = runStamp(tenant, workspace, runId) ?? "";
         const due = Date.now() - lastRead >= FORCE_READ_MS;
         if (now && now === lastStat && !due) return false;
         lastStat = now;
@@ -126,7 +121,8 @@ export async function GET(
             if (Date.now() - started > MAX_MS) stop();
             return;
           }
-          const raw = fs.readFileSync(file, "utf8");
+          const raw = readRunText(tenant, workspace, runId);
+          if (raw === null) throw new Error("the record is not there this tick");
           if (raw === lastPayload) wait = Math.min(wait * 2, IDLE_MAX_MS);
           if (raw !== lastPayload) {
             wait = POLL_MS;

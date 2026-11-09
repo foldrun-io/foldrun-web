@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { flushRevisions, readWorkspaceFileVia } from "@/lib/workspace-revisions";
 import { requireTenant, errorResponse, actorOf, requirePermission, refuse } from "@/server/api";
 import { createHash } from "node:crypto";
 import { readWorkspaceFile, writeWorkspaceFile, deleteWorkspacePath, listWorkspaceFiles, renameWorkspaceFile, assertEditablePath } from "@/lib/store";
@@ -20,7 +21,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
     const tenant = await tenantOf(req);
     const rel = req.nextUrl.searchParams.get("path");
     if (!rel) return NextResponse.json({ files: listWorkspaceFiles(tenant, workspace) });
-    const content = readWorkspaceFile(tenant, workspace, rel);
+    // The head's bytes when `revisions.read` is on and it has the file; the
+    // folder otherwise (core workspace-revisions.ts readWorkspaceFileVia).
+    const content = await readWorkspaceFileVia(tenant, workspace, rel);
     return NextResponse.json({ path: rel, content, sha256: sha256(content) });
   } catch (err) {
     return errorResponse(err);
@@ -89,6 +92,9 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ workspace: 
       ...(message ? { message } : {}),
     });
     await auditPolicyEvents(policyEvents, actor.name, tenant);
+    // Committed as a revision before the answer (when revisions are on): the
+    // folder is already changed, so a store that is down only leaves it queued.
+    await flushRevisions({ tenant, workspace });
     return NextResponse.json({ ok: true, path: body.path, sha256: sha256(body.content), issues });
   } catch (err) {
     return errorResponse(err);
@@ -135,6 +141,9 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
     }
     renameWorkspaceFile(tenant, workspace, body.from, body.to, { by });
     await auditPolicyEvents(policyEvents, actor.name, tenant);
+    // Committed as a revision before the answer (when revisions are on): the
+    // folder is already changed, so a store that is down only leaves it queued.
+    await flushRevisions({ tenant, workspace });
     return NextResponse.json({ ok: true, path: body.to });
   } catch (err) {
     return errorResponse(err);
@@ -156,6 +165,8 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ workspac
     const policyEvents = assertMayChangeWorkspacePolicy(actor, tenant, workspace, [], "merge", { removed: [body.path] });
     deleteWorkspacePath(tenant, workspace, body.path, { by });
     await auditPolicyEvents(policyEvents, actor.name, tenant);
+    // Committed as a revision before the answer (when revisions are on).
+    await flushRevisions({ tenant, workspace });
     return NextResponse.json({ ok: true });
   } catch (err) {
     return errorResponse(err);

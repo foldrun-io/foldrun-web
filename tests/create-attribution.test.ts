@@ -44,7 +44,7 @@ const call = (h: Handler, method: string, route: string, body: unknown) =>
     { params: Promise.resolve({ workspace: WS }) },
   );
 
-const byOf = (forPath: string) => listRevisions(TENANT, WS, { forPath, limit: 1 })[0]?.by;
+const byOf = async (forPath: string) => (await listRevisions(TENANT, WS, { forPath, limit: 1 }))[0]?.by;
 
 test("a new agent, flow and eval, and a settings change, are credited to the key's person", async () => {
   const made = [
@@ -56,6 +56,6 @@ test("a new agent, flow and eval, and a settings change, are credited to the key
   for (const [res, rel] of made) {
     assert.equal(res.status, 200, `${rel}: ${await res.clone().text()}`);
     assert.ok(fs.existsSync(path.join(ws, rel)), `${rel} was written`);
-    assert.equal(byOf(rel), "owner@acme.test", `${rel} is credited to the person, not "system"`);
+    assert.equal(await byOf(rel), "owner@acme.test", `${rel} is credited to the person, not "system"`);
   }
 });

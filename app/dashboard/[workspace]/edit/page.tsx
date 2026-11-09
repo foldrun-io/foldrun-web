@@ -227,7 +227,7 @@ export default async function EditPage({
       });
     }
 
-    const revisions = listRevisions(tenant, workspace, { forPath: selected, limit: 5 });
+    const revisions = await listRevisions(tenant, workspace, { forPath: selected, limit: 5 });
     sections.push({
       title: "Changes",
       items: revisions.map((r) => ({ label: r.message || "(no message)", meta: `${r.by} · ${r.at.slice(0, 10)}`, href: `/dashboard/${workspace}/history?q=${encodeURIComponent(selected)}${rest}` })),
@@ -238,7 +238,7 @@ export default async function EditPage({
     if (doc) sections.push({ title: "Reference", items: [{ label: `How a ${KIND_LABEL[kind]} is written`, href: `/dashboard/docs/${doc}${qs}` }] });
   }
 
-  const lastChange = selected ? listRevisions(tenant, workspace, { forPath: selected, limit: 1 })[0] ?? null : null;
+  const lastChange = selected ? ((await listRevisions(tenant, workspace, { forPath: selected, limit: 1 }))[0] ?? null) : null;
   const crumbList = [
     { label: workspace, href: `/dashboard/${workspace}${qs}` },
     ...(selected ? crumbs(selected).map((c, i, arr) => (i < arr.length - 1 ? { label: c.label, href: `/dashboard/${workspace}/edit?path=${encodeURIComponent(c.prefix)}${rest}` } : { label: c.label })) : []),

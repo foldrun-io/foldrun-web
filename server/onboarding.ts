@@ -25,9 +25,9 @@ const AGENT_PATH = /^(agents\/|\.claude\/agents\/|\.agents\/agents\/)/;
  * an agent file after the workspace's first revision (which is the template
  * a new workspace starts with — its example agents are not the person's).
  */
-function agentAuthored(tenant: string, workspace: string): boolean {
+async function agentAuthored(tenant: string, workspace: string): Promise<boolean> {
   if (deployedCommit(tenant, workspace)) return true;
-  const revs = listRevisions(tenant, workspace, { limit: 200 });
+  const revs = await listRevisions(tenant, workspace, { limit: 200 });
   return revs.slice(0, -1).some((r) => r.paths.some((p) => AGENT_PATH.test(p)));
 }
 
@@ -51,7 +51,7 @@ export async function onboardingFacts(tenant: string, scope: string[] | null = n
     }
     triggers += listFlows(tenant, w).filter((f) => f.trigger === "schedule" || f.trigger === "webhook").length;
     secrets += listSecrets(tenant, w).filter((s) => s.scope === "workspace").length;
-    if (!authored) authored = agentAuthored(tenant, w);
+    if (!authored) authored = await agentAuthored(tenant, w);
   }
   // The payment step is billing's to decide (billing-notices.ts); without
   // billing there is none.

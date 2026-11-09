@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
     if (base.flow !== run.flow) throw new ApiError(`run ${baseId} is ${base.flow}, not ${run.flow} — compare runs of one flow`, 400);
     // Older first, so "changed" reads forwards in time.
     const [older, newer] = base.startedAt <= run.startedAt ? [base, run] : [run, base];
-    const files = changedPathsBetween(tenant, workspace, older.revision ?? null, newer.revision ?? null);
+    const files = await changedPathsBetween(tenant, workspace, older.revision ?? null, newer.revision ?? null);
     return NextResponse.json({ comparison: compareRuns(base, run, files), chosen: named ? "named" : baseId === run.rerunOf?.run ? "re-run source" : "last good" });
   } catch (err) {
     return errorResponse(err);
