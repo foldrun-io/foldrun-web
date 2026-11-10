@@ -46,7 +46,7 @@ export function checkModels(input: unknown, login: boolean, priced = (provider: 
     if (v === null || v === "") continue;
     if (typeof v !== "string" || v.length > 120) return { error: `models.${k} must be a model name` };
     const r = providerOfModel(v.trim());
-    if (!r) return { error: `models.${k}: ${v} names no provider foldrun offers — write anthropic/, deepseek/, kimi/, openai/ or gemini/ before the model` };
+    if (!r) return { error: `models.${k}: ${v} names no provider foldrun offers — write anthropic/, openai/, gemini/, deepseek/, kimi/, zai/, qwen/, minimax/ or mimo/ before the model` };
     if (login && r.provider !== "anthropic") return { error: `models.${k}: a login gateway key runs on the operator's Claude login — Claude models only` };
     if (!login && !priced(r.provider, r.model)) return { error: `models.${k}: ${v} has no price on foldrun's models — pick a model on the price list (\`foldrun account model prices\`)` };
     out[k as (typeof TIERS)[number]] = v.trim();

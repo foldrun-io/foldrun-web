@@ -604,7 +604,7 @@ export function KeyManager({
                       {editingModels === k.id && (
                         <div className="mt-3 space-y-3 rounded-md border border-line bg-sunken p-3 text-sm">
                           <p className="text-fg-muted">
-                            Which model Claude Code&apos;s tiers run on with this key. Leave one empty to run it as Claude Code names it. A model is written as <span className="font-mono">openai/gpt-6</span>, <span className="font-mono">deepseek/deepseek-v4</span>, <span className="font-mono">kimi/kimi-k3</span> or <span className="font-mono">gemini/…</span>
+                            Which model Claude Code&apos;s tiers run on with this key. Leave one empty to run it as Claude Code names it. A model is written as <span className="font-mono">openai/gpt-6</span>, <span className="font-mono">deepseek/deepseek-v4</span>, <span className="font-mono">zai/glm-5.3</span>, <span className="font-mono">qwen/qwen3.8-max</span> or <span className="font-mono">gemini/…</span> (also <span className="font-mono">kimi/</span>, <span className="font-mono">minimax/</span>, <span className="font-mono">mimo/</span>)
                             {k.gateway?.credential === "login" ? " — this key runs on the Claude login, so Claude models only." : "; it must be on foldrun's price list."}
                           </p>
                           <div className="grid gap-3 sm:grid-cols-3">
