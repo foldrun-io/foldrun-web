@@ -274,7 +274,7 @@ test("run_agent runs one agent on a task of the caller's; list_agents names them
 test("run_agent passes a snapshot through to the route, which refuses one this install cannot hold", async () => {
   const bad = await tool("run_agent", { workspace: "desk", agent: "writer", task: "fix", snapshot: "nope" });
   assert.equal(bad.isError, true);
-  assert.match(bad.text, /^HTTP 400.*64 hex/s, "the id reached the route");
+  assert.match(bad.text, /^HTTP 400[\s\S]*64 hex/, "the id reached the route");
   const prev = process.env.FOLDRUN_RUN_ISOLATION;
   delete process.env.FOLDRUN_RUN_ISOLATION;
   try {
