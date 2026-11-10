@@ -1090,7 +1090,13 @@ test("every API route is in docs/api.md", () => {
   const shapeOf = (r: string) => r.replace(/\[[a-zA-Z.]+\]/g, "<>");
   const rowsFor = (r: string) => rows.filter((row) => row.routes.includes(shapeOf(r)));
 
-  const missing = routes.filter((r) => !rowsFor(r).some((row) => row.methods.length));
+  // Using Claude Code through foldrun (the gateway) is documented on
+  // foldrun.ir alone, never in foldrun.io's docs (owner, 11 Nov 2026). A route
+  // that exists only for it is listed here with why, instead of in api.md.
+  const ONLY_ON_FOLDRUN_IR: Record<string, string> = {
+    "/api/keys/[id]": "PATCH a gateway key's model map — Claude Code's tiers on other models",
+  };
+  const missing = routes.filter((r) => !(r in ONLY_ON_FOLDRUN_IR) && !rowsFor(r).some((row) => row.methods.length));
   assert.deepEqual(
     missing,
     [],
@@ -1104,6 +1110,7 @@ test("every API route is in docs/api.md", () => {
   const undocumentedMethods: string[] = [];
   const phantomMethods: string[] = [];
   for (const r of routes) {
+    if (r in ONLY_ON_FOLDRUN_IR) continue;
     const file = r === "/s/[token]" ? path.join(root, "app/s/[token]/route.ts") : path.join(apiRoot, r.replace(/^\/api\/?/, ""), "route.ts");
     const src = fs.readFileSync(file, "utf8");
     const exported = [...src.matchAll(/^export (?:async )?function (GET|POST|PUT|PATCH|DELETE|HEAD)\b/gm)].map((m) => m[1]);
