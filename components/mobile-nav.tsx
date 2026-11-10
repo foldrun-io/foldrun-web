@@ -119,7 +119,7 @@ export function PhoneBar({ actions }: { actions?: ReactNode }) {
 export function StatusFooter({ statusPage }: { statusPage?: string | null }) {
   const version = useVersion();
   return (
-    <footer className="mx-auto flex w-full max-w-[calc(var(--container-page)+3rem)] items-center gap-4 border-t border-line px-4 py-3 pb-24 text-xs text-fg-muted sm:px-6 md:pb-3">
+    <footer className="mx-auto flex w-full max-w-[calc(var(--container-page)+3rem)] items-center gap-4 border-t border-line px-4 py-3 pb-24 text-xs text-fg-muted sm:px-6 md:pb-3 md:pr-36">
       {statusPage ? (
         <a href={statusPage} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:text-fg">
           <span className="size-2 rounded-full bg-emerald-500" aria-hidden />

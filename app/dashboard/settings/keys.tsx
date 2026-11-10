@@ -203,11 +203,14 @@ export function KeyManager({
   // A gateway key's model map (Part A5): which model each Claude Code tier
   // runs on for that key.
   const [editingModels, setEditingModels] = useState<string | null>(null);
+  // What went wrong with one key's Models or Rotate, shown under that key's
+  // panel — not in the "Create a key" card at the top, off-screen on a phone.
+  const [rowError, setRowError] = useState<{ id: string; message: string } | null>(null);
   const [modelDraft, setModelDraft] = useState<{ opus: string; sonnet: string; haiku: string }>({ opus: "", sonnet: "", haiku: "" });
   const saveModels = async (id: string) => {
     if (busy) return;
     setBusy(true);
-    setError(null);
+    setRowError(null);
     try {
       const picked = Object.fromEntries(TIERS.filter((t) => modelDraft[t].trim()).map((t) => [t, modelDraft[t].trim()]));
       const res = await fetch(`/api/keys/${encodeURIComponent(id)}`, {
@@ -219,9 +222,9 @@ export function KeyManager({
       if (res.ok) {
         setEditingModels(null);
         router.refresh();
-      } else setError(data.error ?? "failed to save the models");
+      } else setRowError({ id, message: data.error ?? "failed to save the models" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "failed to save the models");
+      setRowError({ id, message: err instanceof Error ? err.message : "failed to save the models" });
     } finally {
       setBusy(false);
     }
@@ -244,9 +247,9 @@ export function KeyManager({
         setCreatedKind(was === "a2a" || was === "gateway" ? was : "api");
         setRotating(null);
         router.refresh();
-      } else setError(data.error ?? "failed to rotate the key");
+      } else setRowError({ id, message: data.error ?? "failed to rotate the key" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "failed to rotate the key");
+      setRowError({ id, message: err instanceof Error ? err.message : "failed to rotate the key" });
     } finally {
       setBusy(false);
     }
@@ -378,7 +381,7 @@ export function KeyManager({
                 <div className="space-y-3 rounded-md border border-line bg-sunken p-4 text-sm text-fg-muted">
                   {/* A coding agent's key: Claude Code (or any tool that takes
                       an Anthropic base URL and key) spends the account's
-                      credits on foldrun's Anthropic models through the
+                      credits on foldrun's models through the
                       gateway, up to the limits set here. No /api route. */}
                   {gateway.login && (
                     <Field label="Runs on">
@@ -391,7 +394,7 @@ export function KeyManager({
                   {onLogin ? (
                     <p>Claude Code runs on the operator&apos;s Claude login, as this account&apos;s desks do. Its calls are not metered or billed, so it has no limits, and they count against the same subscription&apos;s weekly cap as the desks. It opens nothing else: every /api route refuses it.</p>
                   ) : (
-                    <p>A gateway key lets Claude Code use foldrun&apos;s Anthropic models on this account&apos;s credits, up to the limits below. It opens nothing else: every /api route refuses it.</p>
+                    <p>A gateway key lets Claude Code use foldrun&apos;s models (Claude, and any other model on the price list, picked by name) on this account&apos;s credits, up to the limits below. It opens nothing else: every /api route refuses it.</p>
                   )}
                   {!onLogin && (
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -497,7 +500,7 @@ export function KeyManager({
                 const expired = !!k.expiresAt && Date.parse(k.expiresAt) <= Date.now();
                 const next = k.replacedBy ? keys.find((n) => n.id === k.replacedBy) : undefined;
                 return (
-                  <li key={k.id} className={cn("flex min-w-0 items-start gap-3 px-4 py-3.5 sm:px-5", (k.revokedAt || expired) && "opacity-70")}>
+                  <li key={k.id} className={cn("flex min-w-0 flex-col gap-2 px-4 py-3.5 sm:flex-row sm:items-start sm:gap-3 sm:px-5", (k.revokedAt || expired) && "opacity-70")}>
                     <IconBox className="mt-0.5 max-sm:hidden">
                       <KeyRound />
                     </IconBox>
@@ -618,7 +621,13 @@ export function KeyManager({
                             <Button variant="primary" onClick={() => void saveModels(k.id)} disabled={busy}>
                               {busy ? "Saving…" : "Save"}
                             </Button>
-                            <Button variant="ghost" onClick={() => setEditingModels(null)}>
+                            <Button
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingModels(null);
+                                setRowError(null);
+                              }}
+                            >
                               Cancel
                             </Button>
                           </div>
@@ -637,14 +646,25 @@ export function KeyManager({
                           <Button variant="primary" onClick={() => void rotate(k.id)} disabled={busy}>
                             {busy ? "Rotating…" : "Rotate"}
                           </Button>
-                          <Button variant="ghost" onClick={() => setRotating(null)}>
+                          <Button
+                            variant="ghost"
+                            onClick={() => {
+                              setRotating(null);
+                              setRowError(null);
+                            }}
+                          >
                             Cancel
                           </Button>
                         </div>
                       )}
+                      {rowError?.id === k.id && (editingModels === k.id || rotating === k.id) && (
+                        <p role="alert" className="mt-2 text-sm text-danger">
+                          {rowError.message}
+                        </p>
+                      )}
                     </div>
                     {!k.revokedAt && manages && (
-                      <div className="flex shrink-0 items-center gap-1">
+                      <div className="flex shrink-0 items-center gap-1 max-sm:-ml-2.5">
                         {k.purpose === "gateway" && !expired && !k.replacedBy && (
                           <Button
                             variant="ghost"
