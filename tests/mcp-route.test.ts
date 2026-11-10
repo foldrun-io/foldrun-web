@@ -238,3 +238,35 @@ test("the tools that act go through their routes: role, scope and state hold", a
   const stopped = await tool("stop_run", { workspace: "desk", run_id: runId });
   assert.equal(stopped.isError, false, stopped.text);
 });
+
+test("run_agent runs one agent on a task of the caller's; list_agents names them — role, scope and read-only mode hold", async () => {
+  const listed = await tool("list_agents", { workspace: "desk" });
+  assert.equal(listed.isError, false, listed.text);
+  assert.ok(listed.data.agents.some((a: { name: string }) => a.name === "writer"), "the agent is listed");
+
+  const names = ((await rpc("tools/list", undefined, { query: "?readonly=1" })).result.tools as { name: string }[]).map((t) => t.name);
+  assert.ok(names.includes("list_agents"), "listing reads");
+  assert.ok(!names.includes("run_agent"), "running acts: not in read-only mode");
+
+  const viewerRun = await tool("run_agent", { workspace: "desk", agent: "writer", task: "x" }, { key: viewer });
+  assert.equal(viewerRun.isError, true);
+  assert.match(viewerRun.text, /^HTTP 403/, "a viewer's key may not start a run");
+
+  const missing = await tool("run_agent", { workspace: "desk", agent: "nobody", task: "x" });
+  assert.equal(missing.isError, true);
+  assert.match(missing.text, /^HTTP 404/);
+  const escape = await tool("run_agent", { workspace: "desk", agent: "../../rival/workspaces/desk/agents/writer", task: "x" });
+  assert.equal(escape.isError, true, "an agent is one folder, never a path");
+
+  const scopedRun = await tool("run_agent", { workspace: "other", agent: "writer", task: "x" }, { key: scoped });
+  assert.equal(scopedRun.isError, true, "a key scoped to desk cannot run other's agents");
+
+  const started = await tool("run_agent", { workspace: "desk", agent: "writer", task: "draft a two-line note", test: true });
+  assert.equal(started.isError, false, started.text);
+  const runId = started.data.runId as string;
+  assert.ok(runId, "a receipt at once");
+  assert.equal(started.data.test, true);
+  const one = await tool("get_run", { workspace: "desk", run_id: runId });
+  assert.equal(one.isError, false);
+  assert.equal(one.data.id ?? one.data.run?.id, runId, "get_run reads it");
+});
