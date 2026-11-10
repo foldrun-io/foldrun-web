@@ -6,6 +6,7 @@ import { workspaceDir, isOneSegment } from "@/lib/store";
 import { enqueueFlowRun } from "@/platform/queue";
 import { wantsWait, waitAndRespond } from "@/server/wait";
 import { idempotent } from "@/server/idempotency";
+import { getSnapshot, SnapshotRefused } from "@/platform/snapshots";
 
 async function postOnce(
   req: NextRequest,
@@ -23,12 +24,25 @@ async function postOnce(
     }
     let task = "";
     let test: boolean | undefined;
+    let snapshot: string | undefined;
     try {
       const body = await req.json();
       if (typeof body?.task === "string") task = body.task;
       if (typeof body?.test === "boolean") test = body.test;
-    } catch {
+      if (body?.snapshot !== undefined) {
+        if (typeof body.snapshot !== "string" || !/^[0-9a-f]{64}$/.test(body.snapshot)) throw new ApiError("snapshot: the id POST …/snapshots answered (64 hex characters)", 400);
+        snapshot = body.snapshot;
+      }
+    } catch (err) {
+      if (err instanceof ApiError) throw err;
       // empty body is fine
+    }
+    // A folder to work on (Part B3): only where a step runs in a sandbox that
+    // can hold one, and only this workspace's own — then pinned to the run
+    // before any worker can see it (platform queue.ts).
+    if (snapshot) {
+      if (process.env.FOLDRUN_RUN_ISOLATION !== "k8s") return refuse("this install runs steps without the sandbox a snapshot needs (FOLDRUN_RUN_ISOLATION=k8s) — nothing was started", 409);
+      if (!(await getSnapshot(tenant, workspace, snapshot))) return refuse(`no snapshot ${snapshot.slice(0, 12)}… in ${workspace} — send the folder again (foldrun snapshot push)`, 404);
     }
     const run = await enqueueFlowRun(
       tenant,
@@ -38,11 +52,13 @@ async function postOnce(
       undefined,
       [],
       null,
-      { test },
+      { test, ...(snapshot ? { snapshot } : {}) },
     );
     if (wantsWait(req)) return waitAndRespond(req, tenant, workspace, run);
-    return NextResponse.json({ ok: true, runId: run.id, test: run.test === true });
+    return NextResponse.json({ ok: true, runId: run.id, test: run.test === true, ...(run.snapshot ? { snapshot: run.snapshot.id } : {}) });
   } catch (err) {
+    // The folder went between the check and the pin: the run was undone.
+    if (err instanceof SnapshotRefused) return refuse(err.message, 404);
     return errorResponse(err);
   }
 }

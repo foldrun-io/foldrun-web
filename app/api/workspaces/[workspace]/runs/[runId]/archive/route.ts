@@ -17,7 +17,7 @@ import { contentDisposition } from "@/server/content-disposition";
 // an agent's HTML opens as text, so a run cannot become a script that runs
 // in the dashboard's origin.
 
-const TEXT = new Set([".md", ".txt", ".html", ".htm", ".svg", ".xml", ".yaml", ".yml", ".log", ".js", ".ts", ".py", ".sh"]);
+const TEXT = new Set([".md", ".txt", ".html", ".htm", ".svg", ".xml", ".yaml", ".yml", ".log", ".js", ".ts", ".py", ".sh", ".patch", ".diff"]);
 const TYPES: Record<string, string> = {
   ".json": "application/json; charset=utf-8",
   ".csv": "text/csv; charset=utf-8",

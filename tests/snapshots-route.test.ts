@@ -87,3 +87,37 @@ test("the server's own checks: not an archive, and a secret (named by file and l
   assert.match(text, /config\.ts:1/);
   assert.ok(!text.includes(key), "the value is never sent back");
 });
+
+test("run an agent on a snapshot: refused without the k8s sandbox, for a bad or unknown id; otherwise on the record and pinned", async () => {
+  const agentDir = path.join(DATA, TENANT, "workspaces", "desk", "agents", "coder");
+  fs.mkdirSync(agentDir, { recursive: true });
+  fs.writeFileSync(path.join(agentDir, "agent.md"), "---\nname: coder\ndescription: codes\n---\n\nCode.\n");
+  const run = (await import("../app/api/workspaces/[workspace]/agents/[agent]/run/route.ts")) as unknown as {
+    POST: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string; agent: string }> }) => Promise<Response>;
+  };
+  const start = (body: unknown) =>
+    run.POST(
+      new NextRequest("http://localhost/api/workspaces/desk/agents/coder/run", { method: "POST", headers: { authorization: `Bearer ${editor}`, "content-type": "application/json" }, body: JSON.stringify(body) }),
+      { params: Promise.resolve({ workspace: "desk", agent: "coder" }) },
+    );
+  const prev = process.env.FOLDRUN_RUN_ISOLATION;
+  try {
+    assert.equal((await start({ task: "fix", snapshot: "not-a-hash" })).status, 400);
+    delete process.env.FOLDRUN_RUN_ISOLATION;
+    const noSandbox = await start({ task: "fix", snapshot: folder.sha256 });
+    assert.equal(noSandbox.status, 409, "in-process would work in the real folder");
+    process.env.FOLDRUN_RUN_ISOLATION = "k8s";
+    assert.equal((await start({ task: "fix", snapshot: "b".repeat(64) })).status, 404);
+    const ok = await start({ task: "fix", snapshot: folder.sha256 });
+    assert.equal(ok.status, 200, await ok.clone().text());
+    const body = await ok.json();
+    assert.equal(body.snapshot, folder.sha256);
+    const { readRun } = await import("@/lib/store");
+    assert.deepEqual(readRun(TENANT, "desk", body.runId)?.snapshot, { id: folder.sha256 });
+    const { getSnapshot } = await import("@/platform/snapshots");
+    assert.deepEqual((await getSnapshot(TENANT, "desk", folder.sha256))?.runIds, [body.runId], "pinned to the run");
+  } finally {
+    if (prev === undefined) delete process.env.FOLDRUN_RUN_ISOLATION;
+    else process.env.FOLDRUN_RUN_ISOLATION = prev;
+  }
+});

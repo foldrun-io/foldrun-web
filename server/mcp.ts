@@ -231,6 +231,7 @@ export const MCP_TOOLS: McpTool[] = [
         agent: str("the agent's name — `list_agents` lists them"),
         task: str("what the agent should do, in words"),
         test: { type: "boolean", description: "a test run: nothing outward, state untouched" },
+        snapshot: str("a folder to work on: the snapshot id `foldrun snapshot push` printed. The agent finds it in snapshot/; when the run ends, its outputs hold snapshot.patch (the change, as a git patch) — get_run lists them"),
       },
       ["workspace", "agent", "task"],
     ),
@@ -240,7 +241,7 @@ export const MCP_TOOLS: McpTool[] = [
       method: "POST",
       path: `/api/workspaces/${enc(s(a.workspace)!)}/agents/${enc(s(a.agent)!)}/run`,
       params: { workspace: s(a.workspace)!, agent: s(a.agent)! },
-      body: { task: s(a.task) ?? "", ...(a.test === true ? { test: true } : {}) },
+      body: { task: s(a.task) ?? "", ...(a.test === true ? { test: true } : {}), ...(s(a.snapshot) ? { snapshot: s(a.snapshot) } : {}) },
     }),
   },
   {
