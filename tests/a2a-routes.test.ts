@@ -115,7 +115,7 @@ test("an admin mints an A2A key for one workspace's flows; the request is checke
   assert.deepEqual(minted.body.workspaces, ["desk"]);
   assert.equal(minted.body.maxTasks, 50);
   assert.equal(secondMinted.body.maxTasks, 10, "the default");
-  assert.match(a2a, /^mda_/);
+  assert.match(a2a, /^fr_a2a_[0-9a-f]{48}$/, "an A2A key says so (FOL-154)");
   assert.equal((await mint(admin, { purpose: "a2a", workspace: "desk", flows: ["nope"] })).status, 400, "an unknown flow");
   const unpublished = await mint(admin, { purpose: "a2a", workspace: "desk", flows: ["leads", "plain", "hidden"] });
   assert.equal(unpublished.status, 400, "a flow not published now (FOL-112 N6)");

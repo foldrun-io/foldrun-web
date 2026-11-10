@@ -28,6 +28,14 @@ test("a key remembers its role and workspaces, and apiKeyFor reads them back", a
   assert.ok((await listApiKeys("acme")).every((k) => !("hash" in k)));
 });
 
+test("FOL-154: a new key says what it is — fr_api_ here; one minted before (mda_) is still looked up by its hash", async () => {
+  const { key, record } = await createApiKey("acme", "prefix", "me@acme.test", undefined, "editor");
+  assert.match(key, /^fr_api_[0-9a-f]{48}$/);
+  assert.equal(record.prefix, key.slice(0, 12), "the list still shows the first twelve characters");
+  assert.ok((await apiKeyFor(key)) !== null);
+  // The legacy case is the next test: an mda_ key's hash, read back.
+});
+
 test("a key minted before roles and scopes existed is an admin of every workspace", async () => {
   // Written the way keys.json held them: no role, no workspaces — only the
   // hash of the key, which is what apiKeyFor looks up. With a database the

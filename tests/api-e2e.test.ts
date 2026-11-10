@@ -576,7 +576,7 @@ test("foldrun login: the code the terminal shows is the code the browser approve
     platforms: Record<string, { token: string; email: string; account: string; role: string }>;
   };
   assert.equal(creds.default, base);
-  assert.match(creds.platforms[base].token, /^mda_/);
+  assert.match(creds.platforms[base].token, /^fr_api_/);
   assert.equal(creds.platforms[base].email, "founder@example.test");
   // The account's owner signs in as an admin: a key is never an owner.
   assert.equal(creds.platforms[base].role, "admin");
@@ -601,7 +601,7 @@ test("foldrun whoami and keys work from the credentials file alone", opts, async
 
   const made = cli("keys", "create", "ci", "--role", "viewer");
   assert.equal(made.status, 0, made.stderr + made.stdout);
-  const key = made.stdout.match(/\b(mda_[0-9a-f]{48})\b/)?.[1];
+  const key = made.stdout.match(/\b(fr_api_[0-9a-f]{48})\b/)?.[1];
   assert.ok(key, made.stdout);
 
   const list = cli("keys", "ls");

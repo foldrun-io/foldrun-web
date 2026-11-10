@@ -1,4 +1,5 @@
-// Workspace API keys. Keys look like `mda_<48 hex>`; only a SHA-256 hash is
+// Workspace API keys. Keys look like `fr_api_<48 hex>` (fr_gw_ for the gateway,
+// fr_a2a_ for A2A; mda_ before FOL-154, still accepted); only a SHA-256 hash is
 // stored. A valid `Authorization: Bearer` key *is* the tenant — it overrides
 // any x-foldrun-tenant header.
 //
@@ -181,6 +182,10 @@ function writeKeys(keys: ApiKeyRecord[]) {
 
 const hash = (key: string) => crypto.createHash("sha256").update(key).digest("hex");
 
+/** A new key's prefix by what it is for (FOL-154). Deploy keys are no longer
+ *  minted (17 Oct 2026); the prefix stays reserved for the scanners. */
+export const KEY_PREFIX = { api: "fr_api", gateway: "fr_gw", a2a: "fr_a2a", deploy: "fr_dep" } as const;
+
 export async function createApiKey(
   tenant: string,
   label: string,
@@ -202,9 +207,11 @@ export async function createApiKey(
     if (!opts.a2a.flows.length) throw new Error("an A2A key names at least one flow");
     if (!workspaces || workspaces.length !== 1 || workspaces[0] !== opts.a2a.workspace) throw new Error("an A2A key is scoped to its one workspace");
   }
-  // A deploy key is visibly a deploy key, so it is never mistaken for an
-  // account key when it turns up in a CI log.
-  const key = `${scope ? "mdk" : "mda"}_${crypto.randomBytes(24).toString("hex")}`;
+  // The prefix says what the key is (FOL-154), so one found in a log, a
+  // repository or a config file is recognised — by a person and by the
+  // secret scanners — and for what. Only the hash is ever looked up: keys
+  // minted before (mda_, mdk_) keep working.
+  const key = `${KEY_PREFIX[scope ? "deploy" : opts.gateway ? "gateway" : opts.a2a ? "a2a" : "api"]}_${crypto.randomBytes(24).toString("hex")}`;
   const record: ApiKeyRecord = {
     id: crypto.randomBytes(6).toString("hex"),
     hash: hash(key),
@@ -669,7 +676,7 @@ export async function resolveTenant(req: NextRequest): Promise<AuthResult> {
     tenant: null,
     status: 401,
     message:
-      "missing API key (Authorization: Bearer mda_...). Set FOLDRUN_DEV_NO_AUTH=1 to allow " +
+      "missing API key (Authorization: Bearer fr_api_...). Set FOLDRUN_DEV_NO_AUTH=1 to allow " +
       "unauthenticated local requests.",
   };
 }
@@ -692,7 +699,7 @@ export interface A2aCaller {
  */
 export async function resolveA2aKey(req: Pick<NextRequest, "headers">): Promise<{ ok: true; caller: A2aCaller } | { ok: false; status: 401 | 403; message: string }> {
   const authz = req.headers.get("authorization");
-  if (!authz || !/^bearer\s/i.test(authz)) return { ok: false, status: 401, message: "an A2A key is required (Authorization: Bearer mda_…)" };
+  if (!authz || !/^bearer\s/i.test(authz)) return { ok: false, status: 401, message: "an A2A key is required (Authorization: Bearer fr_a2a_…)" };
   const record = await keyByHash(hash(authz.replace(/^bearer\s+/i, "").trim()));
   if (!record) return { ok: false, status: 401, message: "invalid A2A key" };
   if (record.revokedAt) return { ok: false, status: 401, message: "A2A key revoked" };

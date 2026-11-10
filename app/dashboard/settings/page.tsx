@@ -430,7 +430,7 @@ async function ApiTab({
       <SettingsSection id="using-a-key">
         <SettingsCard title="Using a key" description="Set it in the shell, then deploy and call agents from the CLI or over HTTP." flush>
           <pre className="overflow-x-auto bg-sunken px-5 py-4 font-mono text-xs leading-relaxed text-fg-secondary sm:px-6">
-            {`export FOLDRUN_TOKEN=mda_...
+            {`export FOLDRUN_TOKEN=fr_api_...
 export FOLDRUN_URL=${origin}
 
 # deploy a folder of markdown — checked before it goes live
@@ -468,7 +468,7 @@ codex mcp add foldrun -- foldrun mcp
 
 # straight to the platform, with a key from above
 claude mcp add --transport http foldrun ${origin}/api/mcp \\
-  --header "Authorization: Bearer mda_..."
+  --header "Authorization: Bearer fr_api_..."
 
 # Claude Desktop, Cursor: in the app's MCP settings
 { "mcpServers": { "foldrun": { "command": "foldrun", "args": ["mcp"] } } }`}

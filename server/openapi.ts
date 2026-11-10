@@ -668,7 +668,7 @@ export function openapiDocument(origin?: string): Schema {
     paths,
     components: {
       securitySchemes: {
-        bearer: { type: "http", scheme: "bearer", description: "An API key from Settings → API keys (mda_…)" },
+        bearer: { type: "http", scheme: "bearer", description: "An API key from Settings → API keys (fr_api_…; fr_gw_… for the gateway, fr_a2a_… for A2A)" },
         metricsToken: { type: "http", scheme: "bearer", description: "The install's Prometheus scrape token (FOLDRUN_METRICS_TOKEN) — not an API key; only GET /api/metrics takes it" },
       },
       parameters: {

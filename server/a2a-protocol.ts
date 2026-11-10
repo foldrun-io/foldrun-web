@@ -523,7 +523,7 @@ export function agentCard(c: CardInput): Record<string, unknown> {
     version: c.version,
     capabilities: { streaming: false, pushNotifications: false, extendedAgentCard: false },
     securitySchemes: {
-      bearer: { httpAuthSecurityScheme: { scheme: "Bearer", description: "An A2A key for this flow, minted by an admin of the workspace (mda_…)" } },
+      bearer: { httpAuthSecurityScheme: { scheme: "Bearer", description: "An A2A key for this flow, minted by an admin of the workspace (fr_a2a_…)" } },
     },
     securityRequirements: [{ schemes: { bearer: { list: [] } } }],
     defaultInputModes: c.pub.input ? ["application/json", "text/plain"] : ["text/plain", "application/json"],

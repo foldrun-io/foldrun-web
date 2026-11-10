@@ -60,7 +60,7 @@ test("a viewer's login key rotates itself: same label, role, scope and lifetime;
   const res = await post(record.id, token);
   assert.equal(res.status, 200, await res.clone().text());
   const body = await res.json();
-  assert.match(body.key, /^mda_/);
+  assert.match(body.key, /^fr_api_/);
   const keys = await listApiKeys("acme");
   const fresh = keys.find((k) => k.id === body.id)!;
   assert.equal(fresh.label, "cli · desk");
@@ -120,7 +120,7 @@ test("a renewal whose answer was lost: a retry with the old key inside the grace
   const again = await post(record.id, token);
   assert.equal(again.status, 200, await again.clone().text());
   const kept = await again.json();
-  assert.match(kept.key, /^mda_/);
+  assert.match(kept.key, /^fr_api_/);
   assert.notEqual(kept.id, lost.id);
   assert.equal(kept.replaced.id, lost.id, "the unused replacement is what was rotated");
   const keys = await listApiKeys("acme");

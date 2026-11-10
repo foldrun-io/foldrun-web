@@ -29,6 +29,7 @@ test("a gateway key keeps its limits through the table and a rotation, and opens
   const { createApiKey, rotateApiKey, listApiKeys, resolveTenant } = await import("../server/auth.ts");
   const tenant = `gwdb${Date.now()}`;
   const { key, record } = await createApiKey(tenant, "claude code", undefined, undefined, "viewer", null, { gateway: { capUsd: 20, dailyUsd: 5 } });
+  assert.match(key, /^fr_gw_[0-9a-f]{48}$/, "a gateway key says so (FOL-154)");
   assert.equal(record.purpose, "gateway");
   const row = (await listApiKeys(tenant)).find((k) => k.id === record.id)!;
   assert.deepEqual(row.gateway, { capUsd: 20, dailyUsd: 5 });
@@ -93,7 +94,8 @@ test("a gateway key keeps its limits through the table and a rotation, and opens
   assert.equal((await patch(plain.id, { models: null })).status, 400, "not a gateway key");
   assert.equal((await patch(ok.body.id, { models: null })).status, 200);
 
-  const { record: next } = await rotateApiKey(tenant, record.id, 0);
+  const { record: next, key: rotated } = await rotateApiKey(tenant, record.id, 0);
+  assert.match(rotated, /^fr_gw_/, "a rotation keeps the kind's prefix");
   assert.equal(next.purpose, "gateway");
   assert.deepEqual(next.gateway, { capUsd: 20, dailyUsd: 5 });
 });
