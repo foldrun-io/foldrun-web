@@ -41,7 +41,7 @@ interface KeyRow {
   purpose?: "a2a" | "gateway";
   /** "gateway": a coding agent's key — its own spending limits, and what it
    *  has spent in all and today (UTC), USD. */
-  gateway?: { capUsd: number | null; dailyUsd: number | null; spentUsd?: number; todayUsd?: number; credential?: "login" };
+  gateway?: { capUsd: number | null; dailyUsd: number | null; spentUsd?: number; todayUsd?: number; credential?: "login"; models?: { opus?: string; sonnet?: string; haiku?: string } };
   a2a?: { workspace: string; flows: string[]; principal?: string; maxTasks: number };
 }
 
@@ -70,6 +70,16 @@ function gatewaySpend(g: NonNullable<KeyRow["gateway"]>): string {
   else parts.push(`${usd(g.spentUsd)} spent`);
   if (g.dailyUsd !== null) parts.push(`${usd(g.todayUsd)} of ${usd(g.dailyUsd)} today`);
   return parts.join(" · ");
+}
+
+const TIERS = ["opus", "sonnet", "haiku"] as const;
+const TIER_LABEL = { opus: "Opus", sonnet: "Sonnet", haiku: "Haiku" } as const;
+
+/** What a gateway key's Claude Code tiers run on, in one line; null when
+ *  every tier runs as Claude Code names it. */
+function modelsLine(m: NonNullable<KeyRow["gateway"]>["models"]): string | null {
+  const parts = TIERS.filter((t) => m?.[t]).map((t) => `${TIER_LABEL[t]} → ${m![t]}`);
+  return parts.length ? parts.join(" · ") : null;
 }
 
 /** "3 days ago", "in 5 days" — coarse on purpose. */
@@ -188,6 +198,33 @@ export function KeyManager({
       body: JSON.stringify({ tenant, id }),
     });
     router.refresh();
+  };
+
+  // A gateway key's model map (Part A5): which model each Claude Code tier
+  // runs on for that key.
+  const [editingModels, setEditingModels] = useState<string | null>(null);
+  const [modelDraft, setModelDraft] = useState<{ opus: string; sonnet: string; haiku: string }>({ opus: "", sonnet: "", haiku: "" });
+  const saveModels = async (id: string) => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const picked = Object.fromEntries(TIERS.filter((t) => modelDraft[t].trim()).map((t) => [t, modelDraft[t].trim()]));
+      const res = await fetch(`/api/keys/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ models: Object.keys(picked).length ? picked : null }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEditingModels(null);
+        router.refresh();
+      } else setError(data.error ?? "failed to save the models");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "failed to save the models");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const rotate = async (id: string) => {
@@ -504,6 +541,11 @@ export function KeyManager({
                             <span>Claude login · not metered</span>
                           </Tooltip>
                         )}
+                        {k.purpose === "gateway" && modelsLine(k.gateway?.models) && (
+                          <Tooltip label="What Claude Code's tiers run on with this key: picking one in /model sends it here">
+                            <span>{modelsLine(k.gateway?.models)}</span>
+                          </Tooltip>
+                        )}
                         {k.purpose === "gateway" && k.gateway && k.gateway.credential !== "login" && (
                           <Tooltip label="What it has spent against its limits; calls in flight count at their estimate">
                             <span>{gatewaySpend(k.gateway)}</span>
@@ -559,6 +601,29 @@ export function KeyManager({
                           {k.prefix}… · {k.id}
                         </div>
                       </dl>
+                      {editingModels === k.id && (
+                        <div className="mt-3 space-y-3 rounded-md border border-line bg-sunken p-3 text-sm">
+                          <p className="text-fg-muted">
+                            Which model Claude Code&apos;s tiers run on with this key. Leave one empty to run it as Claude Code names it. A model is written as <span className="font-mono">openai/gpt-6</span>, <span className="font-mono">deepseek/deepseek-v4</span>, <span className="font-mono">kimi/kimi-k3</span> or <span className="font-mono">gemini/…</span>
+                            {k.gateway?.credential === "login" ? " — this key runs on the Claude login, so Claude models only." : "; it must be on foldrun's price list."}
+                          </p>
+                          <div className="grid gap-3 sm:grid-cols-3">
+                            {TIERS.map((t) => (
+                              <Field key={t} label={TIER_LABEL[t]}>
+                                <Input value={modelDraft[t]} onChange={(e) => setModelDraft((d) => ({ ...d, [t]: e.target.value }))} placeholder="as named" className="w-full font-mono" aria-label={`Model for ${TIER_LABEL[t]}`} />
+                              </Field>
+                            ))}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="primary" onClick={() => void saveModels(k.id)} disabled={busy}>
+                              {busy ? "Saving…" : "Save"}
+                            </Button>
+                            <Button variant="ghost" onClick={() => setEditingModels(null)}>
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                       {rotating === k.id && (
                         <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-line bg-sunken p-3 text-sm">
                           <span className="text-fg-muted">{k.purpose === "gateway" ? "A new key with this label and limits (its spend starts afresh) —" : "A new key with this label, role and workspaces —"}</span>
@@ -580,6 +645,19 @@ export function KeyManager({
                     </div>
                     {!k.revokedAt && manages && (
                       <div className="flex shrink-0 items-center gap-1">
+                        {k.purpose === "gateway" && !expired && !k.replacedBy && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              if (editingModels === k.id) return setEditingModels(null);
+                              setModelDraft({ opus: k.gateway?.models?.opus ?? "", sonnet: k.gateway?.models?.sonnet ?? "", haiku: k.gateway?.models?.haiku ?? "" });
+                              setEditingModels(k.id);
+                            }}
+                          >
+                            Models
+                          </Button>
+                        )}
                         {!expired && !k.replacedBy && (
                           <Button variant="ghost" size="sm" onClick={() => setRotating(rotating === k.id ? null : k.id)}>
                             Rotate

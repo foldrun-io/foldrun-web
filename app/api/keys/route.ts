@@ -10,7 +10,7 @@ import { listWorkspaces, listFlows } from "@/lib/store";
 import { isA2aPublished } from "@/lib/a2a-publish";
 import { errorResponse, ApiError, refuse } from "@/server/api";
 import { idempotent } from "@/server/idempotency";
-import { gatewayLoginOffered, gatewayOffered, gatewayUrl, withGatewaySpend } from "@/server/gateway-keys";
+import { checkModels, gatewayLoginOffered, gatewayOffered, gatewayUrl, withGatewaySpend } from "@/server/gateway-keys";
 
 /**
  * Who may touch keys, decided BEFORE any body is read.
@@ -242,7 +242,7 @@ async function mintGatewayKey(
   minter: Pick<Actor, "role" | "workspaces">,
   who: string | undefined,
   by: string,
-  body: { label?: string; capUsd?: unknown; dailyUsd?: unknown; credential?: unknown; expires?: string | number | null; role?: unknown; workspaces?: unknown; workspace?: unknown; flows?: unknown },
+  body: { label?: string; capUsd?: unknown; dailyUsd?: unknown; credential?: unknown; models?: unknown; expires?: string | number | null; role?: unknown; workspaces?: unknown; workspace?: unknown; flows?: unknown },
 ) {
   if (body.role !== undefined || body.workspaces !== undefined || body.workspace !== undefined || body.flows !== undefined) {
     return refuse("a gateway key takes capUsd and dailyUsd, not role, workspaces or flows — it opens the gateway only, never the API", 400);
@@ -257,8 +257,10 @@ async function mintGatewayKey(
     // dollar limit could hold it.
     if (body.capUsd !== undefined || body.dailyUsd !== undefined) return refuse("a login gateway key takes no capUsd or dailyUsd — the operator's Claude login is not metered, so a dollar limit could not hold it", 400);
     if (!gatewayLoginOffered(tenant)) return refuse("this account is not one the operator's Claude login is for — mint a gateway key on foldrun's models instead (capUsd or dailyUsd)", 403);
+    const lm = body.models === undefined ? { models: null } : checkModels(body.models, true);
+    if ("error" in lm) return refuse(lm.error, 400);
     const expiresAt = parseKeyExpiry(body.expires);
-    const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, "viewer", null, { expiresAt, gateway: { capUsd: null, dailyUsd: null, credential: "login" } });
+    const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, "viewer", null, { expiresAt, gateway: { capUsd: null, dailyUsd: null, credential: "login", ...(lm.models ? { models: lm.models } : {}) } });
     await audit("apikey.created", {
       actor: by,
       tenant,
@@ -271,10 +273,12 @@ async function mintGatewayKey(
   const capUsd = usdLimit(body.capUsd, "capUsd");
   const dailyUsd = usdLimit(body.dailyUsd, "dailyUsd");
   if (capUsd === null && dailyUsd === null) return refuse("a gateway key needs a limit of its own: { capUsd } in all, or { dailyUsd } per UTC day (or both)", 400);
+  const m = body.models === undefined ? { models: null } : checkModels(body.models, false);
+  if ("error" in m) return refuse(m.error, 400);
   const expiresAt = parseKeyExpiry(body.expires);
   // Its role is the lowest, as an A2A key's: only what keeps it in scope
   // checks (who may see and end it).
-  const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, "viewer", null, { expiresAt, gateway: { capUsd, dailyUsd } });
+  const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, "viewer", null, { expiresAt, gateway: { capUsd, dailyUsd, ...(m.models ? { models: m.models } : {}) } });
   await audit("apikey.created", {
     actor: by,
     tenant,

@@ -19,6 +19,8 @@ if (url) {
   process.env.FOLDRUN_DATABASE_PASSWORD = u.password;
   process.env.FOLDRUN_SECRET_KEY ??= "test-install-key";
 } else delete process.env.FOLDRUN_DATABASE_URL;
+// A price list, so a model map has something priced to point at (Part A5).
+process.env.FOLDRUN_MODEL_PRICES = JSON.stringify({ "anthropic/claude-opus-5-5": [5, 25, 0.5, 6.25, 64000] });
 
 test("a gateway key keeps its limits through the table and a rotation, and opens no /api route", opts, async () => {
   const { migrate } = await import("@/platform/db.ts");
@@ -71,6 +73,25 @@ test("a gateway key keeps its limits through the table and a rotation, and opens
     if (prevAllowed === undefined) delete process.env.FOLDRUN_PLATFORM_KEY_ACCOUNTS;
     else process.env.FOLDRUN_PLATFORM_KEY_ACCOUNTS = prevAllowed;
   }
+
+  // The model map (Part A5): set and cleared through PATCH /api/keys/<id>.
+  const idRoute = (await import("../app/api/keys/[id]/route.ts")) as { PATCH: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ id: string }> }) => Promise<Response> };
+  const patch = async (id: string, body: unknown) => {
+    const r2 = await idRoute.PATCH(new NextRequest(`https://app.example.test/api/keys/${id}`, { method: "PATCH", headers: { authorization: `Bearer ${admin}`, "content-type": "application/json" }, body: JSON.stringify(body) }), { params: Promise.resolve({ id }) });
+    return { status: r2.status, body: (await r2.json()) as Record<string, any> }; // eslint-disable-line @typescript-eslint/no-explicit-any
+  };
+  const mapped = await patch(ok.body.id, { models: { opus: "claude-opus-5-5" } });
+  assert.equal(mapped.status, 200, JSON.stringify(mapped.body));
+  const afterMap = (await (await keysRoute.GET(new NextRequest("https://app.example.test/api/keys", { headers: { authorization: `Bearer ${admin}` } }))).json()) as { keys: { id: string; gateway?: { models?: Record<string, string>; capUsd: number | null } }[] };
+  const gk = afterMap.keys.find((k) => k.id === ok.body.id)!;
+  assert.deepEqual(gk.gateway?.models, { opus: "claude-opus-5-5" });
+  assert.equal(gk.gateway?.capUsd, 12.35, "the limits are kept");
+  assert.equal((await patch(ok.body.id, { models: { sonnet: "nope/x" } })).status, 400);
+  assert.equal((await patch(ok.body.id, { capUsd: 99 })).status, 400, "only models change here");
+  assert.equal((await patch(record.id, { models: null })).status, 200, "a gateway key minted directly");
+  const plain = (await createApiKey(tenant, "plain", undefined, undefined, "editor")).record;
+  assert.equal((await patch(plain.id, { models: null })).status, 400, "not a gateway key");
+  assert.equal((await patch(ok.body.id, { models: null })).status, 200);
 
   const { record: next } = await rotateApiKey(tenant, record.id, 0);
   assert.equal(next.purpose, "gateway");

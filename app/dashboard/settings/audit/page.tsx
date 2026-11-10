@@ -53,6 +53,11 @@ function describe(e: AuditEntry): string {
       return `${s("label")}: new ${s("prefix")}… replaces ${s("replacesPrefix")}…, which ends ${s("oldEndsAt").slice(0, 16).replace("T", " ")} UTC`;
     case "apikey.revoked":
       return `${s("label")} (${s("prefix")}…)`;
+    case "apikey.models": {
+      const m = (d.models && typeof d.models === "object" ? d.models : {}) as Record<string, string>;
+      const parts = Object.entries(m).map(([t, v]) => `${t} → ${v}`);
+      return `${s("label")} (${s("prefix")}…): ${parts.length ? parts.join(", ") : "runs Claude Code's models as named"}`;
+    }
     case "secret.set":
     case "secret.deleted":
       return `${s("name")}${s("kind") ? ` (${s("kind")})` : ""}${s("workspace") ? ` in ${s("workspace")}` : " (account)"}`;

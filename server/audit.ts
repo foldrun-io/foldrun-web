@@ -57,6 +57,9 @@ export type AuditAction =
   // Keys over their whole life: minted, rotated (the new one's id is the
   // subject, the old one's in detail), revoked by a person.
   | "apikey.rotated"
+  // A gateway key's model map changed (which model each Claude Code tier
+  // runs on): the new map in detail.
+  | "apikey.models"
   // The vault, by NAME only — a value never reaches this table.
   | "secret.set"
   | "secret.deleted"

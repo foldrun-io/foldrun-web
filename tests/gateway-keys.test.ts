@@ -57,3 +57,16 @@ test("a gateway key opens no /api route: the funnel refuses it, whatever it asks
   assert.equal(res.tenant, null);
   assert.ok(!res.tenant && res.status === 403 && /gateway key/.test(res.message));
 });
+
+test("a gateway key's model map is checked: tiers only, served providers, priced models, Claude-only on a login key", async () => {
+  const { checkModels } = await import("../server/gateway-keys.ts");
+  const priced = (p: string, m: string) => (p === "openai" && m === "gpt-6") || (p === "anthropic" && m.startsWith("claude-"));
+  assert.deepEqual(checkModels({ sonnet: "openai/gpt-6" }, false, priced), { models: { sonnet: "openai/gpt-6" } });
+  assert.deepEqual(checkModels({ sonnet: "" }, false, priced), { models: null }, "an empty tier is no tier");
+  assert.deepEqual(checkModels(null, false, priced), { models: null });
+  for (const bad of [{ turbo: "openai/gpt-6" }, { sonnet: "nope/x" }, { sonnet: "openai/gpt-unpriced" }, [], "x", { sonnet: 5 }]) {
+    assert.ok("error" in checkModels(bad, false, priced), JSON.stringify(bad));
+  }
+  assert.ok("error" in checkModels({ sonnet: "openai/gpt-6" }, true, priced), "a login key is Claude-only");
+  assert.deepEqual(checkModels({ opus: "claude-opus-5-5" }, true, priced), { models: { opus: "claude-opus-5-5" } });
+});

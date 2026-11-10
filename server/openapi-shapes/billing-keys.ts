@@ -310,6 +310,19 @@ export const SHAPES: Record<string, Shape> = {
       tokenSeconds: int,
     }),
   },
+  "PATCH /api/keys/{id}": {
+    body: obj(
+      {
+        models: {
+          type: ["object", "null"],
+          description: "a gateway key's model map: { opus?, sonnet?, haiku? }, each provider/model (e.g. openai/gpt-6); null clears it",
+          properties: { opus: str(), sonnet: str(), haiku: str() },
+        },
+      },
+      ["models"],
+    ),
+    response: obj({ ok: bool, id: str(), models: { type: ["object", "null"], properties: { opus: str(), sonnet: str(), haiku: str() } } }, ["ok", "id"]),
+  },
   "POST /api/keys/{id}/rotate": {
     body: obj({
       grace: { type: ["string", "integer"], description: "how long the old key keeps working: 0 (default) or a duration up to 7d — 30m, 1h, 24h. A cli-login key rotating itself ignores it (10 minutes)" },
