@@ -78,6 +78,8 @@ export type AuditAction =
   // A package taken out, or brought in (export/import routes).
   | "workspace.exported"
   | "workspace.imported"
+  // A folder sent from someone's machine for a run to work on (snapshots).
+  | "snapshot.saved"
   // Support opened this account read-only, and the view ended. The customer
   // reads these in their own audit log: "support viewed your account".
   | "support.viewed"

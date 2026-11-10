@@ -309,6 +309,17 @@ export const SHAPES: Record<string, Shape> = {
       }),
     }),
   },
+  "POST /api/workspaces/{workspace}/snapshots": {
+    noBody: "the body is the folder as a .tar.gz (core snapshot-archive.ts, what `foldrun snapshot push` makes), sent as application/gzip with a Content-Length, at most 50 MB compressed; not JSON",
+    response: obj({
+      snapshotId: str("the archive's sha256: pass it to a run"),
+      files: { ...int, description: "files in it" },
+      bytes: { ...int, description: "unpacked size" },
+      compressedBytes: { ...int, description: "the archive's size" },
+      expiresAt: str("when it goes if no run uses it (7 days from the last send)"),
+      reused: { ...bool, description: "this workspace already had this exact folder (200, not 201)" },
+    }),
+  },
   "POST /api/workspaces/{workspace}/import": {
     noBody: "the body is the package itself — the .zip GET …/export answers — sent as application/zip with a Content-Length, at most 20 MB; not JSON",
     query: [

@@ -20,6 +20,7 @@ const CALLBACK = "called by something else holding its own proof, not by a perso
 /** Operations the CLI does not call, and why. */
 const NOT_IN_CLI: Record<string, string> = {
   "POST /api/account/close": "closing an account is the owner's, in person, in Settings",
+  "POST /api/workspaces/[workspace]/snapshots": "Part B3 in progress (11 Nov 2026): `foldrun snapshot push` / `agent run --folder` come with the next core release (snapshot-archive is core's public API); remove this line then",
   "POST /api/oauth/handoff/[id]": "accepting a terminal-started connection is a signed-in person's, in the browser; the CLI opens the page (/api/oauth/start answers its URL)",
   ...Object.fromEntries(
     [
@@ -78,6 +79,7 @@ const SEEN = (where: string) => `reached by a call the scanner cannot evaluate: 
 
 /** Operations the dashboard does not call through /api, and why. */
 const NOT_IN_DASHBOARD: Record<string, string> = {
+  "POST /api/workspaces/[workspace]/snapshots": "a folder from the caller's own machine, sent by the CLI or an AI app over MCP; a browser has no folder to send",
   "GET /api/account/api": SERVER("settings/page.tsx → apiFactsFor"),
   "GET /api/account/jobs": SERVER("settings pages → defaultsOf and the JOBS headings, read on the server"),
   "GET /api/account/pause": SERVER("settings/page.tsx and layout.tsx → pauseView / adminState"),
