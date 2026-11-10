@@ -20,7 +20,6 @@ const CALLBACK = "called by something else holding its own proof, not by a perso
 /** Operations the CLI does not call, and why. */
 const NOT_IN_CLI: Record<string, string> = {
   "POST /api/account/close": "closing an account is the owner's, in person, in Settings",
-  "POST /api/workspaces/[workspace]/snapshots": "Part B3 in progress (11 Nov 2026): `foldrun snapshot push` / `agent run --folder` come with the next core release (snapshot-archive is core's public API); remove this line then",
   "POST /api/oauth/handoff/[id]": "accepting a terminal-started connection is a signed-in person's, in the browser; the CLI opens the page (/api/oauth/start answers its URL)",
   ...Object.fromEntries(
     [
