@@ -83,16 +83,35 @@ function harden(res: NextResponse, req: NextRequest, nonce: string): NextRespons
   return res;
 }
 
+/** The install's object store origin (FOLDRUN_S3_ENDPOINT, read per request):
+ *  the browser PUTs an upload straight to it, and a video, audio or PDF
+ *  preview is a redirect to a signed link there. Path-style, so one origin;
+ *  empty when there is no store or the value is not a URL. */
+function storageOrigin(): string {
+  try {
+    const e = process.env.FOLDRUN_S3_ENDPOINT;
+    return e ? new URL(e).origin : "";
+  } catch {
+    return "";
+  }
+}
+
 /** The page policy. Scripts only with this request's nonce, and what those
  *  load ('strict-dynamic'); `next dev` also needs eval, production never. */
 function csp(nonce: string): string {
+  const store = storageOrigin();
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",
-    "connect-src 'self'",
+    // The store's origin is named for what reaches it directly: uploads
+    // (connect), video and audio (media), a PDF in a frame. Images are served
+    // from here (?inline=1), so img-src stays as it is.
+    ["connect-src 'self'", store].filter(Boolean).join(" "),
+    ["media-src 'self'", store].filter(Boolean).join(" "),
+    ["frame-src 'self'", store].filter(Boolean).join(" "),
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

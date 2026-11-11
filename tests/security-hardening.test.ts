@@ -115,6 +115,46 @@ test("FOLDRUN_CSP=report-only is the way back: the policy is reported, not enfor
   }
 });
 
+// ── the object store's origin in the CSP ─────────────────────────────────────
+
+async function cspWithStore(endpoint: string | undefined): Promise<string> {
+  const before = process.env.FOLDRUN_S3_ENDPOINT;
+  if (endpoint === undefined) delete process.env.FOLDRUN_S3_ENDPOINT;
+  else process.env.FOLDRUN_S3_ENDPOINT = endpoint;
+  try {
+    return (await proxy(new NextRequest("https://app.foldrun.io/login"))).headers.get("content-security-policy")!;
+  } finally {
+    if (before === undefined) delete process.env.FOLDRUN_S3_ENDPOINT;
+    else process.env.FOLDRUN_S3_ENDPOINT = before;
+  }
+}
+
+test("CSP names the object store for uploads, media and PDF frames, and nothing else", async () => {
+  const policy = await cspWithStore("https://s3.eu-north-1.amazonaws.com");
+  const store = "https://s3.eu-north-1.amazonaws.com";
+  assert.match(policy, new RegExp(`connect-src 'self' ${store}(;|$)`));
+  assert.match(policy, new RegExp(`media-src 'self' ${store}(;|$)`));
+  assert.match(policy, new RegExp(`frame-src 'self' ${store}(;|$)`));
+  // Images are served from here, scripts never from the store.
+  assert.match(policy, /img-src 'self' data: blob:(;|$)/);
+  assert.doesNotMatch(policy.match(/script-src[^;]*/)![0], /amazonaws/);
+  assert.match(policy, /default-src 'self'(;|$)/);
+});
+
+test("CSP without an object store is exactly the old policy", async () => {
+  const policy = await cspWithStore(undefined);
+  assert.match(policy, /connect-src 'self';/);
+  assert.match(policy, /media-src 'self';/);
+  assert.match(policy, /frame-src 'self';/);
+  assert.doesNotMatch(policy, /amazonaws|https:\/\//);
+});
+
+test("CSP takes only the origin of the endpoint and ignores a value that is not a URL", async () => {
+  assert.match(await cspWithStore("https://s3.example.com:9000/some/path?x=1"), /connect-src 'self' https:\/\/s3\.example\.com:9000;/);
+  const bad = await cspWithStore("not a url");
+  assert.match(bad, /connect-src 'self';/);
+});
+
 test("no page is prerendered: a static page cannot carry the per-request nonce", () => {
   const root = path.join(import.meta.dirname, "..", "app");
   const offenders: string[] = [];
