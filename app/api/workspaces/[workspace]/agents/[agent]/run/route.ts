@@ -8,6 +8,8 @@ import { wantsWait, waitAndRespond } from "@/server/wait";
 import { idempotent } from "@/server/idempotency";
 import { getSnapshot, SnapshotRefused } from "@/platform/snapshots";
 import { contextIdProblem, runContext } from "@/lib/conversation";
+import { inputsFromBody, missingText } from "@/server/run-inputs";
+import { MissingInput } from "@/lib/storage";
 
 async function postOnce(
   req: NextRequest,
@@ -28,6 +30,8 @@ async function postOnce(
     let snapshot: string | undefined;
     // FOL-162: the conversation this run is a turn of (conversation.ts).
     let context: string | undefined;
+    // FOL-163: storage paths the agent is handed, at agents/<name>/inputs/.
+    let rawInputs: unknown;
     try {
       const body = await req.json();
       if (typeof body?.task === "string") task = body.task;
@@ -41,6 +45,7 @@ async function postOnce(
         if (problem) throw new ApiError(problem, 400);
         context = body.context as string;
       }
+      rawInputs = body?.inputs;
     } catch (err) {
       if (err instanceof ApiError) throw err;
       // empty body is fine
@@ -52,6 +57,7 @@ async function postOnce(
       if (process.env.FOLDRUN_RUN_ISOLATION !== "k8s") return refuse("this install runs steps without the sandbox a snapshot needs (FOLDRUN_RUN_ISOLATION=k8s) — nothing was started", 409);
       if (!(await getSnapshot(tenant, workspace, snapshot))) return refuse(`no snapshot ${snapshot.slice(0, 12)}… in ${workspace} — send the folder again (foldrun snapshot push)`, 404);
     }
+    const inputs = inputsFromBody(tenant, workspace, rawInputs);
     const run = await enqueueFlowRun(
       tenant,
       workspace,
@@ -60,13 +66,15 @@ async function postOnce(
       undefined,
       [],
       null,
-      { test, ...(snapshot ? { snapshot } : {}), ...(context ? { conversation: { context: runContext(context), input: { text: task } } } : {}) },
+      { test, ...(snapshot ? { snapshot } : {}), ...(context ? { conversation: { context: runContext(context), input: { text: task } } } : {}), ...(inputs ? { inputs } : {}) },
     );
     if (wantsWait(req)) return waitAndRespond(req, tenant, workspace, run);
-    return NextResponse.json({ ok: true, runId: run.id, test: run.test === true, ...(run.snapshot ? { snapshot: run.snapshot.id } : {}), ...(run.context ? { context: run.context.id } : {}) });
+    return NextResponse.json({ ok: true, runId: run.id, test: run.test === true, ...(run.snapshot ? { snapshot: run.snapshot.id } : {}), ...(run.context ? { context: run.context.id } : {}), ...(run.inputs?.length ? { inputs: run.inputs.map((f) => f.path) } : {}) });
   } catch (err) {
     // The folder went between the check and the pin: the run was undone.
     if (err instanceof SnapshotRefused) return refuse(err.message, 404);
+    // An input deleted between the check and the hold: the run was undone.
+    if (err instanceof MissingInput) return refuse(missingText("this workspace", err.path), 404);
     return errorResponse(err);
   }
 }

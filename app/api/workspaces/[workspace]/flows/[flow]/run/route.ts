@@ -1,4 +1,6 @@
 import { contextIdProblem, runContext } from "@/lib/conversation";
+import { inputsFromBody, missingText } from "@/server/run-inputs";
+import { MissingInput } from "@/lib/storage";
 import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, requirePermission, refuse } from "@/server/api";
 import { loadFlow } from "@/lib/runner";
@@ -35,6 +37,8 @@ async function postOnce(
     // FOL-162: a conversation this run is a turn of — its first step reads
     // the earlier runs of the same context (conversation.ts).
     let context: string | undefined;
+    // FOL-163: storage paths the first step is handed, at agents/<name>/inputs/.
+    let rawInputs: unknown;
     // A caller's own key for this request. A retried start call — a dropped
     // response, a proxy timeout, a CI step that ran twice — otherwise starts
     // a second run and bills for it, and nobody notices until the invoice.
@@ -53,6 +57,7 @@ async function postOnce(
         if (problem) return refuse(problem, 400);
         context = body.context as string;
       }
+      rawInputs = body?.inputs;
       if (!idempotencyKey && typeof body?.idempotencyKey === "string") idempotencyKey = body.idempotencyKey.trim();
     } catch {
       // empty body is fine
@@ -70,6 +75,11 @@ async function postOnce(
     if (from > 1 && context) {
       return refuse("context and from can't be combined: the conversation goes to step 1, which from skips", 400);
     }
+    if (from > 1 && Array.isArray(rawInputs) && rawInputs.length) {
+      return refuse("inputs and from can't be combined: the inputs go to step 1, which from skips", 400);
+    }
+    // Checked and resolved before the key is claimed, so a refusal leaves none.
+    const inputs = inputsFromBody(tenant, workspace, rawInputs);
     // overlap: skip holds for a person or a key too, not only the scheduler
     // — checked inside admitFlowRun, under the same lock as the enqueue
     // (platform flow-admission.ts), so two starts at once cannot both pass.
@@ -121,6 +131,7 @@ async function postOnce(
         startedBy: actor.kind === "user" ? actor.name : null,
         test,
         ...(context ? { conversation: { context: runContext(context), input: { text: task } } } : {}),
+        ...(inputs ? { inputs } : {}),
       });
     } catch (err) {
       // The claim was taken before the run existed, so two retries could not
@@ -129,12 +140,14 @@ async function postOnce(
       // a day is told "duplicate" with no run behind it.
       if (idempotencyKey) await releaseRequestKey(tenant, workspace, `run:${flow.name}`, idempotencyKey);
       if (err instanceof AdmissionRefused && err.code === "overlap") return overlapRefusal(err);
+      // An input deleted between the check and the hold: the run was undone.
+      if (err instanceof MissingInput) return refuse(missingText(workspace, err.path), 404);
       throw err;
     }
     if (idempotencyKey) await noteRequestRun(tenant, workspace, `run:${flow.name}`, idempotencyKey, run.id);
     // ?wait=true turns this into a request/response call — see server/wait.ts.
     if (wantsWait(req)) return waitAndRespond(req, tenant, workspace, run);
-    return NextResponse.json({ ok: true, runId: run.id, steps: run.steps.length, test: run.test === true, ...(run.context ? { context: run.context.id } : {}) });
+    return NextResponse.json({ ok: true, runId: run.id, steps: run.steps.length, test: run.test === true, ...(run.context ? { context: run.context.id } : {}), ...(run.inputs?.length ? { inputs: run.inputs.map((f) => f.path) } : {}) });
   } catch (err) {
     return errorResponse(err);
   }

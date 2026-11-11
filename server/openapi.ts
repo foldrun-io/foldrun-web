@@ -103,8 +103,8 @@ const LEGACY_SHAPES: Record<string, Shape> = {
     },
   },
   "POST /api/workspaces/{workspace}/flows/{flow}/run": {
-    body: obj({ task: str("delivered to the first step"), tags: { type: "array", items: str() }, from: int, test: bool, context: str("a conversation this run is a turn of: 1–200 printable ASCII characters; its first step reads the earlier runs of the same context (FOL-162). Not with from") }),
-    response: obj({ ok: bool, runId: str(), steps: int, test: bool, started: bool, reason: str(), context: str("the context, when one was given") }),
+    body: obj({ task: str("delivered to the first step"), tags: { type: "array", items: str() }, from: int, test: bool, context: str("a conversation this run is a turn of: 1–200 printable ASCII characters; its first step reads the earlier runs of the same context (FOL-162). Not with from"), inputs: { type: "array", items: str(), description: "files to hand the run: storage paths, as GET …/storage lists them — at most 20, 100 MiB together; staged at agents/<name>/inputs/ for the first step; not with from, held as they are now (FOL-163). Needs the k8s or container sandbox (409 otherwise); 404 names a path with no stored file" } }),
+    response: obj({ ok: bool, runId: str(), steps: int, test: bool, started: bool, reason: str(), context: str("the context, when one was given"), inputs: { type: "array", items: str(), description: "the storage paths it was handed, when any" } }),
     query: [{ name: "wait", description: "true answers when the run stops" }],
   },
   "POST /api/workspaces/{workspace}/deploy": {

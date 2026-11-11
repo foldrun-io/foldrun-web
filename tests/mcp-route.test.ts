@@ -368,3 +368,38 @@ test("run_agent and run_flow carry a context to their routes (FOL-162), which ch
   const bad = await tool("run_agent", { workspace: "desk", agent: "writer", task: "x", context: "has a space" });
   assert.match(bad.text, /^HTTP 400: context is 1–200 printable ASCII/);
 });
+
+test("inputs (FOL-163): run_agent / run_flow hand storage files to the run — held, listed on the record; refused where nothing can stage them, for a missing path and past the limits", async () => {
+  const storage = await import("@/lib/storage");
+  await storage.putFile("acme", "desk", "in/brief.pdf", Buffer.from("%PDF-1.7 brief"), "user:ana@acme.test");
+  const before = process.env.FOLDRUN_RUN_ISOLATION;
+  try {
+    delete process.env.FOLDRUN_RUN_ISOLATION;
+    const noBox = await tool("run_agent", { workspace: "desk", agent: "writer", task: "read it", test: true, inputs: ["in/brief.pdf"] });
+    assert.match(noBox.text, /^HTTP 409: this install runs steps without the sandbox inputs need/);
+
+    process.env.FOLDRUN_RUN_ISOLATION = "container";
+    const a = await tool("run_agent", { workspace: "desk", agent: "writer", task: "read it", test: true, inputs: ["in/brief.pdf"] });
+    assert.equal(a.isError, false, a.text);
+    assert.deepEqual(a.data.inputs, ["in/brief.pdf"]);
+    const one = await tool("get_run", { workspace: "desk", run_id: a.data.runId });
+    const run = one.data.run ?? one.data;
+    assert.equal(run.inputs[0].path, "in/brief.pdf");
+    assert.match(run.inputs[0].sha, /^[0-9a-f]{64}$/);
+    assert.equal(run.steps[0].inputsTurn, true);
+    assert.ok(storage.readIndex("acme", "desk").files.some((f) => f.path === `${storage.RUN_INPUTS_PREFIX}${a.data.runId}/in/brief.pdf`), "held for the run");
+    assert.ok(!storage.listStorage("acme", "desk").some((f) => f.path.startsWith(".foldrun/")), "the hold is not one of the workspace's files");
+
+    const f = await tool("run_flow", { workspace: "desk", flow: "weekly", task: "x", test: true, inputs: ["in/brief.pdf"] });
+    assert.equal(f.isError, false, f.text);
+    assert.deepEqual(f.data.inputs, ["in/brief.pdf"]);
+
+    assert.match((await tool("run_agent", { workspace: "desk", agent: "writer", task: "x", inputs: ["in/nope.pdf"] })).text, /^HTTP 404: no stored file in\/nope\.pdf in desk/);
+    assert.match((await tool("run_agent", { workspace: "desk", agent: "writer", task: "x", inputs: Array.from({ length: 21 }, (_, i) => `f${i}`) })).text, /^HTTP 400: at most 20 inputs/);
+    assert.match((await tool("run_agent", { workspace: "desk", agent: "writer", task: "x", inputs: [".foldrun/run-inputs/x/y"] })).text, /^HTTP 404/, "foldrun's own records are no input");
+    assert.match((await tool("run_agent", { workspace: "desk", agent: "writer", task: "x", inputs: "in/brief.pdf" })).text, /must be a list of strings/);
+  } finally {
+    if (before === undefined) delete process.env.FOLDRUN_RUN_ISOLATION;
+    else process.env.FOLDRUN_RUN_ISOLATION = before;
+  }
+});

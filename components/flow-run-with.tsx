@@ -25,6 +25,7 @@ import { useCan, needs } from "@/components/role";
 import { inputSetsFor, inputsFile, upsertInputSet, type EvalLike, type InputSet } from "@/components/flow-inputs-model";
 import { RadioGroup, RadioGroupItem } from "@foldrun/ui/react/choice";
 import { Popover, PopoverAnchor, PopoverContent } from "@foldrun/ui/react/popover";
+import { RunInputsPicker } from "@/components/run-inputs-picker";
 
 export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; tenant: string; flow: string }) {
   const router = useRouter();
@@ -43,6 +44,8 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
   const [error, setError] = useState<string | null>(null);
   const [started, setStarted] = useState<{ runId: string; test: boolean } | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  // FOL-163: storage files handed to the run's first step.
+  const [files, setFiles] = useState<string[]>([]);
 
   // The sets, read fresh each time the menu or the panel opens and after a
   // save: someone may have edited evals/ since.
@@ -90,7 +93,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
       const res = await fetch(`/api/workspaces/${workspace}/flows/${encodeURIComponent(flow)}/run`, {
         method: "POST",
         headers: { ...headers, "content-type": "application/json" },
-        body: JSON.stringify({ ...(task.trim() ? { task: task.trim() } : {}), test: !live }),
+        body: JSON.stringify({ ...(task.trim() ? { task: task.trim() } : {}), test: !live, ...(files.length ? { inputs: files } : {}) }),
       });
       const body = (await res.json().catch(() => ({}))) as { runId?: string; test?: boolean; error?: string };
       if (!res.ok || !body.runId) {
@@ -250,6 +253,8 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
             placeholder="What this run is for — reaches the first step as its task"
             className="mt-1 w-full font-mono text-xs"
           />
+
+          <RunInputsPicker workspace={workspace} tenant={tenant} picked={files} onChange={(p) => { setFiles(p); setStarted(null); }} active={open} />
 
           <div className="mt-2 flex items-center gap-3 text-xs text-fg-secondary">
             <RadioGroup aria-label="Kind of run" value={live ? "live" : "test"} onValueChange={(v) => setLive(v === "live")} className="flex items-center gap-3">

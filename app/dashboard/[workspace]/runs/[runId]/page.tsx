@@ -34,6 +34,8 @@ import { anchorId } from "@/components/collapse-model";
 import { listApiKeys } from "@/server/auth";
 import { a2aKeyLabels, a2aRunLabel } from "@/components/a2a-model";
 import { conversationNote } from "@/components/conversation-model";
+import { fileSize } from "@/components/run-inputs-model";
+import { RUN_INPUTS_PREFIX } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -129,7 +131,28 @@ export default async function RunPage({
 
   // What the graders (evals with trigger: runs) said about this run: one
   // line per grader, the first check that did not pass when one did not.
-  const extra =
+  // FOL-163: the files the run was handed, each linked to the copy held for
+  // it — what it read, whatever the storage file is now.
+  const inputsPanel = run.inputs?.length ? (
+    <Panel title={`Inputs · ${run.inputs.length}`} flush>
+      <ul className="divide-y divide-line">
+        {run.inputs.map((f) => (
+          <li key={f.path} className="flex items-baseline gap-2 px-4 py-2 text-[13px]">
+            <Link
+              href={`/api/workspaces/${encodeURIComponent(workspace)}/storage/download?path=${encodeURIComponent(`${RUN_INPUTS_PREFIX}${run.id}/${f.path}`)}${tenant !== "default" ? `&tenant=${encodeURIComponent(tenant)}` : ""}`}
+              className="min-w-0 flex-1 truncate font-mono text-fg hover:underline"
+            >
+              {f.path}
+            </Link>
+            <span className="shrink-0 text-xs text-fg-subtle">{f.mime}</span>
+            <span className="shrink-0 tabular-nums text-xs text-fg-subtle">{fileSize(f.size)}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="px-4 pb-3 text-[11px] text-fg-subtle">As they were when the run started — handed to its first step in inputs/.</p>
+    </Panel>
+  ) : null;
+  const gradesPanel =
     grades.length > 0 ? (
       <Panel title="Graded" flush>
         <ul className="divide-y divide-line">
@@ -246,7 +269,12 @@ export default async function RunPage({
               : []),
           ],
           failure: failure ? { agent: failure.agent, message: failure.message, fix: failure.fix ?? null, reason: failure.reason } : null,
-          extra,
+          extra: inputsPanel || gradesPanel ? (
+            <>
+              {inputsPanel}
+              {gradesPanel}
+            </>
+          ) : null,
         }}
       />
     </Page>
