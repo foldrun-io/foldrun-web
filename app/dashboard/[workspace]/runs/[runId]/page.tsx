@@ -237,7 +237,7 @@ export default async function RunPage({
                   <span>
                     <Fact label="Customer">
                       <Link href={`/dashboard/${encodeURIComponent(workspace)}/runs?tenant=${encodeURIComponent(tenant)}&customer=${encodeURIComponent(run.customer)}`} className="font-mono">
-                        {run.customer.length > 32 ? `${run.customer.slice(0, 31)}…` : run.customer}
+                        <WithEmails text={run.customer.length > 32 ? `${run.customer.slice(0, 31)}…` : run.customer} />
                       </Link>
                     </Fact>
                   </span>

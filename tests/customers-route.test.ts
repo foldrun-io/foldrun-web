@@ -20,6 +20,7 @@ const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 const list = await import("../app/api/customers/route.ts");
 const block = await import("../app/api/customers/[customer]/block/route.ts");
+const usage = await import("../app/api/customers/usage/route.ts");
 
 const admin = (await createApiKey("acme", "admin", "ana@acme.test", undefined, "admin")).key;
 const viewer = (await createApiKey("acme", "view", undefined, undefined, "viewer")).key;
@@ -50,4 +51,19 @@ test("limits and blocks: read by anyone in the account; changed by an admin over
   assert.deepEqual(now.blocked.map((x: { customer: string; reason: string }) => [x.customer, x.reason]), [["c-1", "spam"]]);
   assert.equal((await block.DELETE(req("DELETE", admin, undefined, url("c-1")), p("c-1"))).status, 200);
   assert.equal((await block.DELETE(req("DELETE", admin, undefined, url("c-1")), p("c-1"))).status, 404, "not blocked any more");
+});
+
+
+test("phase 2: the open-runs and daily model spend limits round-trip; usage per customer answers", async () => {
+  const set = await (await list.PATCH(req("PATCH", admin, { maxOpenRuns: 3, dailyModelUsd: 2.555 }))).json();
+  assert.equal(set.limits.maxOpenRuns, 3);
+  assert.equal(set.limits.dailyModelUsd, 2.56, "dollars kept to the cent");
+  assert.equal((await list.PATCH(req("PATCH", admin, { dailyModelUsd: 0 }))).status, 400);
+  assert.equal((await list.PATCH(req("PATCH", admin, { maxOpenRuns: 1.5 }))).status, 400);
+  const back = await (await list.PATCH(req("PATCH", admin, { maxOpenRuns: null, dailyModelUsd: null }))).json();
+  assert.equal(back.limits.maxOpenRuns, back.defaults.maxOpenRuns);
+  assert.equal(back.limits.dailyModelUsd, null);
+  const u = await (await usage.GET(req("GET", viewer, undefined, "https://app.example.test/api/customers/usage?days=30"))).json();
+  assert.equal(u.days, 30);
+  assert.deepEqual(u.customers, []);
 });
