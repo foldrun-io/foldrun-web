@@ -28,6 +28,8 @@ import { SettingsCard, EmptyState, Chip, Tag, Callout } from "@foldrun/ui/react/
 import { buttonVariants } from "@foldrun/ui/react/button";
 import { CalendarClock, ScrollText, Webhook } from "lucide-react";
 import { settingsTabs, SETTINGS_TABS, type SettingsTab } from "./tabs";
+import { CustomersCard } from "./customers";
+import { customerLimits, listBlocked, CUSTOMER_DEFAULTS } from "@/platform/customers";
 import { InlineEditor } from "@/components/inline-editor";
 import fs from "node:fs";
 import path from "node:path";
@@ -525,6 +527,16 @@ claude mcp add --transport http foldrun ${origin}/api/mcp \\
 
       <SettingsSection id="api" title="API" description="How fast this account may call the API, which dated version answers it, and what it has called lately.">
         <ApiSettings facts={apiFacts} qs={qs} />
+      </SettingsSection>
+
+      <SettingsSection id="customers">
+        <CustomersCard
+          tenant={tenant}
+          limits={await customerLimits(tenant)}
+          defaults={CUSTOMER_DEFAULTS}
+          blocked={await listBlocked(tenant)}
+          canManage={scope === null && (role === null || can(role, "workspace:manage"))}
+        />
       </SettingsSection>
     </>
   );

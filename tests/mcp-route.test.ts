@@ -403,3 +403,32 @@ test("inputs (FOL-163): run_agent / run_flow hand storage files to the run — h
     else process.env.FOLDRUN_RUN_ISOLATION = before;
   }
 });
+
+test("an end customer (FOL-168): run_agent / run_flow name one; a blocked one is refused 403 with its code; past its starts a minute 429 with Retry-After; a bad id 400", async () => {
+  const customers = await import("@/platform/customers");
+  customers.forgetBlocks();
+  const a = await tool("run_agent", { workspace: "desk", agent: "writer", task: "x", test: true, customer: "c-8812" });
+  assert.equal(a.isError, false, a.text);
+  assert.equal(a.data.customer, "c-8812");
+  const one = await tool("get_run", { workspace: "desk", run_id: a.data.runId });
+  assert.equal((one.data.run ?? one.data).customer, "c-8812");
+  const listed = await tool("list_runs", { workspace: "desk", limit: 100 });
+  assert.ok(listed.data.runs.some((r: { id: string; customer?: string }) => r.id === a.data.runId && r.customer === "c-8812"));
+
+  await customers.blockCustomer("acme", "c-bad", "ana@acme.test");
+  const blocked = await tool("run_flow", { workspace: "desk", flow: "weekly", task: "x", customer: "c-bad" });
+  assert.match(blocked.text, /^HTTP 403: customer c-bad is blocked by this account/);
+  assert.match((await tool("run_agent", { workspace: "desk", agent: "writer", task: "x", customer: "no spaces allowed" })).text, /^HTTP 400: customer is 1–128 characters/);
+
+  await customers.setCustomerLimits("acme", { startsPerMinute: 1 }, "ana@acme.test");
+  try {
+    assert.equal((await tool("run_agent", { workspace: "desk", agent: "writer", task: "x", test: true, customer: "c-busy" })).isError, false);
+    const res = await post({ jsonrpc: "2.0", id: 999, method: "tools/call", params: { name: "run_agent", arguments: { workspace: "desk", agent: "writer", task: "x", test: true, customer: "c-busy" } } });
+    const body = (await res.json()) as { result: { content: { text: string }[]; isError: boolean } };
+    assert.equal(body.result.isError, true);
+    assert.match(body.result.content[0]!.text, /^HTTP 429: customer c-busy has started 1 runs this minute/);
+    assert.equal((await tool("run_agent", { workspace: "desk", agent: "writer", task: "x", test: true, customer: "c-calm" })).isError, false, "another customer is not held");
+  } finally {
+    await customers.setCustomerLimits("acme", { startsPerMinute: null }, "ana@acme.test");
+  }
+});

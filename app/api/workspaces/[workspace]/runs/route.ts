@@ -56,6 +56,8 @@ export async function GET(
         finishedAt: r.finishedAt ?? null,
         // The conversation it is a turn of (FOL-162), when it is one.
         ...(r.context ? { context: r.context } : {}),
+        // The end customer it is for (FOL-168), when one was named.
+        ...(r.customer ? { customer: r.customer } : {}),
         // The run's own total, so "what does this desk cost" is one read
         // rather than a sum the caller has to remember to do. The steps keep
         // their own figures for the breakdown.

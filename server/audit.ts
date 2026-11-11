@@ -25,6 +25,10 @@ export type AuditAction =
   | "account.paused"
   // The account's own AGENTS.md written whole (PUT /api/account/agents-md).
   | "account.agents_md_set"
+  // FOL-168: an end customer blocked or unblocked; the customer limits changed.
+  | "customer.blocked"
+  | "customer.unblocked"
+  | "customer.limits"
   | "account.resumed"
   | "workspace.paused"
   | "workspace.resumed"

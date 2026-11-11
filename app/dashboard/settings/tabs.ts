@@ -29,6 +29,7 @@ export const SECTION_TAB: Record<string, SettingsTab | "backups" | "audit"> = {
   mcp: "api",
   "mcp-connections": "api",
   api: "api",
+  customers: "api",
   secrets: "secrets",
   webhooks: "secrets",
   schedules: "schedules",

@@ -232,6 +232,17 @@ export default async function RunPage({
                   </span>
                 </Tooltip>
               )}
+              {run.customer && (
+                <Tooltip label="Which of your own users this run is for — its limits and blocks follow it (Settings → API keys → Customers)">
+                  <span>
+                    <Fact label="Customer">
+                      <Link href={`/dashboard/${encodeURIComponent(workspace)}/runs?tenant=${encodeURIComponent(tenant)}&customer=${encodeURIComponent(run.customer)}`} className="font-mono">
+                        {run.customer.length > 32 ? `${run.customer.slice(0, 31)}…` : run.customer}
+                      </Link>
+                    </Fact>
+                  </span>
+                </Tooltip>
+              )}
               {run.drivenAt && (
                 <Tooltip label="from the run being created to a worker picking it up">
                   <span>

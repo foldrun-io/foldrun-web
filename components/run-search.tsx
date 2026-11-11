@@ -31,6 +31,7 @@ const FIELDS: { key: string; label: string; placeholder: string; width: string }
   { key: "min_tokens", label: "At least tokens", placeholder: "50k", width: "sm:w-28" },
   { key: "min_secs", label: "At least seconds", placeholder: "120", width: "sm:w-28" },
   { key: "context", label: "Conversation", placeholder: "order-42", width: "sm:w-32" },
+  { key: "customer", label: "Customer", placeholder: "c-8812", width: "sm:w-28" },
 ];
 
 export function RunSearch({ tenant }: { tenant: string }) {
@@ -92,7 +93,7 @@ export function RunSearch({ tenant }: { tenant: string }) {
       </Button>
       {panel && (
         <div className="basis-full rounded-lg border border-line bg-surface p-4">
-          <p className="mb-3 text-[13px] text-fg-muted">Find runs by what happened inside them — a tool called or erroring, an agent, a model, tokens, time — or the conversation they belong to.</p>
+          <p className="mb-3 text-[13px] text-fg-muted">Find runs by what happened inside them — a tool called or erroring, an agent, a model, tokens, time — or the conversation or customer they belong to.</p>
           <div className="flex flex-wrap items-end gap-3">
             {FIELDS.map((f) => (
               <label key={f.key} className={cn("flex w-full flex-col gap-1 text-[13px] text-fg-muted", f.width)}>

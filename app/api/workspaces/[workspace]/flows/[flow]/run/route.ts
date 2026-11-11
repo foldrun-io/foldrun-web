@@ -1,5 +1,6 @@
 import { contextIdProblem, runContext } from "@/lib/conversation";
 import { inputsFromBody, missingText } from "@/server/run-inputs";
+import { customerProblem } from "@/lib/customer";
 import { MissingInput } from "@/lib/storage";
 import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, requirePermission, refuse } from "@/server/api";
@@ -39,6 +40,8 @@ async function postOnce(
     let context: string | undefined;
     // FOL-163: storage paths the first step is handed, at agents/<name>/inputs/.
     let rawInputs: unknown;
+    // FOL-168: which of the partner's own users this run is for.
+    let customer: string | undefined;
     // A caller's own key for this request. A retried start call — a dropped
     // response, a proxy timeout, a CI step that ran twice — otherwise starts
     // a second run and bills for it, and nobody notices until the invoice.
@@ -58,6 +61,11 @@ async function postOnce(
         context = body.context as string;
       }
       rawInputs = body?.inputs;
+      if (body?.customer !== undefined && body?.customer !== null) {
+        const problem = customerProblem(body.customer);
+        if (problem) return refuse(problem, 400);
+        customer = body.customer as string;
+      }
       if (!idempotencyKey && typeof body?.idempotencyKey === "string") idempotencyKey = body.idempotencyKey.trim();
     } catch {
       // empty body is fine
@@ -102,7 +110,7 @@ async function postOnce(
     if (from > 1) {
       let run;
       try {
-        run = await admitFlowRun({ tenant, workspace, flow, from, startedBy: actor.kind === "user" ? actor.name : null, test });
+        run = await admitFlowRun({ tenant, workspace, flow, from, startedBy: actor.kind === "user" ? actor.name : null, test, ...(customer ? { customer } : {}) });
       } catch (err) {
         if (idempotencyKey) await releaseRequestKey(tenant, workspace, `run:${flow.name}`, idempotencyKey);
         if (err instanceof AdmissionRefused && err.code === "overlap") return overlapRefusal(err);
@@ -132,6 +140,7 @@ async function postOnce(
         test,
         ...(context ? { conversation: { context: runContext(context), input: { text: task } } } : {}),
         ...(inputs ? { inputs } : {}),
+        ...(customer ? { customer } : {}),
       });
     } catch (err) {
       // The claim was taken before the run existed, so two retries could not
@@ -147,7 +156,7 @@ async function postOnce(
     if (idempotencyKey) await noteRequestRun(tenant, workspace, `run:${flow.name}`, idempotencyKey, run.id);
     // ?wait=true turns this into a request/response call — see server/wait.ts.
     if (wantsWait(req)) return waitAndRespond(req, tenant, workspace, run);
-    return NextResponse.json({ ok: true, runId: run.id, steps: run.steps.length, test: run.test === true, ...(run.context ? { context: run.context.id } : {}), ...(run.inputs?.length ? { inputs: run.inputs.map((f) => f.path) } : {}) });
+    return NextResponse.json({ ok: true, runId: run.id, steps: run.steps.length, test: run.test === true, ...(run.context ? { context: run.context.id } : {}), ...(run.inputs?.length ? { inputs: run.inputs.map((f) => f.path) } : {}), ...(run.customer ? { customer: run.customer } : {}) });
   } catch (err) {
     return errorResponse(err);
   }

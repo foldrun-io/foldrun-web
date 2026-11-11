@@ -142,13 +142,13 @@ export const SHAPES: Record<string, Shape> = {
     response: obj({ ok: bool, path: str() }),
   },
   "POST /api/workspaces/{workspace}/agents/{agent}/run": {
-    body: obj({ task: str("what the agent is asked to do"), test: { ...bool, description: "a test run" }, snapshot: str("a folder to work on: the id POST …/snapshots answered; the step finds it in snapshot/ and the run's outputs hold snapshot.patch (k8s sandbox only)"), context: str("a conversation this run is a turn of: 1–200 printable ASCII characters; the agent reads the earlier runs of the same context before the task (FOL-162)"), inputs: { type: "array", items: str(), description: "files to hand the run: storage paths, as GET …/storage lists them — at most 20, 100 MiB together; staged at agents/<name>/inputs/ for the first step, held as they are now (FOL-163). Needs the k8s or container sandbox (409 otherwise); 404 names a path with no stored file" } }),
+    body: obj({ task: str("what the agent is asked to do"), test: { ...bool, description: "a test run" }, snapshot: str("a folder to work on: the id POST …/snapshots answered; the step finds it in snapshot/ and the run's outputs hold snapshot.patch (k8s sandbox only)"), context: str("a conversation this run is a turn of: 1–200 printable ASCII characters; the agent reads the earlier runs of the same context before the task (FOL-162)"), customer: str("which of your own users this run is for (FOL-168): an opaque id, 1–128 of letters, digits and . _ : @ -; never personal data. Limits and blocks follow it, and the model provider is told a hash of it as its end-user id"), inputs: { type: "array", items: str(), description: "files to hand the run: storage paths, as GET …/storage lists them — at most 20, 100 MiB together; staged at agents/<name>/inputs/ for the first step, held as they are now (FOL-163). Needs the k8s or container sandbox (409 otherwise); 404 names a path with no stored file" } }),
     query: [
       { name: "wait", description: "true (or 1) answers when the run stops — 202 if it is still going at the timeout or waits on approval" },
       { name: "timeout", description: "with wait: seconds, default 300, at most 900" },
     ],
     response: obj({
-      ok: bool, runId: str(), test: bool, snapshot: str("the folder it works on, when one was given"), context: str("the context, when one was given"), inputs: { type: "array", items: str(), description: "the storage paths it was handed, when any" },
+      ok: bool, runId: str(), test: bool, snapshot: str("the folder it works on, when one was given"), context: str("the context, when one was given"), inputs: { type: "array", items: str(), description: "the storage paths it was handed, when any" }, customer: str("the end customer, when one was named"),
       status: str("with wait: the run's status"), result: nullable(str("with wait: what it produced")),
       failure: nullable(Failure), costUsd: num,
       steps: arr(obj({ agent: str(), status: str(), skipReason: nullable(str()) })),

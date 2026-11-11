@@ -9,6 +9,7 @@ import { idempotent } from "@/server/idempotency";
 import { getSnapshot, SnapshotRefused } from "@/platform/snapshots";
 import { contextIdProblem, runContext } from "@/lib/conversation";
 import { inputsFromBody, missingText } from "@/server/run-inputs";
+import { customerProblem } from "@/lib/customer";
 import { MissingInput } from "@/lib/storage";
 
 async function postOnce(
@@ -32,6 +33,8 @@ async function postOnce(
     let context: string | undefined;
     // FOL-163: storage paths the agent is handed, at agents/<name>/inputs/.
     let rawInputs: unknown;
+    // FOL-168: which of the partner's own users this run is for.
+    let customer: string | undefined;
     try {
       const body = await req.json();
       if (typeof body?.task === "string") task = body.task;
@@ -46,6 +49,11 @@ async function postOnce(
         context = body.context as string;
       }
       rawInputs = body?.inputs;
+      if (body?.customer !== undefined && body?.customer !== null) {
+        const problem = customerProblem(body.customer);
+        if (problem) throw new ApiError(problem, 400);
+        customer = body.customer as string;
+      }
     } catch (err) {
       if (err instanceof ApiError) throw err;
       // empty body is fine
@@ -66,10 +74,10 @@ async function postOnce(
       undefined,
       [],
       null,
-      { test, ...(snapshot ? { snapshot } : {}), ...(context ? { conversation: { context: runContext(context), input: { text: task } } } : {}), ...(inputs ? { inputs } : {}) },
+      { test, ...(snapshot ? { snapshot } : {}), ...(context ? { conversation: { context: runContext(context), input: { text: task } } } : {}), ...(inputs ? { inputs } : {}), ...(customer ? { customer } : {}) },
     );
     if (wantsWait(req)) return waitAndRespond(req, tenant, workspace, run);
-    return NextResponse.json({ ok: true, runId: run.id, test: run.test === true, ...(run.snapshot ? { snapshot: run.snapshot.id } : {}), ...(run.context ? { context: run.context.id } : {}), ...(run.inputs?.length ? { inputs: run.inputs.map((f) => f.path) } : {}) });
+    return NextResponse.json({ ok: true, runId: run.id, test: run.test === true, ...(run.snapshot ? { snapshot: run.snapshot.id } : {}), ...(run.context ? { context: run.context.id } : {}), ...(run.inputs?.length ? { inputs: run.inputs.map((f) => f.path) } : {}), ...(run.customer ? { customer: run.customer } : {}) });
   } catch (err) {
     // The folder went between the check and the pin: the run was undone.
     if (err instanceof SnapshotRefused) return refuse(err.message, 404);

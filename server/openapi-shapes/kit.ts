@@ -81,6 +81,7 @@ export const Run = obj({
   tokens: Tokens,
   context: { ...obj({ id: str("the context the caller gave"), key: str("what it is found by: the workspace's plain scope, or one A2A caller's"), a2a: bool }), description: "the conversation the run is a turn of (FOL-162); absent when it is none" },
   input: { ...obj({ text: str(), data: { description: "an A2A message's JSON part" } }), description: "on a run with a context: what it was asked, as given" },
+  customer: str("the end customer the run is for (FOL-168), when one was named"),
   inputs: { type: "array", items: obj({ path: str("the storage path it was handed"), sha: str("sha256 of the bytes held for the run"), size: { type: "integer" }, mime: str() }), description: "the files the run was handed (FOL-163); the held copy downloads at …/storage/download?path=.foldrun/run-inputs/<runId>/<path>" },
   steps: { type: "array", items: { ...obj({ tokens: Tokens }), additionalProperties: true } },
 });

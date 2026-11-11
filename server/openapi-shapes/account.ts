@@ -164,6 +164,24 @@ const workspaceRev = obj({
 
 export const SHAPES: Record<string, Shape> = {
   "GET /api/account": { response: obj({ defaults: DefaultsView }) },
+  "GET /api/customers": {
+    response: obj({
+      limits: { ...obj({ startsPerMinute: int, gatewayRpm: int, gatewayConcurrency: int }), description: "in force for this account's end customers (FOL-168): runs a customer may start a minute, gateway calls a minute and at once — only for requests that name a customer" },
+      defaults: obj({ startsPerMinute: int, gatewayRpm: int, gatewayConcurrency: int }),
+      blocked: arr(obj({ customer: str(), by: str(), reason: nullable(str()), at: str() })),
+    }),
+  },
+  "PATCH /api/customers": {
+    body: { ...obj({ startsPerMinute: nullable(int), gatewayRpm: nullable(int), gatewayConcurrency: nullable(int) }), description: "whole numbers 1–100,000; null puts one back to the default. An admin over every workspace" },
+    response: obj({ limits: obj({ startsPerMinute: int, gatewayRpm: int, gatewayConcurrency: int }), defaults: obj({ startsPerMinute: int, gatewayRpm: int, gatewayConcurrency: int }) }),
+  },
+  "PUT /api/customers/{customer}/block": {
+    body: obj({ reason: str("why, kept on the block and the audit log") }),
+    response: obj({ ok: bool, customer: str(), blocked: bool }),
+  },
+  "DELETE /api/customers/{customer}/block": {
+    response: obj({ ok: bool, customer: str(), blocked: bool }),
+  },
   "GET /api/account/agents-md": {
     response: obj({ content: str("the whole file, empty when there is none"), sha256: nullable(str("send it back as ifMatch")), exists: bool }),
   },

@@ -359,7 +359,10 @@ export function refuse(message: string, status: number) {
 
 export function errorResponse(err: unknown) {
   const { status, message, internal } = reportError(err);
-  return NextResponse.json({ error: message, ...(internal ? {} : refusalFields(err)) }, { status });
+  // A refusal that knows when to come back (an end customer past its rate,
+  // FOL-168) says so the way every 429 here does.
+  const retry = !internal && err instanceof Error && typeof (err as { retryAfter?: unknown }).retryAfter === "number" ? String((err as unknown as { retryAfter: number }).retryAfter) : null;
+  return NextResponse.json({ error: message, ...(internal ? {} : refusalFields(err)) }, { status, ...(retry ? { headers: { "retry-after": retry } } : {}) });
 }
 
 /** A delivery (a webhook, an inbound email) refused because the account

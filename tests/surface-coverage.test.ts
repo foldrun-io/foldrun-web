@@ -154,6 +154,7 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   "GET /api/usage/history": SERVER("usage/page.tsx → spendHistory"),
   "GET /api/usage/budget": SERVER("limits/page.tsx → accountBudgetStanding, workspaceBudgetStanding"),
   "DELETE /api/workspaces/[workspace]": SEEN("[workspace]/settings/page.tsx (Delete workspace)"),
+  "GET /api/customers": SERVER("settings/page.tsx (API keys → Customers) → customerLimits, listBlocked"),
   "GET /api/workspaces/[workspace]/agents": SERVER("[workspace] pages → listAgents"),
   "POST /api/workspaces/[workspace]/assets": SEEN("components/create.tsx (New asset)"),
   "POST /api/workspaces/[workspace]/deploy": "the dashboard writes one file at a time through /source and takes packages through /import",

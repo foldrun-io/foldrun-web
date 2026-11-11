@@ -291,6 +291,7 @@ export const MCP_TOOLS: McpTool[] = [
         test: { type: "boolean", description: "a test run: nothing outward, state untouched" },
         context: str("a conversation this run is a turn of — any id you choose (1–200 printable characters, no spaces). The run first reads the earlier runs started with the same context: what each was asked and answered. Reuse it for a follow-up"),
         inputs: { type: "array", items: { type: "string" }, description: "files to hand the run — storage paths, as the workspace's storage lists them (at most 20, 100 MiB together). The step finds them in inputs/ and can read images and PDFs; upload a file to storage first" },
+        customer: str("which of your own users this run is for — an opaque id you choose (never personal data); limits and blocks follow it"),
       },
       ["workspace", "flow"],
     ),
@@ -300,7 +301,7 @@ export const MCP_TOOLS: McpTool[] = [
       method: "POST",
       path: `/api/workspaces/${enc(s(a.workspace)!)}/flows/${enc(s(a.flow)!)}/run`,
       params: { workspace: s(a.workspace)!, flow: s(a.flow)! },
-      body: { ...(s(a.task) !== undefined ? { task: s(a.task) } : {}), ...(a.test === true ? { test: true } : {}), ...(s(a.context) ? { context: s(a.context) } : {}), ...(Array.isArray(a.inputs) ? { inputs: a.inputs } : {}) },
+      body: { ...(s(a.task) !== undefined ? { task: s(a.task) } : {}), ...(a.test === true ? { test: true } : {}), ...(s(a.context) ? { context: s(a.context) } : {}), ...(Array.isArray(a.inputs) ? { inputs: a.inputs } : {}), ...(s(a.customer) ? { customer: s(a.customer) } : {}) },
     }),
   },
   {
@@ -317,6 +318,7 @@ export const MCP_TOOLS: McpTool[] = [
         snapshot: str("a folder to work on: the snapshot id `foldrun snapshot push` printed. The agent finds it in snapshot/; when the run ends, its outputs hold snapshot.patch (the change, as a git patch) — get_run lists them"),
         context: str("a conversation this run is a turn of — any id you choose (1–200 printable characters, no spaces). The run first reads the earlier runs started with the same context: what each was asked and answered. Reuse it for a follow-up"),
         inputs: { type: "array", items: { type: "string" }, description: "files to hand the run — storage paths, as the workspace's storage lists them (at most 20, 100 MiB together). The step finds them in inputs/ and can read images and PDFs; upload a file to storage first" },
+        customer: str("which of your own users this run is for — an opaque id you choose (never personal data); limits and blocks follow it"),
       },
       ["workspace", "agent", "task"],
     ),
@@ -326,7 +328,7 @@ export const MCP_TOOLS: McpTool[] = [
       method: "POST",
       path: `/api/workspaces/${enc(s(a.workspace)!)}/agents/${enc(s(a.agent)!)}/run`,
       params: { workspace: s(a.workspace)!, agent: s(a.agent)! },
-      body: { task: s(a.task) ?? "", ...(a.test === true ? { test: true } : {}), ...(s(a.snapshot) ? { snapshot: s(a.snapshot) } : {}), ...(s(a.context) ? { context: s(a.context) } : {}), ...(Array.isArray(a.inputs) ? { inputs: a.inputs } : {}) },
+      body: { task: s(a.task) ?? "", ...(a.test === true ? { test: true } : {}), ...(s(a.snapshot) ? { snapshot: s(a.snapshot) } : {}), ...(s(a.context) ? { context: s(a.context) } : {}), ...(Array.isArray(a.inputs) ? { inputs: a.inputs } : {}), ...(s(a.customer) ? { customer: s(a.customer) } : {}) },
     }),
   },
   {
