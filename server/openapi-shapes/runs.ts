@@ -106,7 +106,7 @@ export const SHAPES: Record<string, Shape> = {
     media: {
       type: "text/event-stream",
       description:
-        "Server-sent events: `run` carries the whole run record (JSON) each time it changes, first at once; `done` carries { status } when the run is over, and the stream ends. A `: keepalive` comment every 15 s; after 30 minutes the stream closes without `done` and a client reconnects.",
+        "Server-sent events: `run` carries the whole run record (JSON) each time it changes, first at once; `done` carries { status, chargedUsd, estimatedUsd, settled } when the run is over (usually not settled yet — GET …/runs/{runId} has the charge once it is), and the stream ends. A `: keepalive` comment every 15 s; after 30 minutes the stream closes without `done` and a client reconnects.",
     },
   },
   "POST /api/workspaces/{workspace}/runs/bulk": {

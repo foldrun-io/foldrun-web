@@ -30,6 +30,15 @@ export async function runCharges(tenant: string): Promise<RunCharges> {
   return out;
 }
 
+/** One run's money as the API answers it (FOL-157): what the ledger charged
+ *  (null until it settles — the worker settles a run as it ends, and an
+ *  hourly pass retries one that failed to), what it costs at the list price
+ *  meanwhile, and which of the two is final. */
+export async function runMoney(tenant: string, r: RunRecord): Promise<{ chargedUsd: number | null; estimatedUsd: number; settled: boolean }> {
+  const charged = (await runCharges(tenant)).usd.get(r.id) ?? null;
+  return { chargedUsd: charged, estimatedUsd: platform.runSpend(r), settled: charged !== null };
+}
+
 /** A run's money: charged once settled, its list price until then. */
 export function runCharge(r: RunRecord, charges?: RunCharges): number {
   return charges?.usd.get(r.id) ?? platform.runSpend(r);

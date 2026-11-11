@@ -91,7 +91,15 @@ const LEGACY_SHAPES: Record<string, Shape> = {
   },
   "GET /api/workspaces/{workspace}/runs/{runId}": {
     query: [{ name: "wait", description: "true blocks until the run stops or timeout" }, { name: "timeout", description: "seconds, default 300, max 900" }],
-    response: Run,
+    response: {
+      ...Run,
+      properties: {
+        ...(Run as { properties: Record<string, unknown> }).properties,
+        chargedUsd: { type: ["number", "null"], description: "what the account was charged for it (the ledger's line, USD); null until the run settles — the worker settles it as it ends, an hourly pass retries one that failed to" },
+        estimatedUsd: { type: "number", description: "what it costs at foldrun's list price — the figure until it settles" },
+        settled: { type: "boolean", description: "chargedUsd is final" },
+      },
+    },
   },
   "POST /api/workspaces/{workspace}/flows/{flow}/run": {
     body: obj({ task: str("delivered to the first step"), tags: { type: "array", items: str() }, from: int, test: bool }),

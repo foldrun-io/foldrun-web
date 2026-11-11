@@ -6,6 +6,7 @@
 // costs far less than the 2.5s full-page refresh it replaces — and arrives
 // ~10x sooner.
 
+import { runMoney } from "@/server/run-charges";
 import { NextRequest } from "next/server";
 import { requireTenant, errorResponse, refuse } from "@/server/api";
 import { runFilePath, runStamp, readRunText } from "@/lib/store";
@@ -103,6 +104,8 @@ export async function GET(
       // what tells us it changed; FORCE_READ_MS is the safety net.
       let lastStat = "";
       let lastRead = 0;
+      // The run is over and `done` is on its way: nothing more is scheduled.
+      let ending = false;
       let wait = POLL_MS;
       const changed = (): boolean => {
         // Null: gone for a moment (a rename in flight): read to find out.
@@ -137,8 +140,22 @@ export async function GET(
             // way to learn the run had resumed: approving a step left the
             // panel frozen on "waiting" until someone reloaded it.
             if (isRunTerminal(run.status)) {
-              send("done", JSON.stringify({ status: run.status }));
-              stop();
+              // Its money with it (FOL-157): usually the estimate — the worker
+              // settles the run a moment after it ends; GET …/runs/<id> has
+              // the charge once it has.
+              // Read off the event loop's tick: no further tick is scheduled
+              // (ending), then `done` goes out with the money and the stream ends.
+              ending = true;
+              void runMoney(tenant, run)
+                .catch(() => ({}))
+                .then((money) => {
+                  try {
+                    send("done", JSON.stringify({ status: run.status, ...money }));
+                  } catch {
+                    /* the client left meanwhile */
+                  }
+                  stop();
+                });
               return;
             }
           }
@@ -155,14 +172,14 @@ export async function GET(
       // One tick at a time, each scheduling the next at the current wait.
       const loop = () => {
         tick();
-        if (!stopped) timer = setTimeout(loop, wait);
+        if (!stopped && !ending) timer = setTimeout(loop, wait);
       };
 
       tick(); // send current state immediately, no first-paint delay
       // A run already over, or a client already gone, ends before the
       // timers exist — the first tick used to close the controller and
       // the intervals were then started against it anyway.
-      if (stopped) return;
+      if (stopped || ending) return;
       timer = setTimeout(loop, wait);
       beat = setInterval(() => {
         try {

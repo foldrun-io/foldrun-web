@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { runMoney } from "@/server/run-charges";
 import { requireTenant, errorResponse, requirePermission, refuse } from "@/server/api";
 import { readRunAsync, runFailure } from "@/lib/store";
 import { eraseRun } from "@/server/run-erase";
@@ -22,7 +23,9 @@ export async function GET(
     // 25-second pieces and comes back here for each one.
     if (wantsWait(req)) return waitAndRespond(req, tenant, workspace, run);
     // Why it failed, as the runs list and the run page say it (FOL-124).
-    return NextResponse.json({ ...run, failure: runFailure(run) });
+    // Its money (FOL-157): the charge once the ledger settles it, the
+    // list-price estimate until then, and which is final.
+    return NextResponse.json({ ...run, failure: runFailure(run), ...(await runMoney(tenant, run)) });
   } catch (err) {
     return errorResponse(err);
   }

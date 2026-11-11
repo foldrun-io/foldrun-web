@@ -72,6 +72,12 @@ test("an idle run is not re-read on every tick; a change is sent; a finished run
     fs.writeFileSync(file, record("completed", "done now"));
     await Promise.race([pump, sleep(3_000)]);
     assert.match(text, /event: done/, "a finished run ends the stream");
+    // FOL-157: the money rides on `done` — the estimate, and not yet settled.
+    const done = JSON.parse(/event: done\ndata: (.*)\n/.exec(text)![1]!);
+    assert.equal(done.status, "completed");
+    assert.equal(typeof done.estimatedUsd, "number");
+    assert.equal(done.settled, false);
+    assert.equal(done.chargedUsd, null);
   } finally {
     abort.abort();
     (fs as { readFileSync: typeof fs.readFileSync }).readFileSync = real;
