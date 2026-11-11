@@ -116,43 +116,59 @@ test("FOLDRUN_CSP=report-only is the way back: the policy is reported, not enfor
 });
 
 // ── the object store's origin in the CSP ─────────────────────────────────────
+// The origin is core's storeOrigin(): where the presigned URLs really go
+// (core tests/storage-origin.test.ts proves that against signed URLs), and
+// nothing unless S3 is the driver in force.
 
-async function cspWithStore(endpoint: string | undefined): Promise<string> {
-  const before = process.env.FOLDRUN_S3_ENDPOINT;
-  if (endpoint === undefined) delete process.env.FOLDRUN_S3_ENDPOINT;
-  else process.env.FOLDRUN_S3_ENDPOINT = endpoint;
+const S3_VARS = ["FOLDRUN_STORAGE_DRIVER", "FOLDRUN_S3_ENDPOINT", "FOLDRUN_S3_BUCKET", "FOLDRUN_S3_ACCESS_KEY_ID",
+  "FOLDRUN_S3_SECRET_ACCESS_KEY", "FOLDRUN_S3_PATH_STYLE"];
+const S3_ENV = { FOLDRUN_STORAGE_DRIVER: "s3", FOLDRUN_S3_BUCKET: "foldrun-files", FOLDRUN_S3_ACCESS_KEY_ID: "AKIATEST", FOLDRUN_S3_SECRET_ACCESS_KEY: "x" };
+const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+
+async function cspWith(env: Record<string, string> | null): Promise<string> {
+  const before = Object.fromEntries(S3_VARS.map((k) => [k, process.env[k]]));
+  for (const k of S3_VARS) delete process.env[k];
+  if (env) Object.assign(process.env, env);
   try {
     return (await proxy(new NextRequest("https://app.foldrun.io/login"))).headers.get("content-security-policy")!;
   } finally {
-    if (before === undefined) delete process.env.FOLDRUN_S3_ENDPOINT;
-    else process.env.FOLDRUN_S3_ENDPOINT = before;
+    for (const [k, v] of Object.entries(before)) v === undefined ? delete process.env[k] : (process.env[k] = v);
   }
 }
 
+function directive(policy: string, name: string): string {
+  return policy.split(";").map((d) => d.trim()).find((d) => d.startsWith(`${name} `)) ?? "";
+}
+
 test("CSP names the object store for uploads, media and PDF frames, and nothing else", async () => {
-  const policy = await cspWithStore("https://s3.eu-north-1.amazonaws.com");
   const store = "https://s3.eu-north-1.amazonaws.com";
-  assert.match(policy, new RegExp(`connect-src 'self' ${store}(;|$)`));
-  assert.match(policy, new RegExp(`media-src 'self' ${store}(;|$)`));
-  assert.match(policy, new RegExp(`frame-src 'self' ${store}(;|$)`));
-  // Images are served from here, scripts never from the store.
-  assert.match(policy, /img-src 'self' data: blob:(;|$)/);
-  assert.doesNotMatch(policy.match(/script-src[^;]*/)![0], /amazonaws/);
-  assert.match(policy, /default-src 'self'(;|$)/);
+  const policy = await cspWith({ ...S3_ENV, FOLDRUN_S3_ENDPOINT: store });
+  for (const d of ["connect-src", "media-src", "frame-src"]) assert.equal(directive(policy, d), `${d} 'self' ${store}`);
+  // Images are streamed from here, scripts never come from the store.
+  assert.equal(directive(policy, "img-src"), "img-src 'self' data: blob:");
+  assert.doesNotMatch(directive(policy, "script-src"), new RegExp(esc(store)));
+  assert.equal(directive(policy, "default-src"), "default-src 'self'");
 });
 
-test("CSP without an object store is exactly the old policy", async () => {
-  const policy = await cspWithStore(undefined);
-  assert.match(policy, /connect-src 'self';/);
-  assert.match(policy, /media-src 'self';/);
-  assert.match(policy, /frame-src 'self';/);
-  assert.doesNotMatch(policy, /amazonaws|https:\/\//);
+test("CSP names the bucket's own host when the store is virtual-hosted (prod), not the whole endpoint", async () => {
+  const policy = await cspWith({ ...S3_ENV, FOLDRUN_S3_ENDPOINT: "https://s3.eu-north-1.amazonaws.com", FOLDRUN_S3_PATH_STYLE: "false" });
+  assert.equal(directive(policy, "connect-src"), "connect-src 'self' https://foldrun-files.s3.eu-north-1.amazonaws.com");
+  assert.doesNotMatch(policy, /https:\/\/s3\.eu-north-1/);
 });
 
-test("CSP takes only the origin of the endpoint and ignores a value that is not a URL", async () => {
-  assert.match(await cspWithStore("https://s3.example.com:9000/some/path?x=1"), /connect-src 'self' https:\/\/s3\.example\.com:9000;/);
-  const bad = await cspWithStore("not a url");
-  assert.match(bad, /connect-src 'self';/);
+test("CSP without an object store in force allows only 'self' (what default-src gave before)", async () => {
+  for (const env of [null, { ...S3_ENV, FOLDRUN_S3_ENDPOINT: "https://s3.eu-north-1.amazonaws.com", FOLDRUN_STORAGE_DRIVER: "fs" }, { FOLDRUN_S3_ENDPOINT: "https://s3.eu-north-1.amazonaws.com" }]) {
+    const policy = await cspWith(env);
+    for (const d of ["connect-src", "media-src", "frame-src"]) assert.equal(directive(policy, d), `${d} 'self'`, JSON.stringify(env));
+    assert.doesNotMatch(policy, /amazonaws/);
+  }
+});
+
+test("CSP takes only the origin of the endpoint, and no source at all from a value that is not an http(s) host", async () => {
+  assert.equal(directive(await cspWith({ ...S3_ENV, FOLDRUN_S3_ENDPOINT: "https://s3.example.com:9000/some/path?x=1" }), "connect-src"), "connect-src 'self' https://s3.example.com:9000");
+  for (const bad of ["not a url", "data:text/plain,x", "https://*.example.com"]) {
+    assert.equal(directive(await cspWith({ ...S3_ENV, FOLDRUN_S3_ENDPOINT: bad }), "connect-src"), "connect-src 'self'", bad);
+  }
 });
 
 test("no page is prerendered: a static page cannot carry the per-request nonce", () => {

@@ -18,6 +18,7 @@ import { apiGate, a2aGate } from "@/server/api-limits";
 import { A2A_BODY_BYTES, A2aError, RPC, rpcErrorBody } from "@/server/a2a-protocol";
 import { RESOLVED_VERSION_HEADER } from "@/server/api-version";
 import { versionHeaders } from "@/server/release";
+import { storeOrigin } from "@/lib/storage";
 import { unsafeApiPath } from "@/server/raw-path";
 
 /** X-Foldrun-Version (and X-Foldrun-Api, X-Foldrun-Cli) on a response, so any
@@ -83,23 +84,14 @@ function harden(res: NextResponse, req: NextRequest, nonce: string): NextRespons
   return res;
 }
 
-/** The install's object store origin (FOLDRUN_S3_ENDPOINT, read per request):
- *  the browser PUTs an upload straight to it, and a video, audio or PDF
- *  preview is a redirect to a signed link there. Path-style, so one origin;
- *  empty when there is no store or the value is not a URL. */
-function storageOrigin(): string {
-  try {
-    const e = process.env.FOLDRUN_S3_ENDPOINT;
-    return e ? new URL(e).origin : "";
-  } catch {
-    return "";
-  }
-}
-
 /** The page policy. Scripts only with this request's nonce, and what those
  *  load ('strict-dynamic'); `next dev` also needs eval, production never. */
 function csp(nonce: string): string {
-  const store = storageOrigin();
+  // The object store's origin (core storeOrigin: the same host the presigned
+  // URLs are built on, path-style or virtual-hosted; none unless S3 is the
+  // driver in force). The browser PUTs an upload straight to it, and a video,
+  // audio or PDF preview is a redirect to a signed link there.
+  const store = storeOrigin() ?? "";
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
