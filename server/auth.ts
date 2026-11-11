@@ -22,6 +22,7 @@ import { publicOrigin } from "./auth-flows.ts";
 import { databaseEnabled } from "@/platform/db.ts";
 import {
   insertApiKeyDb,
+  setRequireCustomerDb,
   findApiKeyByHashDb,
   listApiKeysDb,
   revokeApiKeyDb,
@@ -120,6 +121,9 @@ export interface ApiKeyRecord {
    * { purpose: "gateway", capUsd?, dailyUsd? }.
    */
   gateway?: GatewayGrant;
+  /** FOL-168: every run this key starts, and every gateway call it makes,
+   *  must name an end customer. */
+  requireCustomer?: boolean;
 }
 
 /** How long a `foldrun login` key lives; the CLI renews it with under
@@ -186,6 +190,19 @@ const hash = (key: string) => crypto.createHash("sha256").update(key).digest("he
  *  minted (17 Oct 2026); the prefix stays reserved for the scanners. */
 export const KEY_PREFIX = { api: "fr_api", gateway: "fr_gw", a2a: "fr_a2a", deploy: "fr_dep" } as const;
 
+/** FOL-168: whether a live key's runs and gateway calls must name an end
+ *  customer. False when there is no such live key. */
+export async function setRequireCustomer(tenant: string, id: string, on: boolean): Promise<boolean> {
+  if (databaseEnabled()) return setRequireCustomerDb(tenant, id, on);
+  const keys = readKeys();
+  const k = keys.find((x) => x.tenant === tenant && x.id === id && !x.revokedAt);
+  if (!k) return false;
+  if (on) k.requireCustomer = true;
+  else delete k.requireCustomer;
+  writeKeys(keys);
+  return true;
+}
+
 export async function createApiKey(
   tenant: string,
   label: string,
@@ -193,7 +210,7 @@ export async function createApiKey(
   scope?: ApiKeyRecord["scope"],
   role: Role = "editor",
   workspaces: string[] | null = null,
-  opts: { expiresAt?: Date | null; origin?: ApiKeyRecord["origin"]; a2a?: Omit<A2aGrant, "principal"> & { principal?: string }; gateway?: GatewayGrant } = {},
+  opts: { expiresAt?: Date | null; origin?: ApiKeyRecord["origin"]; a2a?: Omit<A2aGrant, "principal"> & { principal?: string }; gateway?: GatewayGrant; requireCustomer?: boolean } = {},
 ): Promise<{ record: ApiKeyRecord; key: string }> {
   assertSafeName(tenant, "tenant");
   if (scope) throw new Error("deploy keys went with the platform's own git (17 Oct 2026)");
@@ -226,6 +243,7 @@ export async function createApiKey(
     revokedAt: null,
     expiresAt: opts.expiresAt ? opts.expiresAt.toISOString() : null,
     ...(opts.origin ? { origin: opts.origin } : {}),
+    ...(opts.requireCustomer ? { requireCustomer: true } : {}),
   };
   if (opts.a2a) {
     record.purpose = "a2a";
@@ -391,6 +409,8 @@ export async function rotateApiKey(
     // key, another member — the new key is an ordinary one, or a key made by
     // hand could turn itself into a person by rotating theirs.
     origin: opts.keepCliLogin === false ? undefined : old.origin,
+    // FOL-168: a key that required a customer still does (Codex review).
+    ...(old.requireCustomer ? { requireCustomer: true } : {}),
     // An A2A key stays one, with the same grant — and the same principal,
     // so the tasks the old key made are still the new one's to read and
     // cancel (a deliberate choice: rotation is the same caller's new secret).
@@ -497,6 +517,8 @@ export async function importApiKeys(): Promise<number> {
  */
 export interface Actor {
   kind: "user" | "key";
+  /** FOL-168: a key whose runs must name an end customer (server/customer-required.ts). */
+  requireCustomer?: boolean;
   id: string;
   /** What a revision's `by` records: the person's email; for a key, the
    *  email it was minted by, else `key:<label>`. */
@@ -628,7 +650,7 @@ export async function resolveTenant(req: NextRequest): Promise<AuthResult> {
       // when a signed-in person minted it (the CLI's `foldrun login` key,
       // every key from the Settings page), else the key by its label — a
       // history of "api-key" said nothing about who changed the file.
-      actor: { kind: "key", id: record.id, name: record.createdBy ?? `key:${record.label || record.prefix}`, role: record.role ?? "admin", workspaces: record.workspaces ?? null, ...(record.origin === "cli-login" ? { origin: "cli-login" as const } : {}) },
+      actor: { kind: "key", id: record.id, name: record.createdBy ?? `key:${record.label || record.prefix}`, role: record.role ?? "admin", workspaces: record.workspaces ?? null, ...(record.origin === "cli-login" ? { origin: "cli-login" as const } : {}), ...(record.requireCustomer ? { requireCustomer: true } : {}) },
     };
   }
   // The dashboard's own fetches carry no Bearer key — they carry the session

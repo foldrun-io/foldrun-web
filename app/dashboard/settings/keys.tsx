@@ -37,6 +37,8 @@ interface KeyRow {
   replacedBy?: string | null;
   /** "cli-login" for a key `foldrun login` minted: it renews itself. */
   origin?: "cli-login";
+  /** FOL-168: its runs and gateway calls must name an end customer. */
+  requireCustomer?: boolean;
   /** "a2a": an outside agent's key — it opens /a2a only, for `a2a.flows`. */
   purpose?: "a2a" | "gateway";
   /** "gateway": a coding agent's key — its own spending limits, and what it
@@ -133,6 +135,8 @@ export function KeyManager({
   // A key can never open more than that — the server refuses — so the
   // picker only ever takes workspaces away.
   const [narrow, setNarrow] = useState(false);
+  // FOL-168: every run / gateway call with the key must name an end customer.
+  const [requireCust, setRequireCust] = useState(false);
   const [chosen, setChosen] = useState<string[]>([]);
   const manages = useCan("keys:manage");
   const [created, setCreated] = useState<string | null>(null);
@@ -168,9 +172,9 @@ export function KeyManager({
             ? { tenant, label, expires, purpose: "a2a", workspace: a2aWs, flows: a2aChosen, maxTasks: Number(maxTasks) }
             : kind === "gateway"
               ? onLogin
-                ? { tenant, label, expires, purpose: "gateway", credential: "login" }
-                : { tenant, label, expires, purpose: "gateway", ...(capUsd.trim() ? { capUsd: Number(capUsd) } : {}), ...(dailyUsd.trim() ? { dailyUsd: Number(dailyUsd) } : {}) }
-              : { tenant, label, role, expires, ...(narrow ? { workspaces: chosen } : {}) },
+                ? { tenant, label, expires, purpose: "gateway", credential: "login", ...(requireCust ? { requireCustomer: true } : {}) }
+                : { tenant, label, expires, purpose: "gateway", ...(capUsd.trim() ? { capUsd: Number(capUsd) } : {}), ...(dailyUsd.trim() ? { dailyUsd: Number(dailyUsd) } : {}), ...(requireCust ? { requireCustomer: true } : {}) }
+              : { tenant, label, role, expires, ...(narrow ? { workspaces: chosen } : {}), ...(requireCust ? { requireCustomer: true } : {}) },
         ),
       });
       const data = await res.json();
@@ -231,6 +235,22 @@ export function KeyManager({
       } else setRowError({ id, message: data.error ?? "failed to save the models" });
     } catch (err) {
       setRowError({ id, message: err instanceof Error ? err.message : "failed to save the models" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleRequireCustomer = async (id: string, on: boolean) => {
+    if (busy) return;
+    setBusy(true);
+    setRowError(null);
+    try {
+      const res = await fetch(`/api/keys/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ requireCustomer: on }) });
+      const data = await res.json();
+      if (res.ok) router.refresh();
+      else setRowError({ id, message: data.error ?? "failed to change it" });
+    } catch (err) {
+      setRowError({ id, message: err instanceof Error ? err.message : "failed to change it" });
     } finally {
       setBusy(false);
     }
@@ -416,6 +436,21 @@ export function KeyManager({
                 </div>
               )}
 
+              {kind !== "a2a" && (
+                <div className="text-sm text-fg-muted">
+                  {/* FOL-168: a partner's guard — nothing this key does slips past
+                      its per-customer limits by leaving the customer out. */}
+                  <label className="inline-flex items-center gap-2 text-fg">
+                    <Checkbox checked={requireCust} onCheckedChange={(checked: boolean) => setRequireCust(checked)} />
+                    Require a customer id
+                  </label>
+                  <p className="mt-1">
+                    {kind === "gateway"
+                      ? "Every call must send x-foldrun-customer, naming which of your users it is for; a call without one is refused."
+                      : "Every run it starts must name a customer — which of your users it is for; a run without one is refused."}
+                  </p>
+                </div>
+              )}
               {kind === "api" && (
                 <div className="text-sm text-fg-muted">
                   {/* What the key will be able to reach, said before it exists. A
@@ -534,6 +569,13 @@ export function KeyManager({
                             <Tooltip label={k.role ? "What this key may do" : "Minted before roles existed — acts as admin"}><span>{k.role ?? "admin"}</span></Tooltip>
                           </Tag>
                         )}
+                        {k.requireCustomer && !k.revokedAt && (
+                          <Tooltip label={k.purpose === "gateway" ? "Every call must send x-foldrun-customer — a call without one is refused" : "Every run it starts must name a customer — a run without one is refused"}>
+                            <span>
+                              <Chip>customer required</Chip>
+                            </span>
+                          </Tooltip>
+                        )}
                         {k.revokedAt && <Chip tone="bad">revoked</Chip>}
                         {!k.revokedAt && expired && <Chip tone="bad">expired</Chip>}
                         {!k.revokedAt && k.origin !== "cli-login" && k.expiresAt && !expired && Date.parse(k.expiresAt) - Date.now() < 7 * 86_400_000 && (
@@ -610,6 +652,19 @@ export function KeyManager({
                             )}
                           </dd>
                         </div>
+                        {k.purpose !== "a2a" && !k.revokedAt && (
+                          <div>
+                            <dt className="inline text-fg-subtle">Customer </dt>
+                            <dd className="inline">
+                              {k.requireCustomer ? "required" : "not required"}
+                              {!scoped && (
+                                <button type="button" disabled={busy} onClick={() => void toggleRequireCustomer(k.id, !k.requireCustomer)} className="ml-2 text-fg-secondary underline decoration-line underline-offset-2 hover:text-fg">
+                                  {k.requireCustomer ? "stop requiring" : "require"}
+                                </button>
+                              )}
+                            </dd>
+                          </div>
+                        )}
                         <div>
                           <dt className="inline text-fg-subtle">Expires </dt>
                           <dd className="inline">{k.expiresAt ? <LocalTime iso={k.expiresAt} options={{ dateStyle: "medium" }} /> : "never"}</dd>

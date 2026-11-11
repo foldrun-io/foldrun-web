@@ -1,6 +1,7 @@
 import { contextIdProblem, runContext } from "@/lib/conversation";
 import { inputsFromBody, missingText } from "@/server/run-inputs";
 import { customerProblem } from "@/lib/customer";
+import { assertCustomerNamed } from "@/server/customer-required";
 import { MissingInput } from "@/lib/storage";
 import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, requirePermission, refuse } from "@/server/api";
@@ -87,6 +88,7 @@ async function postOnce(
       return refuse("inputs and from can't be combined: the inputs go to step 1, which from skips", 400);
     }
     // Checked and resolved before the key is claimed, so a refusal leaves none.
+    assertCustomerNamed(actor, customer);
     const inputs = inputsFromBody(tenant, workspace, rawInputs);
     // overlap: skip holds for a person or a key too, not only the scheduler
     // — checked inside admitFlowRun, under the same lock as the enqueue

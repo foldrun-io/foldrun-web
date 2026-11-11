@@ -10,6 +10,7 @@ import { getSnapshot, SnapshotRefused } from "@/platform/snapshots";
 import { contextIdProblem, runContext } from "@/lib/conversation";
 import { inputsFromBody, missingText } from "@/server/run-inputs";
 import { customerProblem } from "@/lib/customer";
+import { assertCustomerNamed } from "@/server/customer-required";
 import { MissingInput } from "@/lib/storage";
 
 async function postOnce(
@@ -18,7 +19,7 @@ async function postOnce(
 ) {
   try {
     const { workspace, agent } = await ctx.params;
-    const tenant = (await requirePermission(req, "run:start")).tenant;
+    const { tenant, actor } = await requirePermission(req, "run:start");
     // The name is one folder under agents/, never a path (30 Oct 2026): Next
     // decodes %2F in a segment, and `..%2F..%2F<tenant>%2F…` ran another
     // account's agent under this caller's run. The runner refuses it too.
@@ -65,6 +66,7 @@ async function postOnce(
       if (process.env.FOLDRUN_RUN_ISOLATION !== "k8s") return refuse("this install runs steps without the sandbox a snapshot needs (FOLDRUN_RUN_ISOLATION=k8s) — nothing was started", 409);
       if (!(await getSnapshot(tenant, workspace, snapshot))) return refuse(`no snapshot ${snapshot.slice(0, 12)}… in ${workspace} — send the folder again (foldrun snapshot push)`, 404);
     }
+    assertCustomerNamed(actor, customer);
     const inputs = inputsFromBody(tenant, workspace, rawInputs);
     const run = await enqueueFlowRun(
       tenant,
