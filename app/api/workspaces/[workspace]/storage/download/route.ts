@@ -38,14 +38,18 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
     // publish. Only the types above, only by extension, still sandboxed — a
     // stored HTML file is never rendered as a page from here.
     const inline = req.nextUrl.searchParams.get("inline") === "1";
-    const imageType = IMAGE_TYPES[path.extname(record.path).toLowerCase()];
+    // Every picture core previews (AVIF, APNG, BMP, … as well as the five
+    // above) is streamed from here, never redirected to the store: the page's
+    // img-src does not name the store, and should not need to.
+    const preview = previewType(record.path);
+    const imageType = IMAGE_TYPES[path.extname(record.path).toLowerCase()] ?? (preview?.startsWith("image/") ? preview : undefined);
 
     // Video, audio and PDF preview as themselves in the storage browser —
     // types that run no script, with the type forced by extension. On an
     // object store the browser is sent to a signed link that says inline
     // (the bytes never pass through here); on this server they are served
     // with byte ranges, which is how a video element seeks.
-    const media = inline && !imageType ? previewType(record.path) : null;
+    const media = inline && !imageType ? preview : null;
     if (media) {
       const signed = await downloadUrl(tenant, workspace, record, { inline: true });
       if (signed) return NextResponse.redirect(signed, 302);
