@@ -63,6 +63,12 @@ const GRACE = [
 type Kind = "api" | "a2a" | "gateway";
 const usd = (n: number | null | undefined) => `$${(n ?? 0).toFixed(2)}`;
 
+// Claude Code's status line for a gateway key: its spend, from the gateway's
+// GET /v1/usage. Claude Code hands the command the env it runs on, so the
+// curl form reads the same two settings the key was set with.
+const STATUS_LINE_SETTING = `"statusLine": { "type": "command", "command": "foldrun gateway status-line" }`;
+const STATUS_LINE_CURL = `curl -s -m 3 -H "authorization: Bearer $ANTHROPIC_AUTH_TOKEN" "$ANTHROPIC_BASE_URL/v1/usage?format=line"`;
+
 /** A gateway key's limits and spend, in one line. */
 function gatewaySpend(g: NonNullable<KeyRow["gateway"]>): string {
   const parts: string[] = [];
@@ -474,7 +480,7 @@ export function KeyManager({
           </div>
           {createdKind === "gateway" ? (
             <pre className="mt-2 overflow-x-auto font-mono text-xs leading-relaxed text-fg-secondary">
-              {`export ANTHROPIC_BASE_URL=${gateway?.url ?? "<not set on this platform yet>"}\nexport ANTHROPIC_API_KEY=${created.slice(0, 12)}…`}
+              {`export ANTHROPIC_BASE_URL=${gateway?.url ?? "<not set on this platform yet>"}\nexport ANTHROPIC_AUTH_TOKEN=${created.slice(0, 12)}…`}
             </pre>
           ) : (
             <p className="mt-2 font-mono text-xs leading-relaxed text-fg-secondary">
@@ -482,6 +488,14 @@ export function KeyManager({
             </p>
           )}
           {createdKind === "gateway" && <p className="mt-1 text-xs text-fg-secondary">Set both, then run claude. It opens the gateway only.</p>}
+          {createdKind === "gateway" && (
+            <>
+              <p className="mt-3 text-xs text-fg-secondary">To see the key&apos;s spend under Claude Code&apos;s input box, add this to ~/.claude/settings.json (foldrun CLI 20.11 or later):</p>
+              <pre className="mt-1 overflow-x-auto font-mono text-xs leading-relaxed text-fg-secondary">{STATUS_LINE_SETTING}</pre>
+              <p className="mt-1 text-xs text-fg-secondary">Without the foldrun CLI, use this command instead:</p>
+              <pre className="mt-1 overflow-x-auto font-mono text-xs leading-relaxed text-fg-secondary">{STATUS_LINE_CURL}</pre>
+            </>
+          )}
           {createdKind === "a2a" && <p className="mt-1 text-xs text-fg-secondary">Give it to the outside agent; it sends it as Authorization: Bearer to /a2a only.</p>}
         </Callout>
       )}

@@ -229,7 +229,7 @@ function usdLimit(v: unknown, name: string): number | null {
 
 /**
  * Mint a gateway key (10 Nov 2026): what a coding agent such as Claude Code
- * sends to the gateway door as ANTHROPIC_API_KEY. It spends the account's
+ * sends to the gateway door as ANTHROPIC_AUTH_TOKEN. It spends the account's
  * balance on the platform's models, so it is an ACCOUNT-wide power: only an
  * admin whose scope is the whole account may mint one (a workspace-scoped
  * admin cannot spend what is not theirs), and it must carry a limit of its
