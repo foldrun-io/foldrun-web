@@ -21,6 +21,7 @@ export const SECTION_TAB: Record<string, SettingsTab | "backups" | "audit"> = {
   guardrail: "policies",
   observability: "policies",
   evaluation: "policies",
+  "agents-md": "policies",
   pause: "policies",
   provider: "models",
   "model-key": "models",

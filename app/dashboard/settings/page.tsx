@@ -28,6 +28,28 @@ import { SettingsCard, EmptyState, Chip, Tag, Callout } from "@foldrun/ui/react/
 import { buttonVariants } from "@foldrun/ui/react/button";
 import { CalendarClock, ScrollText, Webhook } from "lucide-react";
 import { settingsTabs, SETTINGS_TABS, type SettingsTab } from "./tabs";
+import { InlineEditor } from "@/components/inline-editor";
+import fs from "node:fs";
+import path from "node:path";
+import crypto from "node:crypto";
+
+/** The file's sha256 as GET /api/account/agents-md answers it; null: no file. */
+function accountMdSha(tenant: string): string | null {
+  try {
+    return crypto.createHash("sha256").update(fs.readFileSync(path.join(accountDir(tenant), "AGENTS.md"), "utf8")).digest("hex");
+  } catch {
+    return null;
+  }
+}
+
+/** The account's own AGENTS.md, as GET /api/account/agents-md answers it. */
+function accountAgentsMd(tenant: string): string {
+  try {
+    return fs.readFileSync(path.join(accountDir(tenant), "AGENTS.md"), "utf8");
+  } catch {
+    return "";
+  }
+}
 import { SettingsAnchor } from "./anchor";
 import { KeyManager, TickButton } from "./keys";
 import { gatewayLoginOffered, gatewayOffered, gatewayUrl, withGatewaySpend } from "@/server/gateway-keys";
@@ -286,17 +308,23 @@ async function PoliciesTab({
   const pausedOnTheirOwn = Object.keys(halt.workspaces ?? {});
   return (
     <>
+      {/* Each card holds its own copy of its key: keyed by that value, it is
+          remounted when the value changes on the server (the AGENTS.md editor
+          below wrote it) and never because a sibling card saved, so pending
+          edits elsewhere are kept (Codex review). */}
       <SettingsSection id="governance" title="Governance" description="Who answers for the agents, what they may run at once, and what a deploy refuses. In AGENTS.md: governance:.">
         {halt.account && pause}
-        <OwnerCard endpoint="/api/account" tenant={tenant} initial={defaults.owner} />
+        <OwnerCard key={JSON.stringify(defaults.owner ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.owner} />
         {/* The plan's number, not the install's alone: until 26 Oct 2026 this read only FOLDRUN_PLAN_CONCURRENCY, so a customer on a plan saw the wrong figure. */}
         <ConcurrencyCard
+          key={JSON.stringify(defaults.concurrency ?? null)}
           endpoint="/api/account"
           tenant={tenant}
           initial={defaults.concurrency}
           plan={(await billing().plan(tenant))?.concurrency ?? (Number(settingText("FOLDRUN_PLAN_CONCURRENCY")) > 0 ? Number(settingText("FOLDRUN_PLAN_CONCURRENCY")) : null)}
         />
         <ComputeCard
+          key={JSON.stringify(defaults.compute ?? null)}
           endpoint="/api/account"
           tenant={tenant}
           initial={defaults.compute}
@@ -305,23 +333,34 @@ async function PoliciesTab({
           waiting={roomWaiting(tenant, scope)}
           runsWaiting={{ waiting: scope ? null : waitingRunCount(tenant), limit: (await waitingRunsCap(tenant)).limit }}
         />
-        <DeployBlockCard endpoint="/api/account" tenant={tenant} initial={defaults.deployBlock} />
+        <DeployBlockCard key={JSON.stringify(defaults.deployBlock ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.deployBlock} />
         <p className="px-1 text-sm text-fg-muted">Also governance: the account budget (Billing), roles and keys (Team, API keys), and each agent&apos;s own owner.</p>
       </SettingsSection>
 
       <SettingsSection id="guardrail" title="Guardrail" description="What the agents may reach and call. In AGENTS.md: guardrail: — limits, network and hooks every agent here starts from.">
-        <NetworkEnforceCard endpoint="/api/account" tenant={tenant} initial={defaults.networkEnforce} />
+        <NetworkEnforceCard key={JSON.stringify(defaults.networkEnforce ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.networkEnforce} />
         <p className="px-1 text-sm text-fg-muted">Each agent&apos;s own limits, network and hooks are on its page; foldrun check --security lists what reaches too far.</p>
       </SettingsSection>
 
       <SettingsSection id="observability" title="Observability" description="What runs record, and who is told when something crosses a line. In AGENTS.md: observability:.">
-        <NotifyCard endpoint="/api/account" tenant={tenant} initial={defaults.notify} scopeNote="Every workspace inherits this until it sets its own notify:, which replaces it whole." />
-        <AlertsCard endpoint="/api/account" tenant={tenant} initial={defaults.alerts} />
-        <TelemetryCard tenant={tenant} initial={defaults.telemetry} mayEdit={managesWorkspaces && scope === null} />
+        <NotifyCard key={JSON.stringify(defaults.notify ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.notify} scopeNote="Every workspace inherits this until it sets its own notify:, which replaces it whole." />
+        <AlertsCard key={JSON.stringify(defaults.alerts ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.alerts} />
+        <TelemetryCard key={JSON.stringify(defaults.telemetry ?? null)} tenant={tenant} initial={defaults.telemetry} mayEdit={managesWorkspaces && scope === null} />
       </SettingsSection>
 
       <SettingsSection id="evaluation" title="Evaluation" description="How the agents' work is judged. In AGENTS.md: evaluation:. Each workspace's evals are on its Evals page.">
-        <JudgeCard endpoint="/api/account" tenant={tenant} initial={defaults.judge} />
+        <JudgeCard key={JSON.stringify(defaults.judge ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.judge} />
+      </SettingsSection>
+
+      <SettingsSection id="agents-md" title="AGENTS.md" description="The account's own AGENTS.md: what every agent in every workspace reads first, and the defaults above as frontmatter. A workspace's AGENTS.md adds to it. Checked as a deploy checks it before it is saved.">
+        {scope !== null ? (
+          <p className="px-1 text-sm text-fg-muted">It is every workspace&apos;s: only a member with access to all of them sees it.</p>
+        ) : (
+          <SettingsCard title="The account's AGENTS.md" description="Prose every agent reads, above its workspace's and its own.">
+            <InlineEditor accountFile accountFileSha={accountMdSha(tenant)} tenant={tenant} path="AGENTS.md" initialContent={accountAgentsMd(tenant)} rows={18} hideSibling bare />
+            {!managesWorkspaces && <p className="mt-2 text-xs text-fg-muted">An admin saves changes; yours would be refused.</p>}
+          </SettingsCard>
+        )}
       </SettingsSection>
 
       {!halt.account && (

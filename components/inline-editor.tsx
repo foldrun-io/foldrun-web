@@ -33,6 +33,8 @@ export function InlineEditor({
   tenant,
   path,
   libraryKind,
+  accountFile = false,
+  accountFileSha = null,
   initialContent,
   rows,
   onSaved,
@@ -56,6 +58,13 @@ export function InlineEditor({
   path: string;
   /** Set for an account-library file — it reads and writes a different store. */
   libraryKind?: string;
+  /** The account's own AGENTS.md (/api/account/agents-md): every workspace's
+   *  shared context. Never saved past the deploy's checks — no "save anyway". */
+  accountFile?: boolean;
+  /** The account file's sha256 as the server read it (null: no file) — sent
+   *  back as ifMatch, and replaced by each save's answer. From the server, not
+   *  hashed here: a self-hosted dashboard on plain HTTP has no crypto.subtle. */
+  accountFileSha?: string | null;
   /**
    * The file's text, when the server already has it.
    *
@@ -79,6 +88,19 @@ export function InlineEditor({
   const router = useRouter();
   const [content, setContent] = useState<string | null>(initialContent ?? null);
   const [saved, setSaved] = useState<string | null>(initialContent ?? null);
+  // The account's file is also written by the controls beside it in Settings:
+  // a refresh that brings new text, while nothing of ours is unsaved, is taken
+  // — otherwise saving prose put the old frontmatter back (Codex review).
+  const [seenInitial, setSeenInitial] = useState(initialContent);
+  const [baseSha, setBaseSha] = useState<string | null>(accountFileSha);
+  if (accountFile && initialContent !== undefined && initialContent !== seenInitial) {
+    setSeenInitial(initialContent);
+    if (content === saved) {
+      setContent(initialContent);
+      setSaved(initialContent);
+      setBaseSha(accountFileSha);
+    }
+  }
   // Which file `content`/`saved` currently hold. A folder tool switches files
   // by changing `path` on this same editor (the host no longer remounts it),
   // so until the new file has loaded, `content` still holds the previous one —
@@ -190,10 +212,12 @@ export function InlineEditor({
     : null;
 
   // One place decides which store a file lives in; everything below is scope-blind.
-  const readUrl = libraryKind
-    ? `/api/library/${libraryKind}?path=${encodeURIComponent(path)}`
-    : `/api/workspaces/${workspace}/source?path=${encodeURIComponent(path)}`;
-  const writeUrl = libraryKind ? `/api/library/${libraryKind}` : `/api/workspaces/${workspace}/source`;
+  const readUrl = accountFile
+    ? "/api/account/agents-md"
+    : libraryKind
+      ? `/api/library/${libraryKind}?path=${encodeURIComponent(path)}`
+      : `/api/workspaces/${workspace}/source?path=${encodeURIComponent(path)}`;
+  const writeUrl = accountFile ? "/api/account/agents-md" : libraryKind ? `/api/library/${libraryKind}` : `/api/workspaces/${workspace}/source`;
 
   useEffect(() => {
     // Already supplied by the server — nothing to fetch. Declared inside the
@@ -234,10 +258,13 @@ export function InlineEditor({
     const res = await fetch(writeUrl, {
       method: "PUT",
       headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
-      // Checked unless the person said "save anyway" (FOL-57).
-      body: JSON.stringify({ path, content, ...(anyway ? {} : { check: true }) }),
+      // Checked unless the person said "save anyway" (FOL-57). The account's
+      // file is always checked, and saved only over the text this editor
+      // loaded (ifMatch): never over a change made since, here or elsewhere.
+      body: JSON.stringify(accountFile ? { content, ifMatch: baseSha } : { path, content, ...(anyway ? {} : { check: true }) }),
     });
     if (res.ok) {
+      if (accountFile) setBaseSha(((await res.json().catch(() => ({}))) as { sha256?: string }).sha256 ?? baseSha);
       setSaved(content);
       cache.current.set(path, content); // keep the cache in step with disk
       setStatus("saved");
@@ -247,8 +274,9 @@ export function InlineEditor({
     } else {
       const data = (await res.json().catch(() => ({}))) as { error?: string; issues?: { level: string }[] };
       setStatus(null);
-      setError(data.error ?? `save failed (${res.status})`);
-      setRefused(res.status === 422 && (data.issues ?? []).some((i) => i.level === "error") ? `${path}\n${content}` : null);
+      setError(accountFile && res.status === 409 ? "AGENTS.md changed since this page loaded — reload to see it (your edit is still here; copy it first)" : (data.error ?? `save failed (${res.status})`));
+      // Every workspace reads the account's file: a broken one is never saved anyway.
+      setRefused(!accountFile && res.status === 422 && (data.issues ?? []).some((i) => i.level === "error") ? `${path}\n${content}` : null);
     }
   };
 

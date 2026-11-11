@@ -164,6 +164,13 @@ const workspaceRev = obj({
 
 export const SHAPES: Record<string, Shape> = {
   "GET /api/account": { response: obj({ defaults: DefaultsView }) },
+  "GET /api/account/agents-md": {
+    response: obj({ content: str("the whole file, empty when there is none"), sha256: nullable(str("send it back as ifMatch")), exists: bool }),
+  },
+  "PUT /api/account/agents-md": {
+    body: obj({ content: str("the whole AGENTS.md"), ifMatch: nullable(str("the sha256 a GET answered; null: there was no file")), message: str("a note for the audit log") }, ["content"]),
+    response: obj({ ok: bool, sha256: str(), unchanged: { ...bool, description: "it already said that" }, issues: arr(obj({ rule: str(), level: str(), file: str(), message: str() })) }),
+  },
   "PATCH /api/account": {
     body: { ...DefaultsPatch, description: "at least one key; null clears one. The keys are edited in place in AGENTS.md, comments kept" },
     response: obj({ ok: bool, defaults: Defaults }),

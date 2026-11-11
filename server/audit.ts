@@ -23,6 +23,8 @@ export type AuditAction =
   | "mcp.revoked"
   // The kill switch: a person or key paused or resumed runs (server/pause.ts).
   | "account.paused"
+  // The account's own AGENTS.md written whole (PUT /api/account/agents-md).
+  | "account.agents_md_set"
   | "account.resumed"
   | "workspace.paused"
   | "workspace.resumed"
