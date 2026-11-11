@@ -273,7 +273,7 @@ test("run_agent runs one agent on a task of the caller's; list_agents names them
 
 test("run_agent passes a snapshot through to the route, which refuses one this install cannot hold", async () => {
   const bad = await tool("run_agent", { workspace: "desk", agent: "writer", task: "fix", snapshot: "nope" });
-  assert.equal(bad.isError, true);
+  assert.equal(bad.isError, true, bad.text);
   assert.match(bad.text, /^HTTP 400[\s\S]*64 hex/, "the id reached the route");
   const prev = process.env.FOLDRUN_RUN_ISOLATION;
   delete process.env.FOLDRUN_RUN_ISOLATION;
@@ -284,4 +284,87 @@ test("run_agent passes a snapshot through to the route, which refuses one this i
   } finally {
     if (prev !== undefined) process.env.FOLDRUN_RUN_ISOLATION = prev;
   }
+});
+
+test("authoring: create_workspace, write_file, check_workspace, delete_file — through their routes, with role, scope, checks and read-only mode", async () => {
+  const reads = ((await rpc("tools/list", undefined, { query: "?readonly=1" })).result.tools as { name: string }[]).map((t) => t.name);
+  assert.ok(reads.includes("check_workspace"), "checking reads");
+  for (const t of ["create_workspace", "write_file", "delete_file"]) assert.ok(!reads.includes(t), `${t} acts: not in read-only mode`);
+  const all = (await rpc("tools/list")).result.tools as { name: string; annotations: { destructiveHint: boolean } }[];
+  assert.equal(all.find((t) => t.name === "delete_file")!.annotations.destructiveHint, true);
+
+  // Create: blank, and never over a workspace that is there.
+  const made = await tool("create_workspace", { name: "built" });
+  assert.equal(made.isError, false, made.text);
+  assert.ok(fs.existsSync(path.join(DATA, "acme", "workspaces", "built", "AGENTS.md")), "a blank workspace with its AGENTS.md");
+  const taken = await tool("create_workspace", { name: "desk" });
+  assert.match(taken.text, /^HTTP 409/, "an existing workspace is never deployed over");
+  assert.equal(fs.readFileSync(path.join(DATA, "acme", "workspaces", "desk", "agents/writer/agent.md"), "utf8").includes("Write."), true);
+  assert.match((await tool("create_workspace", { name: "v-made" }, { key: viewer })).text, /^HTTP 403/);
+
+  // Write: an agent and a flow, live at once.
+  const agent = await tool("write_file", { workspace: "built", path: "agents/greeter/agent.md", content: "---\nname: greeter\ndescription: greets\n---\n\nSay hello.\n", message: "first agent", if_match: "absent" });
+  assert.equal(agent.isError, false, agent.text);
+  assert.match(agent.data.sha256, /^[0-9a-f]{64}$/);
+  const flow = await tool("write_file", { workspace: "built", path: "flows/hello.md", content: "---\ntrigger: manual\n---\n\n1. [[greeter]] — say hello\n" });
+  assert.equal(flow.isError, false, flow.text);
+  const flows = await tool("list_flows", { workspace: "built" });
+  assert.ok(JSON.stringify(flows.data).includes("hello"), "the flow is there to run, with no deploy");
+
+  // A file with an error is refused and nothing is written.
+  const bad = await tool("write_file", { workspace: "built", path: "flows/broken.md", content: "---\ntrigger: manual\n---\n\n1. [[nobody-here]] — x\n" });
+  assert.equal(bad.isError, true, bad.text);
+  assert.match(bad.text, /^HTTP 422/);
+  assert.equal(fs.existsSync(path.join(DATA, "acme", "workspaces", "built", "flows/broken.md")), false, "nothing written");
+  assert.match(bad.text, /issues: \[/, "the refusal carries its issues");
+  assert.match(bad.text, /nobody-here/, "naming what is wrong");
+
+  // An empty file is a real write.
+  const empty = await tool("write_file", { workspace: "built", path: "scripts/empty.sh", content: "" });
+  assert.equal(empty.isError, false, empty.text);
+  assert.equal(fs.readFileSync(path.join(DATA, "acme", "workspaces", "built", "scripts/empty.sh"), "utf8").trim(), "", "saved empty (the store ends a file with a newline)");
+  assert.match((await tool("write_file", { workspace: "built", path: "", content: "x" })).text, /`path` is required/, "but an empty path is not");
+
+  // if_match: a stale sha is refused; "absent" refuses a file that is there.
+  const stale = await tool("write_file", { workspace: "built", path: "agents/greeter/agent.md", content: "---\nname: greeter\n---\n\nHi.\n", if_match: "0".repeat(64) });
+  assert.match(stale.text, /^HTTP 409/);
+  const exists = await tool("write_file", { workspace: "built", path: "agents/greeter/agent.md", content: "x", if_match: "absent" });
+  assert.match(exists.text, /^HTTP 409/);
+  const fresh = await tool("write_file", { workspace: "built", path: "agents/greeter/agent.md", content: "---\nname: greeter\ndescription: greets warmly\n---\n\nSay hello warmly.\n", if_match: agent.data.sha256 });
+  assert.equal(fresh.isError, false, fresh.text);
+
+  // Role and scope are the route's.
+  assert.match((await tool("write_file", { workspace: "built", path: "knowledge/x.md", content: "x" }, { key: viewer })).text, /^HTTP 403/);
+  assert.equal((await tool("write_file", { workspace: "other", path: "knowledge/x.md", content: "x" }, { key: scoped })).isError, true, "a key scoped to desk cannot write other");
+  assert.equal((await tool("write_file", { workspace: "desk", path: "knowledge/x.md", content: "x" }, { key: rival })).isError, true, "another account's workspace is not reached");
+  assert.equal((await tool("write_file", { workspace: "built", path: "../desk/AGENTS.md", content: "x" })).isError, true, "a path never leaves its workspace");
+
+  // Check: findings with rule ids.
+  const checked = await tool("check_workspace", { workspace: "built" });
+  assert.equal(checked.isError, false, checked.text);
+  assert.ok(Array.isArray(checked.data.findings));
+  assert.equal(checked.data.findings.filter((f: { level: string }) => f.level === "error").length, 0, JSON.stringify(checked.data.findings));
+  assert.match((await tool("check_workspace", { workspace: "nope" })).text, /^HTTP 404/);
+
+  // Delete: gone from the folder, kept in history.
+  assert.match((await tool("delete_file", { workspace: "built", path: "flows/hello.md" }, { key: viewer })).text, /^HTTP 403/);
+  const gone = await tool("delete_file", { workspace: "built", path: "flows/hello.md" });
+  assert.equal(gone.isError, false, gone.text);
+  assert.equal(fs.existsSync(path.join(DATA, "acme", "workspaces", "built", "flows/hello.md")), false);
+});
+
+test("run_agent and run_flow carry a context to their routes (FOL-162), which check it", async () => {
+  const a = await tool("run_agent", { workspace: "desk", agent: "writer", task: "draft", test: true, context: "chat-7" });
+  assert.equal(a.isError, false, a.text);
+  assert.equal(a.data.context, "chat-7");
+  const one = await tool("get_run", { workspace: "desk", run_id: a.data.runId });
+  assert.equal((one.data.context ?? one.data.run?.context).id, "chat-7");
+  assert.equal((one.data.input ?? one.data.run?.input).text, "draft");
+  const f = await tool("run_flow", { workspace: "desk", flow: "weekly", task: "x", test: true, context: "chat-7" });
+  assert.equal(f.isError, false, f.text);
+  assert.equal(f.data.context, "chat-7");
+  const listed = await tool("list_runs", { workspace: "desk", limit: 100 });
+  assert.ok(listed.data.runs.some((r: { id: string; context?: { id: string } }) => r.id === f.data.runId && r.context?.id === "chat-7"), "the list shows it");
+  const bad = await tool("run_agent", { workspace: "desk", agent: "writer", task: "x", context: "has a space" });
+  assert.match(bad.text, /^HTTP 400: context is 1–200 printable ASCII/);
 });

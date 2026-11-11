@@ -82,6 +82,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       { name: "model", description: "a step ran a model whose name contains this" },
       { name: "min_tokens", description: "input tokens, all steps together (50000 or 50k)" },
       { name: "min_secs", description: "the run took at least this long" },
+      { name: "context", description: "the runs of one conversation: its context id, exactly (FOL-162)" },
       { name: "before", description: "the next page: the `next` of the page before (a cursor, <startedAt>~<runId>), a time (runs that started before it) or a run id of this workspace (runs older than it); a cursor that is neither is a 400" },
     ],
     response: obj({
@@ -102,8 +103,8 @@ const LEGACY_SHAPES: Record<string, Shape> = {
     },
   },
   "POST /api/workspaces/{workspace}/flows/{flow}/run": {
-    body: obj({ task: str("delivered to the first step"), tags: { type: "array", items: str() }, from: int, test: bool }),
-    response: obj({ ok: bool, runId: str(), steps: int, test: bool, started: bool, reason: str() }),
+    body: obj({ task: str("delivered to the first step"), tags: { type: "array", items: str() }, from: int, test: bool, context: str("a conversation this run is a turn of: 1–200 printable ASCII characters; its first step reads the earlier runs of the same context (FOL-162). Not with from") }),
+    response: obj({ ok: bool, runId: str(), steps: int, test: bool, started: bool, reason: str(), context: str("the context, when one was given") }),
     query: [{ name: "wait", description: "true answers when the run stops" }],
   },
   "POST /api/workspaces/{workspace}/deploy": {

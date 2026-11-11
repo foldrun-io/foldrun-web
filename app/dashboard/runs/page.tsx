@@ -49,6 +49,7 @@ export default async function RunsPage({
     model?: string;
     min_tokens?: string;
     min_secs?: string;
+    context?: string;
   }>;
 }) {
   const {

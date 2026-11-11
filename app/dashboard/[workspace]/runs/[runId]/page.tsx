@@ -33,6 +33,7 @@ import { WithEmails } from "@/components/email";
 import { anchorId } from "@/components/collapse-model";
 import { listApiKeys } from "@/server/auth";
 import { a2aKeyLabels, a2aRunLabel } from "@/components/a2a-model";
+import { conversationNote } from "@/components/conversation-model";
 
 export const dynamic = "force-dynamic";
 
@@ -193,6 +194,17 @@ export default async function RunPage({
                   <span>
                     <Fact label="Ran on">
                       <span className="font-mono">{run.revision.slice(0, 7)}</span>
+                    </Fact>
+                  </span>
+                </Tooltip>
+              )}
+              {run.context && (
+                <Tooltip label={conversationNote(run)}>
+                  <span>
+                    <Fact label="Conversation">
+                      <Link href={`/dashboard/${encodeURIComponent(workspace)}/runs?tenant=${encodeURIComponent(tenant)}&context=${encodeURIComponent(run.context.id)}`} className="font-mono">
+                        {run.context.id.length > 32 ? `${run.context.id.slice(0, 31)}…` : run.context.id}
+                      </Link>
                     </Fact>
                   </span>
                 </Tooltip>

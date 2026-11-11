@@ -89,7 +89,7 @@ export function McpAuthorize() {
       <p className="mb-5 text-sm text-fg-muted">
         It asks to use foldrun account <span className="font-mono">{ask.account}</span> as{" "}
         <span className="font-medium"><Email value={ask.person.email} /></span> ({ask.person.role}): your inbox, runs, flows and files
-        {canWrite ? ", and — if you allow it — to start and stop runs, approve gates and answer agents" : ""}.
+        {canWrite ? ", and — if you allow it — to start and stop runs, approve gates, answer agents, and create workspaces and change their files" : ""}.
       </p>
 
       <div className="mb-4 rounded-md border border-line bg-sunken p-3 text-sm">
@@ -111,7 +111,7 @@ export function McpAuthorize() {
           <RadioGroupItem value="read" /> Read only — inbox, runs, flows, files
         </label>
         <label className={`flex items-center gap-2 text-sm ${canWrite ? "" : "opacity-50"}`}>
-          <RadioGroupItem value="write" disabled={!canWrite} /> Read and act — also start, stop, approve, answer, message
+          <RadioGroupItem value="write" disabled={!canWrite} /> Read and act — also start, stop, approve, answer, message, and edit workspaces
         </label>
         </RadioGroup>
       </fieldset>

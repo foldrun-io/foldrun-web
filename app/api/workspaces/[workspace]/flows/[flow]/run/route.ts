@@ -1,3 +1,4 @@
+import { contextIdProblem, runContext } from "@/lib/conversation";
 import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, requirePermission, refuse } from "@/server/api";
 import { loadFlow } from "@/lib/runner";
@@ -31,6 +32,9 @@ async function postOnce(
     // { test: true } makes this a test run — see runs.md "Test runs". Left
     // out, the platform decides (a preview workspace's runs are tests).
     let test: boolean | undefined;
+    // FOL-162: a conversation this run is a turn of — its first step reads
+    // the earlier runs of the same context (conversation.ts).
+    let context: string | undefined;
     // A caller's own key for this request. A retried start call — a dropped
     // response, a proxy timeout, a CI step that ran twice — otherwise starts
     // a second run and bills for it, and nobody notices until the invoice.
@@ -44,6 +48,11 @@ async function postOnce(
       // it are recorded as skipped, not invented.
       if (body?.from !== undefined) from = Number(body.from);
       if (typeof body?.test === "boolean") test = body.test;
+      if (body?.context !== undefined && body?.context !== null) {
+        const problem = contextIdProblem(body.context);
+        if (problem) return refuse(problem, 400);
+        context = body.context as string;
+      }
       if (!idempotencyKey && typeof body?.idempotencyKey === "string") idempotencyKey = body.idempotencyKey.trim();
     } catch {
       // empty body is fine
@@ -57,6 +66,9 @@ async function postOnce(
       // than silently lose it. Checked before the key is claimed, so a
       // refused request never leaves a claim behind.
       return refuse("task and from can't be combined: the task goes to step 1, which from skips", 400);
+    }
+    if (from > 1 && context) {
+      return refuse("context and from can't be combined: the conversation goes to step 1, which from skips", 400);
     }
     // overlap: skip holds for a person or a key too, not only the scheduler
     // — checked inside admitFlowRun, under the same lock as the enqueue
@@ -108,6 +120,7 @@ async function postOnce(
         // the whole account.
         startedBy: actor.kind === "user" ? actor.name : null,
         test,
+        ...(context ? { conversation: { context: runContext(context), input: { text: task } } } : {}),
       });
     } catch (err) {
       // The claim was taken before the run existed, so two retries could not
@@ -121,7 +134,7 @@ async function postOnce(
     if (idempotencyKey) await noteRequestRun(tenant, workspace, `run:${flow.name}`, idempotencyKey, run.id);
     // ?wait=true turns this into a request/response call — see server/wait.ts.
     if (wantsWait(req)) return waitAndRespond(req, tenant, workspace, run);
-    return NextResponse.json({ ok: true, runId: run.id, steps: run.steps.length, test: run.test === true });
+    return NextResponse.json({ ok: true, runId: run.id, steps: run.steps.length, test: run.test === true, ...(run.context ? { context: run.context.id } : {}) });
   } catch (err) {
     return errorResponse(err);
   }

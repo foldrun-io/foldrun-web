@@ -54,6 +54,8 @@ export async function GET(
         outcome: outcomeOf(runDisplayStatus(r), runVerdict(r)),
         startedAt: r.startedAt,
         finishedAt: r.finishedAt ?? null,
+        // The conversation it is a turn of (FOL-162), when it is one.
+        ...(r.context ? { context: r.context } : {}),
         // The run's own total, so "what does this desk cost" is one read
         // rather than a sum the caller has to remember to do. The steps keep
         // their own figures for the breakdown.

@@ -142,13 +142,13 @@ export const SHAPES: Record<string, Shape> = {
     response: obj({ ok: bool, path: str() }),
   },
   "POST /api/workspaces/{workspace}/agents/{agent}/run": {
-    body: obj({ task: str("what the agent is asked to do"), test: { ...bool, description: "a test run" }, snapshot: str("a folder to work on: the id POST …/snapshots answered; the step finds it in snapshot/ and the run's outputs hold snapshot.patch (k8s sandbox only)") }),
+    body: obj({ task: str("what the agent is asked to do"), test: { ...bool, description: "a test run" }, snapshot: str("a folder to work on: the id POST …/snapshots answered; the step finds it in snapshot/ and the run's outputs hold snapshot.patch (k8s sandbox only)"), context: str("a conversation this run is a turn of: 1–200 printable ASCII characters; the agent reads the earlier runs of the same context before the task (FOL-162)") }),
     query: [
       { name: "wait", description: "true (or 1) answers when the run stops — 202 if it is still going at the timeout or waits on approval" },
       { name: "timeout", description: "with wait: seconds, default 300, at most 900" },
     ],
     response: obj({
-      ok: bool, runId: str(), test: bool, snapshot: str("the folder it works on, when one was given"),
+      ok: bool, runId: str(), test: bool, snapshot: str("the folder it works on, when one was given"), context: str("the context, when one was given"),
       status: str("with wait: the run's status"), result: nullable(str("with wait: what it produced")),
       failure: nullable(Failure), costUsd: num,
       steps: arr(obj({ agent: str(), status: str(), skipReason: nullable(str()) })),

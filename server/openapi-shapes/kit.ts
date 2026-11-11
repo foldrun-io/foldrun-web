@@ -79,6 +79,8 @@ export const Run = obj({
   failure: { ...Failure, type: ["object", "null"], description: "why it failed (FOL-124) — in the runs list and on one run; null when it did not" },
   chargedUsd: { type: ["number", "null"], description: "in the runs list: what the account was charged for the run, in USD (one credit is one cent); null until the ledger settles it. costUsd is the token cost at the model's list price" },
   tokens: Tokens,
+  context: { ...obj({ id: str("the context the caller gave"), key: str("what it is found by: the workspace's plain scope, or one A2A caller's"), a2a: bool }), description: "the conversation the run is a turn of (FOL-162); absent when it is none" },
+  input: { ...obj({ text: str(), data: { description: "an A2A message's JSON part" } }), description: "on a run with a context: what it was asked, as given" },
   steps: { type: "array", items: { ...obj({ tokens: Tokens }), additionalProperties: true } },
 });
 

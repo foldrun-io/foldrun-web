@@ -7,6 +7,7 @@ import { enqueueFlowRun } from "@/platform/queue";
 import { wantsWait, waitAndRespond } from "@/server/wait";
 import { idempotent } from "@/server/idempotency";
 import { getSnapshot, SnapshotRefused } from "@/platform/snapshots";
+import { contextIdProblem, runContext } from "@/lib/conversation";
 
 async function postOnce(
   req: NextRequest,
@@ -25,6 +26,8 @@ async function postOnce(
     let task = "";
     let test: boolean | undefined;
     let snapshot: string | undefined;
+    // FOL-162: the conversation this run is a turn of (conversation.ts).
+    let context: string | undefined;
     try {
       const body = await req.json();
       if (typeof body?.task === "string") task = body.task;
@@ -32,6 +35,11 @@ async function postOnce(
       if (body?.snapshot !== undefined) {
         if (typeof body.snapshot !== "string" || !/^[0-9a-f]{64}$/.test(body.snapshot)) throw new ApiError("snapshot: the id POST …/snapshots answered (64 hex characters)", 400);
         snapshot = body.snapshot;
+      }
+      if (body?.context !== undefined && body?.context !== null) {
+        const problem = contextIdProblem(body.context);
+        if (problem) throw new ApiError(problem, 400);
+        context = body.context as string;
       }
     } catch (err) {
       if (err instanceof ApiError) throw err;
@@ -52,10 +60,10 @@ async function postOnce(
       undefined,
       [],
       null,
-      { test, ...(snapshot ? { snapshot } : {}) },
+      { test, ...(snapshot ? { snapshot } : {}), ...(context ? { conversation: { context: runContext(context), input: { text: task } } } : {}) },
     );
     if (wantsWait(req)) return waitAndRespond(req, tenant, workspace, run);
-    return NextResponse.json({ ok: true, runId: run.id, test: run.test === true, ...(run.snapshot ? { snapshot: run.snapshot.id } : {}) });
+    return NextResponse.json({ ok: true, runId: run.id, test: run.test === true, ...(run.snapshot ? { snapshot: run.snapshot.id } : {}), ...(run.context ? { context: run.context.id } : {}) });
   } catch (err) {
     // The folder went between the check and the pin: the run was undone.
     if (err instanceof SnapshotRefused) return refuse(err.message, 404);

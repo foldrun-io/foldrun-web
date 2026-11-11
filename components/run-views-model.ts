@@ -3,9 +3,9 @@
 
 export const RUN_VIEWS_PREF = "runViews";
 /** The query keys a view may hold — the runs pages' filters and search. */
-export const VIEW_KEYS = ["status", "flow", "workspace", "since", "q", "tool", "tool_error", "agent", "model", "min_tokens", "min_secs"];
+export const VIEW_KEYS = ["status", "flow", "workspace", "since", "q", "tool", "tool_error", "agent", "model", "min_tokens", "min_secs", "context"];
 /** The search's own keys — what the runs pages carry through their links. */
-export const SEARCH_KEYS = ["tool", "tool_error", "agent", "model", "min_tokens", "min_secs"];
+export const SEARCH_KEYS = ["tool", "tool_error", "agent", "model", "min_tokens", "min_secs", "context"];
 
 export interface RunView {
   name: string;

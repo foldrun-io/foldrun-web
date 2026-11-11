@@ -14,6 +14,7 @@
 // question to a person stays with the workspace's people: the task shows
 // WORKING, "waiting for a person", and no A2A call can decide either.
 
+import { runContext } from "@/lib/conversation";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -436,7 +437,18 @@ async function sendMessage(ctx: Ctx, params: Record<string, unknown>): Promise<{
   const steps = flow.steps.map((s, i) => (i === 0 ? { ...s, instruction: `${s.instruction}\n\n${requestInstruction(sent)}` } : s));
   let run: RunRecord;
   try {
-    run = await admitFlowRun({ tenant, workspace, flow, steps, startedBy: null, a2a: { task: task.id, key: ctx.principal } });
+    run = await admitFlowRun({
+      tenant,
+      workspace,
+      flow,
+      steps,
+      startedBy: null,
+      a2a: { task: task.id, key: ctx.principal },
+      // FOL-162: the task's contextId (the caller's, or the one this server
+      // made) is a conversation scoped to this caller's key — its first id,
+      // kept across rotations — so another caller's same contextId is not it.
+      conversation: { context: runContext(task.contextId, ctx.principal), input: { text: sent.text, ...(sent.hasData ? { data: sent.data } : {}) } },
+    });
   } catch (err) {
     // Refused — unless a run for this task exists after all (a start that
     // raced this one): then that run is the task's, and the claim stays.

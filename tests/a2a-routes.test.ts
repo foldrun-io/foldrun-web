@@ -276,6 +276,14 @@ test("SendMessage: the task is written first, the run carries only a correlation
   assert.ok(!JSON.stringify(r.body).includes(run.id), "the run id never reaches the caller");
   const gen = (await send(a2a, "no context")).body.result.task;
   assert.match(gen.contextId, /^[0-9a-f-]{36}$/, "one is made when none is sent");
+  // FOL-162: the contextId is a conversation scoped to this caller's key —
+  // its first id — and the message, as sent, is what a later turn reads.
+  const { contextKey } = await import("@/lib/conversation");
+  assert.deepEqual(run.context, { id: "conv-1", key: contextKey("conv-1", minted.body.id), a2a: true });
+  assert.notEqual(run.context!.key, contextKey("conv-1"), "not the workspace's plain scope");
+  assert.equal(run.input?.text, "dentists in Perth", "the question as sent, not the fenced instruction");
+  assert.equal(run.steps[0]!.conversationTurn, true);
+  assert.equal(readRun("acme", "desk", readRunIdOf(gen.id))!.context?.id, gen.contextId, "a made-up contextId is a conversation too");
 });
 
 test("dedupe on messageId: the same message is the same task (one run); a different one is refused", async () => {

@@ -29,7 +29,7 @@ export default async function WorkspaceRunsPage({
   searchParams,
 }: {
   params: Promise<{ workspace: string }>;
-  searchParams: Promise<{ tenant?: string; flow?: string; status?: string; run?: string; since?: string; page?: string; q?: string; tool?: string; tool_error?: string; agent?: string; model?: string; min_tokens?: string; min_secs?: string }>;
+  searchParams: Promise<{ tenant?: string; flow?: string; status?: string; run?: string; since?: string; page?: string; q?: string; tool?: string; tool_error?: string; agent?: string; model?: string; min_tokens?: string; min_secs?: string; context?: string }>;
 }) {
   const { workspace } = await params;
   const { tenant = "default", flow: flowFilter, status: statusFilter, run: selectedRunId, since, page: pageParam, q = "" } = await searchParams;
