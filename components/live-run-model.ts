@@ -121,8 +121,8 @@ export function tabTitle(run: Pick<RunRecord, "status" | "steps" | "flow" | "sto
  *  it an unknown field the parser drops. That was the run stream from the
  *  day it was written: a socket that connected, ticked, and never once
  *  delivered a record the page could parse. */
-export function sseFrame(event: string, data: string): string {
-  return `event: ${event}\n${data.split("\n").map((line) => `data: ${line}`).join("\n")}\n\n`;
+export function sseFrame(event: string, data: string, id?: string): string {
+  return `${id ? `id: ${id}\n` : ""}event: ${event}\n${data.split("\n").map((line) => `data: ${line}`).join("\n")}\n\n`;
 }
 
 /** Where a `wait: event` step is released, read from its own trace: the

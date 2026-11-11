@@ -7,6 +7,7 @@
 // ~10x sooner.
 
 import { runMoney } from "@/server/run-charges";
+import { cursorOf, parseCursor, deltaSince } from "@/server/run-delta";
 import { NextRequest } from "next/server";
 import { requireTenant, errorResponse, refuse } from "@/server/api";
 import { runFilePath, runStamp, readRunText } from "@/lib/store";
@@ -71,6 +72,12 @@ export async function GET(
     start(controller) {
       let lastPayload = "";
       const started = Date.now();
+      // Deltas (FOL-158): asked for with ?delta=1; a reconnect resumes from
+      // the Last-Event-ID it sends (the cursor of the last event it had).
+      const deltaMode = req.nextUrl.searchParams.get("delta") === "1";
+      const resume = deltaMode ? parseCursor(req.headers.get("last-event-id")) : null;
+      let lastCounts: number[] | null = null;
+      let lastHeaders: string[] | undefined;
 
       // Everything stops together. A client that went away without an
       // abort — a closed laptop, a proxy that dropped the socket — shows
@@ -89,9 +96,9 @@ export async function GET(
         }
       };
 
-      const send = (event: string, data: string) => {
+      const send = (event: string, data: string, id?: string) => {
         try {
-          controller.enqueue(encoder.encode(sseFrame(event, data)));
+          controller.enqueue(encoder.encode(sseFrame(event, data, id)));
         } catch {
           stop();
           throw new StreamGone();
@@ -130,8 +137,21 @@ export async function GET(
           if (raw !== lastPayload) {
             wait = POLL_MS;
             lastPayload = raw;
-            send("run", raw);
             const run = JSON.parse(raw);
+            // Every event carries the cursor (FOL-158). With ?delta=1, after
+            // the first whole record (or from a Last-Event-ID), a `delta`
+            // event carries only what changed; a cursor that does not fit is
+            // answered with the whole record again.
+            const base = lastCounts ?? resume;
+            const d = deltaMode && base !== null ? deltaSince(run, base, lastHeaders) : null;
+            if (d) {
+              send("delta", JSON.stringify(d.delta), cursorOf(run));
+              lastHeaders = d.headers;
+            } else {
+              send("run", raw, cursorOf(run));
+              lastHeaders = deltaMode ? deltaSince(run, [])?.headers : undefined;
+            }
+            lastCounts = deltaMode ? run.steps.map((st: { events?: unknown[] }) => (st.events ?? []).length) : null;
             // Only a run that is over ends the stream — the client stops
             // listening rather than reconnecting forever. Everything else
             // stays open: a queued run so the page sees the worker pick it

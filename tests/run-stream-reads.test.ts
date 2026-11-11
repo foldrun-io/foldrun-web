@@ -95,3 +95,53 @@ test("a stream that cannot start answers { error } JSON, not plain text", async 
   assert.match(res.headers.get("content-type") ?? "", /application\/json/);
   assert.deepEqual(await res.json(), { error: "run not found" });
 });
+
+test("?delta=1: the whole record first with a cursor, then only what changed; a reconnect with Last-Event-ID resumes from there (FOL-158)", async () => {
+  const D = "run-stream-delta";
+  const f = path.join(ws, "runs", `${D}.json`);
+  const rec = (status: string, events: number) =>
+    JSON.stringify({ id: D, flow: "f", status, startedAt: "2026-11-11T00:00:00Z", steps: [{ agent: "a", status: "running", events: Array.from({ length: events }, (_, k) => ({ type: "text", text: `line ${k}` })) }] });
+  fs.writeFileSync(f, rec("running", 2));
+  const open = async (lastEventId?: string) => {
+    const abort = new AbortController();
+    const res = await route.GET(
+      new NextRequest(`http://x/api/workspaces/${WS}/runs/${D}/stream?delta=1`, { headers: { "x-foldrun-tenant": TENANT, ...(lastEventId ? { "last-event-id": lastEventId } : {}) }, signal: abort.signal }),
+      { params: Promise.resolve({ workspace: WS, runId: D }) },
+    );
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    const state = { text: "" };
+    void (async () => {
+      for (;;) {
+        const { value, done } = await reader.read().catch(() => ({ value: undefined, done: true }));
+        if (done) return;
+        state.text += decoder.decode(value);
+      }
+    })();
+    return { state, close: () => abort.abort() };
+  };
+  const a = await open();
+  await sleep(600);
+  assert.match(a.state.text, /^id: v1\.2\nevent: run\n/m, "the whole record first, with its cursor");
+  fs.writeFileSync(f, rec("running", 3));
+  await sleep(2_600);
+  const delta = /id: (v1\.3)\nevent: delta\ndata: (.*)\n/.exec(a.state.text);
+  assert.ok(delta, a.state.text.slice(-400));
+  const body = JSON.parse(delta![2]!);
+  assert.equal(body.steps["0"].from, 2);
+  assert.deepEqual(body.steps["0"].events.map((e: { text: string }) => e.text), ["line 2"], "only the new event");
+  a.close();
+
+  fs.writeFileSync(f, rec("running", 5));
+  const b = await open("v1.3");
+  await sleep(600);
+  assert.doesNotMatch(b.state.text, /event: run\n/, "a resume is not the whole record again");
+  const resumed = JSON.parse(/event: delta\ndata: (.*)\n/.exec(b.state.text)![1]!);
+  assert.deepEqual(resumed.steps["0"].events.map((e: { text: string }) => e.text), ["line 3", "line 4"]);
+  b.close();
+
+  const c = await open("v1.9");
+  await sleep(600);
+  assert.match(c.state.text, /event: run\n/, "a cursor that does not fit gets the whole record");
+  c.close();
+});

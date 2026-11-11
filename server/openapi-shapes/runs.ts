@@ -103,10 +103,11 @@ export const SHAPES: Record<string, Shape> = {
     response: obj({ ok: bool, runId: str(), status: str("the run's status after the stop") }),
   },
   "GET /api/workspaces/{workspace}/runs/{runId}/stream": {
+    query: [{ name: "delta", description: "1: after the first whole record, `delta` events carry only what changed; a reconnect with Last-Event-ID resumes from that cursor (FOL-158)" }],
     media: {
       type: "text/event-stream",
       description:
-        "Server-sent events: `run` carries the whole run record (JSON) each time it changes, first at once; `done` carries { status, chargedUsd, estimatedUsd, settled } when the run is over (usually not settled yet — GET …/runs/{runId} has the charge once it is), and the stream ends. A `: keepalive` comment every 15 s; after 30 minutes the stream closes without `done` and a client reconnects.",
+        "Server-sent events, each with an `id:` (the cursor: each step's event count): `run` carries the whole run record (JSON) each time it changes, first at once — or, with ?delta=1, after the first one `delta` carries what changed (the run's fields; steps by index with their new events and `from`); `done` carries { status, chargedUsd, estimatedUsd, settled } when the run is over (usually not settled yet — GET …/runs/{runId} has the charge once it is), and the stream ends. A `: keepalive` comment every 15 s; after 30 minutes the stream closes without `done` and a client reconnects.",
     },
   },
   "POST /api/workspaces/{workspace}/runs/bulk": {
