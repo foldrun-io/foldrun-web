@@ -82,11 +82,22 @@ test("a gateway key keeps its limits through the table and a rotation, and opens
     return { status: r2.status, body: (await r2.json()) as Record<string, any> }; // eslint-disable-line @typescript-eslint/no-explicit-any
   };
   const mapped = await patch(ok.body.id, { models: { opus: "claude-opus-5-5" } });
-  assert.equal(mapped.status, 200, JSON.stringify(mapped.body));
-  const afterMap = (await (await keysRoute.GET(new NextRequest("https://app.example.test/api/keys", { headers: { authorization: `Bearer ${admin}` } }))).json()) as { keys: { id: string; gateway?: { models?: Record<string, string>; capUsd: number | null } }[] };
-  const gk = afterMap.keys.find((k) => k.id === ok.body.id)!;
-  assert.deepEqual(gk.gateway?.models, { opus: "claude-opus-5-5" });
-  assert.equal(gk.gateway?.capUsd, 12.35, "the limits are kept");
+  // A model map points at foldrun's priced models, which only the hosted
+  // build has (billing().modelPrice reads the price list). A build without
+  // billing — the public edition GitHub CI tests — has no price list, so the
+  // same map is refused; the hosted check (foldrun-admin scripts/check.sh)
+  // runs the mapping itself.
+  const { edition } = await import("@/platform/ledger");
+  if (edition() !== "hosted") {
+    assert.equal(mapped.status, 400, JSON.stringify(mapped.body));
+    assert.match(String(mapped.body.error), /has no price on foldrun's models/);
+  } else {
+    assert.equal(mapped.status, 200, JSON.stringify(mapped.body));
+    const afterMap = (await (await keysRoute.GET(new NextRequest("https://app.example.test/api/keys", { headers: { authorization: `Bearer ${admin}` } }))).json()) as { keys: { id: string; gateway?: { models?: Record<string, string>; capUsd: number | null } }[] };
+    const gk = afterMap.keys.find((k) => k.id === ok.body.id)!;
+    assert.deepEqual(gk.gateway?.models, { opus: "claude-opus-5-5" });
+    assert.equal(gk.gateway?.capUsd, 12.35, "the limits are kept");
+  }
   assert.equal((await patch(ok.body.id, { models: { sonnet: "nope/x" } })).status, 400);
   assert.equal((await patch(ok.body.id, { capUsd: 99 })).status, 400, "only models change here");
   assert.equal((await patch(record.id, { models: null })).status, 200, "a gateway key minted directly");
