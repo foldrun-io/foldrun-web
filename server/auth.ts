@@ -6,7 +6,7 @@
 // Without a key the request is refused. `FOLDRUN_DEV_NO_AUTH=1` opts out and
 // falls back to the x-foldrun-tenant header, which is what `next dev` sets.
 
-import { opsError } from "@/lib/ops-log.ts";
+import { opsError, opsLog } from "@/lib/ops-log.ts";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -618,6 +618,19 @@ async function resolveMcpAccessToken(req: NextRequest, presented: string): Promi
   };
 }
 
+/** A key refused at the funnel, recorded once per request (resolveTenant may
+ *  run more than once for one request) against the account and key when the
+ *  key was found — so the operator console's timeline shows "their key was
+ *  revoked" on the right account (D239 phase 1). Never the key itself. */
+const keyRefusalsLogged = new WeakSet<object>();
+function keyRefused(req: NextRequest, status: number, message: string, reason: string, record?: { tenant: string; id: string }): AuthResult {
+  if (!keyRefusalsLogged.has(req)) {
+    keyRefusalsLogged.add(req);
+    opsLog("warn", "auth.refused", { surface: "api", status, reason, tenant: record?.tenant, key: record?.id });
+  }
+  return { tenant: null, status, message };
+}
+
 export async function resolveTenant(req: NextRequest): Promise<AuthResult> {
   const authz = req.headers.get("authorization");
   // `Bearer` however it is capitalised: a hand-written script that sends
@@ -626,21 +639,21 @@ export async function resolveTenant(req: NextRequest): Promise<AuthResult> {
     const presented = authz.replace(/^bearer\s+/i, "").trim();
     if (presented.startsWith(ACCESS_PREFIX)) return resolveMcpAccessToken(req, presented);
     const record = await keyByHash(hash(presented));
-    if (!record) return { tenant: null, status: 401, message: "invalid API key" };
-    if (record.revokedAt) return { tenant: null, status: 401, message: "API key revoked" };
+    if (!record) return keyRefused(req, 401, "invalid API key", "key_unknown");
+    if (record.revokedAt) return keyRefused(req, 401, "API key revoked", "key_revoked", record);
     if (keyExpired(record)) {
-      if (record.origin === "cli-login") return { tenant: null, status: 401, message: `this machine's sign-in ended on ${record.expiresAt!.slice(0, 10)} — run \`foldrun login\` to sign in again (the CLI renews it while it is in use)` };
-      return { tenant: null, status: 401, message: `API key expired on ${record.expiresAt!.slice(0, 10)} — mint a new one on Settings → API keys (or \`foldrun keys create\`); rotate a key before it ends to keep its role and scope` };
+      if (record.origin === "cli-login") return keyRefused(req, 401, `this machine's sign-in ended on ${record.expiresAt!.slice(0, 10)} — run \`foldrun login\` to sign in again (the CLI renews it while it is in use)`, "signin_expired", record);
+      return keyRefused(req, 401, `API key expired on ${record.expiresAt!.slice(0, 10)} — mint a new one on Settings → API keys (or \`foldrun keys create\`); rotate a key before it ends to keep its role and scope`, "key_expired", record);
     }
     // A deploy key opened the platform's own git and nothing else; with that
     // git gone it opens nothing.
-    if (record.scope) return { tenant: null, status: 403, message: "this is a deploy key — they went with the platform's own git (17 Oct 2026); mint an account key instead" };
+    if (record.scope) return keyRefused(req, 403, "this is a deploy key — they went with the platform's own git (17 Oct 2026); mint an account key instead", "deploy_key", record);
     // An A2A key opens /a2a/… and nothing here: not runs, not approvals,
     // not answers, not storage, not source. Refused in the funnel every
     // /api route goes through, so no route can forget to.
-    if (record.purpose === "a2a") return { tenant: null, status: 403, message: "this is an A2A key — it opens /a2a/<account>/<workspace>/… (the agent card and the A2A endpoint of the flows it names) and no /api route; use an API key here" };
+    if (record.purpose === "a2a") return keyRefused(req, 403, "this is an A2A key — it opens /a2a/<account>/<workspace>/… (the agent card and the A2A endpoint of the flows it names) and no /api route; use an API key here", "a2a_key_here", record);
     // A gateway key opens the gateway door and nothing here, the same way.
-    if (record.purpose === "gateway") return { tenant: null, status: 403, message: "this is a gateway key — it is for a coding agent's ANTHROPIC_BASE_URL (the gateway's /v1/messages) and opens no /api route; use an API key here" };
+    if (record.purpose === "gateway") return keyRefused(req, 403, "this is a gateway key — it is for a coding agent's ANTHROPIC_BASE_URL (the gateway's /v1/messages) and opens no /api route; use an API key here", "gateway_key_here", record);
     await noteKeyUse(record, req.headers);
     return {
       tenant: record.tenant,

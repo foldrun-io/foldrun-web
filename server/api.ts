@@ -97,14 +97,26 @@ export async function requireTenant(req: NextRequest): Promise<string> {
  * Reads keep requireTenant: every role may read, and a route that only
  * reads has nothing to ask.
  */
+/** A caller let in but refused here (role, workspace scope), recorded on
+ *  its account with who it was — a member's id or a key's id (D239 phase 1). */
+function refusedHere(tenant: string, actor: Actor, status: number, reason: string): void {
+  opsLog("warn", "api.refused", { surface: "api", status, reason, tenant, ...(actor.kind === "key" ? { key: actor.id } : { user: actor.id }) });
+}
+
 export async function requirePermission(
   req: NextRequest,
   action: Action,
 ): Promise<{ tenant: string; actor: Actor }> {
   const auth = await resolveTenant(req);
   if (auth.tenant === null) throw new ApiError(auth.message, auth.status);
-  assertScope(req, auth.actor);
+  try {
+    assertScope(req, auth.actor);
+  } catch (err) {
+    if (err instanceof ApiError) refusedHere(auth.tenant, auth.actor, err.status, "out_of_scope");
+    throw err;
+  }
   if (!can(auth.actor.role, action)) {
+    refusedHere(auth.tenant, auth.actor, 403, "role_too_low");
     throw new ApiError(
       `your role (${auth.actor.role}) cannot do this — it needs ${ACTIONS[action]} or above`,
       403,
