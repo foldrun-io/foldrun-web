@@ -318,10 +318,11 @@ export const SHAPES: Record<string, Shape> = {
           description: "a gateway key's model map: { opus?, sonnet?, haiku? }, each provider/model (e.g. openai/gpt-6); null clears it",
           properties: { opus: str(), sonnet: str(), haiku: str() },
         },
+        requireCustomer: { ...bool, description: "FOL-168: every run (an API key) or gateway call (a gateway key) with it must name an end customer; not for an A2A key" },
       },
-      ["models"],
+      [],
     ),
-    response: obj({ ok: bool, id: str(), models: { type: ["object", "null"], properties: { opus: str(), sonnet: str(), haiku: str() } } }, ["ok", "id"]),
+    response: obj({ ok: bool, id: str(), models: { type: ["object", "null"], properties: { opus: str(), sonnet: str(), haiku: str() } }, requireCustomer: bool }, ["ok", "id"]),
   },
   "POST /api/keys/{id}/rotate": {
     body: obj({

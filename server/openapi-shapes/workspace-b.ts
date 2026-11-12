@@ -1,7 +1,7 @@
 // OpenAPI request/response schemas: /api/workspaces/{workspace} itself and /api/workspaces/{workspace}/<notify|observe|pause|proposals|restore|runtimes|shares|source|storage|tools|triggers|vocabulary|…>.
 // Written from what each handler validates and answers (30 Oct 2026).
 
-import { type Schema, type Shape, obj, str, bool, int, arr, nullable, OK, Proposal } from "./kit.ts";
+import { type Schema, type Shape, obj, str, bool, int, arr, nullable, OK, Proposal, ExtractResult } from "./kit.ts";
 
 const num = { type: "number" };
 const open = (s: Schema, description?: string): Schema => ({ ...s, additionalProperties: true, ...(description ? { description } : {}) });
@@ -412,6 +412,17 @@ export const SHAPES: Record<string, Shape> = {
   "GET /api/workspaces/{workspace}/storage/preview": {
     query: [{ name: "path", description: "the stored file (required); 413 over 25 MB" }],
     response: Preview,
+  },
+  "POST /api/workspaces/{workspace}/storage/extract": {
+    body: obj({
+      path: str("the stored file, under storage/"),
+      lang: str("fa | en | auto (default)"),
+      ocr: str("auto (default) | always | never"),
+      engine: str("docling, or leave it out"),
+      write: { ...bool, description: "default true: write the text to <path>.txt beside it once done (workspace:write); false only reads (workspace:read). A .txt is refused with write" },
+      wait: { ...int, description: "seconds to wait, 0–60 (default 50); past it 202 { id, status: running, poll: /api/extract/<id> }" },
+    }, ["path"]),
+    response: { ...obj({ ...(ExtractResult.properties as Record<string, Schema>), wrote: { type: ["string", "null"], description: "the .txt path written; null when write was false" } }), description: "the text, when done within wait; else 202 with a job to poll" },
   },
   "POST /api/workspaces/{workspace}/storage/upload-url": {
     body: obj({

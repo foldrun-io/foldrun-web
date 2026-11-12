@@ -11,6 +11,8 @@ import { cursorOf, parseCursor, deltaSince } from "@/server/run-delta";
 import { NextRequest } from "next/server";
 import { requireTenant, errorResponse, refuse } from "@/server/api";
 import { runFilePath, runStamp, readRunText } from "@/lib/store";
+import { records } from "@/lib/records";
+import { runNotifyLive, watchRun } from "@/platform/run-notify";
 import { isRunTerminal, sseFrame } from "@/components/live-run-model";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +24,12 @@ const IDLE_MAX_MS = 2_000;
 /** A full read at least this often even when the stat says nothing changed —
  *  a rewrite of the same size inside a coarse mtime (NFS) is not missed. */
 const FORCE_READ_MS = 10_000;
+/** While the run's record is in the database and this process is listening
+ *  for its writes (run-notify.ts, 12 Nov 2026), a write wakes the stream at
+ *  once and an idle stream only checks this often — the safety net for a
+ *  missed notification. Each check was a blocking round trip to Postgres on
+ *  the web process's event loop, two to eight times a second per viewer. */
+const NOTIFIED_IDLE_MS = FORCE_READ_MS;
 const MAX_MS = 30 * 60_000; // don't hold a socket open forever
 
 // A step can think for minutes without writing anything, and this stream only
@@ -67,6 +75,7 @@ export async function GET(
   const encoder = new TextEncoder();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let beat: ReturnType<typeof setInterval> | undefined;
+  let unwatch: (() => void) | undefined;
 
   const stream = new ReadableStream({
     start(controller) {
@@ -89,6 +98,7 @@ export async function GET(
         stopped = true;
         clearTimeout(timer);
         clearInterval(beat);
+        unwatch?.();
         try {
           controller.close();
         } catch {
@@ -114,6 +124,9 @@ export async function GET(
       // The run is over and `done` is on its way: nothing more is scheduled.
       let ending = false;
       let wait = POLL_MS;
+      // Records in the database: writes announce themselves (run-notify.ts).
+      const notified = records(tenant, workspace) !== null;
+      const idleMax = () => (notified && runNotifyLive() ? NOTIFIED_IDLE_MS : IDLE_MAX_MS);
       const changed = (): boolean => {
         // Null: gone for a moment (a rename in flight): read to find out.
         const now = runStamp(tenant, workspace, runId) ?? "";
@@ -127,13 +140,13 @@ export async function GET(
       const tick = () => {
         try {
           if (!changed()) {
-            wait = Math.min(wait * 2, IDLE_MAX_MS);
+            wait = Math.min(wait * 2, idleMax());
             if (Date.now() - started > MAX_MS) stop();
             return;
           }
           const raw = readRunText(tenant, workspace, runId);
           if (raw === null) throw new Error("the record is not there this tick");
-          if (raw === lastPayload) wait = Math.min(wait * 2, IDLE_MAX_MS);
+          if (raw === lastPayload) wait = Math.min(wait * 2, idleMax());
           if (raw !== lastPayload) {
             wait = POLL_MS;
             lastPayload = raw;
@@ -190,7 +203,9 @@ export async function GET(
         }
       };
       // One tick at a time, each scheduling the next at the current wait.
+      let lastTick = 0;
       const loop = () => {
+        lastTick = Date.now();
         tick();
         if (!stopped && !ending) timer = setTimeout(loop, wait);
       };
@@ -201,6 +216,17 @@ export async function GET(
       // the intervals were then started against it anyway.
       if (stopped || ending) return;
       timer = setTimeout(loop, wait);
+      // A write to this run by any copy of the platform: look now, not at
+      // the end of the current wait.
+      if (notified) {
+        unwatch = watchRun(tenant, workspace, runId, () => {
+          if (stopped || ending) return;
+          clearTimeout(timer);
+          wait = POLL_MS;
+          // A burst of writes is read at most once per POLL_MS, as before.
+          timer = setTimeout(loop, Math.max(0, POLL_MS - (Date.now() - lastTick)));
+        });
+      }
       beat = setInterval(() => {
         try {
           controller.enqueue(encoder.encode(": keepalive\n\n"));
@@ -215,6 +241,7 @@ export async function GET(
     cancel() {
       clearTimeout(timer);
       clearInterval(beat);
+      unwatch?.();
     },
   });
 

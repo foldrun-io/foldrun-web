@@ -378,6 +378,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       purpose: str("a2a: mint a key for an outside agent — it opens /a2a/<account>/<workspace>/… for `flows` and no /api route. gateway: mint a key for a coding agent such as Claude Code (ANTHROPIC_BASE_URL + this key) — it spends the account's balance on the platform's Anthropic models through the gateway and opens no /api route; needs capUsd or dailyUsd, and an admin of every workspace"),
       capUsd: { type: "number", description: "purpose: gateway — the most the key may spend in all, USD (above 0, at most 100000)" },
       dailyUsd: { type: "number", description: "purpose: gateway — the most the key may spend per UTC day, USD" },
+      requireCustomer: bool,
       credential: str("purpose: gateway — login: on the operator's own Claude login, for an account the operator allows its credential; not metered, takes no capUsd/dailyUsd"),
       models: { ...obj({ opus: str(), sonnet: str(), haiku: str() }), description: "purpose: gateway — which model each Claude Code tier runs on with this key, e.g. { sonnet: openai/gpt-6 }" },
       flows: arr(str(), "purpose: a2a — the flows it may call (each must also be published with a2a:)"),

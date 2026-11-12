@@ -70,6 +70,7 @@ test("every Settings → … in the docs, the messages and the pages names a pla
     "foldrun-docs/mcp.md: Settings → Connectors": "claude.ai's own Settings, where a person adds foldrun as a connector",
     "foldrun-docs/environment.md: Settings → Platform model key": "the operator console's Settings (foldrun-admin), not the dashboard's",
     "foldrun-docs/budgets-and-billing.md: Settings → Billing": "Stripe's own Dashboard, where the customer portal is configured",
+    "foldrun-cli/src/commands.mjs: Settings → Privacy & Security": "macOS System Settings, where `foldrun talk` asks for the terminal to be allowed the microphone",
   };
   // The longest known name the text after an arrow starts with (a sentence
   // usually goes on after it: "Settings → Secrets → Connections walks …").

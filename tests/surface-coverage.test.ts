@@ -78,6 +78,9 @@ const SEEN = (where: string) => `reached by a call the scanner cannot evaluate: 
 
 /** Operations the dashboard does not call through /api, and why. */
 const NOT_IN_DASHBOARD: Record<string, string> = {
+  "POST /api/workspaces/[workspace]/storage/extract": "the dashboard's Extract text button (components/file-browser.tsx) waits for the owner's look on dev before it is pushed (12 Nov 2026); the CLI's `foldrun storage text` calls it meanwhile",
+  "GET /api/extract/[id]": "polled by the dashboard's Extract text button (components/file-browser.tsx), which waits for the owner's look on dev before it is pushed (12 Nov 2026); the CLI polls it meanwhile",
+  "POST /api/extract": "a file sent whole from the caller's own machine (the CLI's `foldrun text`, a script); the dashboard extracts a file already in storage — Storage → a file → Extract text (POST …/storage/extract, components/file-browser.tsx)",
   "POST /api/workspaces/[workspace]/snapshots": "a folder from the caller's own machine, sent by the CLI or an AI app over MCP; a browser has no folder to send",
   "GET /api/account/api": SERVER("settings/page.tsx → apiFactsFor"),
   "GET /api/account/jobs": SERVER("settings pages → defaultsOf and the JOBS headings, read on the server"),
@@ -155,6 +158,7 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   "GET /api/usage/budget": SERVER("limits/page.tsx → accountBudgetStanding, workspaceBudgetStanding"),
   "DELETE /api/workspaces/[workspace]": SEEN("[workspace]/settings/page.tsx (Delete workspace)"),
   "GET /api/customers": SERVER("settings/page.tsx (API keys → Customers) → customerLimits, listBlocked"),
+  "GET /api/customers/usage": SERVER("settings/page.tsx (API keys → Customers) → spendByCustomer"),
   "GET /api/workspaces/[workspace]/agents": SERVER("[workspace] pages → listAgents"),
   "POST /api/workspaces/[workspace]/assets": SEEN("components/create.tsx (New asset)"),
   "POST /api/workspaces/[workspace]/deploy": "the dashboard writes one file at a time through /source and takes packages through /import",

@@ -166,14 +166,18 @@ export const SHAPES: Record<string, Shape> = {
   "GET /api/account": { response: obj({ defaults: DefaultsView }) },
   "GET /api/customers": {
     response: obj({
-      limits: { ...obj({ startsPerMinute: int, gatewayRpm: int, gatewayConcurrency: int }), description: "in force for this account's end customers (FOL-168): runs a customer may start a minute, gateway calls a minute and at once — only for requests that name a customer" },
-      defaults: obj({ startsPerMinute: int, gatewayRpm: int, gatewayConcurrency: int }),
+      limits: { ...obj({ startsPerMinute: int, gatewayRpm: int, gatewayConcurrency: int, maxOpenRuns: int, dailyModelUsd: nullable({ type: "number" }) }), description: "in force for this account's end customers (FOL-168): runs a customer may start a minute, gateway calls a minute and at once — only for requests that name a customer" },
+      defaults: obj({ startsPerMinute: int, gatewayRpm: int, gatewayConcurrency: int, maxOpenRuns: int, dailyModelUsd: nullable({ type: "number" }) }),
       blocked: arr(obj({ customer: str(), by: str(), reason: nullable(str()), at: str() })),
     }),
   },
   "PATCH /api/customers": {
-    body: { ...obj({ startsPerMinute: nullable(int), gatewayRpm: nullable(int), gatewayConcurrency: nullable(int) }), description: "whole numbers 1–100,000; null puts one back to the default. An admin over every workspace" },
-    response: obj({ limits: obj({ startsPerMinute: int, gatewayRpm: int, gatewayConcurrency: int }), defaults: obj({ startsPerMinute: int, gatewayRpm: int, gatewayConcurrency: int }) }),
+    body: { ...obj({ startsPerMinute: nullable(int), gatewayRpm: nullable(int), gatewayConcurrency: nullable(int), maxOpenRuns: nullable(int), dailyModelUsd: nullable({ type: "number" }) }), description: "whole numbers 1–100,000 (dailyModelUsd: dollars a day, more than 0); null puts one back to the default. An admin over every workspace" },
+    response: obj({ limits: obj({ startsPerMinute: int, gatewayRpm: int, gatewayConcurrency: int, maxOpenRuns: int, dailyModelUsd: nullable({ type: "number" }) }), defaults: obj({ startsPerMinute: int, gatewayRpm: int, gatewayConcurrency: int, maxOpenRuns: int, dailyModelUsd: nullable({ type: "number" }) }) }),
+  },
+  "GET /api/customers/usage": {
+    query: [{ name: "days", description: "UTC days back, today included; 1–90, default 7" }],
+    response: obj({ days: int, customers: arr(obj({ customer: str(), chargedUsd: { type: "number" }, todayUsd: { type: "number" }, calls: int }), "newest-spending first, at most 500 — calls on foldrun's models that named a customer, charged") }),
   },
   "PUT /api/customers/{customer}/block": {
     body: obj({ reason: str("why, kept on the block and the audit log") }),

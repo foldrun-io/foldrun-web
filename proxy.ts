@@ -18,6 +18,7 @@ import { apiGate, a2aGate } from "@/server/api-limits";
 import { A2A_BODY_BYTES, A2aError, RPC, rpcErrorBody } from "@/server/a2a-protocol";
 import { RESOLVED_VERSION_HEADER } from "@/server/api-version";
 import { versionHeaders } from "@/server/release";
+import { storeOrigin } from "@/lib/storage";
 import { unsafeApiPath } from "@/server/raw-path";
 
 /** X-Foldrun-Version (and X-Foldrun-Api, X-Foldrun-Cli) on a response, so any
@@ -86,13 +87,23 @@ function harden(res: NextResponse, req: NextRequest, nonce: string): NextRespons
 /** The page policy. Scripts only with this request's nonce, and what those
  *  load ('strict-dynamic'); `next dev` also needs eval, production never. */
 function csp(nonce: string): string {
+  // The object store's origin (core storeOrigin: the same host the presigned
+  // URLs are built on, path-style or virtual-hosted; none unless S3 is the
+  // driver in force). The browser PUTs an upload straight to it, and a video,
+  // audio or PDF preview is a redirect to a signed link there.
+  const store = storeOrigin() ?? "";
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",
-    "connect-src 'self'",
+    // The store's origin is named for what reaches it directly: uploads
+    // (connect), video and audio (media), a PDF in a frame. Images are served
+    // from here (?inline=1), so img-src stays as it is.
+    ["connect-src 'self'", store].filter(Boolean).join(" "),
+    ["media-src 'self'", store].filter(Boolean).join(" "),
+    ["frame-src 'self'", store].filter(Boolean).join(" "),
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

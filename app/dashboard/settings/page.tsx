@@ -30,6 +30,8 @@ import { CalendarClock, ScrollText, Webhook } from "lucide-react";
 import { settingsTabs, SETTINGS_TABS, type SettingsTab } from "./tabs";
 import { CustomersCard } from "./customers";
 import { customerLimits, listBlocked, CUSTOMER_DEFAULTS } from "@/platform/customers";
+import { spendByCustomer } from "@/platform/model-usage";
+import { chargeMargin } from "@/platform/model-gateway";
 import { InlineEditor } from "@/components/inline-editor";
 import fs from "node:fs";
 import path from "node:path";
@@ -535,6 +537,7 @@ claude mcp add --transport http foldrun ${origin}/api/mcp \\
           limits={await customerLimits(tenant)}
           defaults={CUSTOMER_DEFAULTS}
           blocked={await listBlocked(tenant)}
+          spend={await spendByCustomer(tenant, 7, chargeMargin())}
           canManage={scope === null && (role === null || can(role, "workspace:manage"))}
         />
       </SettingsSection>

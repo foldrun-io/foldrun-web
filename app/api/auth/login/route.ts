@@ -1,7 +1,7 @@
 // Exchange a password for a session cookie. One generic refusal for a wrong
 // password and an unknown email — the difference is nobody's business.
 
-import { opsError } from "@/lib/ops-log.ts";
+import { opsError, opsLog } from "@/lib/ops-log.ts";
 import { NextRequest, NextResponse } from "next/server";
 import { clientIp } from "@/server/limits";
 import { verifyPassword, findUser, mintSession, sessionCookieOptions, SESSION_COOKIE } from "@/server/users";
@@ -35,6 +35,21 @@ const PER_ACCOUNT_ALL_CALLERS = { limit: 40, windowSec: 15 * 60 };
 const PER_IP = { limit: 40, windowSec: 15 * 60 };
 
 
+/** A refused sign-in, on the operations log against the person and account
+ *  when the address is a member's (D239 phase 1: the operator console's
+ *  timeline answers "I can't sign in"). Never the address itself, never
+ *  awaited: the answer's timing must not say whether the address has an
+ *  account, as with the throttle notice below. */
+function noteLoginRefused(email: string, reason: string): void {
+  void (async () => {
+    // A throttled attempt is not looked up: finding a member reads the user
+    // table, and a refusal past the limiter must stay as cheap as it was
+    // (Codex review, 12 Nov 2026). It is recorded, without ids.
+    const who = email && reason !== "rate_limited" ? await findUser(email) : null;
+    opsLog("warn", "auth.refused", { surface: "login", reason, status: reason === "rate_limited" ? 429 : 401, tenant: who?.tenant, user: who?.id });
+  })().catch((err) => opsError("auth.refusal_note_failed", err));
+}
+
 function tooMany(retryAfter: number) {
   return NextResponse.json(
     { error: "too many attempts — wait a few minutes and try again" },
@@ -63,13 +78,22 @@ export async function POST(req: NextRequest) {
     let ceilingReached = false;
     if (ip) {
       const byIp = await rateLimit(`login:ip:${ip}`, PER_IP.limit, PER_IP.windowSec);
-      if (!byIp.allowed) return tooMany(byIp.retryAfter);
+      if (!byIp.allowed) {
+        noteLoginRefused(email, "rate_limited");
+        return tooMany(byIp.retryAfter);
+      }
     }
     const byAccount = await rateLimit(accountKey, PER_ACCOUNT.limit, PER_ACCOUNT.windowSec);
-    if (!byAccount.allowed) return tooMany(byAccount.retryAfter);
+    if (!byAccount.allowed) {
+      noteLoginRefused(email, "rate_limited");
+      return tooMany(byAccount.retryAfter);
+    }
     if (ip) {
       const all = await rateLimit(`login:acct-all:${email}`, PER_ACCOUNT_ALL_CALLERS.limit, PER_ACCOUNT_ALL_CALLERS.windowSec);
-      if (!all.allowed) return tooMany(all.retryAfter);
+      if (!all.allowed) {
+        noteLoginRefused(email, "rate_limited");
+        return tooMany(all.retryAfter);
+      }
       ceilingReached = all.remaining === 0;
     }
 
@@ -79,6 +103,7 @@ export async function POST(req: NextRequest) {
       // exists — the log is for the account's owner, not for an attacker who
       // gets to read it back.
       await audit("login.refused", { actor: email || "(none)", detail: { reason: "bad-credentials" } });
+      noteLoginRefused(email, "bad_credentials");
       if (ceilingReached) {
         // The last try every caller together has this quarter hour: tell the
         // person, if there is one. Not awaited, so the answer's timing says

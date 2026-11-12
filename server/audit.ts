@@ -29,6 +29,7 @@ export type AuditAction =
   | "customer.blocked"
   | "customer.unblocked"
   | "customer.limits"
+  | "apikey.require_customer"
   | "account.resumed"
   | "workspace.paused"
   | "workspace.resumed"

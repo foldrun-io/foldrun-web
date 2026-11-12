@@ -98,7 +98,13 @@ async function postOnce(req: NextRequest) {
       dailyUsd?: unknown;
       /** "gateway" keys: "login" for the operator's own Claude login. */
       credential?: unknown;
+      /** FOL-168: every run (an API key) or gateway call (a gateway key)
+       *  must name an end customer. */
+      requireCustomer?: unknown;
     };
+    if (body.requireCustomer !== undefined && typeof body.requireCustomer !== "boolean") return refuse("requireCustomer is true or false", 400);
+    if (body.requireCustomer === true && body.purpose === "a2a") return refuse("an A2A key's caller is one outside agent — requireCustomer is for API and gateway keys", 400);
+    const requireCustomer = body.requireCustomer === true ? { requireCustomer: true } : {};
     if (body.purpose !== undefined) {
       if (body.purpose === "gateway") return await mintGatewayKey(req, tenant, minter, who, by, body);
       if (body.purpose !== "a2a") return refuse(`purpose must be "a2a" or "gateway" (or left out, for an API key) — got ${JSON.stringify(body.purpose)}`, 400);
@@ -123,7 +129,7 @@ async function postOnce(req: NextRequest) {
     // a workspace-scoped admin used to be able to mint an unscoped key
     // and open the rest of the account with it.
     const grant = withinMinter(minter, { role, workspaces: asked });
-    const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, grant.role, grant.workspaces, { expiresAt });
+    const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, grant.role, grant.workspaces, { expiresAt, ...requireCustomer });
     await audit("apikey.created", {
       actor: by,
       tenant,
@@ -242,8 +248,10 @@ async function mintGatewayKey(
   minter: Pick<Actor, "role" | "workspaces">,
   who: string | undefined,
   by: string,
-  body: { label?: string; capUsd?: unknown; dailyUsd?: unknown; credential?: unknown; models?: unknown; expires?: string | number | null; role?: unknown; workspaces?: unknown; workspace?: unknown; flows?: unknown },
+  body: { label?: string; capUsd?: unknown; dailyUsd?: unknown; credential?: unknown; models?: unknown; expires?: string | number | null; role?: unknown; workspaces?: unknown; workspace?: unknown; flows?: unknown; requireCustomer?: unknown },
 ) {
+  // FOL-168: its calls must carry x-foldrun-customer.
+  const requireCustomer = body.requireCustomer === true ? { requireCustomer: true } : {};
   if (body.role !== undefined || body.workspaces !== undefined || body.workspace !== undefined || body.flows !== undefined) {
     return refuse("a gateway key takes capUsd and dailyUsd, not role, workspaces or flows — it opens the gateway only, never the API", 400);
   }
@@ -260,7 +268,7 @@ async function mintGatewayKey(
     const lm = body.models === undefined ? { models: null } : checkModels(body.models, true);
     if ("error" in lm) return refuse(lm.error, 400);
     const expiresAt = parseKeyExpiry(body.expires);
-    const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, "viewer", null, { expiresAt, gateway: { capUsd: null, dailyUsd: null, credential: "login", ...(lm.models ? { models: lm.models } : {}) } });
+    const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, "viewer", null, { expiresAt, ...requireCustomer, gateway: { capUsd: null, dailyUsd: null, credential: "login", ...(lm.models ? { models: lm.models } : {}) } });
     await audit("apikey.created", {
       actor: by,
       tenant,
@@ -278,7 +286,7 @@ async function mintGatewayKey(
   const expiresAt = parseKeyExpiry(body.expires);
   // Its role is the lowest, as an A2A key's: only what keeps it in scope
   // checks (who may see and end it).
-  const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, "viewer", null, { expiresAt, gateway: { capUsd, dailyUsd, ...(m.models ? { models: m.models } : {}) } });
+  const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, "viewer", null, { expiresAt, ...requireCustomer, gateway: { capUsd, dailyUsd, ...(m.models ? { models: m.models } : {}) } });
   await audit("apikey.created", {
     actor: by,
     tenant,
