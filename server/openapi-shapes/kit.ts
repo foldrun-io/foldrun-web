@@ -121,3 +121,22 @@ export const Proposal = obj({
   draftFailed: { ...bool, description: "dismissed after its draft failed; its failures still count toward the next proposal" },
   timedOut: { ...bool, description: "failed only because the draft did not finish in time" },
 });
+
+// Files to text (12 Nov 2026): platform extract.ts ExtractResult.
+export const ExtractResult = obj({
+  sha256: str("sha256 of the file's bytes"),
+  kind: str("image | pdf | office | audio | video | text | html"),
+  format: str("png, pdf, docx, mp3, mp4, … — or unknown"),
+  text: str("the text: OCR, the text layer, the document's own text; speech under a marker — [audio · m:ss · transcript, <lang>], or [video · m:ss · speech] followed by the on-screen text"),
+  pages: { ...int, description: "a document's pages" },
+  ocrPages: { type: "array", items: int, description: "the page numbers read by OCR (a scanned PDF's)" },
+  seconds: { type: "number", description: "a recording's or video's length" },
+  confidence: { type: "number", description: "OCR's mean confidence, 0–100" },
+  language: str("the language Whisper heard (fa, en, …), when there was speech"),
+  engine: obj({ parser: str("what read it: tesseract:fas+eng, poppler, docling:<version>, ffmpeg+tesseract:…"), speech: str("the Whisper model, when there was speech") }, ["parser"]),
+  truncated: { ...bool, description: "the text was cut at 8 MiB" },
+  warnings: { type: "array", items: str() },
+  cached: { ...bool, description: "this account had already extracted this file with these options: no work was done" },
+  ms: int,
+}, ["sha256", "kind", "format", "text", "engine", "truncated", "warnings", "cached", "ms"]);
+export const ExtractJobError = obj({ status: int, code: str("unsupported | too_large | unreadable | timeout | worker_stopped | write_failed | …"), message: str() });

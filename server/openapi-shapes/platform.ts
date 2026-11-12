@@ -1,7 +1,7 @@
-// OpenAPI request/response schemas: everything else outside /api/workspaces: hooks, inbox, events, changelog, healthz, version, status, metrics, usage, issues, insights, schedule, search, openapi.json, mcp, /s/{token}.
+// OpenAPI request/response schemas: everything else outside /api/workspaces: hooks, inbox, events, changelog, healthz, version, status, metrics, usage, issues, insights, schedule, search, openapi.json, mcp, extract, /s/{token}.
 // Written from what each handler validates and answers (30 Oct 2026).
 
-import { type Schema, type Shape, obj, str, bool, int, arr, nullable, Failure } from "./kit.ts";
+import { type Schema, type Shape, obj, str, bool, int, arr, nullable, Failure, ExtractResult, ExtractJobError } from "./kit.ts";
 
 const num: Schema = { type: "number" };
 const nstr = (description?: string): Schema => nullable(str(description));
@@ -388,6 +388,27 @@ export const SHAPES: Record<string, Shape> = {
     }),
   },
   "DELETE /api/mcp/connections/{id}": { response: obj({ ok: bool, id: str(), revoked: bool }) },
+  "POST /api/extract": {
+    query: [
+      { name: "name", description: "the file's name; its extension helps tell the type (the bytes decide)" },
+      { name: "lang", description: "fa | en | auto (default): OCR fas+eng or eng; speech in Persian, English, or the language heard" },
+      { name: "ocr", description: "auto (default: only pages with no text layer) | always | never" },
+      { name: "engine", description: "docling: read a PDF with Docling instead of the default Poppler + OCR" },
+      { name: "wait", description: "seconds to wait for the text, 0–60 (default 50); past it the answer is 202 with a job to poll" },
+    ],
+    noBody: "The request body is the file's raw bytes, not JSON, with a Content-Length — at most FOLDRUN_EXTRACT_MAX_MB (default 100) and the API's per-request limit (10 MB); a larger file goes to storage first, then …/storage/extract.",
+    response: { ...ExtractResult, description: "the text, when it is done within wait. 202 { id, status: running, poll } when it is not; 429 with Retry-After past 20 a minute per key or 3 running per account; 413, 415, 422 from the parser; 503 when extraction is not set up" },
+  },
+  "GET /api/extract/{id}": {
+    response: obj({
+      id: str(), status: str("running | done | failed"),
+      workspace: str("the workspace of a storage file's job"),
+      result: { ...ExtractResult, description: "when done" },
+      error: { ...ExtractJobError, description: "when failed" },
+      wrote: { type: ["string", "null"], description: "a storage job's: the .txt path written; null until it is" },
+      createdAt: str(), finishedAt: { type: ["string", "null"] },
+    }, ["id", "status", "createdAt", "finishedAt"]),
+  },
   "GET /s/{token}": {
     media: { type: "application/octet-stream", description: "the shared file itself, streamed, under its own content type; every failure is the same 404" },
   },
