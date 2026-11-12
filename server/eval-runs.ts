@@ -11,8 +11,11 @@
 //     updateNotice — a transaction under an advisory lock with Postgres — so
 //     two replicas cannot both take it. Renewed every 30 s; silent for two
 //     minutes, it is lost.
-//   the outcome — a file per run (.results/runs/<eval>/<id>.json), written
-//     whole: what THAT run ended with, its result or its error. A deploy's
+//   the outcome — one record per run, written whole: what THAT run ended
+//     with, its result or its error. A row where the platform keeps a
+//     workspace's small state in the database (core workspace-docs.ts, so the
+//     poll finds it on whichever copy answers), else a file
+//     (.results/runs/<eval>/<id>.json); a read asks both. A deploy's
 //     eval, or the next manual run, writes the shared "latest" result, never
 //     this file, so a caller always gets its own run's verdict.
 //
@@ -32,6 +35,7 @@ import { workspaceDir, assertSafeName } from "@/lib/store";
 import type { EvalResult } from "@/lib/evals";
 import type { EvalComparison } from "@/lib/eval-compare";
 import { getNotice, updateNotice } from "@/platform/notices";
+import { docRows, docStore } from "@/lib/workspace-docs";
 
 const BEAT_MS = 30_000;
 /** Four missed beats: the lease is lost. */
@@ -83,8 +87,26 @@ function lane<R>(kind: "eval-run" | "eval-compare", subdir: "runs" | "compare", 
     return path.join(workspaceDir(tenant, workspace), "evals", ".results", subdir, name);
   };
 
+  const docKind = `eval-${subdir}`;
+  const rowsOf = (tenant: string, workspace: string, name: string): LaneOutcome<R>[] => {
+    assertSafeName(name, "eval");
+    try {
+      return (docRows(tenant, workspace)?.list(tenant, workspace, docKind) ?? []).filter((d) => d.key.startsWith(`${name}/`)).map((d) => d.data as LaneOutcome<R>);
+    } catch (err) {
+      opsError("eval_runs.rows_unread", err, { tenant, workspace });
+      return [];
+    }
+  };
+
   const readOutcome = (tenant: string, workspace: string, name: string, runId: string): LaneOutcome<R> | null => {
     if (!RUN_ID.test(runId)) return null;
+    assertSafeName(name, "eval");
+    try {
+      const row = docRows(tenant, workspace)?.get(tenant, workspace, docKind, `${name}/${runId}`);
+      if (row) return row as LaneOutcome<R>;
+    } catch (err) {
+      opsError("eval_runs.rows_unread", err, { tenant, workspace });
+    }
     try {
       return JSON.parse(fs.readFileSync(path.join(dirOf(tenant, workspace, name), `${runId}.json`), "utf8")) as LaneOutcome<R>;
     } catch {
@@ -95,6 +117,17 @@ function lane<R>(kind: "eval-run" | "eval-compare", subdir: "runs" | "compare", 
   /** Whole or not at all (temp, then rename), and the oldest past KEEP_RUNS pruned. */
   const writeOutcome = (tenant: string, workspace: string, name: string, outcome: LaneOutcome<R>): void => {
     const dir = dirOf(tenant, workspace, name);
+    const store = docStore(tenant, workspace);
+    if (store) {
+      store.put(tenant, workspace, docKind, `${name}/${outcome.runId}`, outcome);
+      try {
+        const kept = rowsOf(tenant, workspace, name).sort((a, b) => b.finishedAt.localeCompare(a.finishedAt));
+        for (const old of kept.slice(KEEP_RUNS)) store.drop(tenant, workspace, docKind, `${name}/${old.runId}`);
+      } catch {
+        /* pruning is tidiness, not correctness */
+      }
+      return;
+    }
     fs.mkdirSync(dir, { recursive: true });
     const file = path.join(dir, `${outcome.runId}.json`);
     const tmp = `${file}.${crypto.randomBytes(4).toString("hex")}.tmp`;
@@ -143,12 +176,16 @@ function lane<R>(kind: "eval-run" | "eval-compare", subdir: "runs" | "compare", 
     try {
       files = fs.readdirSync(dirOf(tenant, workspace, name)).filter((f) => /^[a-f0-9]{24}\.json$/.test(f));
     } catch {
-      return [];
+      /* no folder: rows alone */
     }
-    return files
-      .map((f) => readOutcome(tenant, workspace, name, f.slice(0, -5)))
-      .filter((o): o is LaneOutcome<R> => !!o)
-      .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+    // Rows and files both (written either way over time), one per run id.
+    const byId = new Map<string, LaneOutcome<R>>();
+    for (const f of files) {
+      const o = readOutcome(tenant, workspace, name, f.slice(0, -5));
+      if (o) byId.set(o.runId, o);
+    }
+    for (const o of rowsOf(tenant, workspace, name)) byId.set(o.runId, o);
+    return [...byId.values()].sort((a, b) => b.startedAt.localeCompare(a.startedAt));
   }
 
   /** Claim the eval for one run, or null when a live run holds it. */
