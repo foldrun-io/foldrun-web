@@ -11,8 +11,10 @@
 import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
 import { notFound } from "next/navigation";
-import { workspaceDir, listRuns, listRunOutputs, readRun, runCost, runTokens, measuredHitRate, runDisplayStatus, runFailure, runVerdict } from "@/lib/store";
+import { workspaceDir, listRuns, readRun, runCost, runTokens, measuredHitRate, runDisplayStatus, runFailure, runVerdict } from "@/lib/store";
 import { LiveRun } from "../../live-run";
+import { listRunOutputs } from "@/lib/run-outputs";
+import { opsError } from "@/lib/ops-log";
 import { OUTCOME, outcomeOf, tally } from "@/components/outcome-model";
 import { Status } from "@/components/status";
 import { runHref } from "@/components/run-href";
@@ -189,7 +191,11 @@ export default async function RunPage({
         workspace={workspace}
         tenant={tenant}
         initial={run}
-        outputs={listRunOutputs(tenant, workspace, run.id)}
+        outputs={await listRunOutputs(tenant, workspace, run.id).catch((err) => {
+          // Storage that cannot be read must not take the run page with it: the trace is still here.
+          opsError("run_outputs.list_failed", err, { tenant, workspace, run: run.id });
+          return [];
+        })}
         page={{
           back: { href: listHref, label: "Runs" },
           icon: (

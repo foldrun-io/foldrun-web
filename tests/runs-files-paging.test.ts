@@ -94,7 +94,7 @@ test("files lists what the run archived, by agent then path, with the link that 
 test("a run that archived nothing answers an empty list; no such run is a 404", async () => {
   const empty = await files("run-empty");
   assert.equal(empty.status, 200);
-  assert.deepEqual(await empty.json(), { runId: "run-empty", files: [], totalBytes: 0 });
+  assert.deepEqual(await empty.json(), { runId: "run-empty", files: [], totalBytes: 0, refused: [], refusedCount: 0 });
   assert.equal((await files("run-nope")).status, 404);
   assert.equal((await files(RUN, OTHER)).status, 404, "a run is looked for in the workspace named, not across them");
 });

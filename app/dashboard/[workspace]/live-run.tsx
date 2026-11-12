@@ -30,6 +30,7 @@ import { RunTimeline, traceEvents, stepSpan, fmtDur } from "@/components/run-tim
 import { stepInputs, stepOutputs, fmtTokens, fmtBytes, fmtCached, fmtTokenDetail, fmtTokenLine, promptCacheNote, type StepRef, deniedPaths } from "@/components/step-io-model";
 import { isRunTerminal, defaultUnfolded, activeStep, newer, tabTitle } from "@/components/live-run-model";
 import type { RunOutputFile } from "@/lib/store";
+import { refusalText } from "@/lib/run-output-refusal";
 import { BrowserTheater } from "@/components/run-browser";
 import { stepImage, stepHeld, stepCredential, stepStartup, browserPodPanel, stepRefused } from "@/components/step-image-model";
 import { RunTree } from "@/components/run-tree";
@@ -754,6 +755,18 @@ export function LiveRun({
           </Callout>
         );
       })()}
+      {/* Outputs the install did not keep (over its size limits, FOL-126
+          phase 5): named, with the limit, so a missing file is never a mystery. */}
+      {run.outputsRefused && run.outputsRefused.length > 0 && (
+        <Callout tone="warning" icon={<AlertTriangle />} title={`${run.outputsRefusedCount ?? run.outputsRefused.length} output ${(run.outputsRefusedCount ?? run.outputsRefused.length) === 1 ? "file was" : "files were"} not kept`} className="px-4 py-3 text-[13px] text-fg-secondary">
+          <ul className="space-y-0.5 break-words">
+            {run.outputsRefused.slice(0, 10).map((r) => (
+              <li key={`${r.agent}/${r.path}`}>{refusalText(r)}</li>
+            ))}
+            {run.outputsRefused.length > 10 && <li>… and {(run.outputsRefusedCount ?? run.outputsRefused.length) - 10} more</li>}
+          </ul>
+        </Callout>
+      )}
       {run.memoryWrites && run.memoryWrites.length > 0 && (
         <p className="text-[13px] text-fg-muted">
           Remembered:{" "}
