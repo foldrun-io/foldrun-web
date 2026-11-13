@@ -155,6 +155,7 @@ export const BILLING_TESTS = [
   "admin-api-contract.test.ts",
   "admin-op.ts",
   "admin-run-health.test.ts",
+  "admin-ops-logs.test.ts",
 ];
 
 const ROOT = path.join(import.meta.dirname, "..");
