@@ -75,6 +75,20 @@ test("a DrizzleQueryError is a 500 with the generic sentence: no SQL, no values 
   assert.ok(!log.includes("params"), "no params line in the log");
 });
 
+test("the records bridge's error (pg-sync: no severity, a constraint or a host in its message) is a 500, never a 400 with its text (Kousha's review)", async () => {
+  const unique = Object.assign(new Error(`duplicate key value violates unique constraint "users_email_key" Key (email)=(${EMAIL}) already exists.`), { code: "23505", database: true });
+  const down = Object.assign(new Error("connect ECONNREFUSED 10.40.3.17:5432"), { code: "ECONNREFUSED", database: true });
+  for (const err of [unique, down]) {
+    const s = errorStatus(err);
+    assert.equal(s.status, 500);
+    assert.equal(s.message, "something went wrong on our side");
+    const body = JSON.stringify(await errorResponse(err).json());
+    for (const leak of [EMAIL, "users_email_key", "10.40.3.17", "5432"]) assert.ok(!body.includes(leak), body);
+  }
+  assert.equal(databaseFault(unique)?.code, "23505");
+  assert.equal(databaseFault(down)?.code, null);
+});
+
 test("the driver's own error, unwrapped, is masked the same way; an ordinary message still reads", () => {
   const pgErr = new DatabaseError("value too long for type character varying(64)", 0, "error");
   Object.assign(pgErr, { code: "22001", severity: "ERROR" });

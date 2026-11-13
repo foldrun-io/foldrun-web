@@ -304,13 +304,16 @@ export function databaseFault(err: unknown): { code: string | null; query: strin
   let query: string | null = null;
   let drizzle = false;
   for (let e = err, depth = 0; e && typeof e === "object" && depth < 4; e = (e as { cause?: unknown }).cause, depth++) {
-    const o = e as { name?: unknown; code?: unknown; severity?: unknown; query?: unknown; params?: unknown };
+    const o = e as { name?: unknown; code?: unknown; severity?: unknown; query?: unknown; params?: unknown; database?: unknown };
     // drizzle does not set `name`; the class, or its shape, says what it is.
     const isDrizzle = o.name === "DrizzleQueryError" || o.constructor?.name === "DrizzleQueryError" || (typeof o.query === "string" && Array.isArray(o.params));
     if (isDrizzle) drizzle = true;
     // The query text, never its parameters: the text is code we wrote.
     if (query === null && typeof o.query === "string") query = o.query;
     if (typeof o.code === "string" && /^[0-9A-Z]{5}$/.test(o.code) && typeof o.severity === "string") return { code: o.code, query };
+    // The records bridge's error (platform pg-sync.ts): marked, with the
+    // server's SQLSTATE where there was one, or a connection errno.
+    if (o.database === true) return { code: typeof o.code === "string" && /^[0-9A-Z]{5}$/.test(o.code) ? o.code : null, query };
   }
   return drizzle ? { code: null, query } : null;
 }
