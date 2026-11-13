@@ -38,7 +38,7 @@ export function CallContent({ run, call, tenant }: { run: CallRun; call: string;
     fetch(`/api/workspaces/${encodeURIComponent(run.workspace)}/runs/${encodeURIComponent(run.runId)}/calls/${encodeURIComponent(call)}`, { headers: { "x-foldrun-tenant": tenant } })
       .then(async (r) => {
         const body = (await r.json().catch(() => ({}))) as { call?: object; error?: string };
-        if (live) setState(r.ok && body.call ? body.call : body.error ?? `${r.status}`);
+        if (live) setState(r.ok && body.call ? body.call : r.status === 502 ? "captured call unavailable" : body.error ?? `${r.status}`);
       })
       .catch((err) => live && setState(String(err)));
     return () => {
