@@ -31,6 +31,9 @@ export type AuditAction =
   | "customer.limits"
   | "apikey.require_customer"
   | "account.resumed"
+  // The account joined or left the beta (app/api/account/beta).
+  | "account.beta_joined"
+  | "account.beta_left"
   | "workspace.paused"
   | "workspace.resumed"
   | "login.refused"

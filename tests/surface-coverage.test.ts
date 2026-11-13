@@ -112,6 +112,7 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   "GET /api/account/backups": SERVER("settings/backups/page.tsx → listBackups, backupPolicy"),
   "GET /api/account/backups/requests": SERVER("settings/backups/page.tsx → listRestoreRequests"),
   "GET /api/account/flags": SERVER("settings/page.tsx → effectiveFlags"),
+  "GET /api/account/beta": SERVER("settings/page.tsx → betaProgram + effectiveFlags (the Beta features card)"),
   "GET /api/account/model": SERVER("settings/page.tsx and model-key.tsx → describeAccountModel"),
   "PUT /api/account/model": SEEN("settings/model-key.tsx passes the method in"),
   "DELETE /api/account/model": SEEN("settings/model-key.tsx passes the method in"),

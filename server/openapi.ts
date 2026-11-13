@@ -17,6 +17,12 @@ import { CURRENT_API_VERSION, deprecationFor } from "./api-version.ts";
 
 import { type Schema, type Shape, obj, str, bool, int, arr, GENERIC, Issue, Run, EffectiveFlag } from "./openapi-shapes/kit.ts";
 
+/** The account's beta and its beta flags (app/api/account/beta). */
+const BetaView = obj({
+  beta: { type: "boolean", description: "whether the account is in the beta" },
+  flags: arr(obj({ name: str(), description: str(), on: bool, source: str("account | global | beta | rollout | default") }), "the beta flags, as they stand for this account"),
+}, ["beta", "flags"]);
+
 /** What revoking a deleted or replaced oauth2 secret's tokens at its
  *  provider came to (RFC 7009); absent when there was nothing to revoke. */
 const OAuthRevoked: Schema = {
@@ -638,6 +644,8 @@ const LEGACY_SHAPES: Record<string, Shape> = {
     response: { ...AccountApi, description: "the same as GET, as the whole account sees it (only a caller who holds every workspace may PATCH)" },
   },
   "GET /api/account/flags": { response: obj({ flags: { type: "array", items: EffectiveFlag } }) },
+  "GET /api/account/beta": { response: BetaView },
+  "PUT /api/account/beta": { body: obj({ beta: { type: "boolean", description: "true joins the beta, false leaves it" } }, ["beta"]), response: { ...BetaView, properties: { ...(BetaView.properties as Record<string, Schema>), changed: bool } } },
 };
 
 /** Every operation's shape: the ones above, then each group's file. A key in

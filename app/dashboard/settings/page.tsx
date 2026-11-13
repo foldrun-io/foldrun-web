@@ -54,6 +54,7 @@ function accountAgentsMd(tenant: string): string {
     return "";
   }
 }
+import { BetaFeatures } from "./beta";
 import { SettingsAnchor } from "./anchor";
 import { KeyManager, TickButton } from "./keys";
 import { gatewayLoginOffered, gatewayOffered, gatewayUrl, withGatewaySpend } from "@/server/gateway-keys";
@@ -73,7 +74,7 @@ import { VersionFacts, ComponentTable } from "@/components/version-table";
 
 import { ApiSettings } from "./api-settings";
 import { apiFactsFor } from "@/server/api-facts";
-import { effectiveFlags } from "@/platform/flags";
+import { effectiveFlags, betaProgram } from "@/platform/flags";
 import { providerFactsFor } from "@/server/provider-facts";
 import { ModelKey } from "./model-key";
 import { describeAccountModel, modelPresetChoices } from "@/server/account-model";
@@ -197,6 +198,12 @@ export default async function SettingsPage({
 type Session = Awaited<ReturnType<typeof verifySession>>;
 
 /** Who is signed in, the account's face, its defaults, the build, and the way out. */
+/** An admin of every workspace (PUT /api/account/beta's rule). */
+async function canJoinBeta(): Promise<boolean> {
+  const role = await viewerRole();
+  return role !== null && can(role, "workspace:manage") && (await viewerScope()) === null;
+}
+
 async function GeneralTab({ tenant, qs, session, isOwner }: { tenant: string; qs: string; session: Session; isOwner: boolean }) {
   const fm = readAgentsMdKeys(accountDir(tenant));
   const defaults = accountDefaultsFor(defaultsOf(fm), await viewerScope());
@@ -253,6 +260,16 @@ async function GeneralTab({ tenant, qs, session, isOwner }: { tenant: string; qs
             <VersionFacts info={info} />
             <ComponentTable info={info} />
           </div>
+        </SettingsCard>
+      </SettingsSection>
+
+      <SettingsSection id="beta">
+        <SettingsCard title="Beta features" description="Get new features before they reach everyone." hint={<code className="font-mono text-xs">foldrun account beta on</code>}>
+          <BetaFeatures
+            initial={await betaProgram(tenant)}
+            flags={flags.filter((f) => f.beta).map(({ name, description, on, source }) => ({ name, description, on, source }))}
+            canChange={await canJoinBeta()}
+          />
         </SettingsCard>
       </SettingsSection>
 
