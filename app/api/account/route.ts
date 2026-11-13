@@ -3,6 +3,7 @@ import { requireCaller, errorResponse, requireAccountWide, refuse } from "@/serv
 import { accountDir } from "@/lib/store";
 import { readAgentsMdKeys, setAgentsMdKeys } from "@/lib/agents-md";
 import { defaultsPatch, defaultsOf, accountDefaultsFor } from "@/components/defaults-model";
+import { noteAccountFilesChanged } from "@/lib/workspace-revisions";
 
 // The account's defaults — what its AGENTS.md frontmatter sets for every
 // workspace: a timezone for schedules, where to notify, a monthly cap.
@@ -35,6 +36,7 @@ export async function PATCH(req: NextRequest) {
     const patch = defaultsPatch(body, readAgentsMdKeys(accountDir(tenant)));
     if ("error" in patch) return refuse(patch.error, 400);
     setAgentsMdKeys(accountDir(tenant), patch.keys);
+    noteAccountFilesChanged(tenant); // the account shelf's revision (FOL-126)
     return NextResponse.json({ ok: true, defaults: defaultsOf(readAgentsMdKeys(accountDir(tenant))) });
   } catch (err) {
     return errorResponse(err);

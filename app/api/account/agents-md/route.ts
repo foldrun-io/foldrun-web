@@ -7,6 +7,7 @@ import { audit } from "@/server/audit";
 import { idempotent } from "@/server/idempotency";
 import { accountDir } from "@/lib/store";
 import { checkFiles } from "@/lib/deploy";
+import { noteAccountFilesChanged } from "@/lib/workspace-revisions";
 
 // The account's own AGENTS.md, the whole file — the shared context and
 // defaults every agent in every workspace reads (cloudhost, 11 Nov 2026: a CI
@@ -73,6 +74,8 @@ async function putOnce(req: NextRequest) {
     const tmp = `${file}.${process.pid}.${crypto.randomBytes(4).toString("hex")}.tmp`;
     fs.writeFileSync(tmp, body.content);
     fs.renameSync(tmp, file);
+    // Published as the account shelf's revision (FOL-126): every pod's copy follows.
+    noteAccountFilesChanged(tenant);
     await audit("account.agents_md_set", {
       actor: actor.name,
       tenant,
