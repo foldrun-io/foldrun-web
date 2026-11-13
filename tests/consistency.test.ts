@@ -1478,20 +1478,22 @@ test("every deploy sets the runner image in the same rollout as the platform ima
   // reaches it. Setting it with `set env` after the apply rolled the pods
   // twice, and the first pod handed run pods localhost:5000/…:bootstrap.
   // dev pins it with the images, in one commit the apply rolls at once
-  // (staging-pin.sh writes runner-size-patch.yaml); prod patches it into the
-  // render (prod-deploy.yml).
+  // (staging-pin.sh writes runner-size-patch.yaml); staging and prod patch it
+  // into the render (scripts/deploy.sh, since 13 Nov 2026 the one deploy both
+  // clusters take — prod-deploy.yml is gone).
   for (const f of [
-    "../foldrun-infra/.github/workflows/prod-deploy.yml",
+    "../foldrun-infra/scripts/deploy.sh",
     "../foldrun-infra/dev/ci/staging-pin.sh",
   ]) {
     const src = read(f);
     assert.doesNotMatch(src, /set env[^\n]*FOLDRUN_RUNNER_IMAGE/, `${f}: FOLDRUN_RUNNER_IMAGE set in a separate rollout`);
     assert.match(src, /FOLDRUN_RUNNER_IMAGE/, `${f}: never sets FOLDRUN_RUNNER_IMAGE at all`);
   }
-  const prod = read("../foldrun-infra/.github/workflows/prod-deploy.yml");
+  const deploy = read("../foldrun-infra/scripts/deploy.sh");
+  const patched = deploy.indexOf("kustomize edit add patch");
   assert.ok(
-    prod.indexOf("kustomize edit add patch") < prod.indexOf("render | kubectl apply -f -"),
-    "prod-deploy: the runner image must be patched into the render before the apply",
+    patched >= 0 && patched < deploy.indexOf('kubectl apply -f "$tmp/render.yaml"'),
+    "scripts/deploy.sh: the runner image must be patched into the render before the apply",
   );
 });
 
