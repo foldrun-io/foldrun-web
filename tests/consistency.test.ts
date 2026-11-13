@@ -1095,6 +1095,9 @@ test("every API route is in docs/api.md", () => {
   // that exists only for it is listed here with why, instead of in api.md.
   const ONLY_ON_FOLDRUN_IR: Record<string, string> = {
     "/api/keys/[id]": "PATCH a gateway key's model map — Claude Code's tiers on other models",
+    "/api/billing/coding-plan": "a plan for login gateway keys — sold at foldrun.ir; in foldrun-admin/docs/console.md",
+    "/api/billing/partner/plans": "foldrun.ir's storefront turns a coding plan on; in foldrun-admin/docs/console.md",
+    "/api/billing/partner/plans/offer": "foldrun.ir's storefront reads what an account can buy; in foldrun-admin/docs/console.md",
   };
   const missing = routes.filter((r) => !(r in ONLY_ON_FOLDRUN_IR) && !rowsFor(r).some((row) => row.methods.length));
   assert.deepEqual(

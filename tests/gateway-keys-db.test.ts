@@ -61,13 +61,17 @@ test("a gateway key keeps its limits through the table and a rotation, and opens
   try {
     const refused = await post({ purpose: "gateway", credential: "login" });
     assert.equal(refused.status, 403, JSON.stringify(refused.body));
-    assert.match(refused.body.error, /not one the operator's Claude login is for/);
+    assert.match(refused.body.error, /no plan a login gateway key can run on/);
     process.env.FOLDRUN_PLATFORM_KEY_ACCOUNTS = tenant;
     assert.equal((await post({ purpose: "gateway", credential: "login", capUsd: 5 })).status, 400, "a login key takes no dollar limit");
     assert.equal((await post({ purpose: "gateway", credential: "other" })).status, 400);
     const login = await post({ purpose: "gateway", credential: "login", label: "mine" });
     assert.equal(login.status, 200, JSON.stringify(login.body));
     assert.equal(login.body.credential, "login");
+    assert.equal(login.body.plan, "pro", "unsaid: pro");
+    assert.equal((await post({ purpose: "gateway", credential: "login", plan: "ultra" })).status, 400, "pro or max");
+    const big = await post({ purpose: "gateway", credential: "login", plan: "max", label: "big" });
+    assert.equal(big.body.plan, "max");
     const listed = (await (await keysRoute.GET(new NextRequest("https://app.example.test/api/keys", { headers: { authorization: `Bearer ${admin}` } }))).json()) as { keys: { id: string; gateway?: Record<string, unknown> }[] };
     assert.deepEqual(listed.keys.find((k) => k.id === login.body.id)!.gateway, { capUsd: null, dailyUsd: null, credential: "login" }, "no spend: not metered");
   } finally {

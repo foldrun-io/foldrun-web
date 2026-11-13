@@ -260,6 +260,7 @@ export async function createApiKey(
       capUsd: opts.gateway.capUsd ?? null,
       dailyUsd: opts.gateway.dailyUsd ?? null,
       ...(opts.gateway.credential === "login" ? { credential: "login" as const } : {}),
+      ...(opts.gateway.credential === "login" && opts.gateway.plan === "max" ? { plan: "max" as const } : {}),
       ...(opts.gateway.models ? { models: opts.gateway.models } : {}),
     };
   }

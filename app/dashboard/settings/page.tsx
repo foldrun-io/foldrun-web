@@ -464,7 +464,7 @@ async function ApiTab({
           scoped={scope !== null}
           // A gateway key (Claude Code): offered where the door can read it,
           // to an admin of every workspace; the URL it is pointed at.
-          gateway={gatewayOffered() && scope === null ? { url: gatewayUrl(), login: gatewayLoginOffered(tenant) } : null}
+          gateway={gatewayOffered() && scope === null ? { url: gatewayUrl(), login: await gatewayLoginOffered(tenant) } : null}
           // For an A2A key: each workspace's flows, and which are published.
           a2aFlows={Object.fromEntries(workspaces.map((w) => [w, listFlows(tenant, w).map((f) => ({ name: f.name, published: f.a2a?.publish === true }))]))}
         />

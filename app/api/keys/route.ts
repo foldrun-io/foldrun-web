@@ -98,6 +98,9 @@ async function postOnce(req: NextRequest) {
       dailyUsd?: unknown;
       /** "gateway" keys: "login" for the operator's own Claude login. */
       credential?: unknown;
+      /** A login gateway key's size: "pro" (the default) or "max", five
+       *  times its usage limits. */
+      plan?: unknown;
       /** FOL-168: every run (an API key) or gateway call (a gateway key)
        *  must name an end customer. */
       requireCustomer?: unknown;
@@ -248,7 +251,7 @@ async function mintGatewayKey(
   minter: Pick<Actor, "role" | "workspaces">,
   who: string | undefined,
   by: string,
-  body: { label?: string; capUsd?: unknown; dailyUsd?: unknown; credential?: unknown; models?: unknown; expires?: string | number | null; role?: unknown; workspaces?: unknown; workspace?: unknown; flows?: unknown; requireCustomer?: unknown },
+  body: { label?: string; capUsd?: unknown; dailyUsd?: unknown; credential?: unknown; plan?: unknown; models?: unknown; expires?: string | number | null; role?: unknown; workspaces?: unknown; workspace?: unknown; flows?: unknown; requireCustomer?: unknown },
 ) {
   // FOL-168: its calls must carry x-foldrun-customer.
   const requireCustomer = body.requireCustomer === true ? { requireCustomer: true } : {};
@@ -257,26 +260,28 @@ async function mintGatewayKey(
   }
   if (minter.workspaces !== null) return refuse("a gateway key spends the whole account's balance — only an admin of every workspace may mint one", 403);
   if (!gatewayOffered()) return refuse("gateway keys are for the hosted platform — the gateway reads its keys from the database", 400);
-  if (body.credential !== undefined && body.credential !== "login") return refuse(`credential must be "login" (the operator's Claude login) or left out (foldrun's models) — got ${JSON.stringify(body.credential)}`, 400);
+  if (body.credential !== undefined && body.credential !== "login") return refuse(`credential must be "login" (this account's plan) or left out (foldrun's models) — got ${JSON.stringify(body.credential)}`, 400);
   if (body.credential === "login") {
     // The operator's own Claude login (owner, 10 Nov 2026): only for an
     // account the operator allows its credential — the one its desks run
     // on — and asked again on every call at the gateway. Not metered, so no
     // dollar limit could hold it.
-    if (body.capUsd !== undefined || body.dailyUsd !== undefined) return refuse("a login gateway key takes no capUsd or dailyUsd — the operator's Claude login is not metered, so a dollar limit could not hold it", 400);
-    if (!gatewayLoginOffered(tenant)) return refuse("this account is not one the operator's Claude login is for — mint a gateway key on foldrun's models instead (capUsd or dailyUsd)", 403);
+    if (body.capUsd !== undefined || body.dailyUsd !== undefined) return refuse("a login gateway key takes no capUsd or dailyUsd — it is not billed per call, so a dollar limit could not hold it", 400);
+    if (!(await gatewayLoginOffered(tenant))) return refuse("this account has no plan a login gateway key can run on — mint a gateway key on foldrun's models instead (capUsd or dailyUsd)", 403);
+    if (body.plan !== undefined && body.plan !== "pro" && body.plan !== "max") return refuse(`plan must be "pro" or "max" — got ${JSON.stringify(body.plan)}`, 400);
+    const plan = body.plan === "max" ? ("max" as const) : ("pro" as const);
     const lm = body.models === undefined ? { models: null } : checkModels(body.models, true);
     if ("error" in lm) return refuse(lm.error, 400);
     const expiresAt = parseKeyExpiry(body.expires);
-    const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, "viewer", null, { expiresAt, ...requireCustomer, gateway: { capUsd: null, dailyUsd: null, credential: "login", ...(lm.models ? { models: lm.models } : {}) } });
+    const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, "viewer", null, { expiresAt, ...requireCustomer, gateway: { capUsd: null, dailyUsd: null, credential: "login", ...(plan === "max" ? { plan } : {}), ...(lm.models ? { models: lm.models } : {}) } });
     await audit("apikey.created", {
       actor: by,
       tenant,
       subject: record.id,
-      detail: { label: record.label, prefix: record.prefix, purpose: "gateway", credential: "login", expiresAt: record.expiresAt ?? null },
+      detail: { label: record.label, prefix: record.prefix, purpose: "gateway", credential: "login", plan, expiresAt: record.expiresAt ?? null },
     });
-    if (who) sendSecurityNotice(tenant, who, "a new gateway key on the operator's Claude login was created", clientIp(req));
-    return NextResponse.json({ ok: true, key, id: record.id, prefix: record.prefix, purpose: "gateway", credential: "login", capUsd: null, dailyUsd: null, expiresAt: record.expiresAt ?? null, gatewayUrl: gatewayUrl() });
+    if (who) sendSecurityNotice(tenant, who, "a new gateway key on this account's plan was created", clientIp(req));
+    return NextResponse.json({ ok: true, key, id: record.id, prefix: record.prefix, purpose: "gateway", credential: "login", plan, capUsd: null, dailyUsd: null, expiresAt: record.expiresAt ?? null, gatewayUrl: gatewayUrl() });
   }
   const capUsd = usdLimit(body.capUsd, "capUsd");
   const dailyUsd = usdLimit(body.dailyUsd, "dailyUsd");

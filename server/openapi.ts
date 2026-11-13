@@ -361,7 +361,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
             dailyUsd: { type: ["number", "null"], description: "the most it may spend per UTC day, USD; null none" },
             spentUsd: { type: "number", description: "what it has spent in all, USD (open calls at their estimate)" },
             todayUsd: { type: "number", description: "what it has spent today (UTC), USD" },
-            credential: str("login: on the operator's Claude login (not metered; no spend shown); absent: foldrun's models"),
+            credential: str("login: on this account's plan (not billed per call; no spend shown); absent: foldrun's models"),
             models: obj({ opus: str(), sonnet: str(), haiku: str() }),
           }),
           a2a: obj({ workspace: str(), flows: arr(str()), principal: str("the first key of its rotation chain — the owner of its tasks"), maxTasks: int }),

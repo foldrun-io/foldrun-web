@@ -140,6 +140,7 @@ export const STUBS: Record<string, string> = {
 export const BILLING_TESTS = [
   "console-access-keys.ts",
   "partner-topups-routes.test.ts",
+  "coding-plan-routes.test.ts",
   "billing-invoices.test.ts",
   "admin-export.test.ts",
   "billing-admin.test.ts",

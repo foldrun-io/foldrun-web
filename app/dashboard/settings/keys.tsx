@@ -43,7 +43,7 @@ interface KeyRow {
   purpose?: "a2a" | "gateway";
   /** "gateway": a coding agent's key — its own spending limits, and what it
    *  has spent in all and today (UTC), USD. */
-  gateway?: { capUsd: number | null; dailyUsd: number | null; spentUsd?: number; todayUsd?: number; credential?: "login"; models?: { opus?: string; sonnet?: string; haiku?: string } };
+  gateway?: { capUsd: number | null; dailyUsd: number | null; spentUsd?: number; todayUsd?: number; credential?: "login"; plan?: "pro" | "max"; models?: { opus?: string; sonnet?: string; haiku?: string } };
   a2a?: { workspace: string; flows: string[]; principal?: string; maxTasks: number };
 }
 
@@ -150,6 +150,7 @@ export function KeyManager({
   // Where a gateway key's calls run: foldrun's models (billed, with limits)
   // or, for the operator's own accounts, the operator's Claude login.
   const [runsOn, setRunsOn] = useState<"models" | "login">("models");
+  const [plan, setPlan] = useState<"pro" | "max">("pro");
   const onLogin = kind === "gateway" && runsOn === "login" && gateway?.login === true;
   const [a2aWs, setA2aWs] = useState<string>(workspaces[0] ?? "");
   const [a2aChosen, setA2aChosen] = useState<string[]>([]);
@@ -172,7 +173,7 @@ export function KeyManager({
             ? { tenant, label, expires, purpose: "a2a", workspace: a2aWs, flows: a2aChosen, maxTasks: Number(maxTasks) }
             : kind === "gateway"
               ? onLogin
-                ? { tenant, label, expires, purpose: "gateway", credential: "login", ...(requireCust ? { requireCustomer: true } : {}) }
+                ? { tenant, label, expires, purpose: "gateway", credential: "login", plan, ...(requireCust ? { requireCustomer: true } : {}) }
                 : { tenant, label, expires, purpose: "gateway", ...(capUsd.trim() ? { capUsd: Number(capUsd) } : {}), ...(dailyUsd.trim() ? { dailyUsd: Number(dailyUsd) } : {}), ...(requireCust ? { requireCustomer: true } : {}) }
               : { tenant, label, role, expires, ...(narrow ? { workspaces: chosen } : {}), ...(requireCust ? { requireCustomer: true } : {}) },
         ),
@@ -413,12 +414,20 @@ export function KeyManager({
                     <Field label="Runs on">
                       <Select value={runsOn} onChange={(e) => setRunsOn(e.target.value as "models" | "login")} className="w-full max-w-md" aria-label="What the key's calls run on">
                         <option value="models">foldrun&apos;s models — billed, with limits</option>
-                        <option value="login">The operator&apos;s Claude login — not metered</option>
+                        <option value="login">This account&apos;s plan — not billed per call</option>
+                      </Select>
+                    </Field>
+                  )}
+                  {onLogin && (
+                    <Field label="Size">
+                      <Select value={plan} onChange={(e) => setPlan(e.target.value as "pro" | "max")} className="w-full max-w-md" aria-label="The key's size">
+                        <option value="pro">Pro</option>
+                        <option value="max">Max — five times Pro&apos;s usage limits</option>
                       </Select>
                     </Field>
                   )}
                   {onLogin ? (
-                    <p>Claude Code runs on the operator&apos;s Claude login, as this account&apos;s desks do. Its calls are not metered or billed, so it has no limits, and they count against the same subscription&apos;s weekly cap as the desks. It opens nothing else: every /api route refuses it.</p>
+                    <p>Claude Code runs on this account&apos;s plan. Its calls are not billed one by one, so it takes no dollar limit; the plan&apos;s own usage limits apply. Claude models only. It opens nothing else: every /api route refuses it.</p>
                   ) : (
                     <p>A gateway key lets Claude Code use foldrun&apos;s models (Claude, and any other model on the price list, picked by name) on this account&apos;s credits, up to the limits below. It opens nothing else: every /api route refuses it.</p>
                   )}
@@ -596,8 +605,8 @@ export function KeyManager({
                           </Tooltip>
                         )}
                         {k.purpose === "gateway" && k.gateway?.credential === "login" && (
-                          <Tooltip label="Runs on the operator's Claude login, as this account's desks do: not metered or billed, and it shares that subscription's weekly cap">
-                            <span>Claude login · not metered</span>
+                          <Tooltip label="Runs on this account's plan: not billed per call, and the plan's usage limits apply">
+                            <span>{k.gateway.plan === "max" ? "Max" : "Pro"} plan · not billed per call</span>
                           </Tooltip>
                         )}
                         {k.purpose === "gateway" && modelsLine(k.gateway?.models) && (
@@ -677,7 +686,7 @@ export function KeyManager({
                         <div className="mt-3 space-y-3 rounded-md border border-line bg-sunken p-3 text-sm">
                           <p className="text-fg-muted">
                             Which model Claude Code&apos;s tiers run on with this key. Leave one empty to run it as Claude Code names it. A model is written as <span className="font-mono">openai/gpt-6</span>, <span className="font-mono">deepseek/deepseek-v4</span>, <span className="font-mono">zai/glm-5.3</span>, <span className="font-mono">qwen/qwen3.8-max</span> or <span className="font-mono">gemini/…</span> (also <span className="font-mono">kimi/</span>, <span className="font-mono">minimax/</span>, <span className="font-mono">mimo/</span>)
-                            {k.gateway?.credential === "login" ? " — this key runs on the Claude login, so Claude models only." : "; it must be on foldrun's price list."}
+                            {k.gateway?.credential === "login" ? " — this key runs on the plan, so Claude models only." : "; it must be on foldrun's price list."}
                           </p>
                           <div className="grid gap-3 sm:grid-cols-3">
                             {TIERS.map((t) => (

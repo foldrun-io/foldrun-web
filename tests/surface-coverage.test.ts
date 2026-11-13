@@ -19,6 +19,11 @@ const CALLBACK = "called by something else holding its own proof, not by a perso
 
 /** Operations the CLI does not call, and why. */
 const NOT_IN_CLI: Record<string, string> = {
+  "POST /api/billing/partner/plans/offer": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",
+  "POST /api/billing/partner/plans": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",
+  "GET /api/billing/coding-plan": "sold at foldrun.ir only (owner, 13 Nov 2026): no CLI verb or public docs; the storefront and the Billing page",
+  "POST /api/billing/coding-plan": "sold at foldrun.ir only (owner, 13 Nov 2026): no CLI verb or public docs; the storefront and the Billing page",
+  "DELETE /api/billing/coding-plan": "sold at foldrun.ir only (owner, 13 Nov 2026): no CLI verb or public docs; the storefront and the Billing page",
   "POST /api/account/close": "closing an account is the owner's, in person, in Settings",
   "POST /api/oauth/handoff/[id]": "accepting a terminal-started connection is a signed-in person's, in the browser; the CLI opens the page (/api/oauth/start answers its URL)",
   ...Object.fromEntries(
@@ -78,6 +83,11 @@ const SEEN = (where: string) => `reached by a call the scanner cannot evaluate: 
 
 /** Operations the dashboard does not call through /api, and why. */
 const NOT_IN_DASHBOARD: Record<string, string> = {
+  "POST /api/billing/partner/plans/offer": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",
+  "POST /api/billing/partner/plans": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",
+  "GET /api/billing/coding-plan": "NOT BUILT YET (FOL-173, 14 Nov 2026): the Billing page's coding-plan card; until then plans are bought at foldrun.ir",
+  "POST /api/billing/coding-plan": "NOT BUILT YET (FOL-173, 14 Nov 2026): the Billing page's coding-plan card; until then plans are bought at foldrun.ir",
+  "DELETE /api/billing/coding-plan": "NOT BUILT YET (FOL-173, 14 Nov 2026): the Billing page's coding-plan card; until then plans are bought at foldrun.ir",
   "POST /api/workspaces/[workspace]/storage/extract": "the dashboard's Extract text button (components/file-browser.tsx) waits for the owner's look on dev before it is pushed (12 Nov 2026); the CLI's `foldrun storage text` calls it meanwhile",
   "GET /api/extract/[id]": "polled by the dashboard's Extract text button (components/file-browser.tsx), which waits for the owner's look on dev before it is pushed (12 Nov 2026); the CLI polls it meanwhile",
   "POST /api/extract": "a file sent whole from the caller's own machine (the CLI's `foldrun text`, a script); the dashboard extracts a file already in storage — Storage → a file → Extract text (POST …/storage/extract, components/file-browser.tsx)",

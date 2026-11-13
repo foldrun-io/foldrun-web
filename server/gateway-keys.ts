@@ -6,7 +6,7 @@
 import { databaseEnabled } from "@/platform/db";
 import { dayOf, spentByJob } from "@/platform/model-usage";
 import { chargeMargin } from "@/platform/model-gateway";
-import { loginAllowed, providerOfModel } from "@/platform/gateway-door";
+import { loginAllowedFor, providerOfModel } from "@/platform/gateway-door";
 import { billing } from "@/platform/billing";
 import type { GatewayModels } from "@/platform/api-keys-db";
 
@@ -24,8 +24,8 @@ export const gatewayOffered = (): boolean => databaseEnabled();
  *  login: one the operator allows its model credential (the console's grant
  *  or FOLDRUN_PLATFORM_KEY_ACCOUNTS) — the rule its desks' runs follow. The
  *  gateway's own function, so minting and every call ask the same thing. */
-export function gatewayLoginOffered(tenant: string): boolean {
-  return gatewayOffered() && loginAllowed(tenant);
+export async function gatewayLoginOffered(tenant: string): Promise<boolean> {
+  return gatewayOffered() && (await loginAllowedFor(tenant));
 }
 
 const TIERS = ["opus", "sonnet", "haiku"] as const;
@@ -47,7 +47,7 @@ export function checkModels(input: unknown, login: boolean, priced = (provider: 
     if (typeof v !== "string" || v.length > 120) return { error: `models.${k} must be a model name` };
     const r = providerOfModel(v.trim());
     if (!r) return { error: `models.${k}: ${v} names no provider foldrun offers — write anthropic/, openai/, gemini/, deepseek/, kimi/, zai/, qwen/, minimax/ or mimo/ before the model` };
-    if (login && r.provider !== "anthropic") return { error: `models.${k}: a login gateway key runs on the operator's Claude login — Claude models only` };
+    if (login && r.provider !== "anthropic") return { error: `models.${k}: a login gateway key is for Claude models only` };
     if (!login && !priced(r.provider, r.model)) return { error: `models.${k}: ${v} has no price on foldrun's models — pick a model on the price list (\`foldrun account model prices\`)` };
     out[k as (typeof TIERS)[number]] = v.trim();
   }
