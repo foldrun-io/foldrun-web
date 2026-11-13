@@ -77,7 +77,11 @@ test("dry run previews and writes nothing; apply writes; overwrite is asked for"
 
   const ok = await imp.POST(post("/api/workspaces/fresh/import", admin, bytes), ctx("fresh"));
   assert.equal(ok.status, 200, await ok.clone().text());
-  assert.equal((await ok.json()).written.length, 2);
+  const done = (await ok.json()) as { written: string[]; revision: string | null };
+  assert.equal(done.written.length, 2);
+  // The id it answers is one History can open.
+  const { readRevision } = await import("@/lib/history.ts");
+  assert.ok(done.revision && (await readRevision(TENANT, "fresh", done.revision)), `revision ${done.revision} resolves`);
 
   write("fresh", "agents/writer/agent.md", "---\nname: writer\ndescription: Changed here.\n---\n\nMine.\n");
   const clash = await imp.POST(post("/api/workspaces/fresh/import", admin, bytes), ctx("fresh"));

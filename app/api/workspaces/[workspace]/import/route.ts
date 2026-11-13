@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { flushRevisions } from "@/lib/workspace-revisions";
+import { listRevisions } from "@/lib/history";
 import { requirePermission, errorResponse, reportError, actorOf, refuse } from "@/server/api";
 import { audit } from "@/server/audit";
 import { readPackage, planImport, applyImport, PackageError } from "@/lib/package";
@@ -49,6 +50,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     const policyEvents = assertMayChangeWorkspacePolicy(actor, tenant, workspace, pkg.files.filter((f) => written.has(f.path)), "merge");
     // `expect`: the permission and plan checks above were for this answer to
     // "is it new?" — if that changed since, applyImport refuses.
+    const started = new Date().toISOString();
     const result = applyImport(tenant, workspace, pkg, { overwrite: flag("overwrite"), expect: plan.creates ? "create" : "merge", ...(by ? { by } : {}) });
     await auditPolicyEvents(policyEvents, actor.name, tenant);
     await audit("workspace.imported", {
@@ -67,8 +69,9 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     });
     // Committed as a revision before the answer (when revisions are on): the
     // folder is already changed, so a store that is down only leaves it queued.
-    await flushRevisions({ tenant, workspace });
-    return NextResponse.json({ ok: true, ...result });
+    const flushed = await flushRevisions({ tenant, workspace });
+    const revision = result.revision ? await importRevision(tenant, workspace, result.revision, result.written, by, started, flushed.pending) : null;
+    return NextResponse.json({ ok: true, ...result, revision });
   } catch (err) {
     // A write that failed is the server's fault, and its message is a Node
     // error naming the data path (30 Oct 2026): logged by reportError, and
@@ -79,6 +82,21 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     if (err instanceof PackageError) return refuse(err.message, err.status);
     return errorResponse(err);
   }
+}
+
+/** The id History knows this import by. Where the history is this disk's,
+ *  that is the id the writer made; where it is the revision store's, the store
+ *  names a revision when it is published (a pod on its own disk keeps no
+ *  history of its own, FOL-126) — so it is the published revision by this
+ *  actor, since the import started, that changed every file it wrote. Null
+ *  when that cannot be told: still queued, or not found (never the newest
+ *  revision of someone else's — Codex review, 13 Nov 2026). */
+async function importRevision(tenant: string, workspace: string, local: string, written: string[], by: string | undefined, since: string, pending: number): Promise<string | null> {
+  const rows = await listRevisions(tenant, workspace, { limit: 20 });
+  if (rows.some((r) => r.id === local)) return local;
+  if (pending > 0) return null;
+  const hit = rows.find((r) => r.at >= since && (!by || r.by === by) && written.every((p) => r.paths.includes(p)));
+  return hit?.id ?? null;
 }
 
 /** At most once per Idempotency-Key — server/idempotency.ts. The size is
