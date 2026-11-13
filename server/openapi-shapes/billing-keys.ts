@@ -145,6 +145,46 @@ const PARTNER_TOPUPS: Record<string, Shape> = {
   "POST /api/billing/partner/topups/{id}/failed": { body: obj({ reason: str() }), response: obj({ order: PartnerOrder }) },
 };
 
+// Coding plans (14 Nov 2026, FOL-173): Pro or Max for an account's login
+// gateway keys, paid from the wallet for thirty days and renewed from it.
+const PLAN_NAME = { type: "string", enum: ["pro", "max"] } as Schema;
+const CodingPlan = obj(
+  {
+    plan: PLAN_NAME,
+    // null must be in the enum as well as the type (Codex): a plan with no
+    // change waiting answers nextPlan: null.
+    nextPlan: { type: ["string", "null"], enum: ["pro", "max", null], description: "a change that takes effect at the renewal (a downgrade), or null" } as Schema,
+    status: { type: "string", enum: ["active", "ended"] } as Schema,
+    periodStart: str("ISO time"),
+    periodEnd: str("ISO time; renewed from the wallet then, unless cancelled"),
+    priceUsd: num,
+    renew: bool,
+  },
+  ["plan", "status", "periodStart", "periodEnd", "priceUsd", "renew"],
+);
+const PlanOffer = obj({
+  prices: obj({ pro: nullable(num), max: nullable(num) }),
+  available: obj({ pro: bool, max: bool }),
+  plan: nullable(CodingPlan),
+  balanceUsd: num,
+});
+const CODING_PLANS: Record<string, Shape> = {
+  "GET /api/billing/coding-plan": { response: PlanOffer },
+  "POST /api/billing/coding-plan": {
+    body: obj({ plan: PLAN_NAME }, ["plan"]),
+    response: obj({ plan: CodingPlan, chargedUsd: num }),
+  },
+  "DELETE /api/billing/coding-plan": { noBody: "stops the renewal; the plan runs to the end of its period", response: obj({ plan: nullable(CodingPlan) }) },
+  "POST /api/billing/partner/plans": {
+    body: obj({ account: str("a sign-in email or the account id"), plan: PLAN_NAME }, ["account", "plan"]),
+    response: obj({ account: obj({ label: str() }), plan: CodingPlan, chargedUsd: num }),
+  },
+  "POST /api/billing/partner/plans/offer": {
+    body: obj({ account: str("a sign-in email or the account id") }, ["account"]),
+    response: obj({ account: obj({ label: str() }), prices: obj({ pro: nullable(num), max: nullable(num) }), available: obj({ pro: bool, max: bool }), plan: nullable(CodingPlan), balanceUsd: num }),
+  },
+};
+
 export const SHAPES: Record<string, Shape> = {
   "POST /api/billing": {
     noBody: "refused with 404 for every caller since FOL-94 (28 Oct 2026): credit comes from a payment (POST /api/billing/checkout) or the platform team",
@@ -294,6 +334,7 @@ export const SHAPES: Record<string, Shape> = {
     }),
   },
   ...PARTNER_TOPUPS,
+  ...CODING_PLANS,
   "PUT /api/billing/wallet": {
     body: obj({
       autoTopUp: { ...AutoTopUp, type: ["object", "null"], description: "null turns auto top-up off; omitted, unchanged" },
