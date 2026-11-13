@@ -1,6 +1,7 @@
 // Shared route helpers: resolve the caller's workspace (API key first, dev
 // header fallback) and turn thrown errors into the right status code.
 
+import { freshen } from "@/server/fresh";
 import { opsLog, opsError, errorFields } from "@/lib/ops-log.ts";
 import { platform } from "@/lib/platform";
 import { NextResponse, type NextRequest } from "next/server";
@@ -67,6 +68,7 @@ export async function requireCaller(req: NextRequest): Promise<{ tenant: string;
   const auth = await resolveTenant(req);
   if (auth.tenant === null) throw new ApiError(auth.message, auth.status);
   assertScope(req, auth.actor);
+  await freshen(req, auth.tenant);
   return { tenant: auth.tenant, actor: auth.actor };
 }
 
@@ -86,6 +88,7 @@ export async function requireTenant(req: NextRequest): Promise<string> {
   // AuthResult union, since the success variant's string could be empty.
   if (auth.tenant === null) throw new ApiError(auth.message, auth.status);
   assertScope(req, auth.actor);
+  await freshen(req, auth.tenant);
   return auth.tenant;
 }
 
@@ -122,6 +125,7 @@ export async function requirePermission(
       403,
     );
   }
+  await freshen(req, auth.tenant);
   return { tenant: auth.tenant, actor: auth.actor };
 }
 
