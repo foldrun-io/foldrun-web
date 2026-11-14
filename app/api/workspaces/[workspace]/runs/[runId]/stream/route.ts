@@ -9,7 +9,8 @@
 import { runMoney } from "@/server/run-charges";
 import { cursorOf, parseCursor, deltaSince } from "@/server/run-delta";
 import { NextRequest } from "next/server";
-import { requireTenant, errorResponse, refuse } from "@/server/api";
+import { requireCaller, errorResponse, refuse } from "@/server/api";
+import { runTextFor } from "@/server/run-links";
 import { runFilePath, runStamp, readRunText } from "@/lib/store";
 import { records } from "@/lib/records";
 import { runNotifyLive, watchRun } from "@/platform/run-notify";
@@ -50,8 +51,9 @@ export async function GET(
 ) {
   const { workspace, runId } = await ctx.params;
   let tenant: string;
+  let actor: Awaited<ReturnType<typeof requireCaller>>["actor"];
   try {
-    tenant = await requireTenant(req);
+    ({ tenant, actor } = await requireCaller(req));
   } catch (err) {
     // 401 for no credential, 403 for a scope that does not include this
     // workspace — the same answer the JSON routes give, not one for both.
@@ -144,8 +146,10 @@ export async function GET(
             if (Date.now() - started > MAX_MS) stop();
             return;
           }
-          const raw = readRunText(tenant, workspace, runId);
-          if (raw === null) throw new Error("the record is not there this tick");
+          const stored = readRunText(tenant, workspace, runId);
+          if (stored === null) throw new Error("the record is not there this tick");
+          // What this caller may read of it: no release link for a viewer (run-links.ts).
+          const raw = runTextFor(stored, actor);
           if (raw === lastPayload) wait = Math.min(wait * 2, idleMax());
           if (raw !== lastPayload) {
             wait = POLL_MS;
