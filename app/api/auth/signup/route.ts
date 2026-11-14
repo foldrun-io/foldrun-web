@@ -13,13 +13,14 @@ import { verifyLink, publicOrigin } from "@/server/auth-flows";
 import { errorResponse, refuse } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
 import { clientIp } from "@/server/limits";
-import { acceptInvite, createUser, hasUsers, mintSession, sessionCookieOptions, SESSION_COOKIE, setupTokenRequired, setupTokenMatches } from "@/server/users";
+import { acceptInvite, createLinkedAccount, createUser, hasUsers, setEmailVerified, mintSession, sessionCookieOptions, SESSION_COOKIE, setupTokenRequired, setupTokenMatches } from "@/server/users";
 import { signupModesNow } from "@/server/signup";
 import { refuseNonText } from "@/server/auth-input";
 import { assertSignupAllowed, trialEligible } from "@/platform/signup";
 import { audit } from "@/server/audit";
 import { listWorkspaces, saveWorkspace, templateFiles } from "@/lib/store";
 import { rateLimit } from "@/platform/cache";
+import { readSignupLink } from "@/server/signup-links";
 
 // Signup had no limit at all, so the form could be asked about an unlimited
 // number of addresses as fast as the box would answer. Login has had these
@@ -45,6 +46,8 @@ export async function POST(req: NextRequest) {
       password?: string;
       account?: string;
       invite?: string;
+      /** A sign-up link the platform mailed (server/signup-links.ts). */
+      link?: string;
       /** The install's setup token, for its first account (FOLDRUN_SETUP_TOKEN). */
       setup?: string;
       /** Not taken yet: paid sign-up's plan choice (Part B). */
@@ -56,7 +59,7 @@ export async function POST(req: NextRequest) {
     if (body && typeof body === "object" && "plan" in body) {
       return refuse("choosing a plan at sign-up is not available yet — sign up without one", 400);
     }
-    const notText = refuseNonText(body, "email", "password", "account", "invite", "setup");
+    const notText = refuseNonText(body, "email", "password", "account", "invite", "setup", "link");
     if (notText) return notText;
     // Limited before anything is created, and before scrypt runs: hashing a
     // password is deliberately expensive, so an unlimited signup endpoint is
@@ -72,6 +75,24 @@ export async function POST(req: NextRequest) {
       PER_EMAIL.windowSec,
     );
     if (!byEmail.allowed) return tooMany(byEmail.retryAfter);
+
+    // A sign-up link (14 Nov 2026): mailed to one address by trusted server
+    // code, so it opens an account even while registration is closed — for
+    // that address only, which the link proves (it reached that inbox), so
+    // the account starts verified and is sent no confirmation mail.
+    if (typeof body.link === "string" && body.link !== "") {
+      const link = readSignupLink(body.link);
+      if (!link) return refuse("that sign-up link is no longer valid — ask for a new one where you got it", 400);
+      if ((body.email ?? "").trim().toLowerCase() !== link.email) return refuse(`this link is for ${link.email} — sign up with that address`, 400);
+      const user = await createLinkedAccount(link.email, body.password ?? "", body.account ?? "");
+      await setEmailVerified(user.id);
+      await audit("account.created", { actor: user.email, tenant: user.tenant, subject: user.id, detail: { admission: "link", from: link.from } });
+      saveWorkspace(user.tenant, "home", templateFiles("home"));
+      const session = await mintSession(user, req.headers.get("user-agent"));
+      const res = NextResponse.json({ ok: true, tenant: user.tenant, workspace: "home", ...(link.next ? { next: link.next } : {}) });
+      res.cookies.set(SESSION_COOKIE, session.value, sessionCookieOptions(req, session.expires));
+      return res;
+    }
 
     // An invite decides the account and bypasses the open-signup gate — a
     // member chose to let this person in. The invite's row is the proof and

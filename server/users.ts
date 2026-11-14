@@ -513,6 +513,22 @@ export async function createAccountOwner(email: string, password: string, tenant
   });
 }
 
+/**
+ * A new account opened on a sign-up link (server/signup-links.ts): the route
+ * read the link and checked that `email` is the address it was mailed to.
+ * Like an invite, it is its own permission — the install's sign-up switches
+ * are not asked — but it is still refused for an address that already has a
+ * login or a name that is taken, and it records the `link` door, which earns
+ * no trial. Only for a caller that holds a verified link.
+ */
+export async function createLinkedAccount(email: string, password: string, tenant: string): Promise<UserRecord> {
+  return addUser(email, password, tenant, {}, async () => (facts) => {
+    if (facts.emailTaken) throw Object.assign(new Error("an account with that email already exists"), { status: 409 });
+    if (facts.nameTaken) throw Object.assign(new Error("that account name is taken"), { status: 409 });
+    return "link";
+  });
+}
+
 export async function verifyPassword(email: string, password: string): Promise<UserRecord | null> {
   const user = await findUser(email);
   if (!user) {

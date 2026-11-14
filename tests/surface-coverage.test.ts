@@ -21,6 +21,7 @@ const CALLBACK = "called by something else holding its own proof, not by a perso
 const NOT_IN_CLI: Record<string, string> = {
   "GET /api/pricing": "the public catalogue for foldrun.io and foldrun.ir, which read it from a browser; `foldrun usage rates` shows the same figures through the account's own /api/usage/rates",
   "POST /api/billing/partner/plans/offer": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",
+  "POST /api/billing/partner/signups": CALLBACK + "foldrun.ir's signed storefront calls (a sign-up link for a customer with no account); the person opens the account on /signup",
   "POST /api/billing/partner/plans": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",
   "GET /api/billing/coding-plan": "sold at foldrun.ir only (owner, 13 Nov 2026): no CLI verb or public docs; the storefront and the Billing page",
   "POST /api/billing/coding-plan": "sold at foldrun.ir only (owner, 13 Nov 2026): no CLI verb or public docs; the storefront and the Billing page",
@@ -85,6 +86,7 @@ const SEEN = (where: string) => `reached by a call the scanner cannot evaluate: 
 /** Operations the dashboard does not call through /api, and why. */
 const NOT_IN_DASHBOARD: Record<string, string> = {
   "POST /api/billing/partner/plans/offer": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",
+  "POST /api/billing/partner/signups": CALLBACK + "foldrun.ir's signed storefront calls (a sign-up link for a customer with no account); the person opens the account on /signup",
   "POST /api/billing/partner/plans": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",
   "GET /api/billing/coding-plan": "NOT BUILT YET (FOL-173, 14 Nov 2026): the Billing page's coding-plan card; until then plans are bought at foldrun.ir",
   "POST /api/billing/coding-plan": "NOT BUILT YET (FOL-173, 14 Nov 2026): the Billing page's coding-plan card; until then plans are bought at foldrun.ir",

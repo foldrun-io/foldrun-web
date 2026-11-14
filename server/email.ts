@@ -112,6 +112,28 @@ export function sendVerifyEmail(tenant: string, to: string, url: string, opts?: 
   );
 }
 
+/**
+ * The sign-up link (server/signup-links.ts), to the address it opens an
+ * account for. Sent with no account yet, so under the platform's own sender
+ * (`tenant` is the platform's). Says what clicking does and that ignoring it
+ * does nothing — the person may not have asked (someone typed their address).
+ */
+export function sendSignupLinkEmail(tenant: string, to: string, url: string) {
+  return platformSend(
+    tenant,
+    to,
+    "Create your foldrun account",
+    `Someone — probably you — asked for a foldrun account for ${to}.\n\nCreate it here (choose a name and a password; the link is good for 7 days):\n${url}\n\nIf it was not you, ignore this email: no account is made until the link is opened.\n`,
+    linkEmail({
+      lead: `Someone — probably you — asked for a foldrun account for <strong>${esc(to)}</strong>.`,
+      button: "Create my account",
+      url,
+      after: "Choose a name and a password and the account is ready. The link is good for 7 days. If it was not you, ignore this email: no account is made until the link is opened.",
+    }),
+    "account",
+  );
+}
+
 /** To the OLD address, after a change: the one person who must hear that a
  *  login moved is the one who no longer gets mail at where it moved to. No
  *  link — there is nothing for them to click; if it was not them, they

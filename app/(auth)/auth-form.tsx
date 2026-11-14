@@ -14,7 +14,13 @@ import { cn } from "@foldrun/ui/react/cn";
 import { Field, Callout } from "@foldrun/ui/react/page";
 
 
-export function AuthForm({ mode, invite, setup }: { mode: "login" | "signup"; invite?: string; setup?: string }) {
+export function AuthForm({ mode, invite, setup, link }: {
+  mode: "login" | "signup";
+  invite?: string;
+  setup?: string;
+  /** A sign-up link the platform mailed: its token, and the one address it is for. */
+  link?: { token: string; email: string };
+}) {
   const next = useSearchParams().get("next") ?? "/dashboard";
   const [error, setError] = useState<string | null>(null);
   // The second step: the password bought a challenge, not a session.
@@ -37,6 +43,7 @@ export function AuthForm({ mode, invite, setup }: { mode: "login" | "signup"; in
     if (mode === "signup" && invite) body.invite = invite;
     else if (mode === "signup") body.account = String(data.get("account") ?? "");
     if (mode === "signup" && setup) body.setup = setup;
+    if (mode === "signup" && link) body.link = link.token;
     // The try/catch matters: a fetch that fails at the network level throws,
     // and an unhandled throw here left the button stuck on "…" forever with
     // no message — indistinguishable from a hang.
@@ -49,7 +56,7 @@ export function AuthForm({ mode, invite, setup }: { mode: "login" | "signup"; in
       if (res.ok) {
         // Land inside a workspace when the answer names one — the workspace is
         // the home; the account is a drawer you visit.
-        const payload = (await res.json().catch(() => ({}))) as { workspace?: string; mfa?: boolean; challenge?: string };
+        const payload = (await res.json().catch(() => ({}))) as { workspace?: string; mfa?: boolean; challenge?: string; next?: string };
         if (payload.mfa && payload.challenge) {
           setChallenge(payload.challenge);
           setBusy(false);
@@ -58,6 +65,13 @@ export function AuthForm({ mode, invite, setup }: { mode: "login" | "signup"; in
         // Someone who just made a new account starts in the welcome flow
         // (/dashboard/welcome): their model, what to start with, a first run.
         // A joiner lands in what their team already has.
+        // A sign-up link may name where to go next — the page that asked for
+        // it (foldrun.ir's payment form). It came from the server, out of the
+        // signed link, and is only ever https.
+        if (mode === "signup" && link && typeof payload.next === "string" && payload.next.startsWith("https://")) {
+          window.location.assign(payload.next);
+          return;
+        }
         const target = mode === "signup" && !invite ? "/dashboard/welcome" : payload.workspace ? `/dashboard/${payload.workspace}` : "/dashboard";
         // A full navigation, not router.push: client-side nav can wedge on a
         // stale RSC cache, and after a login the whole tree changes anyway.
@@ -103,7 +117,13 @@ export function AuthForm({ mode, invite, setup }: { mode: "login" | "signup"; in
         </Field>
       )}
       {!challenge && <Field label="Email">
-        <Input name="email" type="email" required placeholder="you@example.com" />
+        <Input
+          name="email"
+          type="email"
+          required
+          placeholder="you@example.com"
+          {...(link ? { defaultValue: link.email, readOnly: true, "aria-readonly": true } : {})}
+        />
       </Field>}
       {!challenge && <Field label="Password">
         <Input

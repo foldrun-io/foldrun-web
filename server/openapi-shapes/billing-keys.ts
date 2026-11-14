@@ -143,6 +143,11 @@ const PARTNER_TOPUPS: Record<string, Shape> = {
     response: obj({ order: PartnerOrder, credited: { ...bool, description: "false when an earlier call already credited it" } }),
   },
   "POST /api/billing/partner/topups/{id}/failed": { body: obj({ reason: str() }), response: obj({ order: PartnerOrder }) },
+  "POST /api/billing/partner/signups": {
+    status: "202",
+    body: obj({ email: str("the address to open an account for"), ip: str("the customer's address, for the per-address limit") }, ["email"]),
+    response: obj({ status: str("sent: the link is mailed; exists: the address already has a login (answered 200)") }),
+  },
 };
 
 // Coding plans (14 Nov 2026, FOL-173): Pro or Max for an account's login

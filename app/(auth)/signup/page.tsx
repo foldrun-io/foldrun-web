@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "@foldrun/ui/react/link";
-import { hasUsers, peekInvite, setupTokenRequired } from "@/server/users";
+import { findUser, hasUsers, peekInvite, setupTokenRequired } from "@/server/users";
+import { readSignupLink } from "@/server/signup-links";
 import { signupModesNow, signupPageState, SIGNUP_CONTACT } from "@/server/signup";
 import { platform } from "@/lib/platform";
 import { AuthForm } from "../auth-form";
@@ -13,9 +14,61 @@ export const dynamic = "force-dynamic";
 export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ invite?: string; setup?: string }>;
+  searchParams: Promise<{ invite?: string; setup?: string; link?: string }>;
 }) {
-  const { invite, setup } = await searchParams;
+  const { invite, setup, link } = await searchParams;
+
+  // A sign-up link the platform mailed to one address (server/signup-links.ts):
+  // its own permission, like an invite, so the open-signup setting does not
+  // apply. Read, not used: the account is made when the form posts.
+  if (link !== undefined) {
+    const linked = readSignupLink(link);
+    if (!linked) {
+      return (
+        <AuthCard center title="That sign-up link is no longer valid" hint="It has expired or is not complete. Ask for a new one where you got it — a link works for seven days." />
+      );
+    }
+    if (await findUser(linked.email)) {
+      return (
+        <AuthCard
+          center
+          title="This address already has an account"
+          hint={
+            <>
+              <Email value={linked.email} /> is already signed up. Sign in with it instead.
+            </>
+          }
+          footer={
+            <Link href="/login" className="font-medium text-fg hover:underline">
+              Sign in
+            </Link>
+          }
+        />
+      );
+    }
+    return (
+      <AuthCard
+        title="Create your account"
+        hint={
+          <>
+            For <Email value={linked.email} />. Choose an account name and a password.
+          </>
+        }
+        footer={
+          <>
+            Already have one?{" "}
+            <Link href="/login" className="font-medium text-fg hover:underline">
+              Sign in
+            </Link>
+          </>
+        }
+      >
+        <Suspense>
+          <AuthForm mode="signup" link={{ token: link, email: linked.email }} />
+        </Suspense>
+      </AuthCard>
+    );
+  }
   // Looked at, not used up: the invite is spent only when the form posts
   // and the member is created (acceptInvite).
   const invited = invite ? await peekInvite(invite) : null;
