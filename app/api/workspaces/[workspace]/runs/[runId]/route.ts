@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runMoney } from "@/server/run-charges";
-import { requireTenant, errorResponse, requirePermission, refuse } from "@/server/api";
+import { requireCaller, errorResponse, requirePermission, refuse } from "@/server/api";
+import { runFor } from "@/server/run-links";
 import { readRunAsync, runFailure } from "@/lib/store";
 import { eraseRun } from "@/server/run-erase";
 import { wantsWait, waitAndRespond } from "@/server/wait";
@@ -11,7 +12,7 @@ export async function GET(
 ) {
   try {
     const { workspace, runId } = await ctx.params;
-    const tenant = await requireTenant(req);
+    const { tenant, actor } = await requireCaller(req);
     // Off the event loop where the records are in the database.
     const run = await readRunAsync(tenant, workspace, runId);
     if (!run) return refuse("run not found", 404);
@@ -25,7 +26,8 @@ export async function GET(
     // Why it failed, as the runs list and the run page say it (FOL-124).
     // Its money (FOL-157): the charge once the ledger settles it, the
     // list-price estimate until then, and which is final.
-    return NextResponse.json({ ...run, failure: runFailure(run), ...(await runMoney(tenant, run)) });
+    // A caller who may not run things is not handed the link that releases a parked step (run-links.ts).
+    return NextResponse.json({ ...runFor(run, actor), failure: runFailure(run), ...(await runMoney(tenant, run)) });
   } catch (err) {
     return errorResponse(err);
   }
