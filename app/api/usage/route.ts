@@ -12,8 +12,11 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     const { tenant, actor } = await requireCaller(req);
+    // ?from=YYYY-MM-DD&to=YYYY-MM-DD bound the tokens, compute and billed
+    // blocks (default: the month so far); a bad day is a plain Error, so a 400.
+    const q = new URL(req.url).searchParams;
     // Through versionedJson: the 2026-10-26 change withdrew two ledger fields.
-    return versionedJson(req, await accountUsage(tenant, { workspaces: actor.workspaces }));
+    return versionedJson(req, await accountUsage(tenant, { workspaces: actor.workspaces, from: q.get("from") ?? undefined, to: q.get("to") ?? undefined }));
   } catch (err) {
     return errorResponse(err);
   }

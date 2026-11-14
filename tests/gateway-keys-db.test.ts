@@ -91,8 +91,10 @@ test("a gateway key keeps its limits through the table and a rotation, and opens
   // billing — the public edition GitHub CI tests — has no price list, so the
   // same map is refused; the hosted check (foldrun-admin scripts/check.sh)
   // runs the mapping itself.
-  const { edition } = await import("@/platform/ledger");
-  if (edition() !== "hosted") {
+  // By the build, not FOLDRUN_EDITION: scripts/check.sh runs the hosted
+  // build without that variable set.
+  const { billing, freeBilling } = await import("@/platform/billing");
+  if (billing() === freeBilling) {
     assert.equal(mapped.status, 400, JSON.stringify(mapped.body));
     assert.match(String(mapped.body.error), /has no price on foldrun's models/);
   } else {

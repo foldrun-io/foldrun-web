@@ -5,6 +5,11 @@
 // drift from the facts.
 
 import { Page, PageHeader, SectionTitle, StatGrid, Stat, Callout } from "@foldrun/ui/react/page";
+import { PageTabs } from "@foldrun/ui/react/page-tabs";
+import { Segmented } from "@foldrun/ui/react/segmented";
+import { billing } from "@/platform/billing";
+import { fmtTokens, periodQuery } from "@/components/usage-format";
+import { CreditsBlock, TokensTab, ComputeTab, RatesTab } from "./tabs";
 import { accountUsage, spendHistory, type UsageBucket, type SpendSeries } from "@/platform/usage";
 import { LocalTime } from "@/components/local-time";
 import { credits, usd, usdExact } from "@/components/money";
@@ -23,7 +28,6 @@ export const metadata = { title: "Billing · Usage" };
 const GB = 1024 * 1024 * 1024;
 const fmtBytes = (b: number) =>
   b >= GB ? `${(b / GB).toFixed(2)} GB` : b >= 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${(b / 1024).toFixed(0)} KB`;
-const fmtTokens = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
 // The share the cache served, over steps that report it (18 Oct 2026 on).
 const fmtHit = (b: UsageBucket) => (b.cacheHitRate == null ? null : `${Math.round(b.cacheHitRate * 100)}%`);
 const fmtMins = (secs: number) => (secs >= 3600 ? `${(secs / 3600).toFixed(1)} h` : `${(secs / 60).toFixed(1)} min`);
@@ -107,19 +111,57 @@ function SpendTable({ title, rows, unit }: { title: string; rows: SpendSeries[];
   );
 }
 
+const TABS = [
+  { key: "overview", label: "Overview" },
+  { key: "tokens", label: "Tokens" },
+  { key: "compute", label: "Compute" },
+  { key: "rates", label: "Rates" },
+] as const;
+type TabKey = (typeof TABS)[number]["key"];
+
+// Presets for the Tokens and Compute period; the API and CLI take any days.
+const PERIODS = [
+  { key: "month", label: "This month", days: 0 },
+  { key: "7", label: "Last 7 days", days: 7 },
+  { key: "30", label: "Last 30 days", days: 30 },
+  { key: "90", label: "Last 90 days", days: 90 },
+] as const;
+const DAY_MS = 86_400_000;
+/** [from, to] as UTC days; 0 is the month so far (the API's default, so no query). */
+function periodDays(days: number): [string | undefined, string | undefined] {
+  if (days === 0) return [undefined, undefined];
+  const now = Date.now();
+  return [new Date(now - (days - 1) * DAY_MS).toISOString().slice(0, 10), new Date(now).toISOString().slice(0, 10)];
+}
+
 export default async function UsagePage({
   searchParams,
 }: {
-  searchParams: Promise<{ tenant?: string }>;
+  searchParams: Promise<{ tenant?: string; tab?: string; from?: string; to?: string }>;
 }) {
-  const { tenant = "default" } = await searchParams;
+  const { tenant = "default", tab: rawTab, from, to } = await searchParams;
+  const tab: TabKey = TABS.some((t) => t.key === rawTab) ? (rawTab as TabKey) : "overview";
   // A member scoped to some workspaces sees those, as GET /api/usage answers.
   const scope = await viewerScope();
-  const u = await accountUsage(tenant, { workspaces: scope });
+  // The period bounds Tokens and Compute, as ?from&to do the API's; a bad day
+  // is said, and the month so far shown.
+  let periodError: string | null = null;
+  let u: Awaited<ReturnType<typeof accountUsage>>;
+  try {
+    u = await accountUsage(tenant, { workspaces: scope, from, to });
+  } catch (err) {
+    periodError = err instanceof Error ? err.message : "that period cannot be shown";
+    u = await accountUsage(tenant, { workspaces: scope });
+  }
+  // Which preset the shown period is, when it is one.
+  const range = PERIODS.find((r) => { const [f, t] = periodDays(r.days); return r.days === 0 ? from === undefined && to === undefined : f === u.period.from && t === u.period.to; })?.key ?? "custom";
+  const b = billing();
+  const rates = tab === "rates" ? b.meterRates?.() ?? null : null;
+  const catalogue = tab === "rates" ? b.catalogue?.() ?? null : null;
   // From the ledger, not the run records: this is what was actually charged,
   // and it survives runs being pruned — which is exactly when a desk's cost
   // history starts being worth having.
-  const history = await spendHistory(tenant, 56, { workspaces: scope });
+  const history = tab === "overview" ? await spendHistory(tenant, 56, { workspaces: scope }) : null;
 
   return (
     <Page className="pb-16">
@@ -132,6 +174,35 @@ export default async function UsagePage({
         }
       />
       <BillingTabs current="usage" tenant={tenant} hosted={platform.edition() === "hosted"} />
+      <PageTabs
+        label="Usage"
+        className="mb-6"
+        tabs={TABS.map((t) => ({ label: t.label, href: periodQuery(tenant, t.key, from, to), active: t.key === tab }))}
+      />
+      {periodError && (
+        <Callout tone="warning" role="alert" className="mb-4">
+          {periodError}. Showing {u.period.from} to {u.period.to}.
+        </Callout>
+      )}
+      {(tab === "tokens" || tab === "compute") && (
+        <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <Segmented
+            label="Period"
+            value={range}
+            items={PERIODS.map((r) => ({ key: r.key, label: r.label, href: periodQuery(tenant, tab, ...periodDays(r.days)) }))}
+          />
+          <p className="text-xs text-fg-muted">
+            {u.period.from} to {u.period.to}, UTC. Any other period: <code className="font-mono">?from=</code> and <code className="font-mono">&amp;to=</code> in the address, <code className="font-mono">--since</code> and <code className="font-mono">--until</code> in the CLI. The overview covers every retained run.
+          </p>
+        </div>
+      )}
+
+      {tab === "tokens" && <TokensTab u={u} />}
+      {tab === "compute" && <ComputeTab u={u} />}
+      {tab === "rates" && <RatesTab rates={rates} catalogue={catalogue} planId={u.credits?.plan?.id ?? null} />}
+      {tab === "overview" && (
+        <>
+          <CreditsBlock c={u.credits} />
 
       {u.waived && u.waived.length > 0 && (
         <Callout tone="success" role="status" className="mb-4">
@@ -157,7 +228,7 @@ export default async function UsagePage({
       {/* What each desk and each agent costs, and whether that is moving.
           The question this page previously could not answer: not "what did
           we spend" but "which of these is worth keeping". */}
-      {history.totalUsd > 0 && (
+      {history && history.totalUsd > 0 && (
         <section className="mb-10">
           <SectionTitle
             title={`What it costs, by ${history.bucket}`}
@@ -270,6 +341,8 @@ export default async function UsagePage({
         whole runs; agent rows attribute each step to the agent that ran it, so the two views sum
         to the same totals by different cuts.
       </p>
+        </>
+      )}
     </Page>
   );
 }

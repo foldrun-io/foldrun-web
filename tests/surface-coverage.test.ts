@@ -19,6 +19,7 @@ const CALLBACK = "called by something else holding its own proof, not by a perso
 
 /** Operations the CLI does not call, and why. */
 const NOT_IN_CLI: Record<string, string> = {
+  "GET /api/pricing": "the public catalogue for foldrun.io and foldrun.ir, which read it from a browser; `foldrun usage rates` shows the same figures through the account's own /api/usage/rates",
   "POST /api/billing/partner/plans/offer": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",
   "POST /api/billing/partner/plans": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",
   "GET /api/billing/coding-plan": "sold at foldrun.ir only (owner, 13 Nov 2026): no CLI verb or public docs; the storefront and the Billing page",
@@ -164,6 +165,8 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   "GET /api/team": SERVER("settings/page.tsx → listMembers"),
   "GET /api/team/invites": SERVER("settings/page.tsx → listInvites"),
   "GET /api/usage": SERVER("usage/page.tsx → accountUsage"),
+  "GET /api/usage/rates": SERVER("usage/page.tsx (Rates tab) → billing().meterRates and catalogue, the functions the route calls"),
+  "GET /api/pricing": SERVER("usage/page.tsx (Rates tab) → billing().catalogue; the route is foldrun.io and foldrun.ir's, served with CORS"),
   "GET /api/usage/history": SERVER("usage/page.tsx → spendHistory"),
   "GET /api/usage/budget": SERVER("limits/page.tsx → accountBudgetStanding, workspaceBudgetStanding"),
   "DELETE /api/workspaces/[workspace]": SEEN("[workspace]/settings/page.tsx (Delete workspace)"),

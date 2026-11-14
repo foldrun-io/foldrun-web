@@ -92,7 +92,7 @@ test("FOLDRUN_API_RATE_LIMIT=off stops counting", async () => {
 });
 
 test("limits scale with the plan, and the account's is a multiple of the key's", () => {
-  assert.ok(TIERS.scale.read > TIERS.pro.read && TIERS.pro.read > TIERS.creator.read && TIERS.creator.read > TIERS.starter.read && TIERS.starter.read > TIERS.free.read);
+  assert.ok(TIERS.scale.read > TIERS.pro.read && TIERS.pro.read > TIERS.starter.read && TIERS.starter.read > TIERS.free.read);
   for (const t of Object.values(TIERS)) assert.ok(t.write < t.read, "writes are the scarcer bucket");
   const l = limitsFor("pro");
   assert.equal(l.perAccount.write, TIERS.pro.write * ACCOUNT_MULTIPLE);

@@ -27,7 +27,7 @@ const BillingDetails = obj(
 
 /** One plan of the catalogue — platform plans.ts. */
 const Plan = obj({
-  id: str("starter | creator | pro | scale"), name: str(),
+  id: str("free | starter | pro | scale"), name: str(),
   monthlyUsd: { ...num, description: "the monthly fee, USD" },
   credits: { ...int, description: "credits the fee buys each cycle" },
   creditUsd: { ...num, description: "what one extra credit costs on this plan, USD" },

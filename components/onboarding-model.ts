@@ -150,7 +150,7 @@ export function onboardingSteps(f: OnboardingFacts, hidden: readonly string[] = 
           {
             id: "billing" as const,
             title: "Set up billing",
-            why: "A saved card or a plan keeps runs going once the trial credit is spent.",
+            why: "A saved card or a plan keeps runs going once the free credits are spent.",
             href: "/dashboard/billing",
             done: f.billing.done,
           },
