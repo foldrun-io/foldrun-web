@@ -45,10 +45,14 @@ while read -r d; do
   hit=$(find "$tmp/app" -path '*/node_modules' -prune -o -type d -path "*/foldrun-*/${d%/}" -print 2>/dev/null | head -3 || true)
   [ -n "$hit" ] && { echo "LEAK directory $d → $hit"; found=1; }
 done < <(grep '/$' "$tmp/names" || true)
+# File entries match files only: a public route folder may share a private
+# module's name (app/api/pricing/ is open code; pricing.ts is not), and the
+# directory entries above already cover private folders (14 Nov 2026: the
+# public GET /api/pricing failed this check).
 while read -r n; do
   base=${n##*/}
   for ext in "" .ts .tsx .js .mjs; do
-    hit=$(find "$tmp/app" -path '*/node_modules' -prune -o -name "${base%.ts*}$ext" -print 2>/dev/null | grep -v -e /tests/ -e billing-hosted -e billing-slots -e billing-notices | head -3 || true)
+    hit=$(find "$tmp/app" -path '*/node_modules' -prune -o -type f -name "${base%.ts*}$ext" -print 2>/dev/null | grep -v -e /tests/ -e billing-hosted -e billing-slots -e billing-notices | head -3 || true)
     [ -n "$hit" ] && { echo "LEAK $n → $hit"; found=1; }
   done
 done < <(grep -v -e '^billing-hosted' -e 'test.ts$' -e '/$' "$tmp/names")
