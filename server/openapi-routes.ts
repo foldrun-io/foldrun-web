@@ -50,7 +50,7 @@ export const ROUTES: RouteEntry[] = [
   {"path":"/api/billing","methods":["GET","POST"],"idempotent":["POST"],"summary":"balance and recent ledger entries — to a member or key scoped to some workspaces, only those workspaces' charges (no other workspace's runs, no top-ups or refunds); POST answers 404 to every caller — credit comes through checkout (/api/b…"},
   {"path":"/api/billing/card","methods":["POST"],"idempotent":["POST"],"summary":"save a card"},
   {"path":"/api/billing/checkout","methods":["POST"],"idempotent":["POST"],"summary":"a Stripe session (usd)"},
-  {"path":"/api/billing/coding-plan","methods":["GET","POST","DELETE"],"summary":""},
+  {"path":"/api/billing/coding-plan","methods":["GET","POST","PATCH","DELETE"],"summary":""},
   {"path":"/api/billing/confirm","methods":["GET"],"summary":"settle one"},
   {"path":"/api/billing/details","methods":["GET","PUT"],"summary":"who the invoices are made out to — GET { details, stripe, customer, tax } for anyone who can see billing and every workspace (403 to a member or key scoped to some, as for the statement); PUT (the owner) legalName (required), email, abn …"},
   {"path":"/api/billing/invoices","methods":["GET"],"summary":"the Invoices tab as data (hosted only; 5 Nov 2026): invoices is the plan's tax invoices from Stripe, newest first — { id, number, description, createdAt, amount, currency, status, url, pdfUrl }, amount in the invoice's currency and url S…"},

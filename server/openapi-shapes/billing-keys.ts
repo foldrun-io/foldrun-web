@@ -164,20 +164,34 @@ const CodingPlan = obj(
     periodEnd: str("ISO time; renewed from the wallet then, unless cancelled"),
     priceUsd: num,
     renew: bool,
+    extraUsage: { type: "boolean", description: "past the plan's allowance, continue on the wallet (off: wait for the reset)" } as Schema,
   },
   ["plan", "status", "periodStart", "periodEnd", "priceUsd", "renew"],
 );
+// The plan's one allowance (15 Nov 2026): the coding agent and the account's
+// automations add to the same five-hour and seven-day totals.
+const PlanAllowance = obj({
+  windows: { type: "array", items: obj({ name: { type: "string", enum: ["window", "week"] } as Schema, usedPct: nullable(num), resetsAt: str("ISO time") }) } as Schema,
+  extraUsage: bool,
+  room: { type: "boolean", description: "whether a new automation would run inside the plan now" } as Schema,
+  freeAt: nullable(str("ISO time: when there is room again")),
+});
 const PlanOffer = obj({
   prices: obj({ pro: nullable(num), max: nullable(num) }),
   available: obj({ pro: bool, max: bool }),
   plan: nullable(CodingPlan),
   balanceUsd: num,
+  allowance: nullable(PlanAllowance),
 });
 const CODING_PLANS: Record<string, Shape> = {
   "GET /api/billing/coding-plan": { response: PlanOffer },
   "POST /api/billing/coding-plan": {
     body: obj({ plan: PLAN_NAME }, ["plan"]),
     response: obj({ plan: CodingPlan, chargedUsd: num }),
+  },
+  "PATCH /api/billing/coding-plan": {
+    body: obj({ extraUsage: bool }, ["extraUsage"]),
+    response: obj({ plan: CodingPlan, allowance: nullable(PlanAllowance) }),
   },
   "DELETE /api/billing/coding-plan": { noBody: "stops the renewal; the plan runs to the end of its period", response: obj({ plan: nullable(CodingPlan) }) },
   "POST /api/billing/partner/plans": {
