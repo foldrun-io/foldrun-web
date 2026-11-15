@@ -121,7 +121,13 @@ const PartnerOrder = obj({
   usd: num, toman: int, rial: { ...int, description: "toman × 10, the amount sent to the gateway" }, tomanPerUsd: int,
   status: str("pending | credited | failed"),
   authority: { type: ["string", "null"] }, refId: { type: ["string", "null"], description: "the gateway's receipt" },
+  plan: { type: ["string", "null"], description: "the coding plan this payment is for, pro or max" },
+  planStatus: str("none | pending | activating | active | failed"),
   expiresAt: str(), creditedAt: { type: ["string", "null"] },
+});
+const UnsettledOrder = obj({
+  id: str("ptu_…"), authority: str("the gateway's session to verify"), usd: num, toman: int, rial: int,
+  status: str("pending | failed"), plan: { type: ["string", "null"] }, createdAt: str(), expiresAt: str(),
 });
 const PARTNER_TOPUPS: Record<string, Shape> = {
   "GET /api/billing/partner/topups/rate": {
@@ -133,9 +139,13 @@ const PARTNER_TOPUPS: Record<string, Shape> = {
   },
   "POST /api/billing/partner/topups": {
     status: "201",
-    body: obj({ account: str(), usd: num, toman: { ...int, description: "the figure the customer was shown; 409 with a new quote when the rate moved" } }, ["account", "usd", "toman"]),
+    body: obj({
+      account: str(), usd: num, toman: { ...int, description: "the figure the customer was shown; 409 with a new quote when the rate moved" },
+      plan: obj({ plan: { type: "string", enum: ["pro", "max"] } as Schema, newOnly: bool, maxUsd: num }, ["plan"]),
+    }, ["account", "usd", "toman"]),
     response: obj({ order: PartnerOrder }),
   },
+  "GET /api/billing/partner/topups": { response: obj({ orders: arr(UnsettledOrder, "the storefront's orders with a gateway session and no credit yet, oldest first") }) },
   "GET /api/billing/partner/topups/{id}": { response: obj({ order: PartnerOrder }) },
   "POST /api/billing/partner/topups/{id}/authority": { body: obj({ authority: str("the gateway's session id") }, ["authority"]), response: obj({ order: PartnerOrder }) },
   "POST /api/billing/partner/topups/{id}/paid": {
