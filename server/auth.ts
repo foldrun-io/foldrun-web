@@ -712,8 +712,7 @@ export async function resolveTenant(req: NextRequest): Promise<AuthResult> {
     tenant: null,
     status: 401,
     message:
-      "missing API key (Authorization: Bearer fr_api_...). Set FOLDRUN_DEV_NO_AUTH=1 to allow " +
-      "unauthenticated local requests.",
+      "missing API key (Authorization: Bearer fr_api_...)",
   };
 }
 

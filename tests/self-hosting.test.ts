@@ -125,6 +125,8 @@ test("a fresh install: a new secret, this machine only, the stable version by na
   // The first account is tied to whoever ran this: a token in .env, and the link that carries it.
   assert.match(env.FOLDRUN_SETUP_TOKEN, /^[0-9a-f]{32}$/);
   assert.ok(r.out.includes(`/signup?setup=${env.FOLDRUN_SETUP_TOKEN}`), r.out);
+  // /api/healthz tells a stranger only "ok": the wait for the worker reads the rest with this token (L12).
+  assert.match(env.FOLDRUN_METRICS_TOKEN, /^[0-9a-f]{32}$/);
   assert.equal(env.COMPOSE_PROJECT_NAME, "foldrun");
   assert.equal(env.FOLDRUN_PUBLIC_URL, "http://localhost:3900");
   assert.equal(env.FOLDRUN_BIND, "127.0.0.1");

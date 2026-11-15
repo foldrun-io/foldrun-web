@@ -1,18 +1,23 @@
 // The probe. Unauthenticated by design — a load balancer holds no session —
-// and says nothing an outsider can use: ok, the git sha, this process's role,
-// and whether a worker is alive anywhere on this data directory. Depth and
-// ages live in /api/metrics, which says more and therefore asks for a key.
+// and so it says only `ok`. The release, this process's role and whether the
+// database, Redis and a worker answer go to a caller with a key, a session or
+// the scraper's token (server/probe-access.ts). Depth and ages live in
+// /api/metrics, which says more and therefore asks for the scraper's token.
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { healthDependencies } from "@/server/healthz";
+import { mayReadProbeDetail } from "@/server/probe-access";
 import { versionInfo } from "@/server/release";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   // Reported, never gated: healthz saying the database is down is how an
   // admin finds out, but refusing the probe would take the web tier out of
   // the load balancer for a dependency it can still serve most pages without.
+  // The status stays 200 for everyone, so a probe, a load balancer and the
+  // uptime check (which look for `"ok":true`) work as before.
+  if (!(await mayReadProbeDetail(req))) return NextResponse.json({ ok: true }, { headers: { "cache-control": "no-store" } });
   const { database, redis, workerAlive } = await healthDependencies();
   return NextResponse.json({
     ok: true,
