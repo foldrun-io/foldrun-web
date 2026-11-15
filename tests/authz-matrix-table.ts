@@ -54,6 +54,8 @@ export const TABLE: Row[] = [
   ["GET", "/api/account/export", "owner"],
   ["GET", "/api/account/flags", "viewer"],
   ["GET", "/api/account/jobs", "viewer"],
+  ["GET", "/api/account/beta", "viewer"],
+  ["PUT", "/api/account/beta", "admin wide"],
   ["GET", "/api/account/model", "viewer"],
   ["PUT", "/api/account/model", "admin wide"],
   ["DELETE", "/api/account/model", "admin wide"],
