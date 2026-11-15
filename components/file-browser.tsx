@@ -31,6 +31,7 @@ import {
   HardDrive,
   Link2,
   Mail,
+  ScanText,
   Share2,
   Trash2,
   Type,
@@ -87,6 +88,8 @@ const KIND_ICON: Record<FileKind, typeof FileIcon> = {
 };
 
 const base = (ws: string) => `/api/workspaces/${encodeURIComponent(ws)}/storage`;
+/** A .txt is already text: nothing to extract beside it. */
+const isText = (f: BrowserFile) => /\.txt$/i.test(f.path);
 const downloadHref = (f: BrowserFile) => `${base(f.workspace)}/download?path=${encodeURIComponent(f.path)}`;
 const inlineHref = (f: BrowserFile) => `${downloadHref(f)}&inline=1`;
 const keyOf = (f: { workspace: string; path: string }) => `${f.workspace}/${f.path}`;
@@ -336,6 +339,39 @@ export function FileBrowser({
   const pickFor = (desk: string, dir = "") => {
     pending.current = { desk, dir };
     picker.open();
+  };
+
+  // Its text, written beside it as <file>.txt (POST …/storage/extract): a
+  // long one answers 202 and is polled until it is done.
+  const extract = async (f: BrowserFile) => {
+    setBusy(`extract:${keyOf(f)}`);
+    try {
+      const r = await fetch(`/api/workspaces/${encodeURIComponent(f.workspace)}/storage/extract`, { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ path: f.path, write: true, wait: 20 }) });
+      let j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error ?? `extracting text failed (${r.status})`);
+      if (r.status === 202) {
+        setToast(`Reading ${f.path.split("/").pop()} — this can take a few minutes`);
+        // Up to an hour, polled every 3 s; a job lasts at most a few hours,
+        // and its .txt still lands if this stops looking.
+        for (let tries = 0; ; tries++) {
+          if (tries >= 1200) throw new Error("still reading — the .txt appears beside the file when it is done");
+          await new Promise((done) => setTimeout(done, 3000));
+          const p = await fetch(`/api/extract/${encodeURIComponent(j.id)}`, { headers, cache: "no-store" });
+          const s = await p.json().catch(() => ({}));
+          if (!p.ok) throw new Error(s.error ?? `extracting text failed (${p.status})`);
+          if (s.status === "running") continue;
+          if (s.status === "failed") throw new Error(s.error?.message ?? "extracting text failed");
+          j = { ...s.result, wrote: s.wrote };
+          break;
+        }
+      }
+      setToast(j.wrote ? `Text written to ${j.wrote}${j.truncated ? " (cut short)" : ""}` : "No text was written");
+      router.refresh();
+    } catch (err) {
+      setToast(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+    }
   };
 
   const remove = async (f: BrowserFile) => {
@@ -736,6 +772,13 @@ export function FileBrowser({
                   Stop sharing
                 </Button>
               )}
+              <Tooltip label={isText(current) ? "This is already text" : "Read its text — OCR, documents, speech — into a .txt file beside it"}>
+                <span className="inline-flex">
+                  <Button variant="secondary" size="md" disabled={isText(current) || busy === `extract:${keyOf(current)}`} onClick={() => void extract(current)}>
+                    <ScanText /> {busy === `extract:${keyOf(current)}` ? "Extracting…" : "Extract text"}
+                  </Button>
+                </span>
+              </Tooltip>
               <span className="ml-auto hidden text-xs text-fg-subtle sm:inline">
                 <kbd className="rounded border border-line px-1">←</kbd> <kbd className="rounded border border-line px-1">→</kbd> next file · <kbd className="rounded border border-line px-1">esc</kbd> close
               </span>

@@ -93,8 +93,6 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   "POST /api/billing/coding-plan": SEEN("billing/plans/coding-plan.tsx passes the method in"),
   "PATCH /api/billing/coding-plan": SEEN("billing/plans/coding-plan.tsx passes the method in (the extra-usage switch)"),
   "DELETE /api/billing/coding-plan": SEEN("billing/plans/coding-plan.tsx passes the method in"),
-  "POST /api/workspaces/[workspace]/storage/extract": "the dashboard's Extract text button (components/file-browser.tsx) waits for the owner's look on dev before it is pushed (12 Nov 2026); the CLI's `foldrun storage text` calls it meanwhile",
-  "GET /api/extract/[id]": "polled by the dashboard's Extract text button (components/file-browser.tsx), which waits for the owner's look on dev before it is pushed (12 Nov 2026); the CLI polls it meanwhile",
   "POST /api/extract": "a file sent whole from the caller's own machine (the CLI's `foldrun text`, a script); the dashboard extracts a file already in storage — Storage → a file → Extract text (POST …/storage/extract, components/file-browser.tsx)",
   "POST /api/workspaces/[workspace]/snapshots": "a folder from the caller's own machine, sent by the CLI or an AI app over MCP; a browser has no folder to send",
   "GET /api/account/api": SERVER("settings/page.tsx → apiFactsFor"),
