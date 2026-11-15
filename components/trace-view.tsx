@@ -6,10 +6,12 @@
 
 import { useEffect, useMemo, useState, type Ref, type UIEvent } from "react";
 import { Markdown } from "@/components/markdown";
-import { classify, counts, type TraceKind, type TraceLine } from "@/components/trace-model";
+import { CALL_CONTENT_NEEDS, callContentError, classify, counts, type TraceKind, type TraceLine } from "@/components/trace-model";
+import { useCan } from "@/components/role";
 import { fmtDur } from "@/components/run-timeline";
 import { hookBadge, HOOK_TONE } from "@/components/hooks-model";
 import { grouped } from "@/components/money";
+import { Tooltip } from "@foldrun/ui/react/tooltip";
 import { Segmented } from "@foldrun/ui/react/segmented";
 import { Chip, Tag } from "@foldrun/ui/react/page";
 
@@ -38,7 +40,7 @@ export function CallContent({ run, call, tenant }: { run: CallRun; call: string;
     fetch(`/api/workspaces/${encodeURIComponent(run.workspace)}/runs/${encodeURIComponent(run.runId)}/calls/${encodeURIComponent(call)}`, { headers: { "x-foldrun-tenant": tenant } })
       .then(async (r) => {
         const body = (await r.json().catch(() => ({}))) as { call?: object; error?: string };
-        if (live) setState(r.ok && body.call ? body.call : r.status === 502 ? "captured call unavailable" : body.error ?? `${r.status}`);
+        if (live) setState(r.ok && body.call ? body.call : callContentError(r.status, body.error));
       })
       .catch((err) => live && setState(String(err)));
     return () => {
@@ -75,6 +77,8 @@ export interface CallRun {
 function Row({ line, callRun, tenant }: { line: TraceLine; callRun?: CallRun; tenant: string }) {
   const [open, setOpen] = useState(false);
   const [io, setIo] = useState(false);
+  // Drawn but disabled for a viewer, with the reason on hover (components/role.tsx).
+  const mayReadCalls = useCan("workspace:write");
   const long = line.text.length > 180 || line.text.includes("\n");
   const mark = line.kind === "verify" && line.ok === false ? { icon: "✗", tone: "text-danger" } : MARK[line.kind];
   return (
@@ -113,10 +117,10 @@ function Row({ line, callRun, tenant }: { line: TraceLine; callRun?: CallRun; te
             </button>
             {line.call && callRun && (
               <>
-                <button type="button" aria-expanded={io} onClick={() => setIo((v) => !v)} className="text-xs font-medium text-fg-muted hover:text-fg hover:underline">
+                <Tooltip label={mayReadCalls ? "" : CALL_CONTENT_NEEDS}><span className="inline-flex"><button type="button" aria-expanded={io} disabled={!mayReadCalls} onClick={() => setIo((v) => !v)} className="text-xs font-medium text-fg-muted hover:text-fg hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-60">
                   {io ? "hide input / output" : "input / output"}
-                </button>
-                {io && <CallContent run={callRun} call={line.call} tenant={tenant} />}
+                </button></span></Tooltip>
+                {io && mayReadCalls && <CallContent run={callRun} call={line.call} tenant={tenant} />}
               </>
             )}
           </>

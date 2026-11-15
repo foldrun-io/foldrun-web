@@ -9,6 +9,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { buildTraceTree, failurePath, type TraceSpan } from "@/lib/trace-tree";
 import type { RunRecord } from "@/lib/store";
 import { CallContent, type CallRun } from "@/components/trace-view";
+import { CALL_CONTENT_NEEDS } from "@/components/trace-model";
+import { useCan } from "@/components/role";
 import { fmtDur } from "@/components/run-timeline";
 import { grouped } from "@/components/money";
 import { ChevronRight } from "lucide-react";
@@ -48,6 +50,8 @@ function Row({
   tenant: string;
 }) {
   const [io, setIo] = useState(false);
+  // Drawn but disabled for a viewer, with the reason on hover (components/role.tsx).
+  const mayReadCalls = useCan("workspace:write");
   const ref = useRef<HTMLDivElement>(null);
   const isOpen = open.has(span.id);
   const failing = span.id === culprit;
@@ -92,9 +96,9 @@ function Row({
           </Tooltip>
           {facts.length > 0 && <span className="shrink-0 truncate text-xs text-fg-subtle">{facts.join(" · ")}</span>}
           {span.kind === "tool" && span.captured && (
-            <button type="button" aria-expanded={io} onClick={() => setIo((v) => !v)} className="shrink-0 text-xs font-medium text-fg-muted hover:text-fg hover:underline">
+            <Tooltip label={mayReadCalls ? "" : CALL_CONTENT_NEEDS}><span className="inline-flex"><button type="button" aria-expanded={io} disabled={!mayReadCalls} onClick={() => setIo((v) => !v)} className="shrink-0 text-xs font-medium text-fg-muted hover:text-fg hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-60">
               {io ? "hide" : "input / output"}
-            </button>
+            </button></span></Tooltip>
           )}
           {dur !== null && span.kind !== "error" && <span className="ml-auto shrink-0 tabular-nums text-xs text-fg-subtle">{fmtDur(dur)}</span>}
         </div>
@@ -102,7 +106,7 @@ function Row({
           {span.start !== null && <div className={`absolute inset-y-0 rounded-sm ${TONE[span.status]}`} style={{ left: `${Math.min(99.4, left)}%`, width: `${Math.min(100 - Math.min(99.4, left), width)}%` }} />}
         </div>
       </div>
-      {io && span.call && (
+      {io && mayReadCalls && span.call && (
         <div style={{ paddingLeft: `${depth * 14 + 40}px` }} className="pr-2 pb-1">
           <CallContent run={callRun} call={span.call} tenant={tenant} />
         </div>
