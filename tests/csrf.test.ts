@@ -38,7 +38,7 @@ test("what it leaves alone: reads, Bearer requests, requests with no Origin, req
 test("sign-in routes check Origin even without a session cookie (login CSRF)", () => {
   const at = (path: string, headers: Record<string, string>) => ({ method: "POST", headers: new Headers(headers), url: `https://app.foldrun.io${path}` });
   const evil = { host: "app.foldrun.io", origin: "https://evil.example" };
-  for (const p of ["/api/auth/login", "/api/auth/signup", "/api/auth/reset", "/api/auth/forgot", "/api/auth/mfa/verify", "/api/cli/login", "/api/cli/authorize"]) {
+  for (const p of ["/api/auth/login", "/api/auth/login/code", "/api/auth/login/code/verify", "/api/auth/signup", "/api/auth/reset", "/api/auth/forgot", "/api/auth/mfa/verify", "/api/cli/login", "/api/cli/authorize"]) {
     assert.ok(crossSiteWrite(at(p, evil), undefined), p);
     assert.equal(crossSiteWrite(at(p, { host: "app.foldrun.io", origin: "https://app.foldrun.io" }), undefined), null, `${p} from ourselves`);
     assert.equal(crossSiteWrite(at(p, { host: "app.foldrun.io" }), undefined), null, `${p} with no Origin (curl, the CLI)`);

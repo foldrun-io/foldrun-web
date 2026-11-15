@@ -125,6 +125,8 @@ export const TABLE: Row[] = [
   ["POST", "/api/auth/email", "session"],
   ["POST", "/api/auth/forgot", "none", { ok: [200, 400, 429] }],
   ["POST", "/api/auth/login", "none", { ok: [400, 401, 429] }],
+  ["POST", "/api/auth/login/code", "none", { ok: [200, 400, 404, 429] }],
+  ["POST", "/api/auth/login/code/verify", "none", { ok: [400, 401, 404, 429] }],
   ["POST", "/api/auth/logout", "none"],
   ["POST", "/api/auth/mfa/disable", "session", { ok: [400, 401, 403] }],
   ["POST", "/api/auth/mfa/enable", "session"],

@@ -20,6 +20,7 @@ const SessionRow = obj({
   lastSeenAt: str(),
   expiresAt: str(),
   userAgent: nstr("the browser that signed in, as it said; null when it said nothing"),
+  method: str("how the person signed in: password or email-code (a session from before it was recorded reads as password)"),
   isCurrent: { ...bool, description: "the session making this request" },
 });
 
@@ -117,6 +118,19 @@ export const SHAPES: Record<string, Shape> = {
   },
   "POST /api/auth/login": {
     body: obj({ email: str(), password: str() }, ["email", "password"]),
+    response: obj({
+      ok: bool,
+      mfa: { ...bool, description: "true: a second factor is on — no session yet; send challenge and a code to POST /api/auth/mfa/verify" },
+      challenge: str("with mfa: the five-minute token POST /api/auth/mfa/verify takes"),
+      ...SignedIn,
+    }, ["ok"]),
+  },
+  "POST /api/auth/login/code": {
+    body: obj({ email: str() }, ["email"]),
+    response: obj({ ok: bool }, ["ok"]),
+  },
+  "POST /api/auth/login/code/verify": {
+    body: obj({ email: str(), code: str("the six digits from the mail, from the browser that asked for them") }, ["email", "code"]),
     response: obj({
       ok: bool,
       mfa: { ...bool, description: "true: a second factor is on — no session yet; send challenge and a code to POST /api/auth/mfa/verify" },

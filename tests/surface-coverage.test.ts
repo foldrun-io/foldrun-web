@@ -31,7 +31,7 @@ const NOT_IN_CLI: Record<string, string> = {
   "POST /api/oauth/handoff/[id]": "accepting a terminal-started connection is a signed-in person's, in the browser; the CLI opens the page (/api/oauth/start answers its URL)",
   ...Object.fromEntries(
     [
-      "POST /api/auth/email", "POST /api/auth/forgot", "POST /api/auth/login", "POST /api/auth/logout",
+      "POST /api/auth/email", "POST /api/auth/forgot", "POST /api/auth/login", "POST /api/auth/login/code", "POST /api/auth/login/code/verify", "POST /api/auth/logout",
       "POST /api/auth/mfa/disable", "POST /api/auth/mfa/enable", "POST /api/auth/mfa/setup", "POST /api/auth/mfa/verify",
       "POST /api/auth/password", "POST /api/auth/reset", "GET /api/auth/session",
       "GET /api/auth/sessions", "DELETE /api/auth/sessions", "POST /api/auth/signup",
@@ -119,6 +119,7 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   "GET /api/approve/[tenant]/[workspace]/[runId]": CALLBACK + "the signed approve link in an approval email; the run page approves through /runs/<id>/approve",
   "POST /api/approve/[tenant]/[workspace]/[runId]": CALLBACK + "the signed approve link in an approval email; the run page approves through /runs/<id>/approve",
   "POST /api/auth/login": SEEN("app/(auth)/auth-form.tsx"),
+  "POST /api/auth/login/code/verify": SEEN("app/(auth)/auth-form.tsx"),
   "POST /api/auth/signup": SEEN("app/(auth)/auth-form.tsx"),
   "GET /api/auth/verify": CALLBACK + "the link in a confirmation email",
   "GET /api/avatars/[kind]/[id]": SEEN("avatarUrl() as an <img> src"),
