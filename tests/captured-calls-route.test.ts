@@ -77,3 +77,21 @@ test("a call whose object is gone is a 502 that says so, not an empty 200", asyn
   assert.equal(res.status, 502);
   assert.match(((await res.json()) as { error: string }).error, /captured call unavailable/);
 });
+
+test("a call's content is for editors and above: a viewer key is refused, an editor key reads it", async () => {
+  on = true;
+  const step = {};
+  recordCallIo(ws, RUN, "c4", "Bash", { input: "i", output: "o" }, (s) => s, callSink(step, { tenant: TENANT, workspace: WS, runId: RUN, workspaceRoot: ws }));
+  await flushCalls(step);
+  const as = async (role: "viewer" | "editor") => {
+    const { key } = await createApiKey(TENANT, role, "owner@acme.test", undefined, role);
+    return route.GET(new NextRequest(`http://localhost/api/workspaces/${WS}/runs/${RUN}/calls/c4`, { headers: { authorization: `Bearer ${key}` } }), {
+      params: Promise.resolve({ workspace: WS, runId: RUN, callId: "c4" }),
+    });
+  };
+  const viewer = await as("viewer");
+  assert.equal(viewer.status, 403);
+  assert.ok(!JSON.stringify(await viewer.json()).includes('"output"'), "no content in the refusal");
+  assert.equal((await as("editor")).status, 200);
+  assert.equal((await get("c4")).status, 200, "an admin key");
+});
