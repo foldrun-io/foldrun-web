@@ -74,3 +74,15 @@ export function counts(lines: TraceLine[]): Record<TraceKind | "all", number> {
   for (const l of lines) c[l.kind]++;
   return c;
 }
+
+/** What a viewer reads in place of a recorded call's input/output: the calls
+ *  route needs workspace:write (they can hold what a tool read — customer data,
+ *  fragments a mask missed). Courtesy only; the server is what refuses. */
+export const CALL_CONTENT_NEEDS = "Call content is for editors and above";
+
+/** The line shown when reading a recorded call fails. */
+export function callContentError(status: number, serverMessage: string | undefined): string {
+  if (status === 403) return CALL_CONTENT_NEEDS;
+  if (status === 502) return "captured call unavailable";
+  return serverMessage ?? `${status}`;
+}
