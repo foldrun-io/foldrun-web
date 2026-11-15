@@ -58,7 +58,7 @@ export const ROUTES: RouteEntry[] = [
   {"path":"/api/billing/partner/plans","methods":["POST"],"summary":""},
   {"path":"/api/billing/partner/plans/offer","methods":["POST"],"summary":""},
   {"path":"/api/billing/partner/signups","methods":["POST"],"summary":"foldrun.ir only — { email, ip? } for a customer with no account: this platform mails email a sign-up link (/signup?link=…, seven days) and answers 202 { status: \"sent\" }; an address that already has a login answers 200 { status: \"exists\"…"},
-  {"path":"/api/billing/partner/topups","methods":["POST"],"summary":"foldrun.ir only. POST: { account, usd, toman, plan? } opens an order with the Toman figure locked for 30 minutes: 201 { order: { id, label, usd, toman, rial, tomanPerUsd, status, authority, refId, plan, planStatus, expiresAt, creditedAt …"},
+  {"path":"/api/billing/partner/topups","methods":["GET","POST"],"summary":"foldrun.ir only. POST: { account, usd, toman, plan? } opens an order with the Toman figure locked for 30 minutes: 201 { order: { id, label, usd, toman, rial, tomanPerUsd, status, authority, refId, plan, planStatus, expiresAt, creditedAt …"},
   {"path":"/api/billing/partner/topups/{id}","methods":["GET"],"summary":"foldrun.ir only — one of its orders; status pending, credited or failed"},
   {"path":"/api/billing/partner/topups/{id}/authority","methods":["POST"],"summary":"foldrun.ir only — { authority }, the Zarinpal session the customer is sent to. Once per order (409 for another; a retry is a new order)"},
   {"path":"/api/billing/partner/topups/{id}/failed","methods":["POST"],"summary":"foldrun.ir only — { reason }: the customer cancelled or the gateway refused. A credited order stays credited"},
