@@ -113,7 +113,7 @@ export const SHAPES: Record<string, Shape> = {
   },
   "GET /api/healthz": {
     response: obj({
-      ok: { ...bool, description: "always true — healthz reports, never gates" },
+      ok: { ...bool, description: "always true — healthz reports, never gates. Without a credential this is the whole answer; the fields below need a key, a session or the scraper's token" },
       version: str(), role: str("all | web | worker …, FOLDRUN_ROLE"),
       workerAlive: { ...bool, description: "a live worker holds the lease on this data directory (not: this process is it)" },
       database: { ...nullable(bool), description: "null with no database configured" },
@@ -234,6 +234,7 @@ export const SHAPES: Record<string, Shape> = {
     }),
   },
   "GET /api/version": {
+    // Without a credential only `version` and `api` are sent; the rest needs a key, a session or the scraper's token.
     response: obj({
       version: str("vYYYY.MM.DD.N, or dev"), released_at: nstr(), build: nstr(), api: str("the current API version, YYYY-MM-DD"),
       components: Components,

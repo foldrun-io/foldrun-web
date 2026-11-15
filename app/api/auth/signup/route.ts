@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
     // Checked before anything about the address, like the open-signup gate.
     const setupOk = setupTokenMatches(body.setup);
     if (!invited && (await setupTokenRequired()) && !setupOk) {
-      return refuse("this install's first account needs its setup link — open the one the installer printed (…/signup?setup=…), or read FOLDRUN_SETUP_TOKEN in the install's .env", 403);
+      return refuse("this install's first account needs its setup link — open the one the installer printed (…/signup?setup=…), or ask whoever runs this install for it", 403);
     }
     // A closed install refuses a stranger here, before the password's breach
     // lookup and scrypt: those ran first and the lock refused after, so with

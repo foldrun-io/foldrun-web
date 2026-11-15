@@ -17,12 +17,15 @@ process.env.FOLDRUN_RELEASE_FILE = file;
 delete process.env.FOLDRUN_VERSION;
 delete process.env.FOLDRUN_BUILD;
 delete process.env.FOLDRUN_RUNNER_ENGINES;
+// The scraper's token reads the full body (a stranger gets name + api only).
+process.env.FOLDRUN_METRICS_TOKEN = "version-test-scraper";
 
 const { NextRequest } = await import("next/server");
 const release = await import("../server/release.ts");
 const { GET: versionGET } = await import("../app/api/version/route.ts");
 const { GET: changelogGET } = await import("../app/api/changelog/route.ts");
 const { proxy } = await import("../proxy.ts");
+const authed = () => new NextRequest("http://localhost/api/version", { headers: { authorization: "Bearer version-test-scraper" } });
 
 const record = {
   version: "v2026.10.01.3",
@@ -85,7 +88,7 @@ test("a hosted build's sixth sha is foldrun-admin's; five or six parts, nothing 
 
 test("the deploy's file: version, date, components, packages", async () => {
   write(record);
-  const res = await versionGET();
+  const res = await versionGET(authed());
   assert.equal(res.status, 200);
   const body = await res.json();
   assert.equal(body.version, "v2026.10.01.3");
@@ -113,7 +116,7 @@ test("a file for another version than the rollout set is not believed about shas
 test("a broken file reads as no file, never a 500", async () => {
   fs.writeFileSync(file, "{ not json");
   release._resetReleaseCache();
-  const res = await versionGET();
+  const res = await versionGET(authed());
   assert.equal(res.status, 200);
   assert.equal((await res.json()).version, "dev");
 });
@@ -169,7 +172,7 @@ test("browsers: the engines the runner image was built with, as the deploy read 
   assert.equal(release.versionInfo().browsers, null, "unset: the deploy did not say");
   process.env.FOLDRUN_RUNNER_ENGINES = "chromium,chrome,chrome-beta,firefox,webkit,lightpanda,obscura";
   try {
-    const body = await (await versionGET()).json();
+    const body = await (await versionGET(authed())).json();
     assert.deepEqual(body.browsers, ["chromium", "chrome", "chrome-beta", "firefox", "webkit", "lightpanda", "obscura"]);
   } finally {
     delete process.env.FOLDRUN_RUNNER_ENGINES;
@@ -182,7 +185,7 @@ test("browser_versions: the dotted versions the deploy carried beside the names"
   assert.equal(release.versionInfo().browser_versions, null);
   process.env.FOLDRUN_RUNNER_ENGINES = "chromium,chrome=154.0.8037.58,firefox,lightpanda=0.4.1";
   try {
-    const body = await (await versionGET()).json();
+    const body = await (await versionGET(authed())).json();
     assert.deepEqual(body.browsers, ["chromium", "chrome", "firefox", "lightpanda"], "the names, versions or not");
     assert.deepEqual(body.browser_versions, { chrome: "154.0.8037.58", lightpanda: "0.4.1" });
   } finally {
@@ -211,13 +214,13 @@ test("healthz reports the same version as /api/version: the file's, when the rol
   const { GET: healthzGET } = await import("../app/api/healthz/route.ts");
   delete process.env.FOLDRUN_VERSION;
   write(record);
-  const health = (await (await healthzGET()).json()) as { version: string };
-  const version = (await (await versionGET()).json()) as { version: string };
+  const health = (await (await healthzGET(authed())).json()) as { version: string };
+  const version = (await (await versionGET(authed())).json()) as { version: string };
   assert.equal(health.version, "v2026.10.01.3");
   assert.equal(health.version, version.version);
   process.env.FOLDRUN_VERSION = "v2026.10.01.9";
   try {
-    assert.equal(((await (await healthzGET()).json()) as { version: string }).version, "v2026.10.01.9", "the rollout's name still wins");
+    assert.equal(((await (await healthzGET(authed())).json()) as { version: string }).version, "v2026.10.01.9", "the rollout's name still wins");
   } finally {
     delete process.env.FOLDRUN_VERSION;
   }
