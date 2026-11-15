@@ -73,7 +73,8 @@ export function summaries(apiMd) {
   const rows = new Map();
   for (const line of apiMd.split("\n")) {
     if (!line.startsWith("|")) continue;
-    const cells = line.split("|").map((c) => c.trim());
+    // A cell may hold an escaped pipe (`true \| false`): split on the others.
+    const cells = line.split(/(?<!\\)\|/).map((c) => c.trim().replace(/\\\|/g, "|"));
     const routeCell = (cells[1] ?? "").replace(/`/g, "").replace(/\?[^\s·]*/g, "");
     if (!routeCell.startsWith("/")) continue;
     const text = (cells[3] ?? "").replace(/`/g, "").replace(/\s+/g, " ").trim();
