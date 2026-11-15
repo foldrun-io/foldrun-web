@@ -111,7 +111,7 @@ const AccountModel = obj({
   provider: nstr("a preset name, custom, or null when no key is set"),
   baseUrl: nstr(), format: nstr("anthropic | openai"),
   keyHint: nstr("…and the key's last four characters"),
-  runsOn: str("account | platform | foldrun | none — what a step with no provider: runs on today"),
+  runsOn: str("account | platform | foldrun | subscription | none — what a step with no provider: runs on today (subscription: Claude, on the account's Claude Code plan)"),
   platformKeyAllowed: bool,
   source: str("own | foldrun — what the account chose: its own key, or foldrun's models"),
   supply: nstr("with source foldrun: anthropic | openai | gemini | deepseek | moonshot | zai | qwen | minimax | mimo"),

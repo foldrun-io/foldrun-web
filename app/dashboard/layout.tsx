@@ -33,6 +33,7 @@ import { StatusBanner } from "@/components/status-banner";
 import { statusPageUrl } from "@/server/status";
 import { AssistantDock } from "@/components/assistant";
 import { accountModelSupply } from "@/server/account-model";
+import { onSubscriptionNow } from "@/platform/model-choice";
 import { can } from "@/platform/permissions";
 
 
@@ -67,7 +68,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const plan = edition === "hosted" ? (billing().enabled() ? "Metered" : "Free") : null;
   // An account with no model key has every run refused (FOL-15). Said on
   // every page until it has one, and not dismissable: nothing else works.
-  const noModelKey = accountModelSupply(tenant) === "none";
+  // A plan bought a moment ago is read now, not at the next poll.
+  const noModelKey = accountModelSupply(tenant) === "none" && !(await onSubscriptionNow(tenant));
 
   // The version this page was rendered with: the sidebar shows it, and the
   // update notice compares /api/version against it.

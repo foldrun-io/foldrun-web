@@ -22,7 +22,7 @@ import { scopeAllows } from "@/platform/scope";
 import { can } from "@/platform/permissions";
 import { DEMO_WORKSPACE } from "@/platform/demo-workspace";
 import { installOrigin } from "@/server/auth-flows";
-import { describeAccountModel, modelPresetChoices } from "@/server/account-model";
+import { describeAccountModelNow, modelPresetChoices } from "@/server/account-model";
 import { foldrunModelsView } from "@/platform/model-choice";
 import { ModelKey } from "../settings/model-key";
 import { Page, PageHeader } from "@foldrun/ui/react/page";
@@ -75,7 +75,7 @@ export default async function Welcome({ searchParams }: { searchParams: Promise<
   const modelCard = flow.steps.some((s) => s.id === "model") ? (
     <ModelKey
       tenant={tenant}
-      initial={{ ...describeAccountModel(tenant), foldrunModels: await foldrunModelsView(tenant) }}
+      initial={{ ...(await describeAccountModelNow(tenant)), foldrunModels: await foldrunModelsView(tenant) }}
       presets={modelPresetChoices()}
       mayEdit={role === null || can(role, "secrets:write")}
     />

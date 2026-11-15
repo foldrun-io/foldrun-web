@@ -28,7 +28,7 @@ import { requireTenant, errorResponse, requireAccountWide, refuse } from "@/serv
 import { audit } from "@/server/audit";
 import { idempotent } from "@/server/idempotency";
 import { setSecret, deleteSecret } from "@/lib/secrets";
-import { describeAccountModel as describe } from "@/server/account-model";
+import { describeAccountModel as describe, describeAccountModelNow } from "@/server/account-model";
 import { ACCOUNT_MODEL_SECRETS, isClaudeLoginToken } from "@/lib/model-credential";
 import { providerPreset } from "@/lib/providers";
 import { platform, guardsUntrustedUrls } from "@/lib/platform";
@@ -41,7 +41,8 @@ const FORMATS = ["anthropic", "openai"] as const;
 
 /** Everything GET answers: the key, the choice, and foldrun's models. */
 async function view(tenant: string) {
-  return { ...describe(tenant), foldrunModels: await foldrunModelsView(tenant) };
+  // The plan read now: a plan bought a moment ago shows at once.
+  return { ...(await describeAccountModelNow(tenant)), foldrunModels: await foldrunModelsView(tenant) };
 }
 
 export async function GET(req: NextRequest) {

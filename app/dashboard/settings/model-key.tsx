@@ -90,6 +90,8 @@ export function ModelKey({
       ? fm.refused || !chosen?.available
         ? { label: "foldrun's models — refused", variant: "bad" as const, text: `${chosen?.title ?? model.supply}: ${fm.refused ?? chosen?.reason ?? "not available"}. Runs are refused until this is resolved or you switch to your own key.` }
         : { label: "foldrun's models", variant: "good" as const, text: `${chosen.title} · billed in credits at the price list` }
+      : model.runsOn === "subscription"
+      ? { label: "Claude subscription", variant: "good" as const, text: "Claude, on your Claude Code plan · counted in the plan's monthly and weekly limits, like your Claude Code" }
       : model.runsOn === "account"
       ? { label: "Your own key", variant: "good" as const, text: `${model.provider ?? "custom"} ${model.keyHint ?? ""} · ${model.baseUrl ?? ""}` }
       : model.runsOn === "platform"

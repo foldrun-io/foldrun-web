@@ -90,7 +90,6 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   "POST /api/billing/partner/plans/offer": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",
   "POST /api/billing/partner/signups": CALLBACK + "foldrun.ir's signed storefront calls (a sign-up link for a customer with no account); the person opens the account on /signup",
   "POST /api/billing/partner/plans": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",
-  "GET /api/billing/coding-plan": SERVER("billing/plans/page.tsx (the Claude Code plan card, foldrun.ir accounts) → codingPlanOffer and allowanceView, the functions the route calls"),
   "POST /api/billing/coding-plan": SEEN("billing/plans/coding-plan.tsx passes the method in"),
   "PATCH /api/billing/coding-plan": SEEN("billing/plans/coding-plan.tsx passes the method in (the extra-usage switch)"),
   "DELETE /api/billing/coding-plan": SEEN("billing/plans/coding-plan.tsx passes the method in"),
