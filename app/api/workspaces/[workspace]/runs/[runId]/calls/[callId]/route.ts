@@ -3,14 +3,16 @@
 // store), not in its record, so the run itself stays light. A workspace with `capture: metadata` records none.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, errorResponse, refuse } from "@/server/api";
+import { requirePermission, errorResponse, refuse } from "@/server/api";
 import { readRun } from "@/lib/store";
 import { readCapturedCallAsync, CapturedCallUnavailable } from "@/lib/captured-calls";
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: string; runId: string; callId: string }> }) {
   try {
     const { workspace, runId, callId } = await ctx.params;
-    const tenant = await requireTenant(req);
+    // Inputs and outputs can hold what a tool read or was handed — fragments a
+    // mask missed, customer data — so a viewer, who sees the run, does not read them.
+    const { tenant } = await requirePermission(req, "workspace:write");
     if (!readRun(tenant, workspace, runId)) return refuse("run not found", 404);
     const call = await readCapturedCallAsync(tenant, workspace, runId, callId);
     if (!call) return refuse(`no recorded content for call "${callId}" — it was not captured (capture: metadata, or a run from before 19 Oct 2026)`, 404);
