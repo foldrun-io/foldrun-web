@@ -7,7 +7,7 @@
 // the way a run resolves them.
 
 import path from "node:path";
-import { workspaceDir } from "@/lib/store";
+import { workspaceDir, isEditablePath } from "@/lib/store";
 import { checkFiles, isSourcePath, TreeTooLarge } from "@/lib/deploy";
 import { checkOptions, checkTree, checkWorkspace } from "@/lib/workspace-check";
 import type { ScanFinding } from "@/lib/scan";
@@ -31,7 +31,10 @@ export function saveCheck(tenant: string, workspace: string, raw: string, conten
   // The spelling the writer stores (`./flows/x.md` is flows/x.md), so the
   // file checked is the file written (Codex review).
   const rel = path.posix.normalize(raw.replaceAll("\\", "/")).replace(/^(\.\/)+/, "");
-  if (!isSourcePath(rel)) return [];
+  // A path the writer will refuse has nothing to check: staging it for the
+  // checks failed on a NUL or a long name with a 500, before the writer's own
+  // 400 could say what was wrong.
+  if (!isSourcePath(rel) || !isEditablePath(rel)) return [];
   let tree;
   try {
     tree = checkTree(workspaceDir(tenant, workspace)).filter((f) => f.path !== rel);
