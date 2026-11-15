@@ -12,6 +12,7 @@ import { listSecrets } from "@/lib/secrets";
 import { readBundle } from "@/lib/okf";
 import { linkableDocs } from "@/lib/linkable";
 import { discoverSkills } from "@/lib/runner";
+import { platform } from "@/lib/platform";
 import type { Vocabulary } from "@/lib/completions";
 import { configMatter } from "@/lib/matter";
 import { parseProvider, accountDir } from "@/lib/store";
@@ -64,6 +65,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
     for (const base of [dir, libraryDir(tenant)]) {
       for (const s of discoverSkills(base)) skills.add(s.name);
     }
+    // The platform's gallery skills: in every account, granted by name.
+    const gallery = platform.galleryDir();
+    if (gallery) for (const s of discoverSkills(gallery)) skills.add(s.name);
     for (const agent of agents) {
       for (const s of discoverSkills(path.join(dir, "agents", agent))) skills.add(s.name);
     }

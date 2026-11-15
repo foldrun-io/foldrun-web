@@ -147,8 +147,8 @@ export default async function LibraryPage({
   // what the platform ships. An install is a copy; this is the only place
   // that says when the copy has fallen behind.
   const drift = new Map(
-    kind === "tools"
-      ? entries.map((e) => [e.path, galleryDrift(e.path, (rel) => (libraryFileExists(tenant, "tools", rel) ? readLibraryFile(tenant, "tools", rel) : null))] as const)
+    kind === "tools" || kind === "skills"
+      ? entries.map((e) => [e.path, galleryDrift(e.path, (rel) => (libraryFileExists(tenant, kind, rel) ? readLibraryFile(tenant, kind, rel) : null), kind)] as const)
       : [],
   );
   const tenantParam = tenant !== "default" ? `&tenant=${tenant}` : "";

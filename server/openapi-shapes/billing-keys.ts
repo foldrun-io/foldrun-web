@@ -439,15 +439,15 @@ export const SHAPES: Record<string, Shape> = {
     response: obj({
       tools: arr(obj({
         name: str(),
-        kind: str("scripts | tools — the library shelf it installs onto"),
+        kind: str("scripts | tools | skills — the library shelf it installs onto"),
         title: str(), description: str(),
-        files: arr(obj({ kind: str("scripts | tools"), file: str(), content: str() }), "definition and program, whole"),
+        files: arr(obj({ kind: str("scripts | tools | skills"), file: str(), content: str() }), "definition and program (a skill: SKILL.md and its references), whole"),
         installed: { type: ["string", "null"], description: "current | differs — this account's copy; null when not installed (always null for a script)" },
       })),
     }),
   },
   "POST /api/library/gallery": {
-    body: obj({ tool: str("a gallery tool's name") }, ["tool"]),
+    body: obj({ tool: str("a gallery tool's or skill's name") }, ["tool"]),
     response: obj({ ok: bool, path: str() }),
   },
   "GET /api/oauth/callback": {

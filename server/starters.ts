@@ -26,7 +26,7 @@ export function startingFiles(
     const lang = SCRIPT_LANGUAGES.find((l) => l.value === language)?.value;
     return toolStarter(name, from as "http" | "script" | "mcp", lang as ScriptLanguage | undefined);
   }
-  if (from && (kind === "tools" || kind === "scripts")) {
+  if (from && (kind === "tools" || kind === "scripts" || kind === "skills")) {
     const seed = galleryTemplate(kind, from, name);
     // An unknown seed falls back to the blank one: the name is what they
     // actually asked for. A folder tool seeds more than one file.

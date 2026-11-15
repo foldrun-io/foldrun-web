@@ -6,22 +6,23 @@ import { idempotent } from "@/server/idempotency";
 import { jsonObject, optionalString } from "@/server/body";
 
 /**
- * The gallery itself: every tool the platform ships to every account, whole
- * — definition and program — and whether this account keeps its own copy.
+ * The gallery itself: every tool and skill the platform ships to every
+ * account, whole — definition and program, or SKILL.md and its references —
+ * and whether this account keeps its own copy.
  * The CLI lays it down on a laptop so `foldrun run` finds `web` and
  * the rest the way a run on the platform does, without installing anything.
  */
 export async function GET(req: NextRequest) {
   try {
     const tenant = await requireTenant(req);
-    const read = (rel: string) => (libraryFileExists(tenant, "tools", rel) ? readLibraryFile(tenant, "tools", rel) : null);
+    const reader = (kind: "tools" | "skills") => (rel: string) => (libraryFileExists(tenant, kind, rel) ? readLibraryFile(tenant, kind, rel) : null);
     const tools = GALLERY.map((t) => ({
       name: t.name,
       kind: t.kind,
       title: t.title,
       description: t.description,
       files: galleryFiles(t),
-      installed: t.kind === "tools" ? (galleryDrift(t.file, read)?.status ?? null) : null,
+      installed: t.kind === "tools" || t.kind === "skills" ? (galleryDrift(t.file, reader(t.kind), t.kind)?.status ?? null) : null,
     }));
     return NextResponse.json({ tools });
   } catch (err) {
