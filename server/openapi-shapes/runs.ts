@@ -61,7 +61,7 @@ export const SHAPES: Record<string, Shape> = {
           agent: str(),
           path: str("relative to that agent's outputs/"),
           bytes: int,
-          reason: str("file-cap | run-cap | name | count"),
+          reason: str("file-cap | run-cap | name | count | unsafe"),
           limit: int,
         }),
         "files that were NOT kept (over the install's size limits for run outputs, or a name that cannot be stored), at most 100; empty when none",
