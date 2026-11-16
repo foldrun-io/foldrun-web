@@ -247,6 +247,29 @@ test("at most six code mails an hour per address: the seventh browser gets the s
   assert.equal(mails.length - before, 6);
 });
 
+test("one caller spending an address's six mails does not stop the owner's own request; all callers together stop at thirty", opts, async () => {
+  process.env.FOLDRUN_TRUST_PROXY = "1";
+  try {
+    const w = await world();
+    const p = await w.person("lim");
+    const from = async (ip: string) => {
+      const b = w.browser();
+      const res = await w.request.POST(new w.NextRequest("http://x/api/auth/login/code", { ...json({ email: p.email }, b.cookie), headers: { "content-type": "application/json", cookie: b.cookie, "x-forwarded-for": ip } }));
+      await Promise.all([...w.request.inflight]);
+      return res.status;
+    };
+    const before = mails.length;
+    for (let i = 0; i < 8; i++) assert.equal(await from("203.0.113.9"), 200);
+    assert.equal(mails.length - before, 6, "the stranger's seventh and eighth send nothing");
+    assert.equal(await from("198.51.100.7"), 200);
+    assert.equal(mails.length - before, 7, "the owner, from another address, is still mailed");
+    for (let i = 0; i < 30; i++) await from(`192.0.2.${i + 1}`);
+    assert.ok(mails.length - before <= 30, "no more than thirty in an hour, whoever asks");
+  } finally {
+    delete process.env.FOLDRUN_TRUST_PROXY;
+  }
+});
+
 test("a second factor is still asked after the code, and the session records the code as the way in", opts, async () => {
   const w = await world();
   const p = await w.person("i");
