@@ -10,10 +10,12 @@ QUALITY_DIR=$(cd "$(dirname "$0")" && pwd)
 # shellcheck disable=SC1091
 . "$QUALITY_DIR/.state/env"
 IMAGE=${QUALITY_ZAP_IMAGE:-zaproxy/zap-stable}
-out="$QUALITY_DIR/.state/zap"
+# QUALITY_DAST_URL scans another origin; QUALITY_DAST_NAME keeps its report
+# apart (.state/zap-<name>, which run.sh keeps with the others).
+out="$QUALITY_DIR/.state/zap${QUALITY_DAST_NAME:+-$QUALITY_DAST_NAME}"
 mkdir -p "$out" && chmod 777 "$out"
 docker run --rm --network host -v "$out:/zap/wrk:rw" -v "$QUALITY_DIR/zap-rules.tsv:/zap/wrk/rules.tsv:ro" "$IMAGE" \
-  zap-baseline.py -t "$QUALITY_URL" -c rules.tsv -r report.html -J report.json -m 3 -I
+  zap-baseline.py -t "${QUALITY_DAST_URL:-$QUALITY_URL}" -c rules.tsv -r report.html -J report.json -m 3 -I
 python3 - "$out/report.json" "$QUALITY_DIR/zap-rules.tsv" <<'PY'
 import json, sys
 r = json.load(open(sys.argv[1]))

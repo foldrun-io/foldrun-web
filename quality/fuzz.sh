@@ -21,7 +21,7 @@ log="$QUALITY_DIR/.state/fuzz.log"
 docker run --rm --network host "$IMAGE" run "$QUALITY_URL/api/openapi.json" \
   --header "Authorization: Bearer $QUALITY_TOKEN" \
   --checks not_a_server_error,response_schema_conformance,status_code_conformance \
-  --exclude-path-regex '^/api/(keys|account|team|auth|me/mfa|admin|billing)' \
+  --exclude-path-regex "${QUALITY_FUZZ_EXCLUDE:-^/api/(keys|account|team|auth|me/mfa|admin|billing)}" \
   --exclude-method DELETE \
   --max-examples "${1:-25}" \
   --request-timeout 30 \

@@ -13,6 +13,17 @@
 # their parent, as for any self-host build from source). Writes
 # quality/.state/env: QUALITY_URL, QUALITY_TOKEN, QUALITY_EMAIL,
 # QUALITY_PASSWORD, QUALITY_ACCOUNT.
+#
+# A variant of this stack (another edition built from the same checkouts)
+# lays its own pieces over it, without a copy of this script:
+#
+#   QUALITY_COMPOSE_EXTRA  more Compose files, space-separated absolute
+#                          paths, laid over the three below (`-f` each)
+#   QUALITY_ENV_EXTRA      a file whose lines are added to compose.env
+#                          (the variables those files read)
+#   QUALITY_AFTER_UP       a script run once the first account and its key
+#                          exist, before the fixture is deployed; it gets
+#                          QUALITY_DIR and may add lines to .state/env
 set -euo pipefail
 QUALITY_DIR=$(cd "$(dirname "$0")" && pwd)
 SELF=$(cd "$QUALITY_DIR/../self-hosting" && pwd)
@@ -30,8 +41,11 @@ compose() {
   env -i PATH="$PATH" HOME="$HOME" ${DOCKER_HOST:+DOCKER_HOST="$DOCKER_HOST"} ${DOCKER_CONFIG:+DOCKER_CONFIG="$DOCKER_CONFIG"} \
     QUALITY_DIR="$QUALITY_DIR" ${QUALITY_MODEL_URL:+QUALITY_MODEL_URL="$QUALITY_MODEL_URL"} \
     docker compose -p "$PROJECT" --env-file "$STATE/compose.env" \
-    -f "$SELF/docker-compose.yml" -f "$SELF/docker-compose.build.yml" -f "$QUALITY_DIR/compose.quality.yml" "$@"
+    -f "$SELF/docker-compose.yml" -f "$SELF/docker-compose.build.yml" -f "$QUALITY_DIR/compose.quality.yml" \
+    "${EXTRA[@]+"${EXTRA[@]}"}" "$@"
 }
+EXTRA=()
+for f in ${QUALITY_COMPOSE_EXTRA:-}; do EXTRA+=(-f "$f"); done
 
 up() {
   mkdir -p "$STATE"
@@ -46,6 +60,7 @@ FOLDRUN_SETUP_TOKEN=$setup
 FOLDRUN_BIND=127.0.0.1
 FOLDRUN_CONCURRENCY=${QUALITY_CONCURRENCY:-4}
 ENV
+  [ -z "${QUALITY_ENV_EXTRA:-}" ] || cat "$QUALITY_ENV_EXTRA" >> "$STATE/compose.env"
   chmod 600 "$STATE/compose.env"
   compose up -d --build --wait --wait-timeout 900
   for _ in $(seq 1 180); do
@@ -75,6 +90,8 @@ QUALITY_PASSWORD=$password
 QUALITY_ACCOUNT=$account
 ENV
   chmod 600 "$STATE/env"
+  [ -z "${QUALITY_AFTER_UP:-}" ] || QUALITY_DIR="$QUALITY_DIR" bash "$QUALITY_AFTER_UP" \
+    || { echo "quality: $QUALITY_AFTER_UP failed" >&2; exit 1; }
   # The workspace every suite runs against, deployed the way a user does
   # (the published CLI) — so any one suite can run on its own.
   docker run --rm --network host -e FOLDRUN_URL="$URL" -e FOLDRUN_TOKEN="$token" -e NO_COLOR=1 \

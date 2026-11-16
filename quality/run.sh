@@ -7,7 +7,9 @@
 #
 # Suites: e2e, races, chaos, fuzz, dast, browser, leak, load:<smoke|load|stress|spike|soak>.
 # Starts the stack, runs each suite, always stops the stack, exits 1 if any
-# failed, and prints one line per suite at the end.
+# failed, and prints one line per suite at the end. A variant of the stack
+# (stack.sh says how) may bring suites of its own: QUALITY_SUITES_EXTRA is a
+# folder of more <suite>.sh, used where this one has no such file.
 set -uo pipefail
 QUALITY_DIR=$(cd "$(dirname "$0")" && pwd)
 case "${1:-push}" in
@@ -32,7 +34,11 @@ for s in "$@"; do
   case "$s" in
     load:*) docker run --rm --network host -e QUALITY_URL -e QUALITY_TOKEN -e "QUALITY_WS=${QUALITY_WS:-quality-load}" -e "PROFILE=${s#load:}" \
               -v "$QUALITY_DIR/load.k6.js:/q/load.k6.js:ro" grafana/k6:latest run --quiet /q/load.k6.js ;;
-    *) bash "$QUALITY_DIR/$s.sh" ;;
+    # <name> or <name>:<argument> (QUALITY_SUITE_ARG), from here or the variant's folder.
+    *) name=${s%%:*}; arg=${s#"$name"}; arg=${arg#:}
+       if [ -f "$QUALITY_DIR/$name.sh" ]; then QUALITY_SUITE_ARG="$arg" bash "$QUALITY_DIR/$name.sh"
+       elif [ -n "${QUALITY_SUITES_EXTRA:-}" ] && [ -f "$QUALITY_SUITES_EXTRA/$name.sh" ]; then QUALITY_DIR="$QUALITY_DIR" QUALITY_SUITE_ARG="$arg" bash "$QUALITY_SUITES_EXTRA/$name.sh"
+       else echo "no suite named $s"; false; fi ;;
   esac
   rc=$?
   results+=("$( [ $rc = 0 ] && echo PASS || echo FAIL ) $s ($((SECONDS - start))s)")
@@ -41,7 +47,7 @@ done
 [ "$fail" = 0 ] || bash "$QUALITY_DIR/stack.sh" logs 150
 # Reports outlive the stack (CI keeps them); never the env files with keys.
 mkdir -p "$QUALITY_DIR/reports"
-cp -r "$QUALITY_DIR/.state/zap" "$QUALITY_DIR/.state/fuzz.log" "$QUALITY_DIR/reports/" 2>/dev/null || true
+cp -r "$QUALITY_DIR"/.state/zap* "$QUALITY_DIR/.state/fuzz.log" "$QUALITY_DIR/reports/" 2>/dev/null || true
 printf '%s\n' "${results[@]}" > "$QUALITY_DIR/reports/summary.txt"
 echo; echo "=== quality summary"; printf '%s\n' "${results[@]}"
 exit $fail
