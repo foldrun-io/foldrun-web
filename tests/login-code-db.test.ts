@@ -19,6 +19,7 @@ const url = process.env.FOLDRUN_TEST_DATABASE_URL;
 const opts = { skip: url ? false : "set FOLDRUN_TEST_DATABASE_URL to run against Postgres" };
 process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-login-code-"));
 process.env.FOLDRUN_SKIP_BREACH_CHECK = "1";
+process.env.FOLDRUN_CODE_FAIL_FLOOR_MS = "0"; // the floor has its own test; 100 guesses at 250 ms is 25 s
 process.env.FOLDRUN_OPEN_SIGNUP = "1";
 process.env.FOLDRUN_RESEND_API_KEY = "re_test_login_code";
 if (url) {
@@ -167,6 +168,37 @@ test("five wrong guesses spend the code; the right one then fails; every failure
   const noCookie = await w.answer(unverified.email, "123456", { cookie: "" });
   failures.push([noCookie.status, await noCookie.json()]);
   for (const f of failures) assert.deepEqual(f, [401, { error: w.codes.CODE_FAILED }]);
+});
+
+test("every refusal takes at least the floor: an unknown address, a wrong guess and a spent code alike", opts, async () => {
+  const w = await world();
+  const p = await w.person("f");
+  const b = w.browser();
+  await w.ask(p.email, b);
+  const code = w.codeFrom(p.email)!;
+  const wrong = code === "000000" ? "111111" : "000000";
+  process.env.FOLDRUN_CODE_FAIL_FLOOR_MS = "120";
+  try {
+    const timed = async (email: string, c: string, br: { cookie: string }) => {
+      const t0 = performance.now();
+      const r = await w.answer(email, c, br);
+      return [r.status, performance.now() - t0] as const;
+    };
+    const cases = [
+      await timed("nobody@nowhere.test", wrong, b), // unknown
+      await timed(p.email, wrong, b), // wrong guess at a live code
+      await timed(p.email, wrong, w.browser()), // known, no code for this browser
+      await timed(p.email, "12", { cookie: "" }), // no challenge at all
+    ];
+    for (const [status, ms] of cases) {
+      assert.equal(status, 401);
+      assert.ok(ms >= 115, `a refusal answered in ${ms.toFixed(1)} ms, under the 120 ms floor`);
+    }
+    // The right code still signs in under the floor.
+    assert.equal((await w.answer(p.email, code, b)).status, 200);
+  } finally {
+    process.env.FOLDRUN_CODE_FAIL_FLOOR_MS = "0";
+  }
 });
 
 test("a code expires after ten minutes, and a new one waits 30 seconds", opts, async () => {

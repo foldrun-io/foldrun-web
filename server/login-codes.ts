@@ -151,6 +151,27 @@ export type Verdict =
  *  the run of wrong codes cleared. Wrong: counted. The caller answers every
  *  `ok: false` with CODE_FAILED; the reason is for the log only. */
 export async function verifyCode(email: string, code: string, challenge: string, now = Date.now()): Promise<Verdict> {
+  const started = performance.now();
+  const v = await checkCode(email, code, challenge, now);
+  if (!v.ok) {
+    const wait = failFloorMs() - (performance.now() - started);
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  }
+  return v;
+}
+
+/** Every refusal takes at least this long (ms), whatever it cost to reach:
+ *  an unknown address, a spent, missing or locked code and a wrong guess do
+ *  different amounts of database work, and a floor above all of them is what
+ *  keeps the time from saying which it was (ASVS 6.3.8; Codex, 16 Nov 2026).
+ *  Tests lower it with FOLDRUN_CODE_FAIL_FLOOR_MS. */
+const failFloorMs = () => {
+  const raw = process.env.FOLDRUN_CODE_FAIL_FLOOR_MS?.trim();
+  const n = raw ? Number(raw) : NaN;
+  return Number.isFinite(n) && n >= 0 ? n : 250;
+};
+
+async function checkCode(email: string, code: string, challenge: string, now: number): Promise<Verdict> {
   const e = normEmail(email);
   const c = String(code ?? "").replace(/\s/g, "");
   const bound = CHALLENGE.test(challenge) ? challenge : "";
@@ -161,13 +182,16 @@ export async function verifyCode(email: string, code: string, challenge: string,
   }
   const binding = sha(bound);
   return tx(async (t): Promise<Verdict> => {
+    // One lock per address, held to the end of the transaction, known or not:
+    // the users row lock below exists only for a known address, so without
+    // this, parallel guesses would queue for a real one and not for a made-up
+    // one (Codex, 16 Nov 2026).
+    await t.execute(sql`select pg_advisory_xact_lock(hashtext(${"login-code:" + e}))`);
     const [u] = await t.select().from(usersTable).where(sql`lower(${usersTable.email}) = ${e}`).for("update").limit(1);
     if (!u) {
-      // The same two reads a known address makes (users, then login_codes),
-      // so an unknown one does not answer a query sooner (Codex, 16 Nov 2026,
-      // ASVS 6.3.8). The wrong-code writes stay a difference, but they need
-      // a real challenge, which needs a code mailed to the real person.
-      await t.select({ id: loginCodes.id }).from(loginCodes).where(and(eq(loginCodes.userId, ""), eq(loginCodes.binding, binding))).limit(1);
+      // The same reads a known address makes; the time floor in verifyCode
+      // covers the writes a wrong guess makes and a spent code does not.
+      await t.select().from(loginCodes).where(and(eq(loginCodes.userId, ""), eq(loginCodes.binding, binding))).limit(1);
       codeDigest("none", bound, c.slice(0, 12));
       return { ok: false, reason: "no such address" };
     }
