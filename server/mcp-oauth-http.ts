@@ -6,6 +6,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { rateLimit } from "@/platform/cache";
 import { OAuthError } from "./mcp-oauth.ts";
 import { clientIp } from "./limits.ts";
+import { reportError } from "./api.ts";
 
 /** The two open endpoints, per address: registering is rare (an app does it
  *  once), exchanging is a few calls an hour per connection. Over it, OAuth's
@@ -35,11 +36,36 @@ export function oauthJson(body: unknown, status = 200): NextResponse {
   return NextResponse.json(body, { status, headers: { ...OPEN_CORS, "cache-control": "no-store", pragma: "no-cache" } });
 }
 
+/**
+ * The body of a token or revocation request as the form RFC 6749 names:
+ * form-encoded, or a JSON object (its string fields). JSON that does not
+ * parse, or parses to anything but an object (`null`, `[]`, `7`), is the
+ * caller's mistake — invalid_request, 400 — not a TypeError's 500 (FOL-199:
+ * the hosted fuzz run found the token endpoint answering 500).
+ */
+export async function oauthForm(req: NextRequest): Promise<URLSearchParams> {
+  const type = req.headers.get("content-type") ?? "";
+  const raw = await req.text();
+  if (!type.includes("application/json")) return new URLSearchParams(raw);
+  let o: unknown;
+  try {
+    o = JSON.parse(raw || "{}");
+  } catch {
+    throw new OAuthError("invalid_request", "the body is not valid JSON");
+  }
+  if (o === null || typeof o !== "object" || Array.isArray(o)) throw new OAuthError("invalid_request", "the body must be a JSON object, or form-encoded");
+  return new URLSearchParams(Object.entries(o).filter(([, v]) => typeof v === "string") as [string, string][]);
+}
+
 export function oauthError(err: unknown): NextResponse {
   if (err instanceof OAuthError) {
     const headers: Record<string, string> = { ...OPEN_CORS, "cache-control": "no-store" };
     if (err.status === 401) headers["www-authenticate"] = 'Basic realm="foldrun"';
     return NextResponse.json({ error: err.code, error_description: err.message }, { status: err.status, headers });
   }
-  return NextResponse.json({ error: "server_error", error_description: err instanceof Error ? err.message : String(err) }, { status: 500, headers: OPEN_CORS });
+  // Anything else is ours: logged with its frames (reportError), and the
+  // caller gets OAuth's shape with the same words every other route's 500
+  // gives — never the error's own message, which may quote what it read.
+  const { status, message } = reportError(err);
+  return NextResponse.json({ error: status >= 500 ? "server_error" : "invalid_request", error_description: message }, { status, headers: OPEN_CORS });
 }

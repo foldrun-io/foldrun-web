@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { actorOf, errorResponse, requirePermission, refuse } from "@/server/api";
+import { jsonObject } from "@/server/body";
 import { createShare, listShares, maskToken, readerSeesToken, revokeShare, shareId, shareUrl, tokenForShareId } from "@/platform/shares.ts";
 import { can } from "@/platform/permissions";
 import { idempotent } from "@/server/idempotency";
@@ -14,12 +15,15 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
   try {
     const { workspace } = await ctx.params;
     const tenant = (await requirePermission(req, "workspace:write")).tenant;
-    const body = (await req.json().catch(() => ({}))) as {
-      path?: string;
-      ttlDays?: number | null;
-    };
-    if (!body.path) {
+    // A JSON object (an empty body reads as {} and is refused for its path
+    // below), its path a string and ttlDays a number or null (FOL-199: a
+    // `null` body, a numeric path or a string ttlDays answered 500).
+    const body = await jsonObject(req, { optional: true });
+    if (typeof body.path !== "string" || !body.path) {
       return refuse("expected { path } — the file to share", 400);
+    }
+    if (body.ttlDays !== undefined && body.ttlDays !== null && (typeof body.ttlDays !== "number" || !Number.isFinite(body.ttlDays))) {
+      return refuse("ttlDays is a number of days, or null for a link that does not expire", 400);
     }
 
     // Refuse before creating anything if this install cannot say where it is
@@ -32,7 +36,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     }
 
     const share = await createShare(tenant, workspace, body.path, {
-      ttlDays: body.ttlDays,
+      ttlDays: body.ttlDays as number | null | undefined,
       // Who made it is the caller, as the storage routes record it — not a
       // name the request body chose (every CLI share read "api-key", and any
       // caller could write anyone's name).

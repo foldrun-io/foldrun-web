@@ -6,7 +6,7 @@
 import type { NextRequest } from "next/server";
 import { publicOrigin } from "@/server/auth-flows";
 import { tokenRequest } from "@/server/mcp-oauth";
-import { oauthError, oauthJson, openLimit, preflight } from "@/server/mcp-oauth-http";
+import { oauthError, oauthForm, oauthJson, openLimit, preflight } from "@/server/mcp-oauth-http";
 
 export const dynamic = "force-dynamic";
 
@@ -14,15 +14,7 @@ export async function POST(req: NextRequest) {
   try {
     const slow = await openLimit(req, "token");
     if (slow) return slow;
-    const type = req.headers.get("content-type") ?? "";
-    const raw = await req.text();
-    let form: URLSearchParams;
-    if (type.includes("application/json")) {
-      const o = JSON.parse(raw || "{}") as Record<string, unknown>;
-      form = new URLSearchParams(Object.entries(o).filter(([, v]) => typeof v === "string") as [string, string][]);
-    } else {
-      form = new URLSearchParams(raw);
-    }
+    const form = await oauthForm(req);
     return oauthJson(await tokenRequest(form, req.headers.get("authorization"), publicOrigin(req)));
   } catch (err) {
     return oauthError(err);

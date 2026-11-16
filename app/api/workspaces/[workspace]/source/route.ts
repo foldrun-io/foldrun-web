@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { flushRevisions, readWorkspaceFileVia } from "@/lib/workspace-revisions";
 import { requireTenant, errorResponse, actorOf, requirePermission, refuse } from "@/server/api";
+import { jsonObject } from "@/server/body";
 import { createHash } from "node:crypto";
 import { readWorkspaceFile, writeWorkspaceFile, deleteWorkspacePath, listWorkspaceFiles, renameWorkspaceFile, assertEditablePath } from "@/lib/store";
 import { saveCheck } from "@/server/checks";
@@ -36,10 +37,13 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ workspace: 
     // that, not what the body should have looked like.
     await requirePermission(req, "workspace:write");
     const { workspace } = await ctx.params;
-    const body = (await req.json()) as { path?: string; content?: string; message?: string; ifMatch?: unknown; check?: unknown };
-    if (!body.path || typeof body.content !== "string") {
+    // A JSON object, its path a string (FOL-199: a number reached the store
+    // and core threw ERR_INVALID_ARG_TYPE, a 500).
+    const raw = await jsonObject(req);
+    if (typeof raw.path !== "string" || !raw.path || typeof raw.content !== "string") {
       return refuse("expected { path, content, message?, ifMatch?, check? }", 400);
     }
+    const body = raw as { path: string; content: string; message?: unknown; ifMatch?: unknown; check?: unknown };
     const { tenant, actor } = await requirePermission(req, "workspace:write");
     // Every await before the check, so nothing lands between the check and
     // the synchronous write below (Codex review, FOL-112).
@@ -108,10 +112,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
     // that, not what the body should have looked like.
     await requirePermission(req, "workspace:write");
     const { workspace } = await ctx.params;
-    const body = (await req.json()) as { from?: string; to?: string };
-    if (!body.from || !body.to) {
+    const raw = await jsonObject(req);
+    if (typeof raw.from !== "string" || typeof raw.to !== "string" || !raw.from || !raw.to) {
       return refuse("expected { from, to }", 400);
     }
+    const body = raw as { from: string; to: string };
     const { tenant, actor } = await requirePermission(req, "workspace:write");
     // A file moved arrives with whatever it holds: moved into flows/ with
     // `a2a:`, it is as much a publication as writing it there
@@ -156,8 +161,9 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ workspac
     // that, not what the body should have looked like.
     await requirePermission(req, "workspace:write");
     const { workspace } = await ctx.params;
-    const body = (await req.json()) as { path?: string };
-    if (!body.path) return refuse("expected { path }", 400);
+    const raw = await jsonObject(req);
+    if (typeof raw.path !== "string" || !raw.path) return refuse("expected { path }", 400);
+    const body = raw as { path: string };
     const { tenant, actor } = await requirePermission(req, "workspace:write");
     const by = await actorOf(req);
     // Removing a file can widen too: AGENTS.md's hooks: or network:, or an

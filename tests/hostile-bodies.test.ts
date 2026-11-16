@@ -1,0 +1,118 @@
+// Bodies of the wrong shape through the real routes (FOL-199, 16 Nov 2026):
+// the hosted fuzz run (Schemathesis) found PATCH …/source, POST …/shares and
+// POST /api/mcp/oauth/token answering 500 for JSON that parses but is not
+// what the route reads — `null`, an array, a number where a path goes, a
+// ttlDays no date can hold — and malformed JSON logged as an internal error.
+// Each is the caller's mistake: a 4xx that says so, never a 500.
+//
+//   node --import ./tests/register.mjs --test tests/hostile-bodies.test.ts
+
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+const BASE = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-hostile-bodies-"));
+process.env.FOLDRUN_DATA = path.join(BASE, "data");
+process.env.FOLDRUN_PUBLIC_URL = "https://foldrun.test";
+delete process.env.FOLDRUN_DEV_NO_AUTH;
+process.env.FOLDRUN_DISABLE_WORKER = "1";
+process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
+
+const { NextRequest } = await import("next/server");
+const { createApiKey } = await import("../server/auth.ts");
+const { errorStatus } = await import("../server/api.ts");
+type Ctx = { params: Promise<Record<string, string>> };
+type H = (req: InstanceType<typeof NextRequest>, ctx: Ctx) => Promise<Response>;
+const mod = async (p: string) => (await import(p)) as Record<string, H>;
+const source = await mod("../app/api/workspaces/[workspace]/source/route.ts");
+const shares = await mod("../app/api/workspaces/[workspace]/shares/route.ts");
+const token = await mod("../app/api/mcp/oauth/token/route.ts");
+const revoke = await mod("../app/api/mcp/oauth/revoke/route.ts");
+
+const TENANT = "acme";
+const WS = "desk";
+const ws = path.join(process.env.FOLDRUN_DATA, TENANT, "workspaces", WS);
+fs.mkdirSync(path.join(ws, "knowledge"), { recursive: true });
+fs.mkdirSync(path.join(ws, "storage"), { recursive: true });
+fs.writeFileSync(path.join(ws, "AGENTS.md"), `---\nname: ${WS}\n---\n`);
+fs.writeFileSync(path.join(ws, "knowledge", "a.md"), "# a\n");
+fs.writeFileSync(path.join(ws, "storage", "report.md"), "# report\n");
+
+const { key } = await createApiKey(TENANT, "test", "owner@acme.test", undefined, "admin");
+const params = (p: Record<string, string>): Ctx => ({ params: Promise.resolve(p) });
+let ip = 0;
+const send = (method: string, url: string, body: string, auth = true) =>
+  new NextRequest(`http://localhost${url}`, {
+    method,
+    body,
+    headers: {
+      "content-type": "application/json",
+      // A fresh address per call: the open OAuth endpoints are rate-limited per address.
+      "x-forwarded-for": `198.51.100.${(ip++ % 250) + 1}`,
+      ...(auth ? { authorization: `Bearer ${key}` } : {}),
+    },
+  });
+
+// JSON that parses to something other than the object a route reads, and
+// JSON that does not parse at all.
+const SHAPES = ["null", "[]", "7", '"x"', "true", "{not json", '{"a":'];
+
+async function never500(label: string, res: Promise<Response>) {
+  const r = await res;
+  assert.ok(r.status < 500, `${label}: ${r.status} ${await r.text()}`);
+  assert.ok(r.status >= 400, `${label}: expected a refusal, got ${r.status}`);
+}
+
+test("source PUT, PATCH and DELETE refuse a body of the wrong shape with a 400, never a 500", async () => {
+  const at = params({ workspace: WS });
+  const url = `/api/workspaces/${WS}/source`;
+  for (const b of SHAPES) {
+    await never500(`PUT ${b}`, source.PUT(send("PUT", url, b), at));
+    await never500(`PATCH ${b}`, source.PATCH(send("PATCH", url, b), at));
+    await never500(`DELETE ${b}`, source.DELETE(send("DELETE", url, b), at));
+  }
+  // Fields of the wrong type: a number where a path goes reached core and
+  // threw ERR_INVALID_ARG_TYPE.
+  await never500("PUT path:7", source.PUT(send("PUT", url, JSON.stringify({ path: 7, content: "x" })), at));
+  await never500("PATCH from:7", source.PATCH(send("PATCH", url, JSON.stringify({ from: 7, to: "knowledge/b.md" })), at));
+  await never500("PATCH to:{}", source.PATCH(send("PATCH", url, JSON.stringify({ from: "knowledge/a.md", to: {} })), at));
+  await never500("PATCH to:[]", source.PATCH(send("PATCH", url, JSON.stringify({ from: "knowledge/a.md", to: ["x"] })), at));
+  await never500("DELETE path:true", source.DELETE(send("DELETE", url, JSON.stringify({ path: true })), at));
+  assert.ok(fs.existsSync(path.join(ws, "knowledge", "a.md")), "nothing was moved or removed");
+  // The right shape still works.
+  const ok = await source.PATCH(send("PATCH", url, JSON.stringify({ from: "knowledge/a.md", to: "knowledge/b.md" })), at);
+  assert.equal(ok.status, 200, await ok.text());
+  assert.ok(fs.existsSync(path.join(ws, "knowledge", "b.md")));
+});
+
+test("shares POST refuses a body of the wrong shape, a non-string path and a ttlDays no date holds", async () => {
+  const url = `/api/workspaces/${WS}/shares`;
+  for (const at of [params({ workspace: WS }), params({ workspace: "0" })]) {
+    for (const b of SHAPES) await never500(`POST ${b}`, shares.POST(send("POST", url, b), at));
+    await never500("path:7", shares.POST(send("POST", url, JSON.stringify({ path: 7 })), at));
+    await never500("ttlDays:'x'", shares.POST(send("POST", url, JSON.stringify({ path: "storage/report.md", ttlDays: "x" })), at));
+    await never500("ttlDays:1e20", shares.POST(send("POST", url, JSON.stringify({ path: "storage/report.md", ttlDays: 1e20 })), at));
+  }
+  const ok = await shares.POST(send("POST", url, JSON.stringify({ path: "storage/report.md", ttlDays: 2 })), params({ workspace: WS }));
+  assert.equal(ok.status, 200, await ok.text());
+  const forever = await shares.POST(send("POST", url, JSON.stringify({ path: "storage/report.md", ttlDays: null })), params({ workspace: WS }));
+  assert.equal(((await forever.json()) as { expiresAt: string | null }).expiresAt, null);
+});
+
+test("the MCP OAuth token and revocation endpoints answer invalid_request for JSON that is not an object", async () => {
+  for (const [name, route] of [["token", token], ["revoke", revoke]] as const) {
+    for (const b of SHAPES) {
+      const r = await route.POST(send("POST", `/api/mcp/oauth/${name}`, b, false), params({}));
+      assert.ok(r.status >= 400 && r.status < 500, `${name} ${b}: ${r.status}`);
+      const j = (await r.json()) as { error: string };
+      assert.ok(typeof j.error === "string" && j.error !== "server_error", `${name} ${b}: ${JSON.stringify(j)}`);
+    }
+  }
+});
+
+test("malformed JSON is the caller's 400, not an internal error", () => {
+  const out = errorStatus(new SyntaxError("Unexpected token } in JSON"));
+  assert.deepEqual(out, { status: 400, message: "malformed JSON", internal: false });
+});

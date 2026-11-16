@@ -35,6 +35,7 @@ const OAuthRevoked: Schema = {
   },
 };
 import { GROUP_SHAPES } from "./openapi-shapes/index.ts";
+import { jsonOnly } from "./csrf.ts";
 
 /** Routes that carry their own proof (a token in the URL, a signature) or
  *  none at all — everything else takes the bearer key or the session. */
@@ -713,7 +714,26 @@ const EXTRA_STATUSES: Record<string, string[]> = {
   // sender retries.
   "POST /api/hooks/{tenant}/{workspace}/{flow}": ["503"],
   "POST /api/inbox/{tenant}/{workspace}/{flow}": ["503"],
+  // Found by the hosted fuzz run (FOL-199, 16 Nov 2026), each by design:
+  // no saved OAuth client, gallery tool or workspace by the name in the body.
+  "POST /api/oauth/start": ["404"],
+  "POST /api/oauth/device": ["404"],
+  "POST /api/library/gallery": ["404"],
+  "GET /api/me/onboarding": ["404"],
+  // The flow is not a webhook flow (requireWebhookFlow).
+  "GET /api/workspaces/{workspace}/hooks/{flow}": ["409"],
+  // No frame from the agent's browser yet: nothing to show.
+  "GET /api/workspaces/{workspace}/runs/{runId}/live": ["204"],
+  // The run has already ended.
+  "POST /api/workspaces/{workspace}/runs/{runId}/stop": ["409"],
+  // A mail that cannot be unsubscribed from (409); a spent token (410).
+  "POST /api/unsubscribe": ["409", "410"],
 };
+
+/** Open routes whose credential is a signature or a signed token in the
+ *  request (a storefront's HMAC, Stripe's signature, an unsubscribe token):
+ *  a missing or forged one is a 401 (FOL-199). */
+const SIGNED_OPEN = [/^\/api\/billing\/partner\//, /^\/api\/billing\/stripe$/, /^\/api\/unsubscribe$/];
 
 /** Operations whose credential is not the general rule's (a bearer API key
  *  or a session, refused 401/403): the credential it takes, and the
@@ -764,7 +784,11 @@ export function openapiDocument(origin?: string): Schema {
           ...(params.length ? { "404": { $ref: "#/components/responses/Error" } } : {}),
           // An open route that carries a token in its path refuses a bad one.
           ...(open && params.length ? { "401": { $ref: "#/components/responses/Error" } } : {}),
-          ...Object.fromEntries((EXTRA_STATUSES[`${method} ${r.path}`] ?? []).map((c) => [c, { $ref: "#/components/responses/Error" }])),
+          ...Object.fromEntries((EXTRA_STATUSES[`${method} ${r.path}`] ?? []).map((c) => [c, c === "204" ? { description: "Nothing to send" } : { $ref: "#/components/responses/Error" }])),
+          ...(open && SIGNED_OPEN.some((x) => x.test(r.path)) ? { "401": { $ref: "#/components/responses/Error" } } : {}),
+          // The sign-in writes take JSON only; the proxy answers any other
+          // type 415 (server/csrf.ts jsonOnly — the same test, so the two agree).
+          ...(jsonOnly({ method, headers: new Headers(), url: `http://local${r.path}` }) ? { "415": { $ref: "#/components/responses/Error" } } : {}),
           "429": { $ref: "#/components/responses/RateLimited" },
           ...(IDEMPOTENT_ROUTES.has(`${method} ${r.path}`) ? { "422": { $ref: "#/components/responses/Error" } } : {}),
         },

@@ -337,7 +337,11 @@ export function errorStatus(err: unknown): { status: number; message: string; in
       if (code === "ENOENT" || code === "ENOTDIR") return { status: 404, message: "not found", internal: true };
       return { status: 500, message: "something went wrong on our side", internal: true };
     }
-    if (err instanceof SyntaxError) return { status: 400, message: "malformed JSON", internal: true };
+    // A body that does not parse (req.json()) is the caller's mistake: a 400
+    // with fixed words — never the parser's message, which quotes the body —
+    // and not an api.internal_error in the log (FOL-199: the hosted fuzz run
+    // filled the log with them).
+    if (err instanceof SyntaxError) return { status: 400, message: "malformed JSON", internal: false };
     if (err instanceof TypeError || err instanceof RangeError || err instanceof ReferenceError) {
       return { status: 500, message: "something went wrong on our side", internal: true };
     }
