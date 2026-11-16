@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError, errorResponse, requireCaller, sessionUser } from "@/server/api";
+import { jsonObject } from "@/server/body";
 import { findUser, findUserById, setUserPrefs, type UserRecord } from "@/server/users";
 import { isTheme, themePreference, THEME_PREF, THEMES } from "@/components/theme-model";
 import { checkRunViews, runViewsOf, RUN_VIEWS_PREF } from "@/components/run-views-model";
@@ -42,8 +43,10 @@ export async function PATCH(req: NextRequest) {
   try {
     const user = await person(req);
     if (user instanceof NextResponse) return user;
-    const body = (await req.json().catch(() => null)) as { theme?: unknown; runViews?: unknown } | null;
-    if (!body || (!("theme" in body) && !("runViews" in body))) throw new ApiError(`expected { theme: ${THEMES.join(" | ")} } and/or { runViews: [{ name, query }] }`, 400);
+    // A body that is not a JSON object (a bare -481, an array) is a 400:
+    // `in` on a number threw a TypeError, a 500 (FOL-199, hosted fuzz).
+    const body = (await jsonObject(req, { optional: true })) as { theme?: unknown; runViews?: unknown };
+    if (!("theme" in body) && !("runViews" in body)) throw new ApiError(`expected { theme: ${THEMES.join(" | ")} } and/or { runViews: [{ name, query }] }`, 400);
     const patch: Record<string, unknown> = {};
     if ("theme" in body) {
       if (!isTheme(body.theme)) throw new ApiError(`theme is one of ${THEMES.join(", ")}`, 400);

@@ -8,6 +8,7 @@ import { idempotent } from "@/server/idempotency";
 import { accountDir } from "@/lib/store";
 import { checkFiles } from "@/lib/deploy";
 import { noteAccountFilesChanged } from "@/lib/workspace-revisions";
+import { jsonObject } from "@/server/body";
 
 // The account's own AGENTS.md, the whole file — the shared context and
 // defaults every agent in every workspace reads (cloudhost, 11 Nov 2026: a CI
@@ -45,7 +46,8 @@ async function putOnce(req: NextRequest) {
     const { tenant, actor } = await requireAccountWide(req, "workspace:manage");
     let body: { content?: unknown; ifMatch?: unknown; message?: unknown };
     try {
-      body = await req.json();
+      // Only a JSON object: `null` reached body.content, a 500 (FOL-199).
+      body = await jsonObject(req);
     } catch {
       return refuse("send { content } as JSON", 400);
     }

@@ -34,6 +34,9 @@ const cliLogin = await mod("../app/api/cli/login/route.ts");
 const oauthClients = await mod("../app/api/oauth/clients/route.ts");
 const { tooManyAttempts } = await import("../server/limits.ts");
 const { openapiDocument } = await import("../server/openapi.ts");
+const prefs = await mod("../app/api/me/preferences/route.ts");
+const agentsMd = await mod("../app/api/account/agents-md/route.ts");
+const { createUser } = await import("../server/users.ts");
 
 const TENANT = "acme";
 const WS = "desk";
@@ -158,4 +161,23 @@ test("the document lists the statuses the fuzz found, and /api/mcp refuses in JS
   assert.ok(doc.components.responses.RpcError);
   // Every other route keeps the API's own { error }.
   assert.equal(doc.paths["/api/workspaces"].post.responses["400"].$ref, "#/components/responses/Error");
+});
+
+// The third hosted fuzz run (43840533439): PATCH /api/me/preferences with a
+// bare -481 (`in` on a number); the same review found PUT
+// /api/account/agents-md reading body.content of `null`.
+test("PATCH /api/me/preferences and PUT /api/account/agents-md refuse a body that is not a JSON object", async () => {
+  // A person (preferences are a person's), with a key of their own.
+  await createUser("owner@prefs.test", "Qz8-vmT2-plx9-Wr4k-hst", "prefs-co", { request: "free" });
+  const own = (await createApiKey("prefs-co", "test", "owner@prefs.test", undefined, "admin")).key;
+  const as = (method: string, url: string, body: string) =>
+    new NextRequest(`http://localhost${url}`, { method, body, headers: { "content-type": "application/json", authorization: `Bearer ${own}`, "x-forwarded-for": `198.51.100.${(ip++ % 250) + 1}` } });
+  for (const b of [...SHAPES, "-481"]) {
+    await never500(`preferences ${b}`, prefs.PATCH(as("PATCH", "/api/me/preferences", b), params({})));
+    await never500(`agents-md ${b}`, agentsMd.PUT(as("PUT", "/api/account/agents-md", b), params({})));
+  }
+  const ok = await prefs.PATCH(as("PATCH", "/api/me/preferences", JSON.stringify({ theme: "dark" })), params({}));
+  const text = await ok.text();
+  assert.equal(ok.status, 200, text);
+  assert.equal((JSON.parse(text) as { theme: string }).theme, "dark");
 });
