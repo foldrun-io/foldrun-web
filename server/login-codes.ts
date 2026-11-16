@@ -43,6 +43,9 @@ export const MAX_WRONG = 5;
 /** Wrong guesses in a row, across codes, that lock code sign-in (NIST 800-63B's ceiling). */
 export const LOCK_AFTER = 100;
 export const LOCK_MS = 15 * 60_000;
+/** A run of wrong codes is forgotten once the last wrong one is this old, so
+ *  a trickle of guesses over weeks never adds up to a lock. */
+export const RUN_WINDOW_MS = 60 * 60_000;
 /** Live codes one person may have at once (a browser each); past it nothing new is issued. */
 export const MAX_LIVE = 8;
 
@@ -219,18 +222,19 @@ async function checkCode(email: string, code: string, challenge: string, now: nu
     if (good) {
       // A spent row stays (no digest, expired now) until its 30 s throttle ends.
       await t.update(loginCodes).set({ digest: "", expiresAt: new Date(now) }).where(where);
-      await t.update(usersTable).set({ codeFailedRun: 0, codeLockedUntil: null }).where(eq(usersTable.id, u.id));
+      await t.update(usersTable).set({ codeFailedRun: 0, codeFailedAt: null, codeLockedUntil: null }).where(eq(usersTable.id, u.id));
       return { ok: true, userId: u.id };
     }
-    const run = u.codeFailedRun + 1;
+    const live = u.codeFailedAt != null && now - u.codeFailedAt.getTime() <= RUN_WINDOW_MS;
+    const run = (live ? u.codeFailedRun : 0) + 1;
     if (run >= LOCK_AFTER) {
       await t.update(loginCodes).set({ digest: "", expiresAt: new Date(now) }).where(eq(loginCodes.userId, u.id));
-      await t.update(usersTable).set({ codeFailedRun: 0, codeLockedUntil: new Date(now + LOCK_MS) }).where(eq(usersTable.id, u.id));
+      await t.update(usersTable).set({ codeFailedRun: 0, codeFailedAt: null, codeLockedUntil: new Date(now + LOCK_MS) }).where(eq(usersTable.id, u.id));
       return { ok: false, reason: "locked" };
     }
     const wrong = row.wrong + 1;
     await t.update(loginCodes).set(wrong >= MAX_WRONG ? { wrong, digest: "", expiresAt: new Date(now) } : { wrong }).where(where);
-    await t.update(usersTable).set({ codeFailedRun: run }).where(eq(usersTable.id, u.id));
+    await t.update(usersTable).set({ codeFailedRun: run, codeFailedAt: new Date(now) }).where(eq(usersTable.id, u.id));
     return { ok: false, reason: "wrong" };
   });
 }
