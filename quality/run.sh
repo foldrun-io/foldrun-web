@@ -16,10 +16,10 @@
 set -uo pipefail
 QUALITY_DIR=$(cd "$(dirname "$0")" && pwd)
 case "${1:-push}" in
-  push) set -- e2e races leak load:smoke browser ;;
+  push) set -- visual e2e races leak load:smoke browser ;;
   # Fuzz last: it sends random writes to every route, and anything it
   # changes (a pause, a setting) must not decide a later suite.
-  all)  set -- e2e races leak load:smoke browser chaos load:load load:spike load:stress e2e dast fuzz ;;
+  all)  set -- visual e2e races leak load:smoke browser chaos load:load load:spike load:stress e2e dast fuzz ;;
 esac
 # Torn down however this ends — a finished run, a failed one, or Ctrl-C
 # (Codex review: an interrupted run left a stack whose next start failed).
