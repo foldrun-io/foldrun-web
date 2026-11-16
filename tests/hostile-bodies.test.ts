@@ -37,6 +37,7 @@ const { openapiDocument } = await import("../server/openapi.ts");
 const prefs = await mod("../app/api/me/preferences/route.ts");
 const agentsMd = await mod("../app/api/account/agents-md/route.ts");
 const { createUser } = await import("../server/users.ts");
+const deployRoute = await mod("../app/api/workspaces/[workspace]/deploy/route.ts");
 
 const TENANT = "acme";
 const WS = "desk";
@@ -180,4 +181,28 @@ test("PATCH /api/me/preferences and PUT /api/account/agents-md refuse a body tha
   const text = await ok.text();
   assert.equal(ok.status, 200, text);
   assert.equal((JSON.parse(text) as { theme: string }).theme, "dark");
+});
+
+// The fourth hosted fuzz run (43860037381): POST …/deploy with a file path
+// that names a folder ("", ".", "knowledge/") reached open() — EISDIR, a 500.
+test("POST …/deploy answers 400 for a path that names no file or is also a folder, never a 500", async () => {
+  const url = `/api/workspaces/${WS}/deploy`;
+  const good = [{ path: "AGENTS.md", content: `---\nname: ${WS}\n---\n` }, { path: "knowledge/a.md", content: "# a\n" }];
+  for (const bad of ["", ".", "./", "knowledge/", "knowledge", "x/", "a/../knowledge"]) {
+    for (const dryRun of [false, true]) {
+      const r = await deployRoute.POST(send("POST", url, JSON.stringify({ files: [...good, { path: bad, content: "x" }], dryRun })), params({ workspace: WS }));
+      const text = await r.text();
+      assert.equal(r.status, 400, `${JSON.stringify(bad)} dryRun:${dryRun}: ${r.status} ${text}`);
+      assert.match(text, /name no file/);
+    }
+  }
+  assert.ok(fs.existsSync(path.join(ws, "AGENTS.md")), "the workspace is untouched");
+});
+
+test("the document lists 202 (async) and 409 (already running) for an eval run", () => {
+  const doc = openapiDocument() as { paths: Record<string, Record<string, { responses: Record<string, { $ref?: string; content?: unknown }> }>> };
+  const op = doc.paths["/api/workspaces/{workspace}/evals/{evalName}/run"].post.responses;
+  assert.ok(op["200"] && op["202"] && op["409"]);
+  assert.equal(op["202"].$ref, undefined, "202 is a success with its own body, not a refusal");
+  assert.ok(op["202"].content);
 });

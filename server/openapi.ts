@@ -738,6 +738,18 @@ const EXTRA_STATUSES: Record<string, string[]> = {
   "POST /api/workspaces/{workspace}/runs/{runId}/stop": ["409"],
   // A mail that cannot be unsubscribed from (409); a spent token (410).
   "POST /api/unsubscribe": ["409", "410"],
+  // { async: true } answers 202 at once (21 Oct 2026); that eval already
+  // running is a 409 naming the run to poll (FOL-199, hosted fuzz).
+  "POST /api/workspaces/{workspace}/evals/{evalName}/run": ["202", "409"],
+};
+
+/** The success statuses in EXTRA_STATUSES, which are not refusals. */
+const EXTRA_SUCCESS: Record<string, Schema> = {
+  "204": { description: "Nothing to send" },
+  "202": {
+    description: "Started — poll GET …/run?run=<runId> for the result",
+    content: { "application/json": { schema: obj({ started: bool, eval: str(), runId: str(), startedAt: str() }, ["started", "runId"]) } },
+  },
 };
 
 /** Open routes whose credential is a signature or a signed token in the
@@ -796,7 +808,7 @@ export function openapiDocument(origin?: string): Schema {
           ...(params.length ? { "404": E } : {}),
           // An open route that carries a token in its path refuses a bad one.
           ...(open && params.length ? { "401": E } : {}),
-          ...Object.fromEntries((EXTRA_STATUSES[`${method} ${r.path}`] ?? []).map((c) => [c, c === "204" ? { description: "Nothing to send" } : E])),
+          ...Object.fromEntries((EXTRA_STATUSES[`${method} ${r.path}`] ?? []).map((c) => [c, EXTRA_SUCCESS[c] ?? E])),
           ...(open && SIGNED_OPEN.some((x) => x.test(r.path)) ? { "401": E } : {}),
           // The sign-in writes take JSON only; the proxy answers any other
           // type 415 (server/csrf.ts jsonOnly — the same test, so the two agree).
