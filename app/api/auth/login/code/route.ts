@@ -56,8 +56,10 @@ export async function POST(req: NextRequest) {
     later(async () => {
       if (ip && !(await rateLimit(`login-code:ip:${ip}`, PER_IP.limit, PER_IP.windowSec)).allowed) return;
       if (!(await rateLimit(`login-code:addr:${email}`, PER_ADDRESS.limit, PER_ADDRESS.windowSec)).allowed) return;
-      if (!(await rateLimit("login-code:sends", INSTALL.limit, INSTALL.windowSec)).allowed) return;
-      await requestCode(email, challenge);
+      // The install-wide cap is charged only for a real account (inside
+      // requestCode, after the lookup): an address nobody holds never spends
+      // it, so one client cannot use it up with made-up ones.
+      await requestCode(email, challenge, Date.now(), async () => (await rateLimit("login-code:sends", INSTALL.limit, INSTALL.windowSec)).allowed);
     });
     const res = NextResponse.json({ ok: true });
     res.cookies.set(CHALLENGE_COOKIE, challenge, {

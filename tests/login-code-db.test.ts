@@ -280,3 +280,27 @@ test("without a mail credential the two routes answer 404 and the page hides the
   }
   assert.equal(w.codes.codeSignInAvailable(), true);
 });
+
+test("the install-wide mail budget is spent by real accounts only: an unknown or unverified address never asks for it, and a refused budget leaves no usable code", opts, async () => {
+  const w = await world();
+  const p = await w.person("g");
+  const b = w.browser();
+  let asked = 0;
+  const budget = (answer: boolean) => async () => {
+    asked++;
+    return answer;
+  };
+  assert.equal(await w.codes.requestCode("nobody@nowhere.test", b.challenge, Date.now(), budget(true)), "not sent");
+  const unverified = await w.person("h", false);
+  assert.equal(await w.codes.requestCode(unverified.email, b.challenge, Date.now(), budget(true)), "not sent");
+  assert.equal(asked, 0, "made-up and unverified addresses do not touch the budget");
+  // Out of budget: nothing mailed, and the code that was made cannot sign anyone in.
+  const t0 = Date.now();
+  assert.equal(await w.codes.requestCode(p.email, b.challenge, t0, budget(false)), "not sent");
+  assert.equal(asked, 1);
+  assert.equal(w.codeFrom(p.email), null, "no mail left");
+  assert.deepEqual((await w.codes.verifyCode(p.email, "000000", b.challenge, t0 + 40_000)).ok, false);
+  // With budget the next request (after the 30 s throttle) is mailed and works.
+  assert.equal(await w.codes.requestCode(p.email, b.challenge, t0 + 31_000, budget(true)), "sent");
+  assert.deepEqual(await w.codes.verifyCode(p.email, w.codeFrom(p.email)!, b.challenge, t0 + 40_000), { ok: true, userId: p.user.id });
+});
