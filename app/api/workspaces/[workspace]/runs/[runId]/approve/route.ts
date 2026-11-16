@@ -14,6 +14,7 @@ import { errorResponse, requirePermission, ApiError } from "@/server/api";
 import { decideApproval, deliverEvent } from "@/lib/approvals";
 import { readRun } from "@/lib/store";
 import { idempotent } from "@/server/idempotency";
+import { jsonObject } from "@/server/body";
 
 async function postOnce(
   req: NextRequest,
@@ -22,7 +23,7 @@ async function postOnce(
   try {
     const { workspace, runId } = await ctx.params;
     const { tenant, actor } = await requirePermission(req, "run:start");
-    const body = (await req.json().catch(() => ({}))) as {
+    const body = (await jsonObject(req, { optional: true })) as {
       decision?: unknown;
       reason?: string;
       note?: string;

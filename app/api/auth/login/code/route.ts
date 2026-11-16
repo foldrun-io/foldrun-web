@@ -18,6 +18,7 @@ import { refuseNonText } from "@/server/auth-input";
 import { opsError } from "@/lib/ops-log.ts";
 import { CHALLENGE, CHALLENGE_COOKIE, CODE_MS, codeSignInAvailable, newChallenge, requestCode } from "@/server/login-codes";
 import { sessionCookieOptions } from "@/server/users";
+import { jsonObject } from "@/server/body";
 
 const EMAIL = /^[^@\s:,]+@[^@\s:,]+\.[^@\s:,]+$/;
 /** Codes mailed per address, per caller, and in all, an hour. Over any of them
@@ -44,7 +45,7 @@ function later(work: () => Promise<void>): void {
 export async function POST(req: NextRequest) {
   try {
     if (!codeSignInAvailable()) return refuse("signing in with an emailed code is not available on this install", 404);
-    const body = (await req.json().catch(() => ({}))) as { email?: string };
+    const body = (await jsonObject(req, { optional: true })) as { email?: string };
     const notText = refuseNonText(body, "email");
     if (notText) return notText;
     const email = (body.email ?? "").trim().toLowerCase();

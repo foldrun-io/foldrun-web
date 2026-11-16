@@ -10,6 +10,7 @@ import { errorResponse, requirePermission, ApiError, refuse } from "@/server/api
 import { rerunFrom } from "@/platform/queue";
 import { wantsWait, waitAndRespond } from "@/server/wait";
 import { idempotent } from "@/server/idempotency";
+import { jsonObject } from "@/server/body";
 
 async function postOnce(
   req: NextRequest,
@@ -18,7 +19,7 @@ async function postOnce(
   try {
     const { workspace, runId } = await ctx.params;
     const { tenant, actor } = await requirePermission(req, "run:start");
-    const body = (await req.json().catch(() => ({}))) as { agent?: string; step?: number; instruction?: string };
+    const body = (await jsonObject(req, { optional: true })) as { agent?: string; step?: number; instruction?: string };
     if (!body.agent && typeof body.step !== "number") {
       return refuse("expected { agent } or { step } — where to re-run from", 400);
     }

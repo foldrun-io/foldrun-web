@@ -21,6 +21,7 @@ import { listWorkspaces } from "@/lib/store";
 import { errorResponse, refuse } from "@/server/api";
 import { clientIp } from "@/server/limits";
 import { sendSecurityNotice } from "@/server/email";
+import { jsonObject } from "@/server/body";
 
 const PER_USER = { limit: 6, windowSec: 5 * 60 };
 // Six-digit codes in a row without a right one, and how long they stay
@@ -29,7 +30,7 @@ const MFA_PAUSE = { after: 10, windowSec: 24 * 60 * 60 };
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json().catch(() => ({}))) as { challenge?: string; code?: string };
+    const body = (await jsonObject(req, { optional: true })) as { challenge?: string; code?: string };
     const claims = readToken("mfa-challenge", String(body.challenge ?? ""));
     if (!claims) return refuse("sign in again", 401);
     const user = await findUserById(claims.u);
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
     const limit = await rateLimit(`mfa:${user.id}`, PER_USER.limit, PER_USER.windowSec);
     if (!limit.allowed) {
       return NextResponse.json(
-        { error: "too many codes — sign in again in a few minutes" },
+        { error: "too many codes — sign in again in a few minutes", retry_after: limit.retryAfter },
         { status: 429, headers: { "retry-after": String(limit.retryAfter) } },
       );
     }
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
       const streak = await rateLimit(`mfa:totp:${user.id}`, MFA_PAUSE.after, MFA_PAUSE.windowSec);
       if (!streak.allowed) {
         return NextResponse.json(
-          { error: "too many wrong codes in a row — codes from the app are paused for this account for up to a day. Sign in with a backup code, or wait" },
+          { error: "too many wrong codes in a row — codes from the app are paused for this account for up to a day. Sign in with a backup code, or wait", retry_after: streak.retryAfter },
           { status: 429, headers: { "retry-after": String(streak.retryAfter) } },
         );
       }

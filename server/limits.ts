@@ -14,9 +14,17 @@ import { rateLimit, rateLimitReset } from "@/platform/cache";
 export async function refuseWhenLimited(key: string, limit: number, windowSec: number): Promise<NextResponse | null> {
   const verdict = await rateLimit(key, limit, windowSec);
   if (verdict.allowed) return null;
+  return tooManyAttempts(verdict.retryAfter);
+}
+
+/** The 429 itself, as every limiter here answers it (server/api-limits.ts,
+ *  the document's RateLimited): { error, retry_after } and Retry-After. The
+ *  body lacked retry_after until FOL-199 (16 Nov 2026: the hosted fuzz run
+ *  found two 429 shapes for one documented response). */
+export function tooManyAttempts(retryAfter: number): NextResponse {
   return NextResponse.json(
-    { error: "too many attempts — wait a few minutes and try again" },
-    { status: 429, headers: { "retry-after": String(verdict.retryAfter) } },
+    { error: "too many attempts — wait a few minutes and try again", retry_after: retryAfter },
+    { status: 429, headers: { "retry-after": String(retryAfter) } },
   );
 }
 

@@ -11,6 +11,7 @@ import { isA2aPublished } from "@/lib/a2a-publish";
 import { errorResponse, ApiError, refuse } from "@/server/api";
 import { idempotent } from "@/server/idempotency";
 import { checkModels, gatewayLoginOffered, gatewayOffered, gatewayUrl, withGatewaySpend } from "@/server/gateway-keys";
+import { jsonObject } from "@/server/body";
 
 /**
  * Who may touch keys, decided BEFORE any body is read.
@@ -67,7 +68,7 @@ async function postOnce(req: NextRequest) {
     // The body is read once, lazily: an identified caller never needs its
     // `tenant`, and an unidentified one is refused before parsing anything.
     let parsed: Record<string, unknown> | undefined;
-    const bodyOf = async () => (parsed ??= ((await req.json()) ?? {}) as Record<string, unknown>);
+    const bodyOf = async () => (parsed ??= ((await jsonObject(req)) ?? {}) as Record<string, unknown>);
     const { tenant, minter, who, by } = await authorize(req, async () => (await bodyOf()).tenant as string | undefined);
     const body = (await bodyOf()) as {
       tenant?: string;
@@ -305,7 +306,7 @@ async function mintGatewayKey(
 export async function DELETE(req: NextRequest) {
   try {
     let parsed: Record<string, unknown> | undefined;
-    const bodyOf = async () => (parsed ??= ((await req.json()) ?? {}) as Record<string, unknown>);
+    const bodyOf = async () => (parsed ??= ((await jsonObject(req)) ?? {}) as Record<string, unknown>);
     const body = (await bodyOf()) as { id?: string };
     if (!body.id) throw new ApiError("expected { id }", 400);
 

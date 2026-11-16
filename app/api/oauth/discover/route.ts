@@ -15,11 +15,12 @@ import { errorResponse, requirePermission, refuse } from "@/server/api";
 import { discoverOAuth, issuerProblem } from "@/lib/oauth-discovery";
 import { parseTokenAuth } from "@/lib/oauth-token";
 import { fetchPublic } from "@/platform/ssrf";
+import { jsonObject } from "@/server/body";
 
 export async function POST(req: NextRequest) {
   try {
     await requirePermission(req, "secrets:write");
-    const body = (await req.json().catch(() => ({}))) as { issuer?: unknown; has_secret?: unknown; pkce?: unknown; token_auth?: unknown };
+    const body = (await jsonObject(req, { optional: true })) as { issuer?: unknown; has_secret?: unknown; pkce?: unknown; token_auth?: unknown };
     if (typeof body.issuer !== "string" || !body.issuer.trim()) return refuse("expected { issuer } — the provider's issuer URL, like https://login.example.com", 400);
     const issuer = body.issuer.trim();
     const problem = issuerProblem(issuer);

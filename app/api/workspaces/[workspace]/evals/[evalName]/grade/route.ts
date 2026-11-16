@@ -15,6 +15,7 @@ import { adminState, pauseOf } from "@/platform/admin";
 import { listEvals } from "@/lib/evals";
 import { readRun, assertSafeName } from "@/lib/store";
 import { gradeRun, recordGrade } from "@/lib/grades";
+import { jsonObject } from "@/server/body";
 
 export const maxDuration = 300;
 
@@ -22,7 +23,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
   try {
     const { workspace, evalName } = await ctx.params;
     const { tenant, actor } = await requirePermission(req, "run:start");
-    const body = (await req.json().catch(() => ({}))) as { run?: unknown };
+    const body = (await jsonObject(req, { optional: true })) as { run?: unknown };
     if (typeof body.run !== "string" || !body.run.trim()) throw new ApiError("expected { run } — the id of a finished run to grade", 400);
     assertSafeName(body.run, "run id");
     // The kill switch holds here too: a judge or a draft is paid work, and

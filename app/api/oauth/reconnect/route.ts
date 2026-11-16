@@ -14,11 +14,12 @@ import { clientForSecret, scopesForSecret } from "@/platform/oauth-connections";
 import { scopesOf } from "@/server/oauth-scopes";
 import { idempotent } from "@/server/idempotency";
 import { startBound, handoff, inBrowser, callbackUri } from "@/server/oauth-browser";
+import { jsonObject } from "@/server/body";
 
 async function postOnce(req: NextRequest) {
   try {
     const { tenant, actor } = await requirePermission(req, "secrets:write");
-    const body = (await req.json().catch(() => ({}))) as { secret?: string; workspace?: string; provider?: string; scopes?: unknown };
+    const body = (await jsonObject(req, { optional: true })) as { secret?: string; workspace?: string; provider?: string; scopes?: unknown };
     const asked = scopesOf(body.scopes);
     if (asked instanceof Error) return refuse(asked.message, 400);
     if (!body.secret) return refuse("expected { secret }", 400);

@@ -19,6 +19,7 @@ import { readFileBytes } from "@/lib/storage";
 import { readRun, type RunRecord } from "@/lib/store";
 import { checkApproveLink, decideApproval, readApproveLink } from "@/lib/approvals";
 import { errorResponse, reportError, refuse } from "@/server/api";
+import { jsonObject } from "@/server/body";
 
 type Params = { params: Promise<{ tenant: string; workspace: string; runId: string }> };
 
@@ -185,7 +186,10 @@ export async function POST(req: NextRequest, ctx: Params) {
   const contentType = req.headers.get("content-type") ?? "";
   let fields: { decision?: unknown; note?: unknown } = {};
   if (contentType.includes("application/json")) {
-    fields = (await req.json().catch(() => ({}))) as typeof fields;
+    // A body that is not a JSON object is refused here, outside any try.
+    const read = await jsonObject(req, { optional: true }).catch((err: unknown) => errorResponse(err));
+    if (read instanceof Response) return read;
+    fields = read as typeof fields;
   } else {
     const form = await req.formData().catch(() => null);
     if (form) fields = { decision: form.get("decision"), note: form.get("note") };

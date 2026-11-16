@@ -15,6 +15,7 @@ import { rememberConnection } from "@/platform/oauth-connections";
 import { idempotent } from "@/server/idempotency";
 import fs from "node:fs";
 import { workspaceDir } from "@/lib/store";
+import { jsonObject } from "@/server/body";
 
 // Two scopes: without a workspace these operate on the account store, with one
 // on that workspace's own. Values are write-only — this endpoint returns
@@ -57,7 +58,7 @@ export async function GET(req: NextRequest) {
 async function putOnce(req: NextRequest) {
   try {
     const { tenant, actor } = await requirePermission(req, "secrets:write");
-    const body = (await req.json()) as {
+    const body = (await jsonObject(req)) as {
       name?: string;
       value?: string;
       oauth2?: OAuth2Config;
@@ -165,7 +166,7 @@ async function putOnce(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const { tenant, actor } = await requirePermission(req, "secrets:write");
-    const body = (await req.json()) as { name?: string; workspace?: string; project?: string };
+    const body = (await jsonObject(req)) as { name?: string; workspace?: string; project?: string };
     if (!body.name) return refuse("expected { name }", 400);
     const scope = scopeOf(req, body);
     // Removing the mail sender chooses one too (the platform's own).
@@ -203,7 +204,7 @@ function isSiteList(v: unknown): v is string[] {
 export async function PATCH(req: NextRequest) {
   try {
     const { tenant, actor } = await requirePermission(req, "secrets:write");
-    const body = (await req.json()) as { name?: string; sites?: unknown; workspaces?: unknown; ifWorkspaces?: unknown; workspace?: string; project?: string };
+    const body = (await jsonObject(req)) as { name?: string; sites?: unknown; workspaces?: unknown; ifWorkspaces?: unknown; workspace?: string; project?: string };
     if (!body.name) return refuse("expected { name, sites } or { name, workspaces }", 400);
     const hasSites = body.sites !== undefined;
     const hasWorkspaces = body.workspaces !== undefined;

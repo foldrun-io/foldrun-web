@@ -11,12 +11,13 @@ import { actorOf, errorResponse, requirePermission, refuse } from "@/server/api"
 import { readRun } from "@/lib/store";
 import { ANSWER_MAX, answerQuestion, getQuestion } from "@/platform/operator-store";
 import { idempotent } from "@/server/idempotency";
+import { jsonObject } from "@/server/body";
 
 async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: string; runId: string }> }) {
   try {
     const { workspace, runId } = await ctx.params;
     const tenant = (await requirePermission(req, "run:start")).tenant;
-    const body = (await req.json().catch(() => ({}))) as { question?: unknown; answer?: unknown };
+    const body = (await jsonObject(req, { optional: true })) as { question?: unknown; answer?: unknown };
     const id = typeof body.question === "string" ? body.question : "";
     const answer = typeof body.answer === "string" ? body.answer.trim() : "";
     if (!id || !answer) return refuse("expected { question: <id>, answer }", 400);

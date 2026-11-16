@@ -11,6 +11,7 @@ import { listSessions, revokeSession, revokeSessions, revocable } from "@/server
 import { audit } from "@/server/audit";
 import { sessionUser, errorResponse, refuse } from "@/server/api";
 import { refuseNonText } from "@/server/auth-input";
+import { jsonObject } from "@/server/body";
 
 export async function GET(req: NextRequest) {
   try {
@@ -45,7 +46,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     const current = sessionIdOf(token);
-    const body = (await req.json().catch(() => ({}))) as { id?: string; others?: boolean };
+    const body = (await jsonObject(req, { optional: true })) as { id?: string; others?: boolean };
     const notText = refuseNonText(body, "id");
     if (notText) return notText;
 

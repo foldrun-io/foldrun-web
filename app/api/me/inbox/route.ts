@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError, errorResponse, requireCaller, sessionUser } from "@/server/api";
 import { inboxFor, markInbox, personOf, type InboxAction, type InboxKind } from "@/server/inbox";
+import { jsonObject } from "@/server/body";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +60,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const { tenant, person } = await who(req);
-    const body = (await req.json().catch(() => ({}))) as { id?: unknown; ids?: unknown; action?: unknown };
+    const body = (await jsonObject(req, { optional: true })) as { id?: unknown; ids?: unknown; action?: unknown };
     const ids = Array.isArray(body.ids) ? body.ids : typeof body.id === "string" ? [body.id] : [];
     if (!ids.length || ids.some((i) => typeof i !== "string") || ids.length > 200) throw new ApiError("expected { id } or { ids: [...] } (at most 200)", 400);
     if (!ACTIONS.includes(body.action as InboxAction)) throw new ApiError(`action is one of ${ACTIONS.join(", ")}`, 400);

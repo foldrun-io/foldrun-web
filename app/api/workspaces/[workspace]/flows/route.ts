@@ -13,6 +13,7 @@ import {
   type FlowPattern,
 } from "@/lib/store";
 import { idempotent } from "@/server/idempotency";
+import { jsonObject } from "@/server/body";
 
 // Same gap as agents/: this route could create a flow but never list one, so
 // nothing deployed over HTTP could be discovered over HTTP.
@@ -29,7 +30,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
   try {
     const { workspace } = await ctx.params;
     const tenant = (await requirePermission(req, "workspace:write")).tenant;
-    const body = (await req.json()) as { name?: string; pattern?: string };
+    const body = (await jsonObject(req)) as { name?: string; pattern?: string };
     if (!body.name) return refuse("expected { name }", 400);
     assertSafeName(body.name, "flow name");
     const pattern: FlowPattern = FLOW_PATTERNS.includes(body.pattern as FlowPattern)

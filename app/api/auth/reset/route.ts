@@ -13,10 +13,11 @@ import { audit } from "@/server/audit";
 import { errorResponse, ApiError } from "@/server/api";
 import { sendSecurityNotice } from "@/server/email";
 import { clientIp } from "@/server/limits";
+import { jsonObject } from "@/server/body";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json().catch(() => ({}))) as { token?: string; password?: string };
+    const body = (await jsonObject(req, { optional: true })) as { token?: string; password?: string };
     const claims = readToken("reset", String(body.token ?? ""));
     if (!claims) throw new ApiError("that link is not valid — it may have expired or been used", 400);
     const user = await findUserById(claims.u);

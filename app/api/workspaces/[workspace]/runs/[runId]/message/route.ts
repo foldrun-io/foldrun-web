@@ -12,12 +12,13 @@ import { actorOf, errorResponse, requirePermission, refuse } from "@/server/api"
 import { readRun } from "@/lib/store";
 import { MESSAGE_MAX, postMessage } from "@/platform/operator-store";
 import { idempotent } from "@/server/idempotency";
+import { jsonObject } from "@/server/body";
 
 async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: string; runId: string }> }) {
   try {
     const { workspace, runId } = await ctx.params;
     const tenant = (await requirePermission(req, "run:start")).tenant;
-    const body = (await req.json().catch(() => ({}))) as { text?: unknown; step?: unknown };
+    const body = (await jsonObject(req, { optional: true })) as { text?: unknown; step?: unknown };
     const text = typeof body.text === "string" ? body.text.trim() : "";
     if (!text) return refuse("expected { text, step? }", 400);
     if (text.length > MESSAGE_MAX) return refuse(`a message is at most ${MESSAGE_MAX} characters`, 413);

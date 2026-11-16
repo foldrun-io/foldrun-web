@@ -706,19 +706,29 @@ const EXTRA_STATUSES: Record<string, string[]> = {
   // The install sends no mail (code mail_not_configured), or it is already your address.
   "POST /api/auth/email": ["409"],
   // A new run while the account has its most runs waiting (code
-  // waiting_cap, FOL-100); a flow start also for overlap: skip.
-  "POST /api/workspaces/{workspace}/flows/{flow}/run": ["409"],
-  "POST /api/workspaces/{workspace}/agents/{agent}/run": ["409"],
-  "POST /api/workspaces/{workspace}/runs/{runId}/rerun": ["409"],
-  // The same refusal to a delivery is a 503 with Retry-After, which a
-  // sender retries.
-  "POST /api/hooks/{tenant}/{workspace}/{flow}": ["503"],
-  "POST /api/inbox/{tenant}/{workspace}/{flow}": ["503"],
+  // waiting_cap, FOL-100); a flow start also for overlap: skip. 402: every
+  // new run is admitted against the balance and the `budget:` files
+  // (platform queue.ts admitNow → reservations.ts), and refused past them.
+  "POST /api/workspaces/{workspace}/flows/{flow}/run": ["402", "409"],
+  "POST /api/workspaces/{workspace}/agents/{agent}/run": ["402", "409"],
+  "POST /api/workspaces/{workspace}/runs/{runId}/rerun": ["402", "409"],
+  // The same waiting-cap refusal to a delivery is a 503 with Retry-After,
+  // which a sender retries; out of funds or budget stays a 402.
+  "POST /api/hooks/{tenant}/{workspace}/{flow}": ["402", "503"],
+  "POST /api/inbox/{tenant}/{workspace}/{flow}": ["402", "503"],
+  // A new workspace past the plan's workspace count (server/workspace-cap.ts).
+  "POST /api/workspaces": ["402"],
+  "POST /api/workspaces/{workspace}/deploy": ["402"],
+  "POST /api/workspaces/{workspace}/import": ["402"],
   // Found by the hosted fuzz run (FOL-199, 16 Nov 2026), each by design:
   // no saved OAuth client, gallery tool or workspace by the name in the body.
   "POST /api/oauth/start": ["404"],
   "POST /api/oauth/device": ["404"],
   "POST /api/library/gallery": ["404"],
+  // A skill, tool or hook by that name is already in the library.
+  "POST /api/library/{kind}": ["409"],
+  // No saved OAuth client for the secret's provider (needsClient: true).
+  "POST /api/oauth/reconnect": ["404"],
   "GET /api/me/onboarding": ["404"],
   // The flow is not a webhook flow (requireWebhookFlow).
   "GET /api/workspaces/{workspace}/hooks/{flow}": ["409"],
@@ -765,6 +775,8 @@ export function openapiDocument(origin?: string): Schema {
         { $ref: "#/components/parameters/FoldrunVersion" },
       ];
       if (IDEMPOTENT_ROUTES.has(`${method} ${r.path}`)) parameters.push({ $ref: "#/components/parameters/IdempotencyKey" });
+      // The refusal shape: the API's { error }, or the operation's own.
+      const E = { $ref: `#/components/responses/${shape?.errorShape ?? "Error"}` };
       const op: Schema = {
         operationId: `${method.toLowerCase()}${r.path.replace(/[{}]/g, "").replace(/[^a-zA-Z0-9]+(.)?/g, (_m, c: string | undefined) => (c ? c.toUpperCase() : ""))}`,
         summary: r.summary ? r.summary.split(/[.;—]/)[0].trim().slice(0, 120) : `${method} ${r.path}`,
@@ -776,21 +788,21 @@ export function openapiDocument(origin?: string): Schema {
         ...(shape?.body && method !== "GET" ? { requestBody: { required: true, content: { "application/json": { schema: shape.body } } } } : {}),
         responses: {
           ...successOf(shape),
-          "400": { $ref: "#/components/responses/Error" },
-          ...(open || auth ? {} : { "401": { $ref: "#/components/responses/Error" }, "403": { $ref: "#/components/responses/Error" } }),
-          ...Object.fromEntries((auth?.refusals ?? []).map((c) => [c, { $ref: "#/components/responses/Error" }])),
+          "400": E,
+          ...(open || auth ? {} : { "401": E, "403": E }),
+          ...Object.fromEntries((auth?.refusals ?? []).map((c) => [c, E])),
           // A route that names something in its path can find nothing there
           // (27 Oct 2026: the API fuzz found 26 undocumented 404s).
-          ...(params.length ? { "404": { $ref: "#/components/responses/Error" } } : {}),
+          ...(params.length ? { "404": E } : {}),
           // An open route that carries a token in its path refuses a bad one.
-          ...(open && params.length ? { "401": { $ref: "#/components/responses/Error" } } : {}),
-          ...Object.fromEntries((EXTRA_STATUSES[`${method} ${r.path}`] ?? []).map((c) => [c, c === "204" ? { description: "Nothing to send" } : { $ref: "#/components/responses/Error" }])),
-          ...(open && SIGNED_OPEN.some((x) => x.test(r.path)) ? { "401": { $ref: "#/components/responses/Error" } } : {}),
+          ...(open && params.length ? { "401": E } : {}),
+          ...Object.fromEntries((EXTRA_STATUSES[`${method} ${r.path}`] ?? []).map((c) => [c, c === "204" ? { description: "Nothing to send" } : E])),
+          ...(open && SIGNED_OPEN.some((x) => x.test(r.path)) ? { "401": E } : {}),
           // The sign-in writes take JSON only; the proxy answers any other
           // type 415 (server/csrf.ts jsonOnly — the same test, so the two agree).
-          ...(jsonOnly({ method, headers: new Headers(), url: `http://local${r.path}` }) ? { "415": { $ref: "#/components/responses/Error" } } : {}),
+          ...(jsonOnly({ method, headers: new Headers(), url: `http://local${r.path}` }) ? { "415": E } : {}),
           "429": { $ref: "#/components/responses/RateLimited" },
-          ...(IDEMPOTENT_ROUTES.has(`${method} ${r.path}`) ? { "422": { $ref: "#/components/responses/Error" } } : {}),
+          ...(IDEMPOTENT_ROUTES.has(`${method} ${r.path}`) ? { "422": E } : {}),
         },
       };
       item[method.toLowerCase()] = op;
@@ -848,6 +860,16 @@ export function openapiDocument(origin?: string): Schema {
       },
       responses: {
         Error: { description: "A refusal, with a sentence saying why", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+        // The MCP endpoint refuses as JSON-RPC 2.0 does (§5.1); a refusal the
+        // API's gate makes before the endpoint runs (a Foldrun-Version it
+        // does not answer, say) keeps the API's own { error } (Codex, FOL-199).
+        RpcError: {
+          description: "A refusal: as JSON-RPC 2.0 sends one (§5.1) — no result, an error object with its code and a sentence — or, from the API's gate before the endpoint runs, the API's own { error }",
+          content: { "application/json": { schema: { oneOf: [
+            obj({ jsonrpc: str('"2.0"'), id: { type: ["string", "integer", "null"] }, error: obj({ code: int, message: str() }, ["code", "message"]) }, ["jsonrpc", "error"]),
+            { $ref: "#/components/schemas/Error" },
+          ] } } },
+        },
         RateLimited: {
           description: "Over the rate limit — wait Retry-After seconds",
           headers: { "Retry-After": { schema: { type: "integer" } }, ...RATE_HEADERS },

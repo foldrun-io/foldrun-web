@@ -7,6 +7,7 @@ import { workspaceDir, assertSafeName, writeWorkspaceFile, AGENT_TEMPLATE } from
 import { newAgentFile } from "@/lib/flow-patterns";
 import { idempotent } from "@/server/idempotency";
 import { agentsWithActivity } from "@/server/agent-activity";
+import { jsonObject } from "@/server/body";
 
 // What is deployed here. The dashboard reads this straight off disk in a
 // server component, so this route existed only to *create* an agent — which
@@ -29,7 +30,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     // description and model are optional: the canvas's "New agent" asks
     // for them, so the file lands answering the two questions a template
     // otherwise leaves as placeholders.
-    const body = (await req.json()) as { name?: string; description?: string; model?: string };
+    const body = (await jsonObject(req)) as { name?: string; description?: string; model?: string };
     if (!body.name) return refuse("expected { name }", 400);
     assertSafeName(body.name, "agent name");
     const rel = `agents/${body.name}/agent.md`;

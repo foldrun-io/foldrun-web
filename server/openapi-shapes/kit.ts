@@ -18,6 +18,10 @@ export type Shape = {
   status?: "200" | "201" | "202" | "204" | "302" | "303" | "307";
   noBody?: string;
   noResponse?: string;
+  /** The shape this operation refuses in, when it is not the API's own
+   *  { error } — the MCP endpoint answers every refusal as a JSON-RPC 2.0
+   *  error object (FOL-199). Default "Error". */
+  errorShape?: "Error" | "RpcError";
 };
 
 

@@ -18,7 +18,7 @@ export async function openLimit(req: NextRequest, which: keyof typeof OPEN_LIMIT
   const v = await rateLimit(`mcp-oauth:${which}:${clientIp(req) ?? "unknown"}`, limit, windowSec);
   if (v.allowed) return null;
   return NextResponse.json(
-    { error: "slow_down", error_description: `at most ${limit} ${which === "register" ? "registrations an hour" : "token requests a minute"} from one address — retry in ${v.retryAfter}s` },
+    { error: "slow_down", error_description: `at most ${limit} ${which === "register" ? "registrations an hour" : "token requests a minute"} from one address — retry in ${v.retryAfter}s`, retry_after: v.retryAfter },
     { status: 429, headers: { ...OPEN_CORS, "retry-after": String(v.retryAfter) } },
   );
 }

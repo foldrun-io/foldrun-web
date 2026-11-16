@@ -6,6 +6,7 @@ import { errorResponse, requirePermission, actorOf, refuse } from "@/server/api"
 import { assertSafeName, workspaceDir, writeWorkspaceFile } from "@/lib/store";
 import { KINDS, type Kind } from "@/lib/kinds";
 import { idempotent } from "@/server/idempotency";
+import { jsonObject } from "@/server/body";
 
 // Create any workspace document — at workspace scope, or inside one agent.
 //
@@ -23,7 +24,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
   try {
     const tenant = (await requirePermission(req, "workspace:write")).tenant;
     const { workspace } = await ctx.params;
-    const body = (await req.json()) as {
+    const body = (await jsonObject(req)) as {
       kind?: string;
       name?: string;
       agent?: string;

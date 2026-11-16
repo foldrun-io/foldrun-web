@@ -39,6 +39,7 @@ import { rerunFrom, stopRun } from "@/platform/queue";
 import { deleteRun, listRunSummaries, readRun, runDisplayStatus } from "@/lib/store";
 import { eraseRun } from "@/server/run-erase";
 import { idempotent } from "@/server/idempotency";
+import { jsonObject } from "@/server/body";
 
 /** The most runs one call will touch. A bulk action is a recovery tool, not
  *  a migration: past this, the answer is almost certainly a wrong filter,
@@ -64,7 +65,7 @@ interface BulkBody {
 async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: string }> }) {
   try {
     const { workspace } = await ctx.params;
-    const body = (await req.json().catch(() => ({}))) as BulkBody;
+    const body = (await jsonObject(req, { optional: true })) as BulkBody;
     // Each action takes its single route's permission: stop and rerun
     // run:start, delete workspace:manage (as DELETE …/runs/<id>) — erasing a
     // trail is an admin's, not whoever may start runs.

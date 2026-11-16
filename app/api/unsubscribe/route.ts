@@ -21,6 +21,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readUnsubscribeToken, mailCategory } from "@/lib/mail";
 import { setPreference } from "@/platform/email-preferences";
 import { errorResponse, refuse } from "@/server/api";
+import { jsonObject } from "@/server/body";
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
       token = form.get("token");
       fromPage = form.get("from") === "page";
     } else if (!token && type.includes("application/json")) {
-      token = ((await req.json().catch(() => ({}))) as { token?: string }).token ?? null;
+      token = ((await jsonObject(req, { optional: true })) as { token?: string }).token ?? null;
     }
     const read = readUnsubscribeToken(token);
     if ("error" in read) return refuse(read.error, read.status);

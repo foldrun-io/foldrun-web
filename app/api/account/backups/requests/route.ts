@@ -22,6 +22,7 @@ import { audit } from "@/server/audit";
 import { listWorkspaces } from "@/lib/store";
 import { scopeAllows } from "@/platform/scope";
 import { idempotent } from "@/server/idempotency";
+import { jsonObject } from "@/server/body";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
 async function requestPost(req: NextRequest) {
   try {
     const { tenant, actor } = await requirePermission(req, "workspace:manage");
-    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    const body = (await jsonObject(req, { optional: true })) as Record<string, unknown>;
     const what = typeof body.what === "string" ? body.what : "";
     if (!WHAT.has(what)) throw new ApiError(`expected what: ${[...WHAT].join(" | ")}`, 400);
     const target = typeof body.target === "string" ? body.target.trim().slice(0, 100) : "";

@@ -17,18 +17,19 @@ import { audit } from "@/server/audit";
 import { errorResponse, refuse } from "@/server/api";
 import { refuseNonText } from "@/server/auth-input";
 import { mintToken, CHALLENGE_TTL_MS } from "@/server/auth-tokens";
-import { clientIp } from "@/server/limits";
+import { clientIp, tooManyAttempts } from "@/server/limits";
 import { CHALLENGE, CHALLENGE_COOKIE, CODE_FAILED, codeSignInAvailable, verifyCode } from "@/server/login-codes";
 import { findUserById, mintSession, sessionCookieOptions, SESSION_COOKIE } from "@/server/users";
 import { listWorkspaces } from "@/lib/store";
 import { opsLog } from "@/lib/ops-log.ts";
+import { jsonObject } from "@/server/body";
 
 const PER_IP = { limit: 40, windowSec: 15 * 60 };
 
 export async function POST(req: NextRequest) {
   try {
     if (!codeSignInAvailable()) return refuse("signing in with an emailed code is not available on this install", 404);
-    const body = (await req.json().catch(() => ({}))) as { email?: string; code?: string };
+    const body = (await jsonObject(req, { optional: true })) as { email?: string; code?: string };
     const notText = refuseNonText(body, "email", "code");
     if (notText) return notText;
     const email = (body.email ?? "").trim().toLowerCase();
@@ -36,10 +37,7 @@ export async function POST(req: NextRequest) {
     if (ip) {
       const byIp = await rateLimit(`login-code-verify:ip:${ip}`, PER_IP.limit, PER_IP.windowSec);
       if (!byIp.allowed) {
-        return NextResponse.json(
-          { error: "too many attempts — wait a few minutes and try again" },
-          { status: 429, headers: { "retry-after": String(byIp.retryAfter) } },
-        );
+        return tooManyAttempts(byIp.retryAfter);
       }
     }
     const held = req.cookies.get(CHALLENGE_COOKIE)?.value ?? "";

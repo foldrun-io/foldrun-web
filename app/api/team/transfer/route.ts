@@ -16,6 +16,7 @@ import { transferOwnership, listMembers, findUserById, passwordMatches, openStri
 import { verifyTotp, hashBackup } from "@/server/totp";
 import { refuseWhenLimited, clearLimit } from "@/server/limits";
 import { audit } from "@/server/audit";
+import { jsonObject } from "@/server/body";
 
 const LIMIT = { limit: 6, windowSec: 15 * 60 };
 
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
     const { tenant, actor } = await requirePerson(req, "owner:transfer");
     const limited = await refuseWhenLimited(`transfer:${actor.id}`, LIMIT.limit, LIMIT.windowSec);
     if (limited) return limited;
-    const body = (await req.json().catch(() => ({}))) as { to?: unknown; password?: unknown; code?: unknown };
+    const body = (await jsonObject(req, { optional: true })) as { to?: unknown; password?: unknown; code?: unknown };
     if (typeof body.to !== "string" || !body.to) throw new ApiError("expected { to: <member id>, password, code? }", 400);
     if (typeof body.password !== "string" || !body.password) {
       throw new ApiError("handing over the account needs your current password (and a code from your app when two-step sign-in is on): { to, password, code? }", 400);

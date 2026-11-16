@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, actorOf, requirePermission, ApiError, refuse } from "@/server/api";
 import { promoteRunToEval } from "@/lib/evals";
 import { idempotent } from "@/server/idempotency";
+import { jsonObject } from "@/server/body";
 
 async function postOnce(
   req: NextRequest,
@@ -17,7 +18,7 @@ async function postOnce(
   try {
     const { workspace, runId } = await ctx.params;
     const tenant = (await requirePermission(req, "run:start")).tenant;
-    const body = (await req.json().catch(() => ({}))) as {
+    const body = (await jsonObject(req, { optional: true })) as {
       evalName?: unknown;
       caseName?: unknown;
       expect?: unknown;

@@ -4,6 +4,7 @@ import { accountDir } from "@/lib/store";
 import { readAgentsMdKeys, setAgentsMdKeys } from "@/lib/agents-md";
 import { defaultsPatch, defaultsOf, accountDefaultsFor } from "@/components/defaults-model";
 import { noteAccountFilesChanged } from "@/lib/workspace-revisions";
+import { jsonObject } from "@/server/body";
 
 // The account's defaults — what its AGENTS.md frontmatter sets for every
 // workspace: a timezone for schedules, where to notify, a monthly cap.
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const { tenant, actor } = await requireAccountWide(req, "workspace:manage");
-    const body = (await req.json()) as Record<string, unknown>;
+    const body = (await jsonObject(req)) as Record<string, unknown>;
     // telemetry: sends every workspace's runs, with header secrets filled
     // from the vault, to the URL it names: only a caller who holds every
     // workspace may point it anywhere (Codex review).

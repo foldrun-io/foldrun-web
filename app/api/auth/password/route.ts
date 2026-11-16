@@ -14,6 +14,7 @@ import { revokeSessions, revocable } from "@/server/sessions";
 import { refuseWhenLimited, clearLimit, clientIp } from "@/server/limits";
 import { audit } from "@/server/audit";
 import { sendSecurityNotice } from "@/server/email";
+import { jsonObject } from "@/server/body";
 
 // Six tries in fifteen minutes: a person mistyping their current password
 // never meets it; a stolen session grinding it does.
@@ -28,7 +29,13 @@ export async function POST(req: NextRequest) {
   const limited = await refuseWhenLimited(`password:${user.id}`, LIMIT.limit, LIMIT.windowSec);
   if (limited) return limited;
 
-  const body = (await req.json().catch(() => ({}))) as { current?: string; next?: string };
+  // A body that is not a JSON object is refused here, outside any try.
+
+  const read = await jsonObject(req, { optional: true }).catch((err: unknown) => errorResponse(err));
+
+  if (read instanceof Response) return read;
+
+  const body = read as { current?: string; next?: string };
   try {
     await changePassword(user.id, body.current ?? "", body.next ?? "");
     await clearLimit(`password:${user.id}`);

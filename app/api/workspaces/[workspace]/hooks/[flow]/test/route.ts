@@ -18,12 +18,13 @@ import { workspaceDir } from "@/lib/store";
 import { libraryDir } from "@/lib/library";
 import { resolveHooks, runHook, isHookName } from "@/lib/hooks";
 import { hookTestRefusal, testEvent } from "@/server/hooks";
+import { jsonObject } from "@/server/body";
 
 async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: string; flow: string }> }) {
   try {
     const tenant = (await requirePermission(req, "run:start")).tenant;
     const { workspace, flow: name } = await ctx.params;
-    const body = (await req.json().catch(() => ({}))) as { event?: unknown };
+    const body = (await jsonObject(req, { optional: true })) as { event?: unknown };
     if (body.event !== undefined && (!body.event || typeof body.event !== "object" || Array.isArray(body.event))) {
       throw new ApiError("event is one JSON object — the event the hook reads on stdin", 400);
     }

@@ -15,11 +15,12 @@ import { startDeviceConnect } from "@/platform/oauth-connect";
 import { scopesOf } from "@/server/oauth-scopes";
 import { idempotent } from "@/server/idempotency";
 import { audit } from "@/server/audit";
+import { jsonObject } from "@/server/body";
 
 async function postOnce(req: NextRequest) {
   try {
     const { tenant, actor } = await requirePermission(req, "secrets:write");
-    const body = (await req.json().catch(() => ({}))) as { client?: unknown; secret?: unknown; workspace?: unknown; scopes?: unknown };
+    const body = (await jsonObject(req, { optional: true })) as { client?: unknown; secret?: unknown; workspace?: unknown; scopes?: unknown };
     if (typeof body.client !== "string" || typeof body.secret !== "string") return refuse("expected { client, secret }", 400);
     // A workspace that is not a string is refused, never read as "the account".
     if (body.workspace !== undefined && body.workspace !== null && typeof body.workspace !== "string") return refuse("workspace is a workspace's name", 400);

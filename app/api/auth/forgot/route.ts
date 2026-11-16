@@ -13,6 +13,7 @@ import { audit } from "@/server/audit";
 import { resetLink, publicOrigin } from "@/server/auth-flows";
 import { sendResetEmail } from "@/server/email";
 import { errorResponse, refuse } from "@/server/api";
+import { jsonObject } from "@/server/body";
 
 const SAME = { ok: true, message: "If that address has an account, a reset link is on its way." };
 
@@ -38,7 +39,7 @@ const tooMany = () => refuse("too many requests — try again in an hour", 429);
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json().catch(() => ({}))) as { email?: string };
+    const body = (await jsonObject(req, { optional: true })) as { email?: string };
     const email = String(body.email ?? "").trim().toLowerCase();
     // clientIp honours FOLDRUN_TRUST_PROXY, as login and signup do; reading
     // the header raw let anyone pick a fresh address per request.

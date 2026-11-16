@@ -259,6 +259,9 @@ export const SHAPES: Record<string, Shape> = {
       result: { type: "object", additionalProperties: true, description: "initialize: { protocolVersion, capabilities, serverInfo, instructions }; tools/list: { tools }; tools/call: { content: [{ type: text, text }], isError }" },
       error: obj({ code: int, message: str() }),
     }),
+    // Its refusals are JSON-RPC errors too: malformed JSON (-32700), a
+    // version it does not speak, no credential, another origin.
+    errorShape: "RpcError",
   },
   "POST /api/mcp/oauth/register": {
     body: obj(

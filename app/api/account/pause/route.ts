@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCaller, requirePermission, errorResponse, ApiError } from "@/server/api";
 import { pauseView, pause, resume } from "@/server/pause";
+import { jsonObject } from "@/server/body";
 
 export async function GET(req: NextRequest) {
   try {
@@ -29,7 +30,7 @@ async function wholeAccount(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const { tenant, actor } = await wholeAccount(req);
-    return await pause(tenant, actor, null, (await req.json().catch(() => ({}))) as Record<string, unknown>);
+    return await pause(tenant, actor, null, (await jsonObject(req, { optional: true })) as Record<string, unknown>);
   } catch (err) {
     return errorResponse(err);
   }

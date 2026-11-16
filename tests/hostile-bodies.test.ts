@@ -30,6 +30,10 @@ const source = await mod("../app/api/workspaces/[workspace]/source/route.ts");
 const shares = await mod("../app/api/workspaces/[workspace]/shares/route.ts");
 const token = await mod("../app/api/mcp/oauth/token/route.ts");
 const revoke = await mod("../app/api/mcp/oauth/revoke/route.ts");
+const cliLogin = await mod("../app/api/cli/login/route.ts");
+const oauthClients = await mod("../app/api/oauth/clients/route.ts");
+const { tooManyAttempts } = await import("../server/limits.ts");
+const { openapiDocument } = await import("../server/openapi.ts");
 
 const TENANT = "acme";
 const WS = "desk";
@@ -115,4 +119,43 @@ test("the MCP OAuth token and revocation endpoints answer invalid_request for JS
 test("malformed JSON is the caller's 400, not an internal error", () => {
   const out = errorStatus(new SyntaxError("Unexpected token } in JSON"));
   assert.deepEqual(out, { status: 400, message: "malformed JSON", internal: false });
+});
+
+// The second hosted fuzz run (43825686618) found these.
+test("POST /api/cli/login and /api/oauth/clients refuse a body of the wrong shape, never a 500", async () => {
+  for (const b of SHAPES) await never500(`cli/login ${b}`, cliLogin.POST(send("POST", "/api/cli/login", b, false), params({})));
+  for (const b of SHAPES) await never500(`oauth/clients ${b}`, oauthClients.POST(send("POST", "/api/oauth/clients", b), params({})));
+  const config = { authorize_url: "https://p.test/a", token_url: "https://p.test/t", client_id: "cid", client_secret: "s", scopes: "" };
+  for (const [field, value] of [["authorize_url", ["https://p.test/a"]], ["client_id", 7], ["token_url", {}], ["authorize_extra", [1]], ["pkce", "no"]] as const) {
+    await never500(`oauth/clients ${field}`, oauthClients.POST(send("POST", "/api/oauth/clients", JSON.stringify({ name: "app", config: { ...config, [field]: value } })), params({})));
+  }
+  await never500("oauth/clients config:7", oauthClients.POST(send("POST", "/api/oauth/clients", JSON.stringify({ name: "app", config: 7 })), params({})));
+});
+
+test("every 429 a limiter here sends carries retry_after, as the document's RateLimited requires", async () => {
+  const r = tooManyAttempts(42);
+  assert.equal(r.status, 429);
+  assert.equal(r.headers.get("retry-after"), "42");
+  const j = (await r.json()) as { error: string; retry_after: number };
+  assert.equal(typeof j.error, "string");
+  assert.equal(j.retry_after, 42);
+});
+
+test("the document lists the statuses the fuzz found, and /api/mcp refuses in JSON-RPC's shape", () => {
+  const doc = openapiDocument() as { paths: Record<string, Record<string, { responses: Record<string, { $ref?: string }> }>>; components: { responses: Record<string, unknown> } };
+  const has = (method: string, p: string, status: string) => {
+    const op = doc.paths[p]?.[method];
+    if (!op) return; // a route this edition does not serve
+    assert.ok(op.responses[status], `${method.toUpperCase()} ${p} documents ${status}`);
+  };
+  has("post", "/api/library/{kind}", "409");
+  has("post", "/api/oauth/reconnect", "404");
+  has("post", "/api/workspaces", "402");
+  has("post", "/api/workspaces/{workspace}/deploy", "402");
+  has("post", "/api/workspaces/{workspace}/flows/{flow}/run", "402");
+  const mcp = doc.paths["/api/mcp"].post.responses;
+  assert.equal(mcp["400"].$ref, "#/components/responses/RpcError");
+  assert.ok(doc.components.responses.RpcError);
+  // Every other route keeps the API's own { error }.
+  assert.equal(doc.paths["/api/workspaces"].post.responses["400"].$ref, "#/components/responses/Error");
 });

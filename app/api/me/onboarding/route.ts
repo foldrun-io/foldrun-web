@@ -29,6 +29,7 @@ import { isChecklistItemId } from "@/components/workspace-checklist-model";
 import { findUserById, setUserPrefs, verifySession, SESSION_COOKIE } from "@/server/users";
 import { scopeAllows } from "@/platform/scope";
 import { workspaceDir } from "@/lib/store";
+import { jsonObject } from "@/server/body";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +71,7 @@ const merge = (current: string[], hide: string[], show: string[]) => [...new Set
 export async function PATCH(req: NextRequest) {
   try {
     const session = await requireSession(req);
-    const body = (await req.json().catch(() => ({}))) as {
+    const body = (await jsonObject(req, { optional: true })) as {
       dismissed?: unknown;
       welcomed?: unknown;
       hide?: unknown;

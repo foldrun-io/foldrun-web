@@ -13,6 +13,7 @@ import fs from "node:fs";
 import { requireTenant, requirePermission, errorResponse, ApiError } from "@/server/api";
 import { workspaceDir } from "@/lib/store";
 import { pauseView, pause, resume } from "@/server/pause";
+import { jsonObject } from "@/server/body";
 
 type Ctx = { params: Promise<{ workspace: string }> };
 
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     const { workspace } = await ctx.params;
     const { tenant, actor } = await requirePermission(req, "workspace:manage");
     await known(tenant, workspace);
-    return await pause(tenant, actor, workspace, (await req.json().catch(() => ({}))) as Record<string, unknown>);
+    return await pause(tenant, actor, workspace, (await jsonObject(req, { optional: true })) as Record<string, unknown>);
   } catch (err) {
     return errorResponse(err);
   }

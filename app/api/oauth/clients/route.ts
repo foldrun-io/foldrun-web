@@ -7,6 +7,7 @@ import { requireTenant, errorResponse, requireAccountWide, refuse } from "@/serv
 import { saveOAuthClient, listOAuthClients, deleteOAuthClient } from "@/platform/oauth-clients";
 import type { OAuthProviderConfig } from "@/platform/oauth-connect";
 import { idempotent } from "@/server/idempotency";
+import { jsonObject } from "@/server/body";
 
 export async function GET(req: NextRequest) {
   try {
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
 async function postOnce(req: NextRequest) {
   try {
     const tenant = (await requireAccountWide(req, "secrets:write")).tenant;
-    const body = (await req.json().catch(() => ({}))) as {
+    const body = (await jsonObject(req, { optional: true })) as {
       name?: string;
       config?: OAuthProviderConfig & { generate_key?: unknown };
     };
@@ -39,7 +40,7 @@ async function postOnce(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const tenant = (await requireAccountWide(req, "secrets:write")).tenant;
-    const body = (await req.json().catch(() => ({}))) as { client?: string };
+    const body = (await jsonObject(req, { optional: true })) as { client?: string };
     if (!body.client) return refuse("expected { client }", 400);
     if (!(await deleteOAuthClient(tenant, body.client))) {
       return refuse("no such client", 404);

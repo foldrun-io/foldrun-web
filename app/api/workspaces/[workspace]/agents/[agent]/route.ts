@@ -22,6 +22,7 @@ import { guardEdit, readFront, type Expect } from "@/lib/frontmatter-guard";
 import { refNames } from "@/lib/refs";
 import { configMatter } from "@/lib/matter";
 import { isDeepStrictEqual } from "node:util";
+import { jsonObject } from "@/server/body";
 
 const SCALAR_KEYS = ["description", "sandbox"];
 /** The values a scalar may take, where the schema fixes them. */
@@ -32,7 +33,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
     const { workspace, agent } = await ctx.params;
     const { tenant, actor } = await requirePermission(req, "workspace:write");
     assertSafeName(agent, "agent");
-    const body = (await req.json().catch(() => ({}))) as {
+    const body = (await jsonObject(req, { optional: true })) as {
       list?: { key?: string; name?: string; action?: string };
       set?: { key?: string; value?: string };
       network?: unknown;

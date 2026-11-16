@@ -9,6 +9,7 @@ import { verifyTotp, hashBackup } from "@/server/totp";
 import { audit } from "@/server/audit";
 import { refuseWhenLimited, clearLimit, clientIp } from "@/server/limits";
 import { sendSecurityNotice } from "@/server/email";
+import { jsonObject } from "@/server/body";
 
 // Six in five minutes — the same window the MFA code itself gets. Without
 // it, a six-digit code here could be tried at the rate the box allowed.
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
     const me = await requireSession(req);
     const limited = await refuseWhenLimited(`mfa-disable:${me.id}`, LIMIT.limit, LIMIT.windowSec);
     if (limited) return limited;
-    const body = (await req.json().catch(() => ({}))) as { password?: string; code?: string };
+    const body = (await jsonObject(req, { optional: true })) as { password?: string; code?: string };
     if (!(await verifyPassword(me.email, String(body.password ?? "")))) throw new ApiError("wrong password", 401);
     if (!me.mfaSecret) throw new ApiError("the second factor is not on", 409);
     const code = String(body.code ?? "").trim();

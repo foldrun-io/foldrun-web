@@ -22,6 +22,7 @@ import { keyWithin } from "@/server/key-scope";
 import { errorResponse, requirePermission, ApiError } from "@/server/api";
 import { audit } from "@/server/audit";
 import { idempotent } from "@/server/idempotency";
+import { jsonObject } from "@/server/body";
 
 const SELF_GRACE_MS = 10 * 60_000;
 const LOST_AFTER_MS = 30_000;
@@ -62,7 +63,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ id: string }>
       }
     }
     const { tenant, actor } = await requirePermission(req, "keys:manage");
-    const body = ((await req.json().catch(() => ({}))) ?? {}) as { grace?: string | number };
+    const body = ((await jsonObject(req, { optional: true })) ?? {}) as { grace?: string | number };
     const graceMs = parseGrace(body.grace);
     // The mint rule read backwards, as for revoke: a key outside the
     // caller's own scope is not theirs to see, so it is not found.

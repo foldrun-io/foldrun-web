@@ -34,6 +34,7 @@ import { providerPreset } from "@/lib/providers";
 import { platform, guardsUntrustedUrls } from "@/lib/platform";
 import { refuseInternalUrl } from "@/platform/ssrf";
 import { ChoiceConflict, choiceRefused, foldrunModelsView, setModelChoice } from "@/platform/model-choice";
+import { jsonObject } from "@/server/body";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,7 @@ export async function GET(req: NextRequest) {
 async function putOnce(req: NextRequest) {
   try {
     const { tenant, actor } = await requireAccountWide(req, "secrets:write");
-    const body = (await req.json().catch(() => ({}))) as { provider?: string; apiKey?: string; baseUrl?: string; format?: string; source?: unknown; supply?: unknown; ifVersion?: unknown };
+    const body = (await jsonObject(req, { optional: true })) as { provider?: string; apiKey?: string; baseUrl?: string; format?: string; source?: unknown; supply?: unknown; ifVersion?: unknown };
     const apiKey = (body.apiKey ?? "").trim();
     const name = (body.provider ?? "").trim().toLowerCase();
     const baseUrl = (body.baseUrl ?? "").trim();

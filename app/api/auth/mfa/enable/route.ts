@@ -12,6 +12,7 @@ import { revokeSessions } from "@/server/sessions";
 import { audit } from "@/server/audit";
 import { sendSecurityNotice } from "@/server/email";
 import { clientIp } from "@/server/limits";
+import { jsonObject } from "@/server/body";
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
     // turning it off needs the password and a code. Without this, a stolen
     // session swapped in its own secret and backup codes with neither.
     if (me.mfaSecret) throw new ApiError("the second factor is already on — turn it off first (that needs your password and a code)", 409);
-    const body = (await req.json().catch(() => ({}))) as { enrol?: string; code?: string };
+    const body = (await jsonObject(req, { optional: true })) as { enrol?: string; code?: string };
     const claims = readToken("mfa-enrol", String(body.enrol ?? ""));
     if (!claims || claims.u !== me.id) throw new ApiError("start again — the enrolment expired", 400);
     const secret = openString(claims.s, mfaEnrolBinding(me.id));

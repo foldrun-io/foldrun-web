@@ -3,7 +3,7 @@
 
 import { opsError, opsLog } from "@/lib/ops-log.ts";
 import { NextRequest, NextResponse } from "next/server";
-import { clientIp } from "@/server/limits";
+import { clientIp, tooManyAttempts } from "@/server/limits";
 import { verifyPassword, findUser, mintSession, sessionCookieOptions, SESSION_COOKIE } from "@/server/users";
 import { sendSecurityNotice } from "@/server/email";
 import { listWorkspaces } from "@/lib/store";
@@ -12,6 +12,7 @@ import { audit } from "@/server/audit";
 import { mintToken, CHALLENGE_TTL_MS } from "@/server/auth-tokens";
 import { errorResponse, refuse } from "@/server/api";
 import { refuseNonText } from "@/server/auth-input";
+import { jsonObject } from "@/server/body";
 
 // Limits, because they answer different attacks. Per-account stops someone
 // grinding one person's password; per-IP stops the same client working through
@@ -50,16 +51,11 @@ function noteLoginRefused(email: string, reason: string): void {
   })().catch((err) => opsError("auth.refusal_note_failed", err));
 }
 
-function tooMany(retryAfter: number) {
-  return NextResponse.json(
-    { error: "too many attempts — wait a few minutes and try again" },
-    { status: 429, headers: { "retry-after": String(retryAfter) } },
-  );
-}
+const tooMany = tooManyAttempts;
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json().catch(() => ({}))) as { email?: string; password?: string };
+    const body = (await jsonObject(req, { optional: true })) as { email?: string; password?: string };
     const notText = refuseNonText(body, "email", "password");
     if (notText) return notText;
     const email = (body.email ?? "").toLowerCase().trim();

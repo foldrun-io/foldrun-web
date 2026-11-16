@@ -10,6 +10,7 @@ import { idempotent } from "@/server/idempotency";
 import { workspaceCapRefusal } from "@/server/workspace-cap";
 import { deployWorkspace } from "@/lib/deploy";
 import { audit } from "@/server/audit";
+import { jsonObject } from "@/server/body";
 
 export async function GET(req: NextRequest) {
   try {
@@ -25,7 +26,7 @@ async function postOnce(req: NextRequest) {
     // Refuse before reading the body: a caller who may not do this learns
     // that, not what the body should have looked like.
     await requirePermission(req, "workspace:manage");
-    const body = (await req.json()) as {
+    const body = (await jsonObject(req)) as {
       name?: string;
       files?: DeployFile[];
       template?: boolean;

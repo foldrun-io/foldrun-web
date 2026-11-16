@@ -19,6 +19,7 @@ import { applyRestore, planRestore } from "@/server/restore";
 import { auditPolicyEvents } from "@/server/workspace-policy";
 import { audit } from "@/server/audit";
 import { idempotent } from "@/server/idempotency";
+import { jsonObject } from "@/server/body";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ async function restorePost(req: NextRequest, ctx: Ctx) {
   try {
     const { workspace } = await ctx.params;
     const { tenant, actor } = await requirePermission(req, "workspace:write");
-    const body = (await req.json().catch(() => ({}))) as { to?: unknown; dryRun?: unknown; confirm?: unknown; expectRemoved?: unknown };
+    const body = (await jsonObject(req, { optional: true })) as { to?: unknown; dryRun?: unknown; confirm?: unknown; expectRemoved?: unknown };
     if (typeof body.to !== "string" || !body.to.trim()) throw new ApiError("expected { to: <commit, date or age> }", 400);
     const to = body.to.trim();
 

@@ -5,6 +5,7 @@ import { requireTenant, errorResponse, requirePermission, actorOf, refuse } from
 import { workspaceDir, assertSafeName, writeWorkspaceFile, listAgents } from "@/lib/store";
 import { listEvals } from "@/lib/evals";
 import { idempotent } from "@/server/idempotency";
+import { jsonObject } from "@/server/body";
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: string }> }) {
   try {
@@ -19,7 +20,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
   try {
     const { workspace } = await ctx.params;
     const tenant = (await requirePermission(req, "workspace:write")).tenant;
-    const body = (await req.json()) as { name?: string };
+    const body = (await jsonObject(req)) as { name?: string };
     if (!body.name) return refuse("expected { name }", 400);
     assertSafeName(body.name, "eval name");
 

@@ -5,6 +5,7 @@ import { libraryTools } from "@/lib/library";
 import { testTool } from "@/lib/tool-test";
 import { testableHere } from "@/server/tool-test-scope";
 import { idempotent } from "@/server/idempotency";
+import { jsonObject } from "@/server/body";
 
 // Call a tool once and report what happened.
 //
@@ -18,7 +19,7 @@ async function postOnce(
   try {
     const tenant = (await requirePermission(req, "run:start")).tenant;
     const { workspace, tool } = await ctx.params;
-    const body = (await req.json().catch(() => ({}))) as { path?: string; args?: Record<string, string> };
+    const body = (await jsonObject(req, { optional: true })) as { path?: string; args?: Record<string, string> };
 
     const def = { ...libraryTools(tenant), ...workspaceTools(tenant, workspace) }[tool];
     if (!def) {

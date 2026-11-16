@@ -9,6 +9,7 @@ import { beginCliLogin, requestOrigin, POLL_SECONDS } from "@/server/cli-login";
 import { errorResponse } from "@/server/api";
 import { clientIp, refuseWhenLimited } from "@/server/limits";
 import { publicOrigin } from "@/server/auth-flows";
+import { jsonObject } from "@/server/body";
 
 /** Sign-in requests one caller may open in a window: far above a person
  *  retrying `foldrun login`, far below the install's 200 waiting. */
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
       const limited = await refuseWhenLimited(key, PER_IP.limit, PER_IP.windowSec);
       if (limited) return limited;
     }
-    const body = (await req.json().catch(() => ({}))) as { hostname?: string };
+    const body = (await jsonObject(req, { optional: true })) as { hostname?: string };
     // Where it came from, for the approval page (RFC 8628 §5.4).
     const row = await beginCliLogin(String(body.hostname ?? ""), requestOrigin(req));
     const origin = publicOrigin(req);

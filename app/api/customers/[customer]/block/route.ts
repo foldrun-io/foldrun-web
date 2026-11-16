@@ -10,6 +10,7 @@ import { requirePermission, errorResponse, ApiError, refuse } from "@/server/api
 import { blockCustomer, unblockCustomer } from "@/platform/customers";
 import { customerProblem } from "@/lib/customer";
 import { audit } from "@/server/audit";
+import { jsonObject } from "@/server/body";
 
 async function admin(req: NextRequest, ctx: { params: Promise<{ customer: string }> }) {
   const { tenant, actor } = await requirePermission(req, "workspace:manage");
@@ -23,7 +24,7 @@ async function admin(req: NextRequest, ctx: { params: Promise<{ customer: string
 export async function PUT(req: NextRequest, ctx: { params: Promise<{ customer: string }> }) {
   try {
     const { tenant, actor, customer } = await admin(req, ctx);
-    const body = (await req.json().catch(() => ({}))) as { reason?: unknown };
+    const body = (await jsonObject(req, { optional: true })) as { reason?: unknown };
     const reason = typeof body?.reason === "string" ? body.reason : null;
     await blockCustomer(tenant, customer, actor.name, reason);
     await audit("customer.blocked", { actor: actor.name, tenant, subject: customer, ...(reason ? { detail: { reason: reason.slice(0, 500) } } : {}) });

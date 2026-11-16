@@ -12,6 +12,7 @@ import { audit } from "@/server/audit";
 import { idempotent } from "@/server/idempotency";
 import { checkModels, gatewayOffered } from "@/server/gateway-keys";
 import { setGatewayGrantDb } from "@/platform/api-keys-db";
+import { jsonObject } from "@/server/body";
 
 async function patchOnce(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
@@ -21,7 +22,7 @@ async function patchOnce(req: NextRequest, ctx: { params: Promise<{ id: string }
     if ("models" in ((await req.clone().json().catch(() => ({}))) as Record<string, unknown>) && !gatewayOffered()) return refuse("gateway keys are for the hosted platform", 400);
     let body: Record<string, unknown>;
     try {
-      body = ((await req.json()) ?? {}) as Record<string, unknown>;
+      body = ((await jsonObject(req)) ?? {}) as Record<string, unknown>;
     } catch {
       throw new ApiError("expected a JSON body { models }", 400);
     }

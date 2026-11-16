@@ -14,6 +14,7 @@ import { publicOrigin } from "@/server/auth-flows";
 import { audit } from "@/server/audit";
 import { isRole, can } from "@/platform/permissions";
 import { idempotent } from "@/server/idempotency";
+import { jsonObject } from "@/server/body";
 
 export async function GET(req: NextRequest) {
   try {
@@ -37,7 +38,7 @@ async function postOnce(req: NextRequest) {
     // A person: signed in, or their own `foldrun login` key (at the lower
     // of its role and theirs — an owner's key invites no admin).
     const { tenant, actor } = await requirePerson(req, "team:manage", { cliLogin: true });
-    const body = (await req.json().catch(() => ({}))) as { role?: unknown; workspaces?: unknown; email?: unknown; send?: unknown };
+    const body = (await jsonObject(req, { optional: true })) as { role?: unknown; workspaces?: unknown; email?: unknown; send?: unknown };
     const role = body.role ?? "editor";
     if (!isRole(role) || role === "owner") throw new ApiError("role must be viewer, editor or admin", 400);
     if (role === "admin" && !can(actor.role, "admins:manage")) {

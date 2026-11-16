@@ -10,11 +10,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { requirePermission, assertWorkspaceScope, errorResponse, ApiError } from "@/server/api";
 import { telemetryConfig, sendTrace } from "@/platform/otel-export";
 import type { RunRecord } from "@/lib/store";
+import { jsonObject } from "@/server/body";
 
 export async function POST(req: NextRequest) {
   try {
     const { tenant, actor } = await requirePermission(req, "workspace:manage");
-    const body = (await req.json().catch(() => ({}))) as { workspace?: unknown };
+    const body = (await jsonObject(req, { optional: true })) as { workspace?: unknown };
     const workspace = typeof body.workspace === "string" && body.workspace ? body.workspace : null;
     if (workspace) assertWorkspaceScope(actor, workspace);
     else if (actor.workspaces !== null) throw new ApiError("the account's telemetry needs access to every workspace — name a workspace you were given", 403);

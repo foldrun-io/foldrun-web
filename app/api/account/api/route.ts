@@ -4,6 +4,7 @@ import { updateAdminState } from "@/platform/admin";
 import { forgetAccountProfile } from "@/server/api-limits";
 import { parseVersion } from "@/server/api-version";
 import { apiFactsFor } from "@/server/api-facts";
+import { jsonObject } from "@/server/body";
 
 // How this account meets the HTTP API: its rate limits, the API version
 // its requests get when they send no Foldrun-Version header, and its use of
@@ -28,7 +29,7 @@ export async function PATCH(req: NextRequest) {
     // The pin is every key's in the account: a caller scoped to some
     // workspaces would change what the others' CI receives (30 Oct 2026).
     const { tenant, actor } = await requireAccountWide(req, "keys:manage");
-    const body = (await req.json()) as { version?: unknown };
+    const body = (await jsonObject(req)) as { version?: unknown };
     if (!("version" in (body ?? {}))) return refuse("expected { version: \"YYYY-MM-DD\" | null }", 400);
     let version: string | undefined;
     if (body.version !== null) {

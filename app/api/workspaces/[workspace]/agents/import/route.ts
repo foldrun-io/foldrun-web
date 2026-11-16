@@ -8,6 +8,7 @@ import { workspaceDir, isOneSegment } from "@/lib/store";
 import fs from "node:fs";
 import path from "node:path";
 import { idempotent } from "@/server/idempotency";
+import { jsonObject } from "@/server/body";
 
 // Bring an agent you already have into this workspace — copied from another
 // workspace of the same account, its agent.md and own skills/scripts, never
@@ -40,7 +41,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     // which that check cannot see — a caller scoped to some workspaces must
     // not copy out of one they were not given.
     const { tenant, actor } = await requirePermission(req, "workspace:write");
-    const body = (await req.json().catch(() => ({}))) as { from?: unknown; agent?: unknown; as?: unknown };
+    const body = (await jsonObject(req, { optional: true })) as { from?: unknown; agent?: unknown; as?: unknown };
     if (typeof body.from !== "string" || typeof body.agent !== "string" || !body.from || !body.agent) {
       return refuse("expected { from: <workspace>, agent: <name>, as?: <new name> }", 400);
     }

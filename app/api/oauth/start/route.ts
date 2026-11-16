@@ -14,11 +14,12 @@ import { getOAuthClient } from "@/platform/oauth-clients";
 import { idempotent } from "@/server/idempotency";
 import { startBound, handoff, inBrowser } from "@/server/oauth-browser";
 import { scopesOf } from "@/server/oauth-scopes";
+import { jsonObject } from "@/server/body";
 
 async function postOnce(req: NextRequest) {
   try {
     const { tenant, actor } = await requirePermission(req, "secrets:write");
-    const body = (await req.json().catch(() => ({}))) as {
+    const body = (await jsonObject(req, { optional: true })) as {
       client?: string;
       secret?: string;
       workspace?: string;

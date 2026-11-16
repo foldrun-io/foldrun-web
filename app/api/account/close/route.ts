@@ -21,12 +21,13 @@ import { findUserById, ownerOf } from "@/server/users";
 import { sendCloseRequestNotice } from "@/server/email";
 import { audit } from "@/server/audit";
 import { billing } from "@/platform/billing";
+import { jsonObject } from "@/server/body";
 
 export async function POST(req: NextRequest) {
   try {
     requireHosted();
     const { tenant, userId } = await requireOwner(req);
-    const body = (await req.json().catch(() => ({}))) as { confirm?: unknown; reason?: unknown };
+    const body = (await jsonObject(req, { optional: true })) as { confirm?: unknown; reason?: unknown };
     if (body.confirm !== tenant) throw new ApiError(`type the account's name, ${tenant}, to confirm`, 400);
     if (tenant === platformAccount()) throw new ApiError("the platform's own account cannot be closed from here", 409);
     const state = await adminState(tenant);

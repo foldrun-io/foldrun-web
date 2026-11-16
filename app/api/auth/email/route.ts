@@ -30,6 +30,7 @@ import { sendEmailChangeConfirm, sendEmailTakenNotice } from "@/server/email";
 import { emailChangeLink, publicOrigin } from "@/server/auth-flows";
 import { platformMail } from "@/lib/notify";
 import { audit } from "@/server/audit";
+import { jsonObject } from "@/server/body";
 
 // Six tries in fifteen minutes, like the password change: this route
 // verifies a password too, and was the one place a stolen session could
@@ -57,7 +58,13 @@ export async function POST(req: NextRequest) {
   const limited = await refuseWhenLimited(`email:${user.id}`, LIMIT.limit, LIMIT.windowSec);
   if (limited) return limited;
 
-  const body = (await req.json().catch(() => ({}))) as { password?: string; email?: string };
+  // A body that is not a JSON object is refused here, outside any try.
+
+  const read = await jsonObject(req, { optional: true }).catch((err: unknown) => errorResponse(err));
+
+  if (read instanceof Response) return read;
+
+  const body = read as { password?: string; email?: string };
   const notText = refuseNonText(body, "password", "email");
   if (notText) return notText;
   try {

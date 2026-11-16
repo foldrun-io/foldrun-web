@@ -12,7 +12,7 @@ import { platform } from "@/lib/platform";
 import { verifyLink, publicOrigin } from "@/server/auth-flows";
 import { errorResponse, refuse } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
-import { clientIp } from "@/server/limits";
+import { clientIp, tooManyAttempts } from "@/server/limits";
 import { acceptInvite, createLinkedAccount, createUser, hasUsers, setEmailVerified, mintSession, sessionCookieOptions, SESSION_COOKIE, setupTokenRequired, setupTokenMatches } from "@/server/users";
 import { signupModesNow } from "@/server/signup";
 import { refuseNonText } from "@/server/auth-input";
@@ -21,6 +21,7 @@ import { audit } from "@/server/audit";
 import { listWorkspaces, saveWorkspace, templateFiles } from "@/lib/store";
 import { rateLimit } from "@/platform/cache";
 import { readSignupLink } from "@/server/signup-links";
+import { jsonObject } from "@/server/body";
 
 // Signup had no limit at all, so the form could be asked about an unlimited
 // number of addresses as fast as the box would answer. Login has had these
@@ -32,16 +33,11 @@ const PER_EMAIL = { limit: 5, windowSec: 15 * 60 };
 const PER_IP = { limit: 20, windowSec: 15 * 60 };
 
 
-function tooMany(retryAfter: number) {
-  return NextResponse.json(
-    { error: "too many attempts — wait a few minutes and try again" },
-    { status: 429, headers: { "retry-after": String(retryAfter) } },
-  );
-}
+const tooMany = tooManyAttempts;
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json().catch(() => ({}))) as {
+    const body = (await jsonObject(req, { optional: true })) as {
       email?: string;
       password?: string;
       account?: string;
