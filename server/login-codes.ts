@@ -134,10 +134,22 @@ async function mailCode(tenant: string, to: string, code: string): Promise<boole
 }
 
 /** Step one, after the answer was given: issue and mail. Never throws; says
- *  nothing back (the route answered the same for every address already). */
-export async function requestCode(email: string, challenge: string, now = Date.now()): Promise<"sent" | "not sent"> {
+ *  nothing back (the route answered the same for every address already).
+ *
+ *  `budget` is the install-wide cap on mails (the route's `login-code:sends`),
+ *  asked only once the address is a real, verified account that may have a
+ *  code: an address that is not one is "not sent" before it, so made-up
+ *  addresses never spend it (16 Nov 2026 — one script's 300 random addresses
+ *  stopped every code mail for an hour). Refused, the code just made is
+ *  emptied as a failed mail's is, so nobody holds a code that was never sent.
+ *  Nothing differs in what the caller sees: the answer was given already. */
+export async function requestCode(email: string, challenge: string, now = Date.now(), budget?: () => Promise<boolean>): Promise<"sent" | "not sent"> {
   const out = await issueCode(email, challenge, now);
   if ("why" in out) return "not sent";
+  if (budget && !(await budget())) {
+    await markSent(out.user.id, out.binding, false, now);
+    return "not sent";
+  }
   const sent = await mailCode(out.user.tenant, out.user.email, out.code);
   await markSent(out.user.id, out.binding, sent, now);
   return sent ? "sent" : "not sent";
