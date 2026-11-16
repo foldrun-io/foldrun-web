@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       suites:
-        description: "Suites (push | all | a list: e2e races leak load:smoke browser fuzz dast chaos load:load load:stress load:spike load:soak)"
+        description: "Suites (push | all | a list: visual e2e races leak load:smoke browser fuzz dast chaos load:load load:stress load:spike load:soak; visual:update makes new baselines, quality/README.md)"
         default: all
 
 permissions:

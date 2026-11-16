@@ -6,6 +6,9 @@
 #   bash quality/run.sh e2e load:stress dast # any list
 #
 # Suites: e2e, races, chaos, fuzz, dast, browser, leak, load:<smoke|load|stress|spike|soak>.
+# visual compares key pages with quality/visual/baselines; visual:update
+# writes new baselines (quality/README.md). visual runs first: it needs the
+# fresh stack's data, before any other suite adds to it.
 # Starts the stack, runs each suite, always stops the stack, exits 1 if any
 # failed, and prints one line per suite at the end. A variant of the stack
 # (stack.sh says how) may bring suites of its own: QUALITY_SUITES_EXTRA is a
@@ -34,6 +37,7 @@ for s in "$@"; do
   case "$s" in
     load:*) docker run --rm --network host -e QUALITY_URL -e QUALITY_TOKEN -e "QUALITY_WS=${QUALITY_WS:-quality-load}" -e "PROFILE=${s#load:}" \
               -v "$QUALITY_DIR/load.k6.js:/q/load.k6.js:ro" grafana/k6:latest run --quiet /q/load.k6.js ;;
+    visual:update) VISUAL_UPDATE=1 bash "$QUALITY_DIR/visual.sh" ;;
     # <name> or <name>:<argument> (QUALITY_SUITE_ARG), from here or the variant's folder.
     *) name=${s%%:*}; arg=${s#"$name"}; arg=${arg#:}
        if [ -f "$QUALITY_DIR/$name.sh" ]; then QUALITY_SUITE_ARG="$arg" bash "$QUALITY_DIR/$name.sh"
