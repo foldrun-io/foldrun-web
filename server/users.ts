@@ -602,7 +602,7 @@ const sign = sessionMac;
 export async function mintSession(
   user: UserRecord,
   userAgent?: string | null,
-  how: { audience?: string | null; mfa?: boolean } = {},
+  how: { audience?: string | null; mfa?: boolean; method?: "password" | "email-code" } = {},
 ): Promise<{ value: string; expires: Date; sessionId: string | null }> {
   const expires = sessionExpiry();
   if (revocable()) {

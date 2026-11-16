@@ -131,8 +131,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, mfa: true, challenge });
     }
 
-    const session = await mintSession(user, req.headers.get('user-agent'));
-    await audit('login', { actor: user.email, tenant: user.tenant, subject: session.sessionId });
+    const session = await mintSession(user, req.headers.get('user-agent'), { method: "password" });
+    await audit('login', { actor: user.email, tenant: user.tenant, subject: session.sessionId, detail: { method: "password" } });
     const res = NextResponse.json({
       ok: true,
       tenant: user.tenant,

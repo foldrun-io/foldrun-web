@@ -2,8 +2,11 @@ import { Suspense } from "react";
 import Link from "@foldrun/ui/react/link";
 import { AuthForm } from "../auth-form";
 import { AuthCard } from "../brand";
+import { codeSignInAvailable } from "@/server/login-codes";
 
 export const metadata = { title: "Sign in" };
+
+export const dynamic = "force-dynamic";
 
 export default function LoginPage() {
   return (
@@ -20,7 +23,7 @@ export default function LoginPage() {
       }
     >
       <Suspense>
-        <AuthForm mode="login" />
+        <AuthForm mode="login" codeSignIn={codeSignInAvailable()} />
       </Suspense>
     </AuthCard>
   );

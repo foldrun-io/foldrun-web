@@ -72,8 +72,10 @@ export async function POST(req: NextRequest) {
     await rateLimitReset(`mfa:${user.id}`);
     await rateLimitReset(`mfa:totp:${user.id}`);
     if (how === "totp") await rebindMfa(user.id).catch(() => false);
-    const session = await mintSession(user, req.headers.get("user-agent"), { mfa: true });
-    await audit("login", { actor: user.email, tenant: user.tenant, subject: session.sessionId, detail: { mfa: how } });
+    // How the person got as far as the challenge: a password, or an emailed code.
+    const method = claims.m === "email-code" ? "email-code" : "password";
+    const session = await mintSession(user, req.headers.get("user-agent"), { mfa: true, method });
+    await audit("login", { actor: user.email, tenant: user.tenant, subject: session.sessionId, detail: { mfa: how, method } });
     const res = NextResponse.json({ ok: true, tenant: user.tenant, workspace: listWorkspaces(user.tenant)[0]?.name ?? null, ...(how === "backup" ? { backupUsed: true } : {}) });
     res.cookies.set(SESSION_COOKIE, session.value, sessionCookieOptions(req, session.expires));
     return res;

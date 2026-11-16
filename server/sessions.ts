@@ -33,6 +33,9 @@ export interface SessionRow {
   lastSeenAt: string;
   expiresAt: string;
   userAgent: string | null;
+  /** How this session was signed in: "password" or "email-code"; a session
+   *  from before it was recorded reads as a password. */
+  method: "password" | "email-code";
 }
 
 /** Write the row a v2 token refers to. */
@@ -42,7 +45,7 @@ export async function recordSession(
   tenant: string,
   expires: Date,
   userAgent: string | null,
-  how: { audience?: string | null; mfa?: boolean } = {},
+  how: { audience?: string | null; mfa?: boolean; method?: "password" | "email-code" } = {},
 ): Promise<void> {
   const q = orm();
   if (!q) return;
@@ -56,6 +59,7 @@ export async function recordSession(
       userAgent: userAgent?.slice(0, 300) ?? null,
       audience: how.audience ?? null,
       mfaAt: how.mfa ? new Date() : null,
+      method: how.method ?? "password",
     })
     .onConflictDoNothing({ target: sessions.id });
 }
@@ -97,6 +101,7 @@ export async function listSessions(userId: string): Promise<SessionRow[]> {
     lastSeenAt: r.lastSeenAt.toISOString(),
     expiresAt: r.expiresAt.toISOString(),
     userAgent: r.userAgent,
+    method: r.method === "email-code" ? "email-code" : "password",
   }));
 }
 

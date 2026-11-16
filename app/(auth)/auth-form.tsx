@@ -14,8 +14,10 @@ import { cn } from "@foldrun/ui/react/cn";
 import { Field, Callout } from "@foldrun/ui/react/page";
 
 
-export function AuthForm({ mode, invite, setup, link }: {
+export function AuthForm({ mode, invite, setup, link, codeSignIn }: {
   mode: "login" | "signup";
+  /** Offer "email me a code" beside the password (FOL-185); set by the sign-in page when the install can send one. */
+  codeSignIn?: boolean;
   invite?: string;
   setup?: string;
   /** A sign-up link the platform mailed: its token, and the one address it is for. */
@@ -26,16 +28,50 @@ export function AuthForm({ mode, invite, setup, link }: {
   // The second step: the password bought a challenge, not a session.
   const [challenge, setChallenge] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Signing in with an emailed code instead of a password: first the address,
+  // then the code that came. The code replaces the password only; a second
+  // factor, when one is on, still follows (the `challenge` step above).
+  const [viaCode, setViaCode] = useState(false);
+  const [codeAsked, setCodeAsked] = useState(false);
+  const [canResend, setCanResend] = useState(false);
+
+  async function askCode(email: string) {
+    const res = await fetch("/api/auth/login/code", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) {
+      const payload = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(payload.error ?? "something went wrong — try again");
+    }
+    setCodeAsked(true);
+    setCanResend(false);
+    setTimeout(() => setCanResend(true), 30_000);
+  }
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
     setError(null);
     const data = new FormData(e.currentTarget);
+    if (viaCode && !codeAsked && !challenge) {
+      try {
+        await askCode(String(data.get("email") ?? ""));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      }
+      setBusy(false);
+      return;
+    }
     const body: Record<string, string> = {
       email: String(data.get("email") ?? ""),
       password: String(data.get("password") ?? ""),
     };
+    if (viaCode && codeAsked && !challenge) {
+      delete body.password;
+      body.code = String(data.get("code") ?? "");
+    }
     if (challenge) {
       body.challenge = challenge;
       body.code = String(data.get("code") ?? "");
@@ -48,7 +84,7 @@ export function AuthForm({ mode, invite, setup, link }: {
     // and an unhandled throw here left the button stuck on "…" forever with
     // no message — indistinguishable from a hang.
     try {
-      const res = await fetch(challenge ? "/api/auth/mfa/verify" : `/api/auth/${mode}`, {
+      const res = await fetch(challenge ? "/api/auth/mfa/verify" : viaCode ? "/api/auth/login/code/verify" : `/api/auth/${mode}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
@@ -125,7 +161,7 @@ export function AuthForm({ mode, invite, setup, link }: {
           {...(link ? { defaultValue: link.email, readOnly: true, "aria-readonly": true } : {})}
         />
       </Field>}
-      {!challenge && <Field label="Password">
+      {!challenge && !viaCode && <Field label="Password">
         <Input
           name="password"
           type="password"
@@ -137,15 +173,56 @@ export function AuthForm({ mode, invite, setup, link }: {
           <a href="/forgot" className="block text-xs text-fg-muted hover:text-fg">Forgot your password?</a>
         )}
       </Field>}
+      {!challenge && viaCode && codeAsked && (
+        <>
+          <Callout tone="info">If that address can sign in with a code, one is on its way. It works for 10 minutes, once, in this browser.</Callout>
+          <Field label="Code from your email">
+            <Input name="code" inputMode="numeric" autoComplete="one-time-code" autoFocus required pattern="[0-9 ]{6,7}" placeholder="123 456" />
+          </Field>
+        </>
+      )}
       {error && (
         <Callout tone="danger">{error}</Callout>
+      )}
+      {mode === "login" && codeSignIn && !challenge && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-fg-muted">
+          <button
+            type="button"
+            className="hover:text-fg"
+            onClick={() => {
+              setViaCode(!viaCode);
+              setCodeAsked(false);
+              setError(null);
+            }}
+          >
+            {viaCode ? "Use a password instead" : "Email me a code instead"}
+          </button>
+          {viaCode && codeAsked && (
+            <button
+              type="button"
+              className="hover:text-fg disabled:opacity-50"
+              disabled={!canResend || busy}
+              onClick={async (e) => {
+                const form = e.currentTarget.form;
+                setError(null);
+                try {
+                  await askCode(String(new FormData(form ?? undefined).get("email") ?? ""));
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : String(err));
+                }
+              }}
+            >
+              Send a new code
+            </button>
+          )}
+        </div>
       )}
       <button
         type="submit"
         disabled={busy}
         className={cn(buttonVariants({ variant: "primary", size: "md" }), "w-full")}
       >
-        {busy ? "…" : challenge ? "Verify" : mode === "signup" ? "Create account" : "Sign in"}
+        {busy ? "…" : challenge ? "Verify" : viaCode && !codeAsked ? "Email me a code" : mode === "signup" ? "Create account" : "Sign in"}
       </button>
     </form>
   );

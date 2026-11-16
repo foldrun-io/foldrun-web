@@ -18,6 +18,7 @@ interface Row {
   createdAt: string;
   lastSeenAt: string;
   userAgent: string | null;
+  method?: "password" | "email-code";
   isCurrent: boolean;
 }
 
@@ -98,7 +99,7 @@ export function SessionList() {
                 )}
               </p>
               <p className="text-xs text-fg-muted">
-                last used <LocalTime iso={s.lastSeenAt} /> · started <LocalTime iso={s.createdAt} />
+                last used <LocalTime iso={s.lastSeenAt} /> · started <LocalTime iso={s.createdAt} /> · signed in with {s.method === "email-code" ? "an email code" : "a password"}
               </p>
             </div>
             {!s.isCurrent && (
