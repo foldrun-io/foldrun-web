@@ -299,6 +299,7 @@ export const OVERLAY_ROWS: Row[] = [
   ["POST", "/api/billing/partner/plans/offer", "hosted token", { ok: [400, 401, 403, 404, 503] }],
   ["POST", "/api/billing/partner/signups", "hosted token", { ok: [400, 401, 403, 404, 429, 503] }],
   ["POST", "/api/billing/partner/topups", "hosted token", { ok: [400, 401, 403, 404, 503] }],
+  ["GET", "/api/billing/partner/topups", "hosted token", { ok: [400, 401, 403, 404, 503] }],
   ["GET", "/api/billing/partner/topups/{id}", "hosted token", { ok: [400, 401, 403, 404, 503] }],
   ["POST", "/api/billing/partner/topups/{id}/authority", "hosted token", { ok: [400, 401, 403, 404, 503] }],
   ["POST", "/api/billing/partner/topups/{id}/failed", "hosted token", { ok: [400, 401, 403, 404, 503] }],
