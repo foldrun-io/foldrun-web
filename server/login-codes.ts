@@ -163,6 +163,11 @@ export async function verifyCode(email: string, code: string, challenge: string,
   return tx(async (t): Promise<Verdict> => {
     const [u] = await t.select().from(usersTable).where(sql`lower(${usersTable.email}) = ${e}`).for("update").limit(1);
     if (!u) {
+      // The same two reads a known address makes (users, then login_codes),
+      // so an unknown one does not answer a query sooner (Codex, 16 Nov 2026,
+      // ASVS 6.3.8). The wrong-code writes stay a difference, but they need
+      // a real challenge, which needs a code mailed to the real person.
+      await t.select({ id: loginCodes.id }).from(loginCodes).where(and(eq(loginCodes.userId, ""), eq(loginCodes.binding, binding))).limit(1);
       codeDigest("none", bound, c.slice(0, 12));
       return { ok: false, reason: "no such address" };
     }
