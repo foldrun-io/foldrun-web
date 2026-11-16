@@ -743,6 +743,8 @@ const EXTRA_STATUSES: Record<string, string[]> = {
   "POST /api/workspaces/{workspace}/evals/{evalName}/run": ["202", "409"],
   // A flow of that name already exists (FOL-199, hosted fuzz).
   "POST /api/workspaces/{workspace}/flows": ["409"],
+  // A mail that cannot be turned off, with the reason (FOL-199, hosted fuzz).
+  "PATCH /api/me/notifications": ["409"],
 };
 
 /** The success statuses in EXTRA_STATUSES, which are not refusals. */

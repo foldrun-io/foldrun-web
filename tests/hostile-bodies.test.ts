@@ -222,4 +222,6 @@ test("a NUL in any string or key of a body is a 400, never reaching storage", as
 test("the document lists 409 (that name exists) for creating a flow", () => {
   const doc = openapiDocument() as { paths: Record<string, Record<string, { responses: Record<string, unknown> }>> };
   assert.ok(doc.paths["/api/workspaces/{workspace}/flows"].post.responses["409"]);
+  // A mail that cannot be turned off (the sixth hosted fuzz run, 43911475419).
+  assert.ok(doc.paths["/api/me/notifications"].patch.responses["409"]);
 });
