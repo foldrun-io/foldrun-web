@@ -17,9 +17,11 @@ export default defineConfig({
   timeout: 60_000,
   expect: {
     toHaveScreenshot: {
-      // Anti-aliasing may move a few pixels between runs; a changed
-      // component moves thousands. 0.2% of a 1360x900 page is ~2,400 pixels.
-      maxDiffPixelRatio: 0.002,
+      // A fixed number, not a share of the page: CI shoots in the same
+      // Playwright image every time, so an unchanged page differs by a few
+      // anti-aliased pixels at most, while a share grows with the page
+      // (0.2% of a tall page hid a letter-spacing change on every heading).
+      maxDiffPixels: 100,
       threshold: 0.2,
       animations: "disabled",
       caret: "hide",

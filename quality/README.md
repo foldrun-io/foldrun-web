@@ -30,7 +30,7 @@ artifact.
 
 `visual` takes each page in `visual/dashboard.spec.mjs` at 1360×900, light
 and dark, and compares it with `visual/baselines/<page>-<theme>.png`. More
-than 0.2% of the pixels different fails the run. The artifact then holds
+than 100 pixels different fails the run. The artifact then holds
 `visual/<test>/…-actual.png`, `-expected.png` and `-diff.png` (changed pixels
 in red). Times, versions and ids are masked (`VOLATILE` in the spec; mark an
 element `data-volatile` to add one).
