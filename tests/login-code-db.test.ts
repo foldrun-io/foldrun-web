@@ -222,7 +222,7 @@ test("100 wrong in a row lock code sign-in for 15 minutes; the password still wo
   const t0 = Date.now();
   await w.codes.requestCode(p.email, b.challenge, t0);
   const code = w.codeFrom(p.email)!;
-  await w.orm()!.execute(`UPDATE users SET code_failed_run = ${w.codes.LOCK_AFTER - 1} WHERE id = '${p.user.id}'`);
+  await w.orm()!.execute(`UPDATE users SET code_failed_run = ${w.codes.LOCK_AFTER - 1}, code_failed_at = now() WHERE id = '${p.user.id}'`);
   const wrong = code === "000000" ? "111111" : "000000";
   assert.deepEqual(await w.codes.verifyCode(p.email, wrong, b.challenge, t0 + 1_000), { ok: false, reason: "locked" });
   assert.deepEqual(await w.codes.verifyCode(p.email, code, b.challenge, t0 + 2_000), { ok: false, reason: "locked" }, "even the right code, while locked");
@@ -234,6 +234,25 @@ test("100 wrong in a row lock code sign-in for 15 minutes; the password still wo
   assert.equal(await w.codes.requestCode(p.email, b.challenge, later), "sent");
   assert.deepEqual(await w.codes.verifyCode(p.email, w.codeFrom(p.email)!, b.challenge, later + 1_000), { ok: true, userId: p.user.id });
   assert.equal((await w.row(p.user.id)).run, 0);
+});
+
+test("a run of wrong codes older than an hour is forgotten: 99 wrong long ago, one more, no lock; 99 wrong just now, one more, locked", opts, async () => {
+  const w = await world();
+  const p = await w.person("rw");
+  const b = w.browser();
+  const t0 = Date.now();
+  await w.codes.requestCode(p.email, b.challenge, t0);
+  const code = w.codeFrom(p.email)!;
+  const wrong = code === "000000" ? "111111" : "000000";
+  const set = (ago: number | null) =>
+    w.orm()!.execute(`UPDATE users SET code_failed_run = ${w.codes.LOCK_AFTER - 1}, code_failed_at = ${ago === null ? "NULL" : `now() - interval '${ago} seconds'`} WHERE id = '${p.user.id}'`);
+  await set(w.codes.RUN_WINDOW_MS / 1000 + 60);
+  assert.deepEqual(await w.codes.verifyCode(p.email, wrong, b.challenge, t0 + 1_000), { ok: false, reason: "wrong" });
+  assert.equal((await w.row(p.user.id)).run, 1, "started again from one");
+  await set(null);
+  assert.deepEqual(await w.codes.verifyCode(p.email, wrong, b.challenge, t0 + 2_000), { ok: false, reason: "wrong" }, "a run with no stamp (from before the column) is stale too");
+  await set(60);
+  assert.deepEqual(await w.codes.verifyCode(p.email, wrong, b.challenge, t0 + 3_000), { ok: false, reason: "locked" }, "a fresh run still locks at 100");
 });
 
 test("at most six code mails an hour per address: the seventh browser gets the same 200 and nothing", opts, async () => {
