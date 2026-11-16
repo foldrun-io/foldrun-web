@@ -14,7 +14,7 @@
     "prepare": "(test ! -f .githooks/install.sh || sh .githooks/install.sh)"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.3.319",
+    "@anthropic-ai/claude-agent-sdk": "^0.3.323",
     "@codemirror/lang-javascript": "^6.2.5",
     "@codemirror/lang-json": "^6.0.2",
     "@codemirror/lang-python": "^6.2.1",
@@ -32,8 +32,8 @@
     "d3-force": "^3.0.1",
     "github-slugger": "^2.0.0",
     "gray-matter": "^4.0.3",
-    "lucide-react": "^1.70.0",
-    "next": "^16.4.5",
+    "lucide-react": "^1.72.0",
+    "next": "^16.4.6",
     "qrcode": "^1.5.4",
     "radix-ui": "^1.8.1",
     "react": "19.3.1",
@@ -48,7 +48,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "eslint": "^10.14.0",
-    "eslint-config-next": "^16.4.5",
+    "eslint-config-next": "^16.4.6",
     "js-yaml": "^5.5.0",
     "tailwindcss": "^4",
     "typescript": "~6.0.3",
