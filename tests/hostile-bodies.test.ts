@@ -38,6 +38,7 @@ const prefs = await mod("../app/api/me/preferences/route.ts");
 const agentsMd = await mod("../app/api/account/agents-md/route.ts");
 const { createUser } = await import("../server/users.ts");
 const deployRoute = await mod("../app/api/workspaces/[workspace]/deploy/route.ts");
+const { jsonObject } = await import("../server/body.ts");
 
 const TENANT = "acme";
 const WS = "desk";
@@ -205,4 +206,20 @@ test("the document lists 202 (async) and 409 (already running) for an eval run",
   assert.ok(op["200"] && op["202"] && op["409"]);
   assert.equal(op["202"].$ref, undefined, "202 is a success with its own body, not a refusal");
   assert.ok(op["202"].content);
+});
+
+// The fifth hosted fuzz run (43900332176): POST /api/mcp/clients with a NUL
+// in the name was a 500 on the hosted stack — Postgres cannot hold \u0000 in
+// jsonb. Every route reading its body through jsonObject refuses one now.
+test("a NUL in any string or key of a body is a 400, never reaching storage", async () => {
+  for (const b of ['{"name":"a\\u0000b"}', '{"a\\u0000":1}', '{"x":{"y":["ok","\\u0000"]}}']) {
+    await assert.rejects(jsonObject(new Request("http://localhost/", { method: "POST", body: b })), (e: Error & { status?: number }) => e.status === 400 && /NUL/.test(e.message), b);
+  }
+  // A backslash followed by u0000 as text is not a NUL, and is kept.
+  assert.deepEqual(await jsonObject(new Request("http://localhost/", { method: "POST", body: '{"p":"C:\\\\u0000"}' })), { p: "C:\\u0000" });
+});
+
+test("the document lists 409 (that name exists) for creating a flow", () => {
+  const doc = openapiDocument() as { paths: Record<string, Record<string, { responses: Record<string, unknown> }>> };
+  assert.ok(doc.paths["/api/workspaces/{workspace}/flows"].post.responses["409"]);
 });

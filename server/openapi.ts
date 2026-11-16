@@ -741,6 +741,8 @@ const EXTRA_STATUSES: Record<string, string[]> = {
   // { async: true } answers 202 at once (21 Oct 2026); that eval already
   // running is a 409 naming the run to poll (FOL-199, hosted fuzz).
   "POST /api/workspaces/{workspace}/evals/{evalName}/run": ["202", "409"],
+  // A flow of that name already exists (FOL-199, hosted fuzz).
+  "POST /api/workspaces/{workspace}/flows": ["409"],
 };
 
 /** The success statuses in EXTRA_STATUSES, which are not refusals. */

@@ -31,10 +31,19 @@ export async function jsonObject(req: Request, opts: { optional?: boolean } = {}
     if (opts.optional) return {};
     throw new ApiError("expected a JSON object body", 400);
   }
+  // A NUL (\u0000) in any string or key: Postgres cannot hold one in text or
+  // jsonb ("unsupported Unicode escape sequence"), so a hosted write of it was
+  // a 500 (FOL-199, hosted fuzz: POST /api/mcp/clients with a name holding
+  // one). No field here means anything by it — refused before any is read.
+  const NUL = Symbol("nul");
   let value: unknown;
   try {
-    value = JSON.parse(text);
-  } catch {
+    value = JSON.parse(text, (k, v) => {
+      if (k.includes("\u0000") || (typeof v === "string" && v.includes("\u0000"))) throw NUL;
+      return v;
+    });
+  } catch (err) {
+    if (err === NUL) throw new ApiError("text in the body cannot hold a NUL character (\\u0000)", 400);
     throw new ApiError("malformed JSON", 400);
   }
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
