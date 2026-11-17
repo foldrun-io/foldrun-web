@@ -72,14 +72,12 @@ export function AgentRow({
               confirmText={$t("workspace.agents-agent-row.deleteAgent", { name: String(name) })}
             />
           </span>
-          {/* No task field here. A bare agent run is a debugging move, and the
-              CLI does it better: foldrun run <agent> --task "…". On a list, an
-              expanding input just breaks the row it lives in. */}
+          {/* The task is asked for in a dialog, so the row keeps its shape. */}
           <RunButton
             endpoint={`/api/workspaces/${workspace}/agents/${name}/run`}
             tenant={tenant}
             label={$t("workspace.agents-agent-row.run")}
-            withTask={false}
+            dialog
           />
         </span>
       </div>
