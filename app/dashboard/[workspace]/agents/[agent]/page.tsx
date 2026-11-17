@@ -140,7 +140,7 @@ export default async function AgentPage({
               <FilePen aria-hidden />
               {$t("workspace.agents-agent-page.editAgentMd")}
             </Link>
-            <RunButton endpoint={`/api/workspaces/${workspace}/agents/${agent}/run`} tenant={tenant} label={$t("workspace.agents-agent-page.run")} withTask={false} />
+            <RunButton endpoint={`/api/workspaces/${workspace}/agents/${agent}/run`} tenant={tenant} label={$t("workspace.agents-agent-page.run")} dialog />
           </>
         }
       />

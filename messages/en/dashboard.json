@@ -49,6 +49,8 @@
     "everyStepRunsSendsAreRefused": "Every step runs; sends are refused or sunk, send-capable secrets are withheld, and state/ and storage/ writes are kept under the run instead",
     "refused": "refused ({status})",
     "run": "Run",
+    "runStarted": "Run started",
+    "runWith": "Run with…",
     "start": "Start",
     "startTest": "Start test",
     "starting": "Starting…",

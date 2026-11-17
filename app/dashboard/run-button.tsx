@@ -8,19 +8,26 @@ import { Input } from "@foldrun/ui/react/input";
 import { useCan } from "@/components/role";
 import { Checkbox } from "@foldrun/ui/react/choice";
 import { Tooltip } from "@foldrun/ui/react/tooltip";
+import { Textarea } from "@foldrun/ui/react/input";
+import { Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@foldrun/ui/react/dialog";
+import { runBodyOf, runPageOf } from "@/components/run-button-model";
 
 // Run trigger with an optional task prompt — click Run to reveal the task
 // input, submit to start. `withTask={false}` keeps the old one-click behavior.
+// `dialog` asks for the task in a dialog instead of inline (an agent's row has
+// no room for a field). A started run opens its page, so the click is seen.
 export function RunButton({
   endpoint,
   tenant,
   label = $t("dashboard.run-button.run"),
   withTask = true,
+  dialog = false,
 }: {
   endpoint: string;
   tenant: string;
   label?: string;
   withTask?: boolean;
+  dialog?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -30,6 +37,9 @@ export function RunButton({
   // alone. Off by default and reset after each start, so a live run is
   // always a deliberate choice of the moment, never a remembered one.
   const [testRun, setTestRun] = useState(false);
+  // The run just started, until its page opens: the button stays down, so a
+  // second click cannot start a second run.
+  const [started, setStarted] = useState<string | null>(null);
   // A viewer sees the button and cannot press it, with the reason on hover —
   // hiding it would make the page look like running is not a thing here.
   const mayRun = useCan("run:start");
@@ -48,16 +58,23 @@ export function RunButton({
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
-        body: JSON.stringify({ ...(task.trim() ? { task: task.trim() } : {}), ...(testRun ? { test: true } : {}) }),
+        body: JSON.stringify(runBodyOf(task, testRun)),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
         setRefused({ text: body.error ?? $t("dashboard.run-button.refused", { status: String(res.status) }), status: res.status });
         return;
       }
+      const answer = (await res.json().catch(() => ({}))) as { runId?: string };
       setOpen(false);
       setTask("");
       setTestRun(false);
+      const page = runPageOf(endpoint, answer.runId, tenant);
+      if (page) {
+        setStarted(answer.runId as string);
+        router.push(page);
+        return;
+      }
       router.refresh();
     } catch (err) {
       setRefused({ text: err instanceof Error ? err.message : "could not start", status: 0 });
@@ -80,6 +97,51 @@ export function RunButton({
       </button>
     </span>
   );
+
+  if (withTask && dialog) {
+    return (
+      <span className="inline-flex flex-wrap items-center">
+        <Tooltip label={mayRun ? undefined : $t("dashboard.run-button.yourRoleIsViewerRunningNeeds")}>
+          <span className="inline-flex">
+            <button disabled={!mayRun || busy || started !== null} onClick={() => setOpen(true)} className={buttonVariants({ variant: "secondary", size: "md" })}>
+              {started ? $t("dashboard.run-button.runStarted") : label}
+            </button>
+          </span>
+        </Tooltip>
+        <Dialog open={open} onOpenChange={(o) => !busy && setOpen(o)}>
+          <DialogContent size="md">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void start();
+              }}
+            >
+              <DialogHeader>
+                <DialogTitle>{$t("dashboard.run-button.runWith")}</DialogTitle>
+              </DialogHeader>
+              <DialogBody>
+                <Textarea autoFocus rows={4} value={task} onChange={(e) => setTask(e.target.value)} placeholder={$t("dashboard.run-button.taskForThisRunOptional")} />
+                <Tooltip label={$t("dashboard.run-button.everyStepRunsSendsAreRefused")}>
+                  <label className="mt-3 flex items-center gap-1.5 text-xs text-fg-tertiary">
+                    {$rich("dashboard.run-button.testRun", { checkbox: $el(<Checkbox checked={testRun} onCheckedChange={(checked: boolean) => setTestRun(checked)} />) })}
+                  </label>
+                </Tooltip>
+                {refusal && <div className="mt-3">{refusal}</div>}
+              </DialogBody>
+              <DialogFooter>
+                <button type="button" disabled={busy} onClick={() => setOpen(false)} className={buttonVariants({ variant: "ghost", size: "md" })}>
+                  {$t("dashboard.run-button.cancel")}
+                </button>
+                <button disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })}>
+                  {busy ? $t("dashboard.run-button.starting") : testRun ? $t("dashboard.run-button.startTest") : $t("dashboard.run-button.start")}
+                </button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </span>
+    );
+  }
 
   if (withTask && open) {
     return (
@@ -118,11 +180,11 @@ export function RunButton({
       <Tooltip label={mayRun ? undefined : $t("dashboard.run-button.yourRoleIsViewerRunningNeeds")}>
         <span className="inline-flex">
           <button
-            disabled={!mayRun || busy}
+            disabled={!mayRun || busy || started !== null}
             onClick={() => (withTask ? setOpen(true) : void start())}
             className={buttonVariants({ variant: "secondary", size: "md" })}
           >
-            {busy ? $t("dashboard.run-button.starting") : label}
+            {busy ? $t("dashboard.run-button.starting") : started ? $t("dashboard.run-button.runStarted") : label}
           </button>
         </span>
       </Tooltip>
