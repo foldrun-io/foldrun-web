@@ -113,7 +113,7 @@ export function FirstRun({ tenant, target, noModel, modelHref, onContinue }: { t
               <span className="inline-flex max-sm:w-full">
                 <Button variant="primary" size="lg" disabled={!mayRun || busy} onClick={() => void start()} className="max-sm:w-full">
                   <Play aria-hidden />
-                  {busy ? "Starting…" : $t("components.first-run.runIt")}
+                  {busy ? $t("components.first-run.starting") : $t("components.first-run.runIt")}
                 </Button>
               </span>
             </Tooltip>

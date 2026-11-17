@@ -30,7 +30,7 @@ export function triggerLine(f: TriggerFacts): string {
     case "watch":
       return f.url ? $t("workspace.flows-trigger-line.whenChanges", { url: String(f.url) }) : $t("workspace.flows-trigger-line.whenAWatchedPageChanges");
     case "flow":
-      return f.after ? $t("workspace.flows-trigger-line.after", { after: String(f.after), v1: String(!f.on || f.on === "any" ? "finishes" : f.on === "completed" ? "completes" : `ends ${f.on}`) }) : $t("workspace.flows-trigger-line.afterAnotherFlow");
+      return f.after ? $t("workspace.flows-trigger-line.afterFlowEnds", { after: String(f.after), on: !f.on ? "any" : f.on }) : $t("workspace.flows-trigger-line.afterAnotherFlow");
     case "once":
       return f.at ? $t("workspace.flows-trigger-line.onceAt", { v0: String(f.at.replace("T", " ").slice(0, 16)) }) : $t("workspace.flows-trigger-line.once");
     case "manual":

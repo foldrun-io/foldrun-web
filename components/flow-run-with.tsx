@@ -276,7 +276,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
               onClick={() => void run()}
               className={cn(buttonVariants({ variant: live ? "danger-outline" : "primary", size: "xs" }), "ml-auto")}
             >
-              {busy === "run" ? "Starting…" : live ? $t("components.flow-run-with.startLiveRun") : $t("components.flow-run-with.startTestRun")}
+              {busy === "run" ? $t("components.flow-run-with.starting") : live ? $t("components.flow-run-with.startLiveRun") : $t("components.flow-run-with.startTestRun")}
             </button>
           </div>
 
@@ -303,7 +303,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
                     onClick={() => void save()}
                     className={buttonVariants({ variant: "secondary", size: "md" })}
                   >
-                    {busy === "save" ? "Saving…" : $t("components.flow-run-with.saveCurrentAsInputSet")}
+                    {busy === "save" ? $t("components.flow-run-with.saving") : $t("components.flow-run-with.saveCurrentAsInputSet")}
                   </button>
                 </span>
               </Tooltip>

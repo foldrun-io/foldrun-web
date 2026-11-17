@@ -1,5 +1,6 @@
 "use client";
 
+import { labelOf, ROLE_LABEL } from "@/components/value-labels";
 import { $el, $rich, $t } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
@@ -75,8 +76,8 @@ const STATUS_LINE_CURL = `curl -s -m 3 -H "authorization: Bearer $ANTHROPIC_AUTH
 /** A gateway key's limits and spend, in one line. */
 function gatewaySpend(g: NonNullable<KeyRow["gateway"]>): string {
   const parts: string[] = [];
-  if (g.capUsd !== null) parts.push(`${usd(g.spentUsd)} of ${usd(g.capUsd)}`);
-  else parts.push(`${usd(g.spentUsd)} spent`);
+  if (g.capUsd !== null) parts.push($t("settings.keys.spentOfCap", { spent: usd(g.spentUsd), cap: usd(g.capUsd) }));
+  else parts.push($t("settings.keys.spent", { spent: usd(g.spentUsd) }));
   if (g.dailyUsd !== null) parts.push($t("settings.keys.ofToday", { v0: String(usd(g.todayUsd)), v1: String(usd(g.dailyUsd)) }));
   return parts.join(" · ");
 }
@@ -96,8 +97,7 @@ function relative(iso: string, now = Date.now()): string {
   const d = Date.parse(iso) - now;
   const abs = Math.abs(d);
   const [n, unit] = abs < 3_600_000 ? [Math.max(1, Math.round(abs / 60_000)), "minute"] : abs < 86_400_000 ? [Math.round(abs / 3_600_000), "hour"] : [Math.round(abs / 86_400_000), "day"];
-  const words = `${n} ${unit}${n === 1 ? "" : "s"}`;
-  return d < 0 ? `${words} ago` : `in ${words}`;
+  return $t("settings.keys.relative", { n, unit, past: d < 0 ? "yes" : "no" });
 }
 
 export function KeyManager({
@@ -310,7 +310,7 @@ export function KeyManager({
             }
             footer={
               <Button type="submit" variant="primary" disabled={createDisabled}>
-                {busy ? "Creating…" : $t("settings.keys.createKey")}
+                {busy ? $t("settings.keys.creating") : $t("settings.keys.createKey")}
               </Button>
             }
           >
@@ -334,7 +334,7 @@ export function KeyManager({
                     <Select value={role} onChange={(e) => setRole(e.target.value as Role)} className="w-full" aria-label={$t("settings.keys.roleForTheKey")}>
                       {ASSIGNABLE.map((r) => (
                         <option key={r} value={r}>
-                          {r}
+                          {labelOf(ROLE_LABEL, r)}
                         </option>
                       ))}
                     </Select>
@@ -573,7 +573,7 @@ export function KeyManager({
                           </Tag>
                         ) : (
                           <Tag>
-                            <Tooltip label={k.role ? $t("settings.keys.whatThisKeyMayDo") : $t("settings.keys.mintedBeforeRolesExistedActsAs")}><span>{k.role ?? "admin"}</span></Tooltip>
+                            <Tooltip label={k.role ? $t("settings.keys.whatThisKeyMayDo") : $t("settings.keys.mintedBeforeRolesExistedActsAs")}><span>{labelOf(ROLE_LABEL, k.role ?? "admin")}</span></Tooltip>
                           </Tag>
                         )}
                         {k.requireCustomer && !k.revokedAt && (
@@ -604,7 +604,7 @@ export function KeyManager({
                         )}
                         {k.purpose === "gateway" && k.gateway?.credential === "login" && (
                           <Tooltip label={$t("settings.keys.runsOnThisAccountSUsage")}>
-                            <span>{k.gateway.plan === "max" ? $t("settings.keys.max") : $t("settings.keys.pro")}{" "}{$t("settings.keys.planNotBilledPerCall")}</span>
+                            <span>{$t("settings.keys.planNotBilled", { plan: k.gateway.plan === "max" ? "max" : "pro" })}</span>
                           </Tooltip>
                         )}
                         {k.purpose === "gateway" && modelsLine(k.gateway?.models) && (
@@ -654,7 +654,7 @@ export function KeyManager({
                                 {k.lastIp ? <span className="font-mono text-fg-subtle"> · {k.lastIp}</span> : null}
                               </>
                             ) : (
-                              "never"
+                              $t("settings.keys.never")
                             )}
                           </dd>
                         </div>
@@ -673,7 +673,7 @@ export function KeyManager({
                         )}
                         <div>
                           <dt className="inline text-fg-subtle">{$t("settings.keys.expires")}{" "}</dt>
-                          <dd className="inline">{k.expiresAt ? <LocalTime iso={k.expiresAt} options={{ dateStyle: "medium" }} /> : "never"}</dd>
+                          <dd className="inline">{k.expiresAt ? <LocalTime iso={k.expiresAt} options={{ dateStyle: "medium" }} /> : $t("settings.keys.never")}</dd>
                         </div>
                         <div className="font-mono text-fg-subtle">
                           {k.prefix}… · {k.id}
@@ -694,7 +694,7 @@ export function KeyManager({
                           </div>
                           <div className="flex flex-wrap gap-2">
                             <Button variant="primary" onClick={() => void saveModels(k.id)} disabled={busy}>
-                              {busy ? "Saving…" : $t("settings.keys.save")}
+                              {busy ? $t("settings.keys.saving") : $t("settings.keys.save")}
                             </Button>
                             <Button
                               variant="ghost"
@@ -719,7 +719,7 @@ export function KeyManager({
                             ))}
                           </Select>
                           <Button variant="primary" onClick={() => void rotate(k.id)} disabled={busy}>
-                            {busy ? "Rotating…" : $t("settings.keys.rotate")}
+                            {busy ? $t("settings.keys.rotating") : $t("settings.keys.rotate")}
                           </Button>
                           <Button
                             variant="ghost"
@@ -791,7 +791,7 @@ export function TickButton() {
             const res = await fetch("/api/schedule", { method: "POST" });
             const data = await res.json();
             setResult(
-              data.fired?.length ? `fired: ${data.fired.join(", ")}` : $t("settings.keys.nothingDueRightNow"),
+              data.fired?.length ? $t("settings.keys.fired", { list: data.fired.join(", ") }) : $t("settings.keys.nothingDueRightNow"),
             );
             router.refresh();
           } finally {
@@ -800,7 +800,7 @@ export function TickButton() {
         }}
       >
         <Play aria-hidden />
-        {busy ? "Ticking…" : $t("settings.keys.runSchedulerNow")}
+        {busy ? $t("settings.keys.ticking") : $t("settings.keys.runSchedulerNow")}
       </Button>
     </div>
   );

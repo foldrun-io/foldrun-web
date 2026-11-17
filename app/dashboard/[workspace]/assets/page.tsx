@@ -320,7 +320,7 @@ function ReachPanel({ r, e, kind, workspace, qs }: { r: Reach; e: Entry; kind: K
         <h3 className="font-medium text-fg">{verb}</h3>
         {r.levels.length > 0 && (
           <p className="text-fg-muted">
-            {$t("workspace.assets-page.everyAgent")}{" "}{r.levels.includes("account") ? $t("workspace.assets-page.inTheAccount") : $t("workspace.assets-page.inThisWorkspace")}{$t("workspace.assets-page.from")}{" "}{r.levels.includes("account") ? $t("workspace.assets-page.theAccountS") : $t("workspace.assets-page.thisWorkspaceS")}{" "}{$rich("workspace.assets-page.agentsMdHooks", { span: (chunks) => <span className="font-mono">{chunks}</span> })}
+            {$rich("workspace.assets-page.everyAgentFromHooks", { level: r.levels.includes("account") ? "account" : "workspace", span: (chunks) => <span className="font-mono">{chunks}</span> })}
           </p>
         )}
         {r.agents === null ? (
@@ -360,7 +360,7 @@ function ReachPanel({ r, e, kind, workspace, qs }: { r: Reach; e: Entry; kind: K
           <ul className="space-y-2 text-fg-muted">
             {r.overriddenBy.map((x) => (
               <li key={x.path} className="flex flex-wrap items-center gap-2">
-                <Chip tone="warn">{$t("workspace.assets-page.overridden")}</Chip> {$rich("workspace.assets-page.runsInsteadOfThisOne", { x: scopeOf(x), path: x.path, span: (chunks) => <span className="font-mono text-xs">{chunks}</span> })}{x.owner ? ` for ${x.owner}` : ""}.
+                <Chip tone="warn">{$t("workspace.assets-page.overridden")}</Chip> {$rich("workspace.assets-page.runsInsteadOfThisOne", { x: scopeOf(x), path: x.path, hasOwner: x.owner ? "yes" : "no", owner: x.owner ?? "", span: (chunks) => <span className="font-mono text-xs">{chunks}</span> })}.
               </li>
             ))}
             {r.overrides && (

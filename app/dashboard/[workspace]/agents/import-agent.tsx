@@ -158,7 +158,7 @@ export function ImportAgentButton({
                       {$t("workspace.agents-import-agent.cancel")}
                     </button>
                     <button type="submit" disabled={busy || !pick} className={buttonVariants({ variant: "primary", size: "md" })}>
-                      {busy ? "Importing…" : $t("workspace.agents-import-agent.import")}
+                      {busy ? $t("workspace.agents-import-agent.importing") : $t("workspace.agents-import-agent.import")}
                     </button>
                   </>
                 )}

@@ -50,7 +50,7 @@ export function DemoButton({
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
       <Button variant={variant} size={variant === "primary" ? "md" : "sm"} onClick={() => void create()} disabled={busy}>
-        {busy ? "Creating…" : label}
+        {busy ? $t("dashboard.demo-button.creating") : label}
       </Button>
       {error && (
         <span role="alert" className="text-xs text-danger">

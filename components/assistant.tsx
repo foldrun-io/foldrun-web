@@ -248,7 +248,7 @@ export function AssistantDock({ tenant }: { tenant: string }) {
                 <CreateWorkspace tenant={tenant} onCreated={created} />
               </div>
             ) : (
-              <p className={`px-4 py-3 text-sm ${listError ? "text-danger" : "text-fg-muted"}`}>{listError ?? "Loading…"}</p>
+              <p className={`px-4 py-3 text-sm ${listError ? "text-danger" : "text-fg-muted"}`}>{listError ?? $t("components.assistant.loading")}</p>
             )}
           </aside>
         ))}
@@ -627,7 +627,7 @@ function AssistantPanel({
                   onClick={() => void save(files)}
                   className={cn(buttonVariants({ variant: "primary", size: "xs" }), "ml-auto")}
                 >
-                  {saving === "all" ? "Saving…" : $t("components.assistant.saveAll", { length: String(files.length) })}
+                  {saving === "all" ? $t("components.assistant.saving") : $t("components.assistant.saveAll", { length: String(files.length) })}
                 </button>
               )}
             </div>
@@ -758,7 +758,7 @@ function History({ headers, current, onOpen }: { headers: Record<string, string>
                     <span className="block truncate text-sm text-fg">{c.title}</span>
                     <span className="block text-[11px] text-fg-muted">
                       {$rich("components.assistant.message2", { workspace: c.workspace, span: (chunks) => <span className="font-mono">{chunks}</span>, messages: c.messages })}
-                      {c.unsaved ? $t("components.assistant.unsavedFile", { unsaved: String(c.unsaved), v1: String(c.unsaved === 1 ? "" : "s") }) : ""}
+                      {c.unsaved ? $t("components.assistant.unsavedFile", { unsaved: String(c.unsaved), v1: c.unsaved }) : ""}
                     </span>
                   </button>
                   <button
@@ -903,7 +903,7 @@ function WorkspaceCard({
                 }}
                 className={buttonVariants({ variant: "primary", size: "xs" })}
               >
-                {state === "creating" ? "Creating…" : $t("components.assistant.createWorkspace")}
+                {state === "creating" ? $t("components.assistant.creating") : $t("components.assistant.createWorkspace")}
               </button>
             </span>
           </Tooltip>
@@ -945,7 +945,7 @@ function CreateWorkspace({ tenant, onCreated }: { tenant: string; onCreated: (ws
         <Tooltip label={mayManage ? undefined : needs("workspace:manage")}>
           <span className="inline-flex">
             <button type="submit" disabled={busy || !name.trim() || !mayManage} className={buttonVariants({ variant: "primary", size: "md" })}>
-              {busy ? "Creating…" : $t("components.assistant.create")}
+              {busy ? $t("components.assistant.creating") : $t("components.assistant.create")}
             </button>
           </span>
         </Tooltip>
@@ -977,12 +977,12 @@ function ProposedFile({
         <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="min-w-0 truncate text-left font-mono text-xs text-fg">
           {file.path}
         </button>
-        <Chip tone={file.before === null ? "good" : "warn"}>{file.before === null ? "new" : "changed"}</Chip>
+        <Chip tone={file.before === null ? "good" : "warn"}>{file.before === null ? $t("values.fileChange.new") : $t("values.fileChange.changed")}</Chip>
         <button type="button" disabled={busy} onClick={onDiscard} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ml-auto")}>
           {$t("components.assistant.discard")}
         </button>
         <button type="button" disabled={busy} onClick={onSave} className={buttonVariants({ variant: "secondary", size: "xs" })}>
-          {saving ? "Saving…" : $t("components.assistant.save")}
+          {saving ? $t("components.assistant.saving") : $t("components.assistant.save")}
         </button>
       </header>
       {issues.length > 0 && (

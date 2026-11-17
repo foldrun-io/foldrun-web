@@ -107,7 +107,7 @@ export function AvatarEditor({
       <div className="space-y-1.5">
         <div className="flex items-center gap-2">
           <button type="button" disabled={busy} onClick={picker.open} className={buttonVariants({ variant: "secondary", size: "xs" })}>
-            {busy ? "Working…" : src ? $t("components.avatar.change") : $t("components.avatar.addAPicture")}
+            {busy ? $t("components.avatar.working") : src ? $t("components.avatar.change") : $t("components.avatar.addAPicture")}
           </button>
           {src && (
             <button type="button" disabled={busy} onClick={() => void remove()} className={buttonVariants({ variant: "ghost", size: "xs" })}>

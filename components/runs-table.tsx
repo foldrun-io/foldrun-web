@@ -8,6 +8,7 @@
 // live run is, or what it concluded), then the outcome, when, how long and
 // what it cost.
 
+import { TARGET_KIND_LABEL, labelOf } from "@/components/value-labels";
 import { $t } from "@/i18n";
 import { creditsShort } from "@/components/money";
 import Link from "@foldrun/ui/react/link";
@@ -155,7 +156,7 @@ export function RunsTable({
                 </td>
                 <td className={cn(TD, "w-full max-w-0")}>
                   <span className="flex min-w-0 items-center gap-3">
-                    <IconBox hint={kind}>
+                    <IconBox hint={labelOf(TARGET_KIND_LABEL, kind)}>
                       <KindIcon flow={r.flow} />
                     </IconBox>
                     <span className="min-w-0 flex-1">
@@ -190,7 +191,7 @@ export function RunsTable({
                           {active
                             .map(
                               ({ s, i }) =>
-                                $t("components.runs-table.stepOf", { v0: String(i + 1), length: String(r.steps.length), agent: String(s.agent), v3: String(s.status === "awaiting-approval" ? $t("components.runs-table.awaitingApproval2") : "running") }),
+                                $t("components.runs-table.stepOf", { v0: String(i + 1), length: String(r.steps.length), agent: String(s.agent), v3: String(s.status === "awaiting-approval" ? $t("components.runs-table.awaitingApproval2") : $t("components.runs-table.runningStep")) }),
                             )
                             .join(" · ")}
                         </span>

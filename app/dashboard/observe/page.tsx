@@ -52,7 +52,7 @@ function Delta({ now, before, upIsGood, as }: { now: number | null; before: numb
   return (
     <span className="inline-flex items-center gap-1">
       <span className={`inline-flex items-center gap-0.5 font-medium ${good ? "text-success" : "text-danger"}`}>
-        <Arrow className="size-3.5" aria-label={d > 0 ? "up" : "down"} />
+        <Arrow className="size-3.5" aria-label={d > 0 ? $t("values.trend.up") : $t("values.trend.down")} />
         {fmt(Math.abs(d))}
       </span>
       {$t("observe.page.vsBefore")}
@@ -79,7 +79,7 @@ function OutcomeChart({ days, tz }: { days: DayBucket[]; tz: string }) {
         {days.map((d) => {
           const parts = { good: d.good, attention: d.attention, desk: d.failed - d.platform, platform: d.platform };
           const total = d.good + d.attention + d.failed + d.other;
-          const title = $t("observe.page.runSucceededBlockedBadFailedDesk", { day: String(d.day), total: String(total), v2: String(total === 1 ? "" : "s"), good: String(d.good), attention: String(d.attention), v5: String(d.failed - d.platform), platform: String(d.platform), v7: String(money(d.spendUsd)) });
+          const title = $t("observe.page.runSucceededBlockedBadFailedDesk", { day: String(d.day), total: String(total), v2: total, good: String(d.good), attention: String(d.attention), v5: String(d.failed - d.platform), platform: String(d.platform), v7: String(money(d.spendUsd)) });
           return (
             <Tooltip key={d.day} label={title}>
               <div className="flex h-full min-w-0 flex-1 flex-col-reverse gap-[2px] rounded-t hover:bg-sunken">
@@ -153,7 +153,7 @@ export default async function AccountObservePage({ searchParams }: { searchParam
     <Page width="wide">
       <PageHeader
         title={$t("observe.page.observe")}
-        description={$t("observe.page.everyDeskInTheAccountOver", { label: String(WINDOWS.find((w) => w.days === days)!.label), v1: String(days === 1 ? "day" : `${days} days`) })}
+        description={$t("observe.page.everyDeskInTheAccountOver", { label: String(WINDOWS.find((w) => w.days === days)!.label), days })}
         actions={<Segmented label={$t("observe.page.window")} value={String(days)} items={WINDOWS.map((w) => ({ key: String(w.days), label: w.label, href: `/dashboard/observe?days=${w.days}${amp}` }))} />}
       />
 

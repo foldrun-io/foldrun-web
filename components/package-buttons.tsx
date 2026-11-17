@@ -160,7 +160,7 @@ export function ImportPackageButton({
       ] as const
     ).filter(([, v]) => v.length > 0);
 
-  const what = (p: Plan) => (p.kind === "workspace" ? $t("common.workspaceOne") : `${p.kind} ${p.name}`) + (p.from ? ` from ${p.from}` : "");
+  const what = (p: Plan) => $t("components.package-buttons.what", { whole: p.kind === "workspace" ? "yes" : "no", kind: p.kind, name: p.name ?? "", hasFrom: p.from ? "yes" : "no", from: p.from ?? "" });
 
   return (
     <>
@@ -219,7 +219,7 @@ export function ImportPackageButton({
                     </ul>
                     {plan.overwritten.length > 0 && (
                       <label className="flex items-center gap-2 text-xs text-fg-secondary">
-                        {$rich("components.package-buttons.replace", { checkbox: $el(<Checkbox checked={overwrite} onCheckedChange={(checked: boolean) => setOverwrite(checked)} />) })}{" "}{plan.overwritten.length === 1 ? $t("components.package-buttons.thatFile") : $t("components.package-buttons.thoseFiles", { length: String(plan.overwritten.length) })}{" "}{$t("components.package-buttons.historyCanRestore", { length: plan.overwritten.length })}
+                        {$rich("components.package-buttons.replaceFiles", { n: plan.overwritten.length, checkbox: $el(<Checkbox checked={overwrite} onCheckedChange={(checked: boolean) => setOverwrite(checked)} />) })}
                       </label>
                     )}
                     {needsList(plan).length > 0 && <NeedsBlock items={needsList(plan)} />}
@@ -280,11 +280,11 @@ export function ImportPackageButton({
                       disabled={busy || (plan.overwritten.length > 0 && !overwrite) || plan.added.length + plan.overwritten.length === 0}
                       className={buttonVariants({ variant: "primary", size: "md" })}
                     >
-                      {busy ? "Importing…" : plan.added.length + plan.overwritten.length === 0 ? $t("components.package-buttons.nothingToImport") : $t("components.package-buttons.import")}
+                      {busy ? $t("components.package-buttons.importing") : plan.added.length + plan.overwritten.length === 0 ? $t("components.package-buttons.nothingToImport") : $t("components.package-buttons.import")}
                     </button>
                   ) : (
                     <button type="submit" disabled={busy || !file || !target.trim()} className={buttonVariants({ variant: "primary", size: "md" })}>
-                      {busy ? "Reading…" : $t("components.package-buttons.preview")}
+                      {busy ? $t("components.package-buttons.reading") : $t("components.package-buttons.preview")}
                     </button>
                   ))}
               </footer>

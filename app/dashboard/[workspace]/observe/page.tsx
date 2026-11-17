@@ -59,7 +59,7 @@ function Spread({ s, unit }: { s: Sampled; unit: (v: number | null) => string })
   if (s.p50 === null) {
     // Too few to summarise; the worst one is still a fact.
     return (
-      <Tooltip label={$t("workspace.observe-page.sampleTooFewForPercentiles", { n: String(s.n), v1: String(s.n === 1 ? "" : "s") })}>
+      <Tooltip label={$t("workspace.observe-page.sampleTooFewForPercentiles", { n: String(s.n), v1: s.n })}>
         <span className="text-fg-tertiary">
           ≤{unit(s.max)} <span className="text-fg-subtle">(n={s.n})</span>
         </span>
@@ -201,7 +201,7 @@ export default async function ObservePage({
         ) : (
           <>
             <StatGrid className="xl:grid-cols-5">
-              <Stat label={$t("workspace.observe-page.runs")} value={o.runs} sub={`in ${windowLabel}`} />
+              <Stat label={$t("workspace.observe-page.runs")} value={o.runs} sub={$t("workspace.observe-page.inWindow", { window: windowLabel })} />
               <Stat label={$t("workspace.observe-page.failedRuns")} value={o.failedRuns} tone={o.failedRuns > 0 ? "danger" : undefined} />
               <Stat label={$t("workspace.observe-page.steps")} value={o.steps} />
               <Stat label={$t("workspace.observe-page.charged")} value={usd(o.chargedUsd)} />
@@ -217,14 +217,14 @@ export default async function ObservePage({
                   { key: "runs", label: "runs", swatch: "bg-muted-strong" },
                   { key: "failed", label: "failed", swatch: "bg-danger" },
                 ]}
-                aside={$t("workspace.observe-page.busiestDayRun", { maxDayRuns: String(maxDayRuns), v1: String(maxDayRuns === 1 ? "" : "s") })}
+                aside={$t("workspace.observe-page.busiestDayRun", { maxDayRuns: String(maxDayRuns), v1: maxDayRuns })}
               />
               <div className="flex h-28 items-end gap-[2px] border-b border-line">
                 {o.days.map((d) => {
                   const h = Math.max(4, Math.round((d.runs / maxDayRuns) * 100));
                   const failH = d.runs ? (d.failed / d.runs) * h : 0;
                   return (
-                    <Tooltip key={d.day} label={$t("workspace.observe-page.runFailed", { day: String(d.day), runs: String(d.runs), v2: String(d.runs === 1 ? "" : "s"), failed: String(d.failed), v4: String(usd(d.chargedUsd)) })}>
+                    <Tooltip key={d.day} label={$t("workspace.observe-page.runFailed", { day: String(d.day), runs: String(d.runs), v2: d.runs, failed: String(d.failed), v4: String(usd(d.chargedUsd)) })}>
                       <div className="flex h-full min-w-0 flex-1 flex-col justify-end rounded-t-sm hover:bg-sunken">
                         {failH > 0 && <div className="w-full rounded-t-sm bg-danger" style={{ height: `${failH}%` }} />}
                         <div className={`w-full bg-muted-strong ${failH > 0 ? "" : "rounded-t-sm"}`} style={{ height: `${h - failH}%` }} />
@@ -353,7 +353,7 @@ export default async function ObservePage({
                 services phase that booted beside the step pod is its own lane
                 (FOL-74): it starts at 0, and go starts when it was up. */}
             {o.startup.length > 0 && (
-              <Panel title="Start-up" description={$t("workspace.observe-page.whereAStepSFirstSeconds")} flush>
+              <Panel title={$t("workspace.observe-page.startUp")} description={$t("workspace.observe-page.whereAStepSFirstSeconds")} flush>
                 <Table className="min-w-[560px]">
                   <THead>
                     <tr>

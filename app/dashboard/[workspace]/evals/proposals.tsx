@@ -99,7 +99,7 @@ export function Proposals({
               disabled={busy === "propose"}
               className={buttonVariants({ variant: "secondary" })}
             >
-              {busy === "propose" ? "Asking…" : $t("workspace.evals-proposals.proposeAFix")}
+              {busy === "propose" ? $t("workspace.evals-proposals.asking") : $t("workspace.evals-proposals.proposeAFix")}
             </button>
           </Tooltip>
         )}
@@ -123,7 +123,7 @@ export function Proposals({
               <span className="ml-auto flex gap-2">
                 {write && p.status === "ready" && (
                   <button onClick={() => decide(p.id, "apply")} disabled={!!busy} className={buttonVariants({ variant: "primary" })}>
-                    {busy === p.id ? "Applying…" : $t("workspace.evals-proposals.apply")}
+                    {busy === p.id ? $t("workspace.evals-proposals.applying") : $t("workspace.evals-proposals.apply")}
                   </button>
                 )}
                 {write && (p.status === "ready" || p.status === "failed" || p.status === "drafting") && (
@@ -156,7 +156,7 @@ export function Proposals({
             )}
             {p.files.map((f) => (
               <div key={f.path} className="mt-2">
-                <p className="mb-1 font-mono text-xs text-fg">{f.path}{f.before === null ? " (new)" : ""}</p>
+                <p className="mb-1 font-mono text-xs text-fg">{f.path}{f.before === null ? $t("workspace.evals-proposals.newFileMark") : ""}</p>
                 <DiffView rows={foldDiff(lineDiff(f.before ?? "", f.content), 4)} empty={$t("workspace.evals-proposals.sameAsTheFileInThe")} />
               </div>
             ))}
@@ -169,7 +169,7 @@ export function Proposals({
                 ))}
               </ul>
             )}
-            {p.applied && p.status !== "applied" && <p className="mt-1 text-xs text-fg-muted">{$t("workspace.evals-proposals.written")}{" "}{p.applied.join(", ") || "nothing"}</p>}
+            {p.applied && p.status !== "applied" && <p className="mt-1 text-xs text-fg-muted">{$t("workspace.evals-proposals.writtenFiles", { files: p.applied.join(", ") || $t("workspace.evals-proposals.nothing") })}</p>}
           </li>
         ))}
       </ul>}

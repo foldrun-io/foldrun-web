@@ -1,3 +1,4 @@
+import { WEBHOOK_OUTCOME_LABEL, labelOf } from "@/components/value-labels";
 import { $rich, $t } from "@/i18n";
 import { scopeAllows } from "@/platform/scope";
 import { platform } from "@/lib/platform";
@@ -285,7 +286,7 @@ async function GeneralTab({ tenant, qs, session, isOwner }: { tenant: string; qs
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="text-xs text-fg-muted">{FLAG_SOURCE[f.source]}</span>
-                  <Chip tone={f.on ? "good" : "default"}>{f.on ? "on" : "off"}</Chip>
+                  <Chip tone={f.on ? "good" : "default"}>{f.on ? $t("values.switch.on") : $t("values.switch.off")}</Chip>
                 </div>
               </li>
             ))}
@@ -628,7 +629,7 @@ async function SecretsTab({
                     <ul className="mt-2 space-y-0.5">
                       {h.deliveries.map((d, i) => (
                         <li key={i} className="font-mono text-xs text-fg-muted">
-                          <LocalTime iso={d.t} /> — <span className={d.outcome === "accepted" ? "text-success" : "text-danger"}>{d.outcome}</span>
+                          <LocalTime iso={d.t} /> — <span className={d.outcome === "accepted" ? "text-success" : "text-danger"}>{labelOf(WEBHOOK_OUTCOME_LABEL, d.outcome)}</span>
                           {d.count && d.count > 1 ? ` ×${d.count}` : ""}
                           {d.runId ? ` → ${d.runId}` : ""}
                         </li>

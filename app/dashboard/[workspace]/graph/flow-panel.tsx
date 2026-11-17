@@ -90,7 +90,7 @@ export function FlowPanel({
     setSteps(steps.map((s, j) => (j === i ? { ...s, ...patch } : s)));
 
   const save = async () => {
-    setStatus("saving…");
+    setStatus($t("workspace.graph-flow-panel.saving"));
     const res = await fetch(`/api/workspaces/${workspace}/source`, {
       method: "PUT",
       headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },

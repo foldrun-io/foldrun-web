@@ -28,6 +28,9 @@ async function patch(endpoint: string, tenant: string, body: Record<string, unkn
   return data.defaults as Defaults;
 }
 
+/** A pool amount, or "any" when the level above sets none. */
+const amount = (n: number | null | undefined): string => (n == null ? $t("components.defaults-cards.any") : String(n));
+
 export function TimezoneCard({ endpoint, tenant, initial, inherited }: { endpoint: string; tenant: string; initial: string | null; inherited?: string | null }) {
   const form = useSettingsForm(initial ?? "", async (tz) => {
     const d = await patch(endpoint, tenant, { timezone: tz.trim() || null });
@@ -231,7 +234,7 @@ export function ComputeCard({
     if (level !== "account") setLive((l) => ({ ...l, pool: { vcpu: c?.vcpu ?? null, memGiB: c?.memGiB ?? null, diskGiB: c?.diskGiB ?? null } }));
     return { vcpu: str(c?.vcpu), memGiB: str(c?.memGiB), diskGiB: str(c?.diskGiB) };
   });
-  const of = (used: number, cap: number | null | undefined, unit: string) => (cap === null || cap === undefined ? $t("components.defaults-cards.noCap", { used: String(used), unit: String(unit) }) : `${used} of ${cap} ${unit}`);
+  const of = (used: number, cap: number | null | undefined, unit: string) => (cap === null || cap === undefined ? $t("components.defaults-cards.noCap", { used: String(used), unit: String(unit) }) : $t("components.defaults-cards.usedOfCap", { used: String(used), cap: String(cap), unit }));
   const from = live.pool.source === "plan" ? $t("components.defaults-cards.thePlanS") : live.pool.source === "account" ? $t("components.defaults-cards.yourOwnBelow") : live.pool.source === "install" ? $t("components.defaults-cards.thisInstallS") : null;
   const words = LEVEL_WORDS[level];
   return (
@@ -251,12 +254,12 @@ export function ComputeCard({
         </span>
         {outer && (
           <span className="text-fg-muted">
-            {$t("components.defaults-cards.theAccountAllows")}{" "}{outer.vcpu ?? "any"}{" "}{$t("components.defaults-cards.vcpu")}{" "}{outer.memGiB ?? "any"}{" "}{$t("components.defaults-cards.gib")}{" "}{outer.diskGiB ?? "any"}{" "}{$t("components.defaults-cards.gibDiskEveryStepMustFit")}
+            {$t("components.defaults-cards.accountAllowsPool", { vcpu: amount(outer.vcpu), mem: amount(outer.memGiB), disk: amount(outer.diskGiB) })}
           </span>
         )}
         {(live.pool.stepVcpu || live.pool.stepMemGiB || live.pool.stepDiskGiB) && (
           <span className="text-fg-muted">
-            {$t("components.defaults-cards.oneStepMayHoldUpTo")}{" "}{live.pool.stepVcpu ?? "any"}{" "}{$t("components.defaults-cards.vcpu")}{" "}{live.pool.stepMemGiB ?? "any"}{" "}{$t("components.defaults-cards.gib")}{" "}{live.pool.stepDiskGiB ?? "any"}{" "}{$t("components.defaults-cards.gibDisk3", { part: live.pool.stepDefault?.length ? $t("components.defaults-cards.theMostForAnAccountWithout") : "" })}
+            {$t("components.defaults-cards.oneStepMayHold", { vcpu: amount(live.pool.stepVcpu), mem: amount(live.pool.stepMemGiB), disk: amount(live.pool.stepDiskGiB), fallback: live.pool.stepDefault?.length ? "yes" : "no" })}
           </span>
         )}
         {level === "account" && live.runsWaiting && live.runsWaiting.limit !== null && (
@@ -624,7 +627,7 @@ function NotifyTest({ workspace, tenant }: { workspace: string; tenant: string }
   return (
     <div className="border-t border-line pt-4">
       <Button type="button" variant="secondary" onClick={send} disabled={state.busy}>
-        {state.busy ? "Sending…" : $t("components.defaults-cards.sendATestNotification")}
+        {state.busy ? $t("components.defaults-cards.sending") : $t("components.defaults-cards.sendATestNotification")}
       </Button>
       <p className="mt-1.5 text-xs text-fg-muted">
         {$t("components.defaults-cards.sendsOneRealMessageToThis")}

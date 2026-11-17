@@ -634,7 +634,7 @@ export function FileTree({
     <div className="select-none py-0.5">
       <div className="mb-1 flex min-h-7 items-center justify-between gap-2 px-1.5">
           <span className="flex min-w-0 items-baseline gap-1 text-[13px]">
-            <span className="truncate font-medium text-fg-muted">{rootName ?? "files"}</span>
+            <span className="truncate font-medium text-fg-muted">{rootName ?? $t("components.file-tree.files")}</span>
           </span>
           {canCreate && (
           <span className="flex items-center gap-0.5">

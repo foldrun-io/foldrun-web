@@ -99,7 +99,7 @@ export function AccountData({ account, owner, hosted, closeRequestedAt }: { acco
                     {$t("settings.close-account.keepTheAccount")}
                   </Button>
                   <Button type="submit" variant="danger" disabled={busy || typed !== account}>
-                    {busy ? "Asking…" : $t("settings.close-account.suspendAndAskToClose")}
+                    {busy ? $t("settings.close-account.asking") : $t("settings.close-account.suspendAndAskToClose")}
                   </Button>
                 </>
               ) : (

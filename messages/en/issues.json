@@ -25,13 +25,15 @@
     "only": "Only <span>{workspace}</span>",
     "open": "Open",
     "problemFound": "problem found",
-    "regressed": "regressed",
+    "regressed2": "regressed{part}",
     "resolved": "Resolved",
     "showEveryWorkspace": "Show every {@workspace.one}",
+    "sinceRevision": " since {rev}",
     "snoozed": "Snoozed",
     "status": "Status",
     "timeLatestAgo": "{count} time{count, plural, one {} other {s}} · latest {fmtSpan} ago",
     "until": "until <localTime></localTime>",
+    "untilTime": " until <time></time>",
     "whatToDo": "What to do:",
     "whatWentWrongGroupedAndKept": "What went wrong, grouped, and kept open until someone resolves it. A later good run does not close one."
   }

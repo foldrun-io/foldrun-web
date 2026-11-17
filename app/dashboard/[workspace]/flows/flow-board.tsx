@@ -109,7 +109,7 @@ export function FlowBoard({
     if (same(next, groups)) return;
     const previous = groups;
     setGroups(next); // optimistic — the gesture should feel instant
-    setStatus("saving…");
+    setStatus($t("workspace.flows-flow-board.saving"));
     try {
       await write("PATCH", { groups: next });
       setStatus("saved");
@@ -140,7 +140,7 @@ export function FlowBoard({
       }))
     )
       return;
-    setStatus("starting…");
+    setStatus($t("workspace.flows-flow-board.starting"));
     try {
       const res = await fetch(`/api/workspaces/${workspace}/flows/${flow}/run`, {
         method: "POST",
@@ -164,7 +164,7 @@ export function FlowBoard({
   // used POST and DELETE for them, the canvas and the CLI PATCH — the same
   // change through two doors. `expect` as on every other write here.
   const mutate = async (edit: Record<string, unknown>) => {
-    setStatus("saving…");
+    setStatus($t("workspace.flows-flow-board.saving"));
     try {
       await write("PATCH", { edit });
       setStatus("saved");
@@ -176,7 +176,7 @@ export function FlowBoard({
   };
 
   const saveInstruction = async (index: number, instruction: string) => {
-    setStatus("saving…");
+    setStatus($t("workspace.flows-flow-board.saving"));
     try {
       await write("PATCH", { step: index, instruction });
       setStatus("saved");

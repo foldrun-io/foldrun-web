@@ -94,7 +94,7 @@ export function HookTest({
       />
       <div className="flex items-center gap-2">
         <Button variant={initiallyOpen ? "primary" : "secondary"} size={initiallyOpen ? "md" : "sm"} onClick={run} disabled={busy}>
-          {initiallyOpen && <Play />} {busy ? "Running…" : $t("components.hook-test.runIt")}
+          {initiallyOpen && <Play />} {busy ? $t("components.hook-test.running") : $t("components.hook-test.runIt")}
         </Button>
         {!initiallyOpen && (
           <button type="button" onClick={() => { setOpen(false); setResult(null); }} className="text-xs text-fg-muted hover:text-fg">
@@ -112,7 +112,7 @@ export function HookTest({
       {a && (
         <Callout tone={!a.ok ? "danger" : a.decision === "deny" ? "warning" : "neutral"} className="p-2 text-xs">
           <p className="font-medium">
-            {!a.ok ? `failed: ${a.failure}` : a.decision === "deny" ? "deny" : a.decision === "allow" ? "allow" : "ok"}
+            {!a.ok ? $t("components.hook-test.failedWith", { failure: a.failure ?? "" }) : $t("components.hook-test.decision", { decision: a.decision === "deny" || a.decision === "allow" ? a.decision : "ok" })}
             <span className="ml-2 font-normal text-fg-muted">{$t("components.hook-test.ms", { ms: String(a.ms) })}</span>
           </p>
           {a.reason && <p>{$t("components.hook-test.reason", { reason: a.reason })}</p>}

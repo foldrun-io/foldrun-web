@@ -49,7 +49,7 @@ export function EvalRunButton({ workspace, tenant, name }: { workspace: string; 
               }
             }}
           >
-            {busy ? "Running…" : $t("workspace.evals-eval-actions.run")}
+            {busy ? $t("workspace.evals-eval-actions.running") : $t("workspace.evals-eval-actions.run")}
           </Button>
         </span>
       </Tooltip>

@@ -46,7 +46,7 @@ const shortId = (r: Summary) => (r.commit ? r.commit.slice(0, 7) : r.id.slice(0,
 
 /** Why a deploy did not happen, in the words the platform has for it. */
 function refusal(d: { issues?: { where?: string; message: string }[]; blockedBy?: string[] }): string {
-  if (d.blockedBy?.length) return $t("workspace.history-history-list.notDeployedRunStillInFlight", { length: String(d.blockedBy.length), v1: String(d.blockedBy.length === 1 ? "" : "s"), v2: String(d.blockedBy.join(", ")) });
+  if (d.blockedBy?.length) return $t("workspace.history-history-list.notDeployedRunStillInFlight", { length: String(d.blockedBy.length), v1: d.blockedBy.length, v2: String(d.blockedBy.join(", ")) });
   if (d.issues?.length) return $t("workspace.history-history-list.notDeployed", { v0: String(d.issues.map((i) => (i.where ? `${i.where}: ` : "") + i.message).join("; ")) });
   return $t("workspace.history-history-list.notDeployed2");
 }
@@ -198,7 +198,7 @@ export function HistoryList({
                             <Link href={editHref(f.path)} className="min-w-0 truncate font-mono text-xs font-medium text-fg hover:underline">
                               {f.path}
                             </Link>
-                            <Chip tone={f.before === null ? "good" : f.after === null ? "bad" : "default"}>{f.before === null ? "created" : f.after === null ? "deleted" : "edited"}</Chip>
+                            <Chip tone={f.before === null ? "good" : f.after === null ? "bad" : "default"}>{f.before === null ? $t("values.fileChange.created") : f.after === null ? $t("values.fileChange.deleted") : $t("values.fileChange.edited")}</Chip>
                           </div>
                           <pre className="max-h-80 overflow-auto rounded-md border border-line bg-sunken py-1 font-mono text-[11px] leading-relaxed">
                             {f.diff

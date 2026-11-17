@@ -1,0 +1,99 @@
+{
+  "deliveryStatus": {
+    "delivered": "delivered",
+    "failed": "failed",
+    "retrying": "retrying",
+    "skipped": "skipped"
+  },
+  "evalResult": {
+    "error": "error",
+    "fail": "fail",
+    "pass": "pass"
+  },
+  "fileChange": {
+    "added": "added",
+    "changed": "changed",
+    "created": "created",
+    "deleted": "deleted",
+    "edited": "edited",
+    "new": "new",
+    "removed": "removed",
+    "updated": "updated"
+  },
+  "issueStatus": {
+    "acknowledged": "acknowledged",
+    "resolved": "resolved",
+    "snoozed": "snoozed"
+  },
+  "linkKind": {
+    "consult": "consult",
+    "subAgent": "sub-agent"
+  },
+  "linkState": {
+    "closed": "closed",
+    "connecting": "connecting",
+    "last": "last",
+    "live": "live",
+    "reconnecting": "reconnecting"
+  },
+  "misc": {
+    "changes": "{n, plural, one {# change} other {# changes}}",
+    "hide": "hide",
+    "inputOutput": "input / output"
+  },
+  "providerVerdict": {
+    "busy": "busy",
+    "credential": "credential",
+    "notFound": "not-found",
+    "ok": "ok",
+    "providerError": "provider-error",
+    "unreachable": "unreachable"
+  },
+  "role": {
+    "admin": "admin",
+    "editor": "editor",
+    "owner": "owner",
+    "viewer": "viewer"
+  },
+  "runStatus": {
+    "awaitingApproval": "awaiting-approval",
+    "completed": "completed",
+    "failed": "failed",
+    "queued": "queued",
+    "running": "running",
+    "stopped": "stopped"
+  },
+  "size": {
+    "unrecorded": "unrecorded"
+  },
+  "stepStatus": {
+    "awaitingApproval": "awaiting-approval",
+    "completed": "completed",
+    "failed": "failed",
+    "pending": "pending",
+    "running": "running",
+    "skipped": "skipped"
+  },
+  "switch": {
+    "off": "off",
+    "on": "on"
+  },
+  "targetKind": {
+    "agent": "agent",
+    "eval": "eval",
+    "flow": "flow"
+  },
+  "trend": {
+    "down": "down",
+    "up": "up"
+  },
+  "webhookOutcome": {
+    "accepted": "accepted",
+    "dropped": "dropped",
+    "error": "error",
+    "invalidSignature": "invalid-signature",
+    "invalidToken": "invalid-token",
+    "noFlow": "no-flow",
+    "notWebhook": "not-webhook"
+  }
+}

@@ -105,7 +105,7 @@ export function OperatorPanel({
             </div>
             {q.answer !== undefined ? (
               <div className="text-fg-secondary">
-                <span className="text-fg-muted">{$t("components.operator-panel.answered")}{q.by ? ` by ${q.by}` : ""}:</span> {q.answer}
+                <span className="text-fg-muted">{q.by ? $t("components.operator-panel.answeredBy", { by: q.by }) : $t("components.operator-panel.answered")}:</span> {q.answer}
               </div>
             ) : q.unanswered ? (
               <div className="text-fg-muted">{$t("components.operator-panel.noOneAnsweredInTimeThe")}</div>
@@ -153,7 +153,7 @@ export function OperatorPanel({
             <li key={`${m.at}-${i}`} className="flex flex-wrap items-center gap-x-1.5 text-[13px] text-fg-secondary">
               {m.to ? (
                 <>
-                  <Tag className="h-5">{step.agent} → {m.to.join(", ") || "nobody"}</Tag>
+                  <Tag className="h-5">{step.agent} → {m.to.join(", ") || $t("components.operator-panel.nobody")}</Tag>
                   {m.text}
                 </>
               ) : m.from ? (

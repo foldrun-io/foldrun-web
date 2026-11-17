@@ -1,6 +1,6 @@
 "use client";
 
-import { $rich, $t, $el } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -103,7 +103,7 @@ export function RunButton({
           </label>
         </Tooltip>
         <button disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })}>
-          {busy ? "Starting…" : testRun ? $t("dashboard.run-button.startTest") : $t("dashboard.run-button.start")}
+          {busy ? $t("dashboard.run-button.starting") : testRun ? $t("dashboard.run-button.startTest") : $t("dashboard.run-button.start")}
         </button>
         <button type="button" onClick={() => setOpen(false)} className={buttonVariants({ variant: "ghost", size: "md" })}>
           {$t("dashboard.run-button.cancel")}
@@ -122,7 +122,7 @@ export function RunButton({
             onClick={() => (withTask ? setOpen(true) : void start())}
             className={buttonVariants({ variant: "secondary", size: "md" })}
           >
-            {busy ? "Starting…" : label}
+            {busy ? $t("dashboard.run-button.starting") : label}
           </button>
         </span>
       </Tooltip>

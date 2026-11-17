@@ -88,15 +88,15 @@ export function TelemetryCard({ tenant, initial, mayEdit }: { tenant: string; in
             {initial && (
               <>
                 <Button variant="ghost" disabled={busy !== null} onClick={() => save(true)}>
-                  {busy === "clear" ? "Stopping…" : $t("components.telemetry-card.stopSending")}
+                  {busy === "clear" ? $t("components.telemetry-card.stopping") : $t("components.telemetry-card.stopSending")}
                 </Button>
                 <Button variant="secondary" disabled={busy !== null} onClick={test}>
-                  {busy === "test" ? "Sending…" : $t("components.telemetry-card.sendATestTrace")}
+                  {busy === "test" ? $t("components.telemetry-card.sending") : $t("components.telemetry-card.sendATestTrace")}
                 </Button>
               </>
             )}
             <Button variant="primary" disabled={busy !== null || !endpoint.trim()} onClick={() => save(false)}>
-              {busy === "save" ? "Saving…" : $t("components.telemetry-card.save")}
+              {busy === "save" ? $t("components.telemetry-card.saving") : $t("components.telemetry-card.save")}
             </Button>
           </>
         )

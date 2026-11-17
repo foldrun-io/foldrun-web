@@ -56,7 +56,7 @@ export default async function HistoryPage({
             <SearchField url value={q} placeholder={$t("workspace.history-page.searchChangesMessagePathAuthor")} className="min-w-48 flex-1" />
             {q && (
               <span className="text-[13px] tabular-nums text-fg-muted">
-                {found.length} {found.length === 1 ? "change" : "changes"}
+                {$t("values.misc.changes", { n: found.length })}
               </span>
             )}
           </div>

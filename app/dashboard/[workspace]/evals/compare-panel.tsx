@@ -127,7 +127,7 @@ export function ComparePanel({
           continue;
         }
         if (view.state === "done" && view.result) setShown(view.result);
-        else throw new Error(view.error ?? $t("workspace.evals-compare-panel.theComparisonEndedAs", { v0: String(view.state ?? "unknown") }));
+        else throw new Error(view.error ?? $t("workspace.evals-compare-panel.theComparisonEndedAs", { v0: String(view.state ?? $t("workspace.evals-compare-panel.unknown")) }));
         break;
       }
       await loadPast();
@@ -225,7 +225,7 @@ export function ComparePanel({
           {$t("workspace.evals-compare-panel.runs", { trials: String(trials) })}{trials > MAX_TRIALS ? $t("workspace.evals-compare-panel.atMost", { MAX_TRIALS: String(MAX_TRIALS) }) : ""}
         </span>
         <button onClick={start} disabled={busy || trials > MAX_TRIALS || rows.some((r) => !r.model.trim())} className={buttonVariants({ variant: "primary", size: "md" })}>
-          {busy ? "Comparing…" : $t("workspace.evals-compare-panel.compare")}
+          {busy ? $t("workspace.evals-compare-panel.comparing") : $t("workspace.evals-compare-panel.compare")}
         </button>
       </div>
       </>)}
@@ -251,7 +251,7 @@ export function ComparePanel({
                     <button onClick={() => setShown(p.result!)} className="text-link hover:underline">{$t("workspace.evals-compare-panel.show")}</button>
                   </>
                 ) : (
-                  <span className="text-danger">{p.error ?? "failed"}</span>
+                  <span className="text-danger">{p.error ?? $t("workspace.evals-compare-panel.failed")}</span>
                 )}
               </li>
             ))}

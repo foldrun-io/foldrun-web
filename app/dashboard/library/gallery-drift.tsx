@@ -48,7 +48,7 @@ export function GalleryDrift({ tenant, name, status }: { tenant: string; name: s
         }}
         className="text-xs font-medium text-link hover:underline disabled:opacity-50"
       >
-        {busy ? "updating…" : $t("library.gallery-drift.updateToGalleryVersion")}
+        {busy ? $t("library.gallery-drift.updating") : $t("library.gallery-drift.updateToGalleryVersion")}
       </button>
       </Tooltip>
     </span>

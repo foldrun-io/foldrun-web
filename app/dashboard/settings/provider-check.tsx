@@ -7,6 +7,7 @@
 // A check spends a real model request at each endpoint, so the button needs
 // run:start, as the route does.
 
+import { PROVIDER_VERDICT_LABEL, labelOf } from "@/components/value-labels";
 import { $el, $rich, $t } from "@/i18n";
 import { useState } from "react";
 import { Chip, type Tone, SettingsCard } from "@foldrun/ui/react/page";
@@ -103,7 +104,7 @@ export function ProviderCheck({
           <Tooltip label={mayCheck ? $t("settings.provider-check.sendsOneSmallModelRequestTo") : needs("run:start")}>
             <span className="inline-flex">
               <Button variant="secondary" onClick={() => void checkNow()} disabled={busy || !mayCheck}>
-                {busy ? "Checking…" : $t("settings.provider-check.checkNow")}
+                {busy ? $t("settings.provider-check.checking") : $t("settings.provider-check.checkNow")}
               </Button>
             </span>
           </Tooltip>
@@ -115,7 +116,7 @@ export function ProviderCheck({
         <ul className="divide-y divide-line">
           {results.map((r) => (
             <li key={`${keyOf(r)}|${r.model}`} className="flex flex-wrap items-start gap-x-3 gap-y-0.5 px-5 py-3 sm:px-6">
-              <Chip tone={VARIANT[r.verdict] ?? "default"}>{r.verdict}</Chip>
+              <Chip tone={VARIANT[r.verdict] ?? "default"}>{labelOf(PROVIDER_VERDICT_LABEL, r.verdict)}</Chip>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-mono text-xs text-fg">
                   {r.provider} <span className="text-fg-subtle">· {r.model}</span>

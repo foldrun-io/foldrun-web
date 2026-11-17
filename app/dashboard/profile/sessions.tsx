@@ -8,7 +8,7 @@
 // person on the install. That was true, and it was the gap. Sessions are rows
 // now, so the honest answer is a list and a button.
 
-import { $rich, $t, $el } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import { useEffect, useState } from "react";
 import { buttonVariants } from "@foldrun/ui/react/button";
 import { LocalTime } from "@/components/local-time";
@@ -40,7 +40,7 @@ function describe(ua: string | null): string {
     : /Windows/.test(ua) ? $t("profile.sessions.windows")
     : /Linux/.test(ua) ? $t("profile.sessions.linux")
     : "";
-  return os ? `${browser} on ${os}` : browser;
+  return os ? $t("profile.sessions.browserOnOs", { browser, os }) : browser;
 }
 
 export function SessionList() {
@@ -108,7 +108,7 @@ export function SessionList() {
                 disabled={busy === s.id}
                 onClick={() => end({ id: s.id }, s.id)}
               >
-                {busy === s.id ? "ending…" : $t("profile.sessions.end")}
+                {busy === s.id ? $t("profile.sessions.ending") : $t("profile.sessions.end")}
               </button>
             )}
           </li>
@@ -124,10 +124,10 @@ export function SessionList() {
         onClick={() => end({ others: true }, "others")}
       >
         {busy === "others"
-          ? "Ending…"
+          ? $t("profile.sessions.ending2")
           : others.length === 0
             ? $t("profile.sessions.noOtherDevices")
-            : $t("profile.sessions.signOutOtherDevice", { length: String(others.length), v1: String(others.length === 1 ? "" : "s") })}
+            : $t("profile.sessions.signOutOtherDevice", { length: String(others.length), v1: others.length })}
       </button>
     </div>
   );

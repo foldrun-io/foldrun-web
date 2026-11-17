@@ -93,7 +93,7 @@ export default async function WorkspaceRunsPage({
         title={$t("workspace.runs-page.runs")}
         description={
           awaiting.length
-            ? $t("workspace.runs-page.runWaitingForYouToApprove", { length: String(awaiting.length), v1: String(awaiting.length === 1 ? "" : "s") })
+            ? $t("workspace.runs-page.runWaitingForYouToApprove", { length: String(awaiting.length), v1: awaiting.length })
             : $t("workspace.runs-page.everyRunInOpenOneTo", { workspace: String(workspace) })
         }
         actions={

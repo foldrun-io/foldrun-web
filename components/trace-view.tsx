@@ -57,7 +57,7 @@ export function CallContent({ run, call, tenant }: { run: CallRun; call: string;
           {label === "input" ? $t("components.trace-view.input") : label === "output" ? $t("components.trace-view.output") : label}
           {cut && whole !== undefined && whole > text.length ? $t("components.trace-view.theFirstOfCharacters", { v0: String(grouped(text.length)), v1: String(grouped(whole)) }) : ""}
         </p>
-        <pre className="mt-0.5 max-h-72 overflow-auto whitespace-pre-wrap break-all rounded-md border border-line bg-sunken p-2 font-mono text-[11px] text-fg-secondary">{text || "(empty)"}</pre>
+        <pre className="mt-0.5 max-h-72 overflow-auto whitespace-pre-wrap break-all rounded-md border border-line bg-sunken p-2 font-mono text-[11px] text-fg-secondary">{text || $t("components.trace-view.empty")}</pre>
       </div>
     );
   return (

@@ -53,7 +53,7 @@ export function BetaFeatures({ initial, flags: initialFlags, canChange }: { init
                 <span className="block font-mono text-xs text-fg">{f.name}</span>
                 <span className="block text-fg-muted">{f.description}</span>
               </span>
-              <span className={f.on ? "shrink-0 text-success" : "shrink-0 text-fg-subtle"}>{f.on ? "on" : "off"}</span>
+              <span className={f.on ? "shrink-0 text-success" : "shrink-0 text-fg-subtle"}>{f.on ? $t("values.switch.on") : $t("values.switch.off")}</span>
             </li>
           ))}
         </ul>

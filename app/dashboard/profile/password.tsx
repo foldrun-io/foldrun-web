@@ -35,7 +35,7 @@ export function PasswordForm() {
         const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
         setBusy(false);
         if (res.ok) {
-          setState({ done: body.message ?? "Changed." });
+          setState({ done: body.message ?? $t("profile.password.changed") });
           setCurrent("");
           setNext("");
           setAgain("");
@@ -85,7 +85,7 @@ export function PasswordForm() {
           disabled={busy || !current || next.length < 8 || mismatch}
           className={buttonVariants({ variant: "primary", size: "md" })}
         >
-          {busy ? "Changing…" : $t("profile.password.changePassword")}
+          {busy ? $t("profile.password.changing") : $t("profile.password.changePassword")}
         </button>
         {mismatch && <span className="text-xs text-danger">{$t("profile.password.theTwoNewPasswordsDoNot2")}</span>}
         {state.error && <span className="text-xs text-danger">{state.error}</span>}

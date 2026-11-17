@@ -92,7 +92,7 @@ export function FilterTest({
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <button onClick={test} disabled={busy} className={buttonVariants({ variant: "secondary" })}>
-          {busy ? "Testing…" : $t("workspace.triggers-filter-test.testFilter")}
+          {busy ? $t("workspace.triggers-filter-test.testing") : $t("workspace.triggers-filter-test.testFilter")}
         </button>
         {answer && (
           <p className={`text-sm ${answer.match ? "text-success" : "text-warning"}`}>

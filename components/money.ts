@@ -48,7 +48,7 @@ export function credits(usd: number): string {
   const n = Math.round(usd / 0.01);
   const sign = n < 0 ? "−" : "";
   const grouped = String(Math.abs(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  return `${sign}${grouped} credit${Math.abs(n) === 1 ? "" : "s"}`;
+  return $t("components.money.credits", { amount: `${sign}${grouped}`, n: Math.abs(n) });
 }
 
 /** Short, for chrome: "12.3k credits", "840 credits". */

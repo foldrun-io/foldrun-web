@@ -11,6 +11,7 @@
 // runs in flight that would refuse it, and what the deploy checks say of
 // that tree: `issues` refuse it, `warnings` do not.
 
+import { FILE_CHANGE_LABEL, labelOf } from "@/components/value-labels";
 import { $t } from "@/i18n";
 import { useEffect, useState } from "react";
 import { Chip, Callout } from "@foldrun/ui/react/page";
@@ -117,7 +118,7 @@ export function DeployPreview({ workspace, tenant, to }: { workspace: string; te
       <ul className="space-y-1">
         {plan.files.map((f) => (
           <li key={f.path} className="overflow-hidden rounded-md border border-line bg-surface">
-            <Disclosure summaryClassName="flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-sunken" summary={<><Chip tone={f.change === "removed" ? "bad" : f.change === "added" ? "good" : "info"}>{f.change}</Chip>
+            <Disclosure summaryClassName="flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-sunken" summary={<><Chip tone={f.change === "removed" ? "bad" : f.change === "added" ? "good" : "info"}>{labelOf(FILE_CHANGE_LABEL, f.change)}</Chip>
                 <span className="truncate font-mono">{f.path}</span></>}>
               <Diff ops={f.diff} />
             </Disclosure>

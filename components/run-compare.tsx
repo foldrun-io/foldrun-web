@@ -31,7 +31,7 @@ export function RunCompare({ workspace, runId, tenant }: { workspace: string; ru
     return (
       <Button onClick={() => void load()} disabled={loading}>
         <GitCompare aria-hidden />
-        {loading ? "Comparing…" : $t("components.run-compare.compareWithTheLastGoodRun")}
+        {loading ? $t("components.run-compare.comparing") : $t("components.run-compare.compareWithTheLastGoodRun")}
       </Button>
     );
   }

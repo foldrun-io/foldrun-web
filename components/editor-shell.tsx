@@ -286,7 +286,7 @@ export function EditorShell({
               <div key={s.title} className="border-b border-line px-4 py-3.5 last:border-b-0">
                 <p className="mb-2 text-[13px] font-medium text-fg">{s.title}</p>
                 {s.items.length === 0 ? (
-                  <p className="text-[13px] text-fg-muted">{s.empty ?? "None."}</p>
+                  <p className="text-[13px] text-fg-muted">{s.empty ?? $t("components.editor-shell.none")}</p>
                 ) : (
                   <ul className="space-y-1.5">
                     {s.items.map((it, i) => (

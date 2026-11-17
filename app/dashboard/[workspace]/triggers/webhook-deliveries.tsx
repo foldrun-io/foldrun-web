@@ -7,6 +7,7 @@
 // 30m, 2h, 6h); this is for the one that gave up, or for a receiver you just
 // fixed and want to prove.
 
+import { DELIVERY_STATUS_LABEL, labelOf } from "@/components/value-labels";
 import { $el, $rich, $t } from "@/i18n";
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -81,7 +82,7 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
       const res = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/notify/deliveries/${encodeURIComponent(id)}/redeliver`, { method: "POST" });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) setNote(body.error ?? `HTTP ${res.status}`);
-      else setNote(body.ok ? $t("workspace.triggers-webhook-deliveries.redeliveredAccepted", { id: String(id), statusCode: String(body.attempt?.statusCode) }) : $t("workspace.triggers-webhook-deliveries.redelivered", { id: String(id), v1: String(body.attempt?.error ?? "refused") }));
+      else setNote(body.ok ? $t("workspace.triggers-webhook-deliveries.redeliveredAccepted", { id: String(id), statusCode: String(body.attempt?.statusCode) }) : $t("workspace.triggers-webhook-deliveries.redelivered", { id: String(id), v1: String(body.attempt?.error ?? $t("workspace.triggers-webhook-deliveries.refused")) }));
       await load();
     } finally {
       setBusy(null);
@@ -167,7 +168,7 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
                       </button>
                     </td>
                     <td className="px-3 py-3">
-                      <Chip tone={TONE[d.status]}>{d.status === "pending" ? "retrying" : d.status}</Chip>
+                      <Chip tone={TONE[d.status]}>{labelOf(DELIVERY_STATUS_LABEL, d.status === "pending" ? "retrying" : d.status)}</Chip>
                       {d.status === "pending" && d.nextAttemptAt && (
                         <span className="ml-1 text-xs text-fg-subtle">{$rich("workspace.triggers-webhook-deliveries.next", { localTime: $el(<LocalTime iso={d.nextAttemptAt} />) })}</span>
                       )}
@@ -198,7 +199,7 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
                         <ul className="space-y-1 text-xs">
                           {d.attemptLog.map((a) => (
                             <li key={`${a.n}-${a.at}`} className="flex flex-wrap gap-x-3">
-                              <span className="text-fg-subtle">#{a.n}{a.manual ? " (manual)" : ""}</span>
+                              <span className="text-fg-subtle">#{a.n}{a.manual ? $t("workspace.triggers-webhook-deliveries.manualMark") : ""}</span>
                               <span className="text-fg-muted"><LocalTime iso={a.at} /></span>
                               <span className={a.error ? "text-danger" : "text-success"}>{a.statusCode ? `HTTP ${a.statusCode}` : a.error}</span>
                               <span className="text-fg-subtle">{$t("workspace.triggers-webhook-deliveries.ms", { durationMs: String(a.durationMs) })}</span>

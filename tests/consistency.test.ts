@@ -426,7 +426,7 @@ test("an anchored file explains itself instead of failing generically", () => {
   // Location is meaning here, so a refusal has to name the reason: "not an
   // editable path" is true of AGENTS.md and teaches nothing about why.
   for (const [rel, expect] of [
-    ["AGENTS.md", /workspace's own identity/],
+    ["AGENTS.md", /project's own identity/],
     ["agents/writer/agent.md", /because of where it sits/],
     ["skills/plain-english/SKILL.md", /names its skill/],
     ["tools/browser/tool.md", /names its tool/],

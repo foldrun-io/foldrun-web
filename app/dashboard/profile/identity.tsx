@@ -49,7 +49,7 @@ export function NameForm({ firstName, lastName }: { firstName: string | null; la
         </label>
       </div>
       <div className="flex items-center gap-3">
-        <button type="submit" disabled={busy || !dirty} className={buttonVariants({ variant: "primary", size: "md" })}>{busy ? "Saving…" : $t("profile.identity.saveName")}</button>
+        <button type="submit" disabled={busy || !dirty} className={buttonVariants({ variant: "primary", size: "md" })}>{busy ? $t("profile.identity.saving") : $t("profile.identity.saveName")}</button>
         {state.done && <span className="text-xs text-success">{$t("profile.identity.saved")}</span>}
         {state.error && <span className="text-xs text-danger">{state.error}</span>}
       </div>
@@ -103,7 +103,7 @@ export function EmailForm({ current }: { current: string }) {
         </label>
       </div>
       <div className="flex items-center gap-3">
-        <button type="submit" disabled={busy || !email.trim() || !password} className={buttonVariants({ variant: "primary", size: "md" })}>{busy ? "Moving…" : $t("profile.identity.changeEmail")}</button>
+        <button type="submit" disabled={busy || !email.trim() || !password} className={buttonVariants({ variant: "primary", size: "md" })}>{busy ? $t("profile.identity.moving") : $t("profile.identity.changeEmail")}</button>
         {state.done && <span className="text-xs text-success">{state.done}</span>}
         {state.error && <span className="text-xs text-danger">{state.error}</span>}
       </div>

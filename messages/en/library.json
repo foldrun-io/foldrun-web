@@ -35,7 +35,8 @@
     "installedFromTheGalleryAndIdentical": "Installed from the gallery, and identical to the version the platform ships now",
     "installedFromTheGalleryButNot": "Installed from the gallery, but not identical to the version the platform ships now — either the gallery moved on, or this copy was edited",
     "replaceThisCopyWithTheGallery": "Replace this copy with the gallery's current version. The previous content stays one revision back.",
-    "updateToGalleryVersion": "update to gallery version"
+    "updateToGalleryVersion": "update to gallery version",
+    "updating": "updating…"
   },
   "manage": {
     "delete": "Delete",

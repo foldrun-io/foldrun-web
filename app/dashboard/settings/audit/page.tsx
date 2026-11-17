@@ -61,21 +61,21 @@ function describe(e: AuditEntry): string {
     }
     case "secret.set":
     case "secret.deleted":
-      return `${s("name")}${s("kind") ? ` (${s("kind")})` : ""}${s("workspace") ? ` in ${s("workspace")}` : " (account)"}`;
+      return $t("settings.audit-page.secretWhere", { name: s("name") ?? "", hasKind: s("kind") ? "yes" : "no", kind: s("kind") ?? "", inWorkspace: s("workspace") ? "yes" : "no", workspace: s("workspace") ?? "" });
     case "secret.sites": {
       const sites = Array.isArray(d.sites) ? (d.sites as string[]) : [];
-      return `${s("name")}${s("workspace") ? ` in ${s("workspace")}` : " (account)"} · ${sites.length ? $t("settings.audit-page.boundTo", { v0: String(sites.join(", ")) }) : "unbound"}`;
+      return $t("settings.audit-page.secretSites", { name: s("name") ?? "", inWorkspace: s("workspace") ? "yes" : "no", workspace: s("workspace") ?? "", bound: sites.length ? "yes" : "no", sites: sites.join(", ") });
     }
     case "secret.workspaces": {
       const list = Array.isArray(d.workspaces) ? (d.workspaces as string[]) : null;
-      return $t("settings.audit-page.account", { v0: String(s("name")), v1: String(list === null ? $t("settings.audit-page.everyWorkspace") : list.length ? `only ${list.join(", ")}` : $t("settings.audit-page.noWorkspace")) });
+      return $t("settings.audit-page.account", { v0: String(s("name")), v1: String(list === null ? $t("settings.audit-page.everyWorkspace") : list.length ? $t("settings.audit-page.onlyThese", { list: list.join(", ") }) : $t("settings.audit-page.noWorkspace")) });
     }
     case "workspace.deployed":
       return `${s("workspace")}${s("commit") ? ` @ ${s("commit").slice(0, 8)}` : ""} · +${d.added ?? 0} ~${d.updated ?? 0} −${d.removed ?? 0}`;
     case "workspace.exported":
-      return $t("settings.audit-page.files", { v0: String(s("kind") === "workspace" ? s("workspace") : `${s("kind")} ${s("name")} from ${s("workspace")}`), v1: String(d.files ?? 0) });
+      return $t("settings.audit-page.exported", { whole: s("kind") === "workspace" ? "yes" : "no", kind: s("kind") ?? "", name: s("name") ?? "", workspace: s("workspace") ?? "", files: String(d.files ?? 0) });
     case "workspace.imported":
-      return $t("settings.audit-page.intoFiles", { v0: String(s("kind") === "workspace" ? $t("common.workspaceOne") : `${s("kind")} ${s("name")}`), v1: String(s("from") ? ` from ${s("from")}` : ""), v2: String(s("workspace")), v3: String(d.created ? " (new)" : ""), v4: String(d.written ?? 0), v5: String(d.overwritten ? $t("settings.audit-page.overwritten", { overwritten: String(d.overwritten) }) : "") });
+      return $t("settings.audit-page.imported", { whole: s("kind") === "workspace" ? "yes" : "no", kind: s("kind") ?? "", name: s("name") ?? "", hasFrom: s("from") ? "yes" : "no", from: s("from") ?? "", workspace: s("workspace") ?? "", created: d.created ? "yes" : "no", written: String(d.written ?? 0), overwrote: d.overwritten ? "yes" : "no", overwritten: String(d.overwritten ?? 0) });
     default: {
       const parts = Object.entries(d)
         .filter(([, v]) => v !== null && v !== undefined && typeof v !== "object")

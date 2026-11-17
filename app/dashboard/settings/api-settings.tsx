@@ -132,13 +132,13 @@ export function ApiSettings({ facts, qs }: { facts: ApiFacts; qs: string }) {
         description={
           <>
             {$rich("settings.api-settings.apiKeyRequestsWithoutAFoldrun", { code: (chunks) => <code className="font-mono">{chunks}</code>, effective: version.effective, span: (chunks) => <span className="font-mono text-fg">{chunks}</span> })}
-            {version.pinned ? " (pinned)" : " (current)"}{$t("settings.api-settings.theDashboardAlwaysUsesTheCurrent", { supportMonths: String(version.supportMonths) })}
+            {version.pinned ? $t("settings.api-settings.pinnedMark") : $t("settings.api-settings.currentMark")}{$t("settings.api-settings.theDashboardAlwaysUsesTheCurrent", { supportMonths: String(version.supportMonths) })}
           </>
         }
         hint={error ? <span role="alert" className="text-danger">{error}</span> : !manages ? $t("settings.api-settings.anAdminCanChangeThePin") : undefined}
         footer={
           <Button variant="primary" onClick={save} disabled={!manages || busy || pick === (version.pinned ?? "")}>
-            {busy ? "Saving…" : $t("settings.api-settings.save")}
+            {busy ? $t("settings.api-settings.saving") : $t("settings.api-settings.save")}
           </Button>
         }
       >

@@ -14,5 +14,5 @@ export function conversationNote(run: Pick<RunRecord, "context" | "steps">): str
     return `${scope}. ${waiting ? $t("components.conversation-model.itsFirstStepReadsTheEarlier") : $t("components.conversation-model.itWasTheFirstRunIn")}`;
   }
   const n = given.runs.length;
-  return $t("components.conversation-model.itsFirstStepReadEarlierRun", { scope: String(scope), n: String(n), v2: String(n === 1 ? "" : "s"), v3: String(given.omitted ? $t("components.conversation-model.olderDidNotFit", { omitted: String(given.omitted) }) : ""), v4: String(given.truncated ? $t("components.conversation-model.cutShort", { truncated: String(given.truncated) }) : "") });
+  return $t("components.conversation-model.itsFirstStepReadEarlierRun", { scope: String(scope), n: String(n), v2: n, v3: String(given.omitted ? $t("components.conversation-model.olderDidNotFit", { omitted: String(given.omitted) }) : ""), v4: String(given.truncated ? $t("components.conversation-model.cutShort", { truncated: String(given.truncated) }) : "") });
 }

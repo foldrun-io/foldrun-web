@@ -64,7 +64,7 @@ test("GET /source through a file link or a folder link: 400, and the outside tex
     const res = await get(rel);
     const text = await res.text();
     assert.equal(res.status, 400, `${rel}: ${text}`);
-    assert.match(text, /leads out of the workspace through a symlink/);
+    assert.match(text, /leads out of the project through a symlink/);
     assert.doesNotMatch(text, /outside-secret/);
   }
 });

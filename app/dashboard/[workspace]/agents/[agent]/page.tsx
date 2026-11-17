@@ -6,6 +6,7 @@
 // is only findable by knowing the `adhoc:` prefix. This is the other axis:
 // what it is allowed to do at the top, what it has produced underneath.
 
+import { STEP_STATUS_LABEL, labelOf } from "@/components/value-labels";
 import { $rich, $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
@@ -129,7 +130,7 @@ export default async function AgentPage({
         badge={
           <>
             <Tag mono>{info.model}</Tag>
-            {lastStep ? <Status outcome={STEP_OUTCOME[lastStep.stepStatus] ?? "quiet"} label={lastStep.stepStatus} /> : <span className="text-sm text-fg-muted">{$t("workspace.agents-agent-page.neverRan")}</span>}
+            {lastStep ? <Status outcome={STEP_OUTCOME[lastStep.stepStatus] ?? "quiet"} label={labelOf(STEP_STATUS_LABEL, lastStep.stepStatus)} /> : <span className="text-sm text-fg-muted">{$t("workspace.agents-agent-page.neverRan")}</span>}
           </>
         }
         description={info.description || $t("workspace.agents-agent-page.noDescription")}
@@ -211,7 +212,7 @@ export default async function AgentPage({
               <ul className="divide-y divide-line">
                 {activity.rows.map((s, i) => (
                   <li key={`${s.runId}:${i}`} className="relative flex min-w-0 items-center gap-4 px-4 py-3 hover:bg-sunken">
-                    <Status outcome={STEP_OUTCOME[s.stepStatus] ?? "quiet"} label={s.stepStatus} className="w-28 shrink-0" />
+                    <Status outcome={STEP_OUTCOME[s.stepStatus] ?? "quiet"} label={labelOf(STEP_STATUS_LABEL, s.stepStatus)} className="w-28 shrink-0" />
                     <div className="min-w-0 flex-1">
                       <Link href={`/dashboard/${workspace}/runs/${s.runId}${qs}`} className="block truncate text-sm font-medium text-fg after:absolute after:inset-0">
                         {/* The step's OWN first line, not the run's summary. */}

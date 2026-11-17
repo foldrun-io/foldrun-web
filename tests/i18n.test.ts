@@ -19,6 +19,7 @@ import path from "node:path";
 import { parse } from "@formatjs/icu-messageformat-parser";
 import { MESSAGES, expandTerms, $t, $rich, DIR, LOCALE } from "@/i18n";
 import { BASELINE, WEB, census, dashboardFiles, fingerprint, hardcoded } from "../scripts/i18n-scan.mjs";
+import { SYNTAX, rawValues } from "../scripts/i18n-values.mjs";
 
 type Tree = { [k: string]: string | Tree };
 function leaves(t: Tree, at = ""): [string, string][] {
@@ -98,4 +99,24 @@ test("text written in code only shrinks: new text goes through $t()", () => {
     }
   }
   assert.deepEqual(added, [], `text added in code instead of messages/en — put it in a language file and use $t():\n${added.join("\n")}`);
+});
+
+test("a value the code compares is shown through its label, not as the raw word", () => {
+  // components/value-labels.ts gives a status, a role, an outcome its words;
+  // only file syntax (network: trusted, transport: mcp) is shown as written.
+  const raw = (rawValues() as { at: string; expr: string; words: string[] }[]).filter((v) => !v.words.every((w) => SYNTAX.has(w)));
+  assert.deepEqual(raw.map((v) => `${v.at} ${v.expr} [${v.words.join(", ")}]`), [], "show these through a label in components/value-labels.ts");
+});
+
+test("a plural is chosen by the message, never built from English in code", () => {
+  // `${n} file${n === 1 ? "" : "s"}` only works in English: write
+  // {n, plural, one {# file} other {# files}} in the message instead.
+  const found: string[] = [];
+  for (const f of dashboardFiles()) {
+    const src = fs.readFileSync(path.join(WEB, f), "utf8");
+    src.split("\n").forEach((line, i) => {
+      if (/[!=]==? ?1 \? "(s|es)?" : "(s|es)?"/.test(line) && /"(s|es)"/.test(line)) found.push(`${f}:${i + 1}`);
+    });
+  }
+  assert.deepEqual(found, [], "use an ICU plural in messages/en");
 });

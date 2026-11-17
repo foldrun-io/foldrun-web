@@ -112,7 +112,7 @@ export default async function ProjectPage({
       href,
       icon: <Workflow />,
       name: f.name,
-      sub: $t("workspace.page.step", { when: String(when), steps: String(f.steps), v2: String(f.steps === 1 ? "" : "s") }),
+      sub: $t("workspace.page.step", { when: String(when), steps: String(f.steps), v2: f.steps }),
       cells: {
         status: last ? <Status outcome={last.outcome} /> : <span className="text-fg-muted">{$t("workspace.page.neverRan")}</span>,
         runs: beat ? <Cells beat={beat} n={12} tenant={tenant} /> : undefined,

@@ -118,18 +118,18 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
   const save = async () => {
     if (!draft) return;
     const ok = await ask({
-      title: $t("components.flow-ai-draft.saveFileTo", { length: String(draft.files.length), v1: String(draft.files.length === 1 ? "" : "s"), workspace: String(workspace) }),
+      title: $t("components.flow-ai-draft.saveFileTo", { length: String(draft.files.length), v1: draft.files.length, workspace: String(workspace) }),
       body: (
         <>
           <ul className="mb-2 list-disc pl-5 font-mono text-xs">
             {draft.files.map((f) => (
               <li key={f.path}>
-                {f.path} {f.before === null ? "(new)" : $t("components.flow-ai-draft.replacesWhatIsThere")}
+                {f.path} {f.before === null ? $t("components.flow-ai-draft.new") : $t("components.flow-ai-draft.replacesWhatIsThere")}
               </li>
             ))}
           </ul>
           {errors.length > 0
-            ? $t("components.flow-ai-draft.theCheckStillFindsErrorThe", { length: String(errors.length), v1: String(errors.length === 1 ? "" : "s") })
+            ? $t("components.flow-ai-draft.theCheckStillFindsErrorThe", { length: String(errors.length), v1: errors.length })
             : $t("components.flow-ai-draft.eachFileIsSavedAsA")}
         </>
       ),
@@ -153,7 +153,7 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
         if (!res.ok) {
           const body = (await res.json().catch(() => ({}))) as { error?: string };
           throw new Error(
-            `${f.path}: ${res.status === 409 ? $t("components.flow-ai-draft.sinceTheDraftWasMadeDraft", { v0: String(f.before === null ? $t("components.flow-ai-draft.createdBySomeoneElse") : "changed") }) : (body.error ?? $t("components.flow-ai-draft.refused", { status: String(res.status) }))}` +
+            `${f.path}: ${res.status === 409 ? $t("components.flow-ai-draft.sinceTheDraftWasMadeDraft", { v0: String(f.before === null ? $t("components.flow-ai-draft.createdBySomeoneElse") : $t("components.flow-ai-draft.changed")) }) : (body.error ?? $t("components.flow-ai-draft.refused", { status: String(res.status) }))}` +
               (done.length ? $t("components.flow-ai-draft.alreadySaved", { v0: String(done.join(", ")) }) : ""),
           );
         }
@@ -210,7 +210,7 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
                   onClick={() => void request()}
                   className={cn(buttonVariants({ variant: "primary", size: "xs" }), "ml-auto")}
                 >
-                  {busy === "draft" ? "Drafting…" : draft ? $t("components.flow-ai-draft.draftAgain") : $t("components.flow-ai-draft.draft")}
+                  {busy === "draft" ? $t("components.flow-ai-draft.drafting") : draft ? $t("components.flow-ai-draft.draftAgain") : $t("components.flow-ai-draft.draft")}
                 </button>
               </div>
             </div>
@@ -255,7 +255,7 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
                   <section key={f.path} className="overflow-hidden rounded-lg border border-line">
                     <header className="flex items-center gap-2 border-b border-line-faint bg-sunken px-3 py-1.5">
                       <span className="font-mono text-xs text-fg-secondary">{f.path}</span>
-                      <Chip tone={f.before === null ? "good" : "warn"}>{f.before === null ? "new" : "changed"}</Chip>
+                      <Chip tone={f.before === null ? "good" : "warn"}>{f.before === null ? $t("values.fileChange.new") : $t("values.fileChange.changed")}</Chip>
                     </header>
                     <div className="max-h-80 overflow-auto">
                       <DiffView rows={foldDiff(lineDiff(f.before ?? "", f.content), 4)} empty={$t("components.flow-ai-draft.sameAsTheFileInThe")} />
@@ -273,7 +273,7 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
                 {$t("components.flow-ai-draft.discard")}
               </button>
               <button type="button" disabled={busy !== null} onClick={() => void save()} className={buttonVariants({ variant: "primary", size: "xs" })}>
-                {busy === "save" ? "Saving…" : $t("components.flow-ai-draft.saveFile", { length: String(draft.files.length), v1: String(draft.files.length === 1 ? "" : "s") })}
+                {busy === "save" ? $t("components.flow-ai-draft.saving") : $t("components.flow-ai-draft.saveFile", { length: String(draft.files.length), v1: draft.files.length })}
               </button>
             </footer>
           )}

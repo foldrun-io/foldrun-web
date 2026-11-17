@@ -922,12 +922,12 @@ export function Connections({
                   <Field label={$t("settings.connections.issuerFillsTheUrlsBelowFrom")}>
                     <div className="flex items-center gap-2">
                       <Input value={f.issuer ?? ""} onChange={set("issuer")} placeholder="https://login.example.com" className={cred} autoComplete="off" />
-                      <button type="button" disabled={discovering || !f.issuer?.trim()} onClick={() => void discover()} className={buttonVariants({ variant: "secondary", size: "md" })}>{discovering ? "Reading…" : $t("settings.connections.discover")}</button>
+                      <button type="button" disabled={discovering || !f.issuer?.trim()} onClick={() => void discover()} className={buttonVariants({ variant: "secondary", size: "md" })}>{discovering ? $t("settings.connections.reading") : $t("settings.connections.discover")}</button>
                     </div>
                   </Field>
                   {f.iss_parameter && (
                     <p className="mt-1 text-xs text-fg-muted">
-                      {$t("settings.connections.found")}{" "}{[f.revocation_url && "revocation", f.device_url && $t("settings.connections.deviceSignIn"), f.par_url && $t("settings.connections.pushedRequestsPar")].filter(Boolean).join(", ") || $t("settings.connections.authorizeAndTokenUrls")}
+                      {$t("settings.connections.found2", { join: [f.revocation_url && $t("settings.connections.revocation"), f.device_url && $t("settings.connections.deviceSignIn"), f.par_url && $t("settings.connections.pushedRequestsPar")].filter(Boolean).join(", ") || $t("settings.connections.authorizeAndTokenUrls") })}
                       {f.iss_parameter === "true" ? $t("settings.connections.theProviderSaysWhoItIs") : ""}
                     </p>
                   )}

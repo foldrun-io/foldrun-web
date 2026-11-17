@@ -63,7 +63,7 @@ test("refused: a scoped admin, an editor, a workspace's own secret, an unknown w
   assert.equal((await patch(admin, { name: "STRIPE_KEY", workspaces: ["sales"], workspace: "sales" })).status, 400);
   const unknown = await patch(admin, { name: "STRIPE_KEY", workspaces: ["sales", "nosuch"] });
   assert.equal(unknown.status, 400);
-  assert.match(((await unknown.json()) as { error: string }).error, /no workspace nosuch/);
+  assert.match(((await unknown.json()) as { error: string }).error, /no project nosuch/);
   assert.equal((await patch(admin, { name: "STRIPE_KEY", workspaces: "sales" })).status, 400);
   assert.equal((await patch(admin, { name: "STRIPE_KEY" })).status, 400);
   assert.equal((await patch(admin, { name: "NO_SUCH", workspaces: ["sales"] })).status, 404);

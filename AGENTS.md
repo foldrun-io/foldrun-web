@@ -44,7 +44,8 @@ TypeScript 7, move `typescript` to 7 and drop the alias.
 ## Words on a page: language files
 
 Every word the dashboard shows lives in `messages/en/<area>.json`, not in the
-code (since 17 Nov 2026; Persian comes later as `messages/fa/`). Write
+code (owner, 17 Nov 2026: no language hard-coded; English only, no other
+locale until the owner asks). Write
 `$t("area.file.key")`, or `$t("…", { n })` for an ICU message with values and
 plurals. A sentence with markup inside is one message with tags:
 `$rich("…", { link: (chunks) => <Link href=…>{chunks}</Link> })`, and an
@@ -57,5 +58,9 @@ message ("Project" today), so renaming a noun is one edit.
   `tests/i18n-baseline.json`, which may only shrink).
 - `node scripts/i18n-extract.mjs --files <paths>… --write` moves a file's
   text for you; run it until it moves 0, then read the diff.
+- A value the code compares (a status, a role, an outcome) is shown through
+  its label in `components/value-labels.ts`, never as the raw word; only file
+  syntax (`network: trusted`) is shown as written. The test finds raw values
+  by type (`scripts/i18n-values.mjs`).
 - Never translate code samples, paths, permissions, protocol values or
   anything code compares; route handlers (`route.ts`) are never touched.

@@ -253,7 +253,7 @@ export function InlineEditor({
 
   const save = async (anyway = false) => {
     if (content === null) return;
-    setStatus("saving…");
+    setStatus($t("components.inline-editor.saving"));
     setError(null);
     setRefused(null);
     const res = await fetch(writeUrl, {
@@ -292,7 +292,7 @@ export function InlineEditor({
           className="flex items-center justify-center rounded-lg border border-line bg-sunken/60 text-xs text-fg-subtle"
           style={{ minHeight: `${(rows ?? 16) * 1.6 * 12.5 + 16}px` }}
         >
-          {error ?? "Loading…"}
+          {error ?? $t("components.inline-editor.loading")}
         </div>
       </div>
     );

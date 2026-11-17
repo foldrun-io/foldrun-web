@@ -120,7 +120,7 @@ export function ToolTest({
               onClick={run}
               disabled={busy || stale}
             >
-              <Play /> {busy ? "Calling…" : $t("components.tool-test.test")}
+              <Play /> {busy ? $t("components.tool-test.calling") : $t("components.tool-test.test")}
             </Button>
           </span>
         </Tooltip>

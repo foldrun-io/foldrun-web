@@ -98,7 +98,7 @@ function Row({
           {facts.length > 0 && <span className="shrink-0 truncate text-xs text-fg-subtle">{facts.join(" · ")}</span>}
           {span.kind === "tool" && span.captured && (
             <Tooltip label={mayReadCalls ? "" : CALL_CONTENT_NEEDS}><span className="inline-flex"><button type="button" aria-expanded={io} disabled={!mayReadCalls} onClick={() => setIo((v) => !v)} className="shrink-0 text-xs font-medium text-fg-muted hover:text-fg hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-60">
-              {io ? "hide" : "input / output"}
+              {io ? $t("values.misc.hide") : $t("values.misc.inputOutput")}
             </button></span></Tooltip>
           )}
           {dur !== null && span.kind !== "error" && <span className="ml-auto shrink-0 tabular-nums text-xs text-fg-subtle">{fmtDur(dur)}</span>}

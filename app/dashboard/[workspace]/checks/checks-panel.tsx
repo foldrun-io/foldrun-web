@@ -141,7 +141,7 @@ export function ChecksPanel({ workspace, tenantQuery, canOnline = true }: { work
           )}
           <Button size="md" variant="ghost" onClick={() => void again()} disabled={busy}>
             <RefreshCw className={cn(busy && "animate-spin")} aria-hidden />
-            {busy ? "Checking…" : $t("workspace.checks-checks-panel.checkAgain")}
+            {busy ? $t("workspace.checks-checks-panel.checking") : $t("workspace.checks-checks-panel.checkAgain")}
           </Button>
         </div>
         <p className="px-1 text-[13px] text-fg-muted">

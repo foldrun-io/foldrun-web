@@ -8,7 +8,7 @@
 // LiveRun from the stream, so the outcome and the actions change the moment
 // the run does; this page hands it what only the server knows.
 
-import { $rich, $t, $el } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
 import { notFound } from "next/navigation";
@@ -174,7 +174,7 @@ export default async function RunPage({
                   </span>
                 )}
                 <span className="basis-full text-xs text-fg-muted">
-                  {g.by === "sample" ? "sampled" : <>{$rich("workspace.runs-runId-page.askedBy", { withEmails: $el(<WithEmails text={g.by} />) })}</>}{" "}{$t("workspace.runs-runId-page.utc3", { replace: g.at.slice(0, 16).replace("T", " ") })}
+                  {g.by === "sample" ? $t("workspace.runs-runId-page.sampled") : <>{$rich("workspace.runs-runId-page.askedBy", { withEmails: $el(<WithEmails text={g.by} />) })}</>}{" "}{$t("workspace.runs-runId-page.utc3", { replace: g.at.slice(0, 16).replace("T", " ") })}
                 </span>
               </li>
             );

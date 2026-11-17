@@ -19,8 +19,9 @@ import runs from "./runs.json" with { type: "json" };
 import settings from "./settings.json" with { type: "json" };
 import storage from "./storage.json" with { type: "json" };
 import usage from "./usage.json" with { type: "json" };
+import values from "./values.json" with { type: "json" };
 import welcome from "./welcome.json" with { type: "json" };
 import whatsNew from "./whats-new.json" with { type: "json" };
 import workspace from "./workspace.json" with { type: "json" };
 
-export const CATALOG = { app, auth, common, components, connect, dashboard, docs, graph, help, inbox, issues, library, limits, observe, profile, runs, settings, storage, usage, welcome, "whats-new": whatsNew, workspace };
+export const CATALOG = { app, auth, common, components, connect, dashboard, docs, graph, help, inbox, issues, library, limits, observe, profile, runs, settings, storage, usage, values, welcome, "whats-new": whatsNew, workspace };

@@ -55,8 +55,6 @@ import { triggerLine, triggerWord } from "./trigger-line";
 
 export const dynamic = "force-dynamic";
 
-const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
-
 export default async function FlowsPage({
   params,
   searchParams,
@@ -111,7 +109,7 @@ export default async function FlowsPage({
       time: mins.length === 0 ? null : mins[mins.length - 1] <= mins[0] * 1.5 ? $t("workspace.flows-page.min", { v0: String(time(mins[0])) }) : $t("workspace.flows-page.min2", { v0: String(time(mins[0])), v1: String(time(mins[mins.length - 1])) }),
     };
   };
-  const costTitle = (p: { n: number }) => $t("workspace.flows-page.fromTheLastWhatARun", { v0: String(plural(p.n, "completed run")) });
+  const costTitle = (p: { n: number }) => $t("workspace.flows-page.fromTheLastWhatARun", { v0: String($t("workspace.flows-page.nCompletedRuns", { n: p.n })) });
 
   // The checks `foldrun check` runs, per flow: the agents a step names, the
   // ones that can act outside the workspace, and — when a gateway is
@@ -246,7 +244,7 @@ export default async function FlowsPage({
           {tab === "steps" && (
             <div className="space-y-6">
               {warnings.length > 0 && (
-                <Panel title={$t("workspace.flows-page.checks")} description={$t("workspace.flows-page.fromFoldrunCheckEachIsAlso", { v0: String(plural(warnings.length, errors ? "problem" : "warning")) })} flush>
+                <Panel title={$t("workspace.flows-page.checks")} description={$t("workspace.flows-page.checkFindings", { n: warnings.length, kind: errors ? "problem" : "warning" })} flush>
                   <PanelList>
                     {warnings.map((w, i) => (
                       <li key={i} className="flex min-w-0 gap-3 px-5 py-3">
@@ -344,7 +342,7 @@ export default async function FlowsPage({
                   </ul>
                 </div>
                 <div className="flex items-center justify-between gap-3 text-sm text-fg-muted">
-                  <span>{own.length > 25 ? $t("workspace.flows-page.theNewest25Of", { length: String(own.length) }) : plural(own.length, "run")}</span>
+                  <span>{own.length > 25 ? $t("workspace.flows-page.theNewest25Of", { length: String(own.length) }) : $t("workspace.flows-page.nRuns", { n: own.length })}</span>
                   <Link href={`/dashboard/${workspace}/runs?flow=${encodeURIComponent(f.name)}${tenantParam}`} className={buttonVariants({ variant: "secondary" })}>
                     {$t("workspace.flows-page.allRunsOf", { name: f.name })}
                   </Link>
@@ -358,12 +356,7 @@ export default async function FlowsPage({
                 title={$t("workspace.flows-page.trigger")}
                 description={
                   <>
-                    {$rich("workspace.flows-page.keptAsTrigger", { f: triggerLine(f), span: (chunks) => <span className="font-mono">{chunks}</span> })}
-                    {f.schedule ? (
-                      <>
-                        {" "}{$rich("workspace.flows-page.andSchedule", { schedule: f.schedule, span: (chunks) => <span className="font-mono">{chunks}</span> })}
-                      </>
-                    ) : null}{" "}{$t("workspace.flows-page.inTheFlowFile")}
+                    {$rich("workspace.flows-page.keptAsTriggerInFile", { f: triggerLine(f), scheduled: f.schedule ? "yes" : "no", schedule: f.schedule ?? "", span: (chunks) => <span className="font-mono">{chunks}</span> })}
                   </>
                 }
                 hint={f.trigger === "webhook" || f.trigger === "email" || f.trigger === "storage" ? <Link href={`/dashboard/${workspace}/triggers${qs}`} className="text-link hover:underline">{$t("workspace.flows-page.whatFiredAndWhatWasHeld")}</Link> : $t("workspace.flows-page.savedToTheFlowFileAt")}
@@ -444,7 +437,7 @@ export default async function FlowsPage({
     const errors = warnings.filter((w) => w.level === "error").length;
     const warns = warnings.length - errors;
     const preview = previewFor(f.name);
-    const problems = errors ? plural(errors, "error") : warns ? plural(warns, "warning") : null;
+    const problems = errors ? $t("workspace.flows-page.nErrors", { n: errors }) : warns ? $t("workspace.flows-page.nWarnings", { n: warns }) : null;
     const lastLine = last ? (
       <>
         <StatusDot outcome={last.outcome} label="" />
@@ -467,7 +460,7 @@ export default async function FlowsPage({
       name: f.name,
       sub: (
         <>
-          {line} · {plural(f.steps.length, "step")}
+          {line} · {$t("workspace.flows-page.nSteps", { n: f.steps.length })}
           {problems && <span className={errors ? "text-danger" : "text-warning"}> · {problems}</span>}
         </>
       ),
@@ -489,7 +482,7 @@ export default async function FlowsPage({
           lines={[
             lastLine,
             ...(row?.nextFireAt ? [<><Clock3 /><span className="truncate">{$t("workspace.flows-page.next", { fmtIn: fmtIn(Date.parse(row.nextFireAt) - now) })}</span></>] : []),
-            <><Layers /><span className="truncate">{plural(f.steps.length, "step")}{preview ? $t("workspace.flows-page.usually", { cost: String(preview.cost) }) : ""}</span></>,
+            <><Layers /><span className="truncate">{$t("workspace.flows-page.nSteps", { n: f.steps.length })}{preview ? $t("workspace.flows-page.usually", { cost: String(preview.cost) }) : ""}</span></>,
             ...(problems ? [<><AlertTriangle /><span className={errors ? "truncate text-danger" : "truncate text-warning"}>{problems}</span></>] : []),
           ]}
         />
@@ -554,7 +547,7 @@ function NewFlowButton({ tenant, workspace }: { tenant: string; workspace: strin
         choices: [
           { value: "pipeline", label: $t("workspace.flows-page.basicFlow"), hint: $t("workspace.flows-page.stepsInOrderOneAgentEach"), section: $t("workspace.flows-page.startFromScratch") },
           { value: "review-loop", label: $t("workspace.flows-page.reviewLoop"), hint: $t("workspace.flows-page.aMakerAndACheckerThe"), section: $t("workspace.flows-page.startFromAnExample") },
-          { value: "fan-out", label: "Fan-out", hint: $t("workspace.flows-page.oneStepRunsOncePerLine"), section: $t("workspace.flows-page.startFromAnExample") },
+          { value: "fan-out", label: $t("workspace.flows-page.fanOut"), hint: $t("workspace.flows-page.oneStepRunsOncePerLine"), section: $t("workspace.flows-page.startFromAnExample") },
           { value: "debate", label: $t("workspace.flows-page.debate"), hint: $t("workspace.flows-page.twoAgentsTakePositionsAThird"), section: $t("workspace.flows-page.startFromAnExample") },
           { value: "router", label: $t("workspace.flows-page.router"), hint: $t("workspace.flows-page.aTriageStepWhoseVerdictPicks"), section: $t("workspace.flows-page.startFromAnExample") },
         ],

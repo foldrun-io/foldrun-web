@@ -1,6 +1,7 @@
 // Issues (FOL-54 step 3): what went wrong, grouped, and kept open until a
 // person resolves it. Same list as GET /api/issues and `foldrun issues`.
 
+import { ISSUE_STATUS_LABEL, labelOf } from "@/components/value-labels";
 import { $el, $rich, $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { AlertTriangle, Ban, CalendarX2, CheckCircle2, ServerCrash, XCircle, X } from "lucide-react";
@@ -121,9 +122,8 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
                       ))}
                       {i.status !== "open" && (
                         <Chip>
-                          {i.status}
-                          {i.snoozedUntil ? " until " : ""}
-                          {i.snoozedUntil && <LocalTime iso={i.snoozedUntil} />}
+                          {labelOf(ISSUE_STATUS_LABEL, i.status)}
+                          {i.snoozedUntil ? $rich("issues.page.untilTime", { time: $el(<LocalTime iso={i.snoozedUntil} />) }) : null}
                           {i.snoozedFor ? $t("issues.page.forMore", { snoozedFor: String(i.snoozedFor) }) : ""}
                           {i.resolved?.by.startsWith("auto:") ? $t("issues.page.autoALaterRunWentFine") : ""}
                         </Chip>
@@ -131,7 +131,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
                       {i.regressed && (
                         <Tooltip label={$t("issues.page.itWasResolvedAndCameBack")}>
                           <span>
-                            <Chip tone="bad">{$t("issues.page.regressed")}{i.sinceRevision ? ` since ${i.sinceRevision.slice(0, 7)}` : ""}</Chip>
+                            <Chip tone="bad">{$t("issues.page.regressed2", { part: i.sinceRevision ? $t("issues.page.sinceRevision", { rev: i.sinceRevision.slice(0, 7) }) : "" })}</Chip>
                           </span>
                         </Tooltip>
                       )}

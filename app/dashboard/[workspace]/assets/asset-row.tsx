@@ -47,7 +47,7 @@ export function useAssetActions(item: Pick<AssetItem, "path" | "name" | "kind" |
       confirmLabel: $t("workspace.assets-asset-row.move"),
       destructive: false,
     }))) return false;
-    setStatus({ text: "Moving…" });
+    setStatus({ text: $t("workspace.assets-asset-row.moving") });
     try {
       // One call, on the server (5 Nov 2026): a skill or folder tool moves as
       // its whole folder and nothing is deleted until everything is copied.

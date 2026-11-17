@@ -99,7 +99,7 @@ export function TimezoneForm({ current }: { current: string | null }) {
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">
         <button type="submit" className={buttonVariants({ variant: "primary" })} disabled={busy || !dirty}>
-          {busy ? "Saving…" : $t("profile.timezone.saveTimezone")}
+          {busy ? $t("profile.timezone.saving") : $t("profile.timezone.saveTimezone")}
         </button>
         {error ? <span className="text-xs text-danger">{error}</span> : !dirty && <span className="text-xs text-fg-subtle">{$t("profile.timezone.nothingToSave")}</span>}
       </div>

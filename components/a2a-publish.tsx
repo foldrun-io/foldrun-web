@@ -169,7 +169,7 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
               disabled={!mayManage || busy || !dirty || risk.blocks}
               className={buttonVariants({ variant: "primary", size: "md" })}
             >
-              {busy ? "Saving…" : $t("components.a2a-publish.save")}
+              {busy ? $t("components.a2a-publish.saving") : $t("components.a2a-publish.save")}
             </button>
           </span>
         </Tooltip>

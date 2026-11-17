@@ -218,7 +218,7 @@ export function Find() {
         <div ref={listRef} className="max-h-[60vh] overflow-auto py-1.5">
           {flat.length === 0 && (
             <p className="px-4 py-6 text-center text-sm text-fg-subtle">
-              {loading ? "Looking…" : $t("components.find.nothingMatches", { q: String(q) })}
+              {loading ? $t("components.find.looking") : $t("components.find.nothingMatches", { q: String(q) })}
             </p>
           )}
           {groups.map((g) => (

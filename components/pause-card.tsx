@@ -105,8 +105,8 @@ export function PauseCard({
         if (method === "POST" && stop) {
           const n = answer.stopped?.length ?? 0;
           const failed = answer.failed?.length ?? 0;
-          setNote($t("components.pause-card.pausedAndRunStopped", { n: String(n), v1: String(n === 1 ? "" : "s") }));
-          if (failed) setError($t("components.pause-card.runCouldNotBeStoppedOpen", { failed: String(failed), v1: String(failed === 1 ? "" : "s"), v2: String(failed === 1 ? "it" : "them") }));
+          setNote($t("components.pause-card.pausedAndRunStopped", { n: String(n), v1: n }));
+          if (failed) setError($t("components.pause-card.runCouldNotBeStoppedOpen", { failed: String(failed), v1: failed }));
         }
         setReason("");
         setStop(false);
@@ -155,7 +155,7 @@ export function PauseCard({
           footer={
             mayManage && (
               <Button variant="primary" disabled={busy} onClick={() => send("DELETE")}>
-                {busy ? "Resuming…" : $t("components.pause-card.resume")}
+                {busy ? $t("components.pause-card.resuming") : $t("components.pause-card.resume")}
               </Button>
             )
           }
@@ -182,7 +182,7 @@ export function PauseCard({
         footer={
           mayManage && (
             <Button variant="danger" disabled={busy} onClick={() => send("POST")}>
-              {busy ? "Pausing…" : scope === "account" ? $t("components.pause-card.pauseTheAccount2") : $t("components.pause-card.pauseThisWorkspace2")}
+              {busy ? $t("components.pause-card.pausing") : scope === "account" ? $t("components.pause-card.pauseTheAccount2") : $t("components.pause-card.pauseThisWorkspace2")}
             </Button>
           )
         }

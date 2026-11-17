@@ -8,6 +8,7 @@
 // place; the owner is never scoped and is the only one who can hand the
 // account on.
 
+import { ROLE_LABEL, labelOf } from "@/components/value-labels";
 import { $el, $rich, $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -201,7 +202,7 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
               <Field label={$t("settings.team.role")}>
                 <Select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as Role)}  title={DESCRIBE[inviteRole]}>
                   {offer.map((r) => (
-                    <option key={r} value={r}>{r}</option>
+                    <option key={r} value={r}>{labelOf(ROLE_LABEL, r)}</option>
                   ))}
                 </Select>
               </Field>
@@ -228,7 +229,7 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
               <Tooltip label={email.trim() ? undefined : $t("settings.team.enterAnAddressToSendTo")}>
                 <span className="inline-flex">
                   <Button type="submit" variant="primary" disabled={busy || !email.trim()}>
-                    {busy ? "Working…" : $t("settings.team.sendInvite")}
+                    {busy ? $t("settings.team.working") : $t("settings.team.sendInvite")}
                   </Button>
                 </span>
               </Tooltip>
@@ -266,7 +267,7 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
                     {$rich("settings.team.invitedByExpires", { describeScope: describeScope(inv.workspaces), email: $el(<Email value={inv.invitedBy} />), localTime: $el(<LocalTime iso={inv.expiresAt} options={{ dateStyle: "medium", timeStyle: "short" }} />) })}
                   </p>
                 </div>
-                <Tag><Tooltip label={DESCRIBE[inv.role]}><span>{inv.role}</span></Tooltip></Tag>
+                <Tag><Tooltip label={DESCRIBE[inv.role]}><span>{labelOf(ROLE_LABEL, inv.role)}</span></Tooltip></Tag>
                 {(inv.role !== "admin" || managesAdmins) && (
                   <Button variant="ghost" className="hover:text-danger" onClick={() => void revokeInvite(inv)}>{$t("settings.team.revoke")}</Button>
                 )}
@@ -313,11 +314,11 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
                   {mayTouch(m) ? (
                     <Select value={m.role} onChange={(e) => void setRole(m, e.target.value as Role)} size="sm" title={DESCRIBE[m.role]} aria-label={$t("settings.team.roleFor", { email: String(m.email) })}>
                       {offer.map((r) => (
-                        <option key={r} value={r}>{r}</option>
+                        <option key={r} value={r}>{labelOf(ROLE_LABEL, r)}</option>
                       ))}
                     </Select>
                   ) : (
-                    <Tag><Tooltip label={DESCRIBE[m.role]}><span>{m.role}</span></Tooltip></Tag>
+                    <Tag><Tooltip label={DESCRIBE[m.role]}><span>{labelOf(ROLE_LABEL, m.role)}</span></Tooltip></Tag>
                   )}
                   {mine === "owner" && !m.owner && m.email !== self && (
                     <Tooltip label={$t("settings.team.makeThemTheOwnerYouBecome")}><Button variant="ghost" onClick={() => transfer(m)}>{$t("settings.team.transfer")}</Button></Tooltip>

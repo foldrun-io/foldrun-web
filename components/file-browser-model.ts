@@ -144,7 +144,7 @@ export const FILTERS: { key: BrowserFilter; label: string }[] = [
   { key: "shared", label: $t("components.file-browser-model.shared") },
   { key: "image", label: $t("components.file-browser-model.images") },
   { key: "video", label: $t("components.file-browser-model.video") },
-  { key: "pdf", label: "PDFs" },
+  { key: "pdf", label: $t("components.file-browser-model.pDFs") },
   { key: "doc", label: $t("components.file-browser-model.documents") },
 ];
 

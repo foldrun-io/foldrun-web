@@ -60,7 +60,7 @@ export function NotificationPreferences({ workspaces }: { workspaces: string[] }
     }
   };
 
-  if (!cats) return <Card className="p-5"><p className="text-sm text-fg-subtle">{error ?? "Loading…"}</p></Card>;
+  if (!cats) return <Card className="p-5"><p className="text-sm text-fg-subtle">{error ?? $t("profile.notifications.loading")}</p></Card>;
 
   return (
     <Card className="divide-y divide-line-faint">
@@ -86,7 +86,7 @@ export function NotificationPreferences({ workspaces }: { workspaces: string[] }
                   return (
                     <li key={w} className="flex items-center justify-between gap-4 text-xs">
                       <span className="font-mono text-fg-secondary">{w}{w in c.workspaces ? "" : <span className="ml-1 font-sans text-fg-subtle">{$t("profile.notifications.asAbove")}</span>}</span>
-                      <Switch aria-label={`${c.label} from ${w}`} checked={on} disabled={busy} onCheckedChange={(v) => void set(c.category, v, w)} />
+                      <Switch aria-label={$t("profile.notifications.categoryFrom", { category: c.label, workspace: w })} checked={on} disabled={busy} onCheckedChange={(v) => void set(c.category, v, w)} />
                     </li>
                   );
                 })}

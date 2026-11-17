@@ -160,7 +160,7 @@ export function BrowserTheater({
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- live frame thumbnail */}
           <img src={latest.src} alt="" className="h-full w-full object-cover object-top opacity-80 group-hover:opacity-100" />
-          <span className={`absolute bottom-1 left-1 rounded px-1 text-[9px] font-semibold uppercase ${live ? "bg-red-600 text-white" : "bg-black/70 text-gray-200"}`}>{live ? "live" : "last"}</span>
+          <span className={`absolute bottom-1 left-1 rounded px-1 text-[9px] font-semibold uppercase ${live ? "bg-red-600 text-white" : "bg-black/70 text-gray-200"}`}>{live ? $t("values.linkState.live") : $t("values.linkState.last")}</span>
         </button>
         </Tooltip>
       )}

@@ -4,6 +4,7 @@
 // tells you whether it was any good. The list is every eval that runs cases,
 // then the graders that read real runs; `?eval=<name>` opens one on its own.
 
+import { TARGET_KIND_LABEL, labelOf } from "@/components/value-labels";
 import { $t } from "@/i18n";
 import fs from "node:fs";
 import { notFound } from "next/navigation";
@@ -127,7 +128,7 @@ export default async function EvalsPage({
     const kind = e.flow ? "flow" : "agent";
     return known.has(target) ? (
       <span>
-        <span className="text-fg-muted">{kind}</span> {target}
+        <span className="text-fg-muted">{labelOf(TARGET_KIND_LABEL, kind)}</span> {target}
       </span>
     ) : (
       <Chip tone="bad">
@@ -139,7 +140,7 @@ export default async function EvalsPage({
   const holders = new Map(await Promise.all(evals.map(async (e) => [e.name, await currentEvalRun(tenant, workspace, e.name).catch(() => null)] as const)));
   const caseRows: Row[] = evals.map((e) => {
     const last = readEvalResult(tenant, workspace, e.name);
-    const cases = `${e.cases.length} case${e.cases.length === 1 ? "" : "s"}`;
+    const cases = $t("workspace.evals-page.nCases", { n: e.cases.length });
     const running = holders.get(e.name);
     const verdict = last ? (
       last.error ? (
@@ -161,7 +162,7 @@ export default async function EvalsPage({
       href: evalHref(e.name),
       icon: <FlaskConical />,
       name: e.name,
-      sub: `${cases}${e.trigger === "manual" ? $t("workspace.evals-page.runsWhenYouPressRun") : ""}${open ? $t("workspace.evals-page.fixToReview", { open: String(open), v1: String(open === 1 ? "" : "es") }) : ""}`,
+      sub: `${cases}${e.trigger === "manual" ? $t("workspace.evals-page.runsWhenYouPressRun") : ""}${open ? $t("workspace.evals-page.fixToReview", { open: String(open), v1: open }) : ""}`,
       cells: {
         target: targetCell(e),
         judge: <Tag mono>{e.model}</Tag>,

@@ -43,7 +43,7 @@ const BUCKET_COLUMNS = [
   { label: $t("usage.page.cached"), align: "right" as const },
   { label: $t("usage.page.sandbox"), align: "right" as const },
   { label: $t("usage.page.models"), align: "right" as const },
-  { label: "Platform*", align: "right" as const },
+  { label: $t("usage.page.platform2"), align: "right" as const },
   { label: $t("usage.page.total"), align: "right" as const },
 ];
 

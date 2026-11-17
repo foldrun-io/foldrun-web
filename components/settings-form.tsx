@@ -76,7 +76,7 @@ export function SettingsForm({
       <form onSubmit={onSubmit} className="flex flex-wrap items-center gap-2">
         {children}
         <Button type="submit" variant="secondary" disabled={!form.dirty || form.busy}>
-          {form.busy ? "Saving…" : saveLabel}
+          {form.busy ? $t("components.settings-form.saving") : saveLabel}
         </Button>
         {form.dirty && !form.busy && (
           <Button type="button" variant="ghost" onClick={form.reset}>
@@ -118,7 +118,7 @@ export function SettingsForm({
             </Button>
           )}
           <Button type="submit" variant="primary" disabled={!form.dirty || form.busy}>
-            {form.busy ? "Saving…" : saveLabel}
+            {form.busy ? $t("components.settings-form.saving") : saveLabel}
           </Button>
         </div>
       </div>

@@ -70,7 +70,7 @@ export function HooksPanel({ tenant, workspace }: { tenant: string; workspace: s
                       )}
                     </TD>
                     <TD className="align-top text-fg-muted">
-                      {h.scope === "workspace" ? workspace : "shared"}
+                      {h.scope === "workspace" ? workspace : $t("components.hooks-panel.shared")}
                       {h.shadowed && (
                         <Tooltip label={$t("components.hooks-panel.aWorkspaceHookOfTheSame")}>
                           <span className="ml-1 text-xs text-fg-subtle">{$t("components.hooks-panel.shadowed")}</span>

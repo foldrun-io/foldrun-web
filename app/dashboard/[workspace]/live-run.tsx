@@ -11,6 +11,7 @@
 // The rules — what counts as live, which cards open, which record is newer
 // — live in components/live-run-model.ts, where tests can reach them.
 
+import { LINK_STATE_LABEL, labelOf } from "@/components/value-labels";
 import { $el, $rich, $t } from "@/i18n";
 import { OperatorPanel } from "@/components/operator-panel";
 import { useEffect, useRef, useState } from "react";
@@ -501,7 +502,7 @@ export function LiveRun({
     <AskAiButton
       label={$t("workspace.live-run.doctor")}
       title={$t("workspace.live-run.theRunDoctorOpenAskAi")}
-      prompt={$t("workspace.live-run.doctorWhyDidRunAndHow", { id: String(run.id), v1: String(page?.failure || outcome === "failed" ? "fail" : `end ${runVerdict(run)}`) })}
+      prompt={$t("workspace.live-run.doctorWhyDidRunAndHow", { id: String(run.id), failed: page?.failure || outcome === "failed" ? "yes" : "no", verdict: String(runVerdict(run)) })}
     />
   ) : null;
   const liveDot = live ? (
@@ -524,7 +525,7 @@ export function LiveRun({
           link === "live" ? "animate-pulse bg-success" : link === "reconnecting" ? "bg-warning" : link === "connecting" ? "animate-pulse bg-muted-strong" : "bg-muted-strong",
         )}
       />
-      {link === "live" ? "live" : link === "reconnecting" ? "reconnecting" : link === "connecting" ? "connecting" : "closed"}
+      {labelOf(LINK_STATE_LABEL, link === "live" || link === "reconnecting" || link === "connecting" ? link : "closed")}
     </button>
     </Tooltip>
   ) : null;
@@ -1193,9 +1194,9 @@ export function LiveRun({
             const usage = [
               step.costUsd != null ? `$${step.costUsd.toFixed(4)}` : null,
               fmtTokenLine(step.tokens),
-              typeof step.turns === "number" ? `${step.turns} turn${step.turns === 1 ? "" : "s"}` : null,
+              typeof step.turns === "number" ? $t("workspace.live-run.nTurns", { n: step.turns }) : null,
               durationMs != null && durationMs > 0 ? fmtDur(durationMs) : null,
-              denied ? $t("workspace.live-run.pathRefused", { denied: String(denied), v1: String(denied === 1 ? "" : "s") }) : null,
+              denied ? $t("workspace.live-run.pathRefused", { denied: String(denied), v1: denied }) : null,
             ].filter(Boolean);
             // A step that wrote much of its input to the prompt cache says
             // which layer of its prompt changed since the agent's last step
@@ -1327,16 +1328,16 @@ export function LiveRun({
                   )}
                   {(step.calls?.length ?? 0) > 0 && (
                     <IoRow k={$t("workspace.live-run.modelCalls")}>
-                      <Disclosure summaryClassName="text-fg-muted hover:text-fg" summary={<>{$t("workspace.live-run.callSlowest", { length: step.calls!.length })}{" "}{fmtDur(Math.max(...step.calls!.map((c) => c.ms)))}{" "}{$t("workspace.live-run.largest")}{" "}{fmtCount(Math.max(...step.calls!.map((c) => c.tokens.input)))}{" "}{$t("workspace.live-run.in3")}</>}>
+                      <Disclosure summaryClassName="text-fg-muted hover:text-fg" summary={<>{$t("workspace.live-run.callsSlowestLargest", { n: step.calls!.length, slowest: fmtDur(Math.max(...step.calls!.map((c) => c.ms))), largest: fmtCount(Math.max(...step.calls!.map((c) => c.tokens.input))) })}</>}>
                         <ol className="mt-1 space-y-0.5 font-mono text-[11px] tabular-nums text-fg-muted">
                           {step.calls!.map((c) => (
                             <Tooltip key={c.id} label={c.id}>
                             <li>
-                              {c.n}. {c.model ?? "model"}
+                              {c.n}. {c.model ?? $t("workspace.live-run.model")}
                               {c.subagent ? ` ↳ ${c.subagent}` : ""}{" "}{$t("workspace.live-run.in2", { fmtDur: fmtDur(c.ms), fmtCount: fmtCount(c.tokens.input) })}
                               {c.tokens.input > 0 && c.tokens.cacheRead > 0 ? $t("workspace.live-run.cached", { v0: String(Math.round((100 * c.tokens.cacheRead) / c.tokens.input)) }) : ""}{" "}{$t("workspace.live-run.out2", { fmtCount: fmtCount(c.tokens.output) })}
                               {c.stop ? ` · ${c.stop}` : ""}
-                              {c.tools ? $t("workspace.live-run.tool", { tools: String(c.tools), v1: String(c.tools === 1 ? "" : "s") }) : ""}
+                              {c.tools ? $t("workspace.live-run.tool", { tools: String(c.tools), v1: c.tools }) : ""}
                             </li>
                             </Tooltip>
                           ))}

@@ -18,7 +18,7 @@ export function fmtQuantity(n: number | null): string {
 }
 
 /** What a meter's rate is per: stored files are priced over a month. */
-export const rateUnit = (meter: string, unit: string) => (meter === "storage" ? "GB-month" : unit);
+export const rateUnit = (meter: string, unit: string) => (meter === "storage" ? $t("components.usage-format.gbMonth") : unit);
 
 export const METER_NAMES: Record<string, string> = {
   vcpu: "vCPU",

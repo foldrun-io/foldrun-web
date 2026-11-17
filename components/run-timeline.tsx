@@ -153,14 +153,14 @@ export function RunTimeline({
       if (span) parts.push(fmtDur(span.end - span.start));
       if (step.model) parts.push(step.model);
       if (step.costUsd != null) parts.push(`$${step.costUsd.toFixed(4)}`);
-      if (tools[hover.step].length) parts.push($t("components.run-timeline.toolCall", { length: String(tools[hover.step].length), v1: String(tools[hover.step].length === 1 ? "" : "s") }));
+      if (tools[hover.step].length) parts.push($t("components.run-timeline.toolCall", { length: String(tools[hover.step].length), v1: tools[hover.step].length }));
       if ((step.attempts ?? 0) > 1) parts.push(`attempt ${step.attempts}`);
       if (step.skipReason) parts.push(step.skipReason);
       readout = parts.join(" · ");
     }
   } else {
-    const parts = [`${run.steps.length} step${run.steps.length === 1 ? "" : "s"}`, fmtDur(total)];
-    if (toolCount) parts.push($t("components.run-timeline.toolCall2", { toolCount: String(toolCount), v1: String(toolCount === 1 ? "" : "s") }));
+    const parts = [$t("components.run-timeline.nSteps", { n: run.steps.length }), fmtDur(total)];
+    if (toolCount) parts.push($t("components.run-timeline.toolCall2", { toolCount: String(toolCount), v1: toolCount }));
     if (totalCost > 0) parts.push(`$${totalCost.toFixed(4)}`);
     if (win) parts.unshift(`${fmtTick(wFrom)} – ${win.to == null ? "now" : fmtTick(wTo)}`);
     readout = parts.join(" · ");

@@ -155,7 +155,7 @@ export function ComputeTab({ u }: { u: UsageBreakdowns }) {
             rows={c.bySize.map((s) => ({
               key: s.size,
               cells: [
-                <span key="s" className="font-medium">{s.size}</span>,
+                <span key="s" className="font-medium">{s.size === "unrecorded" ? $t("values.size.unrecorded") : s.size}</span>,
                 s.steps,
                 fmtQuantity(s.hours),
                 $t("usage.tabs.vcpuGibGibDisk", { v0: String(fmtQuantity(s.vcpu)), v1: String(fmtQuantity(s.memGiB)), v2: String(fmtQuantity(s.diskGiB)) }),
@@ -166,7 +166,7 @@ export function ComputeTab({ u }: { u: UsageBreakdowns }) {
         </div>
       )}
       <p className="mt-3 max-w-3xl px-1 text-sm leading-relaxed text-fg-muted">
-        {$t("usage.tabs.computeIsPricedOnWhatA")}{" "}{u.billed ? <strong className="font-medium text-fg">{$t("usage.tabs.credits", { fmtCredits: fmtCredits(u.billed.totalCredits) })}</strong> : $t("usage.tabs.notShownToAMemberLimited")}.
+        {$rich("usage.tabs.computeIsPriced", { billed: u.billed ? "yes" : "no", credits: u.billed ? fmtCredits(u.billed.totalCredits) : "", strong: (chunks) => <strong className="font-medium text-fg">{chunks}</strong> })}
       </p>
     </>
   );

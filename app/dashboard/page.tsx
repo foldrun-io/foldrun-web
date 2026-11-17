@@ -159,7 +159,7 @@ export default async function Dashboard({
           href={href}
           mark={mark}
           name={d.name}
-          sub={$t("dashboard.page.agentFlow", { agents: String(d.agents), v1: String(d.agents === 1 ? "" : "s"), flows: String(d.flows), v3: String(d.flows === 1 ? "" : "s") })}
+          sub={$t("dashboard.page.agentFlow", { agents: String(d.agents), v1: d.agents, flows: String(d.flows), v3: d.flows })}
           status={d.beat.live ? "busy" : ring}
           statusLabel={d.beat.live ? `${d.beat.live} running` : last ? OUTCOME[last.outcome].hint : $t("dashboard.page.noRunsYet2")}
           lines={[lastLine, ...(nextLine ? [nextLine] : [])]}

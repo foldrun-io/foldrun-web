@@ -1,5 +1,7 @@
 "use client";
 
+import { labelOf, RUN_STATUS_LABEL } from "@/components/value-labels";
+
 // The flow canvas: the same flow the list board shows, drawn left to right —
 // the trigger, then one column per group, parallel steps stacked, each step
 // with its agent's team hung beneath it.
@@ -106,7 +108,7 @@ const PATTERNS: { pattern: Pattern; label: string; hint: string; where: "gap" | 
   { pattern: "chain", label: $t("workspace.flows-flow-canvas.chain"), hint: $t("workspace.flows-flow-canvas.aNewStepAfterTheOne"), where: "gap" },
   { pattern: "parallel", label: $t("workspace.flows-flow-canvas.parallel"), hint: $t("workspace.flows-flow-canvas.runBesideAStepDropOnto"), where: "column" },
   { pattern: "router", label: $t("workspace.flows-flow-canvas.router"), hint: $t("workspace.flows-flow-canvas.aTriageStepThenCaseElse"), where: "gap" },
-  { pattern: "fanout", label: "Fan-out", hint: $t("workspace.flows-flow-canvas.eachOncePerLineItemOr"), where: "step" },
+  { pattern: "fanout", label: $t("workspace.flows-flow-canvas.fanOut22"), hint: $t("workspace.flows-flow-canvas.eachOncePerLineItemOr"), where: "step" },
   { pattern: "loop", label: $t("workspace.flows-flow-canvas.evaluatorLoop"), hint: $t("workspace.flows-flow-canvas.loopUntilTheCriticSaysSo"), where: "step" },
   { pattern: "approve", label: $t("workspace.flows-flow-canvas.approvalGate"), hint: $t("workspace.flows-flow-canvas.aPersonApprovesFirstOntoA"), where: "step" },
   { pattern: "ask", label: $t("workspace.flows-flow-canvas.askAPersonBefore"), hint: $t("workspace.flows-flow-canvas.askAQuestionAtTheGate"), where: "step" },
@@ -315,7 +317,7 @@ function StepNode({ id, data, selected }: NodeProps<StepRF>) {
         </Tooltip>
         {/* Delete: on hover, on keyboard focus, and always on the selected
             step — Delete/Backspace does the same. Confirmed first. */}
-        <Tooltip label={$t("workspace.flows-flow-canvas.deleteThisStepFromTheFlow", { v0: String(s.subflow ? "" : ` — agents/${s.agent}/agent.md stays`) })}>
+        <Tooltip label={$t("workspace.flows-flow-canvas.deleteThisStep", { subflow: s.subflow ? "yes" : "no", agent: s.agent ?? "" })}>
         <button
           type="button"
           onClick={(e) => {
@@ -380,7 +382,7 @@ function StepNode({ id, data, selected }: NodeProps<StepRF>) {
                 lit(z) ? "border-sky-500 bg-sky-50 text-sky-800" : "border-line-strong text-fg-subtle hover:border-gray-400 hover:text-fg-secondary"
               }`}
             >
-              + {z === "sub" ? "sub-agent" : "consult"}
+              + {z === "sub" ? $t("values.linkKind.subAgent") : $t("values.linkKind.consult")}
             </button>
             </Tooltip>
           ))}
@@ -467,7 +469,7 @@ function ChildNode({ data, width, height }: NodeProps<ChildRF>) {
           ? "border-gray-900 text-fg"
           : "border-dotted border-gray-500 text-fg-secondary";
   return (
-    <Tooltip label={data.problem ?? (data.kind === "sub" ? $t("workspace.flows-flow-canvas.subAgentOf", { owner: String(data.owner) }) : data.kind === "consult" ? `${data.owner} consults ${data.name}` : $t("workspace.flows-flow-canvas.takesOverWhenTheStepFails"))}>
+    <Tooltip label={data.problem ?? (data.kind === "sub" ? $t("workspace.flows-flow-canvas.subAgentOf", { owner: String(data.owner) }) : data.kind === "consult" ? $t("workspace.flows-flow-canvas.ownerConsults", { owner: String(data.owner), name: data.name }) : $t("workspace.flows-flow-canvas.takesOverWhenTheStepFails"))}>
     <div
       style={{ width, height }}
       className={`flex items-center gap-1 rounded-md border bg-surface px-1.5 text-[11px] shadow-sm ${style}`}
@@ -479,7 +481,7 @@ function ChildNode({ data, width, height }: NodeProps<ChildRF>) {
         <Tooltip label={$t("workspace.flows-flow-canvas.removeFromS", { name: String(data.name), owner: String(data.owner), v2: String(data.kind === "sub" ? "subagents:" : "agents:") })}>
           <button
             type="button"
-            aria-label={$t("workspace.flows-flow-canvas.removeFromS", { name: String(data.name), owner: String(data.owner), v2: String(data.kind === "sub" ? "sub-agents" : "consults") })}
+            aria-label={$t("workspace.flows-flow-canvas.removeFromS", { name: String(data.name), owner: String(data.owner), v2: String(data.kind === "sub" ? $t("workspace.flows-flow-canvas.subAgents") : $t("workspace.flows-flow-canvas.consults")) })}
             onClick={() => ctx.removeChild(data.parent, data.kind as "sub" | "consult", data.name)}
             className="nodrag rounded px-1 text-fg-muted hover:bg-red-50 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-red-500"
           >
@@ -597,7 +599,7 @@ function toRF(n: CanvasNode): Node {
       draggable: true,
       width: n.w,
       height: n.h,
-      ariaLabel: $t("workspace.flows-flow-canvas.stepEnterToSelectThenUse", { v0: String(n.data.column + 1), v1: String(n.data.step.subflow ? `flow ${n.data.step.subflow}` : n.data.step.agent) }),
+      ariaLabel: $t("workspace.flows-flow-canvas.stepEnterToSelectThenUse", { v0: String(n.data.column + 1), v1: n.data.step.subflow ? $t("workspace.flows-flow-canvas.flowNamed", { name: n.data.step.subflow }) : n.data.step.agent }),
     };
   return { id: n.id, type: "child", position: { x: n.x, y: n.y }, data: { ...n.data, kind: n.kind }, draggable: false, width: n.w, height: n.h, selectable: false };
 }
@@ -704,7 +706,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
   const rf = useReactFlow();
   const me = useId();
   const [confirmRaw, confirmDialog] = useConfirm();
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useState<{ text: string; tone: "good" | "bad" | "default" } | null>(null);
   const [selection, setSelection] = useState<string[]>([]);
   const [panel, setPanel] = useState<"options" | "instruction" | "agent" | "trigger" | null>(null);
   const [drag, setDrag] = useState<Record<string, { x: number; y: number }>>({});
@@ -844,13 +846,14 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
 
   const [prompt, promptDialog, prompting] = usePrompt();
 
-  const flash = (s: string) => {
+  const flash = (text: string, tone: "good" | "default" = "default") => {
+    const s = { text, tone };
     setStatus(s);
     setTimeout(() => setStatus((x) => (x === s ? null : x)), 2500);
   };
 
   const send = async (url: string, method: string, body: unknown) => {
-    setStatus("saving…");
+    setStatus({ text: $t("workspace.flows-flow-canvas.saving"), tone: "default" });
     try {
       const res = await fetch(url, {
         method,
@@ -862,11 +865,11 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
       if (!res.ok) throw new Error(data.error ?? `${res.status}`);
       // A flow write answers with the file either side of it: undo's record.
       if (typeof data.before === "string" && typeof data.text === "string") setHistory((h) => recordEdit(h, data.before, data.text));
-      flash("saved");
+      flash($t("workspace.flows-flow-canvas.saved"), "good");
       router.refresh();
       return true;
     } catch (err) {
-      setStatus($t("workspace.flows-flow-canvas.notSaved", { v0: String(err instanceof Error ? err.message : String(err)) }));
+      setStatus({ text: $t("workspace.flows-flow-canvas.notSaved", { v0: String(err instanceof Error ? err.message : String(err)) }), tone: "bad" });
       return false;
     }
   };
@@ -898,9 +901,9 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
     const plan = redo ? planRedo(h, current) : planUndo(h, current);
     if ("refused" in plan) {
       setHistory(plan.next);
-      return setStatus($t("workspace.flows-flow-canvas.not", { v0: String(redo ? "redone" : "undone"), refused: String(plan.refused) }));
+      return setStatus({ text: $t("workspace.flows-flow-canvas.notUndone", { redo: redo ? "yes" : "no", refused: String(plan.refused) }), tone: "bad" });
     }
-    setStatus(redo ? "redoing…" : "undoing…");
+    setStatus({ text: redo ? $t("workspace.flows-flow-canvas.redoing") : $t("workspace.flows-flow-canvas.undoing"), tone: "default" });
     try {
       const res = await fetch(flowUrl, {
         method: "PATCH",
@@ -910,14 +913,14 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
       const data = await res.json().catch(() => ({}));
       if (res.status === 409) {
         setHistory(emptyHistory());
-        return setStatus($t("workspace.flows-flow-canvas.notTheFlowChangedOutsideThe", { v0: String(redo ? "redone" : "undone") }));
+        return setStatus({ text: $t("workspace.flows-flow-canvas.notUndoneChangedOutside", { redo: redo ? "yes" : "no" }), tone: "bad" });
       }
       if (!res.ok) throw new Error(data.error ?? `${res.status}`);
       setHistory(plan.next);
-      flash(redo ? "redone" : "undone");
+      flash(redo ? $t("workspace.flows-flow-canvas.redone") : $t("workspace.flows-flow-canvas.undone"), "good");
       router.refresh();
     } catch (err) {
-      setStatus($t("workspace.flows-flow-canvas.not2", { v0: String(redo ? "redone" : "undone"), v1: String(err instanceof Error ? err.message : String(err)) }));
+      setStatus({ text: $t("workspace.flows-flow-canvas.notUndoneBecause", { redo: redo ? "yes" : "no", why: String(err instanceof Error ? err.message : String(err)) }), tone: "bad" });
     }
   };
 
@@ -930,7 +933,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
       title: `Change agents/${agent}/agent.md?`,
       body: (
         <>
-          {$rich("workspace.flows-flow-canvas.alsoUsedByTheChangeReaches", { what: what, join: others.join(", "), span: (chunks) => <span className="font-medium text-fg-secondary">{chunks}</span> })}{" "}{$t("workspace.flows-flow-canvas.too2", { part: others.length === 1 ? $t("workspace.flows-flow-canvas.thatFlow") : $t("workspace.flows-flow-canvas.thoseFlows", { length: String(others.length) }) })}
+          {$rich("workspace.flows-flow-canvas.alsoUsedByReachesThem", { what: what, join: others.join(", "), n: others.length, span: (chunks) => <span className="font-medium text-fg-secondary">{chunks}</span> })}
         </>
       ),
       confirmLabel: $t("workspace.flows-flow-canvas.changeTheAgent"),
@@ -938,7 +941,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
     });
   };
 
-  const refuse = (why: string) => setStatus($t("workspace.flows-flow-canvas.notSaved2", { why: String(why) }));
+  const refuse = (why: string) => setStatus({ text: $t("workspace.flows-flow-canvas.notSaved2", { why: String(why) }), tone: "bad" });
 
   const pickAgent = (title: string, extra: PromptField[] = [], body?: ReactNode) =>
     prompt({
@@ -1042,7 +1045,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
     }
     if (name === owner) return refuse(dock === "sub" ? $t("workspace.flows-flow-canvas.anAgentDoesNotDelegateTo") : $t("workspace.flows-flow-canvas.anAgentDoesNotConsultItself"));
     const list = dock === "sub" ? team.subagents : team.consults;
-    if (list.includes(name)) return refuse($t("workspace.flows-flow-canvas.isAlreadyHere", { name: String(name), v1: String(dock === "sub" ? $t("workspace.flows-flow-canvas.aSubAgent") : "consulted") }));
+    if (list.includes(name)) return refuse($t("workspace.flows-flow-canvas.isAlreadyHere", { name: String(name), v1: String(dock === "sub" ? $t("workspace.flows-flow-canvas.aSubAgent") : $t("workspace.flows-flow-canvas.consulted")) }));
     const w = teams[name];
     if (!w) return refuse($t("workspace.flows-flow-canvas.isNotAnAgentInThis2", { name: String(name) }));
     // The model picks a sub-agent by its description, and the runner skips
@@ -1168,7 +1171,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
   // --- runs ---
   const qs = tenant !== "default" ? `?tenant=${encodeURIComponent(tenant)}` : "";
   const post = async (url: string, body: unknown): Promise<{ runId?: string } | null> => {
-    setStatus("starting…");
+    setStatus({ text: $t("workspace.flows-flow-canvas.starting"), tone: "default" });
     try {
       const res = await fetch(url, {
         method: "POST",
@@ -1177,10 +1180,10 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? `${res.status}`);
-      flash("started");
+      flash($t("workspace.flows-flow-canvas.started"));
       return data;
     } catch (err) {
-      setStatus($t("workspace.flows-flow-canvas.notStarted", { v0: String(err instanceof Error ? err.message : String(err)) }));
+      setStatus({ text: $t("workspace.flows-flow-canvas.notStarted", { v0: String(err instanceof Error ? err.message : String(err)) }), tone: "bad" });
       return null;
     }
   };
@@ -1283,11 +1286,11 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
             { name: "router", label: $t("workspace.flows-flow-canvas.triageAgent"), type: "select", required: true, options: opts },
             { name: "instruction", label: $t("workspace.flows-flow-canvas.itsInstruction"), type: "text", placeholder: $t("workspace.flows-flow-canvas.replyBugDocsOrOtherOn") },
             { name: "c1", label: $t("workspace.flows-flow-canvas.case1WhenTheReplySays"), type: "text", required: true, placeholder: "BUG" },
-            { name: "a1", label: "…run", type: "select", required: true, options: opts },
+            { name: "a1", label: $t("workspace.flows-flow-canvas.thenRun"), type: "select", required: true, options: opts },
             { name: "c2", label: $t("workspace.flows-flow-canvas.case2Optional"), type: "text", placeholder: "DOCS" },
-            { name: "a2", label: "…run", type: "select", options: opts },
+            { name: "a2", label: $t("workspace.flows-flow-canvas.thenRun"), type: "select", options: opts },
             { name: "c3", label: $t("workspace.flows-flow-canvas.case3Optional"), type: "text" },
-            { name: "a3", label: "…run", type: "select", options: opts },
+            { name: "a3", label: $t("workspace.flows-flow-canvas.thenRun"), type: "select", options: opts },
             { name: "else", label: $t("workspace.flows-flow-canvas.elseOptional"), type: "select", options: opts },
           ],
         });
@@ -1610,7 +1613,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
           </button>
         </Tooltip>
         {status && (
-          <KitChip tone={status.startsWith("not ") ? "bad" : status === "saved" || status === "undone" || status === "redone" ? "good" : "default"}>{status}</KitChip>
+          <KitChip tone={status.tone}>{status.text}</KitChip>
         )}
       </div>
       {editing && <InlineEditor workspace={workspace} tenant={tenant} path={`flows/${file}`} />}
@@ -1987,17 +1990,18 @@ function RunPicker({
 }) {
   if (!recent.length && !shown) return <span className="text-fg-subtle">{$t("workspace.flows-flow-canvas.noRunsYetRunTheFlow")}</span>;
   const word = (r: RunLite) => (r.status === "failed" && r.stopRequested ? "stopped" : r.status);
+  const label = (r: RunLite) => labelOf(RUN_STATUS_LABEL, word(r));
   const cost = shown ? shown.steps.reduce((n, s) => n + (s.costUsd ?? 0), 0) : 0;
   return (
     <span className="flex min-w-0 flex-wrap items-center gap-1.5">
       <span className="text-fg-subtle">{mode === "watch" ? (followingLive ? $t("workspace.flows-flow-canvas.liveRun") : $t("workspace.flows-flow-canvas.showingRun")) : $t("workspace.flows-flow-canvas.lastRun")}</span>
       <span className="flex items-center gap-0.5" role="group" aria-label={$t("workspace.flows-flow-canvas.pickARunToShowOn")}>
         {recent.map((r) => (
-          <Tooltip key={r.id} label={$t("workspace.flows-flow-canvas.showItOnTheCanvas", { id: String(r.id), v1: String(word(r)), v2: String(r.test ? $t("workspace.flows-flow-canvas.test") : "") })}>
+          <Tooltip key={r.id} label={$t("workspace.flows-flow-canvas.showItOnTheCanvas", { id: String(r.id), v1: label(r), v2: String(r.test ? $t("workspace.flows-flow-canvas.test") : "") })}>
             <button
               type="button"
               onClick={() => onPick(r.id)}
-              aria-label={$t("workspace.flows-flow-canvas.showRunOnTheCanvas", { id: String(r.id), v1: String(word(r)) })}
+              aria-label={$t("workspace.flows-flow-canvas.showRunOnTheCanvas", { id: String(r.id), v1: label(r) })}
               aria-pressed={shown?.id === r.id}
               className={`h-2.5 w-2.5 rounded-sm ${RUN_DOT[word(r)] ?? "bg-gray-300"} ${shown?.id === r.id ? "ring-2 ring-gray-900 ring-offset-1" : "opacity-70 hover:opacity-100"}`}
             />
@@ -2008,7 +2012,7 @@ function RunPicker({
         <Tooltip label={shown.id}>
           <span className="truncate font-mono text-[11px] text-fg-muted">
             {shown.id}
-            {shown.test ? $t("workspace.flows-flow-canvas.test") : ""} · {word(shown)}
+            {shown.test ? $t("workspace.flows-flow-canvas.test") : ""} · {labelOf(RUN_STATUS_LABEL, word(shown))}
             {cost > 0 ? ` · ${money(cost)}` : ""}
             {mode === "watch" && link === "reconnecting" ? $t("workspace.flows-flow-canvas.reconnecting") : ""}
           </span>

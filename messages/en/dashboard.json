@@ -1,6 +1,7 @@
 {
   "demo-button": {
     "couldNotCreateTheDemo": "could not create the demo",
+    "creating": "Creating…",
     "tryTheDemoPipeline": "Try the demo pipeline"
   },
   "layout": {
@@ -24,7 +25,7 @@
     "7Days": "7 days",
     "aWorkspaceHoldsItsOwnAgents": "A {@workspace.one} holds its own agents, flows, secrets and runs. Start with the demo: a four-step pipeline you can run in a minute.",
     "account": "Account",
-    "agentFlow": "{agents} agent{v1} · {flows} flow{v3}",
+    "agentFlow": "{agents} {v1, plural, one {agent} other {agents}} · {flows} {v3, plural, one {flow} other {flows}}",
     "agentsFlows": "{agents} agents · {flows} flows",
     "ago": "{what} · {label} {fmtSpan} ago",
     "itsOwnAgentsFlowsSecretsAnd": "Its own agents, flows, secrets and runs. Starts blank: import agents from another {@workspace.one}, or create them.",
@@ -50,6 +51,7 @@
     "run": "Run",
     "start": "Start",
     "startTest": "Start test",
+    "starting": "Starting…",
     "taskForThisRunOptional": "Task for this run (optional)",
     "testRun": "<checkbox></checkbox>Test run",
     "yourRoleIsViewerRunningNeeds": "Your role is viewer — running needs editor or above"

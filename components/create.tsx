@@ -382,7 +382,7 @@ export function CreateForm({
                   disabled={!name.trim() || busy}
                   className={buttonVariants({ variant: "primary", size: "md" })}
                 >
-                  {busy ? "Creating…" : $t("components.create.create", { noun: String(noun) })}
+                  {busy ? $t("components.create.creating") : $t("components.create.create", { noun: String(noun) })}
                 </button>
               </footer>
             </form>

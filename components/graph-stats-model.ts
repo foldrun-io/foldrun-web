@@ -121,5 +121,5 @@ export function fmtCost(usd: number): string {
 
 /** The counter line under a dot: "12 runs · $3.21". */
 export function statsLine(s: NodeStats): string {
-  return $t("components.graph-stats-model.run", { runs: String(s.runs), v1: String(s.runs === 1 ? "" : "s"), v2: String(fmtCost(s.cost)) });
+  return $t("components.graph-stats-model.run", { runs: String(s.runs), v1: s.runs, v2: String(fmtCost(s.cost)) });
 }

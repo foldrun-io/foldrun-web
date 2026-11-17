@@ -136,7 +136,7 @@ export function ShareList({
                   )}
                   {status.live && canRevoke && (
                     <button type="button" className={buttonVariants({ variant: "danger-outline", size: "xs" })} disabled={busy === s.id} onClick={() => revoke(s)}>
-                      {busy === s.id ? "Revoking…" : $t("components.share-list.revoke")}
+                      {busy === s.id ? $t("components.share-list.revoking") : $t("components.share-list.revoke")}
                     </button>
                   )}
                 </div>

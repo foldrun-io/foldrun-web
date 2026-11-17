@@ -532,7 +532,7 @@ function AssetDetail({
                 onClick={() => void save()}
                 disabled={!dirty || !mayWrite || state?.kind === "saving"}
               >
-                {state?.kind === "saving" ? "Saving…" : $t("components.asset-drawer.save")}
+                {state?.kind === "saving" ? $t("components.asset-drawer.saving") : $t("components.asset-drawer.save")}
               </Button>
             </span>
           </Tooltip>

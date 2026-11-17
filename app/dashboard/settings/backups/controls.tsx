@@ -4,6 +4,7 @@
 // file by file, with the diff), then the workspace's name typed back to do
 // it. Request: what, where, when — recorded and mailed to the operator.
 
+import { FILE_CHANGE_LABEL, labelOf } from "@/components/value-labels";
 import { $el, $rich, $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -146,7 +147,7 @@ export function RestoreWorkspace({
               <ul className="space-y-1.5">
                 {plan.files.map((f) => (
                   <li key={f.path} className="rounded-md border border-line">
-                    <Disclosure summaryClassName="flex items-center gap-2 px-2 py-1.5 text-xs" summary={<><Chip tone={f.change === "removed" ? "bad" : f.change === "added" ? "good" : "info"}>{f.change}</Chip>
+                    <Disclosure summaryClassName="flex items-center gap-2 px-2 py-1.5 text-xs" summary={<><Chip tone={f.change === "removed" ? "bad" : f.change === "added" ? "good" : "info"}>{labelOf(FILE_CHANGE_LABEL, f.change)}</Chip>
                         <span className="truncate font-mono">{f.path}</span></>}>
                       <Diff ops={f.diff} />
                     </Disclosure>

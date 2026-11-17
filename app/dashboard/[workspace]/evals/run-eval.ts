@@ -27,6 +27,6 @@ export async function runEval(workspace: string, tenant: string, name: string): 
     if (!poll.ok) throw new Error($t("workspace.evals-run-eval.couldNotReadTheRunS", { v0: String(view.error ?? poll.status) }));
     if (view.state === "running") continue;
     if (view.state === "done" && view.result) return view.result;
-    throw new Error(view.error ?? $t("workspace.evals-run-eval.theRunEndedAsWithNo", { v0: String(view.state ?? "unknown") }));
+    throw new Error(view.error ?? $t("workspace.evals-run-eval.theRunEndedAsWithNo", { v0: String(view.state ?? $t("workspace.evals-run-eval.unknown")) }));
   }
 }

@@ -303,7 +303,7 @@ export function HistoryDrawer({
                         disabled={!mayWrite || busy || !revFile || !current}
                         className={buttonVariants({ variant: "secondary", size: "xs" })}
                       >
-                        {busy ? "Restoring…" : $t("components.flow-history.restoreThisVersion")}
+                        {busy ? $t("components.flow-history.restoring") : $t("components.flow-history.restoreThisVersion")}
                       </button>
                     </span>
                   </Tooltip>

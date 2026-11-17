@@ -334,7 +334,7 @@ export function FileBrowser({
     setUploading(null);
     // Show the desk it landed in.
     if (!single && at.desk !== workspace) go(workspace, dir);
-    setToast(failed.length ? $t("components.file-browser.uploadedToRefused", { ok: String(ok), workspace: String(workspace), length: String(failed.length), v3: String(failed[0]) }) : $t("components.file-browser.fileUploadedTo", { ok: String(ok), v1: String(ok === 1 ? "" : "s"), workspace: String(workspace) }));
+    setToast(failed.length ? $t("components.file-browser.uploadedToRefused", { ok: String(ok), workspace: String(workspace), length: String(failed.length), v3: String(failed[0]) }) : $t("components.file-browser.fileUploadedTo", { ok: String(ok), v1: ok, workspace: String(workspace) }));
     router.refresh();
   };
   const pickFor = (desk: string, dir = "") => {
@@ -399,7 +399,7 @@ export function FileBrowser({
   const qs = tenant !== "default" ? `?tenant=${tenant}` : "";
   const uploadable = workspaces ?? desks.map((d) => d.workspace);
   const isShared = (f: BrowserFile) => shareState(f.share, now).state === "shared" && !!f.share?.url;
-  const shareLabel = (f: BrowserFile) => (busy === keyOf(f) ? "Sharing…" : isShared(f) ? $t("components.file-browser.copyLink") : $t("components.file-browser.share"));
+  const shareLabel = (f: BrowserFile) => (busy === keyOf(f) ? $t("components.file-browser.sharing2") : isShared(f) ? $t("components.file-browser.copyLink") : $t("components.file-browser.share"));
   const shareTitle = (f: BrowserFile) => (!canShare ? $t("components.file-browser.thisInstallHasNoPublicAddress") : isShared(f) ? $t("components.file-browser.copyThePublicLink") : $t("components.file-browser.makeAPublicLink7Days"));
 
   // Drop zones: a desk's row, or the table while inside a desk.
@@ -669,7 +669,7 @@ export function FileBrowser({
                         <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-ink text-sm font-semibold uppercase text-on-ink">{d.workspace[0]}</span>
                       }
                       name={d.workspace}
-                      sub={`${d.files.length} file${d.files.length === 1 ? "" : "s"}`}
+                      sub={$t("components.file-browser.nFiles", { n: d.files.length })}
                       size={fmtSize(bytes)}
                       age={latest ? fmtAge(latest, now) : "—"}
                       ageTitle={latest || undefined}
@@ -712,7 +712,7 @@ export function FileBrowser({
                     </IconBox>
                   }
                   name={d.name}
-                  sub={`${d.files} file${d.files === 1 ? "" : "s"}`}
+                  sub={$t("components.file-browser.nFiles", { n: d.files })}
                   size={fmtSize(d.bytes)}
                   age={fmtAge(d.latest, now)}
                   ageTitle={d.latest}
@@ -776,7 +776,7 @@ export function FileBrowser({
               <Tooltip label={isText(current) ? $t("components.file-browser.thisIsAlreadyText") : $t("components.file-browser.readItsTextOcrDocumentsSpeech")}>
                 <span className="inline-flex">
                   <Button variant="secondary" size="md" disabled={isText(current) || busy === `extract:${keyOf(current)}`} onClick={() => void extract(current)}>
-                    <ScanText /> {busy === `extract:${keyOf(current)}` ? "Extracting…" : $t("components.file-browser.extractText")}
+                    <ScanText /> {busy === `extract:${keyOf(current)}` ? $t("components.file-browser.extracting") : $t("components.file-browser.extractText")}
                   </Button>
                 </span>
               </Tooltip>
@@ -823,7 +823,7 @@ function Preview({ f }: { f: BrowserFile }) {
   if (as === "font") return <FontSample f={f} onFail={() => setFallback(true)} />;
   if (as === "pdf") return <iframe key={f.path} src={inlineHref(f)} title={f.path} className="h-full min-h-[70vh] w-full rounded-lg border border-line bg-surface shadow-sm" />;
   if (error) return <NoPreview f={f} note={$t("components.file-browser.noPreview", { error: String(error) })} />;
-  if (fallback && data?.kind === "binary") return <ServerView f={f} p={{ ...data, note: data.note ?? $t("components.file-browser.yourBrowserCannotThisFormatItself", { v0: String(kindOf(f.path) === "video" || kindOf(f.path) === "audio" ? "play" : "show") }) }} />;
+  if (fallback && data?.kind === "binary") return <ServerView f={f} p={{ ...data, note: data.note ?? $t("components.file-browser.yourBrowserCannotThisFormatItself", { media: kindOf(f.path) === "video" || kindOf(f.path) === "audio" ? "yes" : "no" }) }} />;
   if (!data) return <p className="p-6 text-center text-xs text-fg-subtle">{$t("components.file-browser.readingTheFile")}</p>;
   return <ServerView f={f} p={data} />;
 }
@@ -857,7 +857,7 @@ function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
             <span>{p.format === "code" ? p.language : p.format === "markdown" ? $t("components.file-browser.markdownSource") : p.format === "json" ? "JSON" : "text"}</span>
             {p.format === "markdown" && <button type="button" onClick={() => setSource(false)} className="ml-auto hover:text-fg-secondary">{$t("components.file-browser.rendered")}</button>}
           </div>
-          <pre className="overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-[12px] leading-relaxed text-fg">{p.text || "(empty)"}</pre>
+          <pre className="overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-[12px] leading-relaxed text-fg">{p.text || $t("components.file-browser.empty")}</pre>
           <Cut show={p.truncated} />
         </Paper>
       );
@@ -989,7 +989,7 @@ function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
             {p.events.map((e, i) => (
               <li key={i} className="flex gap-4 px-5 py-3">
                 <span className="w-36 shrink-0 text-xs tabular-nums text-fg-muted">{e.start}{e.end ? <><br />→ {e.end}</> : null}</span>
-                <span className="min-w-0"><span className="block text-sm font-medium text-fg">{e.title || "(untitled)"}</span>{e.where && <span className="block text-xs text-fg-muted">{e.where}</span>}{e.notes && <span className="mt-1 block whitespace-pre-wrap text-xs text-fg-tertiary">{e.notes}</span>}</span>
+                <span className="min-w-0"><span className="block text-sm font-medium text-fg">{e.title || $t("components.file-browser.untitled")}</span>{e.where && <span className="block text-xs text-fg-muted">{e.where}</span>}{e.notes && <span className="mt-1 block whitespace-pre-wrap text-xs text-fg-tertiary">{e.notes}</span>}</span>
               </li>
             ))}
           </ul>

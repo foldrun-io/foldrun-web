@@ -74,7 +74,7 @@ export function EvalDetail({
   const byName = new Map(result?.cases.map((c) => [c.name, c]));
   const kind = info.flow ? "flow" : "agent";
   const target = info.flow ?? info.agent ?? "";
-  const cases = `${info.cases.length} case${info.cases.length === 1 ? "" : "s"}`;
+  const cases = $t("workspace.evals-eval-card.nCases", { n: info.cases.length });
 
   return (
     <Page>
@@ -114,7 +114,7 @@ export function EvalDetail({
               </Tooltip>
             )}
             <Button variant="primary" size="md" onClick={run} disabled={busy}>
-              {busy ? "Running…" : $t("workspace.evals-eval-card.run")}
+              {busy ? $t("workspace.evals-eval-card.running") : $t("workspace.evals-eval-card.run")}
             </Button>
             <EvalMenu workspace={workspace} tenant={tenant} file={info.file} listHref={listHref} confirmText={$t("workspace.evals-eval-card.deleteEvalItsPassFailHistory", { name: String(info.name) })} />
           </>
@@ -175,7 +175,7 @@ export function EvalDetail({
                 return (
                   <li key={c.name} className="space-y-2 px-5 py-4">
                     <div className="flex flex-wrap items-center gap-2">
-                      {r ? <Chip tone={r.passed ? "good" : "bad"}>{r.passed ? "pass" : "fail"}</Chip> : <Chip>{$t("workspace.evals-eval-card.notRun")}</Chip>}
+                      {r ? <Chip tone={r.passed ? "good" : "bad"}>{r.passed ? $t("values.evalResult.pass") : $t("values.evalResult.fail")}</Chip> : <Chip>{$t("workspace.evals-eval-card.notRun")}</Chip>}
                       <span className="text-sm font-medium text-fg">{c.name}</span>
                     </div>
                     <p className="text-sm text-fg-muted">{c.task}</p>

@@ -17,6 +17,7 @@
 // the notify: webhooks this workspace sent; and the flows outside agents
 // call over A2A.
 
+import { WEBHOOK_OUTCOME_LABEL, labelOf } from "@/components/value-labels";
 import { $rich, $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
@@ -226,7 +227,7 @@ export default async function TriggersPage({
       />
 
       <StatGrid className="mb-8 grid-cols-3 md:grid-cols-3 xl:grid-cols-3">
-        <Stat label={$t("workspace.triggers-page.triggersFired")} value={fired} sub={`in ${WINDOWS.find((w) => w.days === days)?.label ?? `${days} days`}`} />
+        <Stat label={$t("workspace.triggers-page.triggersFired")} value={fired} sub={$t("workspace.triggers-page.inWindow", { window: WINDOWS.find((w) => w.days === days)?.label ?? $t("workspace.triggers-page.nDays", { n: days }) })} />
         <Stat label={$t("workspace.triggers-page.becameRuns")} value={started} />
         <Stat label={$t("workspace.triggers-page.heldBack2")} value={fired - started} tone={fired - started > 0 ? "warning" : undefined} sub={refused.length ? $t("workspace.triggers-page.refusedAtTheDoor", { length: String(refused.length) }) : undefined} />
       </StatGrid>
@@ -356,7 +357,7 @@ export default async function TriggersPage({
                       </TD>
                       <TD className="font-medium text-fg">{d.flow}</TD>
                       <TD className="whitespace-nowrap">
-                        <Chip tone={d.outcome === "accepted" ? "good" : d.outcome === "dropped" ? "default" : "bad"}>{d.outcome}</Chip>
+                        <Chip tone={d.outcome === "accepted" ? "good" : d.outcome === "dropped" ? "default" : "bad"}>{labelOf(WEBHOOK_OUTCOME_LABEL, d.outcome)}</Chip>
                         {d.count && d.count > 1 ? (
                           <Tooltip label={d.first ? `first ${d.first}` : undefined}>
                             <span className="ml-1.5 text-fg-muted">

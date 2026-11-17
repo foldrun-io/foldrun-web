@@ -75,7 +75,7 @@ export function RunsSelection({
       label: $t("components.runs-bulk.stop"),
       applies: (key) => STOPPABLE.has(byKey.get(key)?.status ?? ""),
       confirm: (n) => ({
-        title: $t("components.runs-bulk.stopRun", { n: String(n), v1: String(n === 1 ? "" : "s") }),
+        title: $t("components.runs-bulk.stopRun", { n: String(n), v1: n }),
         body: $t("components.runs-bulk.eachStopsAfterItsCurrentStep"),
       }),
       performAll: (keys) => bulk("stop", picked(keys), tenant),
@@ -84,7 +84,7 @@ export function RunsSelection({
       label: $t("components.runs-bulk.rerun"),
       applies: (key) => RERUNNABLE.has(byKey.get(key)?.status ?? ""),
       confirm: (n) => ({
-        title: $t("components.runs-bulk.rerunRun", { n: String(n), v1: String(n === 1 ? "" : "s") }),
+        title: $t("components.runs-bulk.rerunRun", { n: String(n), v1: n }),
         body: $t("components.runs-bulk.eachStartsAgainFromItsFirst"),
         confirmLabel: $t("components.runs-bulk.rerun"),
       }),
@@ -94,7 +94,7 @@ export function RunsSelection({
       label: $t("components.runs-bulk.delete"),
       tone: "destructive",
       confirm: (n) => ({
-        title: $t("components.runs-bulk.deleteRun", { n: String(n), v1: String(n === 1 ? "" : "s") }),
+        title: $t("components.runs-bulk.deleteRun", { n: String(n), v1: n }),
         body: $t("components.runs-bulk.theirRecordsAndOutputsGoAnything"),
       }),
       performAll: (keys) => bulk("delete", picked(keys), tenant),

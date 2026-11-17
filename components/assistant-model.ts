@@ -205,7 +205,7 @@ export interface ConversationSummary {
 export function conversationTitle(messages: { role: string; content: string }[]): string {
   const first = messages.find((m) => m.role === "user")?.content ?? "";
   const line = first.replace(/\s+/g, " ").trim();
-  return line.length > 80 ? `${line.slice(0, 79)}…` : line || "(empty)";
+  return line.length > 80 ? `${line.slice(0, 79)}…` : line || $t("components.assistant-model.empty");
 }
 
 /** The history list in sections a person scans: Today, Yesterday, This

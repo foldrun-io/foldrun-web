@@ -5,6 +5,7 @@
 // that failed and why, and a box to grade one run now (POST …/evals/<e>/grade).
 // Nothing here starts a run; a grader only reads the ones that happened.
 
+import { EVAL_RESULT_LABEL, labelOf } from "@/components/value-labels";
 import { $rich, $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useState, type ReactNode } from "react";
@@ -248,13 +249,13 @@ export function GraderDetail({
                 if (runId.trim() && !busy) void gradeOne();
               }}
             >
-              <Input value={runId} onChange={(e) => setRunId(e.target.value)} placeholder="run-…" className="w-64 max-w-full font-mono text-[13px]" aria-label={$t("workspace.evals-grader-card.runIdToGrade")} />
+              <Input value={runId} onChange={(e) => setRunId(e.target.value)} placeholder={$t("workspace.evals-grader-card.run")} className="w-64 max-w-full font-mono text-[13px]" aria-label={$t("workspace.evals-grader-card.runIdToGrade")} />
               <Button type="submit" disabled={busy || !runId.trim()}>
-                {busy ? "Grading…" : $t("workspace.evals-grader-card.gradeARun")}
+                {busy ? $t("workspace.evals-grader-card.grading") : $t("workspace.evals-grader-card.gradeARun")}
               </Button>
               {fresh && (
                 <span className={`text-sm ${fresh.status === "pass" ? "text-success" : fresh.status === "fail" ? "text-danger" : "text-warning"}`}>
-                  {fresh.status}
+                  {labelOf(EVAL_RESULT_LABEL, fresh.status)}
                   {fresh.status !== "pass" && (
                     <>
                       {" — "}
