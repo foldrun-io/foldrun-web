@@ -25,6 +25,7 @@ import matter from "@/lib/matter";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { workspaceDir, listAgents, listFlows, resolveModel } from "@/lib/store";
 import { hostSafeEnv } from "@/lib/host-env";
+import { sdkEnv } from "@/lib/step-exec";
 import { withModelEnv } from "@/lib/model-env";
 import { recordRunCost } from "@/platform/ledger";
 import { billing } from "@/platform/billing";
@@ -317,7 +318,7 @@ const modelCompleter: Completer = async ({ system, prompt, maxOutputTokens, tena
         allowedTools: [],
         settingSources: [],
         maxTurns: 1,
-        env: { ...hostSafeEnv(), ...env, CLAUDE_CODE_MAX_OUTPUT_TOKENS: String(maxOutputTokens) },
+        env: sdkEnv({ ...hostSafeEnv(), ...env, CLAUDE_CODE_MAX_OUTPUT_TOKENS: String(maxOutputTokens) }),
       },
     });
     for await (const message of q) {
