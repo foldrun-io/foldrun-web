@@ -223,7 +223,7 @@ export default async function UsagePage({
         <Stat label={$t("usage.page.storage")} value={fmtBytes(u.totals.storageBytes)} />
         {/* The wallet is the whole account's: not shown to a member limited
             to some workspaces (ledger: null, 30 Oct 2026). */}
-        <Stat label={$t("usage.page.creditBalance")} value={u.ledger ? credits(u.ledger.balanceUsd) : "—"} />
+        <Stat label={$t("usage.page.balanceInCredits")} value={u.ledger ? credits(u.ledger.balanceUsd) : "—"} />
       </StatGrid>
 
       {/* What each desk and each agent costs, and whether that is moving.

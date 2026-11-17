@@ -605,7 +605,7 @@ test("foldrun whoami and keys work from the credentials file alone", opts, async
   assert.ok(key, made.stdout);
 
   const list = cli("keys", "ls");
-  assert.match(list.stdout, /ci\b.*viewer · all workspaces/);
+  assert.match(list.stdout, /ci\b.*viewer · all projects/);
   // The key made by the CLI's key is attributed to the person behind it.
   assert.match(list.stdout, /ci\b.*by founder@example\.test/);
 
@@ -613,7 +613,7 @@ test("foldrun whoami and keys work from the credentials file alone", opts, async
   const deployAsk = await fetch(`${base}/api/keys`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ label: "old", workspace: "hello", access: "write" }) });
   assert.equal(deployAsk.status, 400);
 
-  const id = list.stdout.split("\n").find((l) => /\bci\b.*viewer · all workspaces/.test(l))?.match(/\b([0-9a-f]{12})\b/)?.[1];
+  const id = list.stdout.split("\n").find((l) => /\bci\b.*viewer · all projects/.test(l))?.match(/\b([0-9a-f]{12})\b/)?.[1];
   assert.ok(id, list.stdout);
   // A revoke asks first; with no terminal it needs --yes (every CLI delete does).
   const gone = cli("keys", "revoke", id!, "--yes");
