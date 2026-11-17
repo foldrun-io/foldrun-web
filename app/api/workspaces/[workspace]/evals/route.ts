@@ -4,13 +4,18 @@ import path from "node:path";
 import { requireTenant, errorResponse, requirePermission, actorOf, refuse } from "@/server/api";
 import { workspaceDir, assertSafeName, writeWorkspaceFile, listAgents } from "@/lib/store";
 import { listEvals } from "@/lib/evals";
+import { requireWorkspace } from "@/lib/storage";
 import { idempotent } from "@/server/idempotency";
 import { jsonObject } from "@/server/body";
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: string }> }) {
   try {
     const { workspace } = await ctx.params;
-    return NextResponse.json({ evals: listEvals(await requireTenant(req), workspace) });
+    const tenant = await requireTenant(req);
+    // A name with no workspace is a 404 as on its siblings (vocabulary, runtimes,
+    // proposals, storage), not an empty list that reads as "nothing here".
+    requireWorkspace(tenant, workspace);
+    return NextResponse.json({ evals: listEvals(tenant, workspace) });
   } catch (err) {
     return errorResponse(err);
   }

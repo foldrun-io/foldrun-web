@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, errorResponse, requirePermission, actorOf, refuse } from "@/server/api";
+import { requireWorkspace } from "@/lib/storage";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -20,7 +21,11 @@ import { jsonObject } from "@/server/body";
 export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: string }> }) {
   try {
     const { workspace } = await ctx.params;
-    return NextResponse.json({ flows: listFlows(await requireTenant(req), workspace) });
+    const tenant = await requireTenant(req);
+    // A name with no workspace is a 404 as on its siblings (vocabulary, runtimes,
+    // proposals, storage), not an empty list that reads as "nothing here".
+    requireWorkspace(tenant, workspace);
+    return NextResponse.json({ flows: listFlows(tenant, workspace) });
   } catch (err) {
     return errorResponse(err);
   }
