@@ -222,7 +222,7 @@ test("100 wrong in a row lock code sign-in for 15 minutes; the password still wo
   const t0 = Date.now();
   await w.codes.requestCode(p.email, b.challenge, t0);
   const code = w.codeFrom(p.email)!;
-  await w.orm()!.execute(`UPDATE users SET code_failed_run = ${w.codes.LOCK_AFTER - 1} WHERE id = '${p.user.id}'`);
+  await w.orm()!.execute(`UPDATE users SET code_failed_run = ${w.codes.LOCK_AFTER - 1}, code_failed_at = now() WHERE id = '${p.user.id}'`);
   const wrong = code === "000000" ? "111111" : "000000";
   assert.deepEqual(await w.codes.verifyCode(p.email, wrong, b.challenge, t0 + 1_000), { ok: false, reason: "locked" });
   assert.deepEqual(await w.codes.verifyCode(p.email, code, b.challenge, t0 + 2_000), { ok: false, reason: "locked" }, "even the right code, while locked");
@@ -236,6 +236,25 @@ test("100 wrong in a row lock code sign-in for 15 minutes; the password still wo
   assert.equal((await w.row(p.user.id)).run, 0);
 });
 
+test("a run of wrong codes older than an hour is forgotten: 99 wrong long ago, one more, no lock; 99 wrong just now, one more, locked", opts, async () => {
+  const w = await world();
+  const p = await w.person("rw");
+  const b = w.browser();
+  const t0 = Date.now();
+  await w.codes.requestCode(p.email, b.challenge, t0);
+  const code = w.codeFrom(p.email)!;
+  const wrong = code === "000000" ? "111111" : "000000";
+  const set = (ago: number | null) =>
+    w.orm()!.execute(`UPDATE users SET code_failed_run = ${w.codes.LOCK_AFTER - 1}, code_failed_at = ${ago === null ? "NULL" : `now() - interval '${ago} seconds'`} WHERE id = '${p.user.id}'`);
+  await set(w.codes.RUN_WINDOW_MS / 1000 + 60);
+  assert.deepEqual(await w.codes.verifyCode(p.email, wrong, b.challenge, t0 + 1_000), { ok: false, reason: "wrong" });
+  assert.equal((await w.row(p.user.id)).run, 1, "started again from one");
+  await set(null);
+  assert.deepEqual(await w.codes.verifyCode(p.email, wrong, b.challenge, t0 + 2_000), { ok: false, reason: "wrong" }, "a run with no stamp (from before the column) is stale too");
+  await set(60);
+  assert.deepEqual(await w.codes.verifyCode(p.email, wrong, b.challenge, t0 + 3_000), { ok: false, reason: "locked" }, "a fresh run still locks at 100");
+});
+
 test("at most six code mails an hour per address: the seventh browser gets the same 200 and nothing", opts, async () => {
   const w = await world();
   const p = await w.person("h");
@@ -245,6 +264,29 @@ test("at most six code mails an hour per address: the seventh browser gets the s
     assert.equal(res.status, 200);
   }
   assert.equal(mails.length - before, 6);
+});
+
+test("one caller spending an address's six mails does not stop the owner's own request; all callers together stop at thirty", opts, async () => {
+  process.env.FOLDRUN_TRUST_PROXY = "1";
+  try {
+    const w = await world();
+    const p = await w.person("lim");
+    const from = async (ip: string) => {
+      const b = w.browser();
+      const res = await w.request.POST(new w.NextRequest("http://x/api/auth/login/code", { ...json({ email: p.email }, b.cookie), headers: { "content-type": "application/json", cookie: b.cookie, "x-forwarded-for": ip } }));
+      await Promise.all([...w.request.inflight]);
+      return res.status;
+    };
+    const before = mails.length;
+    for (let i = 0; i < 8; i++) assert.equal(await from("203.0.113.9"), 200);
+    assert.equal(mails.length - before, 6, "the stranger's seventh and eighth send nothing");
+    assert.equal(await from("198.51.100.7"), 200);
+    assert.equal(mails.length - before, 7, "the owner, from another address, is still mailed");
+    for (let i = 0; i < 30; i++) await from(`192.0.2.${i + 1}`);
+    assert.ok(mails.length - before <= 30, "no more than thirty in an hour, whoever asks");
+  } finally {
+    delete process.env.FOLDRUN_TRUST_PROXY;
+  }
 });
 
 test("a second factor is still asked after the code, and the session records the code as the way in", opts, async () => {
@@ -279,4 +321,28 @@ test("without a mail credential the two routes answer 404 and the page hides the
     process.env.FOLDRUN_RESEND_API_KEY = key;
   }
   assert.equal(w.codes.codeSignInAvailable(), true);
+});
+
+test("the install-wide mail budget is spent by real accounts only: an unknown or unverified address never asks for it, and a refused budget leaves no usable code", opts, async () => {
+  const w = await world();
+  const p = await w.person("g");
+  const b = w.browser();
+  let asked = 0;
+  const budget = (answer: boolean) => async () => {
+    asked++;
+    return answer;
+  };
+  assert.equal(await w.codes.requestCode("nobody@nowhere.test", b.challenge, Date.now(), budget(true)), "not sent");
+  const unverified = await w.person("h", false);
+  assert.equal(await w.codes.requestCode(unverified.email, b.challenge, Date.now(), budget(true)), "not sent");
+  assert.equal(asked, 0, "made-up and unverified addresses do not touch the budget");
+  // Out of budget: nothing mailed, and the code that was made cannot sign anyone in.
+  const t0 = Date.now();
+  assert.equal(await w.codes.requestCode(p.email, b.challenge, t0, budget(false)), "not sent");
+  assert.equal(asked, 1);
+  assert.equal(w.codeFrom(p.email), null, "no mail left");
+  assert.deepEqual((await w.codes.verifyCode(p.email, "000000", b.challenge, t0 + 40_000)).ok, false);
+  // With budget the next request (after the 30 s throttle) is mailed and works.
+  assert.equal(await w.codes.requestCode(p.email, b.challenge, t0 + 31_000, budget(true)), "sent");
+  assert.deepEqual(await w.codes.verifyCode(p.email, w.codeFrom(p.email)!, b.challenge, t0 + 40_000), { ok: true, userId: p.user.id });
 });

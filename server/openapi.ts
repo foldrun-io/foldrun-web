@@ -738,6 +738,81 @@ const EXTRA_STATUSES: Record<string, string[]> = {
   "POST /api/workspaces/{workspace}/runs/{runId}/stop": ["409"],
   // A mail that cannot be unsubscribed from (409); a spent token (410).
   "POST /api/unsubscribe": ["409", "410"],
+  // { async: true } answers 202 at once (21 Oct 2026); that eval already
+  // running is a 409 naming the run to poll (FOL-199, hosted fuzz).
+  "POST /api/workspaces/{workspace}/evals/{evalName}/run": ["202", "409"],
+  // A flow of that name already exists (FOL-199, hosted fuzz).
+  "POST /api/workspaces/{workspace}/flows": ["409"],
+  // A mail that cannot be turned off, with the reason (FOL-199, hosted fuzz).
+  "PATCH /api/me/notifications": ["409"],
+  // Every status a route file returns on purpose, from the sweep
+  // tests/status-coverage.test.ts runs (FOL-199, 16 Nov 2026): each hosted
+  // fuzz run found one more of these until they were listed together. A
+  // "* path" entry applies to each method of that path. 5xx are not listed:
+  // the fuzz reports a server error whatever the document says.
+  "* /api/billing/partner/plans": ["404"],
+  "* /api/billing/partner/topups/quote": ["404"],
+  "* /api/billing/partner/topups": ["404"],
+  "* /api/billing/stripe": ["404"],
+  "* /api/billing/subscribe": ["402", "404"],
+  "* /api/events/{tenant}/{workspace}/{runId}": ["409"],
+  "* /api/extract": ["411", "413"],
+  "* /api/oauth/clients": ["404"],
+  "* /api/oauth/discover": ["422"],
+  "* /api/pricing": ["204", "304", "404"],
+  "* /api/signup": ["204"],
+  "* /api/workspaces/{workspace}/agents/{agent}": ["409"],
+  "* /api/workspaces/{workspace}/agents": ["409"],
+  "* /api/workspaces/{workspace}/assets": ["409"],
+  "* /api/workspaces/{workspace}/deploy": ["409", "413"],
+  "* /api/workspaces/{workspace}/evals/{evalName}/compare": ["409"],
+  "* /api/workspaces/{workspace}/evals": ["409"],
+  "* /api/workspaces/{workspace}/flows/{flow}": ["409"],
+  "* /api/workspaces/{workspace}/import": ["411", "413"],
+  "* /api/workspaces/{workspace}/restore": ["409"],
+  "* /api/workspaces/{workspace}/runs/{runId}/answer": ["409", "413"],
+  "* /api/workspaces/{workspace}/runs/{runId}/archive": ["206", "416"],
+  "* /api/workspaces/{workspace}/runs/{runId}/message": ["409", "413"],
+  "* /api/workspaces/{workspace}/shares": ["409"],
+  "* /api/workspaces/{workspace}/snapshots": ["411", "413"],
+  "* /api/workspaces/{workspace}/source": ["422"],
+  "* /api/workspaces/{workspace}/storage/download": ["206", "416"],
+  "* /api/workspaces": ["409"],
+  "* /api/account/agents-md": ["409", "413"],
+  "* /api/account/model": ["409"],
+  "* /api/auth/login/code": ["404"],
+  "* /api/auth/login/code/verify": ["404"],
+  "* /api/auth/login": ["401"],
+  "* /api/auth/mfa/verify": ["401"],
+  "* /api/auth/sessions": ["409"],
+  "* /api/auth/signup": ["403"],
+  "* /api/avatars/{kind}/{id}": ["413"],
+  "* /api/billing/partner/plans/offer": ["404"],
+  // A JSON-RPC notification has no reply: 202, no body (MCP Streamable HTTP).
+  "POST /api/mcp": ["202"],
+};
+
+/** A success status whose body is not the default one for that code. */
+const EXTRA_SUCCESS_FOR: Record<string, Record<string, Schema>> = {
+  "POST /api/mcp": { "202": { description: "Accepted — a notification, nothing to send" } },
+};
+
+/** The success statuses in EXTRA_STATUSES, which are not refusals. */
+const EXTRA_SUCCESS: Record<string, Schema> = {
+  "204": { description: "Nothing to send" },
+  "206": {
+    description: "Part of the file (a Range request): those bytes, with Content-Range",
+    // The file's own type (a PNG, a PDF, a video), so any (Codex review).
+    content: { "*/*": { schema: { type: "string", format: "binary" } } },
+  },
+  "304": { description: "Not modified since the ETag sent" },
+  // Not a success, but like these sent with no body: an empty answer with a
+  // Content-Range of the file's size (Codex review).
+  "416": { description: "The Range asked for is outside the file — no body; Content-Range gives the size" },
+  "202": {
+    description: "Started — poll GET …/run?run=<runId> for the result",
+    content: { "application/json": { schema: obj({ started: bool, eval: str(), runId: str(), startedAt: str() }, ["started", "runId"]) } },
+  },
 };
 
 /** Open routes whose credential is a signature or a signed token in the
@@ -796,7 +871,7 @@ export function openapiDocument(origin?: string): Schema {
           ...(params.length ? { "404": E } : {}),
           // An open route that carries a token in its path refuses a bad one.
           ...(open && params.length ? { "401": E } : {}),
-          ...Object.fromEntries((EXTRA_STATUSES[`${method} ${r.path}`] ?? []).map((c) => [c, c === "204" ? { description: "Nothing to send" } : E])),
+          ...Object.fromEntries([...(EXTRA_STATUSES[`${method} ${r.path}`] ?? []), ...(EXTRA_STATUSES[`* ${r.path}`] ?? [])].map((c) => [c, EXTRA_SUCCESS_FOR[`${method} ${r.path}`]?.[c] ?? EXTRA_SUCCESS[c] ?? E])),
           ...(open && SIGNED_OPEN.some((x) => x.test(r.path)) ? { "401": E } : {}),
           // The sign-in writes take JSON only; the proxy answers any other
           // type 415 (server/csrf.ts jsonOnly — the same test, so the two agree).

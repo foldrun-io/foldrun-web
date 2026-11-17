@@ -23,8 +23,11 @@ import { jsonObject } from "@/server/body";
 const EMAIL = /^[^@\s:,]+@[^@\s:,]+\.[^@\s:,]+$/;
 /** Codes mailed per address, per caller, and in all, an hour. Over any of them
  *  the answer is the same 200 and nothing is sent (a 429 would say the address
- *  was asked about before). */
+ *  was asked about before). An address is counted per caller (a stranger
+ *  spending his six must not use up the owner's), with a higher ceiling across
+ *  callers; where no caller can be told, the address alone, six. */
 const PER_ADDRESS = { limit: 6, windowSec: 3600 };
+const PER_ADDRESS_ALL_CALLERS = { limit: 30, windowSec: 3600 };
 const PER_IP = { limit: 20, windowSec: 3600 };
 const INSTALL = { limit: 300, windowSec: 3600 };
 
@@ -55,9 +58,13 @@ export async function POST(req: NextRequest) {
     const ip = clientIp(req);
     later(async () => {
       if (ip && !(await rateLimit(`login-code:ip:${ip}`, PER_IP.limit, PER_IP.windowSec)).allowed) return;
-      if (!(await rateLimit(`login-code:addr:${email}`, PER_ADDRESS.limit, PER_ADDRESS.windowSec)).allowed) return;
-      if (!(await rateLimit("login-code:sends", INSTALL.limit, INSTALL.windowSec)).allowed) return;
-      await requestCode(email, challenge);
+      const byAddress = ip ? `login-code:addr-ip:${email}:${ip}` : `login-code:addr:${email}`;
+      if (!(await rateLimit(byAddress, PER_ADDRESS.limit, PER_ADDRESS.windowSec)).allowed) return;
+      if (ip && !(await rateLimit(`login-code:addr-all:${email}`, PER_ADDRESS_ALL_CALLERS.limit, PER_ADDRESS_ALL_CALLERS.windowSec)).allowed) return;
+      // The install-wide cap is charged only for a real account (inside
+      // requestCode, after the lookup): an address nobody holds never spends
+      // it, so one client cannot use it up with made-up ones.
+      await requestCode(email, challenge, Date.now(), async () => (await rateLimit("login-code:sends", INSTALL.limit, INSTALL.windowSec)).allowed);
     });
     const res = NextResponse.json({ ok: true });
     res.cookies.set(CHALLENGE_COOKIE, challenge, {

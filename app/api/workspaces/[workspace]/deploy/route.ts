@@ -14,7 +14,7 @@ import { flushRevisions } from "@/lib/workspace-revisions";
 import { evaluateDeployed } from "@/lib/evals";
 import { errorResponse, requirePermission, refuse } from "@/server/api";
 import { audit } from "@/server/audit";
-import { deployWorkspace, planDeploy } from "@/lib/deploy";
+import { deployPathProblems, deployWorkspace, planDeploy } from "@/lib/deploy";
 import { workspaceDir, type DeployFile } from "@/lib/store";
 import { workspaceCapRefusal } from "@/server/workspace-cap";
 import { assertMayChangeWorkspacePolicy, auditPolicyEvents } from "@/server/workspace-policy";
@@ -61,6 +61,18 @@ async function postOnce(
         return refuse("deploy is too large", 413);
       }
       files.push({ path: f.path, content: f.content });
+    }
+
+    // A path that names no file ("", ".", "knowledge/") or that is also a
+    // folder of another path here is a malformed request, refused before
+    // anything reads the files: it reached open() and was an EISDIR, a 500
+    // (FOL-199, hosted fuzz). Core's one check, which deployIssues runs too.
+    const unwritable = deployPathProblems(files).issues;
+    if (unwritable.length) {
+      return NextResponse.json(
+        { ok: false, error: `${unwritable.length} path(s) name no file: ${unwritable.map((i) => JSON.stringify(i.where)).join(", ")}`, issues: unwritable },
+        { status: 400 },
+      );
     }
 
     const commit = typeof body.commit === "string" ? body.commit : null;
