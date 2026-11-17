@@ -18,7 +18,9 @@
 // Stored where flow-run's own key lives (platform trigger-gate.ts): the
 // platform cache, `SET NX` with a 24-hour expiry, so every web pod sees the
 // same claim. Without Redis it is this process's memory — the one-pod case,
-// where there is nobody else to race with.
+// where there is nobody else to race with. With Redis configured but not
+// answering, a keyed request is a 503 to retry, never a claim in memory that
+// the other pods cannot see (17 Nov 2026).
 //
 // The claim made while a request is being answered lasts PENDING_TTL_SEC
 // and is kept alive while the handler runs (a ?wait run may take 15
@@ -31,7 +33,8 @@
 
 import crypto from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
-import { cache } from "@/platform/cache";
+import { cacheClient } from "@/platform/cache";
+import { opsLog } from "@/lib/ops-log.ts";
 import { resolveTenant } from "./auth.ts";
 import { installKey } from "@/lib/webhook.ts";
 
@@ -57,8 +60,19 @@ interface Stored {
 
 const memory = new Map<string, { v: Stored; until: number }>();
 
-async function claim(id: string, value: Stored): Promise<Stored | null> {
-  const c = cache();
+/** A Redis that is configured but did not answer. A claim then is not made
+ *  at all (claim answers "unavailable", the caller a 503): this pod's memory
+ *  is invisible to the pod a retry lands on, so a claim kept there could run
+ *  the request twice (17 Nov 2026). Logged, never silent. */
+function cacheMissed(op: string, err: unknown): void {
+  opsLog("warn", "idempotency.cache_unavailable", { op, error: err instanceof Error ? err.message : String(err) });
+}
+
+async function claim(id: string, value: Stored): Promise<Stored | null | "unavailable"> {
+  // cacheClient, not cache(): the client queues nothing while it connects,
+  // so the first claim on a pod that has just started failed and fell to
+  // this pod's memory — invisible to the pod a retry lands on.
+  const c = await cacheClient();
   if (c) {
     try {
       // SET NX then GET is two calls: the winner's claim can lapse or be
@@ -73,8 +87,9 @@ async function claim(id: string, value: Stored): Promise<Stored | null> {
         if (raw) return JSON.parse(raw) as Stored;
       }
       return { fp: value.fp, state: "pending" };
-    } catch {
-      // fall through to memory
+    } catch (err) {
+      cacheMissed("claim", err);
+      return "unavailable";
     }
   }
   const now = Date.now();
@@ -87,12 +102,14 @@ async function claim(id: string, value: Stored): Promise<Stored | null> {
 
 /** Keep an in-flight claim alive while its handler still runs. */
 async function touch(id: string): Promise<void> {
-  const c = cache();
+  const c = await cacheClient();
   if (c) {
     try {
       await c.expire(`idemr:${id}`, PENDING_TTL_SEC);
       return;
-    } catch {}
+    } catch (err) {
+      cacheMissed("touch", err);
+    }
   }
   const hit = memory.get(id);
   if (hit && hit.v.state === "pending") hit.until = Date.now() + PENDING_TTL_SEC * 1000;
@@ -117,19 +134,21 @@ export interface IdempotentOptions {
 }
 
 async function store(id: string, value: Stored): Promise<void> {
-  const c = cache();
+  const c = await cacheClient();
   if (c) {
     try {
       await c.set(`idemr:${id}`, JSON.stringify(value), "EX", IDEMPOTENCY_TTL_SEC);
       return;
-    } catch {}
+    } catch (err) {
+      cacheMissed("store", err);
+    }
   }
   memory.set(id, { v: value, until: Date.now() + IDEMPOTENCY_TTL_SEC * 1000 });
 }
 
 async function release(id: string): Promise<void> {
   memory.delete(id);
-  const c = cache();
+  const c = await cacheClient();
   if (c) {
     try {
       await c.del(`idemr:${id}`);
@@ -143,6 +162,22 @@ export function resetIdempotencyMemory(): void {
 }
 
 const sha = (b: string | Uint8Array) => crypto.createHash("sha256").update(b).digest("hex");
+
+/** Query parameters that say how long to wait for the answer, not what is
+ *  asked — on the routes that start a run (`…/run`, `…/rerun`, server/wait.ts)
+ *  and only there: a start retried without `?wait` (or with another timeout)
+ *  is the same request and gets the first answer back (17 Nov 2026: it was a
+ *  422, "a different request body"). The replay is that first answer as it
+ *  was — a 202 stays a 202 — and carries the run's id to read or wait on. */
+const HOW_TO_ANSWER = new Set(["wait", "timeout"]);
+const STARTS_A_RUN = /\/(run|rerun)$/;
+
+/** The query as it counts toward the fingerprint. */
+export function requestQuery(url: URL): string {
+  if (!STARTS_A_RUN.test(url.pathname)) return url.search;
+  const kept = [...url.searchParams].filter(([k]) => !HOW_TO_ANSWER.has(k));
+  return kept.length ? `?${new URLSearchParams(kept).toString()}` : "";
+}
 
 /**
  * Run `handler` at most once per Idempotency-Key. With no key it simply runs.
@@ -163,10 +198,17 @@ export async function idempotent(req: NextRequest, handler: () => Promise<Respon
   const url = req.nextUrl;
   // Keyed, not a bare hash: the body of PUT /api/secrets IS a secret, and a
   // plain sha256 of it in Redis for a day is a guessing target offline.
-  const fp = sha(`${req.method} ${url.pathname}${url.search}\n`) + crypto.createHmac("sha256", installKey()).update(bytes).digest("hex");
+  const fp = sha(`${req.method} ${url.pathname}${requestQuery(url)}\n`) + crypto.createHmac("sha256", installKey()).update(bytes).digest("hex");
   const id = sha(`${auth.tenant}\n${auth.actor.kind}:${auth.actor.id}\n${req.method} ${url.pathname}\n${key}`).slice(0, 40);
 
   const prior = await claim(id, { fp, state: "pending" });
+  if (prior === "unavailable") {
+    // The caller asked for at most once, and this pod cannot promise it.
+    return NextResponse.json(
+      { error: "this request carries an Idempotency-Key, and the store that keeps it is not answering — retry in a moment", retry_after: 2 },
+      { status: 503, headers: { "retry-after": "2" } },
+    );
+  }
   if (prior) {
     if (prior.fp !== fp) {
       return NextResponse.json(

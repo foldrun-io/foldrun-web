@@ -42,6 +42,17 @@ fake.get = async (k: string) => kv.get(k) ?? null;
 fake.expire = async () => 1;
 fake.del = async (k: string) => (kv.delete(k) ? 1 : 0);
 
+/** Let the event loop turn: the claim awaits the client before SET NX, so a
+ *  fixed count of turns is not a contract — wait for what the test needs. */
+const ticks = async (n: number) => {
+  for (let i = 0; i < n; i++) await new Promise((r) => setTimeout(r, 2));
+};
+const until = async (cond: () => boolean) => {
+  const deadline = Date.now() + 3_000;
+  while (!cond() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 2));
+  assert.ok(cond(), "the condition never held");
+};
+
 const req = (key: string, idem: string) =>
   new NextRequest("http://localhost:3900/api/workspaces/w/flows/f/run", {
     method: "POST",
@@ -60,8 +71,7 @@ test("a claim that lapses between SET NX and GET does not let two requests run a
 
   // A holds the key and is still running.
   const a = idempotent(req(admin.key, "race-1"), handler);
-  await new Promise((r) => setImmediate(r));
-  assert.equal(runs, 1);
+  await until(() => runs === 1);
 
   // B loses the SET NX; A's claim lapses before B's GET reads it.
   afterLostSet = (k) => {
@@ -69,11 +79,12 @@ test("a claim that lapses between SET NX and GET does not let two requests run a
     kv.delete(k);
   };
   const b = idempotent(req(admin.key, "race-1"), handler);
-  for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r));
+  await until(() => afterLostSet === null);
+  await ticks(50);
 
   // C arrives while B (if it ran) is still running.
   const c = idempotent(req(admin.key, "race-1"), handler);
-  for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r));
+  await ticks(50);
   const ranBeforeRelease = runs;
   for (const g of gates) g();
   const [, , cr] = await Promise.all([a, b, c]);
@@ -102,4 +113,25 @@ test("a key that keeps lapsing between SET NX and GET is answered 409, not run u
   } finally {
     fake.set = realSet;
   }
+});
+
+test("with Redis configured but not answering, a keyed request is a 503 to retry, never run on a claim only this pod sees", async () => {
+  const admin = await createApiKey("idem-redis-down", "admin", undefined, undefined, "admin");
+  const realSet = fake.set;
+  fake.set = async () => {
+    throw new Error("Stream isn't writeable and enableOfflineQueue options is false");
+  };
+  let ran = 0;
+  try {
+    const res = await idempotent(req(admin.key, "down-1"), async () => (ran++, NextResponse.json({ ok: true })));
+    assert.equal(res.status, 503);
+    assert.equal(res.headers.get("retry-after"), "2");
+    assert.equal(ran, 0, "nothing ran");
+  } finally {
+    fake.set = realSet;
+  }
+  // Back up: the same key now runs, once.
+  const res = await idempotent(req(admin.key, "down-1"), async () => (ran++, NextResponse.json({ ok: true })));
+  assert.equal(res.status, 200);
+  assert.equal(ran, 1);
 });
