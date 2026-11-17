@@ -3,6 +3,7 @@
 // Pure; the cron walk is handed in by the page (the scheduler reads disk),
 // and tests/workspace-overview.test.ts pins the rest.
 
+import { $t } from "@/i18n";
 import type { AgentInfo, FlowInfo, RunRecord } from "@/lib/store";
 import { nodeStats } from "./graph-stats-model.ts";
 import { lastRunOf, liveRunOf, isLiveRun, type LastRun } from "./overview-model.ts";
@@ -107,10 +108,10 @@ export function matches(q: string, ...fields: (string | null | undefined)[]): bo
 
 /** "in 3h", "in 2d", "in 12m" — or null past the window. */
 export function fmtIn(ms: number): string {
-  if (ms < 60_000) return "in under a minute";
+  if (ms < 60_000) return $t("components.workspace-overview-model.inUnderAMinute");
   const m = Math.round(ms / 60_000);
-  if (m < 60) return `in ${m}m`;
+  if (m < 60) return $t("components.workspace-overview-model.inM", { m: String(m) });
   const h = Math.round(m / 60);
-  if (h < 48) return `in ${h}h`;
-  return `in ${Math.round(h / 24)}d`;
+  if (h < 48) return $t("components.workspace-overview-model.inH", { h: String(h) });
+  return $t("components.workspace-overview-model.inD", { v0: String(Math.round(h / 24)) });
 }

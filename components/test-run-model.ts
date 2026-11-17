@@ -5,6 +5,7 @@
 // files, the runner's withheld secrets. Pure, so the shape of the panel is
 // a test and not a screenshot.
 
+import { $t } from "@/i18n";
 import type { RunRecord } from "@/lib/store";
 import type { TestEffect } from "../../foldrun-core/src/test-mode.ts";
 
@@ -35,5 +36,5 @@ export function testEffectSummary(effects: TestEffect[]): string {
     [n("withheld"), "secret withheld", "secrets withheld"],
   ] as const;
   const said = parts.filter(([c]) => c > 0).map(([c, one, many]) => `${c} ${c === 1 ? one : many}`);
-  return said.length ? said.join(" · ") : "nothing outward was attempted";
+  return said.length ? said.join(" · ") : $t("components.test-run-model.nothingOutwardWasAttempted");
 }

@@ -1,5 +1,9 @@
 {
   "page": {
-    "thisInstanceRunsASingleWorkspace": "This instance runs a single {@workspace.one} from a folder on disk, so"
+    "everyFileYourDesksKeepWhat": "Every file your desks keep — what you uploaded and what their runs produced. Open a desk to see its files; drop files on a desk to upload.",
+    "noFileStoreOnThisInstance": "No file store on this instance",
+    "sharedLibrary": "Shared library",
+    "storage": "Storage",
+    "thisInstanceRunsASingleTerm": "This instance runs a single {@workspace.one} from a folder on disk, so <code>storage/</code> is a directory in that folder."
   }
 }

@@ -26,6 +26,7 @@
 // setCardsOpen(scope, open, item?) does the same from code (an upload opens
 // the desk it landed in).
 
+import { $t } from "@/i18n";
 import { useEffect, useState, useSyncExternalStore, type HTMLAttributes, type ReactNode } from "react";
 import { collapseKey, readStored, writeStored, resolveOpen, hashTargets, LIST_SEARCH_EVENT, type CollapseStorage } from "./collapse-model";
 import { matchesQuery } from "@foldrun/ui/react/list-search-model";
@@ -224,11 +225,11 @@ export function CollapseAll({ scope, className = "" }: { scope: string; classNam
   return (
     <div className={`flex shrink-0 items-center gap-1 text-xs ${className}`}>
       <button type="button" onClick={() => all(true)} className={cls}>
-        Expand all
+        {$t("components.collapsible-card.expandAll")}
       </button>
       <span className="text-gray-300" aria-hidden>·</span>
       <button type="button" onClick={() => all(false)} className={cls}>
-        Collapse all
+        {$t("components.collapsible-card.collapseAll")}
       </button>
     </div>
   );

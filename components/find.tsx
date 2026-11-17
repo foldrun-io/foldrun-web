@@ -11,7 +11,7 @@
 // by name. Results come from /api/search, ranked by find-model.ts; the
 // page list is ranked here with the same rules, so the two never disagree.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { rank, groupHits, pagesFor, type FindHit, type FindKind } from "./find-model";
@@ -58,11 +58,11 @@ const STATUS_DOT: Record<string, string> = {
 export function FindTrigger({ compact = false }: { compact?: boolean } = {}) {
   if (compact) {
     return (
-      <Tooltip label="Find (F)" side="right">
+      <Tooltip label={$t("components.find.findF")} side="right">
         <button
           type="button"
           onClick={openFind}
-          aria-label="Find"
+          aria-label={$t("components.find.find")}
           className="flex size-8 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-muted hover:text-fg"
         >
           <Search className="size-3.5" aria-hidden />
@@ -77,7 +77,7 @@ export function FindTrigger({ compact = false }: { compact?: boolean } = {}) {
       className="flex h-9 w-full items-center gap-2 rounded-md border border-line bg-surface px-2.5 text-left text-sm text-fg-muted transition-colors hover:border-line-strong"
     >
       <Search className="size-3.5" aria-hidden />
-      <span className="flex-1">Find…</span>
+      <span className="flex-1">{$t("components.find.find2")}</span>
       <Kbd>F</Kbd>
     </button>
   );
@@ -190,7 +190,7 @@ export function Find() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent hideClose aria-describedby={undefined} onOpenAutoFocus={(e) => { e.preventDefault(); inputRef.current?.focus(); }} className="top-[10vh] w-[640px] max-w-[92vw] translate-y-0 rounded-xl">
-        <DialogTitle className="sr-only">Find</DialogTitle>
+        <DialogTitle className="sr-only">{$t("components.find.find")}</DialogTitle>
         <div className="flex items-center gap-2.5 border-b border-line-faint px-3.5">
           <span className="text-fg-subtle"><Search className="size-4" aria-hidden /></span>
           <input
@@ -209,8 +209,8 @@ export function Find() {
                 go(flat[active]);
               }
             }}
-            placeholder={workspace ? `Find in ${workspace} or anywhere…` : $t("components.find.findAWorkspaceAgentFlowRun")}
-            aria-label="Find"
+            placeholder={workspace ? $t("components.find.findInOrAnywhere", { workspace: String(workspace) }) : $t("components.find.findAWorkspaceAgentFlowRun")}
+            aria-label={$t("components.find.find")}
             className="h-12 flex-1 bg-transparent text-sm text-fg placeholder:text-fg-subtle focus:outline-none"
           />
           <kbd className="rounded border border-line bg-sunken px-1.5 py-0.5 font-mono text-[10px] text-fg-muted">Esc</kbd>
@@ -218,7 +218,7 @@ export function Find() {
         <div ref={listRef} className="max-h-[60vh] overflow-auto py-1.5">
           {flat.length === 0 && (
             <p className="px-4 py-6 text-center text-sm text-fg-subtle">
-              {loading ? "Looking…" : `Nothing matches “${q}”.`}
+              {loading ? "Looking…" : $t("components.find.nothingMatches", { q: String(q) })}
             </p>
           )}
           {groups.map((g) => (
@@ -257,10 +257,10 @@ export function Find() {
           ))}
         </div>
         <div className="flex items-center gap-3 border-t border-line-faint px-3.5 py-2 text-[11px] text-fg-subtle">
-          <span><kbd className="font-mono">↑↓</kbd> move</span>
-          <span><kbd className="font-mono">↵</kbd> open</span>
-          <span><kbd className="font-mono">esc</kbd> close</span>
-          <span className="ml-auto"><kbd className="font-mono">F</kbd> or <kbd className="font-mono">⌘K</kbd> from anywhere</span>
+          <span>{$rich("components.find.move", { kbd: (chunks) => <kbd className="font-mono">{chunks}</kbd> })}</span>
+          <span>{$rich("components.find.open", { kbd: (chunks) => <kbd className="font-mono">{chunks}</kbd> })}</span>
+          <span>{$rich("components.find.escClose", { kbd: (chunks) => <kbd className="font-mono">{chunks}</kbd> })}</span>
+          <span className="ml-auto">{$rich("components.find.fOrKFromAnywhere", { kbd: (chunks) => <kbd className="font-mono">{chunks}</kbd> })}</span>
         </div>
       </DialogContent>
     </Dialog>

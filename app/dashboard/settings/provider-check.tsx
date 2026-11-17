@@ -7,6 +7,7 @@
 // A check spends a real model request at each endpoint, so the button needs
 // run:start, as the route does.
 
+import { $el, $rich, $t } from "@/i18n";
 import { useState } from "react";
 import { Chip, type Tone, SettingsCard } from "@foldrun/ui/react/page";
 import { Button } from "@foldrun/ui/react/button";
@@ -88,21 +89,21 @@ export function ProviderCheck({
   return (
     <SettingsCard
       id="provider-check"
-      title="Provider check"
+      title={$t("settings.provider-check.providerCheck")}
       description={
         configured.length === 0
-          ? "No agent here names its own provider: every model call uses the account's choice above, so there is no provider: block to check."
+          ? $t("settings.provider-check.noAgentHereNamesItsOwn")
           : last
-            ? <>Each provider your agents use is sent one tiny request a day. Last checked <LocalTime iso={last.checkedAt} />.</>
-            : "Each provider your agents use is sent one tiny request a day. None has run yet."
+            ? <>{$rich("settings.provider-check.eachProviderYourAgentsUseIs", { localTime: $el(<LocalTime iso={last.checkedAt} />) })}</>
+            : $t("settings.provider-check.eachProviderYourAgentsUseIs2")
       }
       hint={error ? <span role="alert" className="text-danger">{error}</span> : undefined}
       footer={
         configured.length > 0 && (
-          <Tooltip label={mayCheck ? "Sends one small model request to each provider now" : needs("run:start")}>
+          <Tooltip label={mayCheck ? $t("settings.provider-check.sendsOneSmallModelRequestTo") : needs("run:start")}>
             <span className="inline-flex">
               <Button variant="secondary" onClick={() => void checkNow()} disabled={busy || !mayCheck}>
-                {busy ? "Checking…" : "Check now"}
+                {busy ? "Checking…" : $t("settings.provider-check.checkNow")}
               </Button>
             </span>
           </Tooltip>
@@ -121,7 +122,7 @@ export function ProviderCheck({
                 </p>
                 <p className="text-xs text-fg-muted">
                   {r.detail}
-                  {r.status !== null && <> · HTTP {r.status}</>} · {r.ms} ms
+                  {r.status !== null && <>{" "}{$t("settings.provider-check.http", { status: String(r.status) })}</>}{" "}{$t("settings.provider-check.ms", { ms: String(r.ms) })}
                 </p>
               </div>
               <span className="shrink-0 font-mono text-xs text-fg-muted">{r.declaredIn}</span>
@@ -129,7 +130,7 @@ export function ProviderCheck({
           ))}
           {unchecked.map((c) => (
             <li key={keyOf(c)} className="flex flex-wrap items-start gap-x-3 px-5 py-3 sm:px-6">
-              <Chip>unchecked</Chip>
+              <Chip>{$t("settings.provider-check.unchecked")}</Chip>
               <p className="min-w-0 flex-1 truncate font-mono text-xs text-fg">
                 {c.provider} <span className="text-fg-subtle">· {c.model}</span>
               </p>

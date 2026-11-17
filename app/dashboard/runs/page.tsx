@@ -70,14 +70,14 @@ export default async function RunsPage({
   if (!all.length) {
     return (
       <Page width="wide">
-        <PageHeader title="All runs" description={$t("runs.page.everyRunAcrossEveryWorkspaceIn")} />
+        <PageHeader title={$t("runs.page.allRuns")} description={$t("runs.page.everyRunAcrossEveryWorkspaceIn")} />
         <EmptyState
           icon={<Play />}
-          title="No runs yet"
-          description="A run is a flow's steps in order, each handed to the agent it names. The demo pipeline runs in a minute."
+          title={$t("runs.page.noRunsYet")}
+          description={$t("runs.page.aRunIsAFlowS")}
           action={
             <Link href={`/dashboard/welcome?step=run${tenant !== "default" ? `&tenant=${tenant}` : ""}`} className={buttonVariants({ variant: "primary", size: "md" })}>
-              Run your first flow
+              {$t("runs.page.runYourFirstFlow")}
             </Link>
           }
         />
@@ -119,7 +119,7 @@ export default async function RunsPage({
   return (
     <Page width="wide">
       <AutoRefresh active={runs.some((r) => r.status === "running" || r.status === "queued")} />
-      <PageHeader title="All runs" description={$t("runs.page.everyRunAcrossEveryWorkspaceIn")} />
+      <PageHeader title={$t("runs.page.allRuns")} description={$t("runs.page.everyRunAcrossEveryWorkspaceIn")} />
 
       <RunStats runs={runs} chargedUsd={runs.reduce((n, r) => n + runCharge(r, charges), 0)} />
 

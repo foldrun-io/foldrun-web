@@ -5,6 +5,7 @@
 // which beats any page describing it. Hidden once the workspace exists:
 // a door to something you already have is clutter.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@foldrun/ui/react/button";
@@ -15,7 +16,7 @@ export function DemoButton({
   tenant,
   exists,
   then,
-  label = "Try the demo pipeline",
+  label = $t("dashboard.demo-button.tryTheDemoPipeline"),
   variant = "secondary",
 }: {
   tenant: string;
@@ -42,7 +43,7 @@ export function DemoButton({
       router.push(then ?? `/dashboard/demo-pipeline/flows${tenant !== "default" ? `?tenant=${tenant}` : ""}`);
       return;
     }
-    setError(body.error ?? "could not create the demo");
+    setError(body.error ?? $t("dashboard.demo-button.couldNotCreateTheDemo"));
     setBusy(false);
   };
 

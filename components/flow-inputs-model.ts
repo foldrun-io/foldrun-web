@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 // "Run with…" — a flow's saved input sets, as markdown in the workspace.
 //
 // An input set is a named task. Two places hold them, both under evals/ and
@@ -29,7 +30,7 @@ export interface InputSet {
   source: "inputs" | "eval";
 }
 
-export const inputsFile = (flow: string) => `evals/${flow}-inputs.md`;
+export const inputsFile = (flow: string) => $t("components.flow-inputs-model.evalsInputsMd", { flow: String(flow) });
 
 /** Every set for one flow: its inputs file first, then eval cases. A name
  *  the inputs file has hides an eval case of the same name, as the CLI's
@@ -68,10 +69,10 @@ export function cleanSetName(name: string): string {
 export function layoutTask(task: string): string {
   const t = task.replace(/\r\n/g, "\n").trim();
   if (!t.includes("\n") && !/^["'|>]|["']$/.test(t)) return `task: ${t}`;
-  return `task: |\n${t
+  return $t("components.flow-inputs-model.task", { v0: String(t
     .split("\n")
     .map((l) => (l.trim() ? `  ${l.replace(/^(\s*)-\s/, "$1* ")}` : ""))
-    .join("\n")}`;
+    .join("\n")) });
 }
 
 function newFile(flow: string): string {
@@ -83,8 +84,8 @@ function newFile(flow: string): string {
     "trigger: manual",
     "---",
     "",
-    `Saved inputs for the ${flow} flow — "Run with…" on its card, or`,
-    `\`foldrun invoke ${flow} --inputs <name>\`. Not an eval: nothing here is asserted.`,
+    $t("components.flow-inputs-model.savedInputsForTheFlowRun", { flow: String(flow) }),
+    $t("components.flow-inputs-model.foldrunInvokeInputsNameNotAn", { flow: String(flow) }),
     "",
   ].join("\n");
 }
@@ -96,8 +97,8 @@ function newFile(flow: string): string {
  */
 export function upsertInputSet(existing: string | null, flow: string, name: string, task: string): string {
   const heading = cleanSetName(name);
-  if (!heading) throw new Error("an input set needs a name");
-  if (!task.trim()) throw new Error("an input set needs a task");
+  if (!heading) throw new Error($t("components.flow-inputs-model.anInputSetNeedsAName"));
+  if (!task.trim()) throw new Error($t("components.flow-inputs-model.anInputSetNeedsATask"));
   const section = `## ${heading}\n${layoutTask(task)}\n`;
   const base = existing ?? newFile(flow);
   const lines = base.split("\n");

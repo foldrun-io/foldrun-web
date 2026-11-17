@@ -6,6 +6,7 @@
 // keyboard handling. Every editor in the app uses it, so `[[` behaves the
 // same everywhere and a field you learn in one file works in the next.
 
+import { $t } from "@/i18n";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { completionsAt, type CompletionContext, type Vocabulary } from "@/lib/completions";
 
@@ -247,7 +248,7 @@ export function SmartTextarea({
             ))}
           </ul>
           <p className="border-t border-line-faint px-3 py-1 text-[10px] text-fg-subtle">
-            ↑↓ to move · tab or enter to insert · esc to dismiss
+            {$t("components.smart-textarea.toMoveTabOrEnterTo")}
           </p>
         </div>
       )}

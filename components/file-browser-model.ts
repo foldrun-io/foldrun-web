@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 // The storage browser's rules, apart from React: what kind a file is, how
 // old, where it came from, whether it is shared, and what a search keeps.
 
@@ -97,15 +98,15 @@ export type ServerPreview =
 /** "just now", "5m ago", "3h ago", "2d ago", "4w ago", "7mo ago". */
 export function fmtAge(iso: string, now: number): string {
   const s = Math.max(0, Math.round((now - Date.parse(iso)) / 1000));
-  if (s < 45) return "just now";
+  if (s < 45) return $t("components.file-browser-model.justNow");
   const m = Math.round(s / 60);
-  if (m < 60) return `${m}m ago`;
+  if (m < 60) return $t("components.file-browser-model.mAgo", { m: String(m) });
   const h = Math.round(m / 60);
-  if (h < 36) return `${h}h ago`;
+  if (h < 36) return $t("components.file-browser-model.hAgo", { h: String(h) });
   const d = Math.round(h / 24);
-  if (d < 14) return `${d}d ago`;
-  if (d < 60) return `${Math.round(d / 7)}w ago`;
-  return `${Math.round(d / 30)}mo ago`;
+  if (d < 14) return $t("components.file-browser-model.dAgo", { d: String(d) });
+  if (d < 60) return $t("components.file-browser-model.wAgo", { v0: String(Math.round(d / 7)) });
+  return $t("components.file-browser-model.moAgo", { v0: String(Math.round(d / 30)) });
 }
 
 export function fmtSize(n: number): string {
@@ -127,24 +128,24 @@ export function provenance(by: string): { kind: "run"; runId: string; agent: str
 /** Whether a file is shared, and for how long. */
 export function shareState(share: BrowserShare | null, now: number): { state: "private" } | { state: "shared"; label: string; soon: boolean } {
   if (!share) return { state: "private" };
-  if (!share.expiresAt) return { state: "shared", label: "shared · no expiry", soon: false };
+  if (!share.expiresAt) return { state: "shared", label: $t("components.file-browser-model.sharedNoExpiry"), soon: false };
   const ms = Date.parse(share.expiresAt) - now;
   if (ms <= 0) return { state: "private" };
   // Rounded, not ceiled: a link made a minute after the page loaded is a
   // 7-day link, not an 8-day one.
   const hours = Math.max(1, Math.round(ms / 3_600_000));
   const days = Math.round(ms / 86_400_000);
-  return { state: "shared", label: hours >= 36 ? `shared · ${days}d left` : `shared · ${hours}h left`, soon: hours < 24 };
+  return { state: "shared", label: hours >= 36 ? $t("components.file-browser-model.sharedDLeft", { days: String(days) }) : $t("components.file-browser-model.sharedHLeft", { hours: String(hours) }), soon: hours < 24 };
 }
 
 export type BrowserFilter = "all" | "shared" | "image" | "video" | "pdf" | "doc";
 export const FILTERS: { key: BrowserFilter; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "shared", label: "Shared" },
-  { key: "image", label: "Images" },
-  { key: "video", label: "Video" },
+  { key: "all", label: $t("components.file-browser-model.all") },
+  { key: "shared", label: $t("components.file-browser-model.shared") },
+  { key: "image", label: $t("components.file-browser-model.images") },
+  { key: "video", label: $t("components.file-browser-model.video") },
   { key: "pdf", label: "PDFs" },
-  { key: "doc", label: "Documents" },
+  { key: "doc", label: $t("components.file-browser-model.documents") },
 ];
 
 export function matches(f: BrowserFile, q: string, filter: BrowserFilter, now: number): boolean {

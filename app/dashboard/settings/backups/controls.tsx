@@ -4,7 +4,7 @@
 // file by file, with the diff), then the workspace's name typed back to do
 // it. Request: what, where, when — recorded and mailed to the operator.
 
-import { $t } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -43,7 +43,7 @@ function Diff({ ops }: { ops: DiffOp[] }) {
       return;
     }
     if (folded) {
-      out.push(<div key={`f${i}`} className="text-fg-subtle">⋯ {folded} unchanged</div>);
+      out.push(<div key={`f${i}`} className="text-fg-subtle">{$t("settings.backups-controls.unchanged", { folded: String(folded) })}</div>);
       folded = 0;
     }
     out.push(
@@ -53,7 +53,7 @@ function Diff({ ops }: { ops: DiffOp[] }) {
       </div>,
     );
   });
-  if (folded) out.push(<div key="tail" className="text-fg-subtle">⋯ {folded} unchanged</div>);
+  if (folded) out.push(<div key="tail" className="text-fg-subtle">{$t("settings.backups-controls.unchanged", { folded: String(folded) })}</div>);
   return <pre className="max-h-72 overflow-auto whitespace-pre-wrap border-t border-line p-2 font-mono text-xs leading-5">{out}</pre>;
 }
 
@@ -95,7 +95,7 @@ export function RestoreWorkspace({
     const r = await post(`/api/workspaces/${encodeURIComponent(ws)}/restore`, { to: plan.to.sha, confirm: typed, expectRemoved: plan.removed });
     if (!r.ok) setError(String(r.body.error ?? `HTTP ${r.status}`));
     else {
-      setDone(`Restored ${ws} to ${plan.to.sha.slice(0, 7)}. To undo it, restore to ${plan.from?.slice(0, 7) ?? "the previous commit"}.`);
+      setDone($t("settings.backups-controls.restoredToToUndoItRestore", { ws: String(ws), v1: String(plan.to.sha.slice(0, 7)), v2: String(plan.from?.slice(0, 7) ?? $t("settings.backups-controls.thePreviousCommit")) }));
       setPlan(null);
       setTyped("");
       router.refresh();
@@ -113,35 +113,35 @@ export function RestoreWorkspace({
           <Select className="w-full" value={ws} onChange={(e) => { setWs(e.target.value); setPlan(null); }}>
             {workspaces.map((w) => (
               <option key={w.name} value={w.name} disabled={!w.history}>
-                {w.name}{w.history ? "" : " (no history)"}
+                {w.name}{w.history ? "" : $t("settings.backups-controls.noHistory")}
               </option>
             ))}
           </Select>
         </Field>
-        <Field label="Back to">
-          <Input className="w-full" value={to} onChange={(e) => { setTo(e.target.value); setPlan(null); }} placeholder="2026-09-28 14:00 · 3d · a commit" required />
+        <Field label={$t("settings.backups-controls.backTo")}>
+          <Input className="w-full" value={to} onChange={(e) => { setTo(e.target.value); setPlan(null); }} placeholder={$t("settings.backups-controls.2026092814003d")} required />
         </Field>
         <button type="submit" disabled={busy || !ws || !to.trim()} className={buttonVariants({ variant: "secondary", size: "md" })}>
-          Preview
+          {$t("settings.backups-controls.preview")}
         </button>
       </form>
       {current?.lastChange && (
         <p className="text-xs text-fg-muted">
-          Last change to {ws}: <LocalTime iso={current.lastChange.at} /> — {current.lastChange.message}{$t("settings.backups-controls.aDateMeansTheLastCommit")}
+          {$rich("settings.backups-controls.lastChangeToADateMeans", { ws: ws, localTime: $el(<LocalTime iso={current.lastChange.at} />), message: current.lastChange.message })}
         </p>
       )}
       {plan && (
         <div className="space-y-3 border-t border-line pt-3">
           <p className="text-sm text-fg-secondary">
-            Restoring to <code className="font-mono text-xs">{plan.to.sha.slice(0, 7)}</code> — <LocalTime iso={plan.to.at} />, “{plan.to.message}” by {plan.to.by}.
+            {$rich("settings.backups-controls.restoringToBy", { slice: plan.to.sha.slice(0, 7), code: (chunks) => <code className="font-mono text-xs">{chunks}</code>, localTime: $el(<LocalTime iso={plan.to.at} />), message: plan.to.message, by: plan.to.by })}
           </p>
           {plan.noop ? (
-            <Callout tone="neutral" role="status" className="mb-4">{ws} already matches that point. Nothing would change.</Callout>
+            <Callout tone="neutral" role="status" className="mb-4">{$t("settings.backups-controls.alreadyMatchesThatPointNothingWould", { ws: ws })}</Callout>
           ) : (
             <>
               <p className="text-sm text-fg-secondary">
-                {plan.updated.length} changed, {plan.added.length} brought back, {plan.removed.length} removed.
-                {plan.blockedBy.length > 0 && <span className="text-warning"> Runs in flight ({plan.blockedBy.length}) — it will be refused until they finish.</span>}
+                {$t("settings.backups-controls.changedBroughtBackRemoved", { length: String(plan.updated.length), length2: String(plan.added.length), length3: String(plan.removed.length) })}
+                {plan.blockedBy.length > 0 && <span className="text-warning">{" "}{$t("settings.backups-controls.runsInFlightItWillBe", { length: String(plan.blockedBy.length) })}</span>}
               </p>
               <ul className="space-y-1.5">
                 {plan.files.map((f) => (
@@ -154,11 +154,11 @@ export function RestoreWorkspace({
                 ))}
               </ul>
               <div className="flex flex-wrap items-end gap-2">
-                <Field label={<>Type {ws} to confirm</>}>
+                <Field label={<>{$t("settings.backups-controls.typeToConfirm", { ws: ws })}</>}>
                   <Input className="w-56 max-w-full" value={typed} onChange={(e) => setTyped(e.target.value)} />
                 </Field>
                 <button type="button" onClick={restore} disabled={busy || typed !== ws} className={buttonVariants({ variant: "primary", size: "md" })}>
-                  Restore {ws}
+                  {$t("settings.backups-controls.restore", { ws: ws })}
                 </button>
               </div>
             </>
@@ -216,7 +216,7 @@ export function RequestRestore({
     if (!r.ok) setError(String(r.body.error ?? `HTTP ${r.status}`));
     else {
       const req = r.body.request as RequestRow;
-      setDone(req.notified ? "Asked. The platform team has been emailed and will reply." : "Asked and recorded — but the email to the platform team did not send. Please also contact them.");
+      setDone(req.notified ? $t("settings.backups-controls.askedThePlatformTeamHasBeen") : $t("settings.backups-controls.askedAndRecordedButTheEmail"));
       setTarget("");
       setNote("");
       router.refresh();
@@ -230,34 +230,34 @@ export function RequestRestore({
       {error && <Callout tone="danger" role="alert" className="mb-4">{error}</Callout>}
       {canAsk ? (
         <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
-          <Field label="What">
+          <Field label={$t("settings.backups-controls.what")}>
             <Select className="w-full" value={what} onChange={(e) => setWhat(e.target.value)}>
-              <option value="runs">Run records</option>
-              <option value="state">state/ files</option>
-              <option value="storage">Storage files</option>
-              <option value="everything">Everything</option>
+              <option value="runs">{$t("settings.backups-controls.runRecords")}</option>
+              <option value="state">{$t("settings.backups-controls.stateFiles")}</option>
+              <option value="storage">{$t("settings.backups-controls.storageFiles")}</option>
+              <option value="everything">{$t("settings.backups-controls.everything")}</option>
             </Select>
           </Field>
           <Field label={$t("settings.backups-controls.workspace")}>
             <Select className="w-full" value={workspace} onChange={(e) => setWorkspace(e.target.value)}>
-              <option value="">All of them</option>
+              <option value="">{$t("settings.backups-controls.allOfThem")}</option>
               {workspaces.map((w) => <option key={w} value={w}>{w}</option>)}
             </Select>
           </Field>
-          <Field label="As it was at">
-            <Input className="w-full" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="2026-09-28 14:00 Sydney" required />
+          <Field label={$t("settings.backups-controls.asItWasAt")}>
+            <Input className="w-full" value={target} onChange={(e) => setTarget(e.target.value)} placeholder={$t("settings.backups-controls.202609281400Sydney")} required />
           </Field>
-          <Field label="Snapshot (optional)">
+          <Field label={$t("settings.backups-controls.snapshotOptional")}>
             <Select className="w-full" value={backupId} onChange={(e) => setBackupId(e.target.value)}>
-              <option value="">The nearest before that time</option>
+              <option value="">{$t("settings.backups-controls.theNearestBeforeThatTime")}</option>
               {backups.map((b) => <option key={b.id} value={b.id}><SnapshotTime at={b.at} /></option>)}
             </Select>
           </Field>
-          <Field label="Note" className="sm:col-span-2">
-            <Textarea className="w-full" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="What went wrong, and what you need back" />
+          <Field label={$t("settings.backups-controls.note")} className="sm:col-span-2">
+            <Textarea className="w-full" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={$t("settings.backups-controls.whatWentWrongAndWhatYou")} />
           </Field>
           <div className="sm:col-span-2">
-            <button type="submit" disabled={busy || !target.trim()} className={buttonVariants({ variant: "primary", size: "md" })}>Send request</button>
+            <button type="submit" disabled={busy || !target.trim()} className={buttonVariants({ variant: "primary", size: "md" })}>{$t("settings.backups-controls.sendRequest")}</button>
           </div>
         </form>
       ) : (
@@ -265,15 +265,15 @@ export function RequestRestore({
       )}
       {requests.length > 0 && (
         <div className="border-t border-line pt-3">
-          <p className="mb-1.5 text-sm font-medium text-fg">Earlier requests</p>
+          <p className="mb-1.5 text-sm font-medium text-fg">{$t("settings.backups-controls.earlierRequests")}</p>
           <ul className="space-y-1 text-sm text-fg-muted">
             {requests.map((r) => (
               <li key={r.id} className="flex flex-wrap gap-x-2">
                 <LocalTime iso={r.at} />
                 <span>{r.what}</span>
                 <span>{r.workspace ?? $t("settings.backups-controls.allWorkspace")}</span>
-                <span>to {r.target}</span>
-                <span className="text-fg-subtle">by {r.by}</span>
+                <span>{$t("settings.backups-controls.to", { target: r.target })}</span>
+                <span className="text-fg-subtle">{$t("settings.backups-controls.by", { by: r.by })}</span>
                 <Chip>{r.status}</Chip>
               </li>
             ))}

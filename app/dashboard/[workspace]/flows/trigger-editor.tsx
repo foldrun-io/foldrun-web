@@ -44,11 +44,11 @@ function toCron(preset: Preset, time: string, day: string, custom: string): stri
 function describe(preset: Preset, time: string, day: string, custom: string, tz: string): string {
   const zone = tz.trim() || "UTC";
   switch (preset) {
-    case "hourly": return `Runs every hour at :${timeParts(time).m.padStart(2, "0")} (${zone})`;
-    case "daily": return `Runs every day at ${time} (${zone})`;
-    case "weekly": return `Runs every ${DAY_NAMES[day]} at ${time} (${zone})`;
-    case "monthly": return `Runs on the 1st of every month at ${time} (${zone})`;
-    default: return custom.trim() ? `Runs on cron “${custom.trim()}” (${zone})` : "";
+    case "hourly": return $t("workspace.flows-trigger-editor.runsEveryHourAt", { v0: String(timeParts(time).m.padStart(2, "0")), zone: String(zone) });
+    case "daily": return $t("workspace.flows-trigger-editor.runsEveryDayAt", { time: String(time), zone: String(zone) });
+    case "weekly": return $t("workspace.flows-trigger-editor.runsEveryAt", { v0: String(DAY_NAMES[day]), time: String(time), zone: String(zone) });
+    case "monthly": return $t("workspace.flows-trigger-editor.runsOnThe1stOfEvery", { time: String(time), zone: String(zone) });
+    default: return custom.trim() ? $t("workspace.flows-trigger-editor.runsOnCron", { v0: String(custom.trim()), zone: String(zone) }) : "";
   }
 }
 
@@ -83,7 +83,7 @@ export function TriggerEditor({
   onClose?: () => void;
 }) {
   const router = useRouter();
-  const initial = fromCron(schedule ?? "0 8 * * MON");
+  const initial = fromCron(schedule ?? $t("workspace.flows-trigger-editor.08Mon"));
   const [open, setOpenState] = useState(startOpen);
   const setOpen = (v: boolean) => {
     setOpenState(v);
@@ -93,7 +93,7 @@ export function TriggerEditor({
   const [preset, setPreset] = useState<Preset>(schedule ? initial.preset : "weekly");
   const [time, setTime] = useState(initial.time);
   const [day, setDay] = useState<string>(initial.day);
-  const [custom, setCustom] = useState(schedule ?? "0 8 * * MON");
+  const [custom, setCustom] = useState(schedule ?? $t("workspace.flows-trigger-editor.08Mon"));
   // A schedule needs a real zone written into the file. Default it to the
   // person's own — that is the answer they mean nine times out of ten, and
   // leaving it blank silently meant UTC, which is nobody's working day.
@@ -127,7 +127,7 @@ export function TriggerEditor({
       setOpen(false);
       router.refresh();
     } else {
-      setError(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "could not save");
+      setError(((await res.json().catch(() => ({}))) as { error?: string }).error ?? $t("workspace.flows-trigger-editor.couldNotSave"));
     }
     setBusy(false);
   }
@@ -140,7 +140,7 @@ export function TriggerEditor({
         className={buttonVariants({ variant: "secondary" })}
       >
         <Zap aria-hidden />
-        Change trigger
+        {$t("workspace.flows-trigger-editor.changeTrigger")}
       </button>
     );
   }
@@ -151,32 +151,32 @@ export function TriggerEditor({
     <div className="w-full rounded-lg border border-line bg-sunken p-4">
       <div className="flex flex-wrap items-end gap-3">
         <label>
-          <span className={labelClass}>Starts</span>
+          <span className={labelClass}>{$t("workspace.flows-trigger-editor.starts")}</span>
           <Select value={kind} onChange={(e) => setKind(e.target.value)} >
-            <option value="manual">manually — Run button, CLI, API</option>
-            <option value="schedule">on a schedule</option>
-            <option value="webhook">when a URL is POSTed</option>
+            <option value="manual">{$t("workspace.flows-trigger-editor.manuallyRunButtonCliApi")}</option>
+            <option value="schedule">{$t("workspace.flows-trigger-editor.onASchedule")}</option>
+            <option value="webhook">{$t("workspace.flows-trigger-editor.whenAUrlIsPosted")}</option>
           </Select>
         </label>
 
         {kind === "schedule" && (
           <>
             <label>
-              <span className={labelClass}>How often</span>
+              <span className={labelClass}>{$t("workspace.flows-trigger-editor.howOften")}</span>
               <Select
                 value={preset}
                 onChange={(e) => setPreset(e.target.value as Preset)}
               >
-                <option value="hourly">Every hour</option>
-                <option value="daily">Every day</option>
-                <option value="weekly">Every week</option>
-                <option value="monthly">Every month (the 1st)</option>
-                <option value="custom">Custom (cron)</option>
+                <option value="hourly">{$t("workspace.flows-trigger-editor.everyHour")}</option>
+                <option value="daily">{$t("workspace.flows-trigger-editor.everyDay")}</option>
+                <option value="weekly">{$t("workspace.flows-trigger-editor.everyWeek")}</option>
+                <option value="monthly">{$t("workspace.flows-trigger-editor.everyMonthThe1st")}</option>
+                <option value="custom">{$t("workspace.flows-trigger-editor.customCron")}</option>
               </Select>
             </label>
             {preset === "weekly" && (
               <label>
-                <span className={labelClass}>On</span>
+                <span className={labelClass}>{$t("workspace.flows-trigger-editor.on")}</span>
                 <Select value={day} onChange={(e) => setDay(e.target.value)} >
                   {DAYS.map((d) => (
                     <option key={d} value={d}>
@@ -188,26 +188,26 @@ export function TriggerEditor({
             )}
             {preset !== "custom" && (
               <div>
-                <span className={labelClass}>{preset === "hourly" ? "At minute" : "At"}</span>
-                <TimeField label={preset === "hourly" ? "At minute" : "At"} value={time} onChange={setTime} />
+                <span className={labelClass}>{preset === "hourly" ? $t("workspace.flows-trigger-editor.atMinute") : $t("workspace.flows-trigger-editor.at")}</span>
+                <TimeField label={preset === "hourly" ? $t("workspace.flows-trigger-editor.atMinute") : $t("workspace.flows-trigger-editor.at")} value={time} onChange={setTime} />
               </div>
             )}
             {preset === "custom" && (
               <label>
-                <span className={labelClass}>Cron expression</span>
-                <Tooltip label="minute hour day-of-month month day-of-week, or @daily / @hourly / @weekly">
+                <span className={labelClass}>{$t("workspace.flows-trigger-editor.cronExpression")}</span>
+                <Tooltip label={$t("workspace.flows-trigger-editor.minuteHourDayOfMonthMonth")}>
                   <Input
                     value={custom}
                     onChange={(e) => setCustom(e.target.value)}
-                    placeholder="0 8 * * MON"
+                    placeholder={$t("workspace.flows-trigger-editor.08Mon")}
                     className="w-36 font-mono"
                   />
                 </Tooltip>
               </label>
             )}
             <label>
-              <span className={labelClass}>Timezone</span>
-              <Tooltip label="IANA timezone, e.g. Australia/Sydney">
+              <span className={labelClass}>{$t("workspace.flows-trigger-editor.timezone")}</span>
+              <Tooltip label={$t("workspace.flows-trigger-editor.ianaTimezone")}>
                 <Combobox
                   options={allZones}
                   value={tz}
@@ -224,10 +224,10 @@ export function TriggerEditor({
         )}
 
         <button onClick={save} disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })}>
-          Save
+          {$t("workspace.flows-trigger-editor.save")}
         </button>
         <button onClick={() => setOpen(false)} className={buttonVariants({ variant: "ghost", size: "md" })}>
-          Cancel
+          {$t("workspace.flows-trigger-editor.cancel")}
         </button>
       </div>
 

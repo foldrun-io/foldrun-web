@@ -4,6 +4,7 @@
 // called or erroring, an agent, a model, tokens, time — and keep a search
 // as a named view. The same filters as GET …/runs and `foldrun runs`.
 
+import { $rich, $t, $el } from "@/i18n";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { SlidersHorizontal } from "lucide-react";
@@ -25,13 +26,13 @@ export function RunQuery({ value, placeholder, className }: { value: string; pla
 }
 
 const FIELDS: { key: string; label: string; placeholder: string; width: string }[] = [
-  { key: "tool", label: "Tool", placeholder: "web, crm…", width: "sm:w-32" },
-  { key: "agent", label: "Agent", placeholder: "writer", width: "sm:w-32" },
-  { key: "model", label: "Model", placeholder: "haiku", width: "sm:w-28" },
-  { key: "min_tokens", label: "At least tokens", placeholder: "50k", width: "sm:w-28" },
-  { key: "min_secs", label: "At least seconds", placeholder: "120", width: "sm:w-28" },
-  { key: "context", label: "Conversation", placeholder: "order-42", width: "sm:w-32" },
-  { key: "customer", label: "Customer", placeholder: "c-8812", width: "sm:w-28" },
+  { key: "tool", label: $t("components.run-search.tool"), placeholder: $t("components.run-search.webCrm"), width: "sm:w-32" },
+  { key: "agent", label: $t("components.run-search.agent"), placeholder: "writer", width: "sm:w-32" },
+  { key: "model", label: $t("components.run-search.model"), placeholder: "haiku", width: "sm:w-28" },
+  { key: "min_tokens", label: $t("components.run-search.atLeastTokens"), placeholder: "50k", width: "sm:w-28" },
+  { key: "min_secs", label: $t("components.run-search.atLeastSeconds"), placeholder: "120", width: "sm:w-28" },
+  { key: "context", label: $t("components.run-search.conversation"), placeholder: "order-42", width: "sm:w-32" },
+  { key: "customer", label: $t("components.run-search.customer"), placeholder: "c-8812", width: "sm:w-28" },
 ];
 
 export function RunSearch({ tenant }: { tenant: string }) {
@@ -61,7 +62,7 @@ export function RunSearch({ tenant }: { tenant: string }) {
     go(next);
   };
   const save = async () => {
-    const v = await ask({ title: "Name this search", fields: [{ name: "name", label: "Name", required: true }], submit: "Save" });
+    const v = await ask({ title: $t("components.run-search.nameThisSearch"), fields: [{ name: "name", label: $t("components.run-search.name"), required: true }], submit: $t("components.run-search.save") });
     const name = v?.name;
     if (!name?.trim()) return;
     const query = new URLSearchParams(params.toString());
@@ -71,7 +72,7 @@ export function RunSearch({ tenant }: { tenant: string }) {
     const res = await fetch("/api/me/preferences", { method: "PATCH", headers: { "content-type": "application/json", "x-foldrun-tenant": tenant }, body: JSON.stringify({ runViews: list }) });
     const body = (await res.json().catch(() => ({}))) as { runViews?: RunView[]; error?: string };
     if (res.ok && body.runViews) setViews(body.runViews);
-    setNote(res.ok ? `saved “${name.trim()}”` : body.error ?? "could not save");
+    setNote(res.ok ? $t("components.run-search.saved", { v0: String(name.trim()) }) : body.error ?? $t("components.run-search.couldNotSave"));
   };
   const open = (v: RunView) => {
     const next = new URLSearchParams(v.query);
@@ -88,12 +89,12 @@ export function RunSearch({ tenant }: { tenant: string }) {
       {promptDialog}
       <Button size="md" variant="secondary" aria-expanded={panel} onClick={() => setPanel((v) => !v)} className={cn("h-10", active && "border-line-strong")}>
         <SlidersHorizontal aria-hidden />
-        Inside runs
+        {$t("components.run-search.insideRuns")}
         {activeCount > 0 && <Count tone="strong">{activeCount}</Count>}
       </Button>
       {panel && (
         <div className="basis-full rounded-lg border border-line bg-surface p-4">
-          <p className="mb-3 text-[13px] text-fg-muted">Find runs by what happened inside them — a tool called or erroring, an agent, a model, tokens, time — or the conversation or customer they belong to.</p>
+          <p className="mb-3 text-[13px] text-fg-muted">{$t("components.run-search.findRunsByWhatHappenedInside")}</p>
           <div className="flex flex-wrap items-end gap-3">
             {FIELDS.map((f) => (
               <label key={f.key} className={cn("flex w-full flex-col gap-1 text-[13px] text-fg-muted", f.width)}>
@@ -107,16 +108,16 @@ export function RunSearch({ tenant }: { tenant: string }) {
               </label>
             ))}
             <label className="flex h-9 items-center gap-2 text-[13px] text-fg-secondary">
-              <Checkbox checked={errors} onCheckedChange={(checked: boolean) => setErrors(checked)} /> A tool errored
+              {$rich("components.run-search.aToolErrored", { checkbox: $el(<Checkbox checked={errors} onCheckedChange={(checked: boolean) => setErrors(checked)} />) })}
             </label>
             <span className="flex items-center gap-2 sm:ml-auto">
               {active && (
                 <Button size="md" variant="secondary" onClick={() => void save()}>
-                  Save view
+                  {$t("components.run-search.saveView")}
                 </Button>
               )}
               <Button size="md" variant="primary" onClick={apply}>
-                Search
+                {$t("components.run-search.search")}
               </Button>
             </span>
           </div>
@@ -125,7 +126,7 @@ export function RunSearch({ tenant }: { tenant: string }) {
       )}
       {views.length > 0 && (
         <div className="flex basis-full flex-wrap items-center gap-1.5 text-[13px]">
-          <span className="text-fg-muted">Saved views</span>
+          <span className="text-fg-muted">{$t("components.run-search.savedViews")}</span>
           {views.map((v) => (
             <Tooltip key={v.name} label={v.query}>
               <button

@@ -6,7 +6,7 @@
 // is only findable by knowing the `adhoc:` prefix. This is the other axis:
 // what it is allowed to do at the top, what it has produced underneath.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
 import { Pager } from "@foldrun/ui/react/pager";
@@ -119,7 +119,7 @@ export default async function AgentPage({
   return (
     <Page>
       <PageHeader
-        back={{ href: `/dashboard/${workspace}/agents${qs}`, label: "Agents" }}
+        back={{ href: `/dashboard/${workspace}/agents${qs}`, label: $t("workspace.agents-agent-page.agents") }}
         icon={
           <IconBox className="size-10">
             <Bot />
@@ -129,25 +129,25 @@ export default async function AgentPage({
         badge={
           <>
             <Tag mono>{info.model}</Tag>
-            {lastStep ? <Status outcome={STEP_OUTCOME[lastStep.stepStatus] ?? "quiet"} label={lastStep.stepStatus} /> : <span className="text-sm text-fg-muted">never ran</span>}
+            {lastStep ? <Status outcome={STEP_OUTCOME[lastStep.stepStatus] ?? "quiet"} label={lastStep.stepStatus} /> : <span className="text-sm text-fg-muted">{$t("workspace.agents-agent-page.neverRan")}</span>}
           </>
         }
-        description={info.description || "No description"}
+        description={info.description || $t("workspace.agents-agent-page.noDescription")}
         actions={
           <>
             <Link href={editHref} className={buttonVariants({ variant: "secondary" })}>
               <FilePen aria-hidden />
-              Edit agent.md
+              {$t("workspace.agents-agent-page.editAgentMd")}
             </Link>
-            <RunButton endpoint={`/api/workspaces/${workspace}/agents/${agent}/run`} tenant={tenant} label="Run" withTask={false} />
+            <RunButton endpoint={`/api/workspaces/${workspace}/agents/${agent}/run`} tenant={tenant} label={$t("workspace.agents-agent-page.run")} withTask={false} />
           </>
         }
       />
       <PageTabs
         tabs={[
-          { label: "Overview", href: `${base}${qs}`, active: tab === "overview" },
-          { label: "Activity", href: `${base}?tab=activity${amp}`, active: tab === "activity", badge: steps.length || undefined },
-          { label: "Settings", href: `${base}?tab=settings${amp}`, active: tab === "settings" },
+          { label: $t("workspace.agents-agent-page.overview"), href: `${base}${qs}`, active: tab === "overview" },
+          { label: $t("workspace.agents-agent-page.activity"), href: `${base}?tab=activity${amp}`, active: tab === "activity", badge: steps.length || undefined },
+          { label: $t("workspace.agents-agent-page.settings"), href: `${base}?tab=settings${amp}`, active: tab === "settings" },
         ]}
       />
 
@@ -155,30 +155,30 @@ export default async function AgentPage({
         <div className="space-y-8">
           <SummaryCard
             items={[
-              { label: "Model", value: <span className="font-mono">{info.model}</span> },
-              { label: "Owner", value: info.owner ? <><Email value={info.owner} />{info.ownerFrom !== "agent" && <span className="text-fg-muted"> · from the {info.ownerFrom}</span>}</> : "none" },
-              { label: "Called by", value: callers.length ? callers.join(", ") : "no flow" },
-              { label: "Steps on record", value: steps.length },
-              { label: "Failed", value: failed },
-              { label: "Spend", value: money(spend) },
+              { label: $t("workspace.agents-agent-page.model"), value: <span className="font-mono">{info.model}</span> },
+              { label: $t("workspace.agents-agent-page.owner"), value: info.owner ? <><Email value={info.owner} />{info.ownerFrom !== "agent" && <span className="text-fg-muted">{" "}{$t("workspace.agents-agent-page.fromThe", { ownerFrom: info.ownerFrom ?? "" })}</span>}</> : "none" },
+              { label: $t("workspace.agents-agent-page.calledBy"), value: callers.length ? callers.join(", ") : $t("workspace.agents-agent-page.noFlow") },
+              { label: $t("workspace.agents-agent-page.stepsOnRecord"), value: steps.length },
+              { label: $t("workspace.agents-agent-page.failed"), value: failed },
+              { label: $t("workspace.agents-agent-page.spend"), value: money(spend) },
             ]}
           />
-          <Panel title="What it may do" description="Its frontmatter is the whole contract: the model, the tools and APIs it holds, who it may consult, the secrets it reads.">
+          <Panel title={$t("workspace.agents-agent-page.whatItMayDo")} description={$t("workspace.agents-agent-page.itsFrontmatterIsTheWholeContract")}>
             <div className="flex flex-wrap gap-1.5">
-              {info.effort ? <Chip>effort {info.effort}</Chip> : null}
-              {info.maxOutputTokens ? <Chip>longest reply {info.maxOutputTokens} tokens</Chip> : null}
-              {info.tools.length ? info.tools.map((t) => <Chip key={t}>{t}</Chip>) : <Chip>no tools</Chip>}
+              {info.effort ? <Chip>{$t("workspace.agents-agent-page.effort", { effort: info.effort })}</Chip> : null}
+              {info.maxOutputTokens ? <Chip>{$t("workspace.agents-agent-page.longestReplyTokens", { maxOutputTokens: String(info.maxOutputTokens) })}</Chip> : null}
+              {info.tools.length ? info.tools.map((t) => <Chip key={t}>{t}</Chip>) : <Chip>{$t("workspace.agents-agent-page.noTools")}</Chip>}
               {info.apis.map((a) => <Chip key={a.name} tone="info">{a.name}</Chip>)}
-              {info.consults.map((c) => <Chip key={c} tone="info">consults {c}</Chip>)}
-              {(info.subagents ?? []).map((c) => <Chip key={`sub-${c}`} tone="info">delegates to {c}</Chip>)}
+              {info.consults.map((c) => <Chip key={c} tone="info">{$t("workspace.agents-agent-page.consults", { c: c })}</Chip>)}
+              {(info.subagents ?? []).map((c) => <Chip key={`sub-${c}`} tone="info">{$t("workspace.agents-agent-page.delegatesTo", { c: c })}</Chip>)}
               {info.secrets.map((s) => <Chip key={s} tone="warn">{s}</Chip>)}
             </div>
             <FactRow
               className="mt-5 border-t border-line pt-4"
               items={[
-                { label: "Own skills", value: assets.skills.length },
-                { label: "Own memory", value: assets.memory.length },
-                { label: "Skills", value: info.skills === null ? "every skill in scope" : info.skills.join(", ") || "none" },
+                { label: $t("workspace.agents-agent-page.ownSkills"), value: assets.skills.length },
+                { label: $t("workspace.agents-agent-page.ownMemory"), value: assets.memory.length },
+                { label: $t("workspace.agents-agent-page.skills"), value: info.skills === null ? $t("workspace.agents-agent-page.everySkillInScope") : info.skills.join(", ") || "none" },
               ]}
             />
           </Panel>
@@ -202,8 +202,8 @@ export default async function AgentPage({
         (steps.length === 0 ? (
           <EmptyState
             icon={<Bot />}
-            title="This agent has not run yet"
-            description="Run it here, or from a flow that steps through it. Every step it runs appears here with the line it opened its reply with."
+            title={$t("workspace.agents-agent-page.thisAgentHasNotRunYet")}
+            description={$t("workspace.agents-agent-page.runItHereOrFromA")}
           />
         ) : (
           <>
@@ -215,12 +215,12 @@ export default async function AgentPage({
                     <div className="min-w-0 flex-1">
                       <Link href={`/dashboard/${workspace}/runs/${s.runId}${qs}`} className="block truncate text-sm font-medium text-fg after:absolute after:inset-0">
                         {/* The step's OWN first line, not the run's summary. */}
-                        {s.headline ?? <span className="text-fg-subtle">no reply recorded</span>}
+                        {s.headline ?? <span className="text-fg-subtle">{$t("workspace.agents-agent-page.noReplyRecorded")}</span>}
                       </Link>
                       <p className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-fg-muted">
-                        <span>{s.flow.startsWith("adhoc:") ? "run directly" : s.flow}</span>
-                        {s.item ? <span className="truncate">on {s.item}</span> : null}
-                        {s.denied ? <span className="text-warning">{s.denied} path{s.denied === 1 ? "" : "s"} refused</span> : null}
+                        <span>{s.flow.startsWith("adhoc:") ? $t("workspace.agents-agent-page.runDirectly") : s.flow}</span>
+                        {s.item ? <span className="truncate">{$t("workspace.agents-agent-page.on", { item: s.item })}</span> : null}
+                        {s.denied ? <span className="text-warning">{$t("workspace.agents-agent-page.pathRefused", { denied: s.denied })}</span> : null}
                       </p>
                     </div>
                     <span className="hidden shrink-0 text-sm tabular-nums text-fg-muted sm:block">{s.costUsd ? money(s.costUsd) : "—"}</span>
@@ -236,31 +236,31 @@ export default async function AgentPage({
       {tab === "settings" && (
         <div className="max-w-3xl">
           <SettingsCard
-            title="Definition"
-            description={<>The agent is <span className="font-mono">agents/{agent}/agent.md</span>: frontmatter, then the prose that is its system prompt.</>}
-            hint="Changes take effect on the next step that runs it."
+            title={$t("workspace.agents-agent-page.definition")}
+            description={<>{$rich("workspace.agents-agent-page.theAgentIsAgentsAgentMd", { agent: agent, span: (chunks) => <span className="font-mono">{chunks}</span> })}</>}
+            hint={$t("workspace.agents-agent-page.changesTakeEffectOnTheNext")}
             footer={
               <Link href={editHref} className={buttonVariants({ variant: "primary" })}>
-                Edit agent.md
+                {$t("workspace.agents-agent-page.editAgentMd")}
               </Link>
             }
           />
           <SettingsCard
-            title="Export"
+            title={$t("workspace.agents-agent-page.export")}
             description={$t("workspace.agents-agent-page.theAgentSFolderAsA")}
             footer={<ExportLink workspace={workspace} kind="agent" name={agent} className={buttonVariants({ variant: "secondary" })} />}
           />
           <SettingsCard
             danger
-            title="Delete agent"
-            description={callers.length ? `Deleting it breaks ${callers.length === 1 ? "the flow" : "the flows"} that step through it: ${callers.join(", ")}.` : $t("workspace.agents-agent-page.itsFolderIsRemovedFromThe")}
+            title={$t("workspace.agents-agent-page.deleteAgent")}
+            description={callers.length ? $t("workspace.agents-agent-page.deletingItBreaksThatStepThrough", { v0: String(callers.length === 1 ? $t("workspace.agents-agent-page.theFlow") : $t("workspace.agents-agent-page.theFlows")), v1: String(callers.join(", ")) }) : $t("workspace.agents-agent-page.itsFolderIsRemovedFromThe")}
             footer={
               <DeleteButton
                 variant="button"
                 endpoint={`/api/workspaces/${workspace}/source`}
                 tenant={tenant}
                 body={{ path: `agents/${agent}` }}
-                confirmText={`Delete agent ${agent}?${callers.length ? ` ${callers.join(", ")} will stop working.` : ""}`}
+                confirmText={$t("workspace.agents-agent-page.deleteAgent2", { agent: String(agent), v1: String(callers.length ? $t("workspace.agents-agent-page.willStopWorking", { v0: String(callers.join(", ")) }) : "") })}
                 redirectTo={`/dashboard/${workspace}/agents${qs}`}
               />
             }

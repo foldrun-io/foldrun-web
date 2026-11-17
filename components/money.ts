@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 // Dollars, formatted one way everywhere.
 //
 // Not toLocaleString: that reads the BOX's locale on the server, and the
@@ -55,7 +56,7 @@ export function creditsShort(usd: number): string {
   const n = Math.round(usd / 0.01);
   const sign = n < 0 ? "−" : "";
   const a = Math.abs(n);
-  if (a >= 10_000) return `${sign}${(a / 1000).toFixed(1)}k credits`;
+  if (a >= 10_000) return $t("components.money.kCredits", { sign: String(sign), v1: String((a / 1000).toFixed(1)) });
   return `${sign}${String(a).replace(/\B(?=(\d{3})+(?!\d))/g, ",")} credits`;
 }
 

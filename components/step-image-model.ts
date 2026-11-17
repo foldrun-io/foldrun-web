@@ -28,12 +28,12 @@ export interface BrowserPodView {
 export function stepImage(step: Pick<StepRecord, "image">): StepImageView | null {
   const im = step.image;
   if (!im?.variant) return null;
-  const label = im.variant === "slim" && im.pod ? "slim · browser pod" : im.variant;
+  const label = im.variant === "slim" && im.pod ? $t("components.step-image-model.slimBrowserPod") : im.variant;
   const title = im.why
-    ? `runner image: ${im.variant} — ${im.why}`
+    ? $t("components.step-image-model.runnerImage", { variant: String(im.variant), why: String(im.why) })
     : im.variant === "slim"
-      ? "runner image: slim — no browser in the step"
-      : "runner image: full — browsers in the step";
+      ? $t("components.step-image-model.runnerImageSlimNoBrowserIn")
+      : $t("components.step-image-model.runnerImageFullBrowsersInThe");
   return { label, title };
 }
 
@@ -45,7 +45,7 @@ export function stepHeld(step: Pick<StepRecord, "reserved" | "size" | "resources
   const r = step.reserved;
   if (!r) return null;
   const n = (x: number) => (Number.isInteger(x) ? String(x) : x.toFixed(1));
-  const label = `${n(r.cpus)} vCPU · ${n(r.memGiB)} GiB`;
+  const label = $t("components.step-image-model.vcpuGib", { v0: String(n(r.cpus)), v1: String(n(r.memGiB)) });
   const asked = step.resources
     ? Object.entries(step.resources).map(([k, v]) => `${k}: ${v}`).join(", ")
     : null;
@@ -53,7 +53,7 @@ export function stepHeld(step: Pick<StepRecord, "reserved" | "size" | "resources
   const title = [
     `held ${label}${step.size ? ` — size: ${step.size}` : ""}`,
     asked ? `resources: ${asked}` : null,
-    typeof throttled === "number" && throttled > 0 ? `the CPU cap held it back ${throttled.toFixed(1)}s` : null,
+    typeof throttled === "number" && throttled > 0 ? $t("components.step-image-model.theCpuCapHeldItBack", { v0: String(throttled.toFixed(1)) }) : null,
   ].filter(Boolean).join("\n");
   return { label, title };
 }
@@ -76,12 +76,12 @@ export function stepStartup(step: Pick<StepRecord, "startup">): StepImageView | 
   const end = ph.model ?? Math.max(...spans.map((x) => x.at));
   const parts = spans.map((x) =>
     x.parallel
-      ? `${x.phase} ${x.took.toFixed(2)}s alongside the pod`
-      : `${x.phase} +${x.took.toFixed(2)}s${x.waited > 0 ? ` (held ${x.waited.toFixed(2)}s for services)` : ""}`,
+      ? $t("components.step-image-model.sAlongsideThePod", { phase: String(x.phase), v1: String(x.took.toFixed(2)) })
+      : `${x.phase} +${x.took.toFixed(2)}s${x.waited > 0 ? $t("components.step-image-model.heldSForServices", { v0: String(x.waited.toFixed(2)) }) : ""}`,
   );
   return {
-    label: `start-up ${end.toFixed(1)}s`,
-    title: `${ph.model != null ? "until the model's first word" : "start-up so far"}: ${parts.join(" · ")}`,
+    label: $t("components.step-image-model.startUpS", { v0: String(end.toFixed(1)) }),
+    title: `${ph.model != null ? $t("components.step-image-model.untilTheModelSFirstWord") : $t("components.step-image-model.startUpSoFar")}: ${parts.join(" · ")}`,
   };
 }
 
@@ -131,16 +131,16 @@ export function browserPodPanel(step: Pick<StepRecord, "browserPod" | "tries">):
 export function stepCredential(step: Pick<StepRecord, "credential">): StepImageView | null {
   const c = step.credential;
   if (!c) return null;
-  const label = c.startsWith("API key")
-    ? "API key"
-    : c.startsWith("Claude login token")
-      ? "Claude login"
-      : c.startsWith("bearer token")
-        ? "gateway token"
+  const label = c.startsWith($t("components.step-image-model.apiKey"))
+    ? $t("components.step-image-model.apiKey")
+    : c.startsWith($t("components.step-image-model.claudeLoginToken"))
+      ? $t("components.step-image-model.claudeLogin")
+      : c.startsWith($t("components.step-image-model.bearerToken"))
+        ? $t("components.step-image-model.gatewayToken")
         : c.startsWith("provider:")
-          ? "own provider"
-          : "no credential";
-  return { label, title: `model credential: ${c}` };
+          ? $t("components.step-image-model.ownProvider")
+          : $t("components.step-image-model.noCredential");
+  return { label, title: $t("components.step-image-model.modelCredential", { c: String(c) }) };
 }
 
 /** What a step changed that was not taken back to the workspace —
@@ -159,8 +159,8 @@ export function stepRefused(step: Pick<StepRecord, "refused">): RefusedView | nu
   const what = [config ? "configuration" : null, code ? "code" : null].filter(Boolean).join(" and ");
   return {
     line:
-      $t("components.step-image-model.thisStepChangedTheWorkspaceS", { what: String(what), changes: String(r.length === 1 ? "that change was" : "those changes were") }) +
-      `A run doesn't change its own setup — propose it as a fix, and a person applies it.`,
+      $t("components.step-image-model.thisStepChangedTheWorkspaceS", { what: String(what), changes: String(r.length === 1 ? $t("components.step-image-model.thatChangeWas") : $t("components.step-image-model.thoseChangesWere")) }) +
+      $t("components.step-image-model.aRunDoesnTChangeIts"),
     paths: r.map((x) => x.path),
   };
 }

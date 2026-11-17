@@ -7,7 +7,7 @@
 // listed with content because a workspace's history is every save ever made
 // and the page should open in the time it takes to read one line per row.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import { useState } from "react";
 import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
@@ -46,9 +46,9 @@ const shortId = (r: Summary) => (r.commit ? r.commit.slice(0, 7) : r.id.slice(0,
 
 /** Why a deploy did not happen, in the words the platform has for it. */
 function refusal(d: { issues?: { where?: string; message: string }[]; blockedBy?: string[] }): string {
-  if (d.blockedBy?.length) return `not deployed — ${d.blockedBy.length} run${d.blockedBy.length === 1 ? "" : "s"} still in flight (${d.blockedBy.join(", ")}); try again when they finish`;
-  if (d.issues?.length) return `not deployed — ${d.issues.map((i) => (i.where ? `${i.where}: ` : "") + i.message).join("; ")}`;
-  return "not deployed";
+  if (d.blockedBy?.length) return $t("workspace.history-history-list.notDeployedRunStillInFlight", { length: String(d.blockedBy.length), v1: String(d.blockedBy.length === 1 ? "" : "s"), v2: String(d.blockedBy.join(", ")) });
+  if (d.issues?.length) return $t("workspace.history-history-list.notDeployed", { v0: String(d.issues.map((i) => (i.where ? `${i.where}: ` : "") + i.message).join("; ")) });
+  return $t("workspace.history-history-list.notDeployed2");
 }
 
 export function HistoryList({
@@ -75,7 +75,7 @@ export function HistoryList({
   // new revision — so the rollback is in the log, attributed, and itself
   // undoable. The same POST /restore the Backups page and the CLI use.
   const rollback = async (r: Summary) => {
-    if (!(await confirm({ title: `Roll back to ${shortId(r)}?`, body: $t("workspace.history-history-list.theWorkspaceBecomesWhatItWas", { message: String(r.message) }), confirmLabel: "Roll back", destructive: false }))) return;
+    if (!(await confirm({ title: $t("workspace.history-history-list.rollBackTo", { v0: String(shortId(r)) }), body: $t("workspace.history-history-list.theWorkspaceBecomesWhatItWas", { message: String(r.message) }), confirmLabel: $t("workspace.history-history-list.rollBack"), destructive: false }))) return;
     setRolling(r.id);
     setNote(null);
     try {
@@ -135,7 +135,7 @@ export function HistoryList({
                 >
                   <span className="flex min-w-0 items-center gap-2">
                     <span className="truncate text-sm font-medium text-fg">{r.message}</span>
-                    {page === 1 && index === 0 && <Chip tone="good" dot>Live</Chip>}
+                    {page === 1 && index === 0 && <Chip tone="good" dot>{$t("workspace.history-history-list.live")}</Chip>}
                   </span>
                   <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs text-fg-muted">
                     <Tooltip label={r.id}>
@@ -151,8 +151,7 @@ export function HistoryList({
                     <LocalTime iso={r.at} options={{ dateStyle: "medium", timeStyle: "short" }} />
                     {r.paths.length > 1 && (
                       <>
-                        <span aria-hidden>·</span>
-                        {r.paths.length} files
+                        {$rich("workspace.history-history-list.files", { span: (chunks) => <span aria-hidden>{chunks}</span>, length: String(r.paths.length) })}
                       </>
                     )}
                   </span>
@@ -160,7 +159,7 @@ export function HistoryList({
                 {canRoll && (
                   <Button size="sm" className="relative z-10 max-sm:hidden" disabled={rolling !== null} onClick={() => void rollback(r)}>
                     <RotateCcw aria-hidden />
-                    {rolling === r.id ? "Rolling back…" : "Roll back"}
+                    {rolling === r.id ? $t("workspace.history-history-list.rollingBack") : $t("workspace.history-history-list.rollBack")}
                   </Button>
                 )}
                 <ChevronRight aria-hidden className={cn("size-4 shrink-0 text-fg-subtle transition-transform", on && "rotate-90")} />
@@ -170,13 +169,13 @@ export function HistoryList({
                 <div className="flex flex-wrap items-center gap-2 border-t border-line-faint bg-sunken px-3 py-2.5 sm:px-4">
                   <Button size="sm" onClick={() => setPreviewing(previewing === r.id ? null : r.id)}>
                     {previewing === r.id ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
-                    {previewing === r.id ? "Hide preview" : "Preview"}
+                    {previewing === r.id ? $t("workspace.history-history-list.hidePreview") : $t("workspace.history-history-list.preview")}
                   </Button>
                   <Button size="sm" className="sm:hidden" disabled={rolling !== null} onClick={() => void rollback(r)}>
                     <RotateCcw aria-hidden />
-                    {rolling === r.id ? "Rolling back…" : "Roll back to this"}
+                    {rolling === r.id ? $t("workspace.history-history-list.rollingBack") : $t("workspace.history-history-list.rollBackToThis")}
                   </Button>
-                  <span className="text-[13px] text-fg-muted">Makes main what it was here. Later changes stay in history.</span>
+                  <span className="text-[13px] text-fg-muted">{$t("workspace.history-history-list.makesMainWhatItWasHere")}</span>
                 </div>
               )}
               {on && canRoll && previewing === r.id && (
@@ -188,9 +187,9 @@ export function HistoryList({
               {on && (
                 <div className="border-t border-line-faint bg-surface px-3 py-3 sm:px-4">
                   {detail === "loading" || !detail ? (
-                    <p className="text-[13px] text-fg-muted">Loading…</p>
+                    <p className="text-[13px] text-fg-muted">{$t("workspace.history-history-list.loading")}</p>
                   ) : detail === "error" ? (
-                    <p className="text-[13px] text-danger">Could not load this revision.</p>
+                    <p className="text-[13px] text-danger">{$t("workspace.history-history-list.couldNotLoadThisRevision")}</p>
                   ) : (
                     <div className="space-y-4">
                       {detail.files.map((f) => (

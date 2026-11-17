@@ -11,6 +11,7 @@
 //   StatusFooter a quiet line under every page: the platform's status and
 //                the version.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useState, type ReactNode } from "react";
 import { Menu as MenuIcon, PanelLeft, Search, Sparkles } from "lucide-react";
@@ -32,11 +33,11 @@ export function ShellBar({ actions }: { actions?: ReactNode }) {
   return (
     <div className="sticky top-0 z-30 hidden h-14 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-line bg-paper/90 px-4 backdrop-blur md:grid">
       <div className="flex min-w-0 items-center gap-1">
-        <Tooltip label={`${hidden ? "Show" : "Hide"} sidebar (Ctrl B)`} side="bottom">
+        <Tooltip label={$t("components.mobile-nav.sidebarCtrlB", { v0: String(hidden ? $t("components.mobile-nav.show") : $t("components.mobile-nav.hide")) })} side="bottom">
           <button
             type="button"
             onClick={() => setSidebarHidden(!hidden)}
-            aria-label={hidden ? "Show sidebar" : "Hide sidebar"}
+            aria-label={hidden ? $t("components.mobile-nav.showSidebar") : $t("components.mobile-nav.hideSidebar")}
             className="flex size-8 shrink-0 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-muted hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             <PanelLeft className="size-4" />
@@ -78,19 +79,19 @@ export function PhoneBar({ actions }: { actions?: ReactNode }) {
         <div className="flex h-12 items-center rounded-2xl border border-line bg-surface/95 shadow-overlay backdrop-blur">
           <button type="button" onClick={() => openFind()} className="flex h-full items-center gap-2 pl-4 pr-5 text-sm text-fg-muted">
             <Search className="size-4" />
-            Find
+            {$t("components.mobile-nav.find")}
           </button>
           <span className="h-6 w-px bg-line" aria-hidden />
           {mayAsk && (
             <>
               <button type="button" onClick={() => openAssistant()} className="flex h-full items-center gap-1.5 px-4 text-sm text-fg">
                 <Sparkles className="size-4" aria-hidden />
-                Ask AI
+                {$t("components.mobile-nav.askAi")}
               </button>
               <span className="h-6 w-px bg-line" aria-hidden />
             </>
           )}
-          <button type="button" onClick={() => setMore(true)} aria-haspopup="dialog" aria-expanded={more} aria-label="Menu" className="flex h-full items-center px-4 text-fg">
+          <button type="button" onClick={() => setMore(true)} aria-haspopup="dialog" aria-expanded={more} aria-label={$t("components.mobile-nav.menu")} className="flex h-full items-center px-4 text-fg">
             <MenuIcon className="size-5" />
           </button>
         </div>
@@ -98,7 +99,7 @@ export function PhoneBar({ actions }: { actions?: ReactNode }) {
       <Sheet open={more} onOpenChange={setMore}>
         <SheetContent side="bottom" className="max-h-[88svh] gap-0 p-0" aria-describedby={undefined}>
           <div className="border-b border-line px-4 py-3">
-            <SheetTitle className="text-sm">{nav.title ?? "Menu"}</SheetTitle>
+            <SheetTitle className="text-sm">{nav.title ?? $t("components.mobile-nav.menu")}</SheetTitle>
           </div>
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -123,16 +124,16 @@ export function StatusFooter({ statusPage }: { statusPage?: string | null }) {
       {statusPage ? (
         <a href={statusPage} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:text-fg">
           <span className="size-2 rounded-full bg-emerald-500" aria-hidden />
-          System status
+          {$t("components.mobile-nav.systemStatus")}
         </a>
       ) : (
         <span className="inline-flex items-center gap-1.5">
           <span className="size-2 rounded-full bg-gray-300" aria-hidden />
-          System status
+          {$t("components.mobile-nav.systemStatus")}
         </span>
       )}
       <Link href="/dashboard/whats-new" className={cn("ml-auto font-mono hover:text-fg")}>
-        foldrun {version}
+        {$t("components.mobile-nav.foldrun", { version: version })}
       </Link>
     </footer>
   );

@@ -53,28 +53,28 @@ export function IssueActions({ id, status, tenant, platform = false, accountWide
   return (
     <span className="flex shrink-0 items-center gap-1.5">
       {compact ? null : showDoctor ? (
-        <Tooltip label={mayWrite ? "The assistant reads the latest run, says why and proposes the fix — nothing changes until you save it" : needs("workspace:write")}>
+        <Tooltip label={mayWrite ? $t("components.issue-actions.theAssistantReadsTheLatestRun") : needs("workspace:write")}>
           <Button size="xs" disabled={!mayWrite} onClick={() => openAssistant(doctor!.prompt, doctor!.workspace)}>
             <Stethoscope />
-            Doctor
+            {$t("components.issue-actions.doctor")}
           </Button>
         </Tooltip>
       ) : status !== "resolved" ? (
-        <Tooltip label={title ?? "Close it; it opens again if it happens again"}>
+        <Tooltip label={title ?? $t("components.issue-actions.closeItItOpensAgainIf")}>
           <span className="inline-flex">
-            <Button size="xs" disabled={off} onClick={() => act("resolve")}>Resolve</Button>
+            <Button size="xs" disabled={off} onClick={() => act("resolve")}>{$t("components.issue-actions.resolve")}</Button>
           </span>
         </Tooltip>
       ) : (
         <Tooltip label={title}>
           <span className="inline-flex">
-            <Button size="xs" disabled={off} onClick={() => act("reopen")}>Reopen</Button>
+            <Button size="xs" disabled={off} onClick={() => act("reopen")}>{$t("components.issue-actions.reopen")}</Button>
           </span>
         </Tooltip>
       )}
       <Menu>
         <MenuTrigger asChild>
-          <Button size="icon-xs" variant="ghost" aria-label="More actions" disabled={busy}>
+          <Button size="icon-xs" variant="ghost" aria-label={$t("components.issue-actions.moreActions")} disabled={busy}>
             <MoreHorizontal />
           </Button>
         </MenuTrigger>
@@ -82,37 +82,37 @@ export function IssueActions({ id, status, tenant, platform = false, accountWide
           {compact && showDoctor && (
             <MenuItem disabled={!mayWrite} onSelect={() => openAssistant(doctor!.prompt, doctor!.workspace)}>
               <Stethoscope />
-              <span className="flex flex-col"><span>Ask the doctor</span><span className="text-xs text-fg-muted">Reads the run, proposes the fix</span></span>
+              <span className="flex flex-col"><span>{$t("components.issue-actions.askTheDoctor")}</span><span className="text-xs text-fg-muted">{$t("components.issue-actions.readsTheRunProposesTheFix")}</span></span>
             </MenuItem>
           )}
           {status === "open" && (
             <MenuItem disabled={off} onSelect={() => act("acknowledge")}>
               <Eye />
-              <span className="flex flex-col"><span>Acknowledge</span><span className="text-xs text-fg-muted">Seen; it stays open</span></span>
+              <span className="flex flex-col"><span>{$t("components.issue-actions.acknowledge")}</span><span className="text-xs text-fg-muted">{$t("components.issue-actions.seenItStaysOpen")}</span></span>
             </MenuItem>
           )}
           {open && (
             <MenuItem disabled={off} onSelect={() => act("snooze", { for: "1d" })}>
               <AlarmClock />
-              <span className="flex flex-col"><span>Snooze for a day</span><span className="text-xs text-fg-muted">It comes back on its own</span></span>
+              <span className="flex flex-col"><span>{$t("components.issue-actions.snoozeForADay")}</span><span className="text-xs text-fg-muted">{$t("components.issue-actions.itComesBackOnItsOwn")}</span></span>
             </MenuItem>
           )}
           {open && (
             <MenuItem disabled={off} onSelect={() => act("snooze", { times: 5 })}>
               <BellOff />
-              <span className="flex flex-col"><span>Ignore the next 5</span><span className="text-xs text-fg-muted">For a known flake</span></span>
+              <span className="flex flex-col"><span>{$t("components.issue-actions.ignoreTheNext5")}</span><span className="text-xs text-fg-muted">{$t("components.issue-actions.forAKnownFlake")}</span></span>
             </MenuItem>
           )}
           {(showDoctor || compact) && status !== "resolved" && (
             <MenuItem disabled={off} onSelect={() => act("resolve")}>
               <CheckCircle2 />
-              <span className="flex flex-col"><span>Resolve</span><span className="text-xs text-fg-muted">It opens again if it happens again</span></span>
+              <span className="flex flex-col"><span>{$t("components.issue-actions.resolve")}</span><span className="text-xs text-fg-muted">{$t("components.issue-actions.itOpensAgainIfItHappens")}</span></span>
             </MenuItem>
           )}
           {status === "resolved" && compact && (
             <MenuItem disabled={off} onSelect={() => act("reopen")}>
               <RotateCcw />
-              Reopen
+              {$t("components.issue-actions.reopen")}
             </MenuItem>
           )}
           {!allowed && <p className="px-2 py-1.5 text-xs text-fg-muted">{title}</p>}

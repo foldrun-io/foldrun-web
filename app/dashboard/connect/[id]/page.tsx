@@ -21,21 +21,21 @@ export default async function ConnectHandoffPage({ params }: { params: Promise<{
   const usable = h && tenant && h.tenant === tenant;
   return (
     <Page width="narrow" className="pb-16">
-      <PageHeader title="Connect an account" description={usable ? "A connection was started from a terminal. Check it is yours before you go on." : undefined} />
+      <PageHeader title={$t("connect.id-page.connectAnAccount")} description={usable ? $t("connect.id-page.aConnectionWasStartedFromA") : undefined} />
       {!usable ? (
-        <EmptyState icon={<Link2Off />} title="This link no longer works" description="It expired, was already used, or belongs to another account. Start it again from where you began." />
+        <EmptyState icon={<Link2Off />} title={$t("connect.id-page.thisLinkNoLongerWorks")} description={$t("connect.id-page.itExpiredWasAlreadyUsedOr")} />
       ) : (
-        <SettingsCard title="The connection" description="Accepting sends you to the provider to approve it; the grant lands in this secret." footer={<HandoffAccept id={id} tenant={tenant!} />}>
+        <SettingsCard title={$t("connect.id-page.theConnection")} description={$t("connect.id-page.acceptingSendsYouToTheProvider")} footer={<HandoffAccept id={id} tenant={tenant!} />}>
           <dl className="grid grid-cols-[7rem_1fr] gap-y-2.5 text-sm">
-            <dt className="text-fg-muted">Secret</dt>
+            <dt className="text-fg-muted">{$t("connect.id-page.secret")}</dt>
             <dd className="break-all font-mono text-fg">{h.name}</dd>
-            <dt className="text-fg-muted">Stored in</dt>
-            <dd className="text-fg">{h.workspace ? $t("connect.id-page.workspaceNamed", { name: String(h.workspace) }) : "the account"}</dd>
-            <dt className="text-fg-muted">App</dt>
+            <dt className="text-fg-muted">{$t("connect.id-page.storedIn")}</dt>
+            <dd className="text-fg">{h.workspace ? $t("connect.id-page.workspaceNamed", { name: String(h.workspace) }) : $t("connect.id-page.theAccount")}</dd>
+            <dt className="text-fg-muted">{$t("connect.id-page.app")}</dt>
             <dd className="break-all font-mono text-fg">{h.client}</dd>
-            <dt className="text-fg-muted">Scopes</dt>
-            <dd className="break-all font-mono text-xs text-fg">{h.scopes === undefined ? "the app's default" : h.scopes || "none"}</dd>
-            <dt className="text-fg-muted">Started by</dt>
+            <dt className="text-fg-muted">{$t("connect.id-page.scopes")}</dt>
+            <dd className="break-all font-mono text-xs text-fg">{h.scopes === undefined ? $t("connect.id-page.theAppSDefault") : h.scopes || "none"}</dd>
+            <dt className="text-fg-muted">{$t("connect.id-page.startedBy")}</dt>
             <dd className="text-fg">
               <WithEmails text={h.by} />
             </dd>

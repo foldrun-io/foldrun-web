@@ -48,16 +48,16 @@ export function RunStats({ runs, chargedUsd }: { runs: RunRow[]; chargedUsd?: nu
   const typical = durations.length ? durations[Math.floor(durations.length / 2)] : null;
   const bad = (n: number) => <span className={n > 0 ? "font-medium text-danger" : undefined}>{n}</span>;
   const items = [
-    { label: "Total runs", value: runs.length },
-    { label: "Completed", value: t.completedPct === null ? "—" : `${t.completedPct}%` },
-    { label: "Failed", value: bad(failed) },
-    ...(blocked > 0 ? [{ label: "Blocked", value: bad(blocked) }] : []),
-    ...(t.bad > 0 ? [{ label: "Problem found", value: bad(t.bad) }] : []),
-    { label: "Typical duration", value: typical === null ? "—" : `${typical.toFixed(1)}s` },
+    { label: $t("components.runs-table.totalRuns"), value: runs.length },
+    { label: $t("components.runs-table.completed"), value: t.completedPct === null ? "—" : `${t.completedPct}%` },
+    { label: $t("components.runs-table.failed"), value: bad(failed) },
+    ...(blocked > 0 ? [{ label: $t("components.runs-table.blocked"), value: bad(blocked) }] : []),
+    ...(t.bad > 0 ? [{ label: $t("components.runs-table.problemFound"), value: bad(t.bad) }] : []),
+    { label: $t("components.runs-table.typicalDuration"), value: typical === null ? "—" : `${typical.toFixed(1)}s` },
     chargedUsd !== undefined
-      ? { label: "Charged", value: creditsShort(chargedUsd) }
-      : { label: "Total spend", value: `$${runs.reduce((s, r) => s + runCost(r), 0).toFixed(4)}` },
-    { label: "Running now", value: runs.filter((r) => r.status === "running").length },
+      ? { label: $t("components.runs-table.charged"), value: creditsShort(chargedUsd) }
+      : { label: $t("components.runs-table.totalSpend"), value: `$${runs.reduce((s, r) => s + runCost(r), 0).toFixed(4)}` },
+    { label: $t("components.runs-table.runningNow"), value: runs.filter((r) => r.status === "running").length },
   ];
   return <SummaryCard className="mb-6" items={items.map((it) => ({ label: it.label, value: <span className="tabular-nums">{it.value}</span> }))} />;
 }
@@ -98,7 +98,7 @@ export function RunsTable({
   emptyDescription: string;
 }) {
   if (runs.length === 0) {
-    return <EmptyState icon={<Play />} title="No runs match" description={emptyDescription} />;
+    return <EmptyState icon={<Play />} title={$t("components.runs-table.noRunsMatch")} description={emptyDescription} />;
   }
 
   return (
@@ -109,15 +109,15 @@ export function RunsTable({
             {/* Selection, when the page mounts a RunsSelection around this
                 table; a viewer sees an empty column. */}
             <th className="w-10 pl-4 pr-0 align-middle">
-              <SelectAllCheckbox label="Select every run on this page" />
+              <SelectAllCheckbox label={$t("components.runs-table.selectEveryRunOnThisPage")} />
             </th>
-            <th className={TH}>Run</th>
+            <th className={TH}>{$t("components.runs-table.run")}</th>
             {showWorkspace && <th className={cn(TH, "max-lg:hidden")}>{$t("components.runs-table.workspace")}</th>}
-            <th className={TH}>Status</th>
-            <th className={cn(TH, "max-sm:hidden")}>Started</th>
-            <th className={cn(TH, "max-md:hidden")}>Duration</th>
-            <th className={cn(TH, "text-right max-md:hidden")}>{money ? "Credits" : "Cost"}</th>
-            <th className="w-px px-3" aria-label="Actions" />
+            <th className={TH}>{$t("components.runs-table.status")}</th>
+            <th className={cn(TH, "max-sm:hidden")}>{$t("components.runs-table.started")}</th>
+            <th className={cn(TH, "max-md:hidden")}>{$t("components.runs-table.duration")}</th>
+            <th className={cn(TH, "text-right max-md:hidden")}>{money ? $t("components.runs-table.credits") : $t("components.runs-table.cost")}</th>
+            <th className="w-px px-3" aria-label={$t("components.runs-table.actions")} />
           </tr>
         </thead>
         <tbody className="[&_tr:last-child]:border-0">
@@ -151,7 +151,7 @@ export function RunsTable({
                 {/* Above the row's stretched link, like the delete cell — or
                     ticking the box opens the run. */}
                 <td className="relative z-10 w-10 pl-4 pr-0 align-middle">
-                  <RowCheckbox id={runKey(r)} label={`Select run ${r.id.slice(4)}`} />
+                  <RowCheckbox id={runKey(r)} label={$t("components.runs-table.selectRun", { v0: String(r.id.slice(4)) })} />
                 </td>
                 <td className={cn(TD, "w-full max-w-0")}>
                   <span className="flex min-w-0 items-center gap-3">
@@ -190,7 +190,7 @@ export function RunsTable({
                           {active
                             .map(
                               ({ s, i }) =>
-                                `Step ${i + 1} of ${r.steps.length} · ${s.agent} — ${s.status === "awaiting-approval" ? "awaiting approval" : "running"}`,
+                                $t("components.runs-table.stepOf", { v0: String(i + 1), length: String(r.steps.length), agent: String(s.agent), v3: String(s.status === "awaiting-approval" ? $t("components.runs-table.awaitingApproval2") : "running") }),
                             )
                             .join(" · ")}
                         </span>
@@ -202,7 +202,7 @@ export function RunsTable({
                         </Tooltip>
                       ) : (
                         <span className="block truncate text-xs text-fg-muted">
-                          {kind} · {done} of {r.steps.length} step{r.steps.length === 1 ? "" : "s"}
+                          {$t("components.runs-table.ofStep", { kind: kind, done: String(done), length: r.steps.length })}
                         </span>
                       )}
                     </span>
@@ -216,10 +216,10 @@ export function RunsTable({
                         "blocked" here too, not "completed". */}
                     <Status outcome={outcomeOf(runDisplayStatus(r), r.status === "completed" ? runVerdict(r) : null)} />
                     {r.test && (
-                      <Tag className="h-5" hint="A test run: every step ran, nothing outward happened, state/ and storage/ were left alone">test</Tag>
+                      <Tag className="h-5" hint={$t("components.runs-table.aTestRunEveryStepRan")}>{$t("components.runs-table.test")}</Tag>
                     )}
                     {a2a && (
-                      <Tooltip label="Started by an outside agent over A2A, with this A2A key">
+                      <Tooltip label={$t("components.runs-table.startedByAnOutsideAgentOver")}>
                         <span>
                           <Tag className="h-5 max-w-40 truncate">{a2a}</Tag>
                         </span>
@@ -233,12 +233,12 @@ export function RunsTable({
                 <td className={cn(TD, "max-md:hidden")}>
                   <span className="block tabular-nums">{dur === null ? "…" : `${dur.toFixed(1)}s`}</span>
                   <span className="block text-xs tabular-nums text-fg-muted">
-                    {done}/{r.steps.length} steps
+                    {$t("components.runs-table.steps", { done: String(done), length: String(r.steps.length) })}
                   </span>
                 </td>
                 <td className={cn(TD, "text-right tabular-nums max-md:hidden")}>
                   {money?.[r.id] ? (
-                    <Tooltip label={money[r.id].charged ? "Charged" : "Estimated: list price until the run is settled"}>
+                    <Tooltip label={money[r.id].charged ? $t("components.runs-table.charged") : $t("components.runs-table.estimatedListPriceUntilTheRun")}>
                       <span>
                         {money[r.id].charged ? "" : "~"}
                         {creditsShort(money[r.id].usd).replace(/ credits?$/, "")}
@@ -255,7 +255,7 @@ export function RunsTable({
                     <DeleteButton
                       endpoint={`/api/workspaces/${r.workspace}/runs/${r.id}`}
                       tenant={tenant}
-                      confirmText={`Delete run ${r.id.slice(4)}? Its record and outputs go; the ledger entry it was charged on stays.`}
+                      confirmText={$t("components.runs-table.deleteRunItsRecordAndOutputs", { v0: String(r.id.slice(4)) })}
                       action="workspace:manage"
                     />
                   </span>
@@ -280,9 +280,9 @@ export function runSearchText(r: RunRow): string {
  *  runs list is answering "what happened recently", and four chips answer
  *  it faster than two calendars. */
 export const DATE_WINDOWS: Record<string, { label: string; ms: number }> = {
-  today: { label: "Today", ms: 24 * 60 * 60 * 1000 },
-  "7d": { label: "7 days", ms: 7 * 24 * 60 * 60 * 1000 },
-  "30d": { label: "30 days", ms: 30 * 24 * 60 * 60 * 1000 },
+  today: { label: $t("components.runs-table.today"), ms: 24 * 60 * 60 * 1000 },
+  "7d": { label: $t("components.runs-table.7Days"), ms: 7 * 24 * 60 * 60 * 1000 },
+  "30d": { label: $t("components.runs-table.30Days"), ms: 30 * 24 * 60 * 60 * 1000 },
 };
 
 export function filterByWindow(runs: RunRow[], since?: string): RunRow[] {
@@ -312,12 +312,12 @@ export function whatRan(flow: string): string {
 export const RUN_STATUSES = ["completed", "failed", "stopped", "running", "queued", "awaiting-approval"] as const;
 
 const STATUS_LABEL: Record<(typeof RUN_STATUSES)[number], string> = {
-  completed: "Completed",
-  failed: "Failed",
-  stopped: "Stopped",
-  running: "Running",
-  queued: "Queued",
-  "awaiting-approval": "Awaiting approval",
+  completed: $t("components.runs-table.completed"),
+  failed: $t("components.runs-table.failed"),
+  stopped: $t("components.runs-table.stopped"),
+  running: $t("components.runs-table.running"),
+  queued: $t("components.runs-table.queued"),
+  "awaiting-approval": $t("components.runs-table.awaitingApproval"),
 };
 
 /**
@@ -354,13 +354,13 @@ export function RunFilters({
     ...(workspaces
       ? [{ key: "workspace", label: $t("components.runs-table.workspace"), kind: "select" as const, allLabel: $t("components.runs-table.allWorkspace"), options: workspaces.map((value) => ({ value })), resets: ["flow"] }]
       : []),
-    { key: "flow", label: "What ran", kind: "select" as const, allLabel: "Everything that ran", options: flows.map((value) => ({ value })) },
-    { key: "status", label: "Status", kind: "chips" as const, allLabel: "Any status", options: RUN_STATUSES.map((value) => ({ value, label: STATUS_LABEL[value] })) },
+    { key: "flow", label: $t("components.runs-table.whatRan"), kind: "select" as const, allLabel: $t("components.runs-table.everythingThatRan"), options: flows.map((value) => ({ value })) },
+    { key: "status", label: $t("components.runs-table.status"), kind: "chips" as const, allLabel: $t("components.runs-table.anyStatus"), options: RUN_STATUSES.map((value) => ({ value, label: STATUS_LABEL[value] })) },
     {
       key: "since",
-      label: "When",
+      label: $t("components.runs-table.when"),
       kind: "chips" as const,
-      allLabel: "All time",
+      allLabel: $t("components.runs-table.allTime"),
       options: Object.entries(DATE_WINDOWS).map(([value, w]) => ({ value, label: w.label })),
     },
   ];

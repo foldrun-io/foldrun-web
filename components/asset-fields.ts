@@ -8,6 +8,7 @@
 // other line (comments, key order, keys the form does not know, the body) is
 // left exactly as it was. Nothing re-serialises the whole frontmatter.
 
+import { $t } from "@/i18n";
 import { load, dump, CORE_SCHEMA } from "js-yaml";
 import type { ReactNode } from "react";
 import { FRONTMATTER, type FieldSpec } from "@/lib/frontmatter-fields";
@@ -177,29 +178,29 @@ export interface UiField {
 }
 
 const LABEL: Record<string, string> = {
-  base: "Base URL",
-  url: "Server URL",
-  run: "Program",
-  args: "Arguments",
-  openapi: "OpenAPI document",
-  test_mode: "Test runs",
-  "allowed-tools": "Allowed tools",
-  on: "Runs on",
-  tool: "Only for tool",
-  timeout: "Timeout (seconds)",
-  stale_after: "Stale after",
-  when: "Loads on run tags",
+  base: $t("components.asset-fields.baseUrl"),
+  url: $t("components.asset-fields.serverUrl"),
+  run: $t("components.asset-fields.program"),
+  args: $t("components.asset-fields.arguments"),
+  openapi: $t("components.asset-fields.openapiDocument"),
+  test_mode: $t("components.asset-fields.testRuns"),
+  "allowed-tools": $t("components.asset-fields.allowedTools"),
+  on: $t("components.asset-fields.runsOn"),
+  tool: $t("components.asset-fields.onlyForTool"),
+  timeout: $t("components.asset-fields.timeoutSeconds"),
+  stale_after: $t("components.asset-fields.staleAfter"),
+  when: $t("components.asset-fields.loadsOnRunTags"),
 };
 
 const OPTION_LABEL: Record<string, string> = {
-  http: "HTTP — someone else's API",
-  script: "Script — code in your container",
-  mcp: "MCP — an MCP server",
-  "tool.call": "tool.call — before a tool runs",
-  "tool.result": "tool.result — after a tool returns",
-  "step.start": "step.start — when a step starts",
-  "step.end": "step.end — when a step ends",
-  allow: "allow — may run in a test run",
+  http: $t("components.asset-fields.httpSomeoneElseSApi"),
+  script: $t("components.asset-fields.scriptCodeInYourContainer"),
+  mcp: $t("components.asset-fields.mcpAnMcpServer"),
+  "tool.call": $t("components.asset-fields.toolCallBeforeAToolRuns"),
+  "tool.result": $t("components.asset-fields.toolResultAfterAToolReturns"),
+  "step.start": $t("components.asset-fields.stepStartWhenAStepStarts"),
+  "step.end": $t("components.asset-fields.stepEndWhenAStepEnds"),
+  allow: $t("components.asset-fields.allowMayRunInATest"),
   draft: "draft",
   stable: "stable",
   deprecated: "deprecated",
@@ -228,14 +229,14 @@ function transportsOf(help: string): Transport[] | null {
 /** The help for this transport: the matching segment, prefix dropped. */
 function helpFor(help: string, transport: string): string {
   const segs = help.split(";").map((x) => x.trim());
-  const mine = segs.find((x) => x.startsWith(`${transport}:`) || (x.startsWith("http or mcp:") && (transport === "http" || transport === "mcp")));
+  const mine = segs.find((x) => x.startsWith(`${transport}:`) || (x.startsWith($t("components.asset-fields.httpOrMcp")) && (transport === "http" || transport === "mcp")));
   return (mine ?? segs[0]).replace(SEGMENT, "");
 }
 
 /** Where a schema help line is only the list of values the select shows. */
 const HELP: Record<string, string> = {
-  transport: "where the work happens",
-  on: "the moment in a step it runs at",
+  transport: $t("components.asset-fields.whereTheWorkHappens"),
+  on: $t("components.asset-fields.theMomentInAStepIt"),
 };
 
 const PRIMARY: Record<string, string[]> = {
@@ -253,12 +254,12 @@ const FLAT_MAPS = new Set(["headers", "query", "env", "args"]);
 
 /** memory/ and knowledge/ are OKF documents, not a schema kind of foldrun's own. */
 const DOC_FIELDS: FieldSpec[] = [
-  { key: "title", type: "string", help: "the name a reader sees" },
-  { key: "description", type: "string", help: "one line: what this is and when to read it" },
-  { key: "type", type: "string", help: "the concept type, e.g. Price List or Policy" },
-  { key: "status", type: "string", values: ["draft", "stable", "deprecated"], help: "stable unless said otherwise" },
-  { key: "tags", type: "list", help: "words to find it by" },
-  { key: "stale_after", type: "string", help: "the day it should be checked again" },
+  { key: "title", type: "string", help: $t("components.asset-fields.theNameAReaderSees") },
+  { key: "description", type: "string", help: $t("components.asset-fields.oneLineWhatThisIsAnd") },
+  { key: "type", type: "string", help: $t("components.asset-fields.theConceptTypeEGPrice") },
+  { key: "status", type: "string", values: ["draft", "stable", "deprecated"], help: $t("components.asset-fields.stableUnlessSaidOtherwise") },
+  { key: "tags", type: "list", help: $t("components.asset-fields.wordsToFindItBy") },
+  { key: "stale_after", type: "string", help: $t("components.asset-fields.theDayItShouldBeChecked") },
 ];
 
 function toUi(f: FieldSpec, kind: AssetKind, transport: string, value: unknown): UiField {
@@ -349,11 +350,11 @@ export function asMap(v: unknown): [string, string][] {
 
 /** What a kind is called in a drawer's header. */
 export const KIND_LABEL: Record<AssetKind, string> = {
-  tools: "Tool",
-  hooks: "Hook",
-  skills: "Skill",
-  memory: "Memory",
-  knowledge: "Knowledge",
-  scripts: "Code",
+  tools: $t("components.asset-fields.tool"),
+  hooks: $t("components.asset-fields.hook"),
+  skills: $t("components.asset-fields.skill"),
+  memory: $t("components.asset-fields.memory"),
+  knowledge: $t("components.asset-fields.knowledge"),
+  scripts: $t("components.asset-fields.code"),
 };
 export const TRANSPORT_LABEL: Record<Transport, string> = { http: "API", script: "script", mcp: "MCP" };

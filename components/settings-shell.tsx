@@ -3,6 +3,7 @@
 // (each a URL: a route or `?tab=`), then the settings cards stacked, the
 // Danger zone last. Server-safe: the tabs are the kit's client PageTabs.
 
+import { $t } from "@/i18n";
 import type { ReactNode } from "react";
 import { Page, PageHeader, type PageWidth } from "@foldrun/ui/react/page";
 import { PageTabs, type PageTab } from "@foldrun/ui/react/page-tabs";
@@ -94,7 +95,7 @@ export function SettingsSection({
 export function StatusRow({ ok, title, detail }: { ok: boolean; title: string; detail: ReactNode }) {
   return (
     <div className="flex items-start gap-3 px-5 py-4">
-      <span className={cn("mt-1.5 inline-block size-2 shrink-0 rounded-full", ok ? "bg-success" : "bg-warning")} aria-label={ok ? "good" : "needs attention"} />
+      <span className={cn("mt-1.5 inline-block size-2 shrink-0 rounded-full", ok ? "bg-success" : "bg-warning")} aria-label={ok ? "good" : $t("components.settings-shell.needsAttention")} />
       <div className="min-w-0">
         <p className="text-sm font-medium text-fg">{title}</p>
         <p className="mt-0.5 text-sm leading-relaxed text-fg-muted">{detail}</p>

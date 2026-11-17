@@ -95,16 +95,16 @@ function columnLabel(key: (typeof LAYER_KEYS)[number], nodes: GNode[]): string {
   switch (key) {
     case "scopes": {
       const ws = nodes.filter((x) => x.scope !== "account").length;
-      return ws === 0 ? "Account" : ws === 1 ? $t("components.graph-layout-model.workspace") : $t("components.graph-layout-model.workspace2");
+      return ws === 0 ? $t("components.graph-layout-model.account") : ws === 1 ? $t("components.graph-layout-model.workspace") : $t("components.graph-layout-model.workspace2");
     }
     case "flows":
-      return n === 1 ? "Flow" : "Flows";
+      return n === 1 ? $t("components.graph-layout-model.flow") : $t("components.graph-layout-model.flows");
     case "agents":
-      return n === 1 ? "Agent" : "Agents";
+      return n === 1 ? $t("components.graph-layout-model.agent") : $t("components.graph-layout-model.agents");
     case "tools":
-      return n === 1 ? "Tool" : "Tools";
+      return n === 1 ? $t("components.graph-layout-model.tool") : $t("components.graph-layout-model.tools");
     case "files":
-      return "Skills and files";
+      return $t("components.graph-layout-model.skillsAndFiles");
   }
 }
 
@@ -332,7 +332,7 @@ export function packedMapLayout(nodes: GNode[], links: GLink[]): Layout {
     const minY = Math.min(...boxes.map((b) => b.y));
     const w = Math.max(...boxes.map((b) => b.x + b.w)) - minX + PAD * 2;
     const h = Math.max(...boxes.map((b) => b.y + b.h)) - minY + PAD * 2 + HEAD;
-    return { key, label: key === "" ? "Account" : key, inner, minX, minY, w, h };
+    return { key, label: key === "" ? $t("components.graph-layout-model.account") : key, inner, minX, minY, w, h };
   });
   // Rows about as wide as the whole is tall, for a screen-shaped picture.
   const area = tiles.reduce((s, t) => s + (t.w + GAP) * (t.h + GAP), 0);

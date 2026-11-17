@@ -8,6 +8,7 @@
 // re-point a login at a stranger's inbox. After a move the new address is
 // unverified until it clicks the mail; the old one is told it happened.
 
+import { $el, $rich, $t } from "@/i18n";
 import { useState } from "react";
 import { buttonVariants } from "@foldrun/ui/react/button";
 import { Input } from "@foldrun/ui/react/input";
@@ -39,17 +40,17 @@ export function NameForm({ firstName, lastName }: { firstName: string | null; la
     >
       <div className="grid grid-cols-1 max-w-md gap-3 sm:grid-cols-2">
         <label className="block">
-          <span className="block pb-1.5 text-sm font-medium text-fg">First name</span>
+          <span className="block pb-1.5 text-sm font-medium text-fg">{$t("profile.identity.firstName")}</span>
           <Input value={first} onChange={(e) => setFirst(e.target.value)} className="w-full" maxLength={80} autoComplete="given-name" />
         </label>
         <label className="block">
-          <span className="block pb-1.5 text-sm font-medium text-fg">Last name</span>
+          <span className="block pb-1.5 text-sm font-medium text-fg">{$t("profile.identity.lastName")}</span>
           <Input value={last} onChange={(e) => setLast(e.target.value)} className="w-full" maxLength={80} autoComplete="family-name" />
         </label>
       </div>
       <div className="flex items-center gap-3">
-        <button type="submit" disabled={busy || !dirty} className={buttonVariants({ variant: "primary", size: "md" })}>{busy ? "Saving…" : "Save name"}</button>
-        {state.done && <span className="text-xs text-success">Saved</span>}
+        <button type="submit" disabled={busy || !dirty} className={buttonVariants({ variant: "primary", size: "md" })}>{busy ? "Saving…" : $t("profile.identity.saveName")}</button>
+        {state.done && <span className="text-xs text-success">{$t("profile.identity.saved")}</span>}
         {state.error && <span className="text-xs text-danger">{state.error}</span>}
       </div>
     </form>
@@ -68,7 +69,7 @@ export function EmailForm({ current }: { current: string }) {
       onSubmit={async (e) => {
         e.preventDefault();
         setState({});
-        if (!(await confirm({ title: `Move your login from ${current} to ${email.trim()}?`, body: "The move happens when you click the link in the mail that address receives.", confirmLabel: "Move my login", destructive: false }))) return;
+        if (!(await confirm({ title: $t("profile.identity.moveYourLoginFromTo", { current: String(current), v1: String(email.trim()) }), body: $t("profile.identity.theMoveHappensWhenYouClick"), confirmLabel: $t("profile.identity.moveMyLogin"), destructive: false }))) return;
         setBusy(true);
         const res = await fetch("/api/auth/email", {
           method: "POST",
@@ -82,27 +83,27 @@ export function EmailForm({ current }: { current: string }) {
         setEmail("");
         // Nothing has moved yet: the link mailed to the new address makes the move.
         if (body.pending) {
-          return setState({ done: body.verificationSent ? `Check ${body.to} — the link in the mail there moves your login. Until then you still sign in as ${current}.` : "The mail to that address could not be sent — try again later." });
+          return setState({ done: body.verificationSent ? $t("profile.identity.checkTheLinkInTheMail", { to: String(body.to), current: String(current) }) : $t("profile.identity.theMailToThatAddressCould") });
         }
-        const ended = body.otherSessionsEnded ? ` ${body.otherSessionsEnded === 1 ? "One other browser was" : `${body.otherSessionsEnded} other browsers were`} signed out.` : "";
-        setState({ done: `Moved to ${body.to}.${ended} ${body.verificationSent ? "Check that inbox for the confirmation link." : "The confirmation mail could not be sent — ask your admin to mark the address verified."}` });
+        const ended = body.otherSessionsEnded ? $t("profile.identity.signedOut", { v0: String(body.otherSessionsEnded === 1 ? $t("profile.identity.oneOtherBrowserWas") : $t("profile.identity.otherBrowsersWere", { otherSessionsEnded: String(body.otherSessionsEnded) })) }) : "";
+        setState({ done: $t("profile.identity.movedTo", { to: String(body.to), ended: String(ended), v2: String(body.verificationSent ? $t("profile.identity.checkThatInboxForTheConfirmation") : $t("profile.identity.theConfirmationMailCouldNotBe")) }) });
       }}
     >
       <p className="text-sm text-fg-tertiary">
-        Signed in as <Email value={current} className="font-medium text-fg" />. Moving it changes where you sign in, where password resets go, and where run notifications land.
+        {$rich("profile.identity.signedInAsMovingItChanges", { email: $el(<Email value={current} className="font-medium text-fg" />) })}
       </p>
       <div className="grid grid-cols-1 max-w-md gap-3 sm:grid-cols-2">
         <label className="block">
-          <span className="block pb-1.5 text-sm font-medium text-fg">New email</span>
+          <span className="block pb-1.5 text-sm font-medium text-fg">{$t("profile.identity.newEmail")}</span>
           <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full" autoComplete="email" required />
         </label>
         <label className="block">
-          <span className="block pb-1.5 text-sm font-medium text-fg">Your password</span>
+          <span className="block pb-1.5 text-sm font-medium text-fg">{$t("profile.identity.yourPassword")}</span>
           <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full" autoComplete="current-password" required />
         </label>
       </div>
       <div className="flex items-center gap-3">
-        <button type="submit" disabled={busy || !email.trim() || !password} className={buttonVariants({ variant: "primary", size: "md" })}>{busy ? "Moving…" : "Change email"}</button>
+        <button type="submit" disabled={busy || !email.trim() || !password} className={buttonVariants({ variant: "primary", size: "md" })}>{busy ? "Moving…" : $t("profile.identity.changeEmail")}</button>
         {state.done && <span className="text-xs text-success">{state.done}</span>}
         {state.error && <span className="text-xs text-danger">{state.error}</span>}
       </div>

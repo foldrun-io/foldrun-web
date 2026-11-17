@@ -3,6 +3,7 @@
 // page, naming the page the person is on, and keeping a conversation in the
 // tab. The panel (assistant.tsx) is the drawing; this is what the tests read.
 
+import { $t } from "@/i18n";
 import { headingSlugger } from "./heading-slug";
 
 export interface AssistantFile {
@@ -63,10 +64,10 @@ export function meterLine(r: Pick<AssistantReply, "usage" | "chargedUsd" | "supp
   if (!r.usage) return null;
   const k = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k` : String(n));
   const all = r.usage.inputTokens;
-  const cached = r.usage.cacheReadTokens !== undefined && all > 0 ? ` (${Math.round((r.usage.cacheReadTokens / all) * 100)}% cached)` : "";
-  const tokens = `${k(all)} in${cached} · ${k(r.usage.outputTokens)} out`;
-  if (r.supply === "provider") return `${tokens} · on your own model key`;
-  if (typeof r.chargedUsd === "number") return `${tokens} · $${r.chargedUsd < 0.01 && r.chargedUsd > 0 ? r.chargedUsd.toFixed(4) : r.chargedUsd.toFixed(2)} charged`;
+  const cached = r.usage.cacheReadTokens !== undefined && all > 0 ? $t("components.assistant-model.cached", { v0: String(Math.round((r.usage.cacheReadTokens / all) * 100)) }) : "";
+  const tokens = $t("components.assistant-model.inOut", { v0: String(k(all)), cached: String(cached), v2: String(k(r.usage.outputTokens)) });
+  if (r.supply === "provider") return $t("components.assistant-model.onYourOwnModelKey", { tokens: String(tokens) });
+  if (typeof r.chargedUsd === "number") return $t("components.assistant-model.charged", { tokens: String(tokens), v1: String(r.chargedUsd < 0.01 && r.chargedUsd > 0 ? r.chargedUsd.toFixed(4) : r.chargedUsd.toFixed(2)) });
   return tokens;
 }
 
@@ -110,7 +111,7 @@ export function parseSse(buffer: string): { events: StreamEvent[]; rest: string 
     }
     if (name === "status" || name === "text") events.push({ event: name, text: String(payload.text ?? "") });
     else if (name === "done") events.push({ event: "done", reply: payload as unknown as AssistantReply });
-    else if (name === "error") events.push({ event: "error", error: String(payload.error ?? "the assistant failed"), status: typeof payload.status === "number" ? payload.status : undefined });
+    else if (name === "error") events.push({ event: "error", error: String(payload.error ?? $t("components.assistant-model.theAssistantFailed")), status: typeof payload.status === "number" ? payload.status : undefined });
   }
   return { events, rest };
 }
@@ -184,7 +185,7 @@ export function issuesFor(issues: AssistantIssue[], path: string): AssistantIssu
 /** The note a saved file's revision carries in History. */
 export function saveMessage(messages: ChatMessage[]): string {
   const first = messages.find((m) => m.role === "user")?.content ?? "";
-  return `written with the assistant: ${first.replace(/\s+/g, " ").trim().slice(0, 80)}`;
+  return $t("components.assistant-model.writtenWithTheAssistant", { v0: String(first.replace(/\s+/g, " ").trim().slice(0, 80)) });
 }
 
 // ---------------------------------------------------------------- history
@@ -214,10 +215,10 @@ export function groupConversations(list: ConversationSummary[], now: Date = new 
   const today = startOf(now);
   const day = 86_400_000;
   const sections: { label: string; from: number }[] = [
-    { label: "Today", from: today },
-    { label: "Yesterday", from: today - day },
-    { label: "This week", from: today - 6 * day },
-    { label: "Earlier", from: -Infinity },
+    { label: $t("components.assistant-model.today"), from: today },
+    { label: $t("components.assistant-model.yesterday"), from: today - day },
+    { label: $t("components.assistant-model.thisWeek"), from: today - 6 * day },
+    { label: $t("components.assistant-model.earlier"), from: -Infinity },
   ];
   const sorted = [...list].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   return sections

@@ -5,6 +5,7 @@
 // installer's own error when it failed. A workspace whose agents declare no
 // `runtime:` renders nothing.
 
+import { $rich, $t } from "@/i18n";
 import { Chip, Panel, type Tone } from "@foldrun/ui/react/page";
 import { LocalTime } from "./local-time";
 
@@ -31,11 +32,11 @@ const VARIANT: Record<string, Tone> = {
 };
 
 const SAYS: Record<string, string> = {
-  ready: "built — runs start with these installed",
-  failed: "the last build failed — a run using it will fail the same way",
-  building: "building now",
-  pending: "waiting for the worker to build it",
-  "on first run": "installed when a run first needs it — this server builds no runtime ahead of time",
+  ready: $t("components.workspace-runtimes.builtRunsStartWithTheseInstalled"),
+  failed: $t("components.workspace-runtimes.theLastBuildFailedARun"),
+  building: $t("components.workspace-runtimes.buildingNow"),
+  pending: $t("components.workspace-runtimes.waitingForTheWorkerToBuild"),
+  "on first run": $t("components.workspace-runtimes.installedWhenARunFirstNeeds"),
 };
 
 export function RuntimesPanel({ runtimes }: { runtimes: RuntimeRow[] }) {
@@ -43,9 +44,9 @@ export function RuntimesPanel({ runtimes }: { runtimes: RuntimeRow[] }) {
   const failed = runtimes.filter((r) => r.state === "failed").length;
   return (
     <Panel
-      title="Runtimes"
+      title={$t("components.workspace-runtimes.runtimes")}
       count={runtimes.length}
-      actions={failed > 0 ? <span className="text-sm font-medium text-danger">{failed} failed</span> : undefined}
+      actions={failed > 0 ? <span className="text-sm font-medium text-danger">{$t("components.workspace-runtimes.failed", { failed: String(failed) })}</span> : undefined}
       flush
     >
       <ul className="divide-y divide-line">
@@ -61,7 +62,7 @@ export function RuntimesPanel({ runtimes }: { runtimes: RuntimeRow[] }) {
                   ...(r.system ?? []).map((p) => `apt:${p}`),
                 ]
                   .filter(Boolean)
-                  .join(" · ") || "no packages"}
+                  .join(" · ") || $t("components.workspace-runtimes.noPackages")}
               </span>
               <span className="ml-auto shrink-0 text-xs text-fg-muted">
                 {r.agents.join(", ")}
@@ -71,7 +72,7 @@ export function RuntimesPanel({ runtimes }: { runtimes: RuntimeRow[] }) {
             <p className="mt-1 text-sm text-fg-muted">{SAYS[r.state] ?? r.state}</p>
             {r.rejected.length > 0 && (
               <p className="mt-1 text-xs text-warning">
-                Not valid requirements, dropped: <span className="font-mono">{r.rejected.join(", ")}</span>
+                {$rich("components.workspace-runtimes.notValidRequirementsDropped", { join: r.rejected.join(", "), span: (chunks) => <span className="font-mono">{chunks}</span> })}
               </p>
             )}
             {r.error && (

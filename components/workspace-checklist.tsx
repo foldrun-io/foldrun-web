@@ -32,13 +32,13 @@ export function WorkspaceChecklist({ data, qs, canHide }: { data: Checklist; qs:
       title={$t("components.workspace-checklist.workspaceChecklist")}
       progress={{ done: data.done, total: data.total, style: "count" }}
       busy={busy}
-      hideLabel="Hide this item"
-      menuLabel="Checklist options"
+      hideLabel={$t("components.workspace-checklist.hideThisItem")}
+      menuLabel={$t("components.workspace-checklist.checklistOptions")}
       menu={
         canHide ? (
           <MenuItem onSelect={() => void patch({ dismissed: true })}>
             <X />
-            Hide checklist
+            {$t("components.workspace-checklist.hideChecklist")}
           </MenuItem>
         ) : undefined
       }

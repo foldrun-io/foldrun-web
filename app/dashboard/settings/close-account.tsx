@@ -9,7 +9,7 @@
 // typed back is the confirmation — a dialog's "OK" is too easy to press
 // on the way somewhere else.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@foldrun/ui/react/input";
@@ -30,8 +30,8 @@ export function AccountData({ account, owner, hosted, closeRequestedAt }: { acco
     return (
       <SettingsCard
         id="data"
-        title="Your data"
-        description="Only the account's owner can take a copy of its data or ask to close it — the copy includes the billing ledger and everyone's email."
+        title={$t("settings.close-account.yourData")}
+        description={$t("settings.close-account.onlyTheAccountSEmail")}
       />
     );
   }
@@ -51,14 +51,14 @@ export function AccountData({ account, owner, hosted, closeRequestedAt }: { acco
       else {
         setDone(
           body.notified
-            ? "Asked. The account is suspended now, and the platform team has been told — they will be in touch about the last invoice."
-            : "Asked, and the account is suspended — but the notice to the platform team did not send. Please also email them.",
+            ? $t("settings.close-account.askedTheAccountIsSuspendedNow")
+            : $t("settings.close-account.askedAndTheAccountIsSuspended"),
         );
         setOpen(false);
         router.refresh();
       }
     } catch (err) {
-      setError(`could not reach the platform — ${err instanceof Error ? err.message : String(err)}`);
+      setError($t("settings.close-account.couldNotReachThePlatform", { v0: String(err instanceof Error ? err.message : String(err)) }));
     }
     setBusy(false);
   };
@@ -67,13 +67,13 @@ export function AccountData({ account, owner, hosted, closeRequestedAt }: { acco
     <>
       <SettingsCard
         id="data"
-        title="Take a copy"
+        title={$t("settings.close-account.takeACopy")}
         description={$t("settings.close-account.workspaceMembersAnIndexOfEvery")}
-        hint="Owner only."
+        hint={$t("settings.close-account.ownerOnly")}
         footer={
           <a href="/api/account/export" download className={buttonVariants({ variant: "secondary" })}>
             <Download aria-hidden />
-            Download export
+            {$t("settings.close-account.downloadExport")}
           </a>
         }
       />
@@ -83,28 +83,28 @@ export function AccountData({ account, owner, hosted, closeRequestedAt }: { acco
           <SettingsCard
             id="close"
             danger
-            title="Close this account"
+            title={$t("settings.close-account.closeThisAccount")}
             description={
               closeRequestedAt
-                ? `You asked to close it on ${closeRequestedAt.slice(0, 10)}. It is suspended while the platform team settles the last invoice; take a copy above before the data goes.`
+                ? $t("settings.close-account.youAskedToCloseItOn", { v0: String(closeRequestedAt.slice(0, 10)) })
                 : open
-                  ? "New runs stop at once and schedules no longer fire. Nothing is deleted yet — people can still sign in and take a copy — and the platform team will be in touch about the last invoice and any refund."
-                  : "Suspends the account and asks the platform team to close it. Not a delete — you can still sign in and take a copy."
+                  ? $t("settings.close-account.newRunsStopAtOnceAnd")
+                  : $t("settings.close-account.suspendsTheAccountAndAsksThe")
             }
-            hint={open && !closeRequestedAt ? "This cannot be undone from here." : undefined}
+            hint={open && !closeRequestedAt ? $t("settings.close-account.thisCannotBeUndoneFromHere") : undefined}
             footer={
               closeRequestedAt ? undefined : open ? (
                 <>
                   <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
-                    Keep the account
+                    {$t("settings.close-account.keepTheAccount")}
                   </Button>
                   <Button type="submit" variant="danger" disabled={busy || typed !== account}>
-                    {busy ? "Asking…" : "Suspend and ask to close"}
+                    {busy ? "Asking…" : $t("settings.close-account.suspendAndAskToClose")}
                   </Button>
                 </>
               ) : (
                 <Button type="button" variant="danger-outline" onClick={() => setOpen(true)}>
-                  Close account…
+                  {$t("settings.close-account.closeAccount")}
                 </Button>
               )
             }
@@ -114,10 +114,10 @@ export function AccountData({ account, owner, hosted, closeRequestedAt }: { acco
                 {done && <Callout tone="success" role="status">{done}</Callout>}
                 {open && !closeRequestedAt && (
                   <>
-                    <Field label="Why are you leaving? (optional)" className="max-w-md">
+                    <Field label={$t("settings.close-account.whyAreYouLeavingOptional")} className="max-w-md">
                       <Input value={reason} onChange={(e) => setReason(e.target.value)} className="w-full" />
                     </Field>
-                    <Field label={<>Type <span className="font-mono">{account}</span> to confirm</>} className="max-w-xs">
+                    <Field label={<>{$rich("settings.close-account.typeToConfirm", { account: account, span: (chunks) => <span className="font-mono">{chunks}</span> })}</>} className="max-w-xs">
                       <Input value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" className="w-full font-mono" />
                     </Field>
                     {error && <Callout tone="danger" role="alert">{error}</Callout>}

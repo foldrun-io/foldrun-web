@@ -9,6 +9,7 @@
 // once every step is done or hidden. The steps come from the server; this
 // only draws them.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -51,7 +52,7 @@ export function useOnboardingPatch() {
     setError(null);
     try {
       const failed = await patchOnboarding(body);
-      if (failed) setError(`not saved — ${failed}`);
+      if (failed) setError($t("components.onboarding-card.notSaved", { failed: String(failed) }));
       else router.refresh();
     } finally {
       setBusy(false);
@@ -82,28 +83,28 @@ export function OnboardingCard({ data, qs, canDismiss }: { data: Onboarding; qs:
   const next = data.upNext;
   return (
     <ChecklistCard
-      title="Getting started"
+      title={$t("components.onboarding-card.gettingStarted")}
       progress={{ done: data.done, total: data.total, style: "ring" }}
       busy={busy}
-      hideLabel="Hide this step"
+      hideLabel={$t("components.onboarding-card.hideThisStep")}
       actions={
         <Link href={withQs("/dashboard/welcome", qs)} className={buttonVariants({ size: "sm" })}>
-          Resume setup
+          {$t("components.onboarding-card.resumeSetup")}
         </Link>
       }
-      menuLabel="Getting started options"
+      menuLabel={$t("components.onboarding-card.gettingStartedOptions")}
       menu={
         canDismiss ? (
           <>
             {data.hidden.length > 0 && (
               <MenuItem onSelect={() => void send({ show: data.hidden })}>
                 <Eye />
-                Show hidden steps ({data.hidden.length})
+                {$t("components.onboarding-card.showHiddenSteps", { length: String(data.hidden.length) })}
               </MenuItem>
             )}
             <MenuItem onSelect={() => void send({ dismissed: true })}>
               <X />
-              Hide getting started
+              {$t("components.onboarding-card.hideGettingStarted")}
             </MenuItem>
           </>
         ) : undefined
@@ -121,7 +122,7 @@ export function OnboardingCard({ data, qs, canDismiss }: { data: Onboarding; qs:
             s.id === next?.id ? (
               <div className="flex flex-wrap items-center gap-2">
                 <Link href={withQs(s.href, qs)} className={buttonVariants({ variant: "primary", size: "sm" })}>
-                  {s.id === "workspace" ? "Start" : "Do it"}
+                  {s.id === "workspace" ? $t("components.onboarding-card.start") : $t("components.onboarding-card.doIt")}
                 </Link>
                 {s.cli && <code className="min-w-0 max-w-full truncate rounded-md border border-line bg-surface px-2 py-1 font-mono text-xs text-fg-secondary">{s.cli}</code>}
               </div>
@@ -133,9 +134,9 @@ export function OnboardingCard({ data, qs, canDismiss }: { data: Onboarding; qs:
           <span role="alert" className="text-danger">{error}</span>
         ) : !next && data.hidden.length > 0 && canDismiss ? (
           <span className="flex flex-wrap items-center gap-2">
-            Every step left is hidden.
+            {$t("components.onboarding-card.everyStepLeftIsHidden")}
             <Button variant="secondary" size="xs" onClick={() => void send({ show: data.hidden })}>
-              Show hidden steps ({data.hidden.length})
+              {$t("components.onboarding-card.showHiddenSteps", { length: String(data.hidden.length) })}
             </Button>
           </span>
         ) : undefined
@@ -157,7 +158,7 @@ export function OnboardingReopen({ done, total }: { done: number; total: number 
       }}
       className="mt-6"
     >
-      Show getting started ({done} of {total})
+      {$t("components.onboarding-card.showGettingStartedOf", { done: String(done), total: String(total) })}
     </Button>
   );
 }

@@ -2,6 +2,7 @@
 
 // Deleting a workspace. Creation is components/create.tsx.
 
+import { $t } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@foldrun/ui/react/confirm";
 import { useCan } from "@/components/role";
@@ -53,7 +54,7 @@ export function DeleteButton({
       {confirmDialog}
       <button
         onClick={async () => {
-          if (!(await confirm({ title: confirmText, confirmLabel: "Delete" }))) return;
+          if (!(await confirm({ title: confirmText, confirmLabel: $t("dashboard.manage.delete") }))) return;
           await api(endpoint, tenant, "DELETE", body);
           if (redirectTo) router.push(redirectTo);
           else router.refresh();
@@ -64,7 +65,7 @@ export function DeleteButton({
             : "text-xs font-medium text-fg-subtle transition-colors hover:text-red-600"
         }
       >
-        Delete
+        {$t("dashboard.manage.delete")}
       </button>
     </>
   );

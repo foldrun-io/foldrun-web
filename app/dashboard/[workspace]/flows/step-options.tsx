@@ -5,6 +5,7 @@
 // touches only this step's option lines, so the file diff is exactly what
 // was changed.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FlowStep } from "@/lib/store";
@@ -105,7 +106,7 @@ export function StepOptionsEditor({
       onClose();
       router.refresh();
     } else {
-      setError(res.error || "could not save");
+      setError(res.error || $t("workspace.flows-step-options.couldNotSave"));
       setBusy(false);
     }
   }
@@ -114,65 +115,65 @@ export function StepOptionsEditor({
   return (
     <div className="mt-2 grid grid-cols-2 gap-2 rounded-md border border-line bg-sunken p-3 sm:grid-cols-4">
       <label>
-        <span className={LABEL}>Model</span>
-        <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="fast · default · max" />
+        <span className={LABEL}>{$t("workspace.flows-step-options.model")}</span>
+        <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder={$t("workspace.flows-step-options.fastDefaultMax")} />
       </label>
       <label>
-        <span className={LABEL}>Effort</span>
+        <span className={LABEL}>{$t("workspace.flows-step-options.effort")}</span>
         <Input
           value={effort}
           onChange={(e) => setEffort(e.target.value)}
-          placeholder="low · medium · high · xhigh · max"
+          placeholder={$t("workspace.flows-step-options.lowMediumHighXhighMax")}
         />
       </label>
       <label>
-        <span className={LABEL}>Longest reply (tokens)</span>
-        <Input value={maxOut} onChange={(e) => setMaxOut(e.target.value)} inputMode="numeric" placeholder="the agent's" />
+        <span className={LABEL}>{$t("workspace.flows-step-options.longestReplyTokens")}</span>
+        <Input value={maxOut} onChange={(e) => setMaxOut(e.target.value)} inputMode="numeric" placeholder={$t("workspace.flows-step-options.theAgentS")} />
       </label>
       <label>
-        <span className={LABEL}>Retries on failure</span>
+        <span className={LABEL}>{$t("workspace.flows-step-options.retriesOnFailure")}</span>
         <Input value={retry} onChange={(e) => setRetry(e.target.value)} placeholder="0–5" />
       </label>
       <label>
-        <span className={LABEL}>Timeout (s)</span>
+        <span className={LABEL}>{$t("workspace.flows-step-options.timeoutS")}</span>
         <Input value={timeout_} onChange={(e) => setTimeout_(e.target.value)} placeholder="none" />
       </label>
       <label>
-        <span className={LABEL}>Run only when a line of the previous result begins with — or a CSV has rows</span>
-        <Input value={when} onChange={(e) => setWhen(e.target.value)} placeholder="e.g. URGENT, or rows of workspace/storage/queue.csv" />
+        <span className={LABEL}>{$t("workspace.flows-step-options.runOnlyWhenALineOf")}</span>
+        <Input value={when} onChange={(e) => setWhen(e.target.value)} placeholder={$t("workspace.flows-step-options.eGUrgentOrRowsOf")} />
       </label>
       <label>
-        <span className={LABEL}>Route: run when results say (first match wins)</span>
+        <span className={LABEL}>{$t("workspace.flows-step-options.routeRunWhenResultsSayFirst")}</span>
         <Input value={case_} onChange={(e) => setCase(e.target.value)} placeholder="e.g. BUG" />
       </label>
       <label className="flex items-end gap-2 pb-1">
         <Checkbox checked={else_} onCheckedChange={(checked: boolean) => setElse(checked)} />
-        <span className="text-xs text-fg-secondary">Else — run when no route matched</span>
+        <span className="text-xs text-fg-secondary">{$t("workspace.flows-step-options.elseRunWhenNoRouteMatched")}</span>
       </label>
       <label className="col-span-2">
-        <span className={LABEL}>Verify — shell command that must exit 0 (the reply is in $FOLDRUN_REPLY_FILE)</span>
+        <span className={LABEL}>{$t("workspace.flows-step-options.verifyShellCommandThatMustExit")}</span>
         <Input value={verify} onChange={(e) => setVerify(e.target.value)} placeholder="test -s outputs/report.md" className="font-mono" />
       </label>
       <label>
-        <span className={LABEL}>Loop back (cycles, 1–5)</span>
+        <span className={LABEL}>{$t("workspace.flows-step-options.loopBackCycles15")}</span>
         <Input value={loop} onChange={(e) => setLoop(e.target.value)} placeholder="off" />
       </label>
       <label>
-        <span className={LABEL}>…until result says</span>
+        <span className={LABEL}>{$t("workspace.flows-step-options.untilResultSays")}</span>
         <Input value={until} onChange={(e) => setUntil(e.target.value)} placeholder="APPROVED" />
       </label>
       <label className="flex items-end gap-2 pb-1">
         <Checkbox checked={each} onCheckedChange={(checked: boolean) => setEach(checked)} />
-        <span className="text-xs text-fg-secondary">Fan out per line of previous result</span>
+        <span className="text-xs text-fg-secondary">{$t("workspace.flows-step-options.fanOutPerLineOfPrevious")}</span>
       </label>
       {each && (
         <label>
-          <span className={LABEL}>Max items (1–20)</span>
+          <span className={LABEL}>{$t("workspace.flows-step-options.maxItems120")}</span>
           <Input value={max} onChange={(e) => setMax(e.target.value)} placeholder="10" />
         </label>
       )}
       <fieldset className="col-span-2 sm:col-span-4">
-        <legend className={LABEL}>Call limits — how many calls this step may make before the next is refused (over the agent&apos;s own limits:)</legend>
+        <legend className={LABEL}>{$t("workspace.flows-step-options.callLimitsHowManyCallsThis")}</legend>
         <div className="mt-1 space-y-1">
           {limits.map((r, i) => {
             const keyIssue = r.key.trim() || r.count.trim() ? limitKeyProblem(r.key, granted) : null;
@@ -205,7 +206,7 @@ export function StepOptionsEditor({
                 <button
                   type="button"
                   onClick={() => setLimits((rows) => rows.filter((_, j) => j !== i))}
-                  aria-label={`Remove limit ${r.key || i + 1}`}
+                  aria-label={$t("workspace.flows-step-options.removeLimit", { v0: String(r.key || i + 1) })}
                   className="rounded px-1.5 text-sm text-fg-subtle hover:bg-danger-soft hover:text-danger"
                 >
                   ×
@@ -219,16 +220,16 @@ export function StepOptionsEditor({
             onClick={() => setLimits((rows) => [...rows, { key: "", count: "" }])}
             className="rounded border border-dashed border-line-strong px-2 py-0.5 text-xs text-fg-muted hover:border-fg-subtle hover:text-fg"
           >
-            + Add a limit
+            {$t("workspace.flows-step-options.addALimit")}
           </button>
         </div>
       </fieldset>
       <div className="col-span-2 flex items-center gap-2 sm:col-span-4">
         <button onClick={save} disabled={busy || limitIssues.length > 0} className={buttonVariants({ variant: "primary", size: "md" })}>
-          Save options
+          {$t("workspace.flows-step-options.saveOptions")}
         </button>
         <button onClick={onClose} className={buttonVariants({ variant: "ghost", size: "md" })}>
-          Cancel
+          {$t("workspace.flows-step-options.cancel")}
         </button>
         {error && <span role="alert" className="text-xs text-danger">{error}</span>}
       </div>

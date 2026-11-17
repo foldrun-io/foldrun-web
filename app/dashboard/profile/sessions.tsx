@@ -8,6 +8,7 @@
 // person on the install. That was true, and it was the gap. Sessions are rows
 // now, so the honest answer is a list and a button.
 
+import { $rich, $t, $el } from "@/i18n";
 import { useEffect, useState } from "react";
 import { buttonVariants } from "@foldrun/ui/react/button";
 import { LocalTime } from "@/components/local-time";
@@ -24,20 +25,20 @@ interface Row {
 
 /** A user-agent string is not something to show a person. Name the shape. */
 function describe(ua: string | null): string {
-  if (!ua) return "Unknown device";
+  if (!ua) return $t("profile.sessions.unknownDevice");
   const browser =
-    /Edg\//.test(ua) ? "Edge"
-    : /OPR\//.test(ua) ? "Opera"
-    : /Chrome\//.test(ua) ? "Chrome"
-    : /Safari\//.test(ua) ? "Safari"
-    : /Firefox\//.test(ua) ? "Firefox"
-    : "Browser";
+    /Edg\//.test(ua) ? $t("profile.sessions.edge")
+    : /OPR\//.test(ua) ? $t("profile.sessions.opera")
+    : /Chrome\//.test(ua) ? $t("profile.sessions.chrome")
+    : /Safari\//.test(ua) ? $t("profile.sessions.safari")
+    : /Firefox\//.test(ua) ? $t("profile.sessions.firefox")
+    : $t("profile.sessions.browser");
   const os =
     /iPhone|iPad/.test(ua) ? "iOS"
-    : /Android/.test(ua) ? "Android"
+    : /Android/.test(ua) ? $t("profile.sessions.android")
     : /Mac OS X/.test(ua) ? "macOS"
-    : /Windows/.test(ua) ? "Windows"
-    : /Linux/.test(ua) ? "Linux"
+    : /Windows/.test(ua) ? $t("profile.sessions.windows")
+    : /Linux/.test(ua) ? $t("profile.sessions.linux")
     : "";
   return os ? `${browser} on ${os}` : browser;
 }
@@ -49,7 +50,7 @@ export function SessionList() {
 
   const load = async () => {
     const res = await fetch("/api/auth/sessions");
-    if (!res.ok) return setError("could not load your sessions");
+    if (!res.ok) return setError($t("profile.sessions.couldNotLoadYourSessions"));
     setState(await res.json());
   };
   useEffect(() => {
@@ -67,19 +68,17 @@ export function SessionList() {
     setBusy("");
     if (!res.ok) {
       const b = (await res.json().catch(() => ({}))) as { error?: string };
-      return setError(b.error ?? "could not end that session");
+      return setError(b.error ?? $t("profile.sessions.couldNotEndThatSession"));
     }
     await load();
   };
 
-  if (!state) return <p className="text-sm text-fg-muted">Loading…</p>;
+  if (!state) return <p className="text-sm text-fg-muted">{$t("profile.sessions.loading")}</p>;
 
   if (!state.revocable) {
     return (
       <p className="text-sm text-fg-tertiary">
-        This install has no database, so sessions are signed statements rather than stored rows —
-        they cannot be listed or ended individually. To end every session at once, rotate{" "}
-        <code className="font-mono text-xs">FOLDRUN_SECRET_KEY</code>.
+        {$rich("profile.sessions.thisInstallHasNoDatabaseSo", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code> })}
       </p>
     );
   }
@@ -95,11 +94,11 @@ export function SessionList() {
               <p className="truncate text-fg">
                 {describe(s.userAgent)}
                 {s.isCurrent && (
-                  <Tag className="ml-2">this device</Tag>
+                  <Tag className="ml-2">{$t("profile.sessions.thisDevice")}</Tag>
                 )}
               </p>
               <p className="text-xs text-fg-muted">
-                last used <LocalTime iso={s.lastSeenAt} /> · started <LocalTime iso={s.createdAt} /> · signed in with {s.method === "email-code" ? "an email code" : "a password"}
+                {$rich("profile.sessions.lastUsedStartedSignedInWith", { localTime: $el(<LocalTime iso={s.lastSeenAt} />), localTime2: $el(<LocalTime iso={s.createdAt} />) })}{" "}{s.method === "email-code" ? $t("profile.sessions.anEmailCode") : $t("profile.sessions.aPassword")}
               </p>
             </div>
             {!s.isCurrent && (
@@ -109,7 +108,7 @@ export function SessionList() {
                 disabled={busy === s.id}
                 onClick={() => end({ id: s.id }, s.id)}
               >
-                {busy === s.id ? "ending…" : "End"}
+                {busy === s.id ? "ending…" : $t("profile.sessions.end")}
               </button>
             )}
           </li>
@@ -127,8 +126,8 @@ export function SessionList() {
         {busy === "others"
           ? "Ending…"
           : others.length === 0
-            ? "No other devices"
-            : `Sign out ${others.length} other device${others.length === 1 ? "" : "s"}`}
+            ? $t("profile.sessions.noOtherDevices")
+            : $t("profile.sessions.signOutOtherDevice", { length: String(others.length), v1: String(others.length === 1 ? "" : "s") })}
       </button>
     </div>
   );

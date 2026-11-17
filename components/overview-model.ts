@@ -2,6 +2,7 @@
 // the formatting every surface agrees on. Pure; tests/overview.test.ts pins
 // the rules. The pages read disk and hand these the results.
 
+import { $t } from "@/i18n";
 import type { RunRecord } from "@/lib/store";
 import { creditsShort } from "@/components/money";
 
@@ -68,14 +69,14 @@ export function alertsFor(a: AlertInput): Alert[] {
   if (approvals > 0) {
     out.push({
       level: "warn",
-      text: approvals === 1 ? "1 run is waiting for your approval" : `${approvals} runs are waiting for your approval`,
+      text: approvals === 1 ? $t("components.overview-model.1RunIsWaitingForYour") : $t("components.overview-model.runsAreWaitingForYourApproval", { approvals: String(approvals) }),
       href: `/dashboard/runs?status=awaiting-approval${a.qs ? `&${a.qs}` : ""}`,
     });
   }
   if (failedInDay > 0) {
     out.push({
       level: "error",
-      text: failedInDay === 1 ? "1 run failed in the last 24 hours" : `${failedInDay} runs failed in the last 24 hours`,
+      text: failedInDay === 1 ? $t("components.overview-model.1RunFailedInTheLast") : $t("components.overview-model.runsFailedInTheLast24", { failedInDay: String(failedInDay) }),
       href: `/dashboard/runs?status=failed&since=today${a.qs ? `&${a.qs}` : ""}`,
     });
   }
@@ -83,7 +84,7 @@ export function alertsFor(a: AlertInput): Alert[] {
   for (const c of a.nearCap) {
     out.push({
       level: c.spent >= c.budget ? "error" : "warn",
-      text: `${c.workspace} is at ${creditsShort(c.spent)} of its ${creditsShort(c.budget)} budget${c.label ? ` (written as ${c.label})` : " this month"}`,
+      text: $t("components.overview-model.isAtOfItsBudget", { workspace: String(c.workspace), v1: String(creditsShort(c.spent)), v2: String(creditsShort(c.budget)), v3: String(c.label ? $t("components.overview-model.writtenAs", { label: String(c.label) }) : $t("components.overview-model.thisMonth")) }),
       href: `/dashboard/${c.workspace}/settings${q ? `${q}&` : "?"}tab=policies#budget`,
     });
   }
@@ -98,14 +99,14 @@ export function fmtMoney(usd: number): string {
 }
 
 export function fmtAgo(ms: number): string {
-  if (ms < 60_000) return "just now";
+  if (ms < 60_000) return $t("components.overview-model.justNow");
   const m = Math.floor(ms / 60_000);
-  if (m < 60) return `${m}m ago`;
+  if (m < 60) return $t("components.overview-model.mAgo", { m: String(m) });
   const h = Math.floor(m / 60);
-  if (h < 48) return `${h}h ago`;
+  if (h < 48) return $t("components.overview-model.hAgo", { h: String(h) });
   const d = Math.floor(h / 24);
-  if (d < 60) return `${d}d ago`;
-  return `${Math.floor(d / 30)}mo ago`;
+  if (d < 60) return $t("components.overview-model.dAgo", { d: String(d) });
+  return $t("components.overview-model.moAgo", { v0: String(Math.floor(d / 30)) });
 }
 
 /** The page's clock, read once per render on the server. */

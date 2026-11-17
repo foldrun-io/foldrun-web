@@ -1,4 +1,5 @@
 "use client";
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { buttonVariants } from "@foldrun/ui/react/button";
 import { Input } from "@foldrun/ui/react/input";
@@ -27,11 +28,11 @@ export function ResetForm({ token }: { token: string }) {
         setBusy(false);
       }}
     >
-      <Field label="New password">
+      <Field label={$t("auth.reset-form.newPassword")}>
         <Input name="password" type="password" required minLength={10} autoFocus autoComplete="new-password" className="w-full" />
       </Field>
       {error && <Callout tone="danger">{error}</Callout>}
-      <button disabled={busy} className={cn(buttonVariants({ variant: "primary", size: "md" }), "w-full")}>{busy ? "…" : "Set password and sign in"}</button>
+      <button disabled={busy} className={cn(buttonVariants({ variant: "primary", size: "md" }), "w-full")}>{busy ? "…" : $t("auth.reset-form.setPasswordAndSignIn")}</button>
     </form>
   );
 }

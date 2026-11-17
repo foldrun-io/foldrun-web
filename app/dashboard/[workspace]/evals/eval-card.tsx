@@ -4,7 +4,7 @@
 // Compare models, its proposed fixes and its file. Running waits for every
 // case — a partial verdict is worse than waiting.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import { useState } from "react";
 import type React from "react";
 import Link from "@foldrun/ui/react/link";
@@ -79,7 +79,7 @@ export function EvalDetail({
   return (
     <Page>
       <PageHeader
-        back={{ href: listHref, label: "Evals" }}
+        back={{ href: listHref, label: $t("workspace.evals-eval-card.evals") }}
         icon={
           <IconBox>
             <FlaskConical />
@@ -88,12 +88,12 @@ export function EvalDetail({
         title={info.name}
         badge={
           <>
-            {result && <Chip tone={result.failed === 0 ? "good" : "bad"}>{result.passed}/{result.passed + result.failed} passing</Chip>}
-            {result?.error && <Chip tone="bad">could not run</Chip>}
+            {result && <Chip tone={result.failed === 0 ? "good" : "bad"}>{$t("workspace.evals-eval-card.passing", { passed: String(result.passed), passed2: String(result.passed + result.failed) })}</Chip>}
+            {result?.error && <Chip tone="bad">{$t("workspace.evals-eval-card.couldNotRun")}</Chip>}
             {info.trigger === "manual" && (
-              <Tooltip label="Not run after a deploy — a person runs it, because it costs a whole run.">
+              <Tooltip label={$t("workspace.evals-eval-card.notRunAfterADeployA")}>
                 <span>
-                  <Tag>manual</Tag>
+                  <Tag>{$t("workspace.evals-eval-card.manual")}</Tag>
                 </span>
               </Tooltip>
             )}
@@ -101,22 +101,22 @@ export function EvalDetail({
         }
         description={
           <>
-            Tests {kind} <span className="font-medium text-fg">{target}</span> with {cases}.
+            {$rich("workspace.evals-eval-card.testsWith", { kind: kind, target: target, span: (chunks) => <span className="font-medium text-fg">{chunks}</span>, cases: cases })}
           </>
         }
         actions={
           <>
             {info.cases.length > 0 && (
-              <Tooltip label={canRun ? "Run the cases under two to four models, side by side" : "The comparisons run so far"}>
+              <Tooltip label={canRun ? $t("workspace.evals-eval-card.runTheCasesUnderTwoTo") : $t("workspace.evals-eval-card.theComparisonsRunSoFar")}>
                 <Button variant="secondary" size="md" onClick={() => setComparing((v) => !v)} aria-expanded={comparing}>
-                  {comparing ? "Close compare" : canRun ? "Compare models" : "Comparisons"}
+                  {comparing ? $t("workspace.evals-eval-card.closeCompare") : canRun ? $t("workspace.evals-eval-card.compareModels") : $t("workspace.evals-eval-card.comparisons")}
                 </Button>
               </Tooltip>
             )}
             <Button variant="primary" size="md" onClick={run} disabled={busy}>
-              {busy ? "Running…" : "Run"}
+              {busy ? "Running…" : $t("workspace.evals-eval-card.run")}
             </Button>
-            <EvalMenu workspace={workspace} tenant={tenant} file={info.file} listHref={listHref} confirmText={`Delete eval ${info.name}? Its pass/fail history goes with it.`} />
+            <EvalMenu workspace={workspace} tenant={tenant} file={info.file} listHref={listHref} confirmText={$t("workspace.evals-eval-card.deleteEvalItsPassFailHistory", { name: String(info.name) })} />
           </>
         }
       />
@@ -124,17 +124,17 @@ export function EvalDetail({
       <div className="space-y-8 pb-12">
         {(error || (result?.error && !busy) || (!busy && runningSince) || busy || missingTarget) && (
           <div className="space-y-1.5 rounded-lg border border-line bg-surface px-4 py-3 text-sm">
-            {missingTarget && <p className="text-danger">{kind} &quot;{target}{$t("workspace.evals-eval-card.notFoundInThisWorkspace")}</p>}
+            {missingTarget && <p className="text-danger">{$t("workspace.evals-eval-card.notFoundInThisTerm", { kind: kind, target: target })}</p>}
             {error && <p className="text-danger">{error}</p>}
             {result?.error && !busy && (
               // The eval never got to its cases. Say why, or 0/n looks like n
               // wrong answers and someone rewrites a working agent.
-              <p className="text-danger">Could not run: {result.error}</p>
+              <p className="text-danger">{$t("workspace.evals-eval-card.couldNotRun2", { error: result.error })}</p>
             )}
-            {!busy && runningSince && <p className="text-fg-muted">Already running, since {runningSince.slice(11, 16)} UTC — its result shows here when you reload after it finishes.</p>}
+            {!busy && runningSince && <p className="text-fg-muted">{$t("workspace.evals-eval-card.alreadyRunningSinceUtcItsResult", { slice: runningSince.slice(11, 16) })}</p>}
             {busy && (
               <p className="text-fg-muted">
-                Running {cases} — each one starts a real run, so this takes as long as the agent does.
+                {$t("workspace.evals-eval-card.runningEachOneStartsAReal", { cases: cases })}
               </p>
             )}
           </div>
@@ -143,7 +143,7 @@ export function EvalDetail({
         <SummaryCard
           items={[
             {
-              label: kind === "flow" ? "Flow" : "Agent",
+              label: kind === "flow" ? $t("workspace.evals-eval-card.flow") : $t("workspace.evals-eval-card.agent"),
               value: missingTarget ? (
                 <span className="text-danger">{target}</span>
               ) : (
@@ -152,22 +152,22 @@ export function EvalDetail({
                 </Link>
               ),
             },
-            { label: "Judge", value: <span className="font-mono">{info.model}</span> },
-            { label: "Runs", value: info.trigger === "manual" ? "When you press Run" : "After every deploy" },
-            { label: "Last run", value: result ? result.finishedAt.slice(0, 16).replace("T", " ") : "Never" },
-            { label: "Cost", value: result ? `$${result.costUsd.toFixed(4)}` : "—" },
+            { label: $t("workspace.evals-eval-card.judge"), value: <span className="font-mono">{info.model}</span> },
+            { label: $t("workspace.evals-eval-card.runs"), value: info.trigger === "manual" ? $t("workspace.evals-eval-card.whenYouPressRun") : $t("workspace.evals-eval-card.afterEveryDeploy") },
+            { label: $t("workspace.evals-eval-card.lastRun"), value: result ? result.finishedAt.slice(0, 16).replace("T", " ") : $t("workspace.evals-eval-card.never") },
+            { label: $t("workspace.evals-eval-card.cost"), value: result ? `$${result.costUsd.toFixed(4)}` : "—" },
           ]}
         />
 
         {comparing && (
-          <Panel title="Compare models">
+          <Panel title={$t("workspace.evals-eval-card.compareModels")}>
             <ComparePanel workspace={workspace} tenant={tenant} evalName={info.name} cases={info.cases.length} flowAgents={info.flow ? flowAgents : null} canStart={canRun} />
           </Panel>
         )}
 
-        <Panel title="Cases" description="Each case runs the agent on a task; each line under it is a check its output must pass." flush>
+        <Panel title={$t("workspace.evals-eval-card.cases")} description={$t("workspace.evals-eval-card.eachCaseRunsTheAgentOn")} flush>
           {info.cases.length === 0 ? (
-            <p className="px-5 py-6 text-sm text-fg-muted">No cases yet — one ## section per case in the file.</p>
+            <p className="px-5 py-6 text-sm text-fg-muted">{$t("workspace.evals-eval-card.noCasesYetOneSectionPer")}</p>
           ) : (
             <PanelList>
               {info.cases.map((c) => {
@@ -175,7 +175,7 @@ export function EvalDetail({
                 return (
                   <li key={c.name} className="space-y-2 px-5 py-4">
                     <div className="flex flex-wrap items-center gap-2">
-                      {r ? <Chip tone={r.passed ? "good" : "bad"}>{r.passed ? "pass" : "fail"}</Chip> : <Chip>not run</Chip>}
+                      {r ? <Chip tone={r.passed ? "good" : "bad"}>{r.passed ? "pass" : "fail"}</Chip> : <Chip>{$t("workspace.evals-eval-card.notRun")}</Chip>}
                       <span className="text-sm font-medium text-fg">{c.name}</span>
                     </div>
                     <p className="text-sm text-fg-muted">{c.task}</p>
@@ -184,7 +184,7 @@ export function EvalDetail({
                         const ar = r?.assertions[i];
                         return (
                           <li key={i} className="flex items-start gap-2 text-[13px]">
-                            <span className="mt-0.5 shrink-0" aria-label={!ar ? "not run" : ar.passed ? "passed" : "failed"}>
+                            <span className="mt-0.5 shrink-0" aria-label={!ar ? $t("workspace.evals-eval-card.notRun") : ar.passed ? "passed" : "failed"}>
                               {!ar ? <Circle className="size-3.5 text-fg-subtle" /> : ar.passed ? <Check className="size-3.5 text-success" /> : <X className="size-3.5 text-danger" />}
                             </span>
                             <span className="min-w-0 [overflow-wrap:anywhere]">
@@ -204,7 +204,7 @@ export function EvalDetail({
         </Panel>
 
         {proposals && (
-          <Panel title="Proposed fixes" description="The assistant reads the failures and proposes the smallest change. Nothing is written until you apply it.">
+          <Panel title={$t("workspace.evals-eval-card.proposedFixes")} description={$t("workspace.evals-eval-card.theAssistantReadsTheFailuresAnd")}>
             {proposals}
           </Panel>
         )}
@@ -220,13 +220,13 @@ export function EvalDetail({
 export function EvalSource({ workspace, tenant, name, file }: { workspace: string; tenant: string; name: string; file: string }) {
   return (
     <section className="space-y-3">
-      <h2 className="px-1 text-base font-medium text-fg">Source</h2>
+      <h2 className="px-1 text-base font-medium text-fg">{$t("workspace.evals-eval-card.source")}</h2>
       <CollapsibleCard
         id={anchorId("eval-source", name)}
         scope={`eval-source:${workspace}`}
         item={name}
-        title={<span className="font-mono text-[13px] font-normal">evals/{file}</span>}
-        subtitle="Edit the cases and checks"
+        title={<span className="font-mono text-[13px] font-normal">{$t("workspace.evals-eval-card.evals2", { file: file })}</span>}
+        subtitle={$t("workspace.evals-eval-card.editTheCasesAndChecks")}
         className="!rounded-lg !shadow-none"
         bodyClassName="border-t border-line px-4 pb-4 pt-3"
       >

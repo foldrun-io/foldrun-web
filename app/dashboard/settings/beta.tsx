@@ -36,12 +36,12 @@ export function BetaFeatures({ initial, flags: initialFlags, canChange }: { init
     <div className="space-y-4">
       <label className="flex items-start justify-between gap-4">
         <span className="min-w-0">
-          <span className="block text-sm font-medium text-fg">Get beta features first</span>
+          <span className="block text-sm font-medium text-fg">{$t("settings.beta.getBetaFeaturesFirst")}</span>
           <span className="block text-sm text-fg-muted">
-            New features reach this account before everyone else. They are finished, but may still change; turn it off at any time.
+            {$t("settings.beta.newFeaturesReachThisAccountBefore")}
           </span>
         </span>
-        <Switch checked={beta} disabled={!canChange || busy} onCheckedChange={(v) => void set(v)} aria-label="Beta features" />
+        <Switch checked={beta} disabled={!canChange || busy} onCheckedChange={(v) => void set(v)} aria-label={$t("settings.beta.betaFeatures")} />
       </label>
       {!canChange && <p className="text-sm text-fg-subtle">{$t("settings.beta.onlyAnAdminOfEveryWorkspace")}</p>}
       {error && <p className="text-sm text-danger">{error}</p>}

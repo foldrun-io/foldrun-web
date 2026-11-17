@@ -11,7 +11,7 @@
 // secrets, library tools, an agent it consults — before anything is written.
 // See core package.ts.
 
-import { $t } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -26,7 +26,7 @@ export function ExportLink({
   workspace,
   kind = "workspace",
   name,
-  label = "Export",
+  label = $t("components.package-buttons.export"),
   className,
 }: {
   workspace: string;
@@ -41,7 +41,7 @@ export function ExportLink({
       label={
         kind === "workspace"
           ? $t("components.package-buttons.downloadThisWorkspaceSAgentsFlows")
-          : `Download this ${kind} and what it needs to run as a .zip`
+          : $t("components.package-buttons.downloadThisAndWhatItNeeds", { kind: String(kind) })
       }
     >
       <a
@@ -106,7 +106,7 @@ export function ImportPackageButton({
   };
 
   const send = async (query: string): Promise<Plan> => {
-    if (!file) throw new Error("choose a .zip first");
+    if (!file) throw new Error($t("components.package-buttons.chooseAZipFirst"));
     const r = await fetch(`/api/workspaces/${encodeURIComponent(target)}/import${query}`, {
       method: "POST",
       headers: { "content-type": "application/zip", "x-foldrun-tenant": tenant },
@@ -151,12 +151,12 @@ export function ImportPackageButton({
   const needsList = (p: Plan) =>
     (
       [
-        ["Secrets to set", p.needs.secrets],
+        [$t("components.package-buttons.secretsToSet"), p.needs.secrets],
         [$t("components.package-buttons.toolsNotInThisWorkspaceOr"), p.needs.tools],
-        ["Skills not found", p.needs.skills],
-        ["Scripts not found", p.needs.scripts],
-        ["Agents it names that are not here", p.needs.agents],
-        ["Flows it runs that are not here", p.needs.flows],
+        [$t("components.package-buttons.skillsNotFound"), p.needs.skills],
+        [$t("components.package-buttons.scriptsNotFound"), p.needs.scripts],
+        [$t("components.package-buttons.agentsItNamesThatAreNot"), p.needs.agents],
+        [$t("components.package-buttons.flowsItRunsThatAreNot"), p.needs.flows],
       ] as const
     ).filter(([, v]) => v.length > 0);
 
@@ -165,14 +165,14 @@ export function ImportPackageButton({
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className={buttonVariants({ variant: color, size: "md" })}>
-        {label ?? (newWorkspace ? $t("components.package-buttons.importWorkspace") : "Import .zip")}
+        {label ?? (newWorkspace ? $t("components.package-buttons.importWorkspace") : $t("components.package-buttons.importZip"))}
       </button>
       <Dialog open={open} onOpenChange={(o) => !o && close()}>
         <DialogContent hideClose aria-describedby={undefined} className="top-[10vh] max-h-[85dvh] translate-y-0 rounded-xl" size="md">
             <form onSubmit={preview} className="flex min-h-0 flex-col">
               <header className="border-b border-line-faint px-5 py-4">
                 <DialogTitle className="font-cal text-base font-semibold text-fg">
-                  {newWorkspace ? $t("components.package-buttons.importAWorkspace") : `Import into ${workspace}`}
+                  {newWorkspace ? $t("components.package-buttons.importAWorkspace") : $t("components.package-buttons.importInto", { workspace: String(workspace) })}
                 </DialogTitle>
                 <p className="mt-0.5 text-xs text-fg-muted">
                   {$t("components.package-buttons.aZipFromExportAWorkspace")}
@@ -183,8 +183,7 @@ export function ImportPackageButton({
                 {done ? (
                   <div className="space-y-2">
                     <p className="text-sm text-fg">
-                      Imported {what(done)} into <span className="font-mono">{done.workspace}</span>: {done.written?.length ?? 0}{" "}
-                      file{done.written?.length === 1 ? "" : "s"} written.
+                      {$rich("components.package-buttons.importedIntoFileWritten", { done: what(done), workspace: done.workspace, span: (chunks) => <span className="font-mono">{chunks}</span>, length: String(done.written?.length ?? 0), length2: done.written?.length ?? "" })}
                     </p>
                     {needsList(done).length > 0 && <NeedsBlock items={needsList(done)} />}
                   </div>
@@ -196,33 +195,31 @@ export function ImportPackageButton({
                     </p>
                     <ul className="space-y-1 text-xs text-fg-secondary">
                       <li>
-                        <b>{plan.added.length}</b> new file{plan.added.length === 1 ? "" : "s"}
+                        {$rich("components.package-buttons.newFile", { length: plan.added.length, b: (chunks) => <b>{chunks}</b> })}
                       </li>
-                      {plan.unchanged.length > 0 && <li>{plan.unchanged.length} already identical — left alone</li>}
+                      {plan.unchanged.length > 0 && <li>{$t("components.package-buttons.alreadyIdenticalLeftAlone", { length: String(plan.unchanged.length) })}</li>}
                       {(plan.skipped?.length ?? 0) > 0 && (
                         <Tooltip label={<span className="whitespace-pre-line">{plan.skipped!.join("\n")}</span>}>
                           <li>
-                            {plan.skipped!.length} not imported — memory, state and anything outside agents, flows, evals, knowledge, skills, tools
-                            and scripts
+                            {$t("components.package-buttons.notImportedMemoryStateAndAnything", { length: String(plan.skipped!.length) })}
                           </li>
                         </Tooltip>
                       )}
                       {plan.overwritten.length > 0 && (
                         <li className="text-amber-700 dark:text-amber-400">
-                          {plan.overwritten.length} file{plan.overwritten.length === 1 ? "" : "s"} here would be replaced:
+                          {$t("components.package-buttons.fileHereWouldBeReplaced", { length: plan.overwritten.length })}
                           <ul className="mt-1 list-disc pl-5 font-mono">
                             {plan.overwritten.slice(0, 12).map((p) => (
                               <li key={p}>{p}</li>
                             ))}
-                            {plan.overwritten.length > 12 && <li>… {plan.overwritten.length - 12} more</li>}
+                            {plan.overwritten.length > 12 && <li>{$t("components.package-buttons.more", { length: String(plan.overwritten.length - 12) })}</li>}
                           </ul>
                         </li>
                       )}
                     </ul>
                     {plan.overwritten.length > 0 && (
                       <label className="flex items-center gap-2 text-xs text-fg-secondary">
-                        <Checkbox checked={overwrite} onCheckedChange={(checked: boolean) => setOverwrite(checked)} />
-                        Replace {plan.overwritten.length === 1 ? "that file" : `those ${plan.overwritten.length} files`} (History can restore {plan.overwritten.length === 1 ? "it" : "them"})
+                        {$rich("components.package-buttons.replace", { checkbox: $el(<Checkbox checked={overwrite} onCheckedChange={(checked: boolean) => setOverwrite(checked)} />) })}{" "}{plan.overwritten.length === 1 ? $t("components.package-buttons.thatFile") : $t("components.package-buttons.thoseFiles", { length: String(plan.overwritten.length) })}{" "}{$t("components.package-buttons.historyCanRestore", { length: plan.overwritten.length })}
                       </label>
                     )}
                     {needsList(plan).length > 0 && <NeedsBlock items={needsList(plan)} />}
@@ -231,21 +228,21 @@ export function ImportPackageButton({
                   <>
                     <div>
                       <span className={labelClass} id="pkg-file-label">
-                        Package
+                        {$t("components.package-buttons.package")}
                       </span>
                       <div className="mt-1">
                         <FileButton
                           id="pkg-file"
                           aria-labelledby="pkg-file-label pkg-file"
                           accept=".zip,application/zip"
-                          chosen={file ? file.name : "No file chosen"}
+                          chosen={file ? file.name : $t("components.package-buttons.noFileChosen")}
                           onFiles={([f]) => {
                             setFile(f);
                             // `blog.zip` → offer `blog` as the new workspace's name.
                             if (newWorkspace && f && !target) setTarget(suggestName(f.name));
                           }}
                         >
-                          Choose a .zip
+                          {$t("components.package-buttons.chooseAZip")}
                         </FileButton>
                       </div>
                     </div>
@@ -271,7 +268,7 @@ export function ImportPackageButton({
 
               <footer className="flex justify-end gap-2 border-t border-line-faint px-5 py-3">
                 <button type="button" onClick={close} className={buttonVariants({ variant: "secondary", size: "md" })}>
-                  {done ? "Close" : "Cancel"}
+                  {done ? $t("components.package-buttons.close") : $t("components.package-buttons.cancel")}
                 </button>
                 {!done &&
                   (plan ? (
@@ -283,11 +280,11 @@ export function ImportPackageButton({
                       disabled={busy || (plan.overwritten.length > 0 && !overwrite) || plan.added.length + plan.overwritten.length === 0}
                       className={buttonVariants({ variant: "primary", size: "md" })}
                     >
-                      {busy ? "Importing…" : plan.added.length + plan.overwritten.length === 0 ? "Nothing to import" : "Import"}
+                      {busy ? "Importing…" : plan.added.length + plan.overwritten.length === 0 ? $t("components.package-buttons.nothingToImport") : $t("components.package-buttons.import")}
                     </button>
                   ) : (
                     <button type="submit" disabled={busy || !file || !target.trim()} className={buttonVariants({ variant: "primary", size: "md" })}>
-                      {busy ? "Reading…" : "Preview"}
+                      {busy ? "Reading…" : $t("components.package-buttons.preview")}
                     </button>
                   ))}
               </footer>
@@ -302,7 +299,7 @@ export function ImportPackageButton({
 function NeedsBlock({ items }: { items: (readonly [string, readonly string[]])[] }) {
   return (
     <div className="rounded-md border border-line bg-sunken px-3 py-2 text-xs">
-      <p className="font-medium text-fg-secondary">It still needs:</p>
+      <p className="font-medium text-fg-secondary">{$t("components.package-buttons.itStillNeeds")}</p>
       <ul className="mt-1 space-y-0.5 text-fg-tertiary">
         {items.map(([k, v]) => (
           <li key={k}>

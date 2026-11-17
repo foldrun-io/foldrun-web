@@ -3,6 +3,7 @@
 // by anchor — `/dashboard/settings#provider`. Each anchor now lives on one
 // tab; `settingsHref("provider")` is the link to it, and SettingsAnchor sends
 // an old `#provider` link (in a sent email, say) to its tab.
+import { $t } from "@/i18n";
 import type { PageTab } from "@foldrun/ui/react/page-tabs";
 
 export type SettingsTab = "general" | "team" | "policies" | "models" | "api" | "secrets" | "schedules" | "security";
@@ -60,16 +61,16 @@ export function settingsTabs(tenant: string, opts: { team: boolean; active: Sett
     return { label, href: `/dashboard/settings${q ? `?${q}` : ""}`, active: opts.active === key };
   };
   return [
-    tab("general", "General"),
-    ...(opts.team ? [tab("team", "Team")] : []),
-    tab("policies", "Policies"),
-    tab("models", "Models"),
-    tab("api", "API keys"),
-    tab("secrets", "Secrets"),
-    tab("schedules", "Schedules"),
-    tab("security", "Security"),
-    { label: "Audit log", href: `${ROUTE.audit}${t ? `?${t}` : ""}`, active: opts.active === "audit" },
-    { label: "Backups", href: `${ROUTE.backups}${t ? `?${t}` : ""}`, active: opts.active === "backups" },
+    tab("general", $t("settings.tabs.general")),
+    ...(opts.team ? [tab("team", $t("settings.tabs.team"))] : []),
+    tab("policies", $t("settings.tabs.policies")),
+    tab("models", $t("settings.tabs.models")),
+    tab("api", $t("settings.tabs.apiKeys")),
+    tab("secrets", $t("settings.tabs.secrets")),
+    tab("schedules", $t("settings.tabs.schedules")),
+    tab("security", $t("settings.tabs.security")),
+    { label: $t("settings.tabs.auditLog"), href: `${ROUTE.audit}${t ? `?${t}` : ""}`, active: opts.active === "audit" },
+    { label: $t("settings.tabs.backups"), href: `${ROUTE.backups}${t ? `?${t}` : ""}`, active: opts.active === "backups" },
   ];
 }
 

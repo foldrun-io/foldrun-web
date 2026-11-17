@@ -11,6 +11,7 @@
 // One component, one rule: **the name is the control.** Click it to open the
 // editor underneath; a chevron says so. Nothing else is an edit affordance.
 
+import { $t } from "@/i18n";
 import type { ReactNode } from "react";
 import { Tooltip } from "@foldrun/ui/react/tooltip";
 
@@ -55,7 +56,7 @@ export function ExpandableTitle({
   meta?: ReactNode;
 }) {
   return (
-    <Tooltip label={open ? "Close the editor" : "Edit this file"}>
+    <Tooltip label={open ? $t("components.expandable.closeTheEditor") : $t("components.expandable.editThisFile")}>
     <button
       type="button"
       onClick={onToggle}

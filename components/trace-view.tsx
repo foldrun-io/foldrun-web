@@ -4,6 +4,7 @@
 // kind you are looking for, verify as a verdict, long lines one click from
 // whole, and the whole trace one click from full height.
 
+import { $t } from "@/i18n";
 import { useEffect, useMemo, useState, type Ref, type UIEvent } from "react";
 import { Markdown } from "@/components/markdown";
 import { CALL_CONTENT_NEEDS, callContentError, classify, counts, type TraceKind, type TraceLine } from "@/components/trace-model";
@@ -16,12 +17,12 @@ import { Segmented } from "@foldrun/ui/react/segmented";
 import { Chip, Tag } from "@foldrun/ui/react/page";
 
 const FILTERS: { key: TraceKind | "all"; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "agent", label: "Agent" },
-  { key: "tool", label: "Tools" },
-  { key: "verify", label: "Verify" },
-  { key: "error", label: "Errors" },
-  { key: "system", label: "System" },
+  { key: "all", label: $t("components.trace-view.all") },
+  { key: "agent", label: $t("components.trace-view.agent") },
+  { key: "tool", label: $t("components.trace-view.tools") },
+  { key: "verify", label: $t("components.trace-view.verify") },
+  { key: "error", label: $t("components.trace-view.errors") },
+  { key: "system", label: $t("components.trace-view.system") },
 ];
 
 const MARK: Record<TraceKind, { icon: string; tone: string }> = {
@@ -47,14 +48,14 @@ export function CallContent({ run, call, tenant }: { run: CallRun; call: string;
       live = false;
     };
   }, [run.workspace, run.runId, call, tenant]);
-  if (state === null) return <p className="mt-1 text-xs text-fg-muted">loading…</p>;
+  if (state === null) return <p className="mt-1 text-xs text-fg-muted">{$t("components.trace-view.loading")}</p>;
   if (typeof state === "string") return <p className="mt-1 text-xs text-danger">{state}</p>;
   const part = (label: string, text: string | undefined, whole: number | undefined, cut: boolean | undefined) =>
     text === undefined ? null : (
       <div>
         <p className="text-xs font-medium text-fg-muted">
-          {label === "input" ? "Input" : label === "output" ? "Output" : label}
-          {cut && whole !== undefined && whole > text.length ? ` · the first ${grouped(text.length)} of ${grouped(whole)} characters` : ""}
+          {label === "input" ? $t("components.trace-view.input") : label === "output" ? $t("components.trace-view.output") : label}
+          {cut && whole !== undefined && whole > text.length ? $t("components.trace-view.theFirstOfCharacters", { v0: String(grouped(text.length)), v1: String(grouped(whole)) }) : ""}
         </p>
         <pre className="mt-0.5 max-h-72 overflow-auto whitespace-pre-wrap break-all rounded-md border border-line bg-sunken p-2 font-mono text-[11px] text-fg-secondary">{text || "(empty)"}</pre>
       </div>
@@ -63,7 +64,7 @@ export function CallContent({ run, call, tenant }: { run: CallRun; call: string;
     <div className="mt-1 space-y-1.5">
       {part("input", state.input, state.inputChars, state.inputCut)}
       {part("output", state.output, state.outputChars, state.outputCut)}
-      {state.input === undefined && state.output === undefined && <p className="text-xs text-fg-muted">nothing recorded</p>}
+      {state.input === undefined && state.output === undefined && <p className="text-xs text-fg-muted">{$t("components.trace-view.nothingRecorded")}</p>}
     </div>
   );
 }
@@ -87,7 +88,7 @@ function Row({ line, callRun, tenant }: { line: TraceLine; callRun?: CallRun; te
       {line.subagent && (
         // A sub-agent's call, made on this step's behalf: indented under the
         // step and named, so its work reads apart from the parent's.
-        <Tag className="ml-3 h-5 self-start" hint="made by a sub-agent (subagents:)">
+        <Tag className="ml-3 h-5 self-start" hint={$t("components.trace-view.madeByASubAgentSubagents")}>
           ↳ {line.subagent}
         </Tag>
       )}
@@ -96,7 +97,7 @@ function Row({ line, callRun, tenant }: { line: TraceLine; callRun?: CallRun; te
         // rewrite reads at a glance rather than as one more trace line.
         const b = hookBadge(line.hook);
         return (
-          <Chip tone={HOOK_TONE[b.tone]} className="h-5 self-start" hint={`hook ${line.hook.hook} on ${line.hook.event}`}>
+          <Chip tone={HOOK_TONE[b.tone]} className="h-5 self-start" hint={$t("components.trace-view.hookOn", { hook: String(line.hook.hook), event: String(line.hook.event) })}>
             ⚑ {b.label}
           </Chip>
         );
@@ -106,7 +107,7 @@ function Row({ line, callRun, tenant }: { line: TraceLine; callRun?: CallRun; te
           <Markdown text={line.text} className="text-sm text-fg" />
         ) : line.kind === "verify" ? (
           <p className="text-[13px] leading-5">
-            <Chip tone={line.ok ? "good" : "bad"} className="mr-2 h-5">{line.ok ? "verified" : "verify failed"}</Chip>
+            <Chip tone={line.ok ? "good" : "bad"} className="mr-2 h-5">{line.ok ? "verified" : $t("components.trace-view.verifyFailed")}</Chip>
             <span className="font-mono text-[12px] text-fg-tertiary">{line.text.replace(/^verify\s*/i, "")}</span>
           </p>
         ) : line.tool ? (
@@ -118,7 +119,7 @@ function Row({ line, callRun, tenant }: { line: TraceLine; callRun?: CallRun; te
             {line.call && callRun && (
               <>
                 <Tooltip label={mayReadCalls ? "" : CALL_CONTENT_NEEDS}><span className="inline-flex"><button type="button" aria-expanded={io} disabled={!mayReadCalls} onClick={() => setIo((v) => !v)} className="text-xs font-medium text-fg-muted hover:text-fg hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-60">
-                  {io ? "hide input / output" : "input / output"}
+                  {io ? $t("components.trace-view.hideInputOutput") : "input / output"}
                 </button></span></Tooltip>
                 {io && mayReadCalls && <CallContent run={callRun} call={line.call} tenant={tenant} />}
               </>
@@ -161,25 +162,25 @@ export function TraceView({
   return (
     <div>
       <div className="mb-1.5 flex flex-wrap items-center gap-1">
-        <span className="mr-1 text-[13px] font-medium text-fg-secondary">Trace</span>
+        <span className="mr-1 text-[13px] font-medium text-fg-secondary">{$t("components.trace-view.trace")}</span>
         <Segmented
           size="sm"
-          label="Show"
+          label={$t("components.trace-view.show")}
           value={filter}
           onChange={(k) => setFilter(k as TraceKind | "all")}
           items={FILTERS.filter((f) => f.key === "all" || n[f.key] > 0).map((f) => ({ key: f.key, label: f.label, count: n[f.key] }))}
         />
         <button type="button" onClick={() => setTall((v) => !v)} className="ml-auto rounded px-1.5 py-0.5 text-xs text-fg-muted hover:bg-muted hover:text-fg">
-          {tall ? "↑ compact" : "↕ full height"}
+          {tall ? $t("components.trace-view.compact") : $t("components.trace-view.fullHeight")}
         </button>
       </div>
       <div ref={boxRef} onScroll={onScroll} className={`${tall ? "" : "max-h-80"} space-y-0.5 overflow-auto rounded-lg border border-line bg-surface p-1.5`}>
-        {shown.length === 0 && <p className="px-2 py-3 text-xs text-fg-subtle">Nothing of that kind in this step.</p>}
+        {shown.length === 0 && <p className="px-2 py-3 text-xs text-fg-subtle">{$t("components.trace-view.nothingOfThatKindInThis")}</p>}
         {shown.map((l) => <Row key={l.idx} line={l} callRun={callRun} tenant={tenant} />)}
         {running && (
           <p className="flex items-center gap-1.5 px-1.5 py-1 text-xs text-info">
             <span className="inline-block size-1.5 animate-pulse rounded-full bg-info" />
-            working…
+            {$t("components.trace-view.working")}
           </p>
         )}
       </div>

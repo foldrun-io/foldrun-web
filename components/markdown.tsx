@@ -9,6 +9,7 @@
 // agent-authored text cannot inject HTML by construction — no sanitiser to
 // get wrong, because there is no HTML path at all.
 
+import { $t } from "@/i18n";
 import type { ReactNode } from "react";
 import { headingSlugger } from "./heading-slug";
 
@@ -112,7 +113,7 @@ export function Frontmatter({ raw }: { raw: string }) {
         <div key={key} className="contents">
           <dt className="font-mono font-medium text-fg-muted">{key}</dt>
           <dd className="min-w-0 truncate font-mono text-gray-800">
-            {value || <span className="text-fg-subtle">(see below)</span>}
+            {value || <span className="text-fg-subtle">{$t("components.markdown.seeBelow")}</span>}
           </dd>
         </div>
       ))}

@@ -11,11 +11,12 @@
 // Says nothing when the two zones agree, which is the common case and where a
 // second reading would only be noise.
 
+import { $t } from "@/i18n";
 import { useViewerTime, useResolvedTimeZone } from "@/components/viewer-time";
 
 export function ScheduleInYourTime({ iso, zone }: { iso: string | null; zone: string }) {
   const mine = useResolvedTimeZone();
   const text = useViewerTime(iso ?? "", { dateStyle: "medium", timeStyle: "short" });
   if (!iso || !mine || mine === zone || !text) return null;
-  return <span className="text-fg-subtle"> · {text} your time</span>;
+  return <span className="text-fg-subtle">{" "}{$t("settings.schedule-in-your-time.yourTime", { text: text })}</span>;
 }

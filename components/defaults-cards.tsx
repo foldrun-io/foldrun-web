@@ -5,7 +5,7 @@
 // same SettingsForm, posting to the scope's PATCH. A workspace shows what
 // it would inherit from the account beside each empty field.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import { useEffect, useState } from "react";
 import { SettingsForm, useSettingsForm } from "./settings-form";
 import { Field } from "@foldrun/ui/react/page";
@@ -48,13 +48,13 @@ export function TimezoneCard({ endpoint, tenant, initial, inherited }: { endpoin
     <SettingsForm
       form={form}
       id="timezone"
-      title="Timezone"
-      description={inherited && !form.value ? `Empty — schedules here use ${inherited}, the account's.` : "Schedules written here fire in this zone unless the flow names its own."}
-      hint={<><code className="font-mono text-xs">timezone:</code> in AGENTS.md</>}
+      title={$t("components.defaults-cards.timezone")}
+      description={inherited && !form.value ? $t("components.defaults-cards.emptySchedulesHereUseTheAccount", { inherited: String(inherited) }) : $t("components.defaults-cards.schedulesWrittenHereFireInThis")}
+      hint={<>{$rich("components.defaults-cards.timezoneInAgentsMd", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code> })}</>}
     >
       <Combobox
         options={zones}
-        aria-label="Timezone"
+        aria-label={$t("components.defaults-cards.timezone")}
         value={form.value}
         onChange={(e) => form.setValue(e.target.value)}
         placeholder={inherited ?? "UTC"}
@@ -65,9 +65,9 @@ export function TimezoneCard({ endpoint, tenant, initial, inherited }: { endpoin
 }
 
 const PERIODS = [
-  { value: "day", label: "a day", window: "today" },
-  { value: "week", label: "a week", window: "this week" },
-  { value: "month", label: "a month", window: "this month" },
+  { value: "day", label: $t("components.defaults-cards.aDay"), window: "today" },
+  { value: "week", label: $t("components.defaults-cards.aWeek"), window: $t("components.defaults-cards.thisWeek") },
+  { value: "month", label: $t("components.defaults-cards.aMonth"), window: $t("components.defaults-cards.thisMonth") },
 ] as const;
 
 /** An amount and a period. Empty is no limit — the key is removed, not
@@ -98,16 +98,16 @@ export function BudgetCard({ endpoint, tenant, initial, spent, compact = false }
               step={1}
               value={form.value.usd}
               onChange={(e) => form.setValue({ ...form.value, usd: e.target.value })}
-              placeholder="no limit"
+              placeholder={$t("components.defaults-cards.noLimit")}
               className="w-full pl-6"
             />
           </div>
-          <span className="text-sm text-fg-muted">per</span>
+          <span className="text-sm text-fg-muted">{$t("components.defaults-cards.per")}</span>
           <Select
             value={form.value.period}
             onChange={(e) => form.setValue({ ...form.value, period: e.target.value as Budget["period"] })}
             className="w-32"
-            aria-label="budget period"
+            aria-label={$t("components.defaults-cards.budgetPeriod")}
           >
             {PERIODS.map((p) => (
               <option key={p.value} value={p.value}>
@@ -128,13 +128,13 @@ export function BudgetCard({ endpoint, tenant, initial, spent, compact = false }
     <SettingsForm
       form={form}
       id="budget"
-      title="Budget"
+      title={$t("components.defaults-cards.budget")}
       description={
         empty
-          ? "No limit — runs start as long as the account has credit."
-          : `Runs stop starting once ${period.window}'s spend reaches $${Number(form.value.usd) || 0}; the cap resets with ${period.label}.${spent !== undefined ? ` $${spent.toFixed(2)} spent ${period.window}.` : ""}`
+          ? $t("components.defaults-cards.noLimitRunsStartAsLong")
+          : $t("components.defaults-cards.runsStopStartingOnceSSpend", { window: String(period.window), v1: String(Number(form.value.usd) || 0), label: String(period.label), v3: String(spent !== undefined ? $t("components.defaults-cards.spent", { v0: String(spent.toFixed(2)), window: String(period.window) }) : "") })
       }
-      hint={<><code className="font-mono text-xs">budget:</code> in AGENTS.md, in USD</>}
+      hint={<>{$rich("components.defaults-cards.budgetInAgentsMdInUsd", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code> })}</>}
     >
       {control}
     </SettingsForm>
@@ -150,11 +150,11 @@ export function ConcurrencyCard({ endpoint, tenant, initial, plan }: { endpoint:
     <SettingsForm
       form={form}
       id="concurrency"
-      title="Runs at once"
-      description={form.value.trim() === "" ? (plan ? `Empty — the plan's ${plan} at a time.` : "No cap — as many as the install can drive.") : `At most ${Number(form.value) || 0} runs drive at the same time; the rest wait their turn in the queue, never refused.`}
-      hint={<><code className="font-mono text-xs">concurrency:</code> in AGENTS.md</>}
+      title={$t("components.defaults-cards.runsAtOnce")}
+      description={form.value.trim() === "" ? (plan ? $t("components.defaults-cards.emptyThePlanSAtA", { plan: String(plan) }) : $t("components.defaults-cards.noCapAsManyAsThe")) : $t("components.defaults-cards.atMostRunsDriveAtThe", { v0: String(Number(form.value) || 0) })}
+      hint={<>{$rich("components.defaults-cards.concurrencyInAgentsMd", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code> })}</>}
     >
-      <Input type="number" min={1} max={64} step={1} aria-label="Runs at once" value={form.value} onChange={(e) => form.setValue(e.target.value)} placeholder="plan" className="max-w-[8rem]" />
+      <Input type="number" min={1} max={64} step={1} aria-label={$t("components.defaults-cards.runsAtOnce")} value={form.value} onChange={(e) => form.setValue(e.target.value)} placeholder="plan" className="max-w-[8rem]" />
     </SettingsForm>
   );
 }
@@ -171,9 +171,9 @@ export type PoolRow = { vcpu: number | null; memGiB: number | null; diskGiB?: nu
 export type RunsWaitingRow = { waiting: number | null; limit: number | null };
 
 const LEVEL_WORDS = {
-  account: { own: "Your own cap", help: "Cores, GiB and disk all your running steps may hold together, lower than the plan's. A step that would pass it waits for another to finish — as long as it takes, in turn — and you hear of it after an hour; one bigger than the whole cap fails with a message. Empty is the plan's." },
+  account: { own: $t("components.defaults-cards.yourOwnCap"), help: $t("components.defaults-cards.coresGibAndDiskAllYour") },
   workspace: { own: $t("components.defaults-cards.thisWorkspaceSCap"), help: $t("components.defaults-cards.coresGibAndDiskTheSteps") },
-  flow: { own: "Each run's cap", help: $t("components.defaults-cards.coresGibAndDiskOneRun") },
+  flow: { own: $t("components.defaults-cards.eachRunSCap"), help: $t("components.defaults-cards.coresGibAndDiskOneRun") },
 } as const;
 
 /** compute: at one level (27 Oct 2026) — the account's pool (the plan's,
@@ -231,51 +231,50 @@ export function ComputeCard({
     if (level !== "account") setLive((l) => ({ ...l, pool: { vcpu: c?.vcpu ?? null, memGiB: c?.memGiB ?? null, diskGiB: c?.diskGiB ?? null } }));
     return { vcpu: str(c?.vcpu), memGiB: str(c?.memGiB), diskGiB: str(c?.diskGiB) };
   });
-  const of = (used: number, cap: number | null | undefined, unit: string) => (cap === null || cap === undefined ? `${used} ${unit}, no cap` : `${used} of ${cap} ${unit}`);
-  const from = live.pool.source === "plan" ? "the plan's" : live.pool.source === "account" ? "your own, below" : live.pool.source === "install" ? "this install's" : null;
+  const of = (used: number, cap: number | null | undefined, unit: string) => (cap === null || cap === undefined ? $t("components.defaults-cards.noCap", { used: String(used), unit: String(unit) }) : `${used} of ${cap} ${unit}`);
+  const from = live.pool.source === "plan" ? $t("components.defaults-cards.thePlanS") : live.pool.source === "account" ? $t("components.defaults-cards.yourOwnBelow") : live.pool.source === "install" ? $t("components.defaults-cards.thisInstallS") : null;
   const words = LEVEL_WORDS[level];
   return (
     <SettingsForm
       form={form}
       id="compute"
-      title="Compute"
-      description="What running steps hold now, and the cap they share."
-      hint={<><code className="font-mono text-xs">compute:</code> {level === "flow" ? "in the flow" : "in AGENTS.md"}</>}
+      title={$t("components.defaults-cards.compute")}
+      description={$t("components.defaults-cards.whatRunningStepsHoldNowAnd")}
+      hint={<><code className="font-mono text-xs">compute:</code> {level === "flow" ? $t("components.defaults-cards.inTheFlow") : $t("components.defaults-cards.inAgentsMd")}</>}
     >
       <div className="grid gap-1 text-sm text-fg-secondary">
         <span>
-          Held by {live.inUse.steps} running step{live.inUse.steps === 1 ? "" : "s"}: <span className="tabular-nums text-fg">{of(live.inUse.vcpu, live.pool.vcpu, "vCPU")}</span> ·{" "}
+          {$t("components.defaults-cards.heldByRunningStep", { steps: live.inUse.steps })}{" "}<span className="tabular-nums text-fg">{of(live.inUse.vcpu, live.pool.vcpu, "vCPU")}</span> ·{" "}
           <span className="tabular-nums text-fg">{of(live.inUse.memGiB, live.pool.memGiB, "GiB")}</span> ·{" "}
-          <span className="tabular-nums text-fg">{of(live.inUse.diskGiB ?? 0, live.pool.diskGiB, "GiB disk")}</span>
+          <span className="tabular-nums text-fg">{of(live.inUse.diskGiB ?? 0, live.pool.diskGiB, $t("components.defaults-cards.gibDisk"))}</span>
           {from ? <span className="text-fg-muted"> — {from}</span> : null}
         </span>
         {outer && (
           <span className="text-fg-muted">
-            The account allows {outer.vcpu ?? "any"} vCPU · {outer.memGiB ?? "any"} GiB · {outer.diskGiB ?? "any"} GiB disk; every step must fit both.
+            {$t("components.defaults-cards.theAccountAllows")}{" "}{outer.vcpu ?? "any"}{" "}{$t("components.defaults-cards.vcpu")}{" "}{outer.memGiB ?? "any"}{" "}{$t("components.defaults-cards.gib")}{" "}{outer.diskGiB ?? "any"}{" "}{$t("components.defaults-cards.gibDiskEveryStepMustFit")}
           </span>
         )}
         {(live.pool.stepVcpu || live.pool.stepMemGiB || live.pool.stepDiskGiB) && (
           <span className="text-fg-muted">
-            One step may hold up to {live.pool.stepVcpu ?? "any"} vCPU · {live.pool.stepMemGiB ?? "any"} GiB · {live.pool.stepDiskGiB ?? "any"} GiB disk
-            {live.pool.stepDefault?.length ? " — the most for an account without a plan of its own" : ""}.
+            {$t("components.defaults-cards.oneStepMayHoldUpTo")}{" "}{live.pool.stepVcpu ?? "any"}{" "}{$t("components.defaults-cards.vcpu")}{" "}{live.pool.stepMemGiB ?? "any"}{" "}{$t("components.defaults-cards.gib")}{" "}{live.pool.stepDiskGiB ?? "any"}{" "}{$t("components.defaults-cards.gibDisk3", { part: live.pool.stepDefault?.length ? $t("components.defaults-cards.theMostForAnAccountWithout") : "" })}
           </span>
         )}
         {level === "account" && live.runsWaiting && live.runsWaiting.limit !== null && (
           <span className="text-fg-muted">
             {live.runsWaiting.waiting !== null ? (
               <>
-                <span className="tabular-nums text-fg">{live.runsWaiting.waiting} of {live.runsWaiting.limit}</span> runs waiting for their turn
+                {$rich("components.defaults-cards.ofRunsWaitingForTheirTurn", { waiting: String(live.runsWaiting.waiting), limit: String(live.runsWaiting.limit), span: (chunks) => <span className="tabular-nums text-fg">{chunks}</span> })}
               </>
             ) : (
-              <>Up to <span className="tabular-nums text-fg">{live.runsWaiting.limit}</span> runs may wait for their turn</>
+              <>{$rich("components.defaults-cards.upToRunsMayWaitFor", { limit: String(live.runsWaiting.limit), span: (chunks) => <span className="tabular-nums text-fg">{chunks}</span> })}</>
             )}
-            {" "}— while {live.runsWaiting.limit} wait, a new run is refused at once rather than lined up.
+            {" "}{$t("components.defaults-cards.whileWaitANewRunIs", { limit: String(live.runsWaiting.limit) })}
           </span>
         )}
         {live.waiting.length > 0 && (
           <div className="grid gap-0.5">
             <span>
-              {live.waiting.length} step{live.waiting.length === 1 ? "" : "s"} waiting for room — each starts in turn, oldest first, and is not charged while it waits.
+              {$t("components.defaults-cards.stepWaitingForRoomEachStarts", { length: live.waiting.length })}
             </span>
             <ul className="grid gap-0.5 text-xs text-fg-muted">
               {live.waiting.slice(0, 5).map((w) => (
@@ -284,12 +283,12 @@ export function ComputeCard({
                     {w.flow} · {w.agent}
                   </a>{" "}
                   <span className="tabular-nums">
-                    {w.cpus} vCPU · {w.memGiB} GiB{w.diskGiB ? ` · ${w.diskGiB} GiB disk` : ""}{now !== null ? `, ${waitedFor(w.since, now)}` : ""}
+                    {$t("components.defaults-cards.vcpuGib", { cpus: String(w.cpus), memGiB: String(w.memGiB) })}{w.diskGiB ? $t("components.defaults-cards.gibDisk2", { diskGiB: String(w.diskGiB) }) : ""}{now !== null ? `, ${waitedFor(w.since, now)}` : ""}
                   </span>{" "}
                   — {w.why}
                 </li>
               ))}
-              {live.waiting.length > 5 && <li>and {live.waiting.length - 5} more</li>}
+              {live.waiting.length > 5 && <li>{$t("components.defaults-cards.andMore", { length: String(live.waiting.length - 5) })}</li>}
             </ul>
           </div>
         )}
@@ -298,7 +297,7 @@ export function ComputeCard({
         <div className="flex flex-wrap gap-2">
           <Input type="number" min={0.5} step={0.5} value={form.value.vcpu} onChange={(e) => form.setValue({ ...form.value, vcpu: e.target.value })} placeholder="vCPU" aria-label="vCPU" className="max-w-[7rem]" />
           <Input type="number" min={0.25} step={0.25} value={form.value.memGiB} onChange={(e) => form.setValue({ ...form.value, memGiB: e.target.value })} placeholder="GiB" aria-label="GiB" className="max-w-[7rem]" />
-          <Input type="number" min={1} step={1} value={form.value.diskGiB} onChange={(e) => form.setValue({ ...form.value, diskGiB: e.target.value })} placeholder="GiB disk" aria-label="GiB disk" className="max-w-[7rem]" />
+          <Input type="number" min={1} step={1} value={form.value.diskGiB} onChange={(e) => form.setValue({ ...form.value, diskGiB: e.target.value })} placeholder={$t("components.defaults-cards.gibDisk")} aria-label={$t("components.defaults-cards.gibDisk")} className="max-w-[7rem]" />
         </div>
       </Field>
     </SettingsForm>
@@ -308,7 +307,7 @@ export function ComputeCard({
 /** How long ago a wait began, in words: "waiting 3 min", "waiting 2 h". */
 function waitedFor(since: string, now: number): string {
   const m = Math.max(0, Math.round((now - Date.parse(since)) / 60_000));
-  return m < 1 ? "waiting under a minute" : m < 120 ? `waiting ${m} min` : `waiting ${Math.round(m / 60)} h`;
+  return m < 1 ? $t("components.defaults-cards.waitingUnderAMinute") : m < 120 ? $t("components.defaults-cards.waitingMin", { m: String(m) }) : $t("components.defaults-cards.waitingH", { v0: String(Math.round(m / 60)) });
 }
 
 /** owner: — governance. Who answers for every agent and flow here that names none. */
@@ -321,23 +320,23 @@ export function OwnerCard({ endpoint, tenant, initial, inherited }: { endpoint: 
     <SettingsForm
       form={form}
       id="owner"
-      title="Owner"
-      description={form.value.trim() ? "Shown on every agent and flow here that names no owner of its own, and on its traces." : inherited ? <WithEmails text={`Empty — the account's owner, ${inherited}.`} /> : "Empty — nobody named. Each agent's own owner: still shows."}
-      hint={<><code className="font-mono text-xs">owner:</code> in AGENTS.md</>}
+      title={$t("components.defaults-cards.owner")}
+      description={form.value.trim() ? $t("components.defaults-cards.shownOnEveryAgentAndFlow") : inherited ? <WithEmails text={$t("components.defaults-cards.emptyTheAccountSOwner", { inherited: String(inherited) })} /> : $t("components.defaults-cards.emptyNobodyNamedEachAgentS")}
+      hint={<>{$rich("components.defaults-cards.ownerInAgentsMd", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code> })}</>}
     >
-      <Input aria-label="Owner" value={form.value} onChange={(e) => form.setValue(e.target.value)} placeholder="ops@example.com" maxLength={200} className="max-w-sm" />
+      <Input aria-label={$t("components.defaults-cards.owner")} value={form.value} onChange={(e) => form.setValue(e.target.value)} placeholder="ops@example.com" maxLength={200} className="max-w-sm" />
     </SettingsForm>
   );
 }
 
 const ALERT_FIELDS: { key: Exclude<keyof Alerts, "new_host">; label: string; placeholder: string; help: string }[] = [
-  { key: "failure_rate", label: "Failure rate", placeholder: "30%", help: "of the runs that finished in a day" },
-  { key: "min_runs", label: "…once at least", placeholder: "5", help: "runs have finished" },
-  { key: "credits_day", label: "Credits in a day", placeholder: "2000", help: "charged in the last 24 hours" },
-  { key: "run_minutes", label: "A run going after", placeholder: "45", help: "minutes" },
-  { key: "stale_days", label: "An agent idle for", placeholder: "30", help: "days" },
-  { key: "cost_spike", label: "A run costing", placeholder: "3", help: "× its flow's average this week" },
-  { key: "runs_per_hour", label: "One flow started", placeholder: "20", help: "times in an hour" },
+  { key: "failure_rate", label: $t("components.defaults-cards.failureRate"), placeholder: "30%", help: $t("components.defaults-cards.ofTheRunsThatFinishedIn") },
+  { key: "min_runs", label: $t("components.defaults-cards.onceAtLeast"), placeholder: "5", help: $t("components.defaults-cards.runsHaveFinished") },
+  { key: "credits_day", label: $t("components.defaults-cards.creditsInADay"), placeholder: "2000", help: $t("components.defaults-cards.chargedInTheLast24Hours") },
+  { key: "run_minutes", label: $t("components.defaults-cards.aRunGoingAfter"), placeholder: "45", help: "minutes" },
+  { key: "stale_days", label: $t("components.defaults-cards.anAgentIdleFor"), placeholder: "30", help: "days" },
+  { key: "cost_spike", label: $t("components.defaults-cards.aRunCosting"), placeholder: "3", help: $t("components.defaults-cards.itsFlowSAverageThisWeek") },
+  { key: "runs_per_hour", label: $t("components.defaults-cards.oneFlowStarted"), placeholder: "20", help: $t("components.defaults-cards.timesInAnHour") },
 ];
 
 /**
@@ -377,14 +376,14 @@ export function AlertsCard({ endpoint, tenant, initial, inherited }: { endpoint:
     <SettingsForm
       form={form}
       id="alerts"
-      title="Alerts"
-      description="Thresholds that tell notify: when something crosses a line. Each one is optional."
-      hint={<><code className="font-mono text-xs">alerts:</code> in AGENTS.md</>}
+      title={$t("components.defaults-cards.alerts")}
+      description={$t("components.defaults-cards.thresholdsThatTellNotifyWhenSomething")}
+      hint={<>{$rich("components.defaults-cards.alertsInAgentsMd", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code> })}</>}
     >
       {workspace && (
-        <Field label="Thresholds" hint={own ? $t("components.defaults-cards.setHereTheseReplaceTheAccount") : "The account's thresholds apply here."}>
+        <Field label={$t("components.defaults-cards.thresholds")} hint={own ? $t("components.defaults-cards.setHereTheseReplaceTheAccount") : $t("components.defaults-cards.theAccountSThresholdsApplyHere")}>
           <Select value={own ? "own" : "account"} onChange={(e) => form.setValue({ ...form.value, own: e.target.value === "own" })} className="max-w-[14rem]">
-            <option value="account">the account&apos;s</option>
+            <option value="account">{$t("components.defaults-cards.theAccountS")}</option>
             <option value="own">{$t("components.defaults-cards.thisWorkspaceSOwn")}</option>
           </Select>
         </Field>
@@ -401,7 +400,7 @@ export function AlertsCard({ endpoint, tenant, initial, inherited }: { endpoint:
               />
             </Field>
           ))}
-          <Field label="A new site" hint={`an agent reached a site it never reached before${inherited?.new_host ? " (on for the account)" : ""}`}>
+          <Field label={$t("components.defaults-cards.aNewSite")} hint={$t("components.defaults-cards.anAgentReachedASiteIt", { v0: String(inherited?.new_host ? $t("components.defaults-cards.onForTheAccount") : "") })}>
             <Switch checked={form.value.new_host === true} onCheckedChange={(checked: boolean) => form.setValue({ ...form.value, new_host: checked })} />
           </Field>
         </div>
@@ -417,29 +416,29 @@ export function JudgeCard({ endpoint, tenant, initial, inherited }: { endpoint: 
     const d = await patch(endpoint, tenant, { judge });
     return { model: d.judge?.model ?? "", effort: d.judge?.effort ?? "" };
   });
-  const from = inherited?.model ? `the account's, ${inherited.model}` : "the fast tier";
+  const from = inherited?.model ? $t("components.defaults-cards.theAccountS2", { model: String(inherited.model) }) : $t("components.defaults-cards.theFastTier");
   return (
     <SettingsForm
       form={form}
       id="judge"
-      title="Judges"
-      description="The model every judge: in an eval and every verify: judge: grades with."
-      hint={<><code className="font-mono text-xs">judge:</code> in AGENTS.md</>}
+      title={$t("components.defaults-cards.judges")}
+      description={$t("components.defaults-cards.theModelEveryJudgeInAn")}
+      hint={<>{$rich("components.defaults-cards.judgeInAgentsMd", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code> })}</>}
     >
       <div className="flex flex-wrap gap-4">
-        <Field label="Judges grade with" hint={form.value.model ? "Every judge: in an eval and every verify: judge: here. An eval that names its own model: keeps it." : `Unset — ${from}.`}>
+        <Field label={$t("components.defaults-cards.judgesGradeWith")} hint={form.value.model ? $t("components.defaults-cards.everyJudgeInAnEvalAnd") : $t("components.defaults-cards.unset", { from: String(from) })}>
           <Select value={form.value.model} onChange={(e) => form.setValue({ ...form.value, model: e.target.value })} className="max-w-[12rem]">
-            <option value="">{inherited?.model ? `the account's (${inherited.model})` : "fast (default)"}</option>
-            <option value="fast">fast</option>
-            <option value="default">default</option>
+            <option value="">{inherited?.model ? $t("components.defaults-cards.theAccountS3", { model: String(inherited.model) }) : $t("components.defaults-cards.fastDefault")}</option>
+            <option value="fast">{$t("components.defaults-cards.fast")}</option>
+            <option value="default">{$t("components.defaults-cards.default")}</option>
             <option value="max">max</option>
             {/* An alias or a model id written in AGENTS.md is shown as itself, so a save keeps it. */}
             {form.value.model && !["fast", "default", "max"].includes(form.value.model) && <option value={form.value.model}>{form.value.model}</option>}
           </Select>
         </Field>
-        <Field label="Effort" hint="how long a judge thinks">
+        <Field label={$t("components.defaults-cards.effort")} hint={$t("components.defaults-cards.howLongAJudgeThinks")}>
           <Select value={form.value.effort} onChange={(e) => form.setValue({ ...form.value, effort: e.target.value })} className="max-w-[10rem]">
-            <option value="">{inherited?.effort ? `the account's (${inherited.effort})` : "the model's default"}</option>
+            <option value="">{inherited?.effort ? $t("components.defaults-cards.theAccountS4", { effort: String(inherited.effort) }) : $t("components.defaults-cards.theModelSDefault")}</option>
             {["low", "medium", "high", "xhigh", "max"].map((e) => <option key={e} value={e}>{e}</option>)}
           </Select>
         </Field>
@@ -449,9 +448,9 @@ export function JudgeCard({ endpoint, tenant, initial, inherited }: { endpoint: 
 }
 
 const BLOCK_HELP: Record<(typeof DEPLOY_BLOCKS)[number], string> = {
-  none: "Security findings are warnings: the deploy goes ahead and says so.",
-  secrets: "A deploy that carries a key or password written into a file is refused.",
-  security: "A deploy with any security finding is refused — a written-in key, hidden or injected text, the lethal trifecta, curl | sh, an unpinned MCP server, a step that acts outside unchecked.",
+  none: $t("components.defaults-cards.securityFindingsAreWarningsTheDeploy"),
+  secrets: $t("components.defaults-cards.aDeployThatCarriesAKey"),
+  security: $t("components.defaults-cards.aDeployWithAnySecurityFinding"),
 };
 
 /** deploy_block: (FOL-58). A foldrun-ignore with a reason still accepts one finding. */
@@ -465,14 +464,14 @@ export function DeployBlockCard({ endpoint, tenant, initial }: { endpoint: strin
     <SettingsForm
       form={form}
       id="deploy-block"
-      title="Refuse a deploy on"
+      title={$t("components.defaults-cards.refuseADeployOn")}
       description={$t("components.defaults-cards.aWorkspaceSOwnAgentsMd", { help: String(BLOCK_HELP[value] ?? "") })}
-      hint={<><code className="font-mono text-xs">deploy_block:</code> in AGENTS.md</>}
+      hint={<>{$rich("components.defaults-cards.deployBlockInAgentsMd", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code> })}</>}
     >
-      <Select aria-label="Refuse a deploy on" value={value} onChange={(e) => form.setValue(e.target.value)} className="max-w-[14rem]">
-        <option value="none">nothing — warn only</option>
-        <option value="secrets">a written-in secret</option>
-        <option value="security">any security finding</option>
+      <Select aria-label={$t("components.defaults-cards.refuseADeployOn")} value={value} onChange={(e) => form.setValue(e.target.value)} className="max-w-[14rem]">
+        <option value="none">{$t("components.defaults-cards.nothingWarnOnly")}</option>
+        <option value="secrets">{$t("components.defaults-cards.aWrittenInSecret")}</option>
+        <option value="security">{$t("components.defaults-cards.anySecurityFinding")}</option>
       </Select>
     </SettingsForm>
   );
@@ -488,28 +487,28 @@ export function NetworkEnforceCard({ endpoint, tenant, initial, inherited }: { e
     <SettingsForm
       form={form}
       id="network-enforce"
-      title="A site off an agent's network: list"
+      title={$t("components.defaults-cards.aSiteOffAnAgentS")}
       description={
         inherited
-          ? "The account refuses already, so every step here is refused too. Only the account's setting can turn it off."
+          ? $t("components.defaults-cards.theAccountRefusesAlreadySoEvery")
           : form.value === "refuse"
-            ? "Refused: the step gets a 403 and the trace says which site. Add it to the agent's network: list to allow it."
-            : "Allowed, and named once in the run's trace — so you can see what your agents reach before you start refusing. (An install that refuses for everyone still refuses.)"
+            ? $t("components.defaults-cards.refusedTheStepGetsA403")
+            : $t("components.defaults-cards.allowedAndNamedOnceInThe")
       }
-      hint={<><code className="font-mono text-xs">network_enforce:</code> in AGENTS.md</>}
+      hint={<>{$rich("components.defaults-cards.networkEnforceInAgentsMd", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code> })}</>}
     >
-      <Select aria-label="A site off an agent's network: list" value={form.value} onChange={(e) => form.setValue(e.target.value)} className="max-w-[14rem]" disabled={inherited}>
-        <option value="report">allowed — report only</option>
-        <option value="refuse">refused</option>
+      <Select aria-label={$t("components.defaults-cards.aSiteOffAnAgentS")} value={form.value} onChange={(e) => form.setValue(e.target.value)} className="max-w-[14rem]" disabled={inherited}>
+        <option value="report">{$t("components.defaults-cards.allowedReportOnly")}</option>
+        <option value="refuse">{$t("components.defaults-cards.refused")}</option>
       </Select>
     </SettingsForm>
   );
 }
 
 const EVENT_LABEL: Record<(typeof NOTIFY_EVENTS)[number], string> = {
-  failed: "a run fails",
-  "awaiting-approval": "a run waits for approval",
-  completed: "a run completes",
+  failed: $t("components.defaults-cards.aRunFails"),
+  "awaiting-approval": $t("components.defaults-cards.aRunWaitsForApproval"),
+  completed: $t("components.defaults-cards.aRunCompletes"),
 };
 
 export function NotifyCard({
@@ -541,33 +540,33 @@ export function NotifyCard({
   const v = form.value;
   const set = (p: Partial<typeof v>) => form.setValue({ ...v, ...p });
   const toggleEvent = (e: string) => set({ events: v.events.includes(e) ? v.events.filter((x) => x !== e) : [...v.events, e] });
-  const inheritedLine = inherited ? [inherited.email, inherited.url, inherited.hidden ? "a webhook" : null].filter(Boolean).join(" and ") : null;
+  const inheritedLine = inherited ? [inherited.email, inherited.url, inherited.hidden ? $t("components.defaults-cards.aWebhook") : null].filter(Boolean).join(" and ") : null;
 
   return (
     <SettingsForm
       form={form}
       id="notify"
-      title="Notifications"
-      description={scopeNote ?? "Where to say a run failed or waits for someone."}
-      hint={<><code className="font-mono text-xs">notify:</code> in AGENTS.md</>}
+      title={$t("components.defaults-cards.notifications")}
+      description={scopeNote ?? $t("components.defaults-cards.whereToSayARunFailed")}
+      hint={<>{$rich("components.defaults-cards.notifyInAgentsMd", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code> })}</>}
     >
       <label className="flex items-center gap-2 text-sm text-fg">
         <Switch checked={v.enabled} onCheckedChange={(checked: boolean) => set({ enabled: checked })} />
-        {v.enabled ? "Notifications set here" : inheritedLine ? <WithEmails text={`Inherit the account's: ${inheritedLine}`} /> : "No notifications"}
+        {v.enabled ? $t("components.defaults-cards.notificationsSetHere") : inheritedLine ? <WithEmails text={$t("components.defaults-cards.inheritTheAccountS", { inheritedLine: String(inheritedLine) })} /> : $t("components.defaults-cards.noNotifications")}
       </label>
       {(initial?.hidden || inherited?.hidden) && (
         <p className="text-xs text-fg-muted">{$t("components.defaults-cards.theAccountSWebhookUrlIs")}</p>
       )}
       {v.enabled && (
         <>
-          <Field label="Email" hint="Sent through the account's RESEND_API_KEY connection.">
+          <Field label={$t("components.defaults-cards.email")} hint={$t("components.defaults-cards.sentThroughTheAccountSResend")}>
             <Input type="email" value={v.email ?? ""} onChange={(e) => set({ email: e.target.value })} placeholder="ops@example.com" className="w-full max-w-sm" />
           </Field>
-          <Field label="Webhook URL" hint="Slack, Discord, ntfy, any relay — a URL, or the name of a secret that holds one, as ${SLACK_WEBHOOK_URL}.">
+          <Field label={$t("components.defaults-cards.webhookUrl")} hint={$t("components.defaults-cards.slackDiscordNtfyAnyRelayA")}>
             <Input value={v.url ?? ""} onChange={(e) => set({ url: e.target.value })} placeholder="${SLACK_WEBHOOK_URL}" className="w-full font-mono" />
           </Field>
           <fieldset>
-            <legend className="block text-sm font-medium text-fg">Notify when</legend>
+            <legend className="block text-sm font-medium text-fg">{$t("components.defaults-cards.notifyWhen")}</legend>
             <div className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1">
               {NOTIFY_EVENTS.map((e) => (
                 <label key={e} className="flex items-center gap-2 text-sm text-fg-secondary">
@@ -576,7 +575,7 @@ export function NotifyCard({
                 </label>
               ))}
             </div>
-            <p className="mt-1.5 text-xs text-fg-muted">Completed is opt-in: a channel that pings on every success gets muted, which un-pings the failures too.</p>
+            <p className="mt-1.5 text-xs text-fg-muted">{$t("components.defaults-cards.completedIsOptInAChannel")}</p>
           </fieldset>
         </>
       )}
@@ -625,14 +624,14 @@ function NotifyTest({ workspace, tenant }: { workspace: string; tenant: string }
   return (
     <div className="border-t border-line pt-4">
       <Button type="button" variant="secondary" onClick={send} disabled={state.busy}>
-        {state.busy ? "Sending…" : "Send a test notification"}
+        {state.busy ? "Sending…" : $t("components.defaults-cards.sendATestNotification")}
       </Button>
       <p className="mt-1.5 text-xs text-fg-muted">
-        Sends one real message to this destination now. Saved settings only — save first if you have just edited them.
+        {$t("components.defaults-cards.sendsOneRealMessageToThis")}
       </p>
       {state.result && (
         <p className={`mt-2 text-sm ${state.result.ok ? "text-success" : "text-danger"}`}>
-          {state.result.ok ? "Delivered to" : "Failed for"} <span className="font-mono text-xs">{state.result.destination}</span>
+          {state.result.ok ? $t("components.defaults-cards.deliveredTo") : $t("components.defaults-cards.failedFor")} <span className="font-mono text-xs">{state.result.destination}</span>
           {" — "}
           {state.result.detail}
         </p>

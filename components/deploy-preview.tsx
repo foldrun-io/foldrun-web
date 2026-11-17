@@ -11,6 +11,7 @@
 // runs in flight that would refuse it, and what the deploy checks say of
 // that tree: `issues` refuse it, `warnings` do not.
 
+import { $t } from "@/i18n";
 import { useEffect, useState } from "react";
 import { Chip, Callout } from "@foldrun/ui/react/page";
 import { Disclosure } from "@foldrun/ui/react/disclosure";
@@ -41,7 +42,7 @@ function Diff({ ops }: { ops: DiffOp[] }) {
       return;
     }
     if (folded) {
-      out.push(<div key={`f${i}`} className="text-fg-subtle">⋯ {folded} unchanged</div>);
+      out.push(<div key={`f${i}`} className="text-fg-subtle">{$t("components.deploy-preview.unchanged", { folded: String(folded) })}</div>);
       folded = 0;
     }
     out.push(
@@ -51,7 +52,7 @@ function Diff({ ops }: { ops: DiffOp[] }) {
       </div>,
     );
   });
-  if (folded) out.push(<div key="tail" className="text-fg-subtle">⋯ {folded} unchanged</div>);
+  if (folded) out.push(<div key="tail" className="text-fg-subtle">{$t("components.deploy-preview.unchanged", { folded: String(folded) })}</div>);
   return <pre className="max-h-72 overflow-auto whitespace-pre-wrap border-t border-line-faint p-2 font-mono text-[11px] leading-4">{out}</pre>;
 }
 
@@ -79,23 +80,23 @@ export function DeployPreview({ workspace, tenant, to }: { workspace: string; te
     };
   }, [workspace, tenant, to]);
 
-  if (error) return <p className="text-xs text-danger">Could not preview: {error}</p>;
-  if (!plan) return <p className="text-xs text-fg-muted">Working out what would change…</p>;
-  if (plan.noop) return <p className="text-xs text-fg-muted">main already matches this tree. Deploying it would change nothing.</p>;
+  if (error) return <p className="text-xs text-danger">{$t("components.deploy-preview.couldNotPreview", { error: error })}</p>;
+  if (!plan) return <p className="text-xs text-fg-muted">{$t("components.deploy-preview.workingOutWhatWouldChange")}</p>;
+  if (plan.noop) return <p className="text-xs text-fg-muted">{$t("components.deploy-preview.mainAlreadyMatchesThisTreeDeploying")}</p>;
 
   return (
     <div className="space-y-2">
       <p className="text-xs text-fg-secondary">
-        {plan.updated.length} changed, {plan.added.length} added, {plan.removed.length} removed. storage/, state/, runs, secrets and memory agents wrote are kept.
+        {$t("components.deploy-preview.changedAddedRemovedStorageStateRuns", { length: String(plan.updated.length), length2: String(plan.added.length), length3: String(plan.removed.length) })}
       </p>
       {plan.blockedBy.length > 0 && (
         <p className="text-xs text-warning">
-          {plan.blockedBy.length} run{plan.blockedBy.length === 1 ? "" : "s"} in flight ({plan.blockedBy.join(", ")}) — the deploy is refused until they finish.
+          {$t("components.deploy-preview.runInFlightTheDeployIs", { length: plan.blockedBy.length, join: plan.blockedBy.join(", ") })}
         </p>
       )}
       {plan.issues && plan.issues.length > 0 && (
         <Callout tone="danger" className="px-3 py-2 text-xs">
-          It would not pass the deploy checks:
+          {$t("components.deploy-preview.itWouldNotPassTheDeploy")}
           <ul className="mt-0.5 list-inside list-disc font-mono text-[11px]">
             {plan.issues.map((i, n) => (
               <li key={n}>{(i.where ? `${i.where}: ` : "") + i.message}</li>
@@ -105,7 +106,7 @@ export function DeployPreview({ workspace, tenant, to }: { workspace: string; te
       )}
       {plan.warnings && plan.warnings.length > 0 && (
         <Callout tone="warning" className="px-3 py-2 text-xs">
-          It would deploy, with {plan.warnings.length === 1 ? "a warning" : "warnings"}:
+          {$t("components.deploy-preview.itWouldDeployWith", { length: plan.warnings.length })}
           <ul className="mt-0.5 list-inside list-disc font-mono text-[11px]">
             {plan.warnings.map((i, n) => (
               <li key={n}>{(i.where ? `${i.where}: ` : "") + i.message}</li>

@@ -45,40 +45,40 @@ export default async function BackupsPage({ searchParams }: { searchParams: Prom
   const yes = (on: boolean, good: string, bad: string) => <Chip tone={on ? "good" : "warn"}>{on ? good : bad}</Chip>;
 
   return (
-    <SettingsShell title="Settings" subtitle="How this account is backed up, and how to get something back." tabs={settingsTabs(tenant, { team: Boolean(session), active: "backups" })}>
+    <SettingsShell title={$t("settings.backups-page.settings")} subtitle={$t("settings.backups-page.howThisAccountIsBackedUp")} tabs={settingsTabs(tenant, { team: Boolean(session), active: "backups" })}>
       <SettingsSection id="covered">
         <SettingsCard
-          title="What is backed up"
-          description="The platform backs up every account together, on a schedule. You do not need to switch anything on."
+          title={$t("settings.backups-page.whatIsBackedUp")}
+          description={$t("settings.backups-page.thePlatformBacksUpEveryAccount")}
           hint={$t("settings.backups-page.everyChangeToAWorkspaceS")}
         >
           <div className="space-y-5 text-sm text-fg-secondary">
             <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2">
-              <dt className="text-fg-muted">How often</dt>
+              <dt className="text-fg-muted">{$t("settings.backups-page.howOften")}</dt>
               <dd className="text-fg">{policy.schedule}</dd>
-              <dt className="text-fg-muted">Kept</dt>
+              <dt className="text-fg-muted">{$t("settings.backups-page.kept")}</dt>
               <dd className="text-fg">
-                the last {policy.keepLocal} on the server{policy.keepOffsiteDays ? `, and ${policy.keepOffsiteDays} days off it` : ""}
+                {$t("settings.backups-page.theLastOnTheServer", { keepLocal: String(policy.keepLocal) })}{policy.keepOffsiteDays ? $t("settings.backups-page.andDaysOffIt", { keepOffsiteDays: String(policy.keepOffsiteDays) }) : ""}
               </dd>
-              <dt className="text-fg-muted">Encrypted</dt>
-              <dd className="text-fg">{policy.encrypted ? "yes — every archive is encrypted on the server before it is copied off it, to a key the server does not hold" : "no"}</dd>
-              <dt className="text-fg-muted">Last backup</dt>
+              <dt className="text-fg-muted">{$t("settings.backups-page.encrypted")}</dt>
+              <dd className="text-fg">{policy.encrypted ? $t("settings.backups-page.yesEveryArchiveIsEncryptedOn") : "no"}</dd>
+              <dt className="text-fg-muted">{$t("settings.backups-page.lastBackup")}</dt>
               <dd className="min-w-0">
                 {last ? (
                   <span className="flex flex-wrap items-center gap-1.5 text-fg">
                     <LocalTime iso={last.at} />
-                    {yes(last.verified, "verified", "not verified")}
-                    {yes(Boolean(last.offsite), "copied off the server", "on the server only")}
-                    {yes(last.encrypted, "encrypted", "not encrypted")}
+                    {yes(last.verified, "verified", $t("settings.backups-page.notVerified"))}
+                    {yes(Boolean(last.offsite), $t("settings.backups-page.copiedOffTheServer"), $t("settings.backups-page.onTheServerOnly"))}
+                    {yes(last.encrypted, "encrypted", $t("settings.backups-page.notEncrypted"))}
                   </span>
                 ) : (
-                  <span className="text-fg-muted">none recorded for this account yet{databaseEnabled() ? "" : " — this install has no backup index"}</span>
+                  <span className="text-fg-muted">{$t("settings.backups-page.noneRecordedForThisAccountYet2", { value: databaseEnabled() ? "" : $t("settings.backups-page.thisInstallHasNoBackupIndex") })}</span>
                 )}
               </dd>
             </dl>
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
-                <p className="mb-1.5 font-medium text-fg">Included</p>
+                <p className="mb-1.5 font-medium text-fg">{$t("settings.backups-page.included")}</p>
                 <ul className="list-disc space-y-0.5 pl-5">
                   {policy.covers.map((c) => (
                     <li key={c}>{c}</li>
@@ -86,7 +86,7 @@ export default async function BackupsPage({ searchParams }: { searchParams: Prom
                 </ul>
               </div>
               <div>
-                <p className="mb-1.5 font-medium text-fg">Not included</p>
+                <p className="mb-1.5 font-medium text-fg">{$t("settings.backups-page.notIncluded")}</p>
                 <ul className="list-disc space-y-0.5 pl-5">
                   {policy.excludes.map((c) => (
                     <li key={c}>{c}</li>
@@ -98,9 +98,9 @@ export default async function BackupsPage({ searchParams }: { searchParams: Prom
         </SettingsCard>
       </SettingsSection>
 
-      <SettingsSection id="snapshots" title="Snapshots" description="Each nightly archive that holds this account, newest first." action={backups.length ? <span className="text-sm tabular-nums text-fg-muted">{backups.length}</span> : undefined}>
+      <SettingsSection id="snapshots" title={$t("settings.backups-page.snapshots")} description={$t("settings.backups-page.eachNightlyArchiveThatHoldsThis")} action={backups.length ? <span className="text-sm tabular-nums text-fg-muted">{backups.length}</span> : undefined}>
         {backups.length === 0 ? (
-          <EmptyState icon={<Archive />} title="No snapshots yet" description="They appear here after the next nightly backup." />
+          <EmptyState icon={<Archive />} title={$t("settings.backups-page.noSnapshotsYet")} description={$t("settings.backups-page.theyAppearHereAfterTheNext")} />
         ) : (
           <div className="overflow-hidden rounded-lg border border-line bg-surface">
             <ul className="divide-y divide-line">
@@ -111,13 +111,13 @@ export default async function BackupsPage({ searchParams }: { searchParams: Prom
                       <LocalTime iso={b.at} />
                     </p>
                     <p className="mt-0.5 text-sm text-fg-muted">
-                      {b.kinds.map((k) => (k === "files" ? "files" : k === "database" ? "database" : b.encrypted ? "keys" : "keys (sealed)")).join(", ")} · {b.offsite ? `server + ${b.offsite.toUpperCase()}` : "server only"}
+                      {b.kinds.map((k) => (k === "files" ? "files" : k === "database" ? "database" : b.encrypted ? "keys" : $t("settings.backups-page.keysSealed"))).join(", ")} · {b.offsite ? $t("settings.backups-page.server", { v0: String(b.offsite.toUpperCase()) }) : $t("settings.backups-page.serverOnly")}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
-                    {yes(b.verified, "verified", "not verified")}
-                    <Tooltip label={b.encrypted && b.recipient ? `sealed to key ${b.recipient}` : undefined}>
-                      <span>{yes(b.encrypted, "encrypted", "not encrypted")}</span>
+                    {yes(b.verified, "verified", $t("settings.backups-page.notVerified"))}
+                    <Tooltip label={b.encrypted && b.recipient ? $t("settings.backups-page.sealedToKey", { recipient: String(b.recipient) }) : undefined}>
+                      <span>{yes(b.encrypted, "encrypted", $t("settings.backups-page.notEncrypted"))}</span>
                     </Tooltip>
                   </div>
                 </li>
@@ -137,8 +137,8 @@ export default async function BackupsPage({ searchParams }: { searchParams: Prom
 
       <SettingsSection
         id="request"
-        title="Request a restore"
-        description="Runs, state, storage files and the account's records come back only from a nightly snapshot. That restore is done by the platform team: ask here and they are emailed."
+        title={$t("settings.backups-page.requestARestore")}
+        description={$t("settings.backups-page.runsStateStorageFilesAndThe")}
       >
         <RequestRestore workspaces={workspaces.map((w) => w.name)} backups={backups.map((b) => ({ id: b.id, at: b.at }))} canAsk={canAsk} requests={requests} />
       </SettingsSection>

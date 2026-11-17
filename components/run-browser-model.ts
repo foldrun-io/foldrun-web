@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 // What the run page does with a browser's pictures — pure, so tests reach it.
 
 /** How an archived output shows inline: a recording plays, a picture shows,
@@ -19,9 +20,9 @@ export function mediaFiles<T extends { path: string }>(files: T[]): T[] {
 /** "3s ago", "2 min ago" — how stale the picture on screen is. */
 export function frameAge(atIso: string, now: number): string {
   const s = Math.max(0, Math.round((now - new Date(atIso).getTime()) / 1000));
-  if (s < 60) return `${s}s ago`;
+  if (s < 60) return $t("components.run-browser-model.sAgo", { s: String(s) });
   const m = Math.round(s / 60);
-  return `${m} min ago`;
+  return $t("components.run-browser-model.minAgo", { m: String(m) });
 }
 
 /** How often the page asks for a new frame while the step runs. The tool

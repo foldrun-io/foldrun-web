@@ -4,6 +4,7 @@
 // (open its file, delete it), and the old in-page anchors (#eval-<name>,
 // from a run's grades and the inbox) turned into the eval's own view.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -30,7 +31,7 @@ export function EvalRunButton({ workspace, tenant, name }: { workspace: string; 
           </span>
         </Tooltip>
       )}
-      <Tooltip label={busy ? "Each case starts a real run, so this takes as long as the agent does." : undefined}>
+      <Tooltip label={busy ? $t("workspace.evals-eval-actions.eachCaseStartsARealRun") : undefined}>
         <span className="inline-flex">
           <Button
             size="sm"
@@ -48,7 +49,7 @@ export function EvalRunButton({ workspace, tenant, name }: { workspace: string; 
               }
             }}
           >
-            {busy ? "Running…" : "Run"}
+            {busy ? "Running…" : $t("workspace.evals-eval-actions.run")}
           </Button>
         </span>
       </Tooltip>
@@ -76,7 +77,7 @@ export function EvalMenu({
   const [error, setError] = useState<string | null>(null);
   const t = tenant !== "default" ? `&tenant=${tenant}` : "";
   const remove = async () => {
-    if (!(await confirm({ title: confirmText, confirmLabel: "Delete" }))) return;
+    if (!(await confirm({ title: confirmText, confirmLabel: $t("workspace.evals-eval-actions.delete") }))) return;
     const res = await fetch(`/api/workspaces/${workspace}/source`, {
       method: "DELETE",
       headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
@@ -96,21 +97,21 @@ export function EvalMenu({
       {error && <span className="text-xs text-danger">{error}</span>}
       <Menu>
         <MenuTrigger asChild>
-          <Button variant="secondary" size="icon-sm" aria-label="More">
+          <Button variant="secondary" size="icon-sm" aria-label={$t("workspace.evals-eval-actions.more")}>
             <Ellipsis />
           </Button>
         </MenuTrigger>
         <MenuContent>
           <MenuItem asChild>
             <Link href={`/dashboard/${workspace}/edit?path=${encodeURIComponent(`evals/${file}`)}${t}`}>
-              <FileText /> Open in Files
+              <FileText />{" "}{$t("workspace.evals-eval-actions.openInFiles")}
             </Link>
           </MenuItem>
           {mayWrite && (
             <>
               <MenuSeparator />
               <MenuItem tone="danger" onSelect={() => void remove()}>
-                <Trash2 /> Delete
+                <Trash2 />{" "}{$t("workspace.evals-eval-actions.delete")}
               </MenuItem>
             </>
           )}

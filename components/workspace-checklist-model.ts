@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 // A workspace's checklist (cloudhost's Production checklist): what a desk
 // needs before it can be left to run on its own — a flow that ran to the
 // end, something that starts it without you, someone who answers for it, a
@@ -61,36 +62,36 @@ export function workspaceChecklist(f: WorkspaceChecklistFacts, prefs: { hidden?:
   const raw: Omit<ChecklistItem, "hidden">[] = [
     {
       id: "run",
-      title: "Run a flow to the end",
-      why: "A completed run is the proof this desk works.",
+      title: $t("components.workspace-checklist-model.runAFlowToTheEnd"),
+      why: $t("components.workspace-checklist-model.aCompletedRunIsTheProof"),
       href: `${base}/flows`,
       done: f.completedRuns > 0,
     },
     {
       id: "trigger",
-      title: "Schedule it or give it a webhook",
-      why: "A desk earns its keep when it runs without you.",
+      title: $t("components.workspace-checklist-model.scheduleItOrGiveItA"),
+      why: $t("components.workspace-checklist-model.aDeskEarnsItsKeepWhen"),
       href: `${base}/triggers`,
       done: f.triggers > 0,
     },
     {
       id: "owner",
-      title: "Name an owner",
-      why: "Who answers for these agents and flows.",
+      title: $t("components.workspace-checklist-model.nameAnOwner"),
+      why: $t("components.workspace-checklist-model.whoAnswersForTheseAgentsAnd"),
       href: `${base}/settings?tab=policies#governance`,
       done: Boolean(f.owner),
     },
     {
       id: "eval",
-      title: "Add an eval",
-      why: "A test its agents must pass, like a unit test.",
+      title: $t("components.workspace-checklist-model.addAnEval"),
+      why: $t("components.workspace-checklist-model.aTestItsAgentsMustPass"),
       href: `${base}/evals`,
       done: f.evals > 0,
     },
     {
       id: "notify",
-      title: "Get told when a run fails",
-      why: "notify: sends failures and approvals to an email or a webhook.",
+      title: $t("components.workspace-checklist-model.getToldWhenARunFails"),
+      why: $t("components.workspace-checklist-model.notifySendsFailuresAndApprovalsTo"),
       href: `${base}/settings?tab=policies#observability`,
       done: f.notify,
     },

@@ -1,6 +1,6 @@
 "use client";
 
-import { $t } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -43,13 +43,13 @@ export function McpAuthorize() {
           return;
         }
         if (!res.ok) {
-          setError(body.error ?? "this sign-in request cannot be used");
+          setError(body.error ?? $t("auth.mcp-authorize-authorize.thisSignInRequestCannotBe"));
           return;
         }
         setAsk(body);
         if (!body.scopes.includes("mcp:write")) setAccess("read");
       })
-      .catch(() => setError("could not reach the server"));
+      .catch(() => setError($t("auth.mcp-authorize-authorize.couldNotReachTheServer")));
   }, [request]);
 
   async function decide(decision: "approve" | "deny") {
@@ -66,9 +66,9 @@ export function McpAuthorize() {
         window.location.assign(body.redirect);
         return;
       }
-      setError(body.error ?? "something went wrong");
+      setError(body.error ?? $t("auth.mcp-authorize-authorize.somethingWentWrong"));
     } catch (err) {
-      setError(`could not reach the server: ${err instanceof Error ? err.message : String(err)}`);
+      setError($t("auth.mcp-authorize-authorize.couldNotReachTheServer2", { v0: String(err instanceof Error ? err.message : String(err)) }));
     }
     setBusy(false);
   }
@@ -76,7 +76,7 @@ export function McpAuthorize() {
   if (error) {
     return (
       <>
-        <h1 className="mb-1 text-xl font-semibold text-fg">This app cannot connect</h1>
+        <h1 className="mb-1 text-xl font-semibold text-fg">{$t("auth.mcp-authorize-authorize.thisAppCannotConnect")}</h1>
         <p className="text-sm text-fg-tertiary">{error}</p>
       </>
     );
@@ -86,33 +86,32 @@ export function McpAuthorize() {
   const canWrite = ask.scopes.includes("mcp:write");
   return (
     <>
-      <h1 className="mb-1 text-xl font-semibold text-fg">Connect {ask.client.name}?</h1>
+      <h1 className="mb-1 text-xl font-semibold text-fg">{$t("auth.mcp-authorize-authorize.connect", { name: ask.client.name })}</h1>
       <p className="mb-5 text-sm text-fg-muted">
-        It asks to use foldrun account <span className="font-mono">{ask.account}</span> as{" "}
-        <span className="font-medium"><Email value={ask.person.email} /></span> ({ask.person.role}): your inbox, runs, flows and files
-        {canWrite ? $t("auth.mcp-authorize-authorize.andIfYouAllowItTo") : ""}.
+        {$rich("auth.mcp-authorize-authorize.itAsksToUseFoldrunAccount", { account: ask.account, span: (chunks) => <span className="font-mono">{chunks}</span> })}{" "}
+        <span className="font-medium"><Email value={ask.person.email} /></span>{" "}{$t("auth.mcp-authorize-authorize.yourInboxRunsFlowsAndFiles", { role: ask.person.role, part: canWrite ? $t("auth.mcp-authorize-authorize.andIfYouAllowItTo") : "" })}
       </p>
 
       <div className="mb-4 rounded-md border border-line bg-sunken p-3 text-sm">
         <p className="text-fg-secondary">
-          Your answer goes to <span className="font-mono font-medium">{ask.redirectHost}</span>
-          {ask.client.kind === "cimd" ? <> · described at <span className="font-mono">{new URL(ask.client.id).host}</span></> : null}
+          {$rich("auth.mcp-authorize-authorize.yourAnswerGoesTo", { redirectHost: ask.redirectHost, span: (chunks) => <span className="font-mono font-medium">{chunks}</span> })}
+          {ask.client.kind === "cimd" ? <>{" "}{$rich("auth.mcp-authorize-authorize.describedAt", { host: new URL(ask.client.id).host, span: (chunks) => <span className="font-mono">{chunks}</span> })}</> : null}
         </p>
         {ask.loopback && (
           <p className="mt-1 text-xs text-warning">
-            That is an app on this computer. Approve only if you just started it yourself.
+            {$t("auth.mcp-authorize-authorize.thatIsAnAppOnThis")}
           </p>
         )}
       </div>
 
       <fieldset className="mb-4">
-        <legend className="mb-1 text-sm font-medium text-fg-secondary">What it may do</legend>
+        <legend className="mb-1 text-sm font-medium text-fg-secondary">{$t("auth.mcp-authorize-authorize.whatItMayDo")}</legend>
         <RadioGroup value={access} onValueChange={(v) => setAccess(v as typeof access)} className="gap-1">
         <label className="flex items-center gap-2 text-sm">
-          <RadioGroupItem value="read" /> Read only — inbox, runs, flows, files
+          {$rich("auth.mcp-authorize-authorize.readOnlyInboxRunsFlowsFiles", { radioGroupItem: $el(<RadioGroupItem value="read" />) })}
         </label>
         <label className={`flex items-center gap-2 text-sm ${canWrite ? "" : "opacity-50"}`}>
-          <RadioGroupItem value="write" disabled={!canWrite} /> {$t("auth.mcp-authorize-authorize.readAndActAlsoStartStop")}
+          {$rich("auth.mcp-authorize-authorize.readAndActAlsoStartStop2", { radioGroupItem: $el(<RadioGroupItem value="write" disabled={!canWrite} />) })}
         </label>
         </RadioGroup>
       </fieldset>
@@ -121,10 +120,10 @@ export function McpAuthorize() {
         <legend className="mb-1 text-sm font-medium text-fg-secondary">{$t("auth.mcp-authorize-authorize.whichWorkspace")}</legend>
         <RadioGroup value={scope} onValueChange={(v) => setScope(v as typeof scope)} className="gap-1">
         <label className="flex items-center gap-2 text-sm">
-          <RadioGroupItem value="all" /> {ask.allWorkspaces ? "All of them, and new ones" : "All you may open"}
+          <RadioGroupItem value="all" /> {ask.allWorkspaces ? $t("auth.mcp-authorize-authorize.allOfThemAndNewOnes") : $t("auth.mcp-authorize-authorize.allYouMayOpen")}
         </label>
         <label className="flex items-center gap-2 text-sm">
-          <RadioGroupItem value="some" /> Only these:
+          {$rich("auth.mcp-authorize-authorize.onlyThese", { radioGroupItem: $el(<RadioGroupItem value="some" />) })}
         </label>
         </RadioGroup>
         {scope === "some" && (
@@ -144,14 +143,14 @@ export function McpAuthorize() {
 
       <div className="flex gap-2">
         <button type="button" disabled={busy || (scope === "some" && !chosen.length)} onClick={() => decide("approve")} className={buttonVariants({ variant: "primary" })}>
-          Connect
+          {$t("auth.mcp-authorize-authorize.connect2")}
         </button>
         <button type="button" disabled={busy} onClick={() => decide("deny")} className={buttonVariants({ variant: "secondary" })}>
-          Deny
+          {$t("auth.mcp-authorize-authorize.deny")}
         </button>
       </div>
       <p className="mt-4 text-xs text-fg-muted">
-        It can never do more than you can. Settings → API keys → Connected AI apps lists it; revoke it there at any time.
+        {$t("auth.mcp-authorize-authorize.itCanNeverDoMoreThan")}
       </p>
     </>
   );

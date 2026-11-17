@@ -9,6 +9,7 @@
 // guess. The notice never reloads anything by itself — a reload loop on a
 // mid-rollout box (two pods, two versions) is the failure it must not have.
 
+import { $rich, $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -28,12 +29,12 @@ export function VersionFooter({ collapsed, query = "" }: { collapsed?: boolean; 
   const version = useVersion();
   if (collapsed) return null;
   return (
-    <Tooltip label="What's new in this version">
+    <Tooltip label={$t("components.version.whatSNewInThisVersion")}>
       <Link
         href={`/dashboard/whats-new${query}`}
         className="mt-2 block truncate px-2 py-1 font-mono text-[10px] text-fg-subtle hover:text-fg-secondary"
       >
-        foldrun {version}
+        {$t("components.version.foldrun", { version: version })}
       </Link>
     </Tooltip>
   );
@@ -93,19 +94,16 @@ export function UpdateToast({ pollMs = POLL_MS }: { pollMs?: number }) {
       className="fixed bottom-4 right-4 z-50 flex max-w-sm items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-fg-secondary shadow-lg"
     >
       <span>
-        A new version of foldrun is out — <span className="font-mono text-xs text-fg">{newer}</span>.{" "}
-        <Link href="/dashboard/whats-new" className="text-accent hover:underline">
-          What&apos;s new
-        </Link>
+        {$rich("components.version.aNewVersionOfFoldrunIs", { newer: newer, span: (chunks) => <span className="font-mono text-xs text-fg">{chunks}</span>, link: (chunks) => <Link href="/dashboard/whats-new" className="text-accent hover:underline">{chunks}</Link> })}
       </span>
       <button
         type="button"
         onClick={() => window.location.reload()}
         className={cn(buttonVariants({ variant: "primary" }), "shrink-0")}
       >
-        Reload
+        {$t("components.version.reload")}
       </button>
-      <button type="button" onClick={dismiss} aria-label="Dismiss" className="shrink-0 text-fg-subtle hover:text-fg-secondary">
+      <button type="button" onClick={dismiss} aria-label={$t("components.version.dismiss")} className="shrink-0 text-fg-subtle hover:text-fg-secondary">
         ×
       </button>
     </div>

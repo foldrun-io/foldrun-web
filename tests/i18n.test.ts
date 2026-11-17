@@ -17,7 +17,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { parse } from "@formatjs/icu-messageformat-parser";
-import { MESSAGES, expandTerms, $t, DIR, LOCALE } from "@/i18n";
+import { MESSAGES, expandTerms, $t, $rich, DIR, LOCALE } from "@/i18n";
 import { BASELINE, WEB, census, dashboardFiles, fingerprint, hardcoded } from "../scripts/i18n-scan.mjs";
 
 type Tree = { [k: string]: string | Tree };
@@ -55,16 +55,31 @@ test("the terms read as the product names them", () => {
   assert.equal($t("settings.keys.keyOpensScoped", { n: 3 }), "The key will open the 3 projects you can open, at the role you pick — never above your own.");
 });
 
+test("a sentence with markup keeps its markup, drawn by the page's own elements", () => {
+  const out = $rich("limits.page.warningsHaveNowhereToGoThe", { link: (chunks) => ({ type: "a", chunks }) as never }) as unknown[];
+  assert.ok(Array.isArray(out));
+  assert.equal(out[0], "Warnings have nowhere to go: the account has no notify: destination. ");
+  assert.deepEqual(out[1], { type: "a", chunks: ["Set one"] });
+});
+
 test("every key the code names is in the catalog, and every catalog key is used", () => {
   const known = new Set(ALL.map(([k]) => k));
   const used = new Set<string>();
   for (const f of dashboardFiles()) {
     const src = fs.readFileSync(path.join(WEB, f), "utf8");
-    for (const m of src.matchAll(/\$t\(\s*"([^"]+)"/g)) {
+    for (const m of src.matchAll(/\$(?:t|rich)\(\s*"([^"]+)"/g)) {
       used.add(m[1]);
-      assert.ok(known.has(m[1]), `${f}: $t("${m[1]}") is not in messages/en`);
+      assert.ok(known.has(m[1]), `${f}: "${m[1]}" is not in messages/en`);
     }
-    assert.ok(!/\$t\(\s*[`'][^"]/.test(src), `${f}: $t() takes a key written in double quotes, so this test can see it`);
+    assert.ok(!/\$(?:t|rich)\(\s*[`'][^"]/.test(src), `${f}: $t() and $rich() take a key written in double quotes, so this test can see it`);
+  }
+  // Resolved the way use-intl resolves it (a dot is a level), not as a
+  // string: a namespace with a dot in it would pass a string lookup and
+  // still draw the key itself on the page.
+  for (const k of used) {
+    let at: unknown = MESSAGES;
+    for (const part of k.split(".")) at = at && typeof at === "object" ? (at as Record<string, unknown>)[part] : undefined;
+    assert.equal(typeof at, "string", `"${k}" does not resolve in use-intl (a dot inside a name?)`);
   }
   const dead = [...known].filter((k) => !used.has(k));
   assert.deepEqual(dead, [], `keys no code uses — remove them: ${dead.join(", ")}`);

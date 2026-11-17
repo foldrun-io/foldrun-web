@@ -3,6 +3,7 @@
 // Rotate one webhook URL from settings. The page re-renders with the new
 // derived path; whoever held the old one is out.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -19,9 +20,9 @@ export function RotateHookButton({ workspace, flow }: { workspace: string; flow:
         disabled={busy}
         onClick={async () => {
           if (!(await confirm({
-            title: `Rotate the webhook URL for ${workspace}/${flow}?`,
-            body: "The current URL stops working immediately.",
-            confirmLabel: "Rotate",
+            title: $t("settings.rotate-hook.rotateTheWebhookUrlFor", { workspace: String(workspace), flow: String(flow) }),
+            body: $t("settings.rotate-hook.theCurrentUrlStopsWorkingImmediately"),
+            confirmLabel: $t("settings.rotate-hook.rotate"),
           }))) return;
           setBusy(true);
           await fetch(`/api/workspaces/${workspace}/hooks/${flow}/rotate`, { method: "POST" });
@@ -30,7 +31,7 @@ export function RotateHookButton({ workspace, flow }: { workspace: string; flow:
         }}
         className={buttonVariants({ variant: "secondary" })}
       >
-        Rotate
+        {$t("settings.rotate-hook.rotate")}
       </button>
     </>
   );

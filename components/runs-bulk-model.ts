@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 // The runs bulk bar's plumbing, without React: which POST /runs/bulk calls a
 // selection becomes, and what the answers say was refused. A selected run is
 // `<workspace>/<runId>` (run-key.ts), and the route is per workspace — so a
@@ -39,13 +40,13 @@ export interface BulkAnswer {
  *  per-run list — refuses every run it carried. */
 export function refusalsOf(call: BulkCall, httpOk: boolean, answer: BulkAnswer, status?: number): string[] {
   if (!httpOk || !Array.isArray(answer.runs)) {
-    const why = answer.error ?? (status ? `HTTP ${status}` : "no answer");
+    const why = answer.error ?? (status ? `HTTP ${status}` : $t("components.runs-bulk-model.noAnswer"));
     return call.runIds.map((id) => `${call.workspace}/${id}: ${why}`);
   }
   const answered = new Set(answer.runs.map((r) => r.runId));
   return [
     ...answer.runs.filter((r) => !r.ok).map((r) => `${call.workspace}/${r.runId}: ${r.error ?? "refused"}`),
     // Asked for, but not matched — gone since the page rendered.
-    ...call.runIds.filter((id) => !answered.has(id)).map((id) => `${call.workspace}/${id}: not found (deleted since the page loaded?)`),
+    ...call.runIds.filter((id) => !answered.has(id)).map((id) => $t("components.runs-bulk-model.notFoundDeletedSinceThePage", { workspace: String(call.workspace), id: String(id) })),
   ];
 }

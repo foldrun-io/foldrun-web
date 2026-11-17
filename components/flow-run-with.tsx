@@ -10,6 +10,7 @@
 // the box into the inputs file through the source PUT — a revision like any
 // other edit, and the file `foldrun invoke <flow> --inputs <name>` reads.
 
+import { $el, $rich, $t } from "@/i18n";
 import { buttonVariants } from "@foldrun/ui/react/button";
 import { cn } from "@foldrun/ui/react/cn";
 import { ChevronDown, X } from "lucide-react";
@@ -58,7 +59,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
     fetch(`/api/workspaces/${workspace}/evals`, { headers })
       .then(async (res) => {
         const body = (await res.json().catch(() => ({}))) as { evals?: EvalLike[]; error?: string };
-        if (!res.ok) throw new Error(body.error ?? `could not read evals/ (${res.status})`);
+        if (!res.ok) throw new Error(body.error ?? $t("components.flow-run-with.couldNotReadEvals", { status: String(res.status) }));
         if (live) setSets(inputSetsFor(body.evals ?? [], flow));
       })
       .catch((err) => live && setError(err instanceof Error ? err.message : String(err)));
@@ -81,9 +82,9 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
     setStarted(null);
     if (live) {
       const ok = await ask({
-        title: `Start a live run of ${flow}?`,
-        body: "A live run does everything the flow does — it sends, posts and writes state/ for real. A test run runs every step with nothing outward.",
-        confirmLabel: "Start live run",
+        title: $t("components.flow-run-with.startALiveRunOf", { flow: String(flow) }),
+        body: $t("components.flow-run-with.aLiveRunDoesEverythingThe"),
+        confirmLabel: $t("components.flow-run-with.startLiveRun"),
         destructive: true,
       });
       if (!ok) return;
@@ -97,7 +98,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
       });
       const body = (await res.json().catch(() => ({}))) as { runId?: string; test?: boolean; error?: string };
       if (!res.ok || !body.runId) {
-        setError(body.error ?? `refused (${res.status})`);
+        setError(body.error ?? $t("components.flow-run-with.refused", { status: String(res.status) }));
         return;
       }
       setStarted({ runId: body.runId, test: body.test === true });
@@ -115,7 +116,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
     setSaved(null);
     const name = saveName.trim();
     if (!name || !task.trim()) {
-      setError("A saved set needs a name and a task.");
+      setError($t("components.flow-run-with.aSavedSetNeedsAName"));
       return;
     }
     setBusy("save");
@@ -124,7 +125,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
       const cur = await fetch(`/api/workspaces/${workspace}/source?path=${encodeURIComponent(file)}`, { headers });
       const curBody = (await cur.json().catch(() => ({}))) as { content?: string; sha256?: string; error?: string };
       const missing = !cur.ok && /not found/i.test(curBody.error ?? "");
-      if (!cur.ok && !missing) throw new Error(curBody.error ?? `could not read ${file}`);
+      if (!cur.ok && !missing) throw new Error(curBody.error ?? $t("components.flow-run-with.couldNotRead", { file: String(file) }));
       const next = upsertInputSet(missing ? null : (curBody.content ?? ""), flow, name, task);
       const res = await fetch(`/api/workspaces/${workspace}/source`, {
         method: "PUT",
@@ -132,13 +133,13 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
         body: JSON.stringify({
           path: file,
           content: next,
-          message: `input set "${name}" saved for ${flow}`,
+          message: $t("components.flow-run-with.inputSetSavedFor", { name: String(name), flow: String(flow) }),
           ...(missing ? {} : { ifMatch: curBody.sha256 }),
         }),
       });
       const body = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(res.status === 409 ? `${file} changed while saving — try again` : (body.error ?? `save refused (${res.status})`));
-      setSaved(`Saved "${name}" to ${file}`);
+      if (!res.ok) throw new Error(res.status === 409 ? $t("components.flow-run-with.changedWhileSavingTryAgain", { file: String(file) }) : (body.error ?? $t("components.flow-run-with.saveRefused", { status: String(res.status) })));
+      setSaved($t("components.flow-run-with.savedTo", { name: String(name), file: String(file) }));
       setChosen(name);
       load();
     } catch (err) {
@@ -155,7 +156,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
     <PopoverAnchor asChild>
     <div className="relative inline-flex">
       <div className="inline-flex rounded-md">
-        <Tooltip label={mayRun ? "Start this flow with a saved input set" : needs("run:start")}>
+        <Tooltip label={mayRun ? $t("components.flow-run-with.startThisFlowWithASaved") : needs("run:start")}>
           <span className="inline-flex">
             <button
               type="button"
@@ -166,7 +167,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
               }}
               className={buttonVariants({ variant: "secondary", className: "rounded-r-none" })}
             >
-              Run with…
+              {$t("components.flow-run-with.runWith")}
             </button>
           </span>
         </Tooltip>
@@ -175,15 +176,15 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
             <button
               type="button"
               disabled={!mayRun}
-              aria-label="Pick a saved input set"
+              aria-label={$t("components.flow-run-with.pickASavedInputSet")}
               className={buttonVariants({ variant: "secondary", size: "icon-sm", className: "-ml-px rounded-l-none" })}
             >
               <ChevronDown aria-hidden />
             </button>
           </MenuTrigger>
           <MenuContent className="w-64">
-            {sets === null && <p className="px-2 py-1.5 text-[13px] text-fg-subtle">Loading…</p>}
-            {sets?.length === 0 && <p className="px-2 py-1.5 text-[13px] text-fg-muted">No saved inputs yet. Open Run with… and save the task you type.</p>}
+            {sets === null && <p className="px-2 py-1.5 text-[13px] text-fg-subtle">{$t("components.flow-run-with.loading")}</p>}
+            {sets?.length === 0 && <p className="px-2 py-1.5 text-[13px] text-fg-muted">{$t("components.flow-run-with.noSavedInputsYetOpenRun")}</p>}
             {sets?.map((s) => (
               <MenuItem
                 key={`${s.file}:${s.name}`}
@@ -205,14 +206,14 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
 
       <PopoverContent
         align="end"
-        aria-label={`Run ${flow} with saved inputs`}
+        aria-label={$t("components.flow-run-with.runWithSavedInputs", { flow: String(flow) })}
         onInteractOutside={(e) => e.preventDefault()}
         onOpenAutoFocus={(e) => e.preventDefault()}
         className="w-[min(28rem,calc(100vw-2rem))] p-4 text-left"
       >
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-fg">Run {flow} with…</h3>
-            <IconButton label="Close" onClick={() => setOpen(false)}>
+            <h3 className="text-sm font-semibold text-fg">{$t("components.flow-run-with.runWith2", { flow: flow })}</h3>
+            <IconButton label={$t("components.flow-run-with.close")} onClick={() => setOpen(false)}>
               <X />
             </IconButton>
           </div>
@@ -220,19 +221,19 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
           <Segmented
             role="radiogroup"
             size="sm"
-            label="Input set"
+            label={$t("components.flow-run-with.inputSet")}
             className="mt-2"
             value={chosen ?? ""}
             onChange={(k) => pick(k ? sets?.find((s) => s.name === k) ?? null : null)}
             items={[
-              { key: "", label: "Custom" },
+              { key: "", label: $t("components.flow-run-with.custom") },
               ...(sets ?? []).map((s) => ({
                 key: s.name,
-                title: `evals/${s.file}${s.source === "eval" ? " — an eval case for this flow" : ""}`,
+                title: `evals/${s.file}${s.source === "eval" ? $t("components.flow-run-with.anEvalCase") : ""}`,
                 label: (
                   <>
                     {s.name}
-                    {s.source === "eval" && <span className="opacity-60">eval</span>}
+                    {s.source === "eval" && <span className="opacity-60">{$t("components.flow-run-with.eval")}</span>}
                   </>
                 ),
               })),
@@ -240,7 +241,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
           />
 
           <label className="mt-3 block text-xs font-medium text-fg-muted" htmlFor={`task-${flow}`}>
-            Task
+            {$t("components.flow-run-with.task")}
           </label>
           <Textarea
             id={`task-${flow}`}
@@ -250,24 +251,22 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
               setStarted(null);
             }}
             rows={4}
-            placeholder="What this run is for — reaches the first step as its task"
+            placeholder={$t("components.flow-run-with.whatThisRunIsForReaches")}
             className="mt-1 w-full font-mono text-xs"
           />
 
           <RunInputsPicker workspace={workspace} tenant={tenant} picked={files} onChange={(p) => { setFiles(p); setStarted(null); }} active={open} />
 
           <div className="mt-2 flex items-center gap-3 text-xs text-fg-secondary">
-            <RadioGroup aria-label="Kind of run" value={live ? "live" : "test"} onValueChange={(v) => setLive(v === "live")} className="flex items-center gap-3">
-              <Tooltip label="Every step runs; nothing outward happens and state/ is left alone">
+            <RadioGroup aria-label={$t("components.flow-run-with.kindOfRun")} value={live ? "live" : "test"} onValueChange={(v) => setLive(v === "live")} className="flex items-center gap-3">
+              <Tooltip label={$t("components.flow-run-with.everyStepRunsNothingOutwardHappens")}>
                 <label className="flex items-center gap-1.5">
-                  <RadioGroupItem value="test" />
-                  Test run
+                  {$rich("components.flow-run-with.testRun", { radioGroupItem: $el(<RadioGroupItem value="test" />) })}
                 </label>
               </Tooltip>
-              <Tooltip label="Does everything the flow does, for real">
+              <Tooltip label={$t("components.flow-run-with.doesEverythingTheFlowDoesFor")}>
                 <label className="flex items-center gap-1.5">
-                  <RadioGroupItem value="live" />
-                  Live run
+                  {$rich("components.flow-run-with.liveRun", { radioGroupItem: $el(<RadioGroupItem value="live" />) })}
                 </label>
               </Tooltip>
             </RadioGroup>
@@ -277,16 +276,13 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
               onClick={() => void run()}
               className={cn(buttonVariants({ variant: live ? "danger-outline" : "primary", size: "xs" }), "ml-auto")}
             >
-              {busy === "run" ? "Starting…" : live ? "Start live run" : "Start test run"}
+              {busy === "run" ? "Starting…" : live ? $t("components.flow-run-with.startLiveRun") : $t("components.flow-run-with.startTestRun")}
             </button>
           </div>
 
           {started && (
             <p className="mt-2 rounded-md bg-success-soft px-2 py-1.5 text-xs text-success">
-              {started.test ? "Test run" : "Live run"} started —{" "}
-              <Link href={runHref(started.runId)} className="font-medium underline">
-                open {started.runId}
-              </Link>
+              {started.test ? $t("components.flow-run-with.testRun2") : $t("components.flow-run-with.liveRun2")}{" "}{$rich("components.flow-run-with.startedOpen", { runId: started.runId, link: (chunks) => <Link href={runHref(started.runId)} className="font-medium underline">{chunks}</Link> })}
             </p>
           )}
 
@@ -295,11 +291,11 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
               <Input
                 value={saveName}
                 onChange={(e) => setSaveName(e.target.value)}
-                placeholder="Name this input set"
-                aria-label="Input set name"
+                placeholder={$t("components.flow-run-with.nameThisInputSet")}
+                aria-label={$t("components.flow-run-with.inputSetName")}
                 className="min-w-0 flex-1 text-xs"
               />
-              <Tooltip label={mayWrite ? `Writes evals/${flow}-inputs.md` : needs("workspace:write")}>
+              <Tooltip label={mayWrite ? $t("components.flow-run-with.writesEvalsInputsMd", { flow: String(flow) }) : needs("workspace:write")}>
                 <span className="inline-flex">
                   <button
                     type="button"
@@ -307,14 +303,13 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
                     onClick={() => void save()}
                     className={buttonVariants({ variant: "secondary", size: "md" })}
                   >
-                    {busy === "save" ? "Saving…" : "Save current as input set"}
+                    {busy === "save" ? "Saving…" : $t("components.flow-run-with.saveCurrentAsInputSet")}
                   </button>
                 </span>
               </Tooltip>
             </div>
             <p className="mt-1 text-[11px] text-fg-subtle">
-              Kept in <span className="font-mono">{inputsFile(flow)}</span> — also{" "}
-              <span className="font-mono">foldrun invoke {flow} --inputs &lt;name&gt;</span>.
+              {$rich("components.flow-run-with.keptInAlsoFoldrunInvokeInputs", { flow: inputsFile(flow), span: (chunks) => <span className="font-mono">{chunks}</span>, flow2: flow })}
             </p>
             {saved && <p className="mt-1 text-xs text-success">{saved}</p>}
           </div>

@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 // Light or dark: one person's choice, and what it comes to on a given screen.
 //
 // Three choices, "system" the default: follow the operating system's
@@ -12,9 +13,9 @@ export type Theme = (typeof THEMES)[number];
 export const THEME_PREF = "theme";
 
 export const THEME_LABELS: Record<Theme, string> = {
-  system: "System",
-  light: "Light",
-  dark: "Dark",
+  system: $t("components.theme-model.system"),
+  light: $t("components.theme-model.light"),
+  dark: $t("components.theme-model.dark"),
 };
 
 export function isTheme(value: unknown): value is Theme {

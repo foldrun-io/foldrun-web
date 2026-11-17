@@ -1,8 +1,9 @@
+import { $t } from "@/i18n";
 import { Suspense } from "react";
 import { AuthCard } from "../../brand";
 import { McpAuthorize } from "./authorize";
 
-export const metadata = { title: "Connect an AI app" };
+export const metadata = { title: $t("auth.mcp-authorize-page.connectAnAiApp") };
 
 // An AI app (claude.ai, an MCP client) sent the person here to sign it in to
 // /api/mcp (server/mcp-oauth.ts). The page shows who is asking, where the

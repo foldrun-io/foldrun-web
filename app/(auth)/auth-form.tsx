@@ -44,7 +44,7 @@ export function AuthForm({ mode, invite, setup, link, codeSignIn }: {
     });
     if (!res.ok) {
       const payload = (await res.json().catch(() => ({}))) as { error?: string };
-      throw new Error(payload.error ?? "something went wrong — try again");
+      throw new Error(payload.error ?? $t("auth.auth-form.somethingWentWrongTryAgain"));
     }
     setCodeAsked(true);
     setCanResend(false);
@@ -125,9 +125,9 @@ export function AuthForm({ mode, invite, setup, link, codeSignIn }: {
         return;
       }
       const payload = (await res.json().catch(() => ({}))) as { error?: string };
-      setError(payload.error ?? "something went wrong — try again");
+      setError(payload.error ?? $t("auth.auth-form.somethingWentWrongTryAgain"));
     } catch (err) {
-      setError(`could not reach the server: ${err instanceof Error ? err.message : String(err)}`);
+      setError($t("auth.auth-form.couldNotReachTheServer", { v0: String(err instanceof Error ? err.message : String(err)) }));
     }
     setBusy(false);
   }
@@ -137,13 +137,13 @@ export function AuthForm({ mode, invite, setup, link, codeSignIn }: {
       {challenge && (
         // The second step replaces the form: the email and password were
         // right, and the only thing left is the code.
-        <Field label="Code from your authenticator app" hint="Lost the app? A backup code works once.">
-          <Input name="code" inputMode="numeric" autoComplete="one-time-code" autoFocus required placeholder="123 456 — or a backup code" />
+        <Field label={$t("auth.auth-form.codeFromYourAuthenticatorApp")} hint={$t("auth.auth-form.lostTheAppABackupCode")}>
+          <Input name="code" inputMode="numeric" autoComplete="one-time-code" autoFocus required placeholder={$t("auth.auth-form.123456OrABackupCode")} />
         </Field>
       )}
       {!challenge && mode === "signup" && !invite && (
-        <Field label="Account name" hint={$t("auth.auth-form.lowercaseHyphensAllowedThisNamesYour")}>
-          <Tooltip label="lowercase letters, digits and single hyphens — like a good directory name">
+        <Field label={$t("auth.auth-form.accountName")} hint={$t("auth.auth-form.lowercaseHyphensAllowedThisNamesYour")}>
+          <Tooltip label={$t("auth.auth-form.lowercaseLettersDigitsAndSingleHyphens")}>
             <Input
               name="account"
               required
@@ -153,7 +153,7 @@ export function AuthForm({ mode, invite, setup, link, codeSignIn }: {
           </Tooltip>
         </Field>
       )}
-      {!challenge && <Field label="Email">
+      {!challenge && <Field label={$t("auth.auth-form.email")}>
         <Input
           name="email"
           type="email"
@@ -162,22 +162,22 @@ export function AuthForm({ mode, invite, setup, link, codeSignIn }: {
           {...(link ? { defaultValue: link.email, readOnly: true, "aria-readonly": true } : {})}
         />
       </Field>}
-      {!challenge && !viaCode && <Field label="Password">
+      {!challenge && !viaCode && <Field label={$t("auth.auth-form.password")}>
         <Input
           name="password"
           type="password"
           required
           minLength={mode === "signup" ? 10 : 1}
-          placeholder={mode === "signup" ? "at least 10 characters" : ""}
+          placeholder={mode === "signup" ? $t("auth.auth-form.atLeast10Characters") : ""}
         />
         {mode === "login" && (
-          <a href="/forgot" className="block text-xs text-fg-muted hover:text-fg">Forgot your password?</a>
+          <a href="/forgot" className="block text-xs text-fg-muted hover:text-fg">{$t("auth.auth-form.forgotYourPassword")}</a>
         )}
       </Field>}
       {!challenge && viaCode && codeAsked && (
         <>
-          <Callout tone="info">If that address can sign in with a code, one is on its way. It works for 10 minutes, once, in this browser.</Callout>
-          <Field label="Code from your email">
+          <Callout tone="info">{$t("auth.auth-form.ifThatAddressCanSignIn")}</Callout>
+          <Field label={$t("auth.auth-form.codeFromYourEmail")}>
             <Input name="code" inputMode="numeric" autoComplete="one-time-code" autoFocus required pattern="[0-9 ]{6,7}" placeholder="123 456" />
           </Field>
         </>
@@ -196,7 +196,7 @@ export function AuthForm({ mode, invite, setup, link, codeSignIn }: {
               setError(null);
             }}
           >
-            {viaCode ? "Use a password instead" : "Email me a code instead"}
+            {viaCode ? $t("auth.auth-form.useAPasswordInstead") : $t("auth.auth-form.emailMeACodeInstead")}
           </button>
           {viaCode && codeAsked && (
             <button
@@ -213,7 +213,7 @@ export function AuthForm({ mode, invite, setup, link, codeSignIn }: {
                 }
               }}
             >
-              Send a new code
+              {$t("auth.auth-form.sendANewCode")}
             </button>
           )}
         </div>
@@ -223,7 +223,7 @@ export function AuthForm({ mode, invite, setup, link, codeSignIn }: {
         disabled={busy}
         className={cn(buttonVariants({ variant: "primary", size: "md" }), "w-full")}
       >
-        {busy ? "…" : challenge ? "Verify" : viaCode && !codeAsked ? "Email me a code" : mode === "signup" ? "Create account" : "Sign in"}
+        {busy ? "…" : challenge ? $t("auth.auth-form.verify") : viaCode && !codeAsked ? $t("auth.auth-form.emailMeACode") : mode === "signup" ? $t("auth.auth-form.createAccount") : $t("auth.auth-form.signIn")}
       </button>
     </form>
   );

@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 // What the editor's header and side panel say about a file, read from its
 // path and its frontmatter. Pure; tests/editor-context.test.ts pins it.
 
@@ -50,7 +51,7 @@ const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 function limitsTitle(v: unknown): string | null {
   if (!v || typeof v !== "object" || Array.isArray(v)) return null;
   const parts = Object.entries(v as Record<string, unknown>).map(([k, n]) => `${k} ${typeof n === "object" && n ? JSON.stringify(n) : String(n)}`);
-  return parts.length ? `per step: ${parts.join(", ")}` : null;
+  return parts.length ? $t("components.editor-context-model.perStep", { v0: String(parts.join(", ")) }) : null;
 }
 
 /**
@@ -79,7 +80,7 @@ export function chipsFor(kind: FileKind, fm: Record<string, unknown>): Chip[] {
       if (Array.isArray(fm.methods)) chips.push({ label: fm.methods.join(" "), title: "methods" });
       const h = host(fm.base);
       if (h) chips.push({ label: h, title: String(fm.base) });
-      if (s("run")) chips.push({ label: `run ${s("run")}`, title: "the program this tool runs" });
+      if (s("run")) chips.push({ label: `run ${s("run")}`, title: $t("components.editor-context-model.theProgramThisToolRuns") });
       if (fm.args) chips.push({ label: plural(count(fm.args), "arg"), title: "arguments" });
       if (fm.timeout) chips.push({ label: `${fm.timeout}s`, title: "timeout" });
       break;
@@ -88,10 +89,10 @@ export function chipsFor(kind: FileKind, fm: Record<string, unknown>): Chip[] {
       if (s("model")) chips.push({ label: s("model")!, title: "model" });
       if (s("effort")) chips.push({ label: `effort ${s("effort")}`, title: "effort" });
       if (fm.tools) chips.push({ label: plural(count(fm.tools), "tool"), title: Array.isArray(fm.tools) ? fm.tools.join(", ") : undefined });
-      if (fm.agents) chips.push({ label: `asks ${count(fm.agents)}`, title: "agents it may consult" });
-      if (s("size")) chips.push({ label: s("size")!, title: "sandbox size" });
-      if (resourcesLabel(fm.resources)) chips.push({ label: resourcesLabel(fm.resources)!, title: "resources: over the size class's figures" });
-      if (fm.budget) chips.push({ label: `budget $${fm.budget}`, title: "the most this agent may spend in one run" });
+      if (fm.agents) chips.push({ label: `asks ${count(fm.agents)}`, title: $t("components.editor-context-model.agentsItMayConsult") });
+      if (s("size")) chips.push({ label: s("size")!, title: $t("components.editor-context-model.sandboxSize") });
+      if (resourcesLabel(fm.resources)) chips.push({ label: resourcesLabel(fm.resources)!, title: $t("components.editor-context-model.resourcesOverTheSizeClassS") });
+      if (fm.budget) chips.push({ label: $t("components.editor-context-model.budget", { budget: String(fm.budget) }), title: $t("components.editor-context-model.theMostThisAgentMaySpend") });
       if (limitsTitle(fm.limits)) chips.push({ label: plural(count(fm.limits), "limit"), title: limitsTitle(fm.limits)! });
       break;
     }
@@ -99,33 +100,33 @@ export function chipsFor(kind: FileKind, fm: Record<string, unknown>): Chip[] {
       if (s("trigger")) chips.push({ label: s("trigger")!, title: "trigger" });
       if (s("schedule")) chips.push({ label: s("schedule")!, title: "cron" });
       if (s("timezone")) chips.push({ label: s("timezone")!, title: "timezone" });
-      if (s("model")) chips.push({ label: s("model")!, title: "model for every step" });
-      if (fm.budget) chips.push({ label: `budget $${fm.budget}`, title: "per-run cap" });
+      if (s("model")) chips.push({ label: s("model")!, title: $t("components.editor-context-model.modelForEveryStep") });
+      if (fm.budget) chips.push({ label: $t("components.editor-context-model.budget", { budget: String(fm.budget) }), title: $t("components.editor-context-model.perRunCap") });
       break;
     }
     case "eval": {
-      if (s("agent")) chips.push({ label: `agent ${s("agent")}`, title: "what it tests" });
-      if (s("flow")) chips.push({ label: `flow ${s("flow")}`, title: "what it tests" });
-      if (s("trigger")) chips.push({ label: s("trigger")!, title: "when it runs" });
+      if (s("agent")) chips.push({ label: `agent ${s("agent")}`, title: $t("components.editor-context-model.whatItTests") });
+      if (s("flow")) chips.push({ label: `flow ${s("flow")}`, title: $t("components.editor-context-model.whatItTests") });
+      if (s("trigger")) chips.push({ label: s("trigger")!, title: $t("components.editor-context-model.whenItRuns") });
       if (s("model")) chips.push({ label: s("model")!, title: "model" });
       break;
     }
     case "knowledge":
     case "memory": {
-      if (s("type")) chips.push({ label: s("type")!, title: "OKF type" });
+      if (s("type")) chips.push({ label: s("type")!, title: $t("components.editor-context-model.okfType") });
       if (s("status")) chips.push({ label: s("status")!, title: "status" });
       if (s("expires")) chips.push({ label: `expires ${s("expires")}`, title: "expiry" });
       break;
     }
     case "skill": {
-      if (Array.isArray(fm.when) && fm.when.length) chips.push({ label: `when ${fm.when.join(", ")}`, title: "tags that load it" });
+      if (Array.isArray(fm.when) && fm.when.length) chips.push({ label: `when ${fm.when.join(", ")}`, title: $t("components.editor-context-model.tagsThatLoadIt") });
       break;
     }
     case "config": {
-      if (s("provider") || fm.provider) chips.push({ label: "own provider", title: "provider block" });
-      if (fm.budget) chips.push({ label: `budget $${fm.budget}`, title: /\/|per|daily|weekly/i.test(String(fm.budget)) ? "cap over time" : "monthly cap" });
-      if (fm.notify) chips.push({ label: "notify", title: "notification set" });
-      if (limitsTitle(fm.limits)) chips.push({ label: plural(count(fm.limits), "limit"), title: `${limitsTitle(fm.limits)} — defaults an agent's own limits override` });
+      if (s("provider") || fm.provider) chips.push({ label: $t("components.editor-context-model.ownProvider"), title: $t("components.editor-context-model.providerBlock") });
+      if (fm.budget) chips.push({ label: $t("components.editor-context-model.budget", { budget: String(fm.budget) }), title: /\/|per|daily|weekly/i.test(String(fm.budget)) ? $t("components.editor-context-model.capOverTime") : $t("components.editor-context-model.monthlyCap") });
+      if (fm.notify) chips.push({ label: "notify", title: $t("components.editor-context-model.notificationSet") });
+      if (limitsTitle(fm.limits)) chips.push({ label: plural(count(fm.limits), "limit"), title: $t("components.editor-context-model.defaultsAnAgentSOwnLimits", { v0: String(limitsTitle(fm.limits)) }) });
       break;
     }
     default:

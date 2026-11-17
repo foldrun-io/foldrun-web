@@ -14,7 +14,7 @@
 // Opened by the button at the bottom right, or by any control that
 // dispatches `foldrun:assistant` with an optional `{ prompt }` to start from.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import { Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -201,7 +201,7 @@ export function AssistantDock({ tenant }: { tenant: string }) {
         // The wrapper holds the fixed position so the tooltip still shows
         // (why it is off) while the button is disabled. On a phone it sat
         // over page buttons; there it is in the bottom bar (PhoneBar).
-        <Tooltip label={mayWrite ? "Ask how foldrun works, or have agents, flows, tools and skills written" : needs("workspace:write")}>
+        <Tooltip label={mayWrite ? $t("components.assistant.askHowFoldrunWorksOrHave") : needs("workspace:write")}>
           <span className="fixed bottom-5 right-5 z-30 inline-flex max-md:hidden">
             <button
               type="button"
@@ -210,7 +210,7 @@ export function AssistantDock({ tenant }: { tenant: string }) {
               className={cn(buttonVariants({ variant: "primary", size: "md" }), "gap-1.5 rounded-full text-[13px] shadow-overlay disabled:opacity-60")}
             >
               <Sparkles className="size-3.5" aria-hidden />
-              Ask AI
+              {$t("components.assistant.askAi")}
             </button>
           </span>
         </Tooltip>
@@ -227,7 +227,7 @@ export function AssistantDock({ tenant }: { tenant: string }) {
             seed={seed}
             onSeedUsed={() => setSeed(null)}
             onBusy={onBusy}
-            queued={pending ? `Doctor in ${pending.ws} opens when this reply is done.` : null}
+            queued={pending ? $t("components.assistant.doctorInOpensWhenThisReply", { ws: String(pending.ws) }) : null}
             onClose={() => {
               // Closing drops a held move: it was asked of this panel.
               setPending(null);
@@ -235,11 +235,11 @@ export function AssistantDock({ tenant }: { tenant: string }) {
             }}
           />
         ) : (
-          <aside role="dialog" aria-label="Assistant" className="fixed inset-y-0 right-0 z-40 flex w-full flex-col border-l border-line bg-surface shadow-xl sm:w-[440px]">
+          <aside role="dialog" aria-label={$t("components.assistant.assistant")} className="fixed inset-y-0 right-0 z-40 flex w-full flex-col border-l border-line bg-surface shadow-xl sm:w-[440px]">
             <header className="flex items-center gap-2 border-b border-line px-4 py-3">
-              <h2 className="text-sm font-semibold text-fg">Assistant</h2>
+              <h2 className="text-sm font-semibold text-fg">{$t("components.assistant.assistant")}</h2>
               <button type="button" onClick={() => setOpen(false)} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ml-auto")}>
-                Close
+                {$t("components.assistant.close")}
               </button>
             </header>
             {workspaces && !listError ? (
@@ -363,7 +363,7 @@ function AssistantPanel({
     setMessages(next);
     if (override === undefined) setInput("");
     setBusy(true);
-    setStatus("Thinking");
+    setStatus($t("components.assistant.thinking"));
     setStreaming("");
     setSaveError(null);
     const controller = new AbortController();
@@ -387,7 +387,7 @@ function AssistantPanel({
       });
       if (!res.ok || !res.body) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        fail(body.error ?? `the assistant refused (${res.status})`);
+        fail(body.error ?? $t("components.assistant.theAssistantRefused", { status: String(res.status) }));
         return;
       }
       const reader = res.body.getReader();
@@ -404,9 +404,9 @@ function AssistantPanel({
       // What the decoder still holds, and a last frame without its blank line.
       buffer += decoder.decode();
       if (buffer.trim()) handle(parseSse(`${buffer}\n\n`).events);
-      if (!finished) fail("the reply stopped before it finished — ask again");
+      if (!finished) fail($t("components.assistant.theReplyStoppedBeforeItFinished"));
     } catch (err) {
-      if (!finished) fail(controller.signal.aborted ? "stopped — the reply still finishes on the server and is charged; ask again to see one" : err instanceof Error ? err.message : "the assistant could not be reached");
+      if (!finished) fail(controller.signal.aborted ? $t("components.assistant.stoppedTheReplyStillFinishesOn") : err instanceof Error ? err.message : $t("components.assistant.theAssistantCouldNotBeReached"));
     } finally {
       inFlight.current = false;
       abort.current = null;
@@ -423,7 +423,7 @@ function AssistantPanel({
         else if (e.event === "done") {
           finished = true;
           const r: AssistantReply = e.reply;
-          setMessages((m) => [...m, { role: "assistant", content: r.reply || "(no answer)", sources: r.sources, workspace: r.workspace ?? null, meter: meterLine(r) }]);
+          setMessages((m) => [...m, { role: "assistant", content: r.reply || $t("components.assistant.noAnswer"), sources: r.sources, workspace: r.workspace ?? null, meter: meterLine(r) }]);
           setFiles(r.files);
           setIssues(r.issues);
           if (r.conversation) setConversation(r.conversation);
@@ -481,18 +481,18 @@ function AssistantPanel({
         if (!res.ok) {
           const body = (await res.json().catch(() => ({}))) as { error?: string };
           throw new Error(
-            `${f.path}: ${res.status === 409 ? `${f.before === null ? "someone created it" : "it changed"} since this was proposed — ask the assistant to propose it again` : (body.error ?? `refused (${res.status})`)}`,
+            `${f.path}: ${res.status === 409 ? $t("components.assistant.sinceThisWasProposedAskThe", { v0: String(f.before === null ? $t("components.assistant.someoneCreatedIt") : $t("components.assistant.itChanged")) }) : (body.error ?? $t("components.assistant.refused", { status: String(res.status) }))}`,
           );
         }
         done.push(f.path);
       }
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "save failed");
+      setSaveError(err instanceof Error ? err.message : $t("components.assistant.saveFailed"));
     } finally {
       if (done.length) {
         setFiles((fs) => fs.filter((f) => !done.includes(f.path)));
         setIssues((is) => is.filter((i) => !done.some((p) => i.where === p || i.where.startsWith(`${p}:`))));
-        setMessages((m) => [...m, { role: "assistant", content: `Saved ${done.map((p) => `\`${p}\``).join(", ")}. Each is a revision in History.` }]);
+        setMessages((m) => [...m, { role: "assistant", content: $t("components.assistant.savedEachIsARevisionIn", { v0: String(done.map((p) => `\`${p}\``).join(", ")) }) }]);
         router.refresh();
       }
       setSaving(null);
@@ -518,7 +518,7 @@ function AssistantPanel({
         error?: string;
       };
       if (!res.ok || !c.id || !c.workspace) {
-        setSaveError(c.error ?? `could not open it (${res.status})`);
+        setSaveError(c.error ?? $t("components.assistant.couldNotOpenIt", { status: String(res.status) }));
         return;
       }
       const chat = { messages: (c.messages ?? []).map(chatFromStored), files: c.files ?? [], issues: [], conversation: c.id };
@@ -536,7 +536,7 @@ function AssistantPanel({
       setIssues([]);
       setConversation(c.id);
     } catch {
-      setSaveError("could not reach the platform");
+      setSaveError($t("components.assistant.couldNotReachThePlatform"));
     }
   };
 
@@ -554,14 +554,13 @@ function AssistantPanel({
   return (
     <aside
       role="dialog"
-      aria-label="Assistant"
+      aria-label={$t("components.assistant.assistant")}
       className="fixed inset-y-0 right-0 z-40 flex w-full flex-col border-l border-line bg-surface shadow-xl sm:w-[440px]"
     >
       <header className="flex items-center gap-2 border-b border-line px-4 py-3">
         <div className="min-w-0">
           <h2 className="flex items-center gap-1.5 text-sm font-semibold text-fg">
-            Assistant
-            <span className="font-normal text-fg-muted">in</span>
+            {$rich("components.assistant.assistantIn", { span: (chunks) => <span className="font-normal text-fg-muted">{chunks}</span> })}
             {workspaces.length > 1 ? (
               <Select
                 size="sm"
@@ -582,7 +581,7 @@ function AssistantPanel({
               <span className="font-mono text-xs">{workspace}</span>
             )}
           </h2>
-          <p className="text-[11px] text-fg-muted">Answers from the foldrun docs. Nothing is saved until you press Save.</p>
+          <p className="text-[11px] text-fg-muted">{$t("components.assistant.answersFromTheFoldrunDocsNothing")}</p>
         </div>
         <button
           type="button"
@@ -591,13 +590,13 @@ function AssistantPanel({
           aria-pressed={showHistory}
           className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ml-auto")}
         >
-          History
+          {$t("components.assistant.history")}
         </button>
         <button type="button" onClick={reset} disabled={busy || (!messages.length && !files.length)} className={buttonVariants({ variant: "ghost", size: "xs" })}>
-          New chat
+          {$t("components.assistant.newChat")}
         </button>
         <button type="button" onClick={onClose} className={buttonVariants({ variant: "ghost", size: "xs" })}>
-          Close
+          {$t("components.assistant.close")}
         </button>
       </header>
 
@@ -615,12 +614,12 @@ function AssistantPanel({
         )}
 
         {!showHistory && files.length > 0 && (
-          <section aria-label="Proposed files" className="space-y-2 border-t border-line pt-3">
+          <section aria-label={$t("components.assistant.proposedFiles")} className="space-y-2 border-t border-line pt-3">
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className="font-medium text-fg">
-                {files.length} proposed file{files.length === 1 ? "" : "s"}
+                {$t("components.assistant.proposedFile", { length: files.length })}
               </span>
-              {errors === 0 ? <Chip tone="good">passes the check</Chip> : <Chip tone="bad">{errors} error{errors === 1 ? "" : "s"}</Chip>}
+              {errors === 0 ? <Chip tone="good">{$t("components.assistant.passesTheCheck")}</Chip> : <Chip tone="bad">{$t("components.assistant.error", { errors: errors })}</Chip>}
               {files.length > 1 && (
                 <button
                   type="button"
@@ -628,7 +627,7 @@ function AssistantPanel({
                   onClick={() => void save(files)}
                   className={cn(buttonVariants({ variant: "primary", size: "xs" }), "ml-auto")}
                 >
-                  {saving === "all" ? "Saving…" : `Save all ${files.length}`}
+                  {saving === "all" ? "Saving…" : $t("components.assistant.saveAll", { length: String(files.length) })}
                 </button>
               )}
             </div>
@@ -662,7 +661,7 @@ function AssistantPanel({
       >
         {queued && <p className="mb-1.5 text-xs text-fg-muted" role="status">{queued}</p>}
         <label htmlFor="assistant-input" className="sr-only">
-          Message
+          {$t("components.assistant.message")}
         </label>
         <Textarea
           id="assistant-input"
@@ -678,18 +677,18 @@ function AssistantPanel({
               void send();
             }
           }}
-          placeholder="Ask how something works, or describe an agent, flow, tool or skill…"
+          placeholder={$t("components.assistant.askHowSomethingWorksOrDescribe")}
           className="w-full resize-none text-sm"
         />
         <div className="mt-1 flex items-center gap-2">
-          <span className="text-[11px] text-fg-subtle">Enter to send · Shift+Enter for a new line</span>
+          <span className="text-[11px] text-fg-subtle">{$t("components.assistant.enterToSendShiftEnterFor")}</span>
           {busy ? (
             <button type="button" onClick={() => abort.current?.abort()} className={cn(buttonVariants({ variant: "secondary", size: "xs" }), "ml-auto")}>
-              Stop
+              {$t("components.assistant.stop")}
             </button>
           ) : (
             <button type="submit" disabled={!input.trim()} className={cn(buttonVariants({ variant: "primary", size: "xs" }), "ml-auto")}>
-              Send
+              {$t("components.assistant.send")}
             </button>
           )}
         </div>
@@ -713,13 +712,13 @@ function History({ headers, current, onOpen }: { headers: Record<string, string>
         .then(async (res) => {
           const body = (await res.json().catch(() => ({}))) as { conversations?: ConversationSummary[]; error?: string };
           if (!live) return;
-          if (!res.ok) setError(body.error ?? `could not list them (${res.status})`);
+          if (!res.ok) setError(body.error ?? $t("components.assistant.couldNotListThem", { status: String(res.status) }));
           else {
             setError(null);
             setList(body.conversations ?? []);
           }
         })
-        .catch(() => live && setError("could not reach the platform"));
+        .catch(() => live && setError($t("components.assistant.couldNotReachThePlatform")));
     }, 200);
     return () => {
       live = false;
@@ -733,21 +732,21 @@ function History({ headers, current, onOpen }: { headers: Record<string, string>
   };
 
   return (
-    <section aria-label="Conversation history" className="space-y-2">
+    <section aria-label={$t("components.assistant.conversationHistory")} className="space-y-2">
       <label htmlFor="assistant-history-search" className="sr-only">
-        Search conversations
+        {$t("components.assistant.searchConversations")}
       </label>
       <Input
         id="assistant-history-search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="Search your conversations…"
+        placeholder={$t("components.assistant.searchYourConversations")}
         className="w-full text-sm"
         autoFocus
       />
       {error && <p className="text-xs text-danger">{error}</p>}
-      {list === null && !error && <p className="text-xs text-fg-muted">Loading…</p>}
-      {list?.length === 0 && <p className="text-xs text-fg-muted">{q.trim() ? "Nothing matches." : "No conversations yet."}</p>}
+      {list === null && !error && <p className="text-xs text-fg-muted">{$t("components.assistant.loading")}</p>}
+      {list?.length === 0 && <p className="text-xs text-fg-muted">{q.trim() ? $t("components.assistant.nothingMatches") : $t("components.assistant.noConversationsYet")}</p>}
       {list &&
         groupConversations(list).map((g) => (
           <div key={g.label}>
@@ -758,17 +757,17 @@ function History({ headers, current, onOpen }: { headers: Record<string, string>
                   <button type="button" onClick={() => onOpen(c.id)} className="min-w-0 flex-1 text-left">
                     <span className="block truncate text-sm text-fg">{c.title}</span>
                     <span className="block text-[11px] text-fg-muted">
-                      <span className="font-mono">{c.workspace}</span> · {c.messages} message{c.messages === 1 ? "" : "s"}
-                      {c.unsaved ? ` · ${c.unsaved} unsaved file${c.unsaved === 1 ? "" : "s"}` : ""}
+                      {$rich("components.assistant.message2", { workspace: c.workspace, span: (chunks) => <span className="font-mono">{chunks}</span>, messages: c.messages })}
+                      {c.unsaved ? $t("components.assistant.unsavedFile", { unsaved: String(c.unsaved), v1: String(c.unsaved === 1 ? "" : "s") }) : ""}
                     </span>
                   </button>
                   <button
                     type="button"
-                    aria-label={`Delete "${c.title}"`}
+                    aria-label={$t("components.assistant.delete", { title: String(c.title) })}
                     onClick={() => void remove(c.id)}
                     className="invisible text-xs text-fg-subtle hover:text-danger group-hover:visible"
                   >
-                    Delete
+                    {$t("components.assistant.delete2")}
                   </button>
                 </li>
               ))}
@@ -780,11 +779,11 @@ function History({ headers, current, onOpen }: { headers: Record<string, string>
 }
 
 const EXAMPLES = [
-  "How do I run a step only when the previous one found something?",
-  "Write an agent that summarises a web page into five bullet points.",
-  "Make a flow that runs every Monday at 8 and asks me before it sends anything.",
-  "Write a script tool that converts a CSV to JSON.",
-  "Turn our house style into a skill.",
+  $t("components.assistant.howDoIRunAStep"),
+  $t("components.assistant.writeAnAgentThatSummarisesA"),
+  $t("components.assistant.makeAFlowThatRunsEvery"),
+  $t("components.assistant.writeAScriptToolThatConverts"),
+  $t("components.assistant.turnOurHouseStyleIntoA"),
 ];
 
 function Welcome({ onPick }: { onPick: (text: string) => void }) {
@@ -833,7 +832,7 @@ function Message({
     <div className="space-y-1">
       <Markdown text={linkCitations(message.content)} className="text-sm text-fg" />
       {message.sources && message.sources.length > 0 && (
-        <Disclosure className="text-[11px] text-fg-muted" summaryClassName="select-none" summary={<>Read {message.sources.length} doc section{message.sources.length === 1 ? "" : "s"}</>}>
+        <Disclosure className="text-[11px] text-fg-muted" summaryClassName="select-none" summary={<>{$t("components.assistant.readDocSection", { length: message.sources.length })}</>}>
           <ul className="mt-1 space-y-0.5 pl-3">
             {message.sources.map((s) => (
               <li key={s.url}>
@@ -856,12 +855,12 @@ function Message({
  *  someone creates meanwhile) is refused by the server, never deployed over.
  *  Null when it worked, else the refusal. */
 async function createWorkspace(tenant: string, name: string): Promise<string | null> {
-  if (!WORKSPACE_NAME.test(name)) return "lower-case letters, digits and dashes";
+  if (!WORKSPACE_NAME.test(name)) return $t("components.assistant.lowerCaseLettersDigitsAndDashes");
   try {
     await postCreate("/api/workspaces", tenant, name, { template: true, ifAbsent: true });
     return null;
   } catch (err) {
-    return err instanceof Error ? err.message : "could not reach the platform";
+    return err instanceof Error ? err.message : $t("components.assistant.couldNotReachThePlatform");
   }
 }
 
@@ -887,7 +886,7 @@ function WorkspaceCard({
         <span className="font-medium text-fg">{$t("components.assistant.newWorkspace")}</span>
         <span className="font-mono text-fg">{proposal.name}</span>
         {exists ? (
-          <span className="ml-auto text-fg-muted">exists</span>
+          <span className="ml-auto text-fg-muted">{$t("components.assistant.exists")}</span>
         ) : (
           <Tooltip label={mayManage ? undefined : needs("workspace:manage")}>
             <span className="ml-auto inline-flex">
@@ -946,7 +945,7 @@ function CreateWorkspace({ tenant, onCreated }: { tenant: string; onCreated: (ws
         <Tooltip label={mayManage ? undefined : needs("workspace:manage")}>
           <span className="inline-flex">
             <button type="submit" disabled={busy || !name.trim() || !mayManage} className={buttonVariants({ variant: "primary", size: "md" })}>
-              {busy ? "Creating…" : "Create"}
+              {busy ? "Creating…" : $t("components.assistant.create")}
             </button>
           </span>
         </Tooltip>
@@ -980,10 +979,10 @@ function ProposedFile({
         </button>
         <Chip tone={file.before === null ? "good" : "warn"}>{file.before === null ? "new" : "changed"}</Chip>
         <button type="button" disabled={busy} onClick={onDiscard} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ml-auto")}>
-          Discard
+          {$t("components.assistant.discard")}
         </button>
         <button type="button" disabled={busy} onClick={onSave} className={buttonVariants({ variant: "secondary", size: "xs" })}>
-          {saving ? "Saving…" : "Save"}
+          {saving ? "Saving…" : $t("components.assistant.save")}
         </button>
       </header>
       {issues.length > 0 && (

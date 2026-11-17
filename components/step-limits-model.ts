@@ -5,6 +5,7 @@
 // panel and node --test agree; core's parser is still the last word when
 // the route writes it (updateFlowStep refuses what parseFlow would flag).
 
+import { $t } from "@/i18n";
 import { WEB_ACTIONS } from "@/lib/providers.ts";
 
 export interface LimitRow {
@@ -22,22 +23,22 @@ export function limitRows(limits: Record<string, number> | undefined): LimitRow[
  *  passes, and `foldrun check` judges it. */
 export function limitKeyProblem(key: string, granted: string[] | null): string | null {
   const k = key.trim();
-  if (!k) return "a key: web.search, web, calls, or one of this agent's tools";
+  if (!k) return $t("components.step-limits-model.aKeyWebSearchWebCalls");
   if (k === "calls" || k === "web") return null;
   if (k.includes(".")) {
     const [head, action, ...rest] = k.split(".");
     if (head === "web" && !rest.length && (WEB_ACTIONS as readonly string[]).includes(action)) return null;
-    return `"${k}" — the dotted keys are ${WEB_ACTIONS.map((a) => `web.${a}`).join(", ")}`;
+    return $t("components.step-limits-model.theDottedKeysAre", { k: String(k), v1: String(WEB_ACTIONS.map((a) => `web.${a}`).join(", ")) });
   }
-  if (!/^[A-Za-z0-9_-]+$/.test(k)) return `"${k}" is not a key — a tool's name, web.<action>, or calls`;
+  if (!/^[A-Za-z0-9_-]+$/.test(k)) return $t("components.step-limits-model.isNotAKeyATool", { k: String(k) });
   if (granted === null) return null;
   const norm = (s: string) => s.trim().replace(/-/g, "_");
   if (granted.some((g) => norm(g) === norm(k))) return null;
-  return `"${k}" is not one of this agent's tools${granted.length ? ` (${granted.join(", ")})` : ""}`;
+  return $t("components.step-limits-model.isNotOneOfThisAgent", { k: String(k), v1: String(granted.length ? ` (${granted.join(", ")})` : "") });
 }
 
 export function limitCountProblem(count: string): string | null {
-  return /^\s*[1-9]\d*\s*$/.test(count) ? null : "a whole number of calls, 1 or more";
+  return /^\s*[1-9]\d*\s*$/.test(count) ? null : $t("components.step-limits-model.aWholeNumberOfCalls1");
 }
 
 /** Every row's problem, or none. Duplicate keys are a problem too. */
@@ -50,7 +51,7 @@ export function limitProblems(rows: LimitRow[], granted: string[] | null): strin
     if (k) out.push(k);
     const c = limitCountProblem(r.count);
     if (c) out.push(`${r.key.trim() || "?"}: ${c}`);
-    if (seen.has(r.key.trim())) out.push(`${r.key.trim()} is set twice`);
+    if (seen.has(r.key.trim())) out.push($t("components.step-limits-model.isSetTwice", { v0: String(r.key.trim()) }));
     seen.add(r.key.trim());
   }
   return out;

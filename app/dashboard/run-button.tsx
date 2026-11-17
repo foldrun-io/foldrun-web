@@ -1,5 +1,6 @@
 "use client";
 
+import { $rich, $t, $el } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -13,7 +14,7 @@ import { Tooltip } from "@foldrun/ui/react/tooltip";
 export function RunButton({
   endpoint,
   tenant,
-  label = "Run",
+  label = $t("dashboard.run-button.run"),
   withTask = true,
 }: {
   endpoint: string;
@@ -51,7 +52,7 @@ export function RunButton({
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setRefused({ text: body.error ?? `refused (${res.status})`, status: res.status });
+        setRefused({ text: body.error ?? $t("dashboard.run-button.refused", { status: String(res.status) }), status: res.status });
         return;
       }
       setOpen(false);
@@ -71,10 +72,10 @@ export function RunButton({
       <span>{refused.text}</span>
       {refused.status === 402 && (
         <a href={billingHref} className="rounded border border-red-200 bg-red-50 px-2 py-0.5 font-medium hover:bg-red-100">
-          Add credit
+          {$t("dashboard.run-button.addCredit")}
         </a>
       )}
-      <button type="button" onClick={() => setRefused(null)} aria-label="Dismiss" className="opacity-60 hover:opacity-100">
+      <button type="button" onClick={() => setRefused(null)} aria-label={$t("dashboard.run-button.dismiss")} className="opacity-60 hover:opacity-100">
         ✕
       </button>
     </span>
@@ -93,20 +94,19 @@ export function RunButton({
           autoFocus
           value={task}
           onChange={(e) => setTask(e.target.value)}
-          placeholder="Task for this run (optional)"
+          placeholder={$t("dashboard.run-button.taskForThisRunOptional")}
           className="w-56"
         />
-        <Tooltip label="Every step runs; sends are refused or sunk, send-capable secrets are withheld, and state/ and storage/ writes are kept under the run instead">
+        <Tooltip label={$t("dashboard.run-button.everyStepRunsSendsAreRefused")}>
           <label className="flex items-center gap-1.5 text-xs text-fg-tertiary">
-            <Checkbox checked={testRun} onCheckedChange={(checked: boolean) => setTestRun(checked)} />
-            Test run
+            {$rich("dashboard.run-button.testRun", { checkbox: $el(<Checkbox checked={testRun} onCheckedChange={(checked: boolean) => setTestRun(checked)} />) })}
           </label>
         </Tooltip>
         <button disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })}>
-          {busy ? "Starting…" : testRun ? "Start test" : "Start"}
+          {busy ? "Starting…" : testRun ? $t("dashboard.run-button.startTest") : $t("dashboard.run-button.start")}
         </button>
         <button type="button" onClick={() => setOpen(false)} className={buttonVariants({ variant: "ghost", size: "md" })}>
-          Cancel
+          {$t("dashboard.run-button.cancel")}
         </button>
         {refusal}
       </form>
@@ -115,7 +115,7 @@ export function RunButton({
 
   return (
     <span className="inline-flex flex-wrap items-center">
-      <Tooltip label={mayRun ? undefined : "Your role is viewer — running needs editor or above"}>
+      <Tooltip label={mayRun ? undefined : $t("dashboard.run-button.yourRoleIsViewerRunningNeeds")}>
         <span className="inline-flex">
           <button
             disabled={!mayRun || busy}

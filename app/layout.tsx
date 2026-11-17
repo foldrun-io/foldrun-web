@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { requestTheme } from "@/server/theme";
-import { DIR, LOCALE } from "@/i18n";
+import { $t, DIR, LOCALE } from "@/i18n";
 
 const sans = Geist({
   variable: "--font-sans-ui",
@@ -18,7 +18,7 @@ const mono = Geist_Mono({
 // browser tab full of tabs, so it names the product, not the argument for it.
 export const metadata: Metadata = {
   title: "foldrun",
-  description: "Agents are just folders. Write them, check them, run them, deploy them.",
+  description: $t("app.layout.agentsAreJustFoldersWriteThem"),
 };
 
 export default async function RootLayout({

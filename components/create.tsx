@@ -89,8 +89,8 @@ export interface VariantChoice {
 
 function scopeLabel(where: Where) {
   if (where === "workspace") return $t("components.create.wholeWorkspace");
-  if (where === "account") return "Whole account";
-  return `Only ${where.slice("agent:".length)}`;
+  if (where === "account") return $t("components.create.wholeAccount");
+  return $t("components.create.only", { v0: String(where.slice("agent:".length)) });
 }
 
 /**
@@ -230,7 +230,7 @@ export function CreateForm({
     <>
       {trigger && (
       <button onClick={() => setOpen(true)} className={buttonVariants({ variant: "primary", size: "md" })}>
-        {label ?? `New ${noun}`}
+        {label ?? $t("components.create.new", { noun: String(noun) })}
       </button>
       )}
 
@@ -239,7 +239,7 @@ export function CreateForm({
             <form onSubmit={submit} className="flex min-h-0 flex-col">
               <header className="border-b border-line-faint px-5 py-4">
                 <DialogTitle className="font-cal text-base font-semibold text-fg">
-                  New {noun}
+                  {$t("components.create.new", { noun: noun })}
                 </DialogTitle>
                 <p className="mt-0.5 text-xs text-fg-muted">{hint}</p>
               </header>
@@ -253,7 +253,7 @@ export function CreateForm({
                     the whole of the feedback. */}
                 {primary.length > 1 && (
                   <fieldset>
-                    <legend className={`${labelClass} pb-1.5`}>Type</legend>
+                    <legend className={`${labelClass} pb-1.5`}>{$t("components.create.type")}</legend>
                     <div className={`grid gap-2 ${primary.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
                       {primary.map((c) => {
                         const on = variant === c.value;
@@ -288,7 +288,7 @@ export function CreateForm({
                 {templates.length > 0 && (
                   <label className="block">
                     <span className={`${labelClass} pb-1`}>
-                      {primary.length > 1 ? "Or start from a template" : "Start from"}
+                      {primary.length > 1 ? $t("components.create.orStartFromATemplate") : $t("components.create.startFrom")}
                     </span>
                     <Select
                       value={templates.some((t) => t.value === variant) ? variant : ""}
@@ -299,7 +299,7 @@ export function CreateForm({
                       }}
                       className="w-full"
                     >
-                      <option value="">{primary.length > 1 ? "— none, start from scratch —" : "Blank"}</option>
+                      <option value="">{primary.length > 1 ? $t("components.create.noneStartFromScratch") : $t("components.create.blank")}</option>
                       {templates.map((t) => (
                         <option key={t.value} value={t.value}>
                           {t.label}
@@ -312,7 +312,7 @@ export function CreateForm({
 
                 <div className="flex flex-wrap items-end gap-3">
                   <label className="min-w-0 flex-1">
-                    <span className={`${labelClass} pb-1`}>Name</span>
+                    <span className={`${labelClass} pb-1`}>{$t("components.create.name")}</span>
                     <Input
                       autoFocus
                       value={name}
@@ -328,7 +328,7 @@ export function CreateForm({
 
                   {options.length > 1 && (
                     <label className="shrink-0">
-                      <span className={`${labelClass} pb-1`}>Where it lives</span>
+                      <span className={`${labelClass} pb-1`}>{$t("components.create.whereItLives")}</span>
                       <Select
                         value={where}
                         onChange={(e) => setWhere(e.target.value as Where)}
@@ -375,14 +375,14 @@ export function CreateForm({
 
               <footer className="flex items-center justify-end gap-2 border-t border-line-faint px-5 py-3">
                 <button type="button" onClick={close} className={buttonVariants({ variant: "ghost", size: "md" })}>
-                  Cancel
+                  {$t("components.create.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={!name.trim() || busy}
                   className={buttonVariants({ variant: "primary", size: "md" })}
                 >
-                  {busy ? "Creating…" : `Create ${noun}`}
+                  {busy ? "Creating…" : $t("components.create.create", { noun: String(noun) })}
                 </button>
               </footer>
             </form>

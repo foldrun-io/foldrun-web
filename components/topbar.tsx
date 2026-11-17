@@ -136,7 +136,7 @@ function Switcher({
         <button
           type="button"
           aria-haspopup="listbox"
-          aria-label={`Switch ${label}`}
+          aria-label={$t("components.topbar.switch", { label: String(label) })}
           className={cn(
             "flex min-w-0 items-center gap-2 rounded-md text-sm font-medium text-fg transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus aria-expanded:bg-muted",
             align === "stretch" && "w-full",
@@ -192,7 +192,7 @@ function Switcher({
               </Link>
             </li>
           ))}
-          {shown.length === 0 && <li className="px-3 py-6 text-center text-xs text-fg-subtle">{q ? `Nothing matches “${q}”.` : empty}</li>}
+          {shown.length === 0 && <li className="px-3 py-6 text-center text-xs text-fg-subtle">{q ? $t("components.topbar.nothingMatches", { q: String(q) }) : empty}</li>}
         </ul>
         <Link href={footer.href} onClick={() => setOpen(false)} className="flex h-10 items-center gap-2 border-t border-line px-3 text-sm text-fg-secondary hover:bg-sunken hover:text-fg">
           <Plus className="size-4 text-fg-muted" aria-hidden />
@@ -210,7 +210,7 @@ export function AccountSwitcher({ collapsed = false }: { collapsed?: boolean }) 
   return (
     <Switcher
       label="account"
-      placeholder="Find account…"
+      placeholder={$t("components.topbar.findAccount")}
       align="stretch"
       triggerClassName={cn("h-10 w-full px-2", collapsed && "justify-center px-0 [&>svg]:hidden")}
       trigger={
@@ -226,8 +226,8 @@ export function AccountSwitcher({ collapsed = false }: { collapsed?: boolean }) 
         </>
       }
       items={[{ name: account, href: `/dashboard${first}`, current: true, badge: plan ?? undefined, avatar }]}
-      footer={{ title: "Invite people", href: `/dashboard/settings${first}` }}
-      empty="Accounts you belong to appear here."
+      footer={{ title: $t("components.topbar.invitePeople"), href: `/dashboard/settings${first}` }}
+      empty={$t("components.topbar.accountsYouBelongToAppearHere")}
     />
   );
 }
@@ -261,7 +261,7 @@ export function WorkspaceSwitcher() {
           name: w.name,
           href: `/dashboard/${w.name}${first}`,
           current: w.name === workspace,
-          meta: `${w.agents} agents · ${w.flows} flows`,
+          meta: $t("components.topbar.agentsFlows", { agents: String(w.agents), flows: String(w.flows) }),
           avatar: w.avatar ?? null,
           square: true,
         })),

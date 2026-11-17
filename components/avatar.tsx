@@ -6,6 +6,7 @@
 // face with Change and Remove under it, for the pages where it is yours
 // to set.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -71,7 +72,7 @@ export function AvatarEditor({
   const upload = async (file: File) => {
     setError(null);
     if (file.size > 1024 * 1024) {
-      setError("That image is over 1 MB.");
+      setError($t("components.avatar.thatImageIsOver1Mb"));
       return;
     }
     setBusy(true);
@@ -106,16 +107,16 @@ export function AvatarEditor({
       <div className="space-y-1.5">
         <div className="flex items-center gap-2">
           <button type="button" disabled={busy} onClick={picker.open} className={buttonVariants({ variant: "secondary", size: "xs" })}>
-            {busy ? "Working…" : src ? "Change" : "Add a picture"}
+            {busy ? "Working…" : src ? $t("components.avatar.change") : $t("components.avatar.addAPicture")}
           </button>
           {src && (
             <button type="button" disabled={busy} onClick={() => void remove()} className={buttonVariants({ variant: "ghost", size: "xs" })}>
-              Remove
+              {$t("components.avatar.remove")}
             </button>
           )}
           {picker.input}
         </div>
-        <p className="text-xs text-fg-subtle">PNG, JPEG or WebP, up to 1 MB. Square looks best.</p>
+        <p className="text-xs text-fg-subtle">{$t("components.avatar.pngJpegOrWebpUpTo")}</p>
         {error && <p className="text-xs text-red-600">{error}</p>}
       </div>
     </div>

@@ -9,6 +9,7 @@
 // (runs-bulk-model.ts). Delete looped one DELETE per run until it was a bulk
 // action too (FOL-75, 5 Nov 2026).
 
+import { $t } from "@/i18n";
 import { type ReactNode } from "react";
 import { BulkActionBar, SelectionProvider, type BulkAction } from "@/components/bulk-select";
 import { useCan } from "@/components/role";
@@ -71,30 +72,30 @@ export function RunsSelection({
   const picked = (keys: string[]) => keys.map((k) => byKey.get(k)).filter((r): r is RunSelectable => !!r);
   const actions: BulkAction[] = [
     {
-      label: "Stop",
+      label: $t("components.runs-bulk.stop"),
       applies: (key) => STOPPABLE.has(byKey.get(key)?.status ?? ""),
       confirm: (n) => ({
-        title: `Stop ${n} run${n === 1 ? "" : "s"}?`,
-        body: "Each stops after its current step; the sandbox it was using is destroyed. What they have written so far stays.",
+        title: $t("components.runs-bulk.stopRun", { n: String(n), v1: String(n === 1 ? "" : "s") }),
+        body: $t("components.runs-bulk.eachStopsAfterItsCurrentStep"),
       }),
       performAll: (keys) => bulk("stop", picked(keys), tenant),
     },
     {
-      label: "Rerun",
+      label: $t("components.runs-bulk.rerun"),
       applies: (key) => RERUNNABLE.has(byKey.get(key)?.status ?? ""),
       confirm: (n) => ({
-        title: `Rerun ${n} run${n === 1 ? "" : "s"}?`,
-        body: "Each starts again from its first step as a new run with the flow's instructions as they read now, and is billed like any other run. The originals stay as they are.",
-        confirmLabel: "Rerun",
+        title: $t("components.runs-bulk.rerunRun", { n: String(n), v1: String(n === 1 ? "" : "s") }),
+        body: $t("components.runs-bulk.eachStartsAgainFromItsFirst"),
+        confirmLabel: $t("components.runs-bulk.rerun"),
       }),
       performAll: (keys) => bulk("rerun", picked(keys), tenant),
     },
     {
-      label: "Delete",
+      label: $t("components.runs-bulk.delete"),
       tone: "destructive",
       confirm: (n) => ({
-        title: `Delete ${n} run${n === 1 ? "" : "s"}?`,
-        body: "Their records and outputs go. Anything still running is stopped first. Ledger entries they were charged on stay.",
+        title: $t("components.runs-bulk.deleteRun", { n: String(n), v1: String(n === 1 ? "" : "s") }),
+        body: $t("components.runs-bulk.theirRecordsAndOutputsGoAnything"),
       }),
       performAll: (keys) => bulk("delete", picked(keys), tenant),
     },

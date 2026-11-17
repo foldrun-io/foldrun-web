@@ -4,6 +4,7 @@
 // the editor. "Security only" is the CLI's --security; the command line
 // under the list is how to get the same answer in a terminal or CI.
 
+import { $rich, $t, $el } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useCallback, useEffect, useState } from "react";
 import { LocalTime } from "@/components/local-time";
@@ -95,7 +96,7 @@ export function ChecksPanel({ workspace, tenantQuery, canOnline = true }: { work
   };
 
   if (error) return <Callout tone="danger" className="px-4 py-3 text-sm">{error}</Callout>;
-  if (!data) return <p className="text-sm text-fg-muted">Checking…</p>;
+  if (!data) return <p className="text-sm text-fg-muted">{$t("workspace.checks-checks-panel.checking")}</p>;
 
   const byRule = new Map<string, Finding[]>();
   for (const f of data.findings) byRule.set(f.rule, [...(byRule.get(f.rule) ?? []), f]);
@@ -114,19 +115,19 @@ export function ChecksPanel({ workspace, tenantQuery, canOnline = true }: { work
   return (
     <div className="space-y-8">
       <StatGrid className="md:grid-cols-3 xl:grid-cols-3">
-        <Stat label="Errors" value={data.counts.error} tone={data.counts.error ? "danger" : undefined} sub="A deploy refuses these" />
-        <Stat label="Warnings" value={data.counts.warn} tone={data.counts.warn ? "warning" : undefined} sub="A deploy goes ahead" />
-        <Stat label="Notes" value={data.counts.info} sub="Worth a look" />
+        <Stat label={$t("workspace.checks-checks-panel.errors")} value={data.counts.error} tone={data.counts.error ? "danger" : undefined} sub={$t("workspace.checks-checks-panel.aDeployRefusesThese")} />
+        <Stat label={$t("workspace.checks-checks-panel.warnings")} value={data.counts.warn} tone={data.counts.warn ? "warning" : undefined} sub={$t("workspace.checks-checks-panel.aDeployGoesAhead")} />
+        <Stat label={$t("workspace.checks-checks-panel.notes")} value={data.counts.info} sub={$t("workspace.checks-checks-panel.worthALook")} />
       </StatGrid>
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <Button size="md" className={toggle(security)} onClick={() => setSecurity((s) => !s)} aria-pressed={security}>
             {security && <Check aria-hidden />}
-            Security only
+            {$t("workspace.checks-checks-panel.securityOnly")}
           </Button>
           {canOnline && (
-            <Tooltip label="Also ask OSV.dev about exact runtime pins, and read what remote MCP servers tell the model about their tools">
+            <Tooltip label={$t("workspace.checks-checks-panel.alsoAskOsvDevAboutExact")}>
               <Button
                 size="md"
                 className={toggle(online)}
@@ -134,29 +135,29 @@ export function ChecksPanel({ workspace, tenantQuery, canOnline = true }: { work
                 aria-pressed={online}
               >
                 {online && <Check aria-hidden />}
-                Online checks
+                {$t("workspace.checks-checks-panel.onlineChecks")}
               </Button>
             </Tooltip>
           )}
           <Button size="md" variant="ghost" onClick={() => void again()} disabled={busy}>
             <RefreshCw className={cn(busy && "animate-spin")} aria-hidden />
-            {busy ? "Checking…" : "Check again"}
+            {busy ? "Checking…" : $t("workspace.checks-checks-panel.checkAgain")}
           </Button>
         </div>
         <p className="px-1 text-[13px] text-fg-muted">
           {data.rescan ? (
             <>
-              Rescanned daily, last <LocalTime iso={data.rescan.checkedAt} />. New security findings go to notify:.
+              {$rich("workspace.checks-checks-panel.rescannedDailyLastNewSecurityFindings", { localTime: $el(<LocalTime iso={data.rescan.checkedAt} />) })}
             </>
           ) : (
-            "Rescanned daily once the first pass has run. New security findings go to notify:."
+            $t("workspace.checks-checks-panel.rescannedDailyOnceTheFirstPass")
           )}
         </p>
       </div>
 
       {online && (data.online?.problems.length ?? 0) > 0 && (
         <Callout tone="warning" className="px-4 py-3 text-sm" role="alert">
-          <p className="font-medium">Not checked — this is not a pass:</p>
+          <p className="font-medium">{$t("workspace.checks-checks-panel.notCheckedThisIsNotA")}</p>
           <ul className="mt-1 list-disc pl-5">
             {data.online!.problems.map((p) => (
               <li key={p}>{p}</li>
@@ -168,20 +169,20 @@ export function ChecksPanel({ workspace, tenantQuery, canOnline = true }: { work
       {groups.length === 0 ? (
         <EmptyState
           icon={<ShieldCheck />}
-          title={security ? "No security findings" : "Nothing to fix"}
-          description="No credential written into a file, no hidden text, no agent that reads the web while holding a secret and an open way out, and nothing a deploy would refuse."
+          title={security ? $t("workspace.checks-checks-panel.noSecurityFindings") : $t("workspace.checks-checks-panel.nothingToFix")}
+          description={$t("workspace.checks-checks-panel.noCredentialWrittenIntoAFile")}
         />
       ) : (
         <section className="min-w-0 space-y-3">
           <h2 className="px-1 text-base font-medium text-fg">
-            Findings <Count className="ml-1">{data.findings.length}</Count>
+            {$t("workspace.checks-checks-panel.findings")}{" "}<Count className="ml-1">{data.findings.length}</Count>
           </h2>
           <div className="overflow-hidden rounded-lg border border-line bg-surface">
             <table className="w-full text-sm">
               <thead className="border-b border-line bg-sunken max-sm:hidden">
                 <tr>
-                  <th className="h-10 w-28 px-4 text-left text-[13px] font-medium text-fg-muted">Level</th>
-                  <th className="h-10 px-4 text-left text-[13px] font-medium text-fg-muted">File and message</th>
+                  <th className="h-10 w-28 px-4 text-left text-[13px] font-medium text-fg-muted">{$t("workspace.checks-checks-panel.level")}</th>
+                  <th className="h-10 px-4 text-left text-[13px] font-medium text-fg-muted">{$t("workspace.checks-checks-panel.fileAndMessage")}</th>
                 </tr>
               </thead>
               {groups.map(([id, list]) => {
@@ -194,7 +195,7 @@ export function ChecksPanel({ workspace, tenantQuery, canOnline = true }: { work
                           <code className="font-mono text-[13px] font-semibold text-fg">{id}</code>
                           {rule?.title && <span className="text-sm text-fg-secondary">{rule.title}</span>}
                           {rule?.owasp?.map((o) => (
-                            <Tooltip key={o} label="OWASP Top 10 for Agentic Applications (2026)">
+                            <Tooltip key={o} label={$t("workspace.checks-checks-panel.owaspTop10ForAgenticApplications")}>
                               <span>
                                 <Tag mono>{o}</Tag>
                               </span>
@@ -236,13 +237,13 @@ export function ChecksPanel({ workspace, tenantQuery, canOnline = true }: { work
       )}
 
       <p className="px-1 text-[13px] text-fg-muted">
-        The same answer in a terminal:{" "}
+        {$t("workspace.checks-checks-panel.theSameAnswerInATerminal")}{" "}
         <code className="rounded bg-muted px-1 font-mono text-[0.92em] text-fg">
           foldrun check --to {workspace}
           {security ? " --security" : ""}
           {online ? " --online" : ""}
         </code>
-        . To accept a finding, put <code className="rounded bg-muted px-1 font-mono text-[0.92em] text-fg">{"<!-- foldrun-ignore <rule>: <reason> -->"}</code> on the line before it.
+        {$rich("workspace.checks-checks-panel.toAcceptAFindingPutFoldrun", { code: (chunks) => <code className="rounded bg-muted px-1 font-mono text-[0.92em] text-fg">{chunks}</code> })}
       </p>
     </div>
   );

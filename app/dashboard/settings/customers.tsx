@@ -39,10 +39,10 @@ interface Blocked {
 }
 
 const LABELS: { key: WholeKey; label: string; hint: string }[] = [
-  { key: "startsPerMinute", label: "Run starts a minute", hint: "per customer" },
-  { key: "maxOpenRuns", label: "Runs open at once", hint: "queued, running or waiting" },
-  { key: "gatewayRpm", label: "Gateway calls a minute", hint: "per customer" },
-  { key: "gatewayConcurrency", label: "Gateway calls at once", hint: "per customer" },
+  { key: "startsPerMinute", label: $t("settings.customers.runStartsAMinute"), hint: $t("settings.customers.perCustomer") },
+  { key: "maxOpenRuns", label: $t("settings.customers.runsOpenAtOnce"), hint: $t("settings.customers.queuedRunningOrWaiting") },
+  { key: "gatewayRpm", label: $t("settings.customers.gatewayCallsAMinute"), hint: $t("settings.customers.perCustomer") },
+  { key: "gatewayConcurrency", label: $t("settings.customers.gatewayCallsAtOnce"), hint: $t("settings.customers.perCustomer") },
 ];
 
 export function CustomersCard({ tenant, limits, defaults, blocked, spend, canManage }: { tenant: string; limits: Limits; defaults: Limits; blocked: Blocked[]; spend: Spend[]; canManage: boolean }) {
@@ -69,7 +69,7 @@ export function CustomersCard({ tenant, limits, defaults, blocked, spend, canMan
     try {
       const res = await fetch(url, { method, headers, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
       const out = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(out.error ?? `refused (${res.status})`);
+      if (!res.ok) throw new Error(out.error ?? $t("settings.customers.refused", { status: String(res.status) }));
       router.refresh();
       return true;
     } catch (err) {
@@ -93,12 +93,12 @@ export function CustomersCard({ tenant, limits, defaults, blocked, spend, canMan
     else {
       const d = Number(daily);
       if (!Number.isFinite(d) || d <= 0) {
-        setError("Model spend a day is dollars, more than 0 — or empty for no limit.");
+        setError($t("settings.customers.modelSpendADayIsDollars"));
         return;
       }
       patch.dailyModelUsd = d;
     }
-    if (await send("/api/customers", "PATCH", patch)) setSaid("Limits saved.");
+    if (await send("/api/customers", "PATCH", patch)) setSaid($t("settings.customers.limitsSaved"));
   };
 
   const block = async () => {
@@ -107,23 +107,23 @@ export function CustomersCard({ tenant, limits, defaults, blocked, spend, canMan
     if (await send(`/api/customers/${encodeURIComponent(id)}/block`, "PUT", why.trim() ? { reason: why.trim() } : {})) {
       setWho("");
       setWhy("");
-      setSaid(`${id} is blocked.`);
+      setSaid($t("settings.customers.isBlocked", { id: String(id) }));
     }
   };
 
   const unblock = async (id: string) => {
-    const ok = await ask({ title: `Unblock ${id}?`, body: "Its runs and gateway calls are let through again, within the limits above.", confirmLabel: "Unblock" });
-    if (ok && (await send(`/api/customers/${encodeURIComponent(id)}/block`, "DELETE"))) setSaid(`${id} is unblocked.`);
+    const ok = await ask({ title: $t("settings.customers.unblock", { id: String(id) }), body: $t("settings.customers.itsRunsAndGatewayCallsAre"), confirmLabel: $t("settings.customers.unblock2") });
+    if (ok && (await send(`/api/customers/${encodeURIComponent(id)}/block`, "DELETE"))) setSaid($t("settings.customers.isUnblocked", { id: String(id) }));
   };
 
   return (
     <SettingsCard
-      title="Customers"
-      description="Your own users, by the id you put on a run (customer) or a gateway call (x-foldrun-customer). Each is held to these limits on its own, so one cannot use up the account's; a blocked one's runs stop at their next model call. Requests that name no customer are not affected."
+      title={$t("settings.customers.customers")}
+      description={$t("settings.customers.yourOwnUsersByTheId")}
     >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {LABELS.map(({ key, label, hint }) => (
-          <Field key={key} label={label} hint={`${hint} · default ${defaults[key]}`}>
+          <Field key={key} label={label} hint={$t("settings.customers.default", { hint: String(hint), v1: String(defaults[key]) })}>
             <Input
               inputMode="numeric"
               value={draft[key]}
@@ -136,14 +136,14 @@ export function CustomersCard({ tenant, limits, defaults, blocked, spend, canMan
         ))}
       </div>
       <div className="mt-3 max-w-xs">
-        <Field label="Model spend a day" hint="dollars charged per customer, UTC day · empty: no limit">
+        <Field label={$t("settings.customers.modelSpendADay")} hint={$t("settings.customers.dollarsChargedPerCustomerUtcDay")}>
           <Input
             inputMode="decimal"
             value={daily}
             disabled={!canManage || busy}
-            placeholder="no limit"
+            placeholder={$t("settings.customers.noLimit")}
             onChange={(e) => setDaily(e.target.value.replace(/[^0-9.]/g, ""))}
-            aria-label="Model spend a day, in dollars"
+            aria-label={$t("settings.customers.modelSpendADayInDollars")}
             className="w-full tabular-nums"
           />
         </Field>
@@ -151,15 +151,15 @@ export function CustomersCard({ tenant, limits, defaults, blocked, spend, canMan
       {canManage && (
         <div className="mt-3 flex justify-end">
           <Button variant="secondary" disabled={busy} onClick={() => void saveLimits()}>
-            Save limits
+            {$t("settings.customers.saveLimits")}
           </Button>
         </div>
       )}
 
       <div className="mt-5 border-t border-line-faint pt-4">
-        <h3 className="text-sm font-semibold text-fg">Spending most · last 7 days</h3>
+        <h3 className="text-sm font-semibold text-fg">{$t("settings.customers.spendingMostLast7Days")}</h3>
         {spend.length === 0 ? (
-          <p className="mt-1 text-[13px] text-fg-muted">No model calls named a customer this week.</p>
+          <p className="mt-1 text-[13px] text-fg-muted">{$t("settings.customers.noModelCallsNamedACustomer")}</p>
         ) : (
           <ul className="mt-2 divide-y divide-line rounded-md border border-line">
             {spend.slice(0, 10).map((x) => (
@@ -167,8 +167,8 @@ export function CustomersCard({ tenant, limits, defaults, blocked, spend, canMan
                 <span className="min-w-0 flex-1 truncate font-mono text-fg">
                   <WithEmails text={x.customer} />
                 </span>
-                <span className="shrink-0 tabular-nums text-xs text-fg-subtle">{x.calls} calls</span>
-                <span className="shrink-0 tabular-nums text-xs text-fg-muted">today {usd(x.todayUsd)}</span>
+                <span className="shrink-0 tabular-nums text-xs text-fg-subtle">{$t("settings.customers.calls", { calls: String(x.calls) })}</span>
+                <span className="shrink-0 tabular-nums text-xs text-fg-muted">{$t("settings.customers.today", { usd: usd(x.todayUsd) })}</span>
                 <span className="w-20 shrink-0 text-right font-medium tabular-nums text-fg">{usd(x.chargedUsd)}</span>
               </li>
             ))}
@@ -177,9 +177,9 @@ export function CustomersCard({ tenant, limits, defaults, blocked, spend, canMan
       </div>
 
       <div className="mt-5 border-t border-line-faint pt-4">
-        <h3 className="text-sm font-semibold text-fg">Blocked</h3>
+        <h3 className="text-sm font-semibold text-fg">{$t("settings.customers.blocked")}</h3>
         {blocked.length === 0 ? (
-          <p className="mt-1 text-[13px] text-fg-muted">No customer is blocked.</p>
+          <p className="mt-1 text-[13px] text-fg-muted">{$t("settings.customers.noCustomerIsBlocked")}</p>
         ) : (
           <ul className="mt-2 divide-y divide-line rounded-md border border-line">
             {blocked.map((b) => (
@@ -197,7 +197,7 @@ export function CustomersCard({ tenant, limits, defaults, blocked, spend, canMan
                 </span>
                 {canManage && (
                   <Button variant="ghost" size="xs" disabled={busy} onClick={() => void unblock(b.customer)}>
-                    Unblock
+                    {$t("settings.customers.unblock2")}
                   </Button>
                 )}
               </li>
@@ -206,10 +206,10 @@ export function CustomersCard({ tenant, limits, defaults, blocked, spend, canMan
         )}
         {canManage && (
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Input value={who} onChange={(e) => setWho(e.target.value)} placeholder="customer id, e.g. c-8812" aria-label="Customer to block" className="min-w-0 flex-1 font-mono text-xs" />
-            <Input value={why} onChange={(e) => setWhy(e.target.value)} placeholder="why (optional)" aria-label="Why it is blocked" className="min-w-0 flex-1 text-xs" />
+            <Input value={who} onChange={(e) => setWho(e.target.value)} placeholder={$t("settings.customers.customerIdExample")} aria-label={$t("settings.customers.customerToBlock")} className="min-w-0 flex-1 font-mono text-xs" />
+            <Input value={why} onChange={(e) => setWhy(e.target.value)} placeholder={$t("settings.customers.whyOptional")} aria-label={$t("settings.customers.whyItIsBlocked")} className="min-w-0 flex-1 text-xs" />
             <Button variant="danger-outline" disabled={busy || !who.trim()} onClick={() => void block()}>
-              Block
+              {$t("settings.customers.block")}
             </Button>
           </div>
         )}

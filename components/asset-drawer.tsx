@@ -16,7 +16,7 @@
 // and Back closes it. Opening is a history push the router hears without a
 // server round trip, so the drawer is instant.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -75,7 +75,7 @@ import { Combobox } from "@foldrun/ui/react/combobox";
 const KIND_ICON: Record<string, LucideIcon> = { tools: Wrench, hooks: Webhook, skills: Sparkles, memory: Brain, knowledge: BookOpen, scripts: FileCode };
 
 type TabId = "overview" | "test" | "source" | "usage";
-const TAB_LABEL: Record<TabId, string> = { overview: "Overview", test: "Test", source: "Source", usage: "Used by" };
+const TAB_LABEL: Record<TabId, string> = { overview: $t("components.asset-drawer.overview"), test: $t("components.asset-drawer.test"), source: $t("components.asset-drawer.source"), usage: $t("components.asset-drawer.usedBy") };
 
 function tabsOf(item: AssetItem): TabId[] {
   if (item.kind === "scripts") return ["source", "usage"];
@@ -298,7 +298,7 @@ function AssetDetail({
       .then(async (r) => {
         if (r.ok) return r.json();
         const d = (await r.json().catch(() => ({}))) as { error?: string };
-        throw new Error(d.error ?? `could not load this file (${r.status})`);
+        throw new Error(d.error ?? $t("components.asset-drawer.couldNotLoadThisFile", { status: String(r.status) }));
       })
       .then((d: { content?: string }) => {
         if (!live) return;
@@ -337,7 +337,7 @@ function AssetDetail({
       const data = (await res.json().catch(() => ({}))) as { error?: string; issues?: { level: string }[] };
       setState({
         kind: "error",
-        text: data.error ?? `Save failed (${res.status})`,
+        text: data.error ?? $t("components.asset-drawer.saveFailed", { status: String(res.status) }),
         refused: res.status === 422 && (data.issues ?? []).some((i) => i.level === "error"),
       });
     }
@@ -374,7 +374,7 @@ function AssetDetail({
       dirty: () => dirty || sourceDirty,
       mayClose: async () =>
         !(dirty || sourceDirty) ||
-        (await ask({ title: "Discard unsaved changes?", body: `Your edits to ${item.name} have not been saved.`, confirmLabel: "Discard" })),
+        (await ask({ title: $t("components.asset-drawer.discardUnsavedChanges"), body: $t("components.asset-drawer.yourEditsToHaveNotBeen", { name: String(item.name) }), confirmLabel: $t("components.asset-drawer.discard") })),
     };
     return () => {
       guardRef.current = null;
@@ -382,7 +382,7 @@ function AssetDetail({
   });
 
   const Icon = KIND_ICON[item.kind] ?? FileText;
-  const scope = item.account ? "Shared" : item.owner ? `Agent · ${item.owner}` : $t("components.asset-drawer.workspace");
+  const scope = item.account ? $t("components.asset-drawer.shared") : item.owner ? $t("components.asset-drawer.agent", { owner: String(item.owner) }) : $t("components.asset-drawer.workspace");
   const kindLabel = item.kind === "tools" && item.transport ? `${KIND_LABEL.tools} · ${TRANSPORT_LABEL[item.transport]}` : KIND_LABEL[item.kind];
   const prose = isProse(item);
   const showFooter = tab === "overview" && item.kind !== "scripts" && !loadError && (!prose || editing || dirty);
@@ -405,21 +405,21 @@ function AssetDetail({
             </div>
           </div>
         </div>
-        <SheetDescription className="mt-3 line-clamp-2">{item.description || "No description yet."}</SheetDescription>
+        <SheetDescription className="mt-3 line-clamp-2">{item.description || $t("components.asset-drawer.noDescriptionYet")}</SheetDescription>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {tabs.includes("test") && tab !== "test" && testable(item, workspace) && (
             <Button variant="secondary" size="sm" onClick={() => setTab("test")}>
-              <Play /> Test
+              <Play />{" "}{$t("components.asset-drawer.test")}
             </Button>
           )}
           {prose && tab === "overview" && (
             <Button variant="secondary" size="sm" onClick={() => setEditing((v) => !v)} aria-pressed={editing}>
-              {editing ? <BookOpen /> : <Pencil />} {editing ? "Read" : "Edit"}
+              {editing ? <BookOpen /> : <Pencil />} {editing ? $t("components.asset-drawer.read") : $t("components.asset-drawer.edit")}
             </Button>
           )}
           <Menu>
             <MenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label={`More for ${item.name}`}>
+              <Button variant="ghost" size="icon-sm" aria-label={$t("components.asset-drawer.moreFor", { name: String(item.name) })}>
                 <MoreHorizontal />
               </Button>
             </MenuTrigger>
@@ -445,7 +445,7 @@ function AssetDetail({
           ) : (
             <>
               {sourceDirty && (
-                <Callout tone="warning" role="status" className="mb-4 text-[13px]">Source has unsaved changes. Save or discard them there before changing settings here.</Callout>
+                <Callout tone="warning" role="status" className="mb-4 text-[13px]">{$t("components.asset-drawer.sourceHasUnsavedChangesSaveOr")}</Callout>
               )}
               {item.notice && <div className="mb-4">{item.notice}</div>}
               {prose && !editing ? (
@@ -466,11 +466,11 @@ function AssetDetail({
         {tab === "source" && dirty && (
           <Callout tone="warning" role="status" className="mb-4 text-[13px]" actions={
             <span className="flex gap-2">
-              <Button size="xs" variant="secondary" onClick={discard}>Discard</Button>
-              <Button size="xs" variant="primary" onClick={() => void save()} disabled={!mayWrite}>Save</Button>
+              <Button size="xs" variant="secondary" onClick={discard}>{$t("components.asset-drawer.discard")}</Button>
+              <Button size="xs" variant="primary" onClick={() => void save()} disabled={!mayWrite}>{$t("components.asset-drawer.save")}</Button>
             </span>
           }>
-            Overview has unsaved changes. Save or discard them before editing the file.
+            {$t("components.asset-drawer.overviewHasUnsavedChangesSaveOr")}
           </Callout>
         )}
         {tab === "source" && loadError && item.kind === "hooks" && <HookFacts item={item} why={loadError} brief />}
@@ -487,7 +487,7 @@ function AssetDetail({
           </div>
         )}
 
-        {tab === "usage" && (item.usedBy ?? <p className="text-sm text-fg-muted">Nothing records who uses this.</p>)}
+        {tab === "usage" && (item.usedBy ?? <p className="text-sm text-fg-muted">{$t("components.asset-drawer.nothingRecordsWhoUsesThis")}</p>)}
       </div>
 
       {showFooter && (
@@ -498,30 +498,30 @@ function AssetDetail({
                 <X className="size-3.5 shrink-0" aria-hidden />
                 <span className="min-w-0 break-words">{state.text}</span>
                 {state.refused && mayWrite && (
-                  <Tooltip label="Save with the errors: the file goes live as it is, and runs that read it may fail">
+                  <Tooltip label={$t("components.asset-drawer.saveWithTheErrorsTheFile")}>
                     <button
                       type="button"
                       onClick={() => void save(true)}
                       className="font-medium underline underline-offset-2 hover:opacity-80"
                     >
-                      Save anyway
+                      {$t("components.asset-drawer.saveAnyway")}
                     </button>
                   </Tooltip>
                 )}
               </span>
             ) : state?.kind === "saved" && !dirty ? (
               <span className="flex items-center gap-1.5 text-success">
-                <Check className="size-3.5" aria-hidden /> Saved
+                <Check className="size-3.5" aria-hidden />{" "}{$t("components.asset-drawer.saved")}
               </span>
             ) : dirty ? (
-              <span className="text-fg-muted">Unsaved changes{item.account ? $t("components.asset-drawer.sharedWithEveryWorkspace") : ""}</span>
+              <span className="text-fg-muted">{$t("components.asset-drawer.unsavedChanges", { part: item.account ? $t("components.asset-drawer.sharedWithEveryWorkspace") : "" })}</span>
             ) : (
-              <span className="text-fg-subtle">{mayWrite ? (item.account ? $t("components.asset-drawer.changesHereReachEveryWorkspace") : "⌘S saves.") : needs("workspace:write")}</span>
+              <span className="text-fg-subtle">{mayWrite ? (item.account ? $t("components.asset-drawer.changesHereReachEveryWorkspace") : $t("components.asset-drawer.sSaves")) : needs("workspace:write")}</span>
             )}
           </div>
           {dirty && (
             <Button variant="ghost" size="sm" onClick={discard}>
-              Discard
+              {$t("components.asset-drawer.discard")}
             </Button>
           )}
           <Tooltip label={mayWrite ? "⌘S" : needs("workspace:write")}>
@@ -532,7 +532,7 @@ function AssetDetail({
                 onClick={() => void save()}
                 disabled={!dirty || !mayWrite || state?.kind === "saving"}
               >
-                {state?.kind === "saving" ? "Saving…" : "Save"}
+                {state?.kind === "saving" ? "Saving…" : $t("components.asset-drawer.save")}
               </Button>
             </span>
           </Tooltip>
@@ -544,7 +544,7 @@ function AssetDetail({
 
 function OverviewSkeleton() {
   return (
-    <div className="space-y-4" aria-label="Loading">
+    <div className="space-y-4" aria-label={$t("components.asset-drawer.loading")}>
       {[0, 1, 2].map((i) => (
         <div key={i} className="space-y-2">
           <div className="h-3.5 w-24 animate-pulse rounded bg-muted" />
@@ -561,7 +561,7 @@ function HookFacts({ item, why, brief = false }: { item: AssetItem; why: string;
   const h = item.hook;
   const rows: [string, ReactNode][] = [
     ["Runs on", h?.on ? <span className="font-mono">{h.on}</span> : "—"],
-    ...(h?.tool ? [["Only for tool", <span key="t" className="font-mono">{h.tool}</span>] as [string, ReactNode]] : []),
+    ...(h?.tool ? [[$t("components.asset-drawer.onlyForTool"), <span key="t" className="font-mono">{h.tool}</span>] as [string, ReactNode]] : []),
     ["Timeout", h?.timeoutSec ? `${h.timeoutSec}s` : "default"],
     ["Files", <span key="f" className="font-mono">{(item.files ?? [item.path]).join(", ")}</span>],
   ];
@@ -578,9 +578,7 @@ function HookFacts({ item, why, brief = false }: { item: AssetItem; why: string;
         </dl>
       )}
       <Callout role="status" className="mb-4 text-[13px]">
-        A hook is your code, so it is changed in its folder — edit <span className="font-mono">hook.md</span> and{" "}
-        <span className="font-mono">run.mjs</span> and deploy, or use <span className="font-mono">foldrun hook</span>. The dashboard reads it
-        but does not write it ({why}).
+        {$rich("components.asset-drawer.aHookIsYourCodeSo", { span: (chunks) => <span className="font-mono">{chunks}</span>, why: why })}
       </Callout>
     </div>
   );
@@ -614,7 +612,7 @@ function SettingsForm({
   if (error) {
     return (
       <Callout tone="warning" role="status" className="mb-4 text-[13px]">
-        The settings at the top of this file do not read as YAML ({error}). Fix them in Source.
+        {$t("components.asset-drawer.theSettingsAtTheTopOf", { error: error })}
       </Callout>
     );
   }
@@ -625,7 +623,7 @@ function SettingsForm({
     return (
       <div className="space-y-4">
         <Callout tone="warning" role="status" className="mb-4 text-[13px]">
-          This file&apos;s settings are written in a YAML style the form can&apos;t change without rewriting them. They are shown here; edit them in Source.
+          {$t("components.asset-drawer.thisFileTChangeWithoutRewriting")}
         </Callout>
         <dl className="divide-y divide-line overflow-hidden rounded-lg border border-line">
           {Object.entries(data).map(([k, v]) => (
@@ -651,10 +649,9 @@ function SettingsForm({
         ))}
       </div>
       {more.length > 0 && (
-        <Disclosure className="rounded-lg border border-line" summaryClassName="flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-fg" marker={false} summary={<>More settings
+        <Disclosure className="rounded-lg border border-line" summaryClassName="flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-fg" marker={false} summary={<>{$t("components.asset-drawer.moreSettings")}
             <span className="text-xs font-normal text-fg-muted">
-              {more.length} optional · <span className="group-data-[state=open]/disclosure:hidden">show</span>
-              <span className="hidden group-data-[state=open]/disclosure:inline">hide</span>
+              {$rich("components.asset-drawer.optionalShowHide", { length: String(more.length), span: (chunks) => <span className="group-data-[state=open]/disclosure:hidden">{chunks}</span>, span2: (chunks) => <span className="hidden group-data-[state=open]/disclosure:inline">{chunks}</span> })}
             </span></>}>
           <div className="space-y-5 border-t border-line px-4 py-4">
             {more.map((f) => (
@@ -665,7 +662,7 @@ function SettingsForm({
       )}
       {others.length > 0 && (
         <p className="text-xs text-fg-muted">
-          Also in this file, edited in Source: <span className="font-mono">{others.join(", ")}</span>
+          {$rich("components.asset-drawer.alsoInThisFileEditedIn", { join: others.join(", "), span: (chunks) => <span className="font-mono">{chunks}</span> })}
         </p>
       )}
     </div>
@@ -701,7 +698,7 @@ function FieldRow({ field, value, onChange, vocab }: { field: UiField; value: un
       case "select":
         return (
           <Select id={id} value={asText(value)} onChange={(e) => onChange(e.target.value || undefined)} className="w-full">
-            <option value="">Not set</option>
+            <option value="">{$t("components.asset-drawer.notSet")}</option>
             {/* A value outside the known set still shows, so saving never drops it. */}
             {value !== undefined && !field.options?.some((o) => o.value === asText(value)) && <option value={asText(value)}>{asText(value)}</option>}
             {field.options?.map((o) => (
@@ -714,9 +711,9 @@ function FieldRow({ field, value, onChange, vocab }: { field: UiField; value: un
       case "boolean":
         return (
           <Select id={id} value={value === true ? "true" : value === false ? "false" : ""} onChange={(e) => onChange(e.target.value === "" ? undefined : e.target.value === "true")} className="w-full">
-            <option value="">Not set</option>
-            <option value="true">Yes</option>
-            <option value="false">No</option>
+            <option value="">{$t("components.asset-drawer.notSet")}</option>
+            <option value="true">{$t("components.asset-drawer.yes")}</option>
+            <option value="false">{$t("components.asset-drawer.no")}</option>
           </Select>
         );
       case "number":
@@ -730,7 +727,7 @@ function FieldRow({ field, value, onChange, vocab }: { field: UiField; value: un
       case "complex":
         return (
           <pre className="max-h-48 overflow-auto rounded-md border border-line bg-sunken p-3 font-mono text-xs leading-relaxed text-fg-secondary">
-            {value === undefined ? "Not set" : dump(value, { lineWidth: -1 }).trimEnd()}
+            {value === undefined ? $t("components.asset-drawer.notSet") : dump(value, { lineWidth: -1 }).trimEnd()}
           </pre>
         );
       default:
@@ -759,7 +756,7 @@ function FieldRow({ field, value, onChange, vocab }: { field: UiField; value: un
       {control}
       <p className="text-xs text-fg-muted">
         {field.help.charAt(0).toUpperCase() + field.help.slice(1)}
-        {field.control === "complex" && " — edited in Source."}
+        {field.control === "complex" && $t("components.asset-drawer.editedInSource")}
       </p>
     </div>
   );
@@ -786,13 +783,13 @@ function ListEditor({ id, values, onChange, placeholder, suggestions }: { id: st
             onChange={(e) => emit(rows.map((r, j) => (j === i ? e.target.value : r)))}
             className="font-mono text-[13px]"
           />
-          <Button variant="ghost" size="icon-sm" aria-label="Remove" onClick={() => emit(rows.filter((_, j) => j !== i))}>
+          <Button variant="ghost" size="icon-sm" aria-label={$t("components.asset-drawer.remove")} onClick={() => emit(rows.filter((_, j) => j !== i))}>
             <X />
           </Button>
         </div>
       ))}
       <Button variant="secondary" size="xs" onClick={() => setRows([...rows, ""])} id={rows.length ? undefined : id}>
-        <Plus /> Add
+        <Plus />{" "}{$t("components.asset-drawer.add")}
       </Button>
     </div>
   );
@@ -813,7 +810,7 @@ function MapEditor({ id, entries, onChange }: { id: string; entries: [string, st
             id={i === 0 ? id : undefined}
             value={k}
             placeholder="name"
-            aria-label="Name"
+            aria-label={$t("components.asset-drawer.name")}
             spellCheck={false}
             onChange={(e) => emit(rows.map((r, j) => (j === i ? [e.target.value, r[1]] : r)))}
             className="font-mono text-[13px]"
@@ -821,17 +818,17 @@ function MapEditor({ id, entries, onChange }: { id: string; entries: [string, st
           <Input
             value={v}
             placeholder="value"
-            aria-label={`Value of ${k || "this row"}`}
+            aria-label={$t("components.asset-drawer.valueOf2", { v0: String(k || $t("components.asset-drawer.thisRow")) })}
             spellCheck={false}
             onChange={(e) => emit(rows.map((r, j) => (j === i ? [r[0], e.target.value] : r)))}
           />
-          <Button variant="ghost" size="icon-sm" aria-label="Remove" onClick={() => emit(rows.filter((_, j) => j !== i))}>
+          <Button variant="ghost" size="icon-sm" aria-label={$t("components.asset-drawer.remove")} onClick={() => emit(rows.filter((_, j) => j !== i))}>
             <X />
           </Button>
         </div>
       ))}
       <Button variant="secondary" size="xs" onClick={() => setRows([...rows, ["", ""]])} id={rows.length ? undefined : id}>
-        <Plus /> Add
+        <Plus />{" "}{$t("components.asset-drawer.add")}
       </Button>
     </div>
   );
@@ -842,13 +839,13 @@ function BodyField({ item, content, onChange }: { item: AssetItem; content: stri
   const { body } = splitDoc(content);
   // The blank line after the frontmatter is the file's, not the text's.
   const lead = body.startsWith("\n") ? "\n" : "";
-  const label = item.kind === "tools" ? "Guide" : item.kind === "skills" ? "Instructions" : "Text";
+  const label = item.kind === "tools" ? $t("components.asset-drawer.guide") : item.kind === "skills" ? $t("components.asset-drawer.instructions") : $t("components.asset-drawer.text");
   const help =
     item.kind === "tools"
-      ? "What the agent reads about this tool, in markdown."
+      ? $t("components.asset-drawer.whatTheAgentReadsAboutThis")
       : item.kind === "skills"
-        ? "The procedure an agent follows when it loads this skill, in markdown."
-        : "What agents read, in markdown.";
+        ? $t("components.asset-drawer.theProcedureAnAgentFollowsWhen")
+        : $t("components.asset-drawer.whatAgentsReadInMarkdown");
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor="f-body" className="text-sm font-medium text-fg">
@@ -900,7 +897,7 @@ function ReadingView({ item, content }: { item: AssetItem; content: string }) {
           <Markdown text={body} />
         </article>
       ) : (
-        <p className="text-sm text-fg-muted">Nothing written yet. Choose Edit to add the text.</p>
+        <p className="text-sm text-fg-muted">{$t("components.asset-drawer.nothingWrittenYetChooseEditTo")}</p>
       )}
     </div>
   );
@@ -916,26 +913,26 @@ function TestPane({ item, workspace, tenant, stale }: { item: AssetItem; workspa
       return <Callout role="status" className="mb-4 text-[13px]">{$t("components.asset-drawer.testItFromAWorkspaceThat")}</Callout>;
     }
     if (item.overridden) {
-      return <Callout role="status" className="mb-4 text-[13px]">{$t("components.asset-drawer.thisWorkspaceHasItsOwn")}{" "}{item.name}, which runs instead of the shared one. Test that one.</Callout>;
+      return <Callout role="status" className="mb-4 text-[13px]">{$t("components.asset-drawer.thisTermHasItsOwnWhich", { name: item.name })}</Callout>;
     }
     return (
       <div className="space-y-3">
-        <p className="text-sm text-fg-muted">Calls the tool for real — a request, a process or an MCP handshake — and shows what came back.</p>
+        <p className="text-sm text-fg-muted">{$t("components.asset-drawer.callsTheToolForRealA")}</p>
         <ToolTest workspace={workspace} tenant={tenant} tool={item.name} transport={item.transport ?? null} scriptArgs={item.scriptArgs ?? []} stale={stale} />
       </div>
     );
   }
   const h = item.hook;
   if (!workspace) return <Callout role="status" className="mb-4 text-[13px]">{$t("components.asset-drawer.testItFromAWorkspaceThat2")}</Callout>;
-  if (!h) return <Callout role="status" className="mb-4 text-[13px]">Nothing to test yet.</Callout>;
+  if (!h) return <Callout role="status" className="mb-4 text-[13px]">{$t("components.asset-drawer.nothingToTestYet")}</Callout>;
   if (h.error) return <Callout tone="warning" role="status" className="mb-4 text-[13px]">{h.error}</Callout>;
   if (h.shadowed) return <Callout role="status" className="mb-4 text-[13px]">{$t("components.asset-drawer.aWorkspaceHookWithTheSame")}</Callout>;
-  if (!h.on || !h.sample) return <Callout role="status" className="mb-4 text-[13px]">Say which event it runs on (Overview → Runs on) to test it.</Callout>;
+  if (!h.on || !h.sample) return <Callout role="status" className="mb-4 text-[13px]">{$t("components.asset-drawer.sayWhichEventItRunsOn")}</Callout>;
   return (
     <div className="space-y-3">
       <p className="text-sm text-fg-muted">
-        Hands the hook a sample <span className="font-mono">{h.on}</span> event and shows what a step would hear back.
-        {stale && <span className="text-warning"> Save first — the test runs what is on disk.</span>}
+        {$rich("components.asset-drawer.handsTheHookASampleEvent", { on: h.on, span: (chunks) => <span className="font-mono">{chunks}</span> })}
+        {stale && <span className="text-warning">{" "}{$t("components.asset-drawer.saveFirstTheTestRunsWhat")}</span>}
       </p>
       <HookTest workspace={workspace} tenant={tenant} hook={item.name} sample={h.sample} initiallyOpen />
     </div>
@@ -974,12 +971,12 @@ function SourcePane({
     const base = newFile.trim();
     if (!folder || !base) return;
     if (!/^[a-zA-Z0-9_][a-zA-Z0-9_.-]*\.[a-z0-9]+$/.test(base)) {
-      setAddError("a file name with an extension, e.g. helpers.py");
+      setAddError($t("components.asset-drawer.aFileNameWithAnExtension"));
       return;
     }
     const rel = `${folder}/${base}`;
     if (files?.includes(rel)) {
-      setAddError("that file already exists");
+      setAddError($t("components.asset-drawer.thatFileAlreadyExists"));
       return;
     }
     setAddError(null);
@@ -990,7 +987,7 @@ function SourcePane({
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setAddError(data.error ?? `failed (${res.status})`);
+      setAddError(data.error ?? $t("components.asset-drawer.failed", { status: String(res.status) }));
       return;
     }
     setAdding(false);
@@ -1024,13 +1021,13 @@ function SourcePane({
             );
           })}
           {folder && !adding && (
-            <Tooltip label="Add another file to this folder — a helper module, a requirements file">
+            <Tooltip label={$t("components.asset-drawer.addAnotherFileToThisFolder")}>
               <button
                 type="button"
                 onClick={() => setAdding(true)}
                 className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-fg-muted hover:bg-muted hover:text-fg"
               >
-                <Plus className="size-3.5" aria-hidden /> Add file
+                <Plus className="size-3.5" aria-hidden />{" "}{$t("components.asset-drawer.addFile")}
               </button>
             </Tooltip>
           )}
@@ -1048,11 +1045,11 @@ function SourcePane({
                 onChange={(e) => setNewFile(e.target.value)}
                 placeholder="helpers.py"
                 spellCheck={false}
-                aria-label="New file name"
+                aria-label={$t("components.asset-drawer.newFileName")}
                 className="h-7 w-36 px-2 py-0 font-mono text-xs"
               />
               <Button type="submit" variant="primary" size="xs" className="h-7 px-2.5">
-                Add
+                {$t("components.asset-drawer.add")}
               </Button>
               <button
                 type="button"
@@ -1062,7 +1059,7 @@ function SourcePane({
                 }}
                 className="h-7 px-1.5 text-xs text-fg-muted hover:text-fg"
               >
-                Cancel
+                {$t("components.asset-drawer.cancel")}
               </button>
               {addError && <span className="text-xs text-danger">{addError}</span>}
             </form>

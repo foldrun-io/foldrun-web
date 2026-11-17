@@ -43,17 +43,17 @@ export default async function HistoryPage({
 
   return (
     <Page>
-      <PageHeader title="History" description={$t("workspace.history-page.everyChangeToThisWorkspaceSaves")} />
+      <PageHeader title={$t("workspace.history-page.history")} description={$t("workspace.history-page.everyChangeToThisWorkspaceSaves")} />
       {revisions.length === 0 ? (
         <EmptyState
           icon={<HistoryIcon />}
-          title="No changes recorded yet"
-          description="History starts with the next save. From then on every change is kept: what changed, from what, by whom."
+          title={$t("workspace.history-page.noChangesRecordedYet")}
+          description={$t("workspace.history-page.historyStartsWithTheNextSave")}
         />
       ) : (
         <div className="min-w-0 space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            <SearchField url value={q} placeholder="Search changes — message, path, author…" className="min-w-48 flex-1" />
+            <SearchField url value={q} placeholder={$t("workspace.history-page.searchChangesMessagePathAuthor")} className="min-w-48 flex-1" />
             {q && (
               <span className="text-[13px] tabular-nums text-fg-muted">
                 {found.length} {found.length === 1 ? "change" : "changes"}

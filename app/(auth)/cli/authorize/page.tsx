@@ -1,8 +1,9 @@
+import { $t } from "@/i18n";
 import { Suspense } from "react";
 import { AuthCard } from "../../brand";
 import { CliAuthorize } from "./authorize";
 
-export const metadata = { title: "Sign in the CLI" };
+export const metadata = { title: $t("auth.cli-authorize-page.signInTheCli") };
 
 // `foldrun login` sent the person here with a code in the URL. The page
 // asks one question — is this your terminal? — and answers it to the row

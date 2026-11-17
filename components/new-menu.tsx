@@ -27,15 +27,15 @@ export function NewMenu() {
 
   const inWorkspace = base
     ? [
-        { name: "Flow", hint: "Steps that run in order", href: `${base}/flows?create=flows${t}`, icon: Workflow },
-        { name: "Agent", hint: "A role with a model and tools", href: `${base}/agents?create=agents${t}`, icon: Bot },
-        { name: "Eval", hint: "Tests for an agent", href: `${base}/evals?create=evals${t}`, icon: FlaskConical },
-        { name: "Tool", hint: "Code an agent can call", href: `${base}/assets?kind=tools&create=tools${t}`, icon: Wrench },
-        { name: "Hook", hint: "Your code at every tool call", href: `${base}/assets?kind=hooks&create=hooks${t}`, icon: Webhook },
+        { name: $t("components.new-menu.flow"), hint: $t("components.new-menu.stepsThatRunInOrder"), href: `${base}/flows?create=flows${t}`, icon: Workflow },
+        { name: $t("components.new-menu.agent"), hint: $t("components.new-menu.aRoleWithAModelAnd"), href: `${base}/agents?create=agents${t}`, icon: Bot },
+        { name: $t("components.new-menu.eval"), hint: $t("components.new-menu.testsForAnAgent"), href: `${base}/evals?create=evals${t}`, icon: FlaskConical },
+        { name: $t("components.new-menu.tool"), hint: $t("components.new-menu.codeAnAgentCanCall"), href: `${base}/assets?kind=tools&create=tools${t}`, icon: Wrench },
+        { name: $t("components.new-menu.hook"), hint: $t("components.new-menu.yourCodeAtEveryToolCall"), href: `${base}/assets?kind=hooks&create=hooks${t}`, icon: Webhook },
       ]
     : [
-        { name: "Shared tool", hint: $t("components.new-menu.forEveryWorkspace"), href: `/dashboard/library?kind=tools&create=tools${t}`, icon: Wrench },
-        { name: "Shared skill", hint: "A procedure any agent can follow", href: `/dashboard/library?kind=skills&create=skills${t}`, icon: BookOpen },
+        { name: $t("components.new-menu.sharedTool"), hint: $t("components.new-menu.forEveryWorkspace"), href: `/dashboard/library?kind=tools&create=tools${t}`, icon: Wrench },
+        { name: $t("components.new-menu.sharedSkill"), hint: $t("components.new-menu.aProcedureAnyAgentCanFollow"), href: `/dashboard/library?kind=skills&create=skills${t}`, icon: BookOpen },
       ];
 
   return (
@@ -43,11 +43,11 @@ export function NewMenu() {
       <MenuTrigger asChild>
         <Button variant="ghost" size="sm" className="gap-1.5 text-fg">
           <Plus className="size-4" />
-          Create new
+          {$t("components.new-menu.createNew")}
         </Button>
       </MenuTrigger>
       <MenuContent className="w-72">
-        {workspace && <MenuLabel>In {workspace}</MenuLabel>}
+        {workspace && <MenuLabel>{$t("components.new-menu.in", { workspace: workspace })}</MenuLabel>}
         {inWorkspace.map((i) => (
           <MenuItem key={i.name} asChild>
             <Link href={i.href} className="items-start!">
@@ -65,7 +65,7 @@ export function NewMenu() {
             <Boxes className="mt-0.5" />
             <span className="flex flex-col">
               <span className="text-fg">{$t("components.new-menu.workspace")}</span>
-              <span className="text-xs text-fg-muted">Its own agents, flows, secrets and runs</span>
+              <span className="text-xs text-fg-muted">{$t("components.new-menu.itsOwnAgentsFlowsSecretsAnd")}</span>
             </span>
           </Link>
         </MenuItem>

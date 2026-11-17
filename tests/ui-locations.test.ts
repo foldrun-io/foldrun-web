@@ -13,21 +13,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { $t } from "@/i18n";
+import { english } from "./i18n-source";
 
 const WEB = path.join(import.meta.dirname, "..");
 
-// The pages' words live in messages/en (17 Nov 2026): read each $t("key")
-// as the English it shows, so a title moved to a language file still counts.
-function english(src: string): string {
-  return src.replace(/\{?\$t\("([^"]+)"[^)]*\)\}?/g, (_m, key: string) => {
-    try {
-      return `"${$t(key)}"`;
-    } catch {
-      return `"${key}"`;
-    }
-  });
-}
 const ROOT = path.join(WEB, "..");
 
 function files(dir: string, keep: RegExp, out: string[] = []): string[] {

@@ -4,6 +4,7 @@
 // button, because a URL you have to select by hand is a URL you get one
 // character short of.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { Input } from "@foldrun/ui/react/input";
 import { Button } from "@foldrun/ui/react/button";
@@ -28,7 +29,7 @@ export function CopyField({ value, className = "" }: { value: string; className?
         }}
       >
         {done ? <Check aria-hidden /> : <Copy aria-hidden />}
-        {done ? "Copied" : "Copy"}
+        {done ? $t("components.copy-field.copied") : $t("components.copy-field.copy")}
       </Button>
     </div>
   );

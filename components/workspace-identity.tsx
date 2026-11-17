@@ -8,7 +8,7 @@
 // looks like an attack in the logs rather than a rename anyone did on
 // purpose. That is said before the button is pressed, not after.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { SettingsForm, useSettingsForm } from "./settings-form";
 import { Field, Callout } from "@foldrun/ui/react/page";
@@ -42,18 +42,16 @@ export function WorkspaceIdentity({
   const renaming = form.value.name !== workspace;
 
   return (
-    <SettingsForm form={form} id="identity" title="Name and description" description={$t("components.workspace-identity.whatThisWorkspaceIsCalledAnd")} saveLabel={renaming ? "Rename and save" : "Save"} hint={<><code className="font-mono text-xs">name:</code> and <code className="font-mono text-xs">description:</code> in AGENTS.md</>}>
-      <Field label="Name" hint="Kebab-case. This is the folder name and the URL.">
+    <SettingsForm form={form} id="identity" title={$t("components.workspace-identity.nameAndDescription")} description={$t("components.workspace-identity.whatThisWorkspaceIsCalledAnd")} saveLabel={renaming ? $t("components.workspace-identity.renameAndSave") : $t("components.workspace-identity.save")} hint={<>{$rich("components.workspace-identity.nameAndDescriptionInAgentsMd", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code> })}</>}>
+      <Field label={$t("components.workspace-identity.name")} hint={$t("components.workspace-identity.kebabCaseThisIsTheFolder")}>
         <Input value={form.value.name} onChange={(e) => form.setValue({ ...form.value, name: e.target.value })} spellCheck={false} className="w-full max-w-sm font-mono" />
       </Field>
-      <Field label="Description" hint={$t("components.workspace-identity.shownOnTheWorkspaceCardAnd")}>
+      <Field label={$t("components.workspace-identity.description")} hint={$t("components.workspace-identity.shownOnTheWorkspaceCardAnd")}>
         <Input value={form.value.description} onChange={(e) => form.setValue({ ...form.value, description: e.target.value })} placeholder={$t("components.workspace-identity.whatThisWorkspaceIsFor")} className="w-full" />
       </Field>
       {renaming && webhookFlows.length > 0 && (
         <Callout tone="warning" className="px-3 py-2 text-xs">
-          <strong>This breaks {webhookFlows.length} webhook URL{webhookFlows.length === 1 ? "" : "s"}.</strong> The name is part of the URL and of the token it
-          carries, so anything calling <span className="font-mono">{webhookFlows.join(", ")}</span> will start failing its signature check. Copy the new URLs
-          from each flow afterwards and re-point the caller.
+          {$rich("components.workspace-identity.thisBreaksWebhookUrlTheName", { length: webhookFlows.length, strong: (chunks) => <strong>{chunks}</strong>, join: webhookFlows.join(", "), span: (chunks) => <span className="font-mono">{chunks}</span> })}
         </Callout>
       )}
     </SettingsForm>

@@ -8,6 +8,7 @@
 // (welcomeFlow), so it ticks however the work was done and resumes where the
 // account is. Nothing here is a second progress store.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { cookies, headers } from "next/headers";
 import { verifySession, SESSION_COOKIE, viewerScope, viewerRole } from "@/server/users";
@@ -29,7 +30,7 @@ import { Page, PageHeader } from "@foldrun/ui/react/page";
 import { buttonVariants } from "@foldrun/ui/react/button";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Welcome" };
+export const metadata = { title: $t("welcome.page.welcome") };
 
 /** What the First run step runs: the demo's flow when there is a demo, else
  *  the first workspace's first flow; and that flow's newest run. */
@@ -82,16 +83,16 @@ export default async function Welcome({ searchParams }: { searchParams: Promise<
   ) : null;
 
   const host = (await headers()).get("host");
-  const origin = installOrigin() ?? (host ? `${/^(localhost|127\.|\[::1\])/.test(host) ? "http" : "https"}://${host}` : "https://<this install's address>");
+  const origin = installOrigin() ?? (host ? `${/^(localhost|127\.|\[::1\])/.test(host) ? "http" : "https"}://${host}` : $t("welcome.page.httpsThisInstall"));
 
   return (
     <Page>
       <PageHeader
-        title="Welcome to foldrun"
-        description="A few steps to a desk that works. Skip any of them; this page picks up wherever your account is."
+        title={$t("welcome.page.welcomeToFoldrun")}
+        description={$t("welcome.page.aFewStepsToADesk")}
         actions={
           <Link href={`/dashboard${qs}`} className={buttonVariants({ variant: "ghost" })}>
-            Skip setup
+            {$t("welcome.page.skipSetup")}
           </Link>
         }
       />
@@ -107,7 +108,7 @@ export default async function Welcome({ searchParams }: { searchParams: Promise<
         emptyWorkspace={empty}
         demoWorkspace={DEMO_WORKSPACE}
         // --url always: right on every install, the hosted one included.
-        cliLogin={`foldrun login --url ${origin}`}
+        cliLogin={$t("welcome.page.foldrunLoginUrl", { origin: String(origin) })}
         mcpUrl={`${origin}/api/mcp`}
       />
     </Page>

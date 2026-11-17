@@ -1,7 +1,27 @@
 {
   "page": {
+    "all": "All",
+    "anInboxIsAPersonS": "An inbox is a person's: what you approve, what you own, what you started. Nobody is signed in here.",
+    "approvals": "Approvals",
     "everythingElseWaitingInYourWorkspace": "Everything else waiting in your {@workspace.other}, for whoever picks it up.",
+    "forMe": "For me",
+    "inbox": "Inbox",
+    "issues": "Issues",
+    "kind": "Kind",
+    "nothingSetAside": "Nothing set aside",
+    "nothingWaitingHere": "Nothing waiting here",
+    "proposedFixes": "Proposed fixes",
+    "questions": "Questions",
+    "runsYouStartedAFailureOr": "Runs you started: a failure or BLOCKED this week, a gate or a question on one.",
+    "setAside": "Set aside",
+    "signInToSeeYourInbox": "Sign in to see your inbox",
+    "startedByMe": "Started by me",
+    "team": "Team",
     "whatIsWaitingOnYouAcross": "What is waiting on you, across your {@workspace.other}.",
-    "whatIsWaitingOnYouAcross2": "What is waiting on you, across your {@workspace.other}. An item leaves on its own once it is done where it lives."
+    "whatIsWaitingOnYouAcross2": "What is waiting on you, across your {@workspace.other}. An item leaves on its own once it is done where it lives.",
+    "whatYouHidFromYourView": "What you hid from your view. Each one is still waiting where it lives.",
+    "youAreAllCaughtUp": "You are all caught up.",
+    "youAreNamedAsAnApprover": "You are named as an approver, you own the flow or agent, or you asked for it.",
+    "yourRuns": "Your runs"
   }
 }

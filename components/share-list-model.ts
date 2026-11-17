@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 // The active-links list's rules, apart from React: which public links are
 // still live, how each one reads, and who made it — the same facts `foldrun
 // storage shares` prints, shown on a desk's Storage page so a link can be
@@ -50,10 +51,10 @@ function span(ms: number): string {
  *  the same four states the CLI prints (never expires / expires / expired /
  *  revoked), relative so the row needs no locale. */
 export function shareStatus(s: ShareRow, now: number): { live: boolean; label: string } {
-  if (s.revokedAt) return { live: false, label: `revoked ${span(now - Date.parse(s.revokedAt))} ago` };
-  if (s.expiresAt && Date.parse(s.expiresAt) <= now) return { live: false, label: `expired ${span(now - Date.parse(s.expiresAt))} ago` };
-  if (s.expiresAt) return { live: true, label: `expires in ${span(Date.parse(s.expiresAt) - now)}` };
-  return { live: true, label: "never expires" };
+  if (s.revokedAt) return { live: false, label: $t("components.share-list-model.revokedAgo", { v0: String(span(now - Date.parse(s.revokedAt))) }) };
+  if (s.expiresAt && Date.parse(s.expiresAt) <= now) return { live: false, label: $t("components.share-list-model.expiredAgo", { v0: String(span(now - Date.parse(s.expiresAt))) }) };
+  if (s.expiresAt) return { live: true, label: $t("components.share-list-model.expiresIn", { v0: String(span(Date.parse(s.expiresAt) - now)) }) };
+  return { live: true, label: $t("components.share-list-model.neverExpires") };
 }
 
 /** Who minted it, for a person — "api-key" when nothing was recorded, the

@@ -1,5 +1,6 @@
 "use client";
 
+import { $rich, $t, $el } from "@/i18n";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -45,7 +46,7 @@ export function CliAuthorize() {
         if (s.user) setMe(s.user);
         else window.location.assign(`/login?next=${encodeURIComponent(`/cli/authorize?code=${fromUrl}`)}`);
       })
-      .catch(() => setError("could not reach the server"));
+      .catch(() => setError($t("auth.cli-authorize-authorize.couldNotReachTheServer")));
   }, [fromUrl]);
 
   // What is asking, once there is a code to look up.
@@ -70,10 +71,10 @@ export function CliAuthorize() {
         body: JSON.stringify({ code, decision }),
       });
       const body = (await res.json().catch(() => ({}))) as { error?: string; status?: string };
-      if (!res.ok) setError(body.error ?? "something went wrong");
+      if (!res.ok) setError(body.error ?? $t("auth.cli-authorize-authorize.somethingWentWrong"));
       else setDone(decision === "approve" ? "approved" : "denied");
     } catch (err) {
-      setError(`could not reach the server: ${err instanceof Error ? err.message : String(err)}`);
+      setError($t("auth.cli-authorize-authorize.couldNotReachTheServer2", { v0: String(err instanceof Error ? err.message : String(err)) }));
     }
     setBusy(false);
   }
@@ -83,13 +84,12 @@ export function CliAuthorize() {
   if (done === "approved") {
     return (
       <>
-        <h1 className="mb-1 text-xl font-semibold text-fg">Signed in</h1>
+        <h1 className="mb-1 text-xl font-semibold text-fg">{$t("auth.cli-authorize-authorize.signedIn")}</h1>
         <p className="text-sm text-fg-tertiary">
-          Your terminal on <span className="font-mono">{request?.hostname}</span> is signed in as{" "}
-          <span className="font-medium">{me.email}</span>. You can close this tab.
+          {$rich("auth.cli-authorize-authorize.yourTerminalOnIsSignedIn", { hostname: request?.hostname ?? "", span: (chunks) => <span className="font-mono">{chunks}</span>, email: me.email, span2: (chunks) => <span className="font-medium">{chunks}</span> })}
         </p>
         <p className="mt-4 text-xs text-fg-muted">
-          The key it holds is on Settings → API keys, labelled with the machine. Revoke it there to sign that machine out.
+          {$t("auth.cli-authorize-authorize.theKeyItHoldsIsOn")}
         </p>
       </>
     );
@@ -97,20 +97,20 @@ export function CliAuthorize() {
   if (done === "denied") {
     return (
       <>
-        <h1 className="mb-1 text-xl font-semibold text-fg">Denied</h1>
-        <p className="text-sm text-fg-tertiary">The terminal was told no. Nothing was created.</p>
+        <h1 className="mb-1 text-xl font-semibold text-fg">{$t("auth.cli-authorize-authorize.denied")}</h1>
+        <p className="text-sm text-fg-tertiary">{$t("auth.cli-authorize-authorize.theTerminalWasToldNoNothing")}</p>
       </>
     );
   }
 
   return (
     <>
-      <h1 className="mb-1 text-xl font-semibold text-fg">Sign in the CLI</h1>
+      <h1 className="mb-1 text-xl font-semibold text-fg">{$t("auth.cli-authorize-authorize.signInTheCli")}</h1>
       <p className="mb-6 text-sm text-fg-muted">
-        A terminal ran <span className="font-mono">foldrun login</span> and is waiting for you to say it is yours.
+        {$rich("auth.cli-authorize-authorize.aTerminalRanFoldrunLoginAnd", { span: (chunks) => <span className="font-mono">{chunks}</span> })}
       </p>
 
-      <Field label="Code shown in the terminal">
+      <Field label={$t("auth.cli-authorize-authorize.codeShownInTheTerminal")}>
         <Input
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
@@ -121,35 +121,33 @@ export function CliAuthorize() {
       </Field>
 
       {request === null && code.replace(/[^A-Za-z0-9]/g, "").length === 8 && (
-        <p className="mt-3 text-sm text-danger">No sign-in request has that code. It may have expired — run <span className="font-mono">foldrun login</span> again.</p>
+        <p className="mt-3 text-sm text-danger">{$rich("auth.cli-authorize-authorize.noSignInRequestHasThat", { span: (chunks) => <span className="font-mono">{chunks}</span> })}</p>
       )}
 
       {request && (
         <div className="mt-5 rounded-md border border-line bg-sunken p-4 text-sm">
           <dl className="space-y-1.5">
-            <div className="flex justify-between gap-4"><dt className="text-fg-muted">Machine</dt><dd className="font-mono text-fg">{request.hostname}</dd></div>
-            {request.createdAt && <div className="flex justify-between gap-4"><dt className="text-fg-muted">Asked at</dt><dd className="text-fg"><LocalTime iso={request.createdAt} options={CLOCK} />{request.approveBy ? <span className="text-fg-muted"> — can be approved until <LocalTime iso={request.approveBy} options={CLOCK} /></span> : null}</dd></div>}
-            <div className="flex justify-between gap-4"><dt className="text-fg-muted">Asked from</dt><dd className="font-mono text-fg">{request.requestedFrom ? `${request.requestedFrom}${request.requestedCountry ? ` (${request.requestedCountry})` : ""}` : <span className="font-sans text-fg-muted">not known</span>}</dd></div>
-            <div className="flex justify-between gap-4"><dt className="text-fg-muted">Signs in as</dt><dd className="text-fg">{me.email}</dd></div>
-            <div className="flex justify-between gap-4"><dt className="text-fg-muted">Account</dt><dd className="text-fg">{me.tenant}</dd></div>
-            <div className="flex justify-between gap-4"><dt className="text-fg-muted">Role</dt><dd className="text-fg">{me.role === "owner" ? "admin (a key is never an owner)" : me.role}</dd></div>
+            <div className="flex justify-between gap-4"><dt className="text-fg-muted">{$t("auth.cli-authorize-authorize.machine")}</dt><dd className="font-mono text-fg">{request.hostname}</dd></div>
+            {request.createdAt && <div className="flex justify-between gap-4"><dt className="text-fg-muted">{$t("auth.cli-authorize-authorize.askedAt")}</dt><dd className="text-fg"><LocalTime iso={request.createdAt} options={CLOCK} />{request.approveBy ? <span className="text-fg-muted">{" "}{$rich("auth.cli-authorize-authorize.canBeApprovedUntil", { localTime: $el(<LocalTime iso={request.approveBy} options={CLOCK} />) })}</span> : null}</dd></div>}
+            <div className="flex justify-between gap-4"><dt className="text-fg-muted">{$t("auth.cli-authorize-authorize.askedFrom")}</dt><dd className="font-mono text-fg">{request.requestedFrom ? `${request.requestedFrom}${request.requestedCountry ? ` (${request.requestedCountry})` : ""}` : <span className="font-sans text-fg-muted">{$t("auth.cli-authorize-authorize.notKnown")}</span>}</dd></div>
+            <div className="flex justify-between gap-4"><dt className="text-fg-muted">{$t("auth.cli-authorize-authorize.signsInAs")}</dt><dd className="text-fg">{me.email}</dd></div>
+            <div className="flex justify-between gap-4"><dt className="text-fg-muted">{$t("auth.cli-authorize-authorize.account")}</dt><dd className="text-fg">{me.tenant}</dd></div>
+            <div className="flex justify-between gap-4"><dt className="text-fg-muted">{$t("auth.cli-authorize-authorize.role")}</dt><dd className="text-fg">{me.role === "owner" ? $t("auth.cli-authorize-authorize.adminAKeyIsNeverAn") : me.role}</dd></div>
           </dl>
           {request.sameNetwork === false && (
             <Callout tone="danger" className="mt-3 p-2 text-xs">
-              This request came from a different network than the one this browser is on. If you did not just run <span className="font-mono">foldrun login</span> on another machine of your own, deny it.
+              {$rich("auth.cli-authorize-authorize.thisRequestCameFromADifferent", { span: (chunks) => <span className="font-mono">{chunks}</span> })}
             </Callout>
           )}
           <p className="mt-3 text-xs text-fg-muted">
-            Approving creates an API key for that machine at your role. The machine name is whatever that terminal said — it proves nothing.
-            Approve only if you ran <span className="font-mono">foldrun login</span> yourself just now and your own terminal shows this code.
-            If someone sent you this link, deny it.
+            {$rich("auth.cli-authorize-authorize.approvingCreatesAnApiKeyFor", { span: (chunks) => <span className="font-mono">{chunks}</span> })}
           </p>
           <div className="mt-4 flex gap-2">
             <button type="button" disabled={busy} onClick={() => decide("approve")} className={buttonVariants({ variant: "primary", size: "md" })}>
-              {busy ? "…" : "Yes, that's me"}
+              {busy ? "…" : $t("auth.cli-authorize-authorize.yesThatSMe")}
             </button>
             <button type="button" disabled={busy} onClick={() => decide("deny")} className={buttonVariants({ variant: "secondary", size: "md" })}>
-              Deny
+              {$t("auth.cli-authorize-authorize.deny")}
             </button>
           </div>
         </div>

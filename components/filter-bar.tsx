@@ -19,6 +19,7 @@
 // is the same thing the pager already is. The select cannot be a link, so it
 // stays a navigation, with a plain submit for anyone without script.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@foldrun/ui/react/cn";
@@ -105,7 +106,7 @@ export function FilterBar({
         if (d.options.length < 2 && !current[d.key]) return null;
         const kind = d.kind === "auto" || !d.kind ? (d.options.length <= CHIPS_UP_TO ? "chips" : "select") : d.kind;
         const value = current[d.key] ?? "";
-        const all = d.allLabel ?? "All";
+        const all = d.allLabel ?? $t("components.filter-bar.all");
         return kind === "select" ? (
           // A GET form: the select navigates on change, and the hidden
           // inputs carry every other filter so the URL the form builds is
@@ -136,7 +137,7 @@ export function FilterBar({
             </Select>
             <noscript>
               <button type="submit" className={buttonVariants({ variant: "secondary", size: "md" })}>
-                Go
+                {$t("components.filter-bar.go")}
               </button>
             </noscript>
           </form>
@@ -165,7 +166,7 @@ export function FilterBar({
           )}
           {active.length > 0 && (
             <Link href={clearAll} className="font-medium text-fg-secondary underline-offset-2 hover:text-fg hover:underline">
-              Clear filters
+              {$t("components.filter-bar.clearFilters")}
             </Link>
           )}
         </div>

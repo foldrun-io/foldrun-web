@@ -12,6 +12,7 @@
 // the editor the source of truth instead of the file, and every diff would be
 // noise.
 
+import { $rich, $t } from "@/i18n";
 import { useEffect, useMemo, useState } from "react";
 import { Input } from "@foldrun/ui/react/input";
 import { Select } from "@foldrun/ui/react/select";
@@ -32,9 +33,9 @@ export interface Field {
 
 /** Servers people reach for first, so an MCP tool isn't a blank command box. */
 const KNOWN_MCP = [
-  { value: "npx", label: "npx — run a published server" },
-  { value: "uvx", label: "uvx — run a Python server" },
-  { value: "docker", label: "docker — run a containerised server" },
+  { value: "npx", label: $t("components.frontmatter-form.npxRunAPublishedServer") },
+  { value: "uvx", label: $t("components.frontmatter-form.uvxRunAPythonServer") },
+  { value: "docker", label: $t("components.frontmatter-form.dockerRunAContainerisedServer") },
 ];
 
 const INTERPRETERS = [
@@ -181,8 +182,7 @@ export function FrontmatterForm({
 
       {untouched.length > 0 && (
         <p className="border-t border-line-faint pt-2 text-xs text-fg-subtle">
-          Also in this file, edited as text:{" "}
-          <span className="font-mono">{untouched.join(", ")}</span>
+          {$rich("components.frontmatter-form.alsoInThisFileEditedAs", { join: untouched.join(", "), span: (chunks) => <span className="font-mono">{chunks}</span> })}
         </p>
       )}
     </div>
@@ -191,42 +191,42 @@ export function FrontmatterForm({
 
 /** The fields a tool file has, and which `type:` each belongs to. */
 export const TOOL_FIELDS: Field[] = [
-  { key: "name", label: "name", hint: "how agents refer to it" },
-  { key: "description", label: "description", hint: "what it does, and when to call it" },
+  { key: "name", label: "name", hint: $t("components.frontmatter-form.howAgentsReferToIt") },
+  { key: "description", label: "description", hint: $t("components.frontmatter-form.whatItDoesAndWhenTo") },
   {
     key: "transport",
     label: "transport",
-    hint: "where the work happens",
+    hint: $t("components.frontmatter-form.whereTheWorkHappens"),
     kind: "select",
     options: [
-      { value: "http", label: "http — someone else's API" },
-      { value: "script", label: "script — code in your container" },
-      { value: "mcp", label: "mcp — an MCP server" },
+      { value: "http", label: $t("components.frontmatter-form.httpSomeoneElseSApi") },
+      { value: "script", label: $t("components.frontmatter-form.scriptCodeInYourContainer") },
+      { value: "mcp", label: $t("components.frontmatter-form.mcpAnMcpServer") },
     ],
   },
   { key: "base", label: "base", hint: "required", when: ["http"], placeholder: "https://api.example.com/v1" },
-  { key: "methods", label: "methods", hint: "defaults to [GET]", when: ["http"], placeholder: "[GET, POST]" },
+  { key: "methods", label: "methods", hint: $t("components.frontmatter-form.defaultsToGet"), when: ["http"], placeholder: $t("components.frontmatter-form.getPost") },
   {
     key: "run",
     label: "run",
-    hint: "required — pick a script that exists",
+    hint: $t("components.frontmatter-form.requiredPickAScriptThatExists"),
     when: ["script"],
     optionsFrom: "scripts",
   },
   {
     key: "interpreter",
     label: "interpreter",
-    hint: "inferred from the extension",
+    hint: $t("components.frontmatter-form.inferredFromTheExtension"),
     when: ["script"],
     optionsFrom: "interpreters",
   },
   {
     key: "command",
     label: "command",
-    hint: "required for a local server",
+    hint: $t("components.frontmatter-form.requiredForALocalServer"),
     when: ["mcp"],
     optionsFrom: "mcp",
   },
   { key: "args", label: "args", when: ["mcp"], placeholder: '["-y", "@scope/server"]' },
-  { key: "url", label: "url", hint: "instead of command, for a remote server", when: ["mcp"], placeholder: "https://…/sse" },
+  { key: "url", label: "url", hint: $t("components.frontmatter-form.insteadOfCommandForARemote"), when: ["mcp"], placeholder: "https://…/sse" },
 ];

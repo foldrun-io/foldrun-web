@@ -85,22 +85,21 @@ export function ImportAgentButton({
   return (
     <>
       <button onClick={() => setOpen(true)} className={buttonVariants({ variant: color, size: "md" })}>
-        Import agent
+        {$t("workspace.agents-import-agent.importAgent")}
       </button>
       <Dialog open={open} onOpenChange={(o) => !o && close()}>
         <DialogContent hideClose aria-describedby={undefined} className="top-[10vh] max-h-[85dvh] translate-y-0 rounded-xl" size="md">
             <form onSubmit={submit} className="flex min-h-0 flex-col">
               <header className="border-b border-line-faint px-5 py-4">
-                <DialogTitle className="font-cal text-base font-semibold text-fg">Import agent</DialogTitle>
+                <DialogTitle className="font-cal text-base font-semibold text-fg">{$t("workspace.agents-import-agent.importAgent")}</DialogTitle>
                 <p className="mt-0.5 text-xs text-fg-muted">
-                  {$t("workspace.agents-import-agent.copyAnAgentFromAnotherWorkspace")}{" "}{workspace}: its agent.md and its own skills and scripts.
-                  Its memory stays where it was learned.
+                  {$t("workspace.agents-import-agent.copyAnAgentFromAnotherTerm", { workspace: workspace })}
                 </p>
               </header>
 
               {warnings ? (
                 <div className="space-y-3 px-5 py-4">
-                  <p className="text-sm text-fg">Imported. It still needs:</p>
+                  <p className="text-sm text-fg">{$t("workspace.agents-import-agent.importedItStillNeeds")}</p>
                   <ul className="list-disc space-y-1 pl-5 text-xs text-fg-secondary">
                     {warnings.map((w) => (
                       <li key={w}>{w}</li>
@@ -110,9 +109,9 @@ export function ImportAgentButton({
               ) : (
                 <div className="space-y-4 px-5 py-4">
                   <label className="block space-y-1">
-                    <span className={labelClass}>Agent</span>
+                    <span className={labelClass}>{$t("workspace.agents-import-agent.agent")}</span>
                     {sources === null && !error ? (
-                      <p className="text-xs text-fg-muted">Loading the account&apos;s agents…</p>
+                      <p className="text-xs text-fg-muted">{$t("workspace.agents-import-agent.loadingTheAccountSAgents")}</p>
                     ) : sources && sources.length === 0 ? (
                       <p className="text-xs text-fg-muted">{$t("workspace.agents-import-agent.noOtherWorkspaceInThisAccount")}</p>
                     ) : (
@@ -122,7 +121,7 @@ export function ImportAgentButton({
                         className="w-full"
                         required
                       >
-                        <option value="">Choose an agent…</option>
+                        <option value="">{$t("workspace.agents-import-agent.chooseAnAgent")}</option>
                         {(sources ?? []).map((s) => (
                           <optgroup key={s.name} label={s.name}>
                             {s.agents.map((a) => (
@@ -137,11 +136,11 @@ export function ImportAgentButton({
                     )}
                   </label>
                   <label className="block space-y-1">
-                    <span className={labelClass}>Name here (optional)</span>
+                    <span className={labelClass}>{$t("workspace.agents-import-agent.nameHereOptional")}</span>
                     <Input
                       value={as}
                       onChange={(e) => setAs(e.target.value)}
-                      placeholder={pick.split("/")[1] || "same name"}
+                      placeholder={pick.split("/")[1] || $t("workspace.agents-import-agent.sameName")}
                     />
                   </label>
                 </div>
@@ -151,15 +150,15 @@ export function ImportAgentButton({
                 {error && <p className="mr-auto text-xs text-red-600">{error}</p>}
                 {warnings ? (
                   <button type="button" onClick={close} className={buttonVariants({ variant: "primary", size: "md" })}>
-                    Done
+                    {$t("workspace.agents-import-agent.done")}
                   </button>
                 ) : (
                   <>
                     <button type="button" onClick={close} className={buttonVariants({ variant: "ghost", size: "md" })}>
-                      Cancel
+                      {$t("workspace.agents-import-agent.cancel")}
                     </button>
                     <button type="submit" disabled={busy || !pick} className={buttonVariants({ variant: "primary", size: "md" })}>
-                      {busy ? "Importing…" : "Import"}
+                      {busy ? "Importing…" : $t("workspace.agents-import-agent.import")}
                     </button>
                   </>
                 )}

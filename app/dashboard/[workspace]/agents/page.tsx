@@ -53,22 +53,22 @@ export default async function AgentsPage({
     const assets = agentAssets(tenant, workspace, a.name);
     const callers = usedBy.get(a.name) ?? [];
     const href = `/dashboard/${workspace}/agents/${encodeURIComponent(a.name)}${qs}`;
-    const ran = a.lastRunAt ? `ran ${fmtAgo(now - Date.parse(a.lastRunAt))}` : "never ran";
-    const tools = a.tools.length ? a.tools.join(", ") : "no tools";
+    const ran = a.lastRunAt ? `ran ${fmtAgo(now - Date.parse(a.lastRunAt))}` : $t("workspace.agents-page.neverRan");
+    const tools = a.tools.length ? a.tools.join(", ") : $t("workspace.agents-page.noTools");
     return {
       key: a.name,
       search: [a.name, a.description, a.owner ?? "", a.model, ...a.tools, ...callers].join(" "),
       href,
       icon: <Bot />,
       name: a.name,
-      sub: a.description || "No description",
+      sub: a.description || $t("workspace.agents-page.noDescription"),
       cells: {
         model: <Tag mono>{a.model}</Tag>,
         tools: <Tooltip label={tools}><span>{tools}</span></Tooltip>,
-        flows: callers.length ? callers.join(", ") : <span className="text-fg-subtle">no flow</span>,
-        last: a.stale ? <Chip tone="warn">not run in {staleDays}+ days</Chip> : <Tooltip label={a.lastRunAt}><span>{ran}</span></Tooltip>,
+        flows: callers.length ? callers.join(", ") : <span className="text-fg-subtle">{$t("workspace.agents-page.noFlow")}</span>,
+        last: a.stale ? <Chip tone="warn">{$t("workspace.agents-page.notRunInDays", { staleDays: String(staleDays ?? "") })}</Chip> : <Tooltip label={a.lastRunAt}><span>{ran}</span></Tooltip>,
       },
-      action: <RunButton endpoint={`/api/workspaces/${workspace}/agents/${a.name}/run`} tenant={tenant} label="Run" withTask={false} />,
+      action: <RunButton endpoint={`/api/workspaces/${workspace}/agents/${a.name}/run`} tenant={tenant} label={$t("workspace.agents-page.run")} withTask={false} />,
       card: (
         <ResourceCard
           href={href}
@@ -78,10 +78,10 @@ export default async function AgentsPage({
           status={a.stale ? "idle" : a.lastRunAt ? "live" : "idle"}
           statusLabel={ran}
           lines={[
-            <span key="d" className="truncate">{a.description || "No description"}</span>,
+            <span key="d" className="truncate">{a.description || $t("workspace.agents-page.noDescription")}</span>,
             <><Wrench /><span className="truncate">{tools}</span></>,
-            <><Workflow /><span className="truncate">{callers.length ? `in ${callers.join(", ")}` : "in no flow"}</span></>,
-            ...(assets.skills.length || assets.memory.length ? [<><BookOpen /><span className="truncate">{assets.skills.length} own skills · {assets.memory.length} memory</span></>] : []),
+            <><Workflow /><span className="truncate">{callers.length ? `in ${callers.join(", ")}` : $t("workspace.agents-page.inNoFlow")}</span></>,
+            ...(assets.skills.length || assets.memory.length ? [<><BookOpen /><span className="truncate">{$t("workspace.agents-page.ownSkillsMemory", { length: String(assets.skills.length), length2: String(assets.memory.length) })}</span></>] : []),
             ...(a.owner ? [<><User /><span className="truncate"><Email value={a.owner} /></span></>] : []),
           ]}
         />
@@ -92,25 +92,25 @@ export default async function AgentsPage({
   return (
     <Page>
       <PageHeader
-        title="Agents"
-        description="One folder, one agent.md: its frontmatter is the whole contract — model, tools, secrets."
+        title={$t("workspace.agents-page.agents")}
+        description={$t("workspace.agents-page.oneFolderOneAgentMdIts")}
         actions={
           <>
             <ImportAgentButton tenant={tenant} workspace={workspace} />
-            <ImportPackageButton tenant={tenant} workspace={workspace} label="Import .zip" />
+            <ImportPackageButton tenant={tenant} workspace={workspace} label={$t("workspace.agents-page.importZip")} />
             <CreateButton kind="agents" tenant={tenant} workspace={workspace} />
           </>
         }
       />
       <ResourceList
         id="agents"
-        search="Search agents…"
+        search={$t("workspace.agents-page.searchAgents")}
         nameHeader="Agent"
         columns={[
-          { key: "model", header: "Model", hide: "md" },
-          { key: "tools", header: "Tools", hide: "lg" },
-          { key: "flows", header: "Used by", hide: "lg" },
-          { key: "last", header: "Last run", hide: "sm" },
+          { key: "model", header: $t("workspace.agents-page.model"), hide: "md" },
+          { key: "tools", header: $t("workspace.agents-page.tools"), hide: "lg" },
+          { key: "flows", header: $t("workspace.agents-page.usedBy"), hide: "lg" },
+          { key: "last", header: $t("workspace.agents-page.lastRun"), hide: "sm" },
         ]}
         rows={rows}
         empty={

@@ -3,6 +3,7 @@
 // tag, each with its description and, where the spec has one, its request
 // and response schema.
 
+import { $rich, $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { Chip, Page, PageHeader, Panel, Tag } from "@foldrun/ui/react/page";
 import { openapiDocument } from "@/server/openapi";
@@ -31,7 +32,7 @@ const METHOD_TONE: Record<string, string> = {
   delete: "bg-danger-soft text-danger",
 };
 
-const GENERIC_DESC = "JSON — see docs/api.md for this route's fields";
+const GENERIC_DESC = $t("docs.api-reference-page.jsonSeeDocsApiMdFor");
 
 export default function ApiReference() {
   const doc = openapiDocument() as { info: { version: string; description: string }; paths: Record<string, Record<string, Op>> };
@@ -48,21 +49,15 @@ export default function ApiReference() {
   return (
     <Page className="pb-16">
       <PageHeader
-        back={{ href: "/dashboard/docs", label: "Docs" }}
-        title="API reference"
+        back={{ href: "/dashboard/docs", label: $t("docs.api-reference-page.docs") }}
+        title={$t("docs.api-reference-page.apiReference")}
         description={
           <>
-            Version <span className="font-mono">{doc.info.version}</span> · every route, from{" "}
-            <a href="/api/openapi.json" className="text-link hover:underline">
-              /api/openapi.json
-            </a>{" "}
-            · <Link href="/dashboard/docs/api-usage" className="text-link hover:underline">
-              Using the API
-            </Link>
+            {$rich("docs.api-reference-page.versionEveryRouteFromApiOpenapi", { version: doc.info.version, span: (chunks) => <span className="font-mono">{chunks}</span>, a: (chunks) => <a href="/api/openapi.json" className="text-link hover:underline">{chunks}</a>, link: (chunks) => <Link href="/dashboard/docs/api-usage" className="text-link hover:underline">{chunks}</Link> })}
           </>
         }
       />
-      <nav aria-label="Tags" className="mb-8 flex flex-wrap gap-1.5">
+      <nav aria-label={$t("docs.api-reference-page.tags")} className="mb-8 flex flex-wrap gap-1.5">
         {tags.map((t) => (
           <a key={t} href={`#tag-${t}`} className="group rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
             <Chip className="h-7 px-2.5 font-normal text-fg-secondary transition-colors group-hover:border-line-strong group-hover:text-fg">{t}</Chip>
@@ -82,21 +77,21 @@ export default function ApiReference() {
                     <div className="flex flex-wrap items-center gap-2">
                       <Tag mono className={`h-5 border-transparent px-1.5 font-semibold uppercase ${METHOD_TONE[method] ?? ""}`}>{method}</Tag>
                       <code className="break-all font-mono text-xs text-fg">{path}</code>
-                      {op.security && op.security.length === 0 && <Chip className="h-5">no key</Chip>}
-                      {idem && <Chip className="h-5">idempotency-key</Chip>}
+                      {op.security && op.security.length === 0 && <Chip className="h-5">{$t("docs.api-reference-page.noKey")}</Chip>}
+                      {idem && <Chip className="h-5">{$t("docs.api-reference-page.idempotencyKey")}</Chip>}
                     </div>
                     {op.description && <p className="mt-1 text-sm text-fg-muted">{op.description}</p>}
                     {(body || (ok && ok.description !== GENERIC_DESC)) && (
-                      <Disclosure className="mt-2 text-xs" summaryClassName="text-fg-muted" summary="Schema">
+                      <Disclosure className="mt-2 text-xs" summaryClassName="text-fg-muted" summary={$t("docs.api-reference-page.schema")}>
                         {body ? (
                           <>
-                            <p className="mt-2 text-xs font-medium text-fg-secondary">Request body</p>
+                            <p className="mt-2 text-xs font-medium text-fg-secondary">{$t("docs.api-reference-page.requestBody")}</p>
                             <pre className="mt-1 overflow-x-auto rounded-md border border-line bg-sunken p-2 font-mono text-xs text-fg-secondary">{JSON.stringify(body, null, 2)}</pre>
                           </>
                         ) : null}
                         {ok && ok.description !== GENERIC_DESC ? (
                           <>
-                            <p className="mt-2 text-xs font-medium text-fg-secondary">200 response</p>
+                            <p className="mt-2 text-xs font-medium text-fg-secondary">{$t("docs.api-reference-page.200Response")}</p>
                             <pre className="mt-1 overflow-x-auto rounded-md border border-line bg-sunken p-2 font-mono text-xs text-fg-secondary">{JSON.stringify(ok, null, 2)}</pre>
                           </>
                         ) : null}

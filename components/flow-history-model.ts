@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 // The flow history drawer's model: a line diff the browser can compute on
 // its own (for "Compare with current", which no revision on the server
 // holds), and the folding that turns a diff of a 200-line flow into the
@@ -113,5 +114,5 @@ export function diffStats(ops: DiffOp[]): { added: number; removed: number } {
 
 /** The message a restore leaves on its revision. */
 export function restoreMessage(rev: { id: string; commit: string | null }): string {
-  return `restored ${rev.commit ? rev.commit.slice(0, 7) : rev.id} from history`;
+  return $t("components.flow-history-model.restoredFromHistory", { v0: String(rev.commit ? rev.commit.slice(0, 7) : rev.id) });
 }

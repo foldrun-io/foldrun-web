@@ -7,7 +7,7 @@
 // characters. Choosing foldrun's models leaves a stored key where it is, so
 // switching back is one click.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -89,33 +89,33 @@ export function ModelKey({
   const status =
     model.runsOn === "foldrun"
       ? fm.refused || !chosen?.available
-        ? { label: "foldrun's models — refused", variant: "bad" as const, text: `${chosen?.title ?? model.supply}: ${fm.refused ?? chosen?.reason ?? "not available"}. Runs are refused until this is resolved or you switch to your own key.` }
-        : { label: "foldrun's models", variant: "good" as const, text: `${chosen.title} · billed in credits at the price list` }
+        ? { label: $t("settings.model-key.foldrunSModelsRefused"), variant: "bad" as const, text: $t("settings.model-key.runsAreRefusedUntilThisIs", { v0: String(chosen?.title ?? model.supply), v1: String(fm.refused ?? chosen?.reason ?? $t("settings.model-key.notAvailable2")) }) }
+        : { label: $t("settings.model-key.foldrunSModels"), variant: "good" as const, text: $t("settings.model-key.billedInCreditsAtThePrice", { title: String(chosen.title) }) }
       : model.runsOn === "subscription"
-      ? { label: "Claude subscription", variant: "good" as const, text: "Claude, on your Claude Code plan · counted in the plan's monthly and weekly limits, like your Claude Code" }
+      ? { label: $t("settings.model-key.claudeSubscription"), variant: "good" as const, text: $t("settings.model-key.claudeOnYourClaudeCodePlan") }
       : model.runsOn === "account"
-      ? { label: "Your own key", variant: "good" as const, text: `${model.provider ?? "custom"} ${model.keyHint ?? ""} · ${model.baseUrl ?? ""}` }
+      ? { label: $t("settings.model-key.yourOwnKey"), variant: "good" as const, text: `${model.provider ?? "custom"} ${model.keyHint ?? ""} · ${model.baseUrl ?? ""}` }
       : model.runsOn === "platform"
-        ? { label: "Platform key", variant: "warn" as const, text: "This account runs on the platform's own credential." }
-        : { label: "No key", variant: "bad" as const, text: "Runs on this account are refused until you add an API key." };
+        ? { label: $t("settings.model-key.platformKey"), variant: "warn" as const, text: $t("settings.model-key.thisAccountRunsOnThePlatform") }
+        : { label: $t("settings.model-key.noKey"), variant: "bad" as const, text: $t("settings.model-key.runsOnThisAccountAreRefused") };
 
   return (
     <SettingsCard
       id="model-key"
-      title="Model key"
-      description="What every step on this account runs on."
-      hint={error ? <span role="alert" className="text-danger">{error}</span> : <>{$t("settings.model-key.anAgentWorkspaceOrAgentsMd")}{" "}<code className="font-mono text-xs">provider:</code>.</>}
+      title={$t("settings.model-key.modelKey")}
+      description={$t("settings.model-key.whatEveryStepOnThisAccount")}
+      hint={error ? <span role="alert" className="text-danger">{error}</span> : <>{$rich("settings.model-key.anAgentTermOrAgentsMd", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code> })}</>}
     >
       <div className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-sunken px-3 py-2">
         <Chip tone={status.variant}>{status.label}</Chip>
         <span className="min-w-0 break-all font-mono text-xs text-fg-muted">{status.text}</span>
       </div>
       {fm.offered && (
-        <div className="mt-3 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="What this account runs on">
+        <div className="mt-3 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label={$t("settings.model-key.whatThisAccountRunsOn")}>
           {(
             [
-              { id: "own", title: "Your own API key", text: "You pay your provider directly. Any provider, any model." },
-              { id: "foldrun", title: "foldrun's models", text: "No provider account needed. Billed in credits at foldrun's price list." },
+              { id: "own", title: $t("settings.model-key.yourOwnApiKey"), text: $t("settings.model-key.youPayYourProviderDirectlyAny") },
+              { id: "foldrun", title: $t("settings.model-key.foldrunSModels"), text: $t("settings.model-key.noProviderAccountNeededBilledIn") },
             ] as const
           ).map((o) => (
             <button
@@ -128,7 +128,7 @@ export function ModelKey({
             >
               <span className="block text-sm font-medium text-fg">
                 {o.title}
-                {(o.id === "foldrun" ? model.runsOn === "foldrun" : model.runsOn === "account") && <span className="ml-2 text-xs font-normal text-success">in use</span>}
+                {(o.id === "foldrun" ? model.runsOn === "foldrun" : model.runsOn === "account") && <span className="ml-2 text-xs font-normal text-success">{$t("settings.model-key.inUse")}</span>}
               </span>
               <span className="mt-0.5 block text-xs text-fg-muted">{o.text}</span>
             </button>
@@ -148,8 +148,7 @@ export function ModelKey({
       ) : (
         <>
           <p className="mt-4 text-sm text-fg-muted">
-            {$t("settings.model-key.everyStepRunsOnThisKey")}{" "}<code className="font-mono text-xs">provider:</code>.
-            Use an <strong>API key</strong> from your provider; Claude login tokens are not accepted.
+            {$rich("settings.model-key.everyStepRunsOnThisKey2", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code>, strong: (chunks) => <strong>{chunks}</strong> })}
           </p>
         {mayEdit && (
           <form
@@ -159,41 +158,41 @@ export function ModelKey({
               void send("PUT");
             }}
           >
-            <Field label="Provider">
+            <Field label={$t("settings.model-key.provider")}>
               <Select className="w-full" value={provider} onChange={(e) => setProvider(e.target.value)}>
                 {presets.map((p) => (
                   <option key={p.name} value={p.name}>{p.title}</option>
                 ))}
-                <option value="custom">Custom endpoint…</option>
+                <option value="custom">{$t("settings.model-key.customEndpoint")}</option>
               </Select>
             </Field>
-            <Field label="API key">
-              <Input type="password" autoComplete="off" required className="font-mono" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={model.set ? "replace the current key" : "paste your API key"} />
+            <Field label={$t("settings.model-key.apiKey")}>
+              <Input type="password" autoComplete="off" required className="font-mono" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={model.set ? $t("settings.model-key.replaceTheCurrentKey") : $t("settings.model-key.pasteYourApiKey")} />
             </Field>
             {showBaseUrl && (
-              <Field label="Base URL" className="sm:col-span-2">
+              <Field label={$t("settings.model-key.baseUrl")} className="sm:col-span-2">
                 <Input type="url" required className="font-mono" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://…" />
               </Field>
             )}
             {custom && (
-              <Field label="Format">
+              <Field label={$t("settings.model-key.format")}>
                 <Select className="w-full" value={format} onChange={(e) => setFormat(e.target.value)}>
-                  <option value="anthropic">Anthropic Messages</option>
-                  <option value="openai">OpenAI Chat Completions</option>
+                  <option value="anthropic">{$t("settings.model-key.anthropicMessages")}</option>
+                  <option value="openai">{$t("settings.model-key.openaiChatCompletions")}</option>
                 </Select>
               </Field>
             )}
             <div className="flex items-end gap-2 sm:col-span-2">
-              <button type="submit" disabled={busy || !apiKey} className={buttonVariants({ variant: "primary" })}>{model.source === "foldrun" ? "Save key and use it" : model.set ? "Replace key" : "Save key"}</button>
+              <button type="submit" disabled={busy || !apiKey} className={buttonVariants({ variant: "primary" })}>{model.source === "foldrun" ? $t("settings.model-key.saveKeyAndUseIt") : model.set ? $t("settings.model-key.replaceKey") : $t("settings.model-key.saveKey")}</button>
               {model.set && (
-                <button type="button" disabled={busy} onClick={() => void send("DELETE")} className={buttonVariants({ variant: "secondary" })}>Remove</button>
+                <button type="button" disabled={busy} onClick={() => void send("DELETE")} className={buttonVariants({ variant: "secondary" })}>{$t("settings.model-key.remove")}</button>
               )}
             </div>
           </form>
         )}
           {model.source === "foldrun" && mayEdit && (
             <button type="button" disabled={busy} onClick={() => void send("PUT", { source: "own" })} className={`mt-2 ${buttonVariants({ variant: "secondary" })}`}>
-              {model.set ? `Use my key ${model.keyHint ?? ""} instead of foldrun's models` : "Stop using foldrun's models"}
+              {model.set ? $t("settings.model-key.useMyKeyInsteadOfFoldrun", { v0: String(model.keyHint ?? "") }) : $t("settings.model-key.stopUsingFoldrunSModels")}
             </button>
           )}
         </>
@@ -227,24 +226,24 @@ function FoldrunPanel({
   return (
     <div className="mt-3 grid min-w-0 gap-3">
       {fm.refused && <p className="text-sm text-danger">{fm.refused}</p>}
-      <Field label="Provider" className="sm:w-64">
+      <Field label={$t("settings.model-key.provider")} className="sm:w-64">
         <Select className="w-full" value={supply} onChange={(e) => setSupply(e.target.value)}>
           {fm.providers.map((x) => (
             <option key={x.name} value={x.name} disabled={!x.available}>
               {x.title}
-              {x.available ? "" : " — not available"}
+              {x.available ? "" : $t("settings.model-key.notAvailable")}
             </option>
           ))}
         </Select>
       </Field>
       {tiers.length > 0 && (
         <p className="text-xs text-fg-muted">
-          <span className="mr-1.5">An agent&apos;s <code className="font-mono">model:</code></span>
+          <span className="mr-1.5">{$rich("settings.model-key.anAgentSModel", { code: (chunks) => <code className="font-mono">{chunks}</code> })}</span>
           {tiers.map(([tier, m], i) => (
             <span key={tier}>
               {i > 0 && <span className="mx-1.5 text-fg-subtle">·</span>}
               <code className="font-mono">{tier}</code> → <code className="font-mono">{m}</code>
-              {!priced.has(m) && <span className="ml-1 text-danger">(not priced — refused)</span>}
+              {!priced.has(m) && <span className="ml-1 text-danger">{$t("settings.model-key.notPricedRefused")}</span>}
             </span>
           ))}
         </p>
@@ -254,13 +253,13 @@ function FoldrunPanel({
           <table className="w-full text-left text-xs">
             <thead className="text-fg-subtle">
               <tr>
-                <th className="py-1 pr-3 font-medium">Model</th>
-                <th className="py-1 pr-3 font-medium">In</th>
-                <th className="py-1 pr-3 font-medium">Out</th>
-                <Tooltip label="cache read">
-                  <th className="py-1 pr-3 font-medium">Cached in</th>
+                <th className="py-1 pr-3 font-medium">{$t("settings.model-key.model")}</th>
+                <th className="py-1 pr-3 font-medium">{$t("settings.model-key.in")}</th>
+                <th className="py-1 pr-3 font-medium">{$t("settings.model-key.out")}</th>
+                <Tooltip label={$t("settings.model-key.cacheRead")}>
+                  <th className="py-1 pr-3 font-medium">{$t("settings.model-key.cachedIn")}</th>
                 </Tooltip>
-                <th className="py-1 font-medium">Cache write</th>
+                <th className="py-1 font-medium">{$t("settings.model-key.cacheWrite")}</th>
               </tr>
             </thead>
             <tbody className="font-mono text-fg-secondary">
@@ -275,26 +274,25 @@ function FoldrunPanel({
               ))}
             </tbody>
           </table>
-          <p className="mt-1 text-xs text-fg-subtle">USD per million tokens of input and output. A model not listed is refused.</p>
+          <p className="mt-1 text-xs text-fg-subtle">{$t("settings.model-key.usdPerMillionTokensOfInput")}</p>
         </div>
       ) : (
-        <p className="text-xs text-fg-muted">No models are priced for this provider yet.</p>
+        <p className="text-xs text-fg-muted">{$t("settings.model-key.noModelsArePricedForThis")}</p>
       )}
       <p className="text-xs text-fg-muted">
-        Spent today: <span className="font-mono text-fg">{usd(fm.spentTodayUsd)}</span>
+        {$rich("settings.model-key.spentToday", { usd: usd(fm.spentTodayUsd), span: (chunks) => <span className="font-mono text-fg">{chunks}</span> })}
         {fm.dailyCapUsd !== null ? (
           <>
-            {" "}of a <span className="font-mono text-fg">{usd(fm.dailyCapUsd)}</span> daily cap (UTC). Calls past it are refused until tomorrow — ask support to raise it.
+            {" "}{$rich("settings.model-key.ofADailyCapUtcCalls", { usd: usd(fm.dailyCapUsd), span: (chunks) => <span className="font-mono text-fg">{chunks}</span> })}
           </>
         ) : (
-          " (no daily cap)."
-        )}{" "}
-        Charged from your credit balance; calls stop when it reaches zero.
+          $t("settings.model-key.noDailyCap")
+        )}{" "}{$t("settings.model-key.chargedFromYourCreditBalanceCalls")}
       </p>
       {mayEdit && (
         <div>
           <button type="button" disabled={busy || !p?.available || Boolean(fm.refused) || inUse === supply} onClick={onUse} className={buttonVariants({ variant: "primary" })}>
-            {inUse === supply ? `Running on ${p?.title ?? supply}` : `Use foldrun's ${p?.title ?? supply} models`}
+            {inUse === supply ? $t("settings.model-key.runningOn", { v0: String(p?.title ?? supply) }) : $t("settings.model-key.useFoldrunSModels", { v0: String(p?.title ?? supply) })}
           </button>
         </div>
       )}

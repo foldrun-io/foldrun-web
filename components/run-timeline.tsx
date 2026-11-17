@@ -17,6 +17,7 @@
 // for the whole run. A long run compresses an hour of tool calls into a
 // smear at full width; the window is how you read the smear.
 
+import { $t } from "@/i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { RunRecord, StepRecord } from "@/lib/store";
 import {
@@ -146,20 +147,20 @@ export function RunTimeline({
     const span = spans[hover.step];
     if (hover.tool) {
       const t = hover.tool;
-      readout = `${step.agent} → ${t.name}${t.end != null ? ` · ${fmtDur(t.end - t.start)}` : " · running"}${t.err ? " · error" : ""}`;
+      readout = `${step.agent} → ${t.name}${t.end != null ? ` · ${fmtDur(t.end - t.start)}` : $t("components.run-timeline.running")}${t.err ? $t("components.run-timeline.error") : ""}`;
     } else {
       const parts = [step.agent + (step.item ? ` · ${step.item}` : ""), barStatus(step)];
       if (span) parts.push(fmtDur(span.end - span.start));
       if (step.model) parts.push(step.model);
       if (step.costUsd != null) parts.push(`$${step.costUsd.toFixed(4)}`);
-      if (tools[hover.step].length) parts.push(`${tools[hover.step].length} tool call${tools[hover.step].length === 1 ? "" : "s"}`);
+      if (tools[hover.step].length) parts.push($t("components.run-timeline.toolCall", { length: String(tools[hover.step].length), v1: String(tools[hover.step].length === 1 ? "" : "s") }));
       if ((step.attempts ?? 0) > 1) parts.push(`attempt ${step.attempts}`);
       if (step.skipReason) parts.push(step.skipReason);
       readout = parts.join(" · ");
     }
   } else {
     const parts = [`${run.steps.length} step${run.steps.length === 1 ? "" : "s"}`, fmtDur(total)];
-    if (toolCount) parts.push(`${toolCount} tool call${toolCount === 1 ? "" : "s"}`);
+    if (toolCount) parts.push($t("components.run-timeline.toolCall2", { toolCount: String(toolCount), v1: String(toolCount === 1 ? "" : "s") }));
     if (totalCost > 0) parts.push(`$${totalCost.toFixed(4)}`);
     if (win) parts.unshift(`${fmtTick(wFrom)} – ${win.to == null ? "now" : fmtTick(wTo)}`);
     readout = parts.join(" · ");
@@ -186,7 +187,7 @@ export function RunTimeline({
 
       {/* axis */}
       <div className="grid grid-cols-[8rem_1fr] border-b border-line bg-sunken text-xs text-fg-muted sm:grid-cols-[11rem_1fr]">
-        <div className="px-3 py-2 text-[13px]">Step</div>
+        <div className="px-3 py-2 text-[13px]">{$t("components.run-timeline.step")}</div>
         <div className="relative h-8 pr-3">
           {/* A label within a few percent of either edge would clip; the
               grid line still marks the tick. The run's own zero always shows. */}
@@ -216,7 +217,7 @@ export function RunTimeline({
                 side="right"
                 label={
                   <>
-                    <span className="block opacity-70">{firstOfGroup ? `group ${step.group}` : `runs in parallel with the step above (group ${step.group})`}</span>
+                    <span className="block opacity-70">{firstOfGroup ? `group ${step.group}` : $t("components.run-timeline.runsInParallelWithTheStep", { group: String(step.group) })}</span>
                     {step.instruction || step.agent}
                   </>
                 }
@@ -350,7 +351,7 @@ export function RunTimeline({
                           style={{
                             // The 2px floor is in pixels, so the right-edge
                             // guard is too: never past the column's edge.
-                            left: `min(${at.left}%, calc(100% - 2px))`,
+                            left: $t("components.run-timeline.minCalc1002px", { left: String(at.left) }),
                             width: unfinished ? "2px" : `${at.width}%`,
                             minWidth: 2,
                           }}
@@ -371,43 +372,43 @@ export function RunTimeline({
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line px-3 py-2 text-xs text-fg-muted">
         <span className="min-w-0 flex-1 truncate tabular-nums">{readout}</span>
         <span className="flex shrink-0 items-center gap-0.5 text-xs text-fg-muted">
-          <Tooltip label="Zoom out">
+          <Tooltip label={$t("components.run-timeline.zoomOut")}>
             <button
               type="button"
               onClick={() => zoomStep(1 / 1.6)}
               disabled={win === null}
               className="size-6 rounded hover:bg-muted hover:text-fg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
-              aria-label="Zoom out"
+              aria-label={$t("components.run-timeline.zoomOut")}
             >
               −
             </button>
           </Tooltip>
-          <Tooltip label="Zoom in — or drag across the chart, or pinch">
+          <Tooltip label={$t("components.run-timeline.zoomInOrDragAcrossThe")}>
             <button
               type="button"
               onClick={() => zoomStep(1.6)}
               className="size-6 rounded hover:bg-muted hover:text-fg-secondary"
-              aria-label="Zoom in"
+              aria-label={$t("components.run-timeline.zoomIn")}
             >
               +
             </button>
           </Tooltip>
           {win && (
-            <Tooltip label="Show the whole run (double-click the chart)">
+            <Tooltip label={$t("components.run-timeline.showTheWholeRunDoubleClick")}>
               <button
                 type="button"
                 onClick={() => setWin(null)}
                 className="ml-0.5 rounded px-1.5 hover:bg-muted hover:text-fg-secondary"
               >
-                whole run
+                {$t("components.run-timeline.wholeRun")}
               </button>
             </Tooltip>
           )}
         </span>
         <span className="flex shrink-0 items-center gap-2 text-xs text-fg-muted max-sm:hidden">
-          <span className="inline-block h-2 w-3 rounded-sm bg-green-500/80" /> step
-          <span className="inline-block h-1.5 w-3 rounded-[2px] bg-blue-400/80" /> tool
-          <span className="inline-block h-2 w-3 rounded-sm bg-amber-300 timeline-waiting" /> waiting
+          <span className="inline-block h-2 w-3 rounded-sm bg-green-500/80" />{" "}{$t("components.run-timeline.step2")}
+          <span className="inline-block h-1.5 w-3 rounded-[2px] bg-blue-400/80" />{" "}{$t("components.run-timeline.tool")}
+          <span className="inline-block h-2 w-3 rounded-sm bg-amber-300 timeline-waiting" />{" "}{$t("components.run-timeline.waiting")}
         </span>
       </div>
     </div>

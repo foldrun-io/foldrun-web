@@ -5,7 +5,7 @@
 // Apply writes those files (each a revision by you), Dismiss sets it aside.
 // Nothing is written before Apply. "Propose a fix" asks for one now.
 
-import { $t } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "@foldrun/ui/react/link";
@@ -32,12 +32,12 @@ const TONE: Record<Proposal["status"], Tone> = {
 };
 
 const LABEL: Record<Proposal["status"], string> = {
-  drafting: "being drafted",
-  ready: "ready to review",
+  drafting: $t("workspace.evals-proposals.beingDrafted"),
+  ready: $t("workspace.evals-proposals.readyToReview"),
   applying: "applying",
   applied: "applied",
-  partial: "partly applied",
-  failed: "draft failed",
+  partial: $t("workspace.evals-proposals.partlyApplied"),
+  failed: $t("workspace.evals-proposals.draftFailed"),
   dismissed: "dismissed",
 };
 
@@ -91,56 +91,56 @@ export function Proposals({
     <div className="space-y-3">
       {run && canPropose && !open && (
       <div className="flex flex-wrap items-center gap-2">
-        {shown.length === 0 && <span className="text-sm text-fg-muted">No fix proposed yet.</span>}
+        {shown.length === 0 && <span className="text-sm text-fg-muted">{$t("workspace.evals-proposals.noFixProposedYet")}</span>}
         {(
-          <Tooltip label="The assistant reads the failures and the files they used, and proposes the smallest change. Nothing is written until you apply it.">
+          <Tooltip label={$t("workspace.evals-proposals.theAssistantReadsTheFailuresAnd")}>
             <button
               onClick={propose}
               disabled={busy === "propose"}
               className={buttonVariants({ variant: "secondary" })}
             >
-              {busy === "propose" ? "Asking…" : "Propose a fix"}
+              {busy === "propose" ? "Asking…" : $t("workspace.evals-proposals.proposeAFix")}
             </button>
           </Tooltip>
         )}
       </div>
       )}
       {error && <p className="text-xs text-danger">{error}</p>}
-      {shown.length === 0 && !(run && canPropose && !open) && <p className="text-sm text-fg-muted">None yet.</p>}
+      {shown.length === 0 && !(run && canPropose && !open) && <p className="text-sm text-fg-muted">{$t("workspace.evals-proposals.noneYet")}</p>}
       {shown.length > 0 && <ul className="space-y-2">
         {shown.map((p) => (
           <li key={p.id} id={p.id} className="scroll-mt-24 rounded-lg border border-line bg-surface px-4 py-3">
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <Chip tone={TONE[p.status]}>{LABEL[p.status]}</Chip>
               <span className="text-fg-muted">
-                {p.createdAt.slice(0, 16).replace("T", " ")} UTC · {p.by === "auto" ? "opened after repeated failures" : <>asked by <WithEmails text={p.by} /></>} · covers {p.failures.length} failure{p.failures.length === 1 ? "" : "s"}
+                {$t("workspace.evals-proposals.utc", { replace: p.createdAt.slice(0, 16).replace("T", " ") })}{" "}{p.by === "auto" ? $t("workspace.evals-proposals.openedAfterRepeatedFailures") : <>{$rich("workspace.evals-proposals.askedBy", { withEmails: $el(<WithEmails text={p.by} />) })}</>}{" "}{$t("workspace.evals-proposals.coversFailure", { length: p.failures.length })}
               </span>
               {p.decidedBy && (
                 <span className="text-fg-subtle">
-                  {p.status} by <WithEmails text={p.decidedBy} />
+                  {$rich("workspace.evals-proposals.by", { status: p.status, withEmails: $el(<WithEmails text={p.decidedBy} />) })}
                 </span>
               )}
               <span className="ml-auto flex gap-2">
                 {write && p.status === "ready" && (
                   <button onClick={() => decide(p.id, "apply")} disabled={!!busy} className={buttonVariants({ variant: "primary" })}>
-                    {busy === p.id ? "Applying…" : "Apply"}
+                    {busy === p.id ? "Applying…" : $t("workspace.evals-proposals.apply")}
                   </button>
                 )}
                 {write && (p.status === "ready" || p.status === "failed" || p.status === "drafting") && (
                   <button onClick={() => decide(p.id, "dismiss")} disabled={!!busy} className={buttonVariants({ variant: "ghost" })}>
-                    Dismiss
+                    {$t("workspace.evals-proposals.dismiss")}
                   </button>
                 )}
               </span>
             </div>
-            {p.status === "drafting" && <p className="mt-1 text-xs text-fg-muted">The assistant is reading the failures and the files they used — reload in a minute.</p>}
+            {p.status === "drafting" && <p className="mt-1 text-xs text-fg-muted">{$t("workspace.evals-proposals.theAssistantIsReadingTheFailures")}</p>}
             {p.error && <p className="mt-1 text-xs text-danger">{p.error}</p>}
             {(p.notes ?? []).map((n) => (
               <p key={n} className="mt-1 text-xs text-warning">
                 <WithEmails text={n} />
               </p>
             ))}
-            <Disclosure className="mt-1" summaryClassName="text-xs text-fg-tertiary" summary="The failures it covers">
+            <Disclosure className="mt-1" summaryClassName="text-xs text-fg-tertiary" summary={$t("workspace.evals-proposals.theFailuresItCovers")}>
               <ul className="mt-1 space-y-0.5">
                 {p.failures.map((f, i) => (
                   <li key={i} className="text-xs text-fg-secondary">
@@ -169,7 +169,7 @@ export function Proposals({
                 ))}
               </ul>
             )}
-            {p.applied && p.status !== "applied" && <p className="mt-1 text-xs text-fg-muted">Written: {p.applied.join(", ") || "nothing"}</p>}
+            {p.applied && p.status !== "applied" && <p className="mt-1 text-xs text-fg-muted">{$t("workspace.evals-proposals.written")}{" "}{p.applied.join(", ") || "nothing"}</p>}
           </li>
         ))}
       </ul>}

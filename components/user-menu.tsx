@@ -4,6 +4,7 @@
 // billing, docs, help, what's new, status, settings), the theme, sign out.
 // The sidebar is for the work; this is for who you are.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -59,17 +60,17 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
 
   const name = who.tenant ?? tenantParam;
   const items = [
-    { name: "Profile", href: `/dashboard/profile${qs}`, icon: User },
-    hosted ? { name: "Billing", href: `/dashboard/billing${qs}`, icon: CreditCard } : { name: "Usage", href: `/dashboard/usage${qs}`, icon: BarChart3 },
+    { name: $t("components.user-menu.profile"), href: `/dashboard/profile${qs}`, icon: User },
+    hosted ? { name: $t("components.user-menu.billing"), href: `/dashboard/billing${qs}`, icon: CreditCard } : { name: $t("components.user-menu.usage"), href: `/dashboard/usage${qs}`, icon: BarChart3 },
     // "Settings": the sidebar, the page title and every pointer to it in the
     // docs and messages use that word (8 Nov 2026); under the person's name
     // the menu already says whose it is.
-    { name: "Settings", href: `/dashboard/settings${qs}`, icon: Settings },
+    { name: $t("components.user-menu.settings"), href: `/dashboard/settings${qs}`, icon: Settings },
   ];
   const help = [
-    { name: "Docs", href: `/dashboard/docs${qs}`, icon: BookOpen },
-    { name: "Help", href: `/dashboard/help${qs}`, icon: CircleHelp },
-    { name: "What's new", href: `/dashboard/whats-new${qs}`, icon: Sparkles },
+    { name: $t("components.user-menu.docs"), href: `/dashboard/docs${qs}`, icon: BookOpen },
+    { name: $t("components.user-menu.help"), href: `/dashboard/help${qs}`, icon: CircleHelp },
+    { name: $t("components.user-menu.whatSNew"), href: `/dashboard/whats-new${qs}`, icon: Sparkles },
   ];
 
   return (
@@ -77,7 +78,7 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
       <MenuTrigger asChild>
         {wide ? (
           <button
-            aria-label="Account menu"
+            aria-label={$t("components.user-menu.accountMenu")}
             className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus data-[state=open]:bg-muted"
           >
             <Avatar name={who.email ?? name} src={who.avatar} size="sm" />
@@ -86,7 +87,7 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
           </button>
         ) : (
           <button
-            aria-label="Account menu"
+            aria-label={$t("components.user-menu.accountMenu")}
             className="flex items-center justify-center rounded-full outline-none ring-offset-2 ring-offset-background transition-shadow hover:ring-2 hover:ring-line-strong focus-visible:ring-2 focus-visible:ring-focus data-[state=open]:ring-2 data-[state=open]:ring-fg"
           >
             <Avatar name={who.email ?? name} src={who.avatar} size="md" />
@@ -95,7 +96,7 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
       </MenuTrigger>
       <MenuContent className="w-64" side={wide ? "top" : "bottom"} align={wide ? "start" : "end"}>
         <div className="px-2 pb-2 pt-1.5">
-          <p className="text-xs text-fg-muted">Signed in as</p>
+          <p className="text-xs text-fg-muted">{$t("components.user-menu.signedInAs")}</p>
           <p className="truncate text-sm text-fg">{who.email ?? name}</p>
         </div>
         <MenuSeparator />
@@ -121,18 +122,18 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
             {/* A route that redirects off this host: a plain link. */}
             <a href="/status" target="_blank" rel="noreferrer">
               <Activity />
-              Status
+              {$t("components.user-menu.status")}
               <ExternalLink className="ml-auto size-3.5!" />
             </a>
           </MenuItem>
         )}
         <MenuSeparator />
         <div className="flex items-center justify-between px-2 py-1.5">
-          <span className="text-sm text-fg-secondary">Theme</span>
+          <span className="text-sm text-fg-secondary">{$t("components.user-menu.theme")}</span>
           <Segmented
             role="radiogroup"
             size="sm"
-            label="Theme"
+            label={$t("components.user-menu.theme")}
             value={theme}
             onChange={(t) => void setTheme(t as Theme)}
             items={THEMES.map((t) => {
@@ -149,9 +150,9 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
           }}
         >
           <LogOut />
-          Sign out
+          {$t("components.user-menu.signOut")}
         </MenuItem>
-        <MenuLabel className="sr-only">Account</MenuLabel>
+        <MenuLabel className="sr-only">{$t("components.user-menu.account")}</MenuLabel>
       </MenuContent>
     </Menu>
   );

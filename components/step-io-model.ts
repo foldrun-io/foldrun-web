@@ -14,6 +14,7 @@
 // them, so a looped step reads as fed by its latest upstream pass. Pure, so
 // tests/step-io.test.ts pins the rules.
 
+import { $t } from "@/i18n";
 import type { StepRecord } from "@/lib/store";
 // Pure, no node imports: this module is bundled into client components.
 import { cacheHitRate, promptCacheNote, type TokenUsage } from "@/lib/tokens";
@@ -171,14 +172,14 @@ export function fmtTokens(n: number): string {
  *  recorded before cache reads were counted apart, 18 Oct 2026). */
 export function fmtCached(t: TokenUsage | null | undefined): string | null {
   const rate = cacheHitRate(t);
-  return rate === null ? null : `${Math.round(rate * 100)}% cached`;
+  return rate === null ? null : $t("components.step-io-model.cached", { v0: String(Math.round(rate * 100)) });
 }
 
 /** "12.4k in · 3.1k out · 78% cached" — `in` is every input token the model saw. */
 export function fmtTokenLine(t: TokenUsage | null | undefined, rate: number | null = cacheHitRate(t)): string | null {
   if (!t) return null;
-  const cached = rate === null ? null : `${Math.round(rate * 100)}% cached`;
-  return `${fmtTokens(t.input)} in · ${fmtTokens(t.output)} out${cached ? ` · ${cached}` : ""}`;
+  const cached = rate === null ? null : $t("components.step-io-model.cached", { v0: String(Math.round(rate * 100)) });
+  return $t("components.step-io-model.inOut", { v0: String(fmtTokens(t.input)), v1: String(fmtTokens(t.output)), v2: String(cached ? ` · ${cached}` : "") });
 }
 
 const grouped = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -186,11 +187,11 @@ const grouped = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d
 /** The hover detail: fresh, read and written input apart. */
 export function fmtTokenDetail(t: TokenUsage | null | undefined): string | null {
   if (!t) return null;
-  if (t.cacheRead === undefined) return `${grouped(t.input)} in · ${grouped(t.output)} out`;
+  if (t.cacheRead === undefined) return $t("components.step-io-model.inOut2", { v0: String(grouped(t.input)), v1: String(grouped(t.output)) });
   const fresh = Math.max(0, t.input - t.cacheRead - (t.cacheWrite ?? 0));
   return (
-    `${grouped(fresh)} fresh · ${grouped(t.cacheRead)} cache read · ` +
-    `${grouped(t.cacheWrite ?? 0)} cache write · ${grouped(t.output)} out`
+    $t("components.step-io-model.freshCacheRead", { v0: String(grouped(fresh)), v1: String(grouped(t.cacheRead)) }) +
+    $t("components.step-io-model.cacheWriteOut", { v0: String(grouped(t.cacheWrite ?? 0)), v1: String(grouped(t.output)) })
   );
 }
 

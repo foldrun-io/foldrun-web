@@ -66,32 +66,32 @@ export function workspaceNav(workspace: string, pathname: string, params: URLSea
     sections: [
       {
         items: [
-          { name: "Overview", href: `${base}${first}`, icon: "overview", on: pathname === base },
-          { name: "Runs", href: `${base}/runs${first}`, icon: "runs", on: at("/runs") },
-          { name: "Observe", href: `${base}/observe${first}`, icon: "observe", on: at("/observe") },
+          { name: $t("components.nav-model.overview"), href: `${base}${first}`, icon: "overview", on: pathname === base },
+          { name: $t("components.nav-model.runs"), href: `${base}/runs${first}`, icon: "runs", on: at("/runs") },
+          { name: $t("components.nav-model.observe"), href: `${base}/observe${first}`, icon: "observe", on: at("/observe") },
         ],
       },
       {
         items: [
-          { name: "Flows", href: `${base}/flows${first}`, icon: "flows", on: at("/flows") },
-          { name: "Agents", href: `${base}/agents${first}`, icon: "agents", on: at("/agents") },
-          { name: "Evals", href: `${base}/evals${first}`, icon: "evals", on: at("/evals") },
-          { name: "Triggers", href: `${base}/triggers${first}`, icon: "triggers", on: at("/triggers") },
+          { name: $t("components.nav-model.flows"), href: `${base}/flows${first}`, icon: "flows", on: at("/flows") },
+          { name: $t("components.nav-model.agents"), href: `${base}/agents${first}`, icon: "agents", on: at("/agents") },
+          { name: $t("components.nav-model.evals"), href: `${base}/evals${first}`, icon: "evals", on: at("/evals") },
+          { name: $t("components.nav-model.triggers"), href: `${base}/triggers${first}`, icon: "triggers", on: at("/triggers") },
         ],
       },
       {
         items: [
-          { name: "Files", href: `${base}/edit${first}`, icon: "files", on: filesOn, more: true },
-          { name: "Tools & hooks", href: `${base}/assets?kind=tools${amp}`, icon: "tools", on: toolsOn },
-          { name: "Storage", href: `${base}/storage${first}`, icon: "storage", on: at("/storage") },
+          { name: $t("components.nav-model.files"), href: `${base}/edit${first}`, icon: "files", on: filesOn, more: true },
+          { name: $t("components.nav-model.toolsHooks"), href: `${base}/assets?kind=tools${amp}`, icon: "tools", on: toolsOn },
+          { name: $t("components.nav-model.storage"), href: `${base}/storage${first}`, icon: "storage", on: at("/storage") },
         ],
       },
       {
         items: [
-          { name: "Checks", href: `${base}/checks${first}`, icon: "checks", on: at("/checks") },
-          { name: "Graph", href: `${base}/graph${first}`, icon: "graph", on: at("/graph") },
-          { name: "History", href: `${base}/history${first}`, icon: "history", on: at("/history") },
-          { name: "Settings", href: `${base}/settings${first}`, icon: "settings", on: at("/settings") },
+          { name: $t("components.nav-model.checks"), href: `${base}/checks${first}`, icon: "checks", on: at("/checks") },
+          { name: $t("components.nav-model.graph"), href: `${base}/graph${first}`, icon: "graph", on: at("/graph") },
+          { name: $t("components.nav-model.history"), href: `${base}/history${first}`, icon: "history", on: at("/history") },
+          { name: $t("components.nav-model.settings"), href: `${base}/settings${first}`, icon: "settings", on: at("/settings") },
         ],
       },
     ],
@@ -107,17 +107,17 @@ export function accountNav(pathname: string, tenant: string, hosted: boolean, co
       {
         items: [
           { name: $t("components.nav-model.workspace"), href: `/dashboard${first}`, icon: "workspaces", on: pathname === "/dashboard" },
-          { name: "Runs", href: `/dashboard/runs${first}`, icon: "runs", on: at("/runs") },
-          { name: "Inbox", href: `/dashboard/inbox${first}`, icon: "inbox", on: at("/inbox"), badge: counts.inbox || undefined },
-          { name: "Issues", href: `/dashboard/issues${first}`, icon: "issues", on: at("/issues") },
-          { name: "Observe", href: `/dashboard/observe${first}`, icon: "observe", on: at("/observe") },
+          { name: $t("components.nav-model.runs"), href: `/dashboard/runs${first}`, icon: "runs", on: at("/runs") },
+          { name: $t("components.nav-model.inbox"), href: `/dashboard/inbox${first}`, icon: "inbox", on: at("/inbox"), badge: counts.inbox || undefined },
+          { name: $t("components.nav-model.issues"), href: `/dashboard/issues${first}`, icon: "issues", on: at("/issues") },
+          { name: $t("components.nav-model.observe"), href: `/dashboard/observe${first}`, icon: "observe", on: at("/observe") },
         ],
       },
       {
         items: [
-          { name: "Library", href: `/dashboard/library?kind=tools${amp}`, icon: "library", on: at("/library"), more: true },
-          { name: "Storage", href: `/dashboard/storage${first}`, icon: "storage", on: at("/storage") },
-          { name: "Graph", href: `/dashboard/graph${first}`, icon: "graph", on: at("/graph") },
+          { name: $t("components.nav-model.library"), href: `/dashboard/library?kind=tools${amp}`, icon: "library", on: at("/library"), more: true },
+          { name: $t("components.nav-model.storage"), href: `/dashboard/storage${first}`, icon: "storage", on: at("/storage") },
+          { name: $t("components.nav-model.graph"), href: `/dashboard/graph${first}`, icon: "graph", on: at("/graph") },
         ],
       },
       // Billing and Settings are the account's, and live in the user menu
@@ -125,7 +125,7 @@ export function accountNav(pathname: string, tenant: string, hosted: boolean, co
       // pages a second time. Their bar titles come from pageTitle below.
       {
         items: [
-          { name: "Usage", href: `/dashboard/usage${first}`, icon: "usage", on: at("/usage") || at("/limits") },
+          { name: $t("components.nav-model.usage"), href: `/dashboard/usage${first}`, icon: "usage", on: at("/usage") || at("/limits") },
         ],
       },
     ],
@@ -136,7 +136,7 @@ export function accountNav(pathname: string, tenant: string, hosted: boolean, co
 export function pageTitle(pathname: string): string | null {
   const seg = pathname.split("/")[2] ?? "";
   return (
-    ({ docs: "Docs", help: "Help", welcome: "Get started", "whats-new": "What's new", profile: "Profile", connect: "Connect", wallet: "Wallet", limits: "Limits", billing: "Billing", settings: "Settings" } as Record<string, string>)[seg] ?? null
+    ({ docs: $t("components.nav-model.docs"), help: $t("components.nav-model.help"), welcome: $t("components.nav-model.getStarted"), "whats-new": $t("components.nav-model.whatSNew"), profile: $t("components.nav-model.profile"), connect: $t("components.nav-model.connect"), wallet: $t("components.nav-model.wallet"), limits: $t("components.nav-model.limits"), billing: $t("components.nav-model.billing"), settings: $t("components.nav-model.settings") } as Record<string, string>)[seg] ?? null
   );
 }
 
@@ -146,11 +146,11 @@ export function filesTabs(workspace: string, tenant: string) {
   const first = tenant !== "default" ? `?tenant=${tenant}` : "";
   const base = `/dashboard/${workspace}/edit`;
   return [
-    { label: "All files", href: `${base}${first}` },
-    { label: "Knowledge", href: `${base}?scope=knowledge${t}` },
-    { label: "Memory", href: `${base}?scope=memory${t}` },
-    { label: "Skills", href: `${base}?scope=skills${t}` },
-    { label: "State", href: `${base}?scope=state${t}` },
+    { label: $t("components.nav-model.allFiles"), href: `${base}${first}` },
+    { label: $t("components.nav-model.knowledge"), href: `${base}?scope=knowledge${t}` },
+    { label: $t("components.nav-model.memory"), href: `${base}?scope=memory${t}` },
+    { label: $t("components.nav-model.skills"), href: `${base}?scope=skills${t}` },
+    { label: $t("components.nav-model.state"), href: `${base}?scope=state${t}` },
   ];
 }
 
@@ -159,8 +159,8 @@ export function toolsTabs(workspace: string, tenant: string) {
   const t = tenant !== "default" ? `&tenant=${tenant}` : "";
   const base = `/dashboard/${workspace}/assets`;
   return [
-    { label: "Tools", href: `${base}?kind=tools${t}` },
-    { label: "Hooks", href: `${base}?kind=hooks${t}` },
+    { label: $t("components.nav-model.tools"), href: `${base}?kind=tools${t}` },
+    { label: $t("components.nav-model.hooks"), href: `${base}?kind=hooks${t}` },
   ];
 }
 
@@ -170,6 +170,6 @@ export function libraryTabs(tenant: string) {
   const first = tenant !== "default" ? `?tenant=${tenant}` : "";
   return [
     ...NOUN_ORDER.map((k) => ({ label: k[0].toUpperCase() + k.slice(1), href: `/dashboard/library?kind=${k}${t}` })),
-    { label: "Files", href: `/dashboard/library/files${first}` },
+    { label: $t("components.nav-model.files"), href: `/dashboard/library/files${first}` },
   ];
 }

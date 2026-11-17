@@ -14,9 +14,13 @@
 //
 // Use: `$t("settings.keys.title")`, `$t("runs.page.count", { n })` — ICU
 // messages (plurals, selects, numbers), the same call in server components,
-// client components and plain modules. English is the only locale for now;
+// client components and plain modules. A sentence with markup inside it is
+// one message with tags, so a translator can move the markup with the words:
+// `$rich("limits.page.everyCap", { code: (chunks) => <code>{chunks}</code> })`
+// for "Every cap here is the <code>budget:</code> line…". English is the only locale for now;
 // `dir` is here so a right-to-left language is one switch later.
 
+import type { ReactNode } from "react";
 import { createTranslator } from "use-intl/core";
 import { CATALOG } from "@/messages/en";
 import TERMS from "@/messages/en/terms.json" with { type: "json" };
@@ -63,4 +67,19 @@ type Values = Record<string, string | number | Date>;
 /** One sentence of the dashboard, by key. */
 export function $t(key: string, values?: Values): string {
   return (translate as unknown as (k: string, v?: Values) => string)(key, values);
+}
+
+type RichValues = Record<string, string | number | Date | ((chunks: ReactNode) => ReactNode)>;
+
+/** One sentence with markup in it: each <tag> in the message is drawn by the
+ *  function of the same name (use-intl keys the elements). */
+export function $rich(key: string, values: RichValues): ReactNode {
+  return (translate.rich as unknown as (k: string, v: RichValues) => ReactNode)(key, values);
+}
+
+/** An element placed inside a sentence as-is: `<localTime></localTime>` in the
+ *  message, `localTime: $el(<LocalTime iso={at} />)` in the code. Built where
+ *  it stood, so the page's own narrowing and values still apply. */
+export function $el(node: ReactNode): () => ReactNode {
+  return () => node;
 }

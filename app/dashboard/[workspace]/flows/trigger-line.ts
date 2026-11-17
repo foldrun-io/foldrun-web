@@ -3,6 +3,7 @@
 // Pure: no store, no React, so a server page and a client widget read it the
 // same way.
 
+import { $t } from "@/i18n";
 import { humanSchedule } from "@/components/schedule-human";
 
 export interface TriggerFacts {
@@ -19,23 +20,23 @@ export interface TriggerFacts {
 export function triggerLine(f: TriggerFacts): string {
   switch (f.trigger) {
     case "schedule":
-      return f.schedule ? `${humanSchedule(f.schedule) ?? f.schedule}${f.timezone ? ` · ${f.timezone}` : ""}` : "On a schedule";
+      return f.schedule ? `${humanSchedule(f.schedule) ?? f.schedule}${f.timezone ? ` · ${f.timezone}` : ""}` : $t("workspace.flows-trigger-line.onASchedule");
     case "webhook":
-      return "When its webhook URL is called";
+      return $t("workspace.flows-trigger-line.whenItsWebhookUrlIsCalled");
     case "email":
-      return "When an email arrives";
+      return $t("workspace.flows-trigger-line.whenAnEmailArrives");
     case "storage":
-      return f.path ? `When a file lands in storage/${f.path}` : "When a file lands in storage/";
+      return f.path ? $t("workspace.flows-trigger-line.whenAFileLandsInStorage", { path: String(f.path) }) : $t("workspace.flows-trigger-line.whenAFileLandsInStorage2");
     case "watch":
-      return f.url ? `When ${f.url} changes` : "When a watched page changes";
+      return f.url ? $t("workspace.flows-trigger-line.whenChanges", { url: String(f.url) }) : $t("workspace.flows-trigger-line.whenAWatchedPageChanges");
     case "flow":
-      return f.after ? `After ${f.after} ${!f.on || f.on === "any" ? "finishes" : f.on === "completed" ? "completes" : `ends ${f.on}`}` : "After another flow";
+      return f.after ? $t("workspace.flows-trigger-line.after", { after: String(f.after), v1: String(!f.on || f.on === "any" ? "finishes" : f.on === "completed" ? "completes" : `ends ${f.on}`) }) : $t("workspace.flows-trigger-line.afterAnotherFlow");
     case "once":
-      return f.at ? `Once, at ${f.at.replace("T", " ").slice(0, 16)}` : "Once";
+      return f.at ? $t("workspace.flows-trigger-line.onceAt", { v0: String(f.at.replace("T", " ").slice(0, 16)) }) : $t("workspace.flows-trigger-line.once");
     case "manual":
     case "":
     case undefined:
-      return "Run by hand";
+      return $t("workspace.flows-trigger-line.runByHand");
     default:
       return f.trigger;
   }

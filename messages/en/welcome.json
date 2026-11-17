@@ -1,0 +1,10 @@
+{
+  "page": {
+    "aFewStepsToADesk": "A few steps to a desk that works. Skip any of them; this page picks up wherever your account is.",
+    "foldrunLoginUrl": "foldrun login --url {origin}",
+    "httpsThisInstall": "https://'<'this install's address'>'",
+    "skipSetup": "Skip setup",
+    "welcome": "Welcome",
+    "welcomeToFoldrun": "Welcome to foldrun"
+  }
+}

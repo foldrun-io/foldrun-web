@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 // One write to PATCH/DELETE /api/workspaces/<ws>/flows/<flow> from the
 // list-view board or the step options editor. Their bodies name steps by
 // index, so each carries `expect` — the text those indices were read from —
@@ -5,7 +6,7 @@
 // the canvas, the editor, a deploy) instead of editing whichever step has
 // that index now. The canvas does the same through its own `send`.
 
-export const STALE_FLOW = "this flow changed since you opened it — reload";
+export const STALE_FLOW = $t("components.flow-write.thisFlowChangedSinceYouOpened");
 
 export type FlowWriteResult =
   | { ok: true; before?: string; text?: string }

@@ -17,7 +17,7 @@
 // the notify: webhooks this workspace sent; and the flows outside agents
 // call over A2A.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
 import { notFound } from "next/navigation";
@@ -45,24 +45,24 @@ export const dynamic = "force-dynamic";
 
 const WINDOWS = [
   { days: 1, label: "24h" },
-  { days: 7, label: "7 days" },
-  { days: 30, label: "30 days" },
+  { days: 7, label: $t("workspace.triggers-page.7Days") },
+  { days: 30, label: $t("workspace.triggers-page.30Days") },
 ];
 
 /** What each outcome means in one phrase, and the key that caused it. The
  *  point of the page is that a person can go and change that key. */
 const REASON: Record<TriggerOutcome, { label: string; key: string; tone: Tone }> = {
-  started: { label: "started a run", key: "", tone: "good" },
-  duplicate: { label: "duplicate delivery", key: "idempotency:", tone: "default" },
-  throttled: { label: "inside the window", key: "throttle:", tone: "warn" },
-  debounced: { label: "held for the burst", key: "debounce:", tone: "info" },
-  quarantined: { label: "flow switched off", key: "disable_after:", tone: "bad" },
-  paused: { label: "work is done, paused", key: "pause_when:", tone: "good" },
-  halted: { label: "paused by a person", key: "Settings → Policies → Pause runs", tone: "bad" },
-  "overlap-skipped": { label: "previous run still live", key: "overlap: skip", tone: "warn" },
-  missed: { label: "missed while down", key: "catchup: none", tone: "warn" },
-  filtered: { label: "did not match the filter", key: "filter:", tone: "default" },
-  "queue-full": { label: "too many runs waiting", key: "Settings → Policies → Governance", tone: "warn" },
+  started: { label: $t("workspace.triggers-page.startedARun"), key: "", tone: "good" },
+  duplicate: { label: $t("workspace.triggers-page.duplicateDelivery"), key: "idempotency:", tone: "default" },
+  throttled: { label: $t("workspace.triggers-page.insideTheWindow"), key: "throttle:", tone: "warn" },
+  debounced: { label: $t("workspace.triggers-page.heldForTheBurst"), key: "debounce:", tone: "info" },
+  quarantined: { label: $t("workspace.triggers-page.flowSwitchedOff"), key: "disable_after:", tone: "bad" },
+  paused: { label: $t("workspace.triggers-page.workIsDonePaused"), key: "pause_when:", tone: "good" },
+  halted: { label: $t("workspace.triggers-page.pausedByAPerson"), key: $t("workspace.triggers-page.settingsPoliciesPauseRuns"), tone: "bad" },
+  "overlap-skipped": { label: $t("workspace.triggers-page.previousRunStillLive"), key: "overlap: skip", tone: "warn" },
+  missed: { label: $t("workspace.triggers-page.missedWhileDown"), key: "catchup: none", tone: "warn" },
+  filtered: { label: $t("workspace.triggers-page.didNotMatchTheFilter"), key: "filter:", tone: "default" },
+  "queue-full": { label: $t("workspace.triggers-page.tooManyRunsWaiting"), key: $t("workspace.triggers-page.settingsPoliciesGovernance"), tone: "warn" },
   failed: { label: "could not start", key: "", tone: "bad" },
 };
 
@@ -154,10 +154,10 @@ export default async function TriggersPage({
         kind: <Tag>{t.trigger}</Tag>,
         ran: s ? (
           <span className="tabular-nums">
-            {s.started} of {s.fired}
+            {$t("workspace.triggers-page.of", { started: String(s.started), fired: String(s.fired) })}
           </span>
         ) : (
-          <span className="text-fg-subtle">nothing fired</span>
+          <span className="text-fg-subtle">{$t("workspace.triggers-page.nothingFired")}</span>
         ),
         held: heldBack > 0 && top ? (
           <Tooltip label={reasons ? <span className="whitespace-pre-line">{reasons}</span> : undefined}>
@@ -170,11 +170,11 @@ export default async function TriggersPage({
             </span>
           </Tooltip>
         ) : undefined,
-        last: s?.lastFiredAt ? <LocalTime iso={s.lastFiredAt} options={WHEN} /> : next ? <span className="text-fg-muted">next {next}</span> : undefined,
+        last: s?.lastFiredAt ? <LocalTime iso={s.lastFiredAt} options={WHEN} /> : next ? <span className="text-fg-muted">{$t("workspace.triggers-page.next", { next: next })}</span> : undefined,
       },
       action: t.info ? (
         <Link href={flowHref(t.name, "settings")} className={buttonVariants({ variant: "secondary" })}>
-          Change
+          {$t("workspace.triggers-page.change")}
         </Link>
       ) : undefined,
       card: (
@@ -184,11 +184,11 @@ export default async function TriggersPage({
           name={t.name}
           sub={t.line}
           status={!s ? "idle" : heldBack > 0 && s.started === 0 ? "error" : "live"}
-          statusLabel={s ? `${s.started} of ${s.fired} became runs` : "nothing fired"}
+          statusLabel={s ? $t("workspace.triggers-page.ofBecameRuns", { started: String(s.started), fired: String(s.fired) }) : $t("workspace.triggers-page.nothingFired")}
           lines={[
-            <><Zap /><span className="truncate">{s ? `${s.fired} fired · ${s.started} ran` : "Nothing fired in this window"}</span></>,
-            ...(top ? [<><Hand /><span className="truncate">Held back: {REASON[top.outcome]?.label ?? top.outcome} ×{top.count}</span></>] : []),
-            ...(next ? [<><Clock3 /><span className="truncate">Next {next}</span></>] : []),
+            <><Zap /><span className="truncate">{s ? $t("workspace.triggers-page.firedRan", { fired: String(s.fired), started: String(s.started) }) : $t("workspace.triggers-page.nothingFiredInThisWindow")}</span></>,
+            ...(top ? [<><Hand /><span className="truncate">{$t("workspace.triggers-page.heldBack", { label: REASON[top.outcome]?.label ?? top.outcome, count: String(top.count) })}</span></>] : []),
+            ...(next ? [<><Clock3 /><span className="truncate">{$t("workspace.triggers-page.next2", { next: next })}</span></>] : []),
           ]}
         />
       ),
@@ -201,11 +201,11 @@ export default async function TriggersPage({
     <Page>
       <HashTab tab={tab} />
       <PageHeader
-        title="Triggers"
-        description="What starts each flow on its own, every time something tried, and what became of it."
+        title={$t("workspace.triggers-page.triggers")}
+        description={$t("workspace.triggers-page.whatStartsEachFlowOnIts")}
         actions={
           <>
-            <div role="group" aria-label="Window" className="inline-flex h-8 items-center gap-0.5 rounded-md border border-line bg-sunken p-0.5">
+            <div role="group" aria-label={$t("workspace.triggers-page.window")} className="inline-flex h-8 items-center gap-0.5 rounded-md border border-line bg-sunken p-0.5">
               {WINDOWS.map((w) => (
                 <Link
                   key={w.days}
@@ -219,24 +219,24 @@ export default async function TriggersPage({
             </div>
             <Link href={`/api/workspaces/${workspace}/triggers?since=${days}`} className={buttonVariants({ variant: "secondary" })}>
               <FileJson aria-hidden />
-              As JSON
+              {$t("workspace.triggers-page.asJson")}
             </Link>
           </>
         }
       />
 
       <StatGrid className="mb-8 grid-cols-3 md:grid-cols-3 xl:grid-cols-3">
-        <Stat label="Triggers fired" value={fired} sub={`in ${WINDOWS.find((w) => w.days === days)?.label ?? `${days} days`}`} />
-        <Stat label="Became runs" value={started} />
-        <Stat label="Held back" value={fired - started} tone={fired - started > 0 ? "warning" : undefined} sub={refused.length ? `${refused.length} refused at the door` : undefined} />
+        <Stat label={$t("workspace.triggers-page.triggersFired")} value={fired} sub={`in ${WINDOWS.find((w) => w.days === days)?.label ?? `${days} days`}`} />
+        <Stat label={$t("workspace.triggers-page.becameRuns")} value={started} />
+        <Stat label={$t("workspace.triggers-page.heldBack2")} value={fired - started} tone={fired - started > 0 ? "warning" : undefined} sub={refused.length ? $t("workspace.triggers-page.refusedAtTheDoor", { length: String(refused.length) }) : undefined} />
       </StatGrid>
 
       <PageTabs
         tabs={[
-          { label: "Triggers", href: tabHref("triggers"), active: tab === "triggers", badge: listed.length || undefined },
-          { label: "Activity", href: tabHref("activity"), active: tab === "activity", badge: events.length || undefined },
-          { label: "Deliveries", href: tabHref("deliveries"), active: tab === "deliveries", badge: refused.length || undefined },
-          { label: "Outbound", href: tabHref("outbound"), active: tab === "outbound" },
+          { label: $t("workspace.triggers-page.triggers"), href: tabHref("triggers"), active: tab === "triggers", badge: listed.length || undefined },
+          { label: $t("workspace.triggers-page.activity"), href: tabHref("activity"), active: tab === "activity", badge: events.length || undefined },
+          { label: $t("workspace.triggers-page.deliveries"), href: tabHref("deliveries"), active: tab === "deliveries", badge: refused.length || undefined },
+          { label: $t("workspace.triggers-page.outbound"), href: tabHref("outbound"), active: tab === "outbound" },
           { label: "A2A", href: tabHref("a2a"), active: tab === "a2a" },
         ]}
       />
@@ -245,30 +245,30 @@ export default async function TriggersPage({
         <div className="space-y-8">
           <ResourceList
             id="triggers"
-            search="Search triggers…"
+            search={$t("workspace.triggers-page.searchTriggers")}
             nameHeader="Flow"
             columns={[
-              { key: "kind", header: "Trigger", hide: "md" },
-              { key: "ran", header: "Ran of fired", hide: "sm" },
-              { key: "held", header: "Held back", hide: "lg" },
-              { key: "last", header: "Last fired", hide: "md" },
+              { key: "kind", header: $t("workspace.triggers-page.trigger"), hide: "md" },
+              { key: "ran", header: $t("workspace.triggers-page.ranOfFired"), hide: "sm" },
+              { key: "held", header: $t("workspace.triggers-page.heldBack2"), hide: "lg" },
+              { key: "last", header: $t("workspace.triggers-page.lastFired"), hide: "md" },
             ]}
             rows={rows}
             empty={
               <EmptyState
                 icon={<Zap />}
-                title="No flow here starts on its own"
+                title={$t("workspace.triggers-page.noFlowHereStartsOnIts")}
                 description={$t("workspace.triggers-page.scheduledWebhookEmailStorageWatchAnd")}
                 action={
                   <Link href={`/dashboard/${workspace}/flows${qs}`} className={buttonVariants({ variant: "secondary" })}>
-                    Flows
+                    {$t("workspace.triggers-page.flows")}
                   </Link>
                 }
               />
             }
           />
           {dropped.length > 0 && (
-            <Panel title="Held back, and why" description="Each reason is a key in the flow file — change it there to change what happens." flush>
+            <Panel title={$t("workspace.triggers-page.heldBackAndWhy")} description={$t("workspace.triggers-page.eachReasonIsAKeyIn")} flush>
               <PanelList>
                 {dropped.map((d) => (
                   <li key={`${d.flow}:${d.outcome}`} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-3">
@@ -293,18 +293,18 @@ export default async function TriggersPage({
         (events.length === 0 ? (
           <EmptyState
             icon={<Zap />}
-            title="Nothing has tried to start a flow in this window"
-            description="Scheduled, webhook, email, storage, watch and chained flows all record here — whether they started a run or were held back by one of the flow's own rules."
+            title={$t("workspace.triggers-page.nothingHasTriedToStartA")}
+            description={$t("workspace.triggers-page.scheduledWebhookEmailStorageWatchAnd2")}
           />
         ) : (
           <TableCard>
             <Table className="min-w-[640px]">
               <THead>
                 <tr>
-                  <TH>When</TH>
-                  <TH>Flow</TH>
-                  <TH>Outcome</TH>
-                  <TH>Detail</TH>
+                  <TH>{$t("workspace.triggers-page.when")}</TH>
+                  <TH>{$t("workspace.triggers-page.flow")}</TH>
+                  <TH>{$t("workspace.triggers-page.outcome")}</TH>
+                  <TH>{$t("workspace.triggers-page.detail")}</TH>
                 </tr>
               </THead>
               <TBody>
@@ -332,20 +332,20 @@ export default async function TriggersPage({
               never becomes a trigger event, so this is the only place it
               shows. */}
           <Panel
-            title="At the hook and inbox URLs"
-            description={refused.length ? `${refused.length} refused before any flow rule applied.` : "Each request to a flow's webhook or inbox, and whether it was let in."}
+            title={$t("workspace.triggers-page.atTheHookAndInboxUrls")}
+            description={refused.length ? $t("workspace.triggers-page.refusedBeforeAnyFlowRuleApplied", { length: String(refused.length) }) : $t("workspace.triggers-page.eachRequestToAFlowS")}
             flush
           >
             {deliveries.length === 0 ? (
-              <EmptyState bare compact icon={<Webhook />} title="No deliveries yet" description="A webhook or email flow records each request it receives here." />
+              <EmptyState bare compact icon={<Webhook />} title={$t("workspace.triggers-page.noDeliveriesYet")} description={$t("workspace.triggers-page.aWebhookOrEmailFlowRecords")} />
             ) : (
               <Table className="min-w-[640px]">
                 <THead>
                   <tr>
-                    <TH>When</TH>
-                    <TH>Flow</TH>
-                    <TH>Outcome</TH>
-                    <TH>Detail</TH>
+                    <TH>{$t("workspace.triggers-page.when")}</TH>
+                    <TH>{$t("workspace.triggers-page.flow")}</TH>
+                    <TH>{$t("workspace.triggers-page.outcome")}</TH>
+                    <TH>{$t("workspace.triggers-page.detail")}</TH>
                   </tr>
                 </THead>
                 <TBody>
@@ -377,16 +377,16 @@ export default async function TriggersPage({
               one. A filtered delivery is "did not match the filter". */}
           <Panel
             id="filters"
-            title="Filters"
+            title={$t("workspace.triggers-page.filters")}
             description={
               <>
-                A flow with <code className="font-mono text-[13px]">filter:</code> starts only for deliveries whose fields match it. Paste a delivery to see what the deployed filter would do — nothing is started.
+                {$rich("workspace.triggers-page.aFlowWithFilterStartsOnly", { code: (chunks) => <code className="font-mono text-[13px]">{chunks}</code> })}
               </>
             }
             flush
           >
             {filtered.length === 0 ? (
-              <EmptyState bare compact title="No flow here has a filter" description="Every delivery to a flow without filter: is its own." />
+              <EmptyState bare compact title={$t("workspace.triggers-page.noFlowHereHasAFilter")} description={$t("workspace.triggers-page.everyDeliveryToAFlowWithout")} />
             ) : (
               <div className="divide-y divide-line">
                 {filtered.map((f) => (
@@ -403,10 +403,10 @@ export default async function TriggersPage({
       {tab === "outbound" && (
         <Panel
           id="deliveries"
-          title="Outbound webhook deliveries"
+          title={$t("workspace.triggers-page.outboundWebhookDeliveries")}
           description={
             <>
-              {$t("workspace.triggers-page.everyNotificationThisWorkspaceS")}{" "}<code className="font-mono text-[13px]">notify:</code> url was sent. A failed one is retried at 1m, 5m, 30m, 2h and 6h, then given up.
+              {$rich("workspace.triggers-page.everyNotificationThisTermSNotify", { code: (chunks) => <code className="font-mono text-[13px]">{chunks}</code> })}
             </>
           }
           bodyClassName="p-0 border-0 bg-transparent overflow-visible"

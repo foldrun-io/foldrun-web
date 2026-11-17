@@ -4,6 +4,7 @@
 // from the bar's banner, an email already sent, a bookmark — lands on the
 // tab that section is on now, and scrolls to it there.
 
+import { $t } from "@/i18n";
 import { useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SECTION_TAB, settingsHref } from "./tabs";
@@ -57,7 +58,7 @@ export function HashTab({ sections, current, base, defaultTab }: { sections: Rec
         return;
       }
       const sep = base.includes("?") ? "&" : "?";
-      router.replace(tab === defaultTab ? `${base}#${id}` : `${base}${sep}tab=${tab}#${id}`);
+      router.replace(tab === defaultTab ? `${base}#${id}` : $t("settings.anchor.tab", { base: String(base), sep: String(sep), tab: String(tab), id: String(id) }));
     };
     go();
     window.addEventListener("hashchange", go);

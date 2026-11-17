@@ -6,7 +6,7 @@
 // setNetworkSetting, so the file stays the program: the CLI's
 // `foldrun agent network` writes the same line.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -43,9 +43,9 @@ export interface AgentNetworkProps {
 }
 
 const LEVEL_HELP: Record<NetworkLevel, string> = {
-  open: "any public site",
-  trusted: "package registries, source hosts and cloud SDKs, plus the sites below",
-  none: "only the sites below and what the agent declares",
+  open: $t("workspace.agents-agent-agent-network.anyPublicSite"),
+  trusted: $t("workspace.agents-agent-agent-network.packageRegistriesSourceHostsAndCloud"),
+  none: $t("workspace.agents-agent-agent-network.onlyTheSitesBelowAndWhat"),
 };
 
 export function AgentNetwork(p: AgentNetworkProps) {
@@ -70,7 +70,7 @@ export function AgentNetwork(p: AgentNetworkProps) {
         headers: { "content-type": "application/json", "x-foldrun-tenant": p.tenant },
         body: JSON.stringify({ network: setting }),
       });
-      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "could not save");
+      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? $t("workspace.agents-agent-agent-network.couldNotSave"));
       setEditing(false);
       router.refresh();
     } catch (err) {
@@ -83,86 +83,80 @@ export function AgentNetwork(p: AgentNetworkProps) {
   return (
     <Card className="mt-4 p-4">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-sm font-medium text-fg">Network</h2>
+        <h2 className="text-sm font-medium text-fg">{$t("workspace.agents-agent-agent-network.network")}</h2>
         <Chip tone={r.level === "open" ? "warn" : "good"}>{r.level}</Chip>
         <span className="text-xs text-fg-subtle">
-          {r.from === "agent" ? "set on this agent" : r.from.startsWith("default") ? (r.readsWeb ? "default — it reads the web" : "default") : `from the ${r.from}`}
+          {r.from === "agent" ? $t("workspace.agents-agent-agent-network.setOnThisAgent") : r.from.startsWith("default") ? (r.readsWeb ? $t("workspace.agents-agent-agent-network.defaultItReadsTheWeb") : "default") : $t("workspace.agents-agent-agent-network.fromThe", { from: String(r.from) })}
           {" · "}
           {LEVEL_HELP[r.level]}
         </span>
         {p.editable && !editing && (
-          <button type="button" onClick={() => setEditing(true)} className={`ml-auto ${buttonVariants({ variant: "secondary", size: "md" })}`}>Change</button>
+          <button type="button" onClick={() => setEditing(true)} className={`ml-auto ${buttonVariants({ variant: "secondary", size: "md" })}`}>{$t("workspace.agents-agent-agent-network.change")}</button>
         )}
       </div>
       {r.level !== "open" && (
         <ul className="mt-2 space-y-1 text-xs text-fg-muted">
-          {r.defaults && <li>The trusted list — {p.trustedCount} sites (npm, PyPI, GitHub, Debian, cloud SDKs, …)</li>}
+          {r.defaults && <li>{$t("workspace.agents-agent-agent-network.theTrustedListSitesNpmPypi", { trustedCount: String(p.trustedCount) })}</li>}
           {r.added.length > 0 && (
-            <li className="flex flex-wrap gap-1">Added: {r.added.map((s) => <code key={s} className="font-mono text-fg">{s}</code>)}</li>
+            <li className="flex flex-wrap gap-1">{$t("workspace.agents-agent-agent-network.added")}{" "}{r.added.map((s) => <code key={s} className="font-mono text-fg">{s}</code>)}</li>
           )}
           {r.implied.length > 0 && (
-            <li className="flex flex-wrap gap-1">Declared by the agent: {r.implied.map((s) => <code key={s} className="font-mono text-fg">{s}</code>)}</li>
+            <li className="flex flex-wrap gap-1">{$t("workspace.agents-agent-agent-network.declaredByTheAgent")}{" "}{r.implied.map((s) => <code key={s} className="font-mono text-fg">{s}</code>)}</li>
           )}
-          <li>A run also allows its MCP servers, web providers and the sites its secrets are bound to.</li>
+          <li>{$t("workspace.agents-agent-agent-network.aRunAlsoAllowsItsMcp")}</li>
         </ul>
       )}
       {r.browses && p.browse === "hosted" && (
         <Callout tone="success" size="sm" className="mt-2">
-          Browsing is held to this list: the browser runs inside the step&apos;s sandbox, whose network reaches only the egress proxy.{" "}
-          {p.dnsWalled
-            ? "It has no DNS of its own either: every name goes to the proxy, which looks up only sites on the list."
-            : "Its DNS lookups are not held to the list on this install."}
+          {$t("workspace.agents-agent-agent-network.browsingIsHeldToThisList3", { part: p.dnsWalled
+            ? $t("workspace.agents-agent-agent-network.itHasNoDnsOfIts")
+            : $t("workspace.agents-agent-agent-network.itsDnsLookupsAreNotHeld") })}
         </Callout>
       )}
       {r.browses && p.browse === "vendor" && (
         <Callout tone="success" size="sm" className="mt-2">
-          Browsing is held to this list through foldrun&apos;s vendor door: <code className="font-mono">{r.browseVendor}</code>&apos;s browser runs on the vendor&apos;s machines, and the session it starts has foldrun&apos;s door as its only proxy.
-          A site one of its secrets is bound to is refused there (a vendor&apos;s browser cannot trust foldrun&apos;s certificate); use foldrun&apos;s own browser for those.
+          {$rich("workspace.agents-agent-agent-network.browsingIsHeldToThisList2", { browseVendor: r.browseVendor ?? "", code: (chunks) => <code className="font-mono">{chunks}</code> })}
         </Callout>
       )}
       {r.browses && p.browse === "refuse" && (
         <Callout tone="warning" size="sm" className="mt-2">
-          This agent browses with <code className="font-mono">{r.browseVendor}</code>, which browses from its own network, so this list cannot hold it: its steps are refused before they connect.
-          Drop <code className="font-mono">browse: {r.browseVendor}</code> to use foldrun&apos;s own browser, which is held to the list.
+          {$rich("workspace.agents-agent-agent-network.thisAgentBrowsesWithWhichBrowses", { browseVendor: r.browseVendor ?? "", code: (chunks) => <code className="font-mono">{chunks}</code> })}
         </Callout>
       )}
       {r.browses && r.level !== "open" && p.browse !== "hosted" && p.browse !== "vendor" && p.browse !== "refuse" && (
         <Callout tone="warning" size="sm" className="mt-2">
-          This agent may browse, and here a browsing step is not held to this list: its browser and its other programs reach sites directly.
-          Browsing is held where the platform confines it and the list is enforced; until then, to keep it inside the list, give it <code className="font-mono">web: {"{actions: [search, fetch]}"}</code>.
+          {$rich("workspace.agents-agent-agent-network.thisAgentMayBrowseAndHere", { code: (chunks) => <code className="font-mono">{chunks}</code> })}
         </Callout>
       )}
       {p.search === "door" && (
         <Callout tone="info" size="sm" className="mt-2">
-          Web search goes through the egress proxy: the account&apos;s search engine answers from a fixed set of engines
-          {p.searchEngines?.length ? <> ({p.searchEngines.join(", ")})</> : null}. A query&apos;s words reach those engines, and each query is on the run&apos;s trace.
-          Results are data: opening one is held to this list.
+          {$t("workspace.agents-agent-agent-network.webSearchGoesThroughTheEgress")}
+          {p.searchEngines?.length ? <> ({p.searchEngines.join(", ")})</> : null}{$t("workspace.agents-agent-agent-network.aQuerySTraceResultsAre")}
         </Callout>
       )}
       {p.search === "unnamed" && (
         <Callout tone="warning" size="sm" className="mt-2">
-          Web search is not offered under this list: it is narrow on purpose ({r.level === "none" ? "network: none" : "no trusted list"}), and the agent&apos;s web: block names no actions.
-          Write <code className="font-mono">web: {"{actions: [search, …]}"}</code> to let it search through the egress proxy.
+          {$t("workspace.agents-agent-agent-network.webSearchIsNotOfferedUnder")}{r.level === "none" ? "network: none" : $t("workspace.agents-agent-agent-network.noTrustedList")}{$rich("workspace.agents-agent-agent-network.andTheAgentToLetIt", { code: (chunks) => <code className="font-mono">{chunks}</code> })}
         </Callout>
       )}
       {editing && (
         <form onSubmit={(e) => { e.preventDefault(); void save(); }} className="mt-3 flex flex-wrap items-end gap-2">
           <label className="block">
-            <span className={labelClass}>Level</span>
+            <span className={labelClass}>{$t("workspace.agents-agent-agent-network.level")}</span>
             <Select value={level} onChange={(e) => setLevel(e.target.value as NetworkLevel | "")} >
-              <option value="">Inherit ({r.from === "agent" ? $t("workspace.agents-agent-agent-network.workspaceOrDefault") : r.level})</option>
-              <option value="trusted">trusted</option>
-              <option value="open">open</option>
-              <option value="none">none</option>
+              <option value="">{$t("workspace.agents-agent-agent-network.inherit")}{r.from === "agent" ? $t("workspace.agents-agent-agent-network.workspaceOrDefault") : r.level})</option>
+              <option value="trusted">{$t("workspace.agents-agent-agent-network.trusted")}</option>
+              <option value="open">{$t("workspace.agents-agent-agent-network.open")}</option>
+              <option value="none">{$t("workspace.agents-agent-agent-network.none")}</option>
             </Select>
           </label>
           <label className="block">
-            <span className={labelClass}>Sites to add</span>
+            <span className={labelClass}>{$t("workspace.agents-agent-agent-network.sitesToAdd")}</span>
             <Input value={sites} onChange={(e) => setSites(e.target.value)} placeholder="api.example.com, *.example.org"
               className="w-80 font-mono" />
           </label>
-          <button type="submit" disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })}>Save</button>
-          <button type="button" onClick={() => setEditing(false)} className={buttonVariants({ variant: "ghost", size: "md" })}>Cancel</button>
+          <button type="submit" disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })}>{$t("workspace.agents-agent-agent-network.save")}</button>
+          <button type="button" onClick={() => setEditing(false)} className={buttonVariants({ variant: "ghost", size: "md" })}>{$t("workspace.agents-agent-agent-network.cancel")}</button>
         </form>
       )}
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}

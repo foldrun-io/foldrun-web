@@ -8,7 +8,7 @@
 // place; the owner is never scoped and is the only one who can hand the
 // account on.
 
-import { $t } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
@@ -50,10 +50,10 @@ interface PendingInvite {
 }
 
 const DESCRIBE: Record<Role, string> = {
-  viewer: "reads everything, changes nothing",
-  editor: "edits, deploys, runs and approves",
+  viewer: $t("settings.team.readsEverythingChangesNothing"),
+  editor: $t("settings.team.editsDeploysRunsAndApproves"),
   admin: $t("settings.team.plusWorkspaceSecretsKeysAndThe"),
-  owner: "plus billing and the admins",
+  owner: $t("settings.team.plusBillingAndTheAdmins"),
 };
 
 /** All workspaces, or a chosen few: the same picker for an invite and for a member. */
@@ -63,12 +63,10 @@ function ScopePicker({ all, value, onChange, disabled = false }: { all: string[]
     <div className="space-y-1.5">
       <RadioGroup className="flex flex-wrap gap-3 text-sm" aria-label={$t("settings.team.workspace")} value={some ? "some" : "all"} disabled={disabled} onValueChange={(v) => onChange(v === "all" ? null : [])}>
         <label className="flex items-center gap-1.5">
-          <RadioGroupItem value="all" />
-          {$t("settings.team.allWorkspace")}
+          {$rich("settings.team.allTerm", { radioGroupItem: $el(<RadioGroupItem value="all" />) })}
         </label>
         <label className="flex items-center gap-1.5">
-          <RadioGroupItem value="some" disabled={disabled || all.length === 0} />
-          Only some
+          {$rich("settings.team.onlySome", { radioGroupItem: $el(<RadioGroupItem value="some" disabled={disabled || all.length === 0} />) })}
         </label>
       </RadioGroup>
       {some && (
@@ -132,8 +130,8 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
     setBusy(false);
   }
   async function revokeInvite(inv: PendingInvite) {
-    const who = inv.email ?? "anyone with the link";
-    if (!(await confirm({ title: `Revoke the invite for ${who}?`, body: "The link stops working at once. You can send a new one later.", confirmLabel: "Revoke" }))) return;
+    const who = inv.email ?? $t("settings.team.anyoneWithTheLink");
+    if (!(await confirm({ title: $t("settings.team.revokeTheInviteFor", { who: String(who) }), body: $t("settings.team.theLinkStopsWorkingAtOnce"), confirmLabel: $t("settings.team.revoke") }))) return;
     if (await call(`/api/team/invites/${encodeURIComponent(inv.id)}`, "DELETE")) router.refresh();
   }
   const copy = async (url: string) => {
@@ -157,7 +155,7 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
     }
   }
   async function remove(m: Member) {
-    if (!(await confirm({ title: `Remove ${m.email}?`, body: "Their sign-in stops working immediately.", confirmLabel: "Remove" }))) return;
+    if (!(await confirm({ title: $t("settings.team.remove", { email: String(m.email) }), body: $t("settings.team.theirSignInStopsWorkingImmediately"), confirmLabel: $t("settings.team.remove2") }))) return;
     if (await call(`/api/team/members/${m.id}`, "DELETE")) router.refresh();
   }
   async function transfer(m: Member) {
@@ -168,12 +166,12 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
     const proof = { password: "", code: "" };
     const body = (
       <div className="space-y-2">
-        <p>They take over billing and the admins. You stay on as an admin. This cannot be undone from your side.</p>
-        <Input type="password" autoComplete="current-password" placeholder="your password" aria-label="Your password" onChange={(e) => { proof.password = e.target.value; }} className="w-full" />
-        <Input inputMode="numeric" autoComplete="one-time-code" placeholder="code from your app, if two-step sign-in is on" aria-label="Two-step code" onChange={(e) => { proof.code = e.target.value; }} className="w-full" />
+        <p>{$t("settings.team.theyTakeOverBillingAndThe")}</p>
+        <Input type="password" autoComplete="current-password" placeholder={$t("settings.team.yourPassword")} aria-label={$t("settings.team.yourPassword2")} onChange={(e) => { proof.password = e.target.value; }} className="w-full" />
+        <Input inputMode="numeric" autoComplete="one-time-code" placeholder={$t("settings.team.codeFromYourAppIfTwo")} aria-label={$t("settings.team.twoStepCode")} onChange={(e) => { proof.code = e.target.value; }} className="w-full" />
       </div>
     );
-    if (!(await confirm({ title: `Make ${m.email} the owner?`, body, confirmLabel: "Transfer ownership" }))) return;
+    if (!(await confirm({ title: $t("settings.team.makeTheOwner", { email: String(m.email) }), body, confirmLabel: $t("settings.team.transferOwnership") }))) return;
     if (await call("/api/team/transfer", "POST", { to: m.id, password: proof.password, ...(proof.code.trim() ? { code: proof.code.trim() } : {}) })) router.refresh();
   }
 
@@ -193,14 +191,14 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
         >
           <div className="space-y-4 p-5 sm:p-6">
             <div className="space-y-1.5">
-              <h2 className="text-lg font-semibold text-fg">Invite people</h2>
-              <p className="text-sm text-fg-muted">An invite is a link that works once, for seven days, and can be revoked until it is used.</p>
+              <h2 className="text-lg font-semibold text-fg">{$t("settings.team.invitePeople")}</h2>
+              <p className="text-sm text-fg-muted">{$t("settings.team.anInviteIsALinkThat")}</p>
             </div>
             <div className="flex flex-wrap items-end gap-3">
-              <Field label="Email" className="min-w-0 flex-1 basis-60">
+              <Field label={$t("settings.team.email")} className="min-w-0 flex-1 basis-60">
                 <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="teammate@company.com" className="w-full" />
               </Field>
-              <Field label="Role">
+              <Field label={$t("settings.team.role")}>
                 <Select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as Role)}  title={DESCRIBE[inviteRole]}>
                   {offer.map((r) => (
                     <option key={r} value={r}>{r}</option>
@@ -209,7 +207,7 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
               </Field>
             </div>
             <div>
-              <span className="mb-1.5 block text-sm font-medium text-fg">Access</span>
+              <span className="mb-1.5 block text-sm font-medium text-fg">{$t("settings.team.access")}</span>
               <ScopePicker all={workspaces} value={inviteScope} onChange={setInviteScope} />
             </div>
           </div>
@@ -219,18 +217,18 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
                 <span role="alert" className="text-danger">{error}</span>
               ) : (
                 <>
-                  <span className="font-medium text-fg">{inviteRole}</span> {DESCRIBE[inviteRole]}. With an address, only that address can accept it.
+                  {$rich("settings.team.withAnAddressOnlyThatAddress", { inviteRole: inviteRole, span: (chunks) => <span className="font-medium text-fg">{chunks}</span>, inviteRole2: DESCRIBE[inviteRole] })}
                 </>
               )}
             </span>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
               <Button type="button" variant="secondary" disabled={busy} onClick={() => void invite(false)}>
-                {email.trim() ? "Just make the link" : "Make a link anyone can use"}
+                {email.trim() ? $t("settings.team.justMakeTheLink") : $t("settings.team.makeALinkAnyoneCanUse")}
               </Button>
-              <Tooltip label={email.trim() ? undefined : "Enter an address to send to"}>
+              <Tooltip label={email.trim() ? undefined : $t("settings.team.enterAnAddressToSendTo")}>
                 <span className="inline-flex">
                   <Button type="submit" variant="primary" disabled={busy || !email.trim()}>
-                    {busy ? "Working…" : "Send invite"}
+                    {busy ? "Working…" : $t("settings.team.sendInvite")}
                   </Button>
                 </span>
               </Tooltip>
@@ -241,12 +239,12 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
 
       {result && (
         <div role="status" className="rounded-lg border border-line bg-surface p-4 text-sm">
-          {result.sent === true && <p className="text-success">Sent to <Email value={result.email} />. The same link, in case they need it:</p>}
-          {result.sent === false && <p className="text-warning">Could not send: {result.sendError}. Copy the link and send it yourself:</p>}
-          {result.sent === null && <p className="text-fg-muted">{result.email ? <>For <Email value={result.email} /> only.</> : "One person with this link can join — share it with care."} It works once, for seven days. Shown once:</p>}
+          {result.sent === true && <p className="text-success">{$rich("settings.team.sentToTheSameLinkIn", { email: $el(<Email value={result.email} />) })}</p>}
+          {result.sent === false && <p className="text-warning">{$t("settings.team.couldNotSendCopyTheLink", { sendError: result.sendError ?? "" })}</p>}
+          {result.sent === null && <p className="text-fg-muted">{result.email ? <>{$rich("settings.team.forOnly", { email: $el(<Email value={result.email} />) })}</> : $t("settings.team.onePersonWithThisLinkCan")}{" "}{$t("settings.team.itWorksOnceForSevenDays")}</p>}
           <div className="mt-2 flex items-center gap-2">
             <code className="min-w-0 flex-1 truncate rounded-md border border-line bg-sunken px-3 py-1.5 font-mono text-xs text-fg-secondary">{result.url}</code>
-            <Button variant="secondary" onClick={() => void copy(result.url)}>{copied ? "Copied" : "Copy"}</Button>
+            <Button variant="secondary" onClick={() => void copy(result.url)}>{copied ? $t("settings.team.copied") : $t("settings.team.copy")}</Button>
           </div>
         </div>
       )}
@@ -254,7 +252,7 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
       {manages && invites.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-end justify-between gap-2 px-1">
-            <h2 className="text-base font-medium text-fg">Pending invites</h2>
+            <h2 className="text-base font-medium text-fg">{$t("settings.team.pendingInvites")}</h2>
             <span className="text-sm tabular-nums text-fg-muted">{invites.length}</span>
           </div>
           <div className="overflow-hidden rounded-lg border border-line bg-surface">
@@ -263,14 +261,14 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
               <li key={inv.id} className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-5">
                 <IconBox round className="max-sm:hidden"><Mail /></IconBox>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-fg">{inv.email ? <Email value={inv.email} /> : <span className="text-fg-muted">anyone with the link</span>}</p>
+                  <p className="truncate text-sm text-fg">{inv.email ? <Email value={inv.email} /> : <span className="text-fg-muted">{$t("settings.team.anyoneWithTheLink")}</span>}</p>
                   <p className="text-xs text-fg-muted">
-                    {describeScope(inv.workspaces)} · invited by <Email value={inv.invitedBy} /> · expires <LocalTime iso={inv.expiresAt} options={{ dateStyle: "medium", timeStyle: "short" }} />
+                    {$rich("settings.team.invitedByExpires", { describeScope: describeScope(inv.workspaces), email: $el(<Email value={inv.invitedBy} />), localTime: $el(<LocalTime iso={inv.expiresAt} options={{ dateStyle: "medium", timeStyle: "short" }} />) })}
                   </p>
                 </div>
                 <Tag><Tooltip label={DESCRIBE[inv.role]}><span>{inv.role}</span></Tooltip></Tag>
                 {(inv.role !== "admin" || managesAdmins) && (
-                  <Button variant="ghost" className="hover:text-danger" onClick={() => void revokeInvite(inv)}>Revoke</Button>
+                  <Button variant="ghost" className="hover:text-danger" onClick={() => void revokeInvite(inv)}>{$t("settings.team.revoke")}</Button>
                 )}
               </li>
             ))}
@@ -281,7 +279,7 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
 
       <section className="space-y-3">
       <div className="flex items-end justify-between gap-2 px-1">
-        <h2 className="text-base font-medium text-fg">Members</h2>
+        <h2 className="text-base font-medium text-fg">{$t("settings.team.members")}</h2>
         <span className="text-sm tabular-nums text-fg-muted">{members.length}</span>
       </div>
       <div className="overflow-hidden rounded-lg border border-line bg-surface">
@@ -293,10 +291,10 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm text-fg">
                     <Email value={m.email} />
-                    {m.email === self && <span className="ml-2 text-xs text-fg-muted">you</span>}
+                    {m.email === self && <span className="ml-2 text-xs text-fg-muted">{$t("settings.team.you")}</span>}
                   </p>
                   <p className="text-xs text-fg-muted">
-                    since <LocalTime iso={m.createdAt} options={{ dateStyle: "medium" }} /> · {m.owner ? $t("settings.team.allWorkspace2") : describeScope(m.workspaces)}
+                    {$rich("settings.team.since", { localTime: $el(<LocalTime iso={m.createdAt} options={{ dateStyle: "medium" }} />), part: m.owner ? $t("settings.team.allWorkspace2") : describeScope(m.workspaces) })}
                     {mayTouch(m) && (
                       <button
                         type="button"
@@ -306,14 +304,14 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
                         }}
                         className="ml-2 font-medium text-link underline-offset-2 hover:underline"
                       >
-                        {editing === m.id ? "cancel" : "change access"}
+                        {editing === m.id ? "cancel" : $t("settings.team.changeAccess")}
                       </button>
                     )}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   {mayTouch(m) ? (
-                    <Select value={m.role} onChange={(e) => void setRole(m, e.target.value as Role)} size="sm" title={DESCRIBE[m.role]} aria-label={`Role for ${m.email}`}>
+                    <Select value={m.role} onChange={(e) => void setRole(m, e.target.value as Role)} size="sm" title={DESCRIBE[m.role]} aria-label={$t("settings.team.roleFor", { email: String(m.email) })}>
                       {offer.map((r) => (
                         <option key={r} value={r}>{r}</option>
                       ))}
@@ -322,10 +320,10 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
                     <Tag><Tooltip label={DESCRIBE[m.role]}><span>{m.role}</span></Tooltip></Tag>
                   )}
                   {mine === "owner" && !m.owner && m.email !== self && (
-                    <Tooltip label="Make them the owner; you become an admin"><Button variant="ghost" onClick={() => transfer(m)}>Transfer</Button></Tooltip>
+                    <Tooltip label={$t("settings.team.makeThemTheOwnerYouBecome")}><Button variant="ghost" onClick={() => transfer(m)}>{$t("settings.team.transfer")}</Button></Tooltip>
                   )}
                   {mayTouch(m) && members.length > 1 && (
-                    <Button variant="ghost" className="hover:text-danger" onClick={() => remove(m)}>Remove</Button>
+                    <Button variant="ghost" className="hover:text-danger" onClick={() => remove(m)}>{$t("settings.team.remove2")}</Button>
                   )}
                 </div>
               </div>
@@ -333,8 +331,8 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
                 <div className="mt-3 space-y-3 rounded-md border border-line bg-sunken p-3">
                   <ScopePicker all={workspaces} value={draftScope} onChange={setDraftScope} />
                   <div className="flex items-center gap-2">
-                    <Button variant="primary" onClick={() => void saveScope(m)}>Save access</Button>
-                    <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
+                    <Button variant="primary" onClick={() => void saveScope(m)}>{$t("settings.team.saveAccess")}</Button>
+                    <Button variant="ghost" onClick={() => setEditing(null)}>{$t("settings.team.cancel")}</Button>
                   </div>
                 </div>
               )}

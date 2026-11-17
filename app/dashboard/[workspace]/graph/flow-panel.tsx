@@ -35,10 +35,10 @@ function toMarkdown(flow: FlowInfo, steps: EditableStep[]): string {
   let group = 0;
   const lines = steps.map((s) => {
     if (!s.parallelWithPrev) group += 1;
-    return `${group}${s.optional ? "?" : ""}. [[${s.agent}]] — ${s.instruction || "describe this step"}`;
+    return `${group}${s.optional ? "?" : ""}. [[${s.agent}]] — ${s.instruction || $t("workspace.graph-flow-panel.describeThisStep")}`;
   });
   const front = [`name: ${flow.name}`, `trigger: ${flow.trigger}`];
-  if (flow.schedule) front.push(`schedule: "${flow.schedule}"`);
+  if (flow.schedule) front.push($t("workspace.graph-flow-panel.schedule", { schedule: String(flow.schedule) }));
   if (flow.timezone) front.push(`timezone: ${flow.timezone}`);
   return `---\n${front.join("\n")}\n---\n\n${lines.join("\n")}\n`;
 }
@@ -96,7 +96,7 @@ export function FlowPanel({
       headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
       body: JSON.stringify({ path: `flows/${flow.file}`, content: toMarkdown(flow, steps) }),
     });
-    setStatus(res.ok ? "saved" : "save failed");
+    setStatus(res.ok ? "saved" : $t("workspace.graph-flow-panel.saveFailed"));
     if (res.ok) {
       onSaved();
       setTimeout(() => setStatus(null), 1500);
@@ -117,7 +117,7 @@ export function FlowPanel({
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         {flows.length > 1 ? (
-          <Select value={flowName} onChange={(e) => switchFlow(e.target.value)} aria-label="Flow" className="min-w-0 flex-1 font-medium">
+          <Select value={flowName} onChange={(e) => switchFlow(e.target.value)} aria-label={$t("workspace.graph-flow-panel.flow")} className="min-w-0 flex-1 font-medium">
             {flows.map((f) => (
               <option key={f.name} value={f.name}>
                 {f.name}
@@ -129,7 +129,7 @@ export function FlowPanel({
         )}
         {status && <Chip tone={status === "save failed" ? "bad" : status === "saved" ? "good" : "default"}>{status}</Chip>}
         <Button variant="primary" size="md" onClick={save}>
-          Save
+          {$t("workspace.graph-flow-panel.save")}
         </Button>
       </div>
 
@@ -147,13 +147,13 @@ export function FlowPanel({
             className="space-y-1.5 rounded-md border border-line bg-sunken p-2"
           >
             <div className="flex items-center gap-1">
-              <Tooltip label="drag to reorder">
+              <Tooltip label={$t("workspace.graph-flow-panel.dragToReorder")}>
                 <span className="cursor-grab text-fg-subtle">
                   <GripVertical className="size-4" aria-hidden />
                 </span>
               </Tooltip>
               <span className="w-5 shrink-0 text-center text-xs tabular-nums text-fg-muted">{groupOf[i]}</span>
-              <Select size="sm" value={s.agent} onChange={(e) => update(i, { agent: e.target.value })} aria-label={`Agent for step ${i + 1}`} className="min-w-0 flex-1">
+              <Select size="sm" value={s.agent} onChange={(e) => update(i, { agent: e.target.value })} aria-label={$t("workspace.graph-flow-panel.agentForStep", { v0: String(i + 1) })} className="min-w-0 flex-1">
                 {agents.map((a) => (
                   <option key={a} value={a}>
                     {a}
@@ -161,10 +161,10 @@ export function FlowPanel({
                 ))}
               </Select>
               {i > 0 && (
-                <Tooltip label="run in parallel with the step above">
+                <Tooltip label={$t("workspace.graph-flow-panel.runInParallelWithTheStep")}>
                   <button
                     type="button"
-                    aria-label="Run in parallel with the step above"
+                    aria-label={$t("workspace.graph-flow-panel.runInParallelWithTheStep2")}
                     aria-pressed={s.parallelWithPrev}
                     onClick={() => update(i, { parallelWithPrev: !s.parallelWithPrev })}
                     className={toggle(s.parallelWithPrev, "good")}
@@ -173,10 +173,10 @@ export function FlowPanel({
                   </button>
                 </Tooltip>
               )}
-              <Tooltip label="optional — failure won't fail the flow">
+              <Tooltip label={$t("workspace.graph-flow-panel.optionalFailureWonTFailThe")}>
                 <button
                   type="button"
-                  aria-label="Optional — failure won't fail the flow"
+                  aria-label={$t("workspace.graph-flow-panel.optionalFailureWonTFailThe2")}
                   aria-pressed={s.optional}
                   onClick={() => update(i, { optional: !s.optional })}
                   className={toggle(s.optional, "warn")}
@@ -184,10 +184,10 @@ export function FlowPanel({
                   ?
                 </button>
               </Tooltip>
-              <Tooltip label="remove step">
+              <Tooltip label={$t("workspace.graph-flow-panel.removeStep")}>
               <button
                 type="button"
-                aria-label="Remove step"
+                aria-label={$t("workspace.graph-flow-panel.removeStep2")}
                 onClick={() =>
                   setSteps(
                     steps
@@ -205,7 +205,7 @@ export function FlowPanel({
               value={s.instruction}
               onChange={(e) => update(i, { instruction: e.target.value })}
               placeholder="instruction"
-              aria-label={`Instruction for step ${i + 1}`}
+              aria-label={$t("workspace.graph-flow-panel.instructionForStep", { v0: String(i + 1) })}
               className="h-8 text-[13px]"
             />
           </li>
@@ -223,10 +223,10 @@ export function FlowPanel({
         }
       >
         <Plus aria-hidden />
-        Add step
+        {$t("workspace.graph-flow-panel.addStep")}
       </Button>
       <p className="text-xs leading-relaxed text-fg-muted">
-        Steps sharing a number run in parallel · ∥ joins the step above · ? makes it optional
+        {$t("workspace.graph-flow-panel.stepsSharingANumberRunIn")}
       </p>
     </div>
   );

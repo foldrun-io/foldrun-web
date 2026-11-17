@@ -1,24 +1,22 @@
+import { $rich, $t } from "@/i18n";
 import { Suspense } from "react";
 import Link from "@foldrun/ui/react/link";
 import { AuthForm } from "../auth-form";
 import { AuthCard } from "../brand";
 import { codeSignInAvailable } from "@/server/login-codes";
 
-export const metadata = { title: "Sign in" };
+export const metadata = { title: $t("auth.login-page.signIn") };
 
 export const dynamic = "force-dynamic";
 
 export default function LoginPage() {
   return (
     <AuthCard
-      title="Sign in"
-      hint="Your agents kept working. See what they did."
+      title={$t("auth.login-page.signIn")}
+      hint={$t("auth.login-page.yourAgentsKeptWorkingSeeWhat")}
       footer={
         <>
-          New here?{" "}
-          <Link href="/signup" className="font-medium text-fg hover:underline">
-            Create an account
-          </Link>
+          {$rich("auth.login-page.newHereCreateAnAccount", { link: (chunks) => <Link href="/signup" className="font-medium text-fg hover:underline">{chunks}</Link> })}
         </>
       }
     >

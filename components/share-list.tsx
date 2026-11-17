@@ -12,6 +12,7 @@
 // again (router.refresh), and a new server list replaces the local one — the
 // file browser above does the same, so the two never contradict each other.
 
+import { $rich, $t, $el } from "@/i18n";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { WithEmails } from "@/components/email";
@@ -64,7 +65,7 @@ export function ShareList({
   const copy = async (url: string) => {
     try {
       await navigator.clipboard.writeText(url);
-      setToast("Link copied");
+      setToast($t("components.share-list.linkCopied"));
     } catch {
       copyFallback(url);
     }
@@ -72,9 +73,9 @@ export function ShareList({
 
   const revoke = async (s: ShareRow) => {
     if (!(await confirm({
-      title: "Revoke this link?",
-      body: `${s.path} — anyone holding the link gets 404 from now on, and the token is never reused.`,
-      confirmLabel: "Revoke link",
+      title: $t("components.share-list.revokeThisLink"),
+      body: $t("components.share-list.anyoneHoldingTheLinkGets404", { path: String(s.path) }),
+      confirmLabel: $t("components.share-list.revokeLink"),
       destructive: true,
     }))) return;
     setBusy(s.id);
@@ -84,12 +85,12 @@ export function ShareList({
         headers: { "x-foldrun-tenant": tenant },
       });
       const j = (await r.json().catch(() => ({}))) as { revoked?: boolean; error?: string };
-      if (!r.ok) throw new Error(j.error ?? `could not revoke (${r.status})`);
+      if (!r.ok) throw new Error(j.error ?? $t("components.share-list.couldNotRevoke", { status: String(r.status) }));
       if (!j.revoked) {
-        setToast(`nothing revoked — that is not a live link`);
+        setToast($t("components.share-list.nothingRevokedThatIsNotA"));
       } else {
         setRows((rs) => rs.map((x) => (x.id === s.id ? { ...x, revokedAt: new Date().toISOString() } : x)));
-        setToast(`Revoked — the link answers 404 from now on`);
+        setToast($t("components.share-list.revokedTheLinkAnswers404From"));
       }
       // Either way the server knows better than this list, and the file
       // browser's "Copy link" must stop offering a revoked token.
@@ -104,16 +105,16 @@ export function ShareList({
   return (
     <section className="mt-8">
       <div className="mb-2 flex items-baseline justify-between gap-3">
-        <h2 className="text-sm font-semibold text-fg">Active links</h2>
+        <h2 className="text-sm font-semibold text-fg">{$t("components.share-list.activeLinks")}</h2>
         {hidden > 0 && (
           <button type="button" className="text-xs font-medium text-fg-muted hover:text-fg" onClick={() => setAll((v) => !v)}>
-            {all ? "Hide expired and revoked" : `Show expired and revoked (${hidden})`}
+            {all ? $t("components.share-list.hideExpiredAndRevoked") : $t("components.share-list.showExpiredAndRevoked", { hidden: String(hidden) })}
           </button>
         )}
       </div>
       {shown.length === 0 ? (
         <p className="rounded-lg border border-dashed border-line p-4 text-sm text-fg-muted">
-          No live links in {workspace}. Share a file above to mint one; it is a link anyone can fetch until it expires or you revoke it.
+          {$t("components.share-list.noLiveLinksInShareA", { workspace: workspace })}
         </p>
       ) : (
         <Card className="divide-y divide-line-faint">
@@ -124,20 +125,18 @@ export function ShareList({
                 <div className="min-w-0">
                   <div className="truncate font-medium text-fg">{s.path}</div>
                   <div className="mt-0.5 text-xs text-fg-muted">
-                    <span className={status.live ? "text-fg-secondary" : "text-red-700"}>{status.label}</span>
-                    {" · by "}<WithEmails text={shareWho(s.createdBy)} />
-                    {" · shared "}<LocalTime iso={s.createdAt} />
+                    {$rich("components.share-list.byShared", { label: status.label, span: (chunks) => <span className={status.live ? "text-fg-secondary" : "text-red-700"}>{chunks}</span>, withEmails: $el(<WithEmails text={shareWho(s.createdBy)} />), localTime: $el(<LocalTime iso={s.createdAt} />) })}
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   {status.live && s.url && (
                     <button type="button" className={buttonVariants({ variant: "secondary", size: "xs" })} onClick={() => copy(s.url!)}>
-                      Copy link
+                      {$t("components.share-list.copyLink")}
                     </button>
                   )}
                   {status.live && canRevoke && (
                     <button type="button" className={buttonVariants({ variant: "danger-outline", size: "xs" })} disabled={busy === s.id} onClick={() => revoke(s)}>
-                      {busy === s.id ? "Revoking…" : "Revoke"}
+                      {busy === s.id ? "Revoking…" : $t("components.share-list.revoke")}
                     </button>
                   )}
                 </div>

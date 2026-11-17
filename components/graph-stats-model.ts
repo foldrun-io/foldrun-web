@@ -10,6 +10,7 @@
 // Pure, so tests/graph-stats.test.ts pins the rules; server/graph.ts
 // attaches the result to nodes by id.
 
+import { $t } from "@/i18n";
 import type { RunRecord, StepRecord } from "@/lib/store";
 import type { GNode } from "@/server/graph";
 
@@ -70,7 +71,7 @@ export function nodeStats(
 
     if (!run.flow.startsWith("adhoc:") && !run.flow.startsWith("eval:")) {
       touch(
-        `flow:${run.workspace}:${run.flow}`,
+        $t("components.graph-stats-model.flow", { workspace: String(run.workspace), flow: String(run.flow) }),
         runStatus(run),
         run.steps.reduce((s, st) => s + (st.costUsd ?? 0), 0),
       );
@@ -83,7 +84,7 @@ export function nodeStats(
     }
     for (const [agent, steps] of byAgent) {
       touch(
-        `agent:${run.workspace}:${agent}`,
+        $t("components.graph-stats-model.agent", { workspace: String(run.workspace), agent: String(agent) }),
         agentStatus(steps),
         steps.reduce((s, st) => s + (st.costUsd ?? 0), 0),
       );
@@ -104,12 +105,12 @@ export function attachStats(nodes: GNode[], stats: Record<string, NodeStats>): v
 }
 
 export function fmtAgo(ms: number): string {
-  if (ms < 60_000) return "just now";
+  if (ms < 60_000) return $t("components.graph-stats-model.justNow");
   const m = Math.floor(ms / 60_000);
-  if (m < 60) return `${m}m ago`;
+  if (m < 60) return $t("components.graph-stats-model.mAgo", { m: String(m) });
   const h = Math.floor(m / 60);
-  if (h < 48) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
+  if (h < 48) return $t("components.graph-stats-model.hAgo", { h: String(h) });
+  return $t("components.graph-stats-model.dAgo", { v0: String(Math.floor(h / 24)) });
 }
 
 export function fmtCost(usd: number): string {
@@ -120,5 +121,5 @@ export function fmtCost(usd: number): string {
 
 /** The counter line under a dot: "12 runs · $3.21". */
 export function statsLine(s: NodeStats): string {
-  return `${s.runs} run${s.runs === 1 ? "" : "s"} · ${fmtCost(s.cost)}`;
+  return $t("components.graph-stats-model.run", { runs: String(s.runs), v1: String(s.runs === 1 ? "" : "s"), v2: String(fmtCost(s.cost)) });
 }

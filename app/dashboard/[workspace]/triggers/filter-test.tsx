@@ -6,6 +6,7 @@
 // and if not, which condition held it back. Nothing is started or recorded
 // (POST …/flows/<flow>/filter).
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { buttonVariants } from "@foldrun/ui/react/button";
 import { labelClass, Textarea } from "@foldrun/ui/react/input";
@@ -14,8 +15,8 @@ import { WithEmails } from "@/components/email";
 /** What the trigger delivers, as a starting point for the box. */
 const SAMPLE: Record<string, unknown> = {
   webhook: { action: "opened", sender: { type: "User" } },
-  email: { from: "ana@example.com", to: "desk@example.com", subject: "Invoice 42", text: "…" },
-  flow: { run: "run-abc", flow: "research", status: "completed", ending: "completed", verdict: "GOOD", summary: "GOOD — …" },
+  email: { from: "ana@example.com", to: "desk@example.com", subject: $t("workspace.triggers-filter-test.invoice42"), text: "…" },
+  flow: { run: "run-abc", flow: "research", status: "completed", ending: "completed", verdict: "GOOD", summary: $t("workspace.triggers-filter-test.good") },
   storage: { by: "upload", paths: ["leads/2026-10-24.csv"] },
 };
 
@@ -60,7 +61,7 @@ export function FilterTest({
       if (!res.ok) setError(body.error ?? `HTTP ${res.status}`);
       else setAnswer({ match: !!body.match, reason: body.reason ?? "" });
     } catch (err) {
-      setError(`could not reach the platform — ${err instanceof Error ? err.message : String(err)}`);
+      setError($t("workspace.triggers-filter-test.couldNotReachThePlatform", { v0: String(err instanceof Error ? err.message : String(err)) }));
     } finally {
       setBusy(false);
     }
@@ -75,11 +76,11 @@ export function FilterTest({
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <span className={labelClass}>filter:</span>
+          <span className={labelClass}>{$t("workspace.triggers-filter-test.filter")}</span>
           <pre className="mt-1.5 max-h-56 overflow-auto rounded-md border border-line bg-sunken p-3 font-mono text-xs text-fg-secondary"><WithEmails text={JSON.stringify(filter, null, 2)} /></pre>
         </div>
         <label className="block">
-          <span className={labelClass}>A delivery to test</span>
+          <span className={labelClass}>{$t("workspace.triggers-filter-test.aDeliveryToTest")}</span>
           <Textarea
             value={payload}
             onChange={(e) => setPayload(e.target.value)}
@@ -91,11 +92,11 @@ export function FilterTest({
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <button onClick={test} disabled={busy} className={buttonVariants({ variant: "secondary" })}>
-          {busy ? "Testing…" : "Test filter"}
+          {busy ? "Testing…" : $t("workspace.triggers-filter-test.testFilter")}
         </button>
         {answer && (
           <p className={`text-sm ${answer.match ? "text-success" : "text-warning"}`}>
-            {answer.match ? "Would start a run" : "Would not start a run"} — <WithEmails text={answer.reason} />
+            {answer.match ? $t("workspace.triggers-filter-test.wouldStartARun") : $t("workspace.triggers-filter-test.wouldNotStartARun")} — <WithEmails text={answer.reason} />
           </p>
         )}
         {error && <p role="alert" className="text-sm text-danger">{error}</p>}

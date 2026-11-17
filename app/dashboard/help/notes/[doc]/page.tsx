@@ -9,6 +9,7 @@
 // Read per request (since 28 Oct 2026, for the CSP nonce): the markdown
 // ships in the image and changes only when a deploy does.
 
+import { $t } from "@/i18n";
 import fs from "node:fs";
 import path from "node:path";
 import { notFound } from "next/navigation";
@@ -31,7 +32,7 @@ export default async function NotePage({ params }: { params: Promise<{ doc: stri
 
   return (
     <Page width="narrow" className="pb-16">
-      <PageHeader back={{ href: "/dashboard/help", label: "Help" }} title={noteTitle(raw, doc)} description="A design note from the repo — why, not how." />
+      <PageHeader back={{ href: "/dashboard/help", label: $t("help.notes-doc-page.help") }} title={noteTitle(raw, doc)} description={$t("help.notes-doc-page.aDesignNoteFromTheRepo")} />
       <Card className="p-5 sm:p-8">
         <Markdown text={raw} />
       </Card>

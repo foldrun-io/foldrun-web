@@ -4,7 +4,7 @@
 // records and file stores at render time; there is no second counter to
 // drift from the facts.
 
-import { $t } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import { Page, PageHeader, SectionTitle, StatGrid, Stat, Callout } from "@foldrun/ui/react/page";
 import { PageTabs } from "@foldrun/ui/react/page-tabs";
 import { Segmented } from "@foldrun/ui/react/segmented";
@@ -24,7 +24,7 @@ import { platform } from "@/lib/platform";
 import { viewerScope } from "@/server/users";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Billing · Usage" };
+export const metadata = { title: $t("usage.page.billingUsage") };
 
 const GB = 1024 * 1024 * 1024;
 const fmtBytes = (b: number) =>
@@ -37,14 +37,14 @@ const dim = <span className="text-fg-subtle">—</span>;
 
 const BUCKET_COLUMNS = [
   { label: "\u00a0" },
-  { label: "Runs", align: "right" as const },
-  { label: "Steps", align: "right" as const },
-  { label: "Tokens in/out", align: "right" as const },
-  { label: "Cached", align: "right" as const },
-  { label: "Sandbox", align: "right" as const },
-  { label: "Models", align: "right" as const },
+  { label: $t("usage.page.runs"), align: "right" as const },
+  { label: $t("usage.page.steps"), align: "right" as const },
+  { label: $t("usage.page.tokensInOutColumn"), align: "right" as const },
+  { label: $t("usage.page.cached"), align: "right" as const },
+  { label: $t("usage.page.sandbox"), align: "right" as const },
+  { label: $t("usage.page.models"), align: "right" as const },
   { label: "Platform*", align: "right" as const },
-  { label: "Total", align: "right" as const },
+  { label: $t("usage.page.total"), align: "right" as const },
 ];
 
 function bucketCells(b: UsageBucket) {
@@ -52,17 +52,17 @@ function bucketCells(b: UsageBucket) {
     b.runs,
     b.steps,
     b.inputTokens + b.outputTokens > 0 ? `${fmtTokens(b.inputTokens)} / ${fmtTokens(b.outputTokens)}` : "—",
-    <Tooltip key="c" label={b.cacheHitRate == null ? "no step here reports cache reads yet" : `${fmtTokens(b.cacheReadTokens)} of ${fmtTokens(b.measuredInputTokens)} input tokens read from the prompt cache`}>
+    <Tooltip key="c" label={b.cacheHitRate == null ? $t("usage.page.noStepHereReportsCacheReads") : $t("usage.page.ofInputTokensReadFromThe", { v0: String(fmtTokens(b.cacheReadTokens)), v1: String(fmtTokens(b.measuredInputTokens)) })}>
       <span>{fmtHit(b) ?? dim}</span>
     </Tooltip>,
     fmtMins(b.computeSecs),
-    <Tooltip key="m" label={`${usdExact(b.modelUsd)} · provider cost ${usdExact(b.tokenCostUsd)}`}>
+    <Tooltip key="m" label={$t("usage.page.providerCost", { v0: String(usdExact(b.modelUsd)), v1: String(usdExact(b.tokenCostUsd)) })}>
       <span>{b.modelUsd > 0 ? credits(b.modelUsd) : dim}</span>
     </Tooltip>,
-    <Tooltip key="p" label={`${usdExact(b.platformUsd)} · ${fmtMins(b.cpuSecs)} CPU·s and ${fmtMins(b.gibSecs)} GiB·s reserved`}>
+    <Tooltip key="p" label={$t("usage.page.cpuSAndGibSReserved", { v0: String(usdExact(b.platformUsd)), v1: String(fmtMins(b.cpuSecs)), v2: String(fmtMins(b.gibSecs)) })}>
       <span>{b.platformUsd > 0 ? credits(b.platformUsd) : dim}</span>
     </Tooltip>,
-    <Tooltip key="t" label={`${usdExact(b.listUsd)} at today's rates`}>
+    <Tooltip key="t" label={$t("usage.page.atTodaySRates", { v0: String(usdExact(b.listUsd)) })}>
       <span className="font-medium">{credits(b.listUsd)}</span>
     </Tooltip>,
   ];
@@ -84,7 +84,7 @@ function SpendTable({ title, rows, unit }: { title: string; rows: SpendSeries[];
     <DataTable
       title={title}
       minWidth="min-w-[480px]"
-      columns={[{ label: unit }, { label: "Runs", align: "right" }, { label: "Over time" }, { label: "Change", align: "right" }, { label: "Charged", align: "right" }]}
+      columns={[{ label: unit }, { label: $t("usage.page.runs"), align: "right" }, { label: $t("usage.page.overTime") }, { label: $t("usage.page.change"), align: "right" }, { label: $t("usage.page.charged"), align: "right" }]}
       rows={rows.slice(0, 20).map((s) => ({
         key: s.name,
         cells: [
@@ -95,7 +95,7 @@ function SpendTable({ title, rows, unit }: { title: string; rows: SpendSeries[];
             height={24}
             max={max}
             className="w-28"
-            bars={s.periods.map((p) => ({ key: p.period, value: p.usd, title: `${p.period}: ${usd(p.usd)}${p.runs ? ` over ${p.runs} runs` : ""}` }))}
+            bars={s.periods.map((p) => ({ key: p.period, value: p.usd, title: `${p.period}: ${usd(p.usd)}${p.runs ? $t("usage.page.overRuns", { runs: String(p.runs) }) : ""}` }))}
           />,
           s.change === null ? (
             <span key="c" className="text-fg-subtle">—</span>
@@ -113,19 +113,19 @@ function SpendTable({ title, rows, unit }: { title: string; rows: SpendSeries[];
 }
 
 const TABS = [
-  { key: "overview", label: "Overview" },
-  { key: "tokens", label: "Tokens" },
-  { key: "compute", label: "Compute" },
-  { key: "rates", label: "Rates" },
+  { key: "overview", label: $t("usage.page.overview") },
+  { key: "tokens", label: $t("usage.page.tokens") },
+  { key: "compute", label: $t("usage.page.compute") },
+  { key: "rates", label: $t("usage.page.rates") },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 
 // Presets for the Tokens and Compute period; the API and CLI take any days.
 const PERIODS = [
-  { key: "month", label: "This month", days: 0 },
-  { key: "7", label: "Last 7 days", days: 7 },
-  { key: "30", label: "Last 30 days", days: 30 },
-  { key: "90", label: "Last 90 days", days: 90 },
+  { key: "month", label: $t("usage.page.thisMonth"), days: 0 },
+  { key: "7", label: $t("usage.page.last7Days"), days: 7 },
+  { key: "30", label: $t("usage.page.last30Days"), days: 30 },
+  { key: "90", label: $t("usage.page.last90Days"), days: 90 },
 ] as const;
 const DAY_MS = 86_400_000;
 /** [from, to] as UTC days; 0 is the month so far (the API's default, so no query). */
@@ -151,7 +151,7 @@ export default async function UsagePage({
   try {
     u = await accountUsage(tenant, { workspaces: scope, from, to });
   } catch (err) {
-    periodError = err instanceof Error ? err.message : "that period cannot be shown";
+    periodError = err instanceof Error ? err.message : $t("usage.page.thatPeriodCannotBeShown");
     u = await accountUsage(tenant, { workspaces: scope });
   }
   // Which preset the shown period is, when it is one.
@@ -167,33 +167,33 @@ export default async function UsagePage({
   return (
     <Page className="pb-16">
       <PageHeader
-        title={platform.edition() === "hosted" ? "Billing" : "Usage"}
+        title={platform.edition() === "hosted" ? $t("usage.page.billing") : $t("usage.page.usage")}
         description={
           <>
-            Everything this account has consumed, from the run records themselves. Generated <LocalTime iso={u.generatedAt} />.
+            {$rich("usage.page.everythingThisAccountHasConsumedFrom", { localTime: $el(<LocalTime iso={u.generatedAt} />) })}
           </>
         }
       />
       <BillingTabs current="usage" tenant={tenant} hosted={platform.edition() === "hosted"} />
       <PageTabs
-        label="Usage"
+        label={$t("usage.page.usage")}
         className="mb-6"
         tabs={TABS.map((t) => ({ label: t.label, href: periodQuery(tenant, t.key, from, to), active: t.key === tab }))}
       />
       {periodError && (
         <Callout tone="warning" role="alert" className="mb-4">
-          {periodError}. Showing {u.period.from} to {u.period.to}.
+          {$t("usage.page.showingTo", { periodError: periodError, from: u.period.from, to: u.period.to })}
         </Callout>
       )}
       {(tab === "tokens" || tab === "compute") && (
         <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2">
           <Segmented
-            label="Period"
+            label={$t("usage.page.period")}
             value={range}
             items={PERIODS.map((r) => ({ key: r.key, label: r.label, href: periodQuery(tenant, tab, ...periodDays(r.days)) }))}
           />
           <p className="text-xs text-fg-muted">
-            {u.period.from} to {u.period.to}, UTC. Any other period: <code className="font-mono">?from=</code> and <code className="font-mono">&amp;to=</code> in the address, <code className="font-mono">--since</code> and <code className="font-mono">--until</code> in the CLI. The overview covers every retained run.
+            {$rich("usage.page.toUtcAnyOtherPeriodFrom", { from: u.period.from, to: u.period.to, code: (chunks) => <code className="font-mono">{chunks}</code> })}
           </p>
         </div>
       )}
@@ -207,23 +207,23 @@ export default async function UsagePage({
 
       {u.waived && u.waived.length > 0 && (
         <Callout tone="success" role="status" className="mb-4">
-          This account is not charged for{" "}
-          {u.waived.map((w) => (w === "models" ? "model tokens" : w === "compute" ? "sandbox time" : "network")).join(", ")}
-          . Everything below is still measured — it is simply not billed, and each run&apos;s ledger line says so.
+          {$t("usage.page.thisAccountIsNotChargedFor")}{" "}
+          {u.waived.map((w) => (w === "models" ? $t("usage.page.modelTokens") : w === "compute" ? $t("usage.page.sandboxTime") : "network")).join(", ")}
+          {$t("usage.page.everythingBelowIsStillMeasuredIt")}
         </Callout>
       )}
 
       <StatGrid className="mb-10 md:grid-cols-4 xl:grid-cols-4">
-        <Stat label="Runs" value={u.totals.runs} />
-        <Stat label="Tokens in / out" value={`${fmtTokens(u.totals.inputTokens)} / ${fmtTokens(u.totals.outputTokens)}`} />
-        <Stat label="Cache hit rate" value={fmtHit(u.totals) ?? "—"} />
-        <Stat label="Sandbox time" value={fmtMins(u.totals.computeSecs)} />
-        <Stat label="Models" value={credits(u.totals.modelUsd)} />
-        <Stat label="Platform" value={credits(u.totals.platformUsd)} />
-        <Stat label="Storage" value={fmtBytes(u.totals.storageBytes)} />
+        <Stat label={$t("usage.page.runs")} value={u.totals.runs} />
+        <Stat label={$t("usage.page.tokensInOut")} value={`${fmtTokens(u.totals.inputTokens)} / ${fmtTokens(u.totals.outputTokens)}`} />
+        <Stat label={$t("usage.page.cacheHitRate")} value={fmtHit(u.totals) ?? "—"} />
+        <Stat label={$t("usage.page.sandboxTime2")} value={fmtMins(u.totals.computeSecs)} />
+        <Stat label={$t("usage.page.models")} value={credits(u.totals.modelUsd)} />
+        <Stat label={$t("usage.page.platform")} value={credits(u.totals.platformUsd)} />
+        <Stat label={$t("usage.page.storage")} value={fmtBytes(u.totals.storageBytes)} />
         {/* The wallet is the whole account's: not shown to a member limited
             to some workspaces (ledger: null, 30 Oct 2026). */}
-        <Stat label="Credit balance" value={u.ledger ? credits(u.ledger.balanceUsd) : "—"} />
+        <Stat label={$t("usage.page.creditBalance")} value={u.ledger ? credits(u.ledger.balanceUsd) : "—"} />
       </StatGrid>
 
       {/* What each desk and each agent costs, and whether that is moving.
@@ -232,36 +232,35 @@ export default async function UsagePage({
       {history && history.totalUsd > 0 && (
         <section className="mb-10">
           <SectionTitle
-            title={`What it costs, by ${history.bucket}`}
+            title={$t("usage.page.whatItCostsBy", { bucket: String(history.bucket) })}
             description={
               <>
-                Charged spend from the ledger, last {history.periods.length} {history.bucket}
-                {history.periods.length === 1 ? "" : "s"}
-                {history.unattributedUsd > 0 ? ` · ${usd(history.unattributedUsd)} from before charges recorded which flow they were` : ""}
+                {$t("usage.page.chargedSpendFromTheLedgerLast", { length: history.periods.length, bucket: history.bucket })}
+                {history.unattributedUsd > 0 ? $t("usage.page.fromBeforeChargesRecordedWhichFlow", { v0: String(usd(history.unattributedUsd)) }) : ""}
               </>
             }
           />
           {(history.modelUsd > 0 || history.platformUsd > 0) && (
             <div className="mb-4 rounded-lg border border-line bg-surface p-5">
-              <p className="text-sm font-medium text-fg">Where the money went, this window</p>
-              <div className="mt-3 flex h-3 w-full overflow-hidden rounded-full bg-muted" role="img" aria-label="models against platform">
+              <p className="text-sm font-medium text-fg">{$t("usage.page.whereTheMoneyWentThisWindow")}</p>
+              <div className="mt-3 flex h-3 w-full overflow-hidden rounded-full bg-muted" role="img" aria-label={$t("usage.page.modelsAgainstPlatform")}>
                 <span className="bg-fg" style={{ width: `${(history.modelUsd / Math.max(0.000001, history.modelUsd + history.platformUsd)) * 100}%` }} />
                 <span className="bg-success" style={{ width: `${(history.platformUsd / Math.max(0.000001, history.modelUsd + history.platformUsd)) * 100}%` }} />
               </div>
               <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-1 text-sm">
                 <div className="flex items-center gap-2">
                   <span className="size-2 rounded-full bg-fg" aria-hidden />
-                  <dt className="text-fg-muted">Models</dt>
+                  <dt className="text-fg-muted">{$t("usage.page.models")}</dt>
                   <dd className="tabular-nums font-medium text-fg">{credits(history.modelUsd)}</dd>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="size-2 rounded-full bg-success" aria-hidden />
-                  <dt className="text-fg-muted">Platform</dt>
+                  <dt className="text-fg-muted">{$t("usage.page.platform")}</dt>
                   <dd className="tabular-nums font-medium text-fg">{credits(history.platformUsd)}</dd>
                 </div>
                 {history.unsplitUsd > 0 && (
                   <div className="flex items-center gap-2">
-                    <dt className="text-fg-subtle">Before the split was recorded</dt>
+                    <dt className="text-fg-subtle">{$t("usage.page.beforeTheSplitWasRecorded")}</dt>
                     <dd className="tabular-nums text-fg-muted">{credits(history.unsplitUsd)}</dd>
                   </div>
                 )}
@@ -269,8 +268,8 @@ export default async function UsagePage({
             </div>
           )}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <SpendTable title="By flow" rows={history.byFlow} unit="Flow" />
-            <SpendTable title="By agent" rows={history.byAgent} unit="Agent" />
+            <SpendTable title={$t("usage.page.byFlow")} rows={history.byFlow} unit="Flow" />
+            <SpendTable title={$t("usage.page.byAgent")} rows={history.byAgent} unit="Agent" />
           </div>
         </section>
       )}
@@ -291,8 +290,7 @@ export default async function UsagePage({
           title={ws.workspace}
           meta={
             <span className="text-xs tabular-nums text-fg-muted">
-              {ws.runs} run{ws.runs === 1 ? "" : "s"} · {credits(ws.listUsd)} · source {fmtBytes(ws.storage.sourceBytes)} · files{" "}
-              {fmtBytes(ws.storage.filesBytes)} · run history {fmtBytes(ws.storage.runsBytes)}
+              {$t("usage.page.runSourceFilesRunHistory", { runs: ws.runs, credits: credits(ws.listUsd), fmtBytes: fmtBytes(ws.storage.sourceBytes), fmtBytes2: fmtBytes(ws.storage.filesBytes), fmtBytes3: fmtBytes(ws.storage.runsBytes) })}
             </span>
           }
           bodyClassName="border-t border-line p-3"
@@ -305,7 +303,7 @@ export default async function UsagePage({
                 key: `f-${flow}`,
                 cells: [
                   <span key="f">
-                    <span className="text-fg-subtle">{flow.startsWith("adhoc:") ? "agent run · " : flow.startsWith("eval:") ? "eval · " : "flow · "}</span>
+                    <span className="text-fg-subtle">{flow.startsWith("adhoc:") ? $t("usage.page.agentRun") : flow.startsWith("eval:") ? $t("usage.page.eval") : $t("usage.page.flow")}</span>
                     {flow.replace(/^adhoc:|^eval:/, "")}
                   </span>,
                   ...bucketCells(b),
@@ -317,7 +315,7 @@ export default async function UsagePage({
                   key: `a-${agent}`,
                   cells: [
                     <span key="a" className="pl-3 text-fg-muted">
-                      <span className="text-fg-subtle">agent · </span>
+                      <span className="text-fg-subtle">{$t("usage.page.agent")}{" "}</span>
                       {agent}
                     </span>,
                     ...bucketCells(b),
@@ -330,17 +328,7 @@ export default async function UsagePage({
       </div>
 
       <p className="max-w-3xl px-1 text-sm leading-relaxed text-fg-muted">
-        <strong className="font-medium text-fg">Models</strong> is what the model calls list at — the provider&apos;s price with the
-        platform&apos;s margin. On your own model key it is zero: those tokens are billed to your
-        provider account, never through us. <strong className="font-medium text-fg">Platform</strong> is everything underneath —
-        the sandbox each step reserved and the network it moved. Hover either for the dollars and
-        the reservations behind it.
-        <br />
-        * The reservation is sandbox seconds × the pod limits in force ({u.podLimits.cpus} CPU,{" "}
-        {u.podLimits.memoryGiB} GiB per step); what a step actually touched inside it is not
-        metered, because reserved capacity is the quantity compute is priced on. Flow rows count
-        whole runs; agent rows attribute each step to the agent that ran it, so the two views sum
-        to the same totals by different cuts.
+        {$rich("usage.page.modelsIsWhatTheModelCalls", { strong: (chunks) => <strong className="font-medium text-fg">{chunks}</strong>, br: $el(<br />), cpus: String(u.podLimits.cpus), memoryGiB: String(u.podLimits.memoryGiB) })}
       </p>
         </>
       )}

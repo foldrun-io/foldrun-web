@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 // How the Usage page writes its figures, so the tabs agree (FOL-125).
 
 export const fmtTokens = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
@@ -22,18 +23,18 @@ export const rateUnit = (meter: string, unit: string) => (meter === "storage" ? 
 export const METER_NAMES: Record<string, string> = {
   vcpu: "vCPU",
   ram: "RAM",
-  disk: "Step disk",
-  storage: "Storage",
-  network: "Network",
-  search: "Search pods",
-  browser: "Browser pods",
-  warm: "Warm builds",
+  disk: $t("components.usage-format.stepDisk"),
+  storage: $t("components.usage-format.storage"),
+  network: $t("components.usage-format.network"),
+  search: $t("components.usage-format.searchPods"),
+  browser: $t("components.usage-format.browserPods"),
+  warm: $t("components.usage-format.warmBuilds"),
 };
 
 export const SUPPLY_NAMES: Record<string, string> = {
-  foldrun: "foldrun's models",
-  operator: "operator's key",
-  own: "your own key",
+  foldrun: $t("components.usage-format.foldrunSModels"),
+  operator: $t("components.usage-format.operatorSKey"),
+  own: $t("components.usage-format.yourOwnKey"),
 };
 
 /** "2026-11-01" → the query the tabs share. */

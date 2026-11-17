@@ -131,7 +131,7 @@ export default async function EvalsPage({
       </span>
     ) : (
       <Chip tone="bad">
-        {kind} &quot;{target}&quot; not found
+        {$t("workspace.evals-page.notFound", { kind: kind, target: target })}
       </Chip>
     );
   };
@@ -143,16 +143,16 @@ export default async function EvalsPage({
     const running = holders.get(e.name);
     const verdict = last ? (
       last.error ? (
-        <Chip tone="bad">could not run</Chip>
+        <Chip tone="bad">{$t("workspace.evals-page.couldNotRun")}</Chip>
       ) : (
         <Chip tone={last.failed === 0 ? "good" : "bad"}>
-          {last.passed}/{last.passed + last.failed} passing
+          {$t("workspace.evals-page.passing", { passed: String(last.passed), passed2: String(last.passed + last.failed) })}
         </Chip>
       )
     ) : running ? (
-      <Chip tone="info">running</Chip>
+      <Chip tone="info">{$t("workspace.evals-page.running")}</Chip>
     ) : (
-      <span className="text-fg-subtle">never run</span>
+      <span className="text-fg-subtle">{$t("workspace.evals-page.neverRun")}</span>
     );
     const open = proposalsOf(e.name).filter((p) => p.status === "ready").length;
     return {
@@ -161,7 +161,7 @@ export default async function EvalsPage({
       href: evalHref(e.name),
       icon: <FlaskConical />,
       name: e.name,
-      sub: `${cases}${e.trigger === "manual" ? " · runs when you press Run" : ""}${open ? ` · ${open} fix${open === 1 ? "" : "es"} to review` : ""}`,
+      sub: `${cases}${e.trigger === "manual" ? $t("workspace.evals-page.runsWhenYouPressRun") : ""}${open ? $t("workspace.evals-page.fixToReview", { open: String(open), v1: String(open === 1 ? "" : "es") }) : ""}`,
       cells: {
         target: targetCell(e),
         judge: <Tag mono>{e.model}</Tag>,
@@ -176,8 +176,8 @@ export default async function EvalsPage({
           name={e.name}
           sub={`${e.flow ? "flow" : "agent"} ${e.flow ?? e.agent ?? ""}`}
           status={last ? (last.failed === 0 && !last.error ? "live" : "error") : "idle"}
-          statusLabel={last ? `${last.passed}/${last.passed + last.failed} passing` : "never run"}
-          lines={[cases, `judge ${e.model}`, last ? `$${last.costUsd.toFixed(4)} last run` : "never run"]}
+          statusLabel={last ? `${last.passed}/${last.passed + last.failed} passing` : $t("workspace.evals-page.neverRun")}
+          lines={[cases, `judge ${e.model}`, last ? $t("workspace.evals-page.lastRun", { v0: String(last.costUsd.toFixed(4)) }) : $t("workspace.evals-page.neverRun")]}
         />
       ),
     };
@@ -191,11 +191,11 @@ export default async function EvalsPage({
       href: evalHref(g.name),
       icon: <Gauge />,
       name: g.name,
-      sub: `grades ${g.sample}% of real runs${g.problems.length ? " · cannot be read" : ""}`,
+      sub: $t("workspace.evals-page.gradesOfRealRuns", { sample: String(g.sample), v1: String(g.problems.length ? $t("workspace.evals-page.cannotBeRead") : "") }),
       cells: {
         target: targetCell(g),
         judge: <Tag mono>{g.model}</Tag>,
-        last: d.summary.graded > 0 ? <Chip tone={rateTone(d.week.rate)}>{pct(d.week.rate)} · 7 days</Chip> : <span className="text-fg-subtle">none graded yet</span>,
+        last: d.summary.graded > 0 ? <Chip tone={rateTone(d.week.rate)}>{$t("workspace.evals-page.7Days", { pct: pct(d.week.rate) })}</Chip> : <span className="text-fg-subtle">{$t("workspace.evals-page.noneGradedYet")}</span>,
         cost: d.summary.graded > 0 ? `$${d.summary.costUsd.toFixed(4)}` : undefined,
       },
       card: (
@@ -205,8 +205,8 @@ export default async function EvalsPage({
           name={g.name}
           sub={`${g.flow ? "flow" : "agent"} ${g.flow ?? g.agent ?? ""}`}
           status={d.summary.graded === 0 ? "idle" : (d.week.rate ?? 1) >= 0.9 ? "live" : "error"}
-          statusLabel={d.summary.graded > 0 ? `${pct(d.week.rate)} passing, 7 days` : "none graded yet"}
-          lines={[`grades ${g.sample}% of runs`, `judge ${g.model}`, `${d.summary.graded} graded in 30 days`]}
+          statusLabel={d.summary.graded > 0 ? $t("workspace.evals-page.passing7Days", { v0: String(pct(d.week.rate)) }) : $t("workspace.evals-page.noneGradedYet")}
+          lines={[$t("workspace.evals-page.gradesOfRuns", { sample: String(g.sample) }), `judge ${g.model}`, $t("workspace.evals-page.gradedIn30Days", { graded: String(d.summary.graded) })]}
         />
       ),
     };
@@ -218,27 +218,27 @@ export default async function EvalsPage({
     <Page>
       <EvalAnchor names={all.map((e) => e.name)} proposals={proposals.map((p) => ({ id: p.id, eval: p.eval }))} tenant={tenant} />
       <PageHeader
-        title="Evals"
-        description="Tests for agents and flows: cases you write, or a grader that checks a sample of real runs."
+        title={$t("workspace.evals-page.evals")}
+        description={$t("workspace.evals-page.testsForAgentsAndFlowsCases")}
         actions={create}
       />
       {all.length === 0 ? (
         <EmptyState
           icon={<FlaskConical />}
           title={$t("workspace.evals-page.noEvalsInThisWorkspaceYet")}
-          description="Add evals/<name>.md naming an agent or flow, with one ## section per case. Without one, there's no way to tell whether a prompt edit made things better or worse."
+          description={$t("workspace.evals-page.addEvalsNameMdNamingAn")}
           action={create}
         />
       ) : (
         <ResourceList
           id="evals"
-          search="Search evals…"
+          search={$t("workspace.evals-page.searchEvals")}
           nameHeader="Eval"
           columns={[
-            { key: "target", header: "Tests", hide: "md" },
-            { key: "judge", header: "Judge", hide: "lg" },
-            { key: "last", header: "Passing", hide: "sm" },
-            { key: "cost", header: "Last cost", align: "end", hide: "lg" },
+            { key: "target", header: $t("workspace.evals-page.tests"), hide: "md" },
+            { key: "judge", header: $t("workspace.evals-page.judge"), hide: "lg" },
+            { key: "last", header: $t("workspace.evals-page.passing2"), hide: "sm" },
+            { key: "cost", header: $t("workspace.evals-page.lastCost"), align: "end", hide: "lg" },
           ]}
           rows={[...caseRows, ...graderRows]}
         />

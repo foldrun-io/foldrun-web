@@ -84,12 +84,12 @@ type AgentWithAssets = AgentInfo & { assets: AgentAssets };
 // ---------------------------------------------------------------- words
 
 const KIND_WORD: Record<Kind, string> = {
-  agent: "Agent",
-  flow: "Flow",
-  tool: "Tool",
-  skill: "Skill",
-  knowledge: "Knowledge",
-  memory: "Memory",
+  agent: $t("workspace.graph-graph-client.agent"),
+  flow: $t("workspace.graph-graph-client.flow"),
+  tool: $t("workspace.graph-graph-client.tool"),
+  skill: $t("workspace.graph-graph-client.skill"),
+  knowledge: $t("workspace.graph-graph-client.knowledge"),
+  memory: $t("workspace.graph-graph-client.memory"),
   scope: $t("workspace.graph-graph-client.workspace"),
 };
 
@@ -117,12 +117,12 @@ function KindIcon({ kind, scope, className }: { kind: Kind; scope?: Scope; class
 type FilterKey = "scope" | "flow" | "agent" | "tool" | "skill" | "knowledge" | "memory";
 const FILTERS: { key: FilterKey; label: string; icon: LucideIcon }[] = [
   { key: "scope", label: $t("workspace.graph-graph-client.accountAndWorkspace"), icon: Boxes },
-  { key: "flow", label: "Flows", icon: Workflow },
-  { key: "agent", label: "Agents", icon: Bot },
-  { key: "tool", label: "Tools", icon: Wrench },
-  { key: "skill", label: "Skills", icon: BookOpen },
-  { key: "knowledge", label: "Knowledge", icon: FileText },
-  { key: "memory", label: "Memory", icon: Brain },
+  { key: "flow", label: $t("workspace.graph-graph-client.flows"), icon: Workflow },
+  { key: "agent", label: $t("workspace.graph-graph-client.agents"), icon: Bot },
+  { key: "tool", label: $t("workspace.graph-graph-client.tools"), icon: Wrench },
+  { key: "skill", label: $t("workspace.graph-graph-client.skills"), icon: BookOpen },
+  { key: "knowledge", label: $t("workspace.graph-graph-client.knowledge"), icon: FileText },
+  { key: "memory", label: $t("workspace.graph-graph-client.memory"), icon: Brain },
 ];
 
 /** A run status as the outcome model reads it. The graph's counters carry no
@@ -137,16 +137,16 @@ function relationWord(l: GLink, me: GNode, other: GNode): string {
   const out = idOf(l.source) === me.id;
   switch (l.kind) {
     case "owns":
-      if (out) return me.kind === "flow" ? "Steps" : "Contains";
-      return other.kind === "flow" ? "Step in" : "Belongs to";
+      if (out) return me.kind === "flow" ? $t("workspace.graph-graph-client.steps") : $t("workspace.graph-graph-client.contains");
+      return other.kind === "flow" ? $t("workspace.graph-graph-client.stepIn") : $t("workspace.graph-graph-client.belongsTo");
     case "use":
-      return me.kind === "agent" ? "Uses" : "Used by";
+      return me.kind === "agent" ? $t("workspace.graph-graph-client.uses") : $t("workspace.graph-graph-client.usedBy");
     case "step":
-      return out ? "Hands off to" : "Takes over from";
+      return out ? $t("workspace.graph-graph-client.handsOffTo") : $t("workspace.graph-graph-client.takesOverFrom");
     case "consult":
-      return out ? "Asks" : "Asked by";
+      return out ? $t("workspace.graph-graph-client.asks") : $t("workspace.graph-graph-client.askedBy");
     case "delegate":
-      return out ? "Delegates to" : "Takes jobs from";
+      return out ? $t("workspace.graph-graph-client.delegatesTo") : $t("workspace.graph-graph-client.takesJobsFrom");
   }
 }
 
@@ -341,20 +341,20 @@ function GraphView({
       };
       const stats = n.stats;
       const ran = stats ? fmtAgo(openedAt - Date.parse(stats.lastAt)) : null;
-      const title = stats ? `${n.label} — last run ${stats.last}, ${ran} · ${statsLine(stats)} in 7 days` : undefined;
+      const title = stats ? $t("workspace.graph-graph-client.lastRunIn7Days", { label: String(n.label), last: String(stats.last), ran: String(ran), v3: String(statsLine(stats)) }) : undefined;
       const runLine = stats ? (stats.runs > 0 ? `${ran} · ${statsLine(stats)}` : `ran ${ran}`) : null;
       switch (n.kind) {
         case "scope":
           return n.scope === "account"
-            ? { meta: `${plural(count("Contains", "scope"), $t("common.workspaceOne"), $t("common.workspaceOther"))} · ${count("Contains") - count("Contains", "scope")} shared` }
+            ? { meta: $t("workspace.graph-graph-client.shared", { v0: String(plural(count("Contains", "scope"), $t("common.workspaceOne"), $t("common.workspaceOther"))), v1: String(count("Contains") - count("Contains", "scope")) }) }
             : { meta: `${plural(count("Contains", "agent"), "agent")} · ${plural(count("Contains", "flow"), "flow")}` };
         case "flow":
-          return { meta: runLine ?? `${plural(count("Steps"), "step")} · never ran`, title };
+          return { meta: runLine ?? $t("workspace.graph-graph-client.neverRan", { v0: String(plural(count("Steps"), "step")) }), title };
         case "agent":
-          return { meta: runLine ?? `${plural(count("Step in"), "flow")} · never ran`, title };
+          return { meta: runLine ?? $t("workspace.graph-graph-client.neverRan", { v0: String(plural(count($t("workspace.graph-graph-client.stepIn")), "flow")) }), title };
         case "tool": {
-          const users = count("Used by");
-          return { meta: `Tool · ${owner()}${users > 1 ? ` · ${users} agents` : ""}` };
+          const users = count($t("workspace.graph-graph-client.usedBy"));
+          return { meta: $t("workspace.graph-graph-client.tool2", { v0: String(owner()), v1: String(users > 1 ? $t("workspace.graph-graph-client.agents2", { users: String(users) }) : "") }) };
         }
         default:
           return { meta: `${KIND_WORD[n.kind]} · ${owner()}` };
@@ -449,7 +449,7 @@ function GraphView({
         const zoom = keepZoom ? rf.getZoom() : Math.max(rf.getZoom(), 0.9);
         // On a phone the panel covers the lower part of the canvas: centre
         // the card in what is left above it.
-        const phone = window.matchMedia("(max-width: 767px)").matches;
+        const phone = window.matchMedia($t("workspace.graph-graph-client.maxWidth767px")).matches;
         const shift = phone ? ((canvasRef.current?.clientHeight ?? 0) * 0.36) / zoom : 0;
         void rf.setCenter(n.position.x + w / 2, n.position.y + h / 2 + shift, { zoom, duration: 350 });
       });
@@ -547,7 +547,7 @@ function GraphView({
     setPanel("edit");
   };
 
-  const heading = workspace ? "Graph" : `${(title ?? "account").charAt(0).toUpperCase()}${(title ?? "account").slice(1)} graph`;
+  const heading = workspace ? $t("workspace.graph-graph-client.graph") : `${(title ?? "account").charAt(0).toUpperCase()}${(title ?? "account").slice(1)} graph`;
 
   return (
     <Page width="full">
@@ -569,25 +569,25 @@ function GraphView({
                 if (matches[0]) select(matches[0], "zoom");
               }}
             >
-              <SearchField inputRef={searchRef} size="md" value={query} onChange={setQuery} placeholder="Find a card…" autoFocusKey={false} note={q ? `${matches.length} found` : <Kbd>/</Kbd>} />
+              <SearchField inputRef={searchRef} size="md" value={query} onChange={setQuery} placeholder={$t("workspace.graph-graph-client.findACard")} autoFocusKey={false} note={q ? `${matches.length} found` : <Kbd>/</Kbd>} />
             </form>
             <Segmented
-              label="Layout"
+              label={$t("workspace.graph-graph-client.layout")}
               value={layoutName}
               items={[
-                { key: "map", label: <><Columns3 className="size-4" aria-hidden />Map</>, href: layoutHref("map") },
-                { key: "tree", label: <><Network className="size-4" aria-hidden />Tree</>, href: layoutHref("tree") },
+                { key: "map", label: <><Columns3 className="size-4" aria-hidden />{$t("workspace.graph-graph-client.map")}</>, href: layoutHref("map") },
+                { key: "tree", label: <><Network className="size-4" aria-hidden />{$t("workspace.graph-graph-client.tree")}</>, href: layoutHref("tree") },
               ]}
             />
             <Menu>
               <MenuTrigger asChild>
-                <Button size="md" aria-label="Show on the graph">
+                <Button size="md" aria-label={$t("workspace.graph-graph-client.showOnTheGraph")}>
                   <ListFilter aria-hidden />
-                  <span className="max-sm:sr-only">{hiddenCount ? `Show · ${FILTERS.length - hiddenCount} of ${FILTERS.length}` : "Show"}</span>
+                  <span className="max-sm:sr-only">{hiddenCount ? $t("workspace.graph-graph-client.showOf", { v0: String(FILTERS.length - hiddenCount), length: String(FILTERS.length) }) : $t("workspace.graph-graph-client.show")}</span>
                 </Button>
               </MenuTrigger>
               <MenuContent className="w-56">
-                <MenuLabel>Show on the graph</MenuLabel>
+                <MenuLabel>{$t("workspace.graph-graph-client.showOnTheGraph")}</MenuLabel>
                 {FILTERS.map((f) => (
                   <M.CheckboxItem
                     key={f.key}
@@ -613,14 +613,14 @@ function GraphView({
                 ))}
                 <MenuSeparator />
                 <MenuItem disabled={!hiddenCount} onSelect={() => setHidden(new Set())}>
-                  Show everything
+                  {$t("workspace.graph-graph-client.showEverything")}
                 </MenuItem>
               </MenuContent>
             </Menu>
-            <Tooltip label="Fit everything in view (0)">
+            <Tooltip label={$t("workspace.graph-graph-client.fitEverythingInView0")}>
               <Button size="md" onClick={fit} className="max-sm:hidden">
                 <Maximize aria-hidden />
-                Fit
+                {$t("workspace.graph-graph-client.fit")}
               </Button>
             </Tooltip>
             {/* Editing a flow needs a workspace to write into. The account
@@ -628,7 +628,7 @@ function GraphView({
             {workspace && (
               <Button size="md" onClick={() => (panel === "edit" ? setPanel(selected ? "details" : null) : openEditor(selectedNode?.kind === "flow" ? selectedNode.label : undefined))} aria-pressed={panel === "edit"}>
                 <Workflow aria-hidden />
-                {panel === "edit" ? "Close editor" : "Edit flow"}
+                {panel === "edit" ? $t("workspace.graph-graph-client.closeEditor") : $t("workspace.graph-graph-client.editFlow")}
               </Button>
             )}
           </>
@@ -643,7 +643,7 @@ function GraphView({
               bare
               className="h-full"
               icon={<Network />}
-              title="Nothing to graph yet"
+              title={$t("workspace.graph-graph-client.nothingToGraphYet")}
               description={emptyMessage ?? $t("workspace.graph-graph-client.addAnAgentToThisWorkspace")}
             />
           ) : (
@@ -675,7 +675,7 @@ function GraphView({
               minZoom={0.1}
               maxZoom={2}
               proOptions={{ hideAttribution: true }}
-              aria-label={workspace ? `Graph of ${workspace}` : "Graph of the account"}
+              aria-label={workspace ? $t("workspace.graph-graph-client.graphOf", { workspace: String(workspace) }) : $t("workspace.graph-graph-client.graphOfTheAccount")}
             >
               <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
               {layout.groups.length > 0 && (
@@ -683,7 +683,7 @@ function GraphView({
                   {layout.groups.map((g) => (
                     <div
                       key={g.key}
-                      style={{ position: "absolute", transform: `translate(${g.x}px, ${g.y}px)`, width: g.w, height: g.h }}
+                      style={{ position: "absolute", transform: $t("workspace.graph-graph-client.translatePxPx", { x: String(g.x), y: String(g.y) }), width: g.w, height: g.h }}
                       className="pointer-events-none rounded-xl border border-line"
                     >
                       <div className="flex h-9 items-center gap-2 border-b border-line-faint px-4 text-[13px] font-medium text-fg-secondary">
@@ -699,7 +699,7 @@ function GraphView({
                   {layout.columns.map((c) => (
                     <div
                       key={c.key}
-                      style={{ position: "absolute", transform: `translate(${c.x}px, ${layout.top - 36}px)`, width: c.w }}
+                      style={{ position: "absolute", transform: $t("workspace.graph-graph-client.translatePxPx2", { x: String(c.x), v1: String(layout.top - 36) }), width: c.w }}
                       className="pointer-events-none flex items-center gap-1.5 px-1 text-[13px] font-medium text-fg-secondary"
                     >
                       {c.label}
@@ -735,12 +735,12 @@ function GraphView({
 
         {panel && (
           <aside
-            aria-label={panel === "edit" ? "Flow editor" : "Details"}
+            aria-label={panel === "edit" ? $t("workspace.graph-graph-client.flowEditor") : $t("workspace.graph-graph-client.details")}
             className="z-10 flex flex-col overflow-hidden bg-surface max-md:absolute max-md:inset-x-0 max-md:bottom-0 max-md:max-h-[72%] max-md:rounded-t-lg max-md:border-t max-md:border-line max-md:shadow-overlay md:w-[22rem] md:shrink-0 md:border-l md:border-line"
           >
             {panel === "edit" && workspace ? (
               <>
-                <PanelHead icon={<Workflow />} title="Edit flow" sub="Reorder, join or drop steps, then save." onClose={() => setPanel(selected ? "details" : null)} />
+                <PanelHead icon={<Workflow />} title={$t("workspace.graph-graph-client.editFlow")} sub={$t("workspace.graph-graph-client.reorderJoinOrDropStepsThen")} onClose={() => setPanel(selected ? "details" : null)} />
                 <div className="min-h-0 flex-1 overflow-y-auto p-4">
                   <FlowPanel
                     key={editFlow ?? ""}
@@ -769,7 +769,7 @@ function GraphView({
         )}
       </div>
       <p className="mt-3 px-1 text-[13px] text-fg-muted max-md:hidden">
-        Click a card for its details, double-click to open it. Hover to light what it connects to. The dot is how its last run ended; counts are the last 7 days.
+        {$t("workspace.graph-graph-client.clickACardForItsDetails")}
       </p>
     </Page>
   );
@@ -800,9 +800,9 @@ function Legend() {
         </span>
       ))}
       <span className="h-3.5 w-px bg-line" aria-hidden />
-      <span className="inline-flex items-center gap-1.5">{line()}contains</span>
-      <span className="inline-flex items-center gap-1.5">{line("5 4")}uses</span>
-      <span className="inline-flex items-center gap-1.5">{line("1.5 4")}hands off</span>
+      <span className="inline-flex items-center gap-1.5">{line()}{$t("workspace.graph-graph-client.contains2")}</span>
+      <span className="inline-flex items-center gap-1.5">{line("5 4")}{$t("workspace.graph-graph-client.uses2")}</span>
+      <span className="inline-flex items-center gap-1.5">{line("1.5 4")}{$t("workspace.graph-graph-client.handsOff")}</span>
     </div>
   );
 }
@@ -812,34 +812,34 @@ function ZoomBar({ onFit, onReset, minimap, onMinimap }: { onFit: () => void; on
   const zoom = useStore((s) => s.transform[2]);
   return (
     <div className="flex items-center gap-0.5 rounded-md border border-line bg-surface p-0.5 text-fg-secondary shadow-xs">
-      <Tooltip label="Zoom out (−)">
-        <Button size="icon-sm" variant="ghost" onClick={() => void rf.zoomOut({ duration: 200 })} aria-label="Zoom out">
+      <Tooltip label={$t("workspace.graph-graph-client.zoomOut")}>
+        <Button size="icon-sm" variant="ghost" onClick={() => void rf.zoomOut({ duration: 200 })} aria-label={$t("workspace.graph-graph-client.zoomOut2")}>
           <Minus />
         </Button>
       </Tooltip>
-      <Tooltip label="Fit everything in view (0)">
+      <Tooltip label={$t("workspace.graph-graph-client.fitEverythingInView0")}>
         <button type="button" onClick={onFit} className="h-8 min-w-[3.25rem] rounded-sm px-1 text-[13px] tabular-nums hover:bg-muted">
           {Math.round(zoom * 100)}%
         </button>
       </Tooltip>
-      <Tooltip label="Zoom in (+)">
-        <Button size="icon-sm" variant="ghost" onClick={() => void rf.zoomIn({ duration: 200 })} aria-label="Zoom in">
+      <Tooltip label={$t("workspace.graph-graph-client.zoomIn")}>
+        <Button size="icon-sm" variant="ghost" onClick={() => void rf.zoomIn({ duration: 200 })} aria-label={$t("workspace.graph-graph-client.zoomIn2")}>
           <Plus />
         </Button>
       </Tooltip>
       <span className="mx-0.5 h-5 w-px bg-line" aria-hidden />
-      <Tooltip label="Fit everything in view (0)">
-        <Button size="icon-sm" variant="ghost" onClick={onFit} aria-label="Fit">
+      <Tooltip label={$t("workspace.graph-graph-client.fitEverythingInView0")}>
+        <Button size="icon-sm" variant="ghost" onClick={onFit} aria-label={$t("workspace.graph-graph-client.fit")}>
           <Maximize />
         </Button>
       </Tooltip>
-      <Tooltip label="Put dragged cards back">
-        <Button size="icon-sm" variant="ghost" onClick={onReset} aria-label="Reset layout">
+      <Tooltip label={$t("workspace.graph-graph-client.putDraggedCardsBack")}>
+        <Button size="icon-sm" variant="ghost" onClick={onReset} aria-label={$t("workspace.graph-graph-client.resetLayout")}>
           <RotateCcw />
         </Button>
       </Tooltip>
-      <Tooltip label={minimap ? "Hide the minimap" : "Show the minimap"}>
-        <Button size="icon-sm" variant="ghost" onClick={onMinimap} aria-pressed={minimap} aria-label="Minimap" className="max-md:hidden aria-pressed:bg-muted aria-pressed:text-fg">
+      <Tooltip label={minimap ? $t("workspace.graph-graph-client.hideTheMinimap") : $t("workspace.graph-graph-client.showTheMinimap")}>
+        <Button size="icon-sm" variant="ghost" onClick={onMinimap} aria-pressed={minimap} aria-label={$t("workspace.graph-graph-client.minimap")} className="max-md:hidden aria-pressed:bg-muted aria-pressed:text-fg">
           <MapIcon />
         </Button>
       </Tooltip>
@@ -855,7 +855,7 @@ function PanelHead({ icon, title, sub, onClose }: { icon: React.ReactNode; title
         <p className="truncate text-sm font-medium text-fg">{title}</p>
         {sub && <p className="truncate text-[13px] text-fg-muted">{sub}</p>}
       </div>
-      <Button size="icon-sm" variant="ghost" onClick={onClose} aria-label="Close panel" className="-mr-1.5">
+      <Button size="icon-sm" variant="ghost" onClick={onClose} aria-label={$t("workspace.graph-graph-client.closePanel")} className="-mr-1.5">
         <X />
       </Button>
     </div>
@@ -871,29 +871,29 @@ function linksFor(n: GNode, tenant: string): { label: string; href: string }[] {
   const out: { label: string; href: string }[] = [];
   switch (n.kind) {
     case "scope":
-      if (n.scope === "account") out.push({ label: "Open library", href: `/dashboard/library${q}` });
+      if (n.scope === "account") out.push({ label: $t("workspace.graph-graph-client.openLibrary"), href: `/dashboard/library${q}` });
       else if (n.href) out.push({ label: $t("workspace.graph-graph-client.openWorkspace"), href: n.href });
       break;
     case "agent":
-      if (ws) out.push({ label: "Open agent", href: `/dashboard/${ws}/agents/${encodeURIComponent(n.label)}${q}` });
-      if (n.href) out.push({ label: "Open file", href: n.href });
+      if (ws) out.push({ label: $t("workspace.graph-graph-client.openAgent"), href: `/dashboard/${ws}/agents/${encodeURIComponent(n.label)}${q}` });
+      if (n.href) out.push({ label: $t("workspace.graph-graph-client.openFile"), href: n.href });
       break;
     case "flow":
-      if (ws) out.push({ label: "Open flow", href: `/dashboard/${ws}/flows?flow=${encodeURIComponent(n.label)}${qa}` });
-      if (n.href) out.push({ label: "Open file", href: n.href });
+      if (ws) out.push({ label: $t("workspace.graph-graph-client.openFlow"), href: `/dashboard/${ws}/flows?flow=${encodeURIComponent(n.label)}${qa}` });
+      if (n.href) out.push({ label: $t("workspace.graph-graph-client.openFile"), href: n.href });
       break;
     case "tool":
-      if (n.scope === "account") out.push({ label: "Open in library", href: `/dashboard/library?kind=tools${qa}` });
-      else if (n.scope === "workspace" && ws) out.push({ label: "Open in Tools", href: `/dashboard/${ws}/assets?kind=tools${qa}` });
+      if (n.scope === "account") out.push({ label: $t("workspace.graph-graph-client.openInLibrary"), href: `/dashboard/library?kind=tools${qa}` });
+      else if (n.scope === "workspace" && ws) out.push({ label: $t("workspace.graph-graph-client.openInTools"), href: `/dashboard/${ws}/assets?kind=tools${qa}` });
       break;
     default:
-      if (n.scope === "account") out.push({ label: "Open in library", href: `/dashboard/library?kind=${plural}${qa}` });
-      else if (ws) out.push({ label: "Open in Files", href: `/dashboard/${ws}/edit?scope=${plural}${qa}` });
+      if (n.scope === "account") out.push({ label: $t("workspace.graph-graph-client.openInLibrary"), href: `/dashboard/library?kind=${plural}${qa}` });
+      else if (ws) out.push({ label: $t("workspace.graph-graph-client.openInFiles"), href: `/dashboard/${ws}/edit?scope=${plural}${qa}` });
   }
   return out;
 }
 
-const SCOPE_WORD: Record<Scope, string> = { account: "Account library", workspace: $t("workspace.graph-graph-client.workspace"), agent: "Agent's own" };
+const SCOPE_WORD: Record<Scope, string> = { account: $t("workspace.graph-graph-client.accountLibrary"), workspace: $t("workspace.graph-graph-client.workspace"), agent: $t("workspace.graph-graph-client.agentSOwn") };
 
 function Details({
   node,
@@ -917,7 +917,7 @@ function Details({
   const stats = node.stats;
   const outcome = stats ? outcomeOfStatus(stats.last) : null;
   const ws = workspaceOf(node);
-  const kindWord = node.kind === "scope" ? (node.scope === "account" ? "Account" : $t("workspace.graph-graph-client.workspace")) : KIND_WORD[node.kind];
+  const kindWord = node.kind === "scope" ? (node.scope === "account" ? $t("workspace.graph-graph-client.account") : $t("workspace.graph-graph-client.workspace")) : KIND_WORD[node.kind];
   const asset = !isMajor(node.kind);
   const sub = [kindWord, asset && node.scope ? SCOPE_WORD[node.scope] : null, node.kind !== "scope" && ws ? ws : null].filter(Boolean).join(" · ");
   const links = linksFor(node, tenant);
@@ -928,19 +928,19 @@ function Details({
         {stats && (
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-[13px]">
             <div>
-              <dt className="text-fg-muted">Last run</dt>
+              <dt className="text-fg-muted">{$t("workspace.graph-graph-client.lastRun")}</dt>
               <dd className="mt-0.5">{outcome ? <Status outcome={outcome} /> : <span className="text-fg-secondary">{stats.last}</span>}</dd>
             </div>
             <div>
-              <dt className="text-fg-muted">Started</dt>
+              <dt className="text-fg-muted">{$t("workspace.graph-graph-client.started")}</dt>
               <dd className="mt-0.5 text-fg-secondary">{fmtAgo(openedAt - Date.parse(stats.lastAt))}</dd>
             </div>
             <div>
-              <dt className="text-fg-muted">Runs, 7 days</dt>
+              <dt className="text-fg-muted">{$t("workspace.graph-graph-client.runs7Days")}</dt>
               <dd className="mt-0.5 tabular-nums text-fg">{stats.runs}</dd>
             </div>
             <div>
-              <dt className="text-fg-muted">Spend, 7 days</dt>
+              <dt className="text-fg-muted">{$t("workspace.graph-graph-client.spend7Days")}</dt>
               <dd className="mt-0.5 tabular-nums text-fg">{fmtCost(stats.cost)}</dd>
             </div>
           </dl>
@@ -957,7 +957,7 @@ function Details({
             {onEdit && (
               <Button size="sm" onClick={onEdit}>
                 <Workflow aria-hidden />
-                Edit steps
+                {$t("workspace.graph-graph-client.editSteps")}
               </Button>
             )}
           </div>
@@ -994,7 +994,7 @@ function Details({
             </section>
           ))
         ) : (
-          <p className="text-[13px] text-fg-muted">Nothing connects to this yet.</p>
+          <p className="text-[13px] text-fg-muted">{$t("workspace.graph-graph-client.nothingConnectsToThisYet")}</p>
         )}
       </div>
     </>

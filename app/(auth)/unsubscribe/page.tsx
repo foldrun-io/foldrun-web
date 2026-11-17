@@ -5,13 +5,14 @@
 // A mail client's own Unsubscribe button skips this page and posts directly
 // (RFC 8058).
 
+import { $rich, $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { readUnsubscribeToken, mailCategory } from "@/lib/mail";
 import { buttonVariants } from "@foldrun/ui/react/button";
 import { cn } from "@foldrun/ui/react/cn";
 import { AuthCard } from "../brand";
 
-export const metadata = { title: "Unsubscribe — foldrun" };
+export const metadata = { title: $t("auth.unsubscribe-page.unsubscribeFoldrun") };
 export const dynamic = "force-dynamic";
 
 export default async function UnsubscribePage({ searchParams }: { searchParams: Promise<{ token?: string; done?: string }> }) {
@@ -21,9 +22,9 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
     if ("error" in read) {
       return (
         <>
-          <h1 className="mb-1.5 text-xl font-semibold tracking-tight text-fg">This link does not work</h1>
+          <h1 className="mb-1.5 text-xl font-semibold tracking-tight text-fg">{$t("auth.unsubscribe-page.thisLinkDoesNotWork")}</h1>
           <p className="text-sm text-fg-muted">
-            {read.status === 410 ? read.error : "It is incomplete or was not made by this install. Open it from the email again, or sign in and change what you receive under Profile → Notifications."}
+            {read.status === 410 ? read.error : $t("auth.unsubscribe-page.itIsIncompleteOrWasNot")}
           </p>
         </>
       );
@@ -34,26 +35,26 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
     if (done) {
       return (
         <>
-          <h1 className="mb-1.5 text-xl font-semibold tracking-tight text-fg">Unsubscribed</h1>
+          <h1 className="mb-1.5 text-xl font-semibold tracking-tight text-fg">{$t("auth.unsubscribe-page.unsubscribed")}</h1>
           <p className="mb-4 text-sm text-fg-muted">
-            <strong className="text-fg">{claim.email}</strong> will get no more {what}. Everything else you receive is unchanged — and mail about security, invites and failed payments is always sent.
+            {$rich("auth.unsubscribe-page.willGetNoMoreEverythingElse", { email: claim.email, strong: (chunks) => <strong className="text-fg">{chunks}</strong>, what: what })}
           </p>
           <p className="text-sm text-fg-muted">
-            Changed your mind? Turn it back on under <Link href="/dashboard/profile?tab=notifications#notifications" className="font-medium text-fg hover:underline">Profile → Notifications</Link>.
+            {$rich("auth.unsubscribe-page.changedYourMindTurnItBack", { link: (chunks) => <Link href="/dashboard/profile?tab=notifications#notifications" className="font-medium text-fg hover:underline">{chunks}</Link> })}
           </p>
         </>
       );
     }
     return (
       <>
-        <h1 className="mb-1.5 text-xl font-semibold tracking-tight text-fg">Stop {what}?</h1>
+        <h1 className="mb-1.5 text-xl font-semibold tracking-tight text-fg">{$t("auth.unsubscribe-page.stop", { what: what })}</h1>
         <p className="mb-6 text-sm text-fg-muted">
-          For <strong className="text-fg">{claim.email}</strong>. {cat.description}
+          {$rich("auth.unsubscribe-page.for", { email: claim.email, strong: (chunks) => <strong className="text-fg">{chunks}</strong>, description: cat.description })}
         </p>
         <form method="post" action="/api/unsubscribe">
           <input type="hidden" name="token" value={token} />
           <input type="hidden" name="from" value="page" />
-          <button type="submit" className={cn(buttonVariants({ variant: "primary", size: "md" }), "w-full")}>Unsubscribe</button>
+          <button type="submit" className={cn(buttonVariants({ variant: "primary", size: "md" }), "w-full")}>{$t("auth.unsubscribe-page.unsubscribe")}</button>
         </form>
       </>
     );

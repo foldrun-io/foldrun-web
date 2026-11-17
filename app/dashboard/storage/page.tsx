@@ -7,7 +7,7 @@
 // of another's uploads — so uploading happens on a desk's own page, a link
 // away on each card. Genuinely shared assets belong in the account library.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { listWorkspaces } from "@/lib/store";
 import { scopeAllows } from "@/platform/scope";
@@ -29,11 +29,11 @@ export default async function AccountStoragePage({ searchParams }: { searchParam
   if (!fileStoreEnabled()) {
     return (
       <Page>
-        <PageHeader title="Storage" />
+        <PageHeader title={$t("storage.page.storage")} />
         <EmptyState
           icon={<HardDrive />}
-          title="No file store on this instance"
-          description={<>{$t("storage.page.thisInstanceRunsASingleWorkspace")}{" "}<code className="font-mono text-xs">storage/</code> is a directory in that folder.</>}
+          title={$t("storage.page.noFileStoreOnThisInstance")}
+          description={<>{$rich("storage.page.thisInstanceRunsASingleTerm", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code> })}</>}
         />
       </Page>
     );
@@ -48,11 +48,11 @@ export default async function AccountStoragePage({ searchParams }: { searchParam
   return (
     <Page>
       <PageHeader
-        title="Storage"
-        description="Every file your desks keep — what you uploaded and what their runs produced. Open a desk to see its files; drop files on a desk to upload."
+        title={$t("storage.page.storage")}
+        description={$t("storage.page.everyFileYourDesksKeepWhat")}
         actions={
           <Link href={`/dashboard/library/files${qs}`} className={buttonVariants({ variant: "secondary", size: "md" })}>
-            <Library /> Shared library
+            <Library />{" "}{$t("storage.page.sharedLibrary")}
           </Link>
         }
       />

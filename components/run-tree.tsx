@@ -5,6 +5,7 @@
 // The same tree GET …/runs/<id>/trace answers and `foldrun report --tree`
 // prints (core trace-tree.ts), built here from the run the page already polls.
 
+import { $t } from "@/i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { buildTraceTree, failurePath, type TraceSpan } from "@/lib/trace-tree";
 import type { RunRecord } from "@/lib/store";
@@ -69,8 +70,8 @@ function Row({
   const left = span.start !== null ? ((span.start - range.start) / range.width) * 100 : 0;
   const width = dur !== null ? Math.max(0.6, (dur / range.width) * 100) : 0;
   const facts = [
-    span.kind === "model" && span.tokens ? `${k(span.tokens.input)} in${span.tokens.input && span.tokens.cacheRead ? ` (${Math.round((100 * span.tokens.cacheRead) / span.tokens.input)}% cached)` : ""} · ${k(span.tokens.output)} out` : null,
-    span.kind === "step" && span.tokens ? `${k(span.tokens.input)} in · ${k(span.tokens.output)} out` : null,
+    span.kind === "model" && span.tokens ? $t("components.run-tree.inOut", { v0: String(k(span.tokens.input)), v1: String(span.tokens.input && span.tokens.cacheRead ? $t("components.run-tree.cached", { v0: String(Math.round((100 * span.tokens.cacheRead) / span.tokens.input)) }) : ""), v2: String(k(span.tokens.output)) }) : null,
+    span.kind === "step" && span.tokens ? $t("components.run-tree.inOut2", { v0: String(k(span.tokens.input)), v1: String(k(span.tokens.output)) }) : null,
     span.stop ?? null,
     span.subagent ? `↳ ${span.subagent}` : null,
   ].filter(Boolean);
@@ -82,7 +83,7 @@ function Row({
       >
         <div className="flex min-w-0 items-center gap-1.5" style={{ paddingLeft: `${depth * 14}px` }}>
           {span.children.length > 0 ? (
-            <button type="button" aria-expanded={isOpen} aria-label={isOpen ? "Fold" : "Unfold"} onClick={() => toggle(span.id)} className="flex size-4 shrink-0 items-center justify-center text-fg-muted hover:text-fg">
+            <button type="button" aria-expanded={isOpen} aria-label={isOpen ? $t("components.run-tree.fold") : $t("components.run-tree.unfold")} onClick={() => toggle(span.id)} className="flex size-4 shrink-0 items-center justify-center text-fg-muted hover:text-fg">
               <ChevronRight className={`size-3.5 transition-transform ${isOpen ? "rotate-90" : ""}`} aria-hidden />
             </button>
           ) : (
@@ -147,15 +148,15 @@ export function RunTree({ run, workspace, tenant, now }: { run: RunRecord; works
     <section className="overflow-hidden rounded-lg border border-line bg-surface">
       <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-sunken px-4 py-2 text-[13px]">
         <span className="text-fg-muted">
-          {tree.children.length} step{tree.children.length === 1 ? "" : "s"} · {calls} model call{calls === 1 ? "" : "s"}
-          {path.length > 0 ? " · opened on what went wrong" : ""}
+          {$t("components.run-tree.stepModelCall", { length: tree.children.length, calls: calls })}
+          {path.length > 0 ? $t("components.run-tree.openedOnWhatWentWrong") : ""}
         </span>
         <span className="ml-auto flex items-center gap-3">
           <button type="button" onClick={() => setTouched(new Map(allIds.map((id) => [id, true])))} className="text-fg-muted hover:text-fg hover:underline">
-            Expand all
+            {$t("components.run-tree.expandAll")}
           </button>
           <button type="button" onClick={() => setTouched(new Map(allIds.filter((id) => id !== "run").map((id) => [id, false])))} className="text-fg-muted hover:text-fg hover:underline">
-            Collapse
+            {$t("components.run-tree.collapse")}
           </button>
         </span>
       </header>

@@ -1,7 +1,11 @@
 {
   "page": {
+    "aRunIsAFlowS": "A run is a flow's steps in order, each handed to the agent it names. The demo pipeline runs in a minute.",
+    "allRuns": "All runs",
     "everyRunAcrossEveryWorkspaceIn": "Every run across every {@workspace.one} in this account.",
+    "noRunsYet": "No runs yet",
     "nothingMatchesTheseFiltersClearOne": "Nothing matches these filters. Clear one, or start a run from a {@workspace.one} page.",
+    "runYourFirstFlow": "Run your first flow",
     "searchRunsIdFlowWorkspaceHeadline": "Search runs — id, flow, {@workspace.one}, headline, error…"
   }
 }

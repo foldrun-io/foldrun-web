@@ -1,4 +1,4 @@
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import { scopeAllows } from "@/platform/scope";
 import { platform } from "@/lib/platform";
 import Link from "@foldrun/ui/react/link";
@@ -119,9 +119,9 @@ function nextFires(expr: string, timeZone: string, count = 2): { iso: string | n
 
 /** Why a flag is what it is, in the words the settings page shows. */
 const FLAG_SOURCE: Record<string, string> = {
-  account: "set for this account",
-  global: "set for every account",
-  rollout: "staged rollout",
+  account: $t("settings.page.setForThisAccount"),
+  global: $t("settings.page.setForEveryAccount"),
+  rollout: $t("settings.page.stagedRollout"),
   default: "default",
 };
 
@@ -161,10 +161,10 @@ export default async function SettingsPage({
 
   const connectedNote =
     connected || connect_error ? (
-      <Callout role={connected ? "status" : "alert"} tone={connected ? "success" : "danger"} title={connected ? "Connected" : "Connect failed"} className="px-4 py-3">
+      <Callout role={connected ? "status" : "alert"} tone={connected ? "success" : "danger"} title={connected ? $t("settings.page.connected") : $t("settings.page.connectFailed")} className="px-4 py-3">
         {connected ? (
           <>
-            The credential landed in the secret <code className="font-mono">{connected}</code>.
+            {$rich("settings.page.theCredentialLandedInTheSecret", { connected: connected, code: (chunks) => <code className="font-mono">{chunks}</code> })}
           </>
         ) : (
           connect_error
@@ -174,10 +174,10 @@ export default async function SettingsPage({
 
   return (
     <SettingsShell
-      title="Settings"
+      title={$t("settings.page.settings")}
       subtitle={
         <>
-          Account <span className="font-mono text-fg-secondary">{tenant}</span> — who you are, keys, secrets, and everything that starts a run without a person.
+          {$rich("settings.page.accountWhoYouAreKeysSecrets", { tenant: tenant, span: (chunks) => <span className="font-mono text-fg-secondary">{chunks}</span> })}
         </>
       }
       tabs={tabs}
@@ -214,29 +214,29 @@ async function GeneralTab({ tenant, qs, session, isOwner }: { tenant: string; qs
   return (
     <>
       <SettingsSection id="account">
-        <SettingsCard title="Account picture" description="Shown beside the account's name in the sidebar and on invites.">
+        <SettingsCard title={$t("settings.page.accountPicture")} description={$t("settings.page.shownBesideTheAccountSName")}>
           <AvatarEditor kind="account" id={tenant} name={tenant} src={avatarUrl(tenant, "account", tenant)} tenant={tenant} />
         </SettingsCard>
         <SettingsCard
-          title="Signed in"
+          title={$t("settings.page.signedIn")}
           description={
             <>
-              {session?.email ? <Email value={session.email} /> : "No one signed in (dev mode)"} · account <span className="font-mono">{tenant}</span>
+              {session?.email ? <Email value={session.email} /> : $t("settings.page.noOneSignedInDevMode")}{" "}{$rich("settings.page.account", { tenant: tenant, span: (chunks) => <span className="font-mono">{chunks}</span> })}
             </>
           }
-          hint="Your own name, password and sessions are on your profile."
+          hint={$t("settings.page.yourOwnNamePasswordAndSessions")}
           footer={
             <>
               <Link href={`/dashboard/usage${qs}`} className={buttonVariants({ variant: "secondary" })}>
-                Usage
+                {$t("settings.page.usage")}
               </Link>
               {platform.edition() === "hosted" && (
                 <Link href={`/dashboard/wallet${qs}`} className={buttonVariants({ variant: "secondary" })}>
-                  Wallet
+                  {$t("settings.page.wallet")}
                 </Link>
               )}
               <Link href={`/dashboard/profile${qs}`} className={buttonVariants({ variant: "primary" })}>
-                Profile
+                {$t("settings.page.profile")}
               </Link>
             </>
           }
@@ -249,11 +249,11 @@ async function GeneralTab({ tenant, qs, session, isOwner }: { tenant: string; qs
 
       <SettingsSection id="about">
         <SettingsCard
-          title="About"
-          description="The version of foldrun this install runs, and the commit of each part behind it."
+          title={$t("settings.page.about")}
+          description={$t("settings.page.theVersionOfFoldrunThisInstall")}
           footer={
             <Link href={`/dashboard/whats-new${qs}`} className={buttonVariants({ variant: "secondary" })}>
-              What&apos;s new
+              {$t("settings.page.whatSNew")}
             </Link>
           }
         >
@@ -265,7 +265,7 @@ async function GeneralTab({ tenant, qs, session, isOwner }: { tenant: string; qs
       </SettingsSection>
 
       <SettingsSection id="beta">
-        <SettingsCard title="Beta features" description="Get new features before they reach everyone." hint={<code className="font-mono text-xs">foldrun account beta on</code>}>
+        <SettingsCard title={$t("settings.page.betaFeatures")} description={$t("settings.page.getNewFeaturesBeforeTheyReach")} hint={<code className="font-mono text-xs">foldrun account beta on</code>}>
           <BetaFeatures
             initial={await betaProgram(tenant)}
             flags={flags.filter((f) => f.beta).map(({ name, description, on, source }) => ({ name, description, on, source }))}
@@ -275,7 +275,7 @@ async function GeneralTab({ tenant, qs, session, isOwner }: { tenant: string; qs
       </SettingsSection>
 
       <SettingsSection id="flags">
-        <SettingsCard title="Feature flags" description="Features the platform turns on account by account. Read-only: the platform team decides them." hint={<code className="font-mono text-xs">foldrun flags</code>} flush>
+        <SettingsCard title={$t("settings.page.featureFlags")} description={$t("settings.page.featuresThePlatformTurnsOnAccount")} hint={<code className="font-mono text-xs">foldrun flags</code>} flush>
           <ul className="divide-y divide-line">
             {flags.map((f) => (
               <li key={f.name} className="flex flex-wrap items-start justify-between gap-3 px-5 py-3 sm:px-6">
@@ -334,7 +334,7 @@ async function PoliciesTab({
           remounted when the value changes on the server (the AGENTS.md editor
           below wrote it) and never because a sibling card saved, so pending
           edits elsewhere are kept (Codex review). */}
-      <SettingsSection id="governance" title="Governance" description="Who answers for the agents, what they may run at once, and what a deploy refuses. In AGENTS.md: governance:.">
+      <SettingsSection id="governance" title={$t("settings.page.governance")} description={$t("settings.page.whoAnswersForTheAgentsWhat")}>
         {halt.account && pause}
         <OwnerCard key={JSON.stringify(defaults.owner ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.owner} />
         {/* The plan's number, not the install's alone: until 26 Oct 2026 this read only FOLDRUN_PLAN_CONCURRENCY, so a customer on a plan saw the wrong figure. */}
@@ -356,21 +356,21 @@ async function PoliciesTab({
           runsWaiting={{ waiting: scope ? null : waitingRunCount(tenant), limit: (await waitingRunsCap(tenant)).limit }}
         />
         <DeployBlockCard key={JSON.stringify(defaults.deployBlock ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.deployBlock} />
-        <p className="px-1 text-sm text-fg-muted">Also governance: the account budget (Billing), roles and keys (Team, API keys), and each agent&apos;s own owner.</p>
+        <p className="px-1 text-sm text-fg-muted">{$t("settings.page.alsoGovernanceTheAccountBudgetBilling")}</p>
       </SettingsSection>
 
-      <SettingsSection id="guardrail" title="Guardrail" description="What the agents may reach and call. In AGENTS.md: guardrail: — limits, network and hooks every agent here starts from.">
+      <SettingsSection id="guardrail" title={$t("settings.page.guardrail")} description={$t("settings.page.whatTheAgentsMayReachAnd")}>
         <NetworkEnforceCard key={JSON.stringify(defaults.networkEnforce ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.networkEnforce} />
-        <p className="px-1 text-sm text-fg-muted">Each agent&apos;s own limits, network and hooks are on its page; foldrun check --security lists what reaches too far.</p>
+        <p className="px-1 text-sm text-fg-muted">{$t("settings.page.eachAgentSOwnLimitsNetwork")}</p>
       </SettingsSection>
 
-      <SettingsSection id="observability" title="Observability" description="What runs record, and who is told when something crosses a line. In AGENTS.md: observability:.">
+      <SettingsSection id="observability" title={$t("settings.page.observability")} description={$t("settings.page.whatRunsRecordAndWhoIs")}>
         <NotifyCard key={JSON.stringify(defaults.notify ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.notify} scopeNote={$t("settings.page.everyWorkspaceInheritsThisUntilIt")} />
         <AlertsCard key={JSON.stringify(defaults.alerts ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.alerts} />
         <TelemetryCard key={JSON.stringify(defaults.telemetry ?? null)} tenant={tenant} initial={defaults.telemetry} mayEdit={managesWorkspaces && scope === null} />
       </SettingsSection>
 
-      <SettingsSection id="evaluation" title="Evaluation" description={$t("settings.page.howTheAgentsWorkIsJudged")}>
+      <SettingsSection id="evaluation" title={$t("settings.page.evaluation")} description={$t("settings.page.howTheAgentsWorkIsJudged")}>
         <JudgeCard key={JSON.stringify(defaults.judge ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.judge} />
       </SettingsSection>
 
@@ -378,20 +378,20 @@ async function PoliciesTab({
         {scope !== null ? (
           <p className="px-1 text-sm text-fg-muted">{$t("settings.page.itIsEveryWorkspaceSOnly")}</p>
         ) : (
-          <SettingsCard title="The account's AGENTS.md" description={$t("settings.page.proseEveryAgentReadsAboveIts")}>
+          <SettingsCard title={$t("settings.page.theAccountSAgentsMd")} description={$t("settings.page.proseEveryAgentReadsAboveIts")}>
             <InlineEditor accountFile accountFileSha={accountMdSha(tenant)} tenant={tenant} path="AGENTS.md" initialContent={accountAgentsMd(tenant)} rows={18} hideSibling bare />
-            {!managesWorkspaces && <p className="mt-2 text-xs text-fg-muted">An admin saves changes; yours would be refused.</p>}
+            {!managesWorkspaces && <p className="mt-2 text-xs text-fg-muted">{$t("settings.page.anAdminSavesChangesYoursWould")}</p>}
           </SettingsCard>
         )}
       </SettingsSection>
 
       {!halt.account && (
-        <SettingsSection id="pause-runs" title="Danger zone" danger>
+        <SettingsSection id="pause-runs" title={$t("settings.page.dangerZone")} danger>
           {pause}
-          {pausedOnTheirOwn.length > 0 && <p className="px-1 text-sm text-fg-muted">Paused on their own: {pausedOnTheirOwn.join(", ")} — each resumes from its own Settings.</p>}
+          {pausedOnTheirOwn.length > 0 && <p className="px-1 text-sm text-fg-muted">{$t("settings.page.pausedOnTheirOwnEachResumes", { join: pausedOnTheirOwn.join(", ") })}</p>}
         </SettingsSection>
       )}
-      {halt.account && pausedOnTheirOwn.length > 0 && <p className="px-1 text-sm text-fg-muted">Paused on their own: {pausedOnTheirOwn.join(", ")} — each resumes from its own Settings.</p>}
+      {halt.account && pausedOnTheirOwn.length > 0 && <p className="px-1 text-sm text-fg-muted">{$t("settings.page.pausedOnTheirOwnEachResumes", { join: pausedOnTheirOwn.join(", ") })}</p>}
     </>
   );
 }
@@ -419,22 +419,22 @@ async function ModelsTab({
       <ModelKey tenant={tenant} initial={{ ...(await describeAccountModelNow(tenant)), foldrunModels: await foldrunModelsView(tenant) }} presets={modelPresetChoices()} mayEdit={role === null || can(role, "secrets:write")} />
       <SettingsCard
         id="gateway"
-        title="Your own gateway"
+        title={$t("settings.page.yourOwnGateway")}
         description={
           <>
-            To bring your own gateway, add a <code className="font-mono text-xs">provider:</code> block to the account&apos;s AGENTS.md — it wins over the key above.
+            {$rich("settings.page.toBringYourOwnGatewayAdd", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code> })}
           </>
         }
         hint={
           <Link href={`/dashboard/docs/providers${qs}`} className="text-link hover:underline">
-            Providers reference
+            {$t("settings.page.providersReference")}
           </Link>
         }
       >
         <div className="rounded-md border border-line bg-sunken px-3 py-2">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <code className="break-all font-mono text-sm text-fg">{provider?.baseUrl ?? "none"}</code>
-            <span className="text-xs text-fg-muted">{provider?.baseUrl ? "set by the account's AGENTS.md" : "no provider: block in the account's AGENTS.md"}</span>
+            <span className="text-xs text-fg-muted">{provider?.baseUrl ? $t("settings.page.setByTheAccountSAgents") : $t("settings.page.noProviderBlockInTheAccount")}</span>
           </div>
           {provider?.models && Object.keys(provider.models).length > 0 && (
             <p className="mt-1.5 font-mono text-xs text-fg-muted">
@@ -470,7 +470,7 @@ async function ApiTab({
   const me = (await viewerEmail())?.toLowerCase() ?? null;
   const connections = (await listGrants(tenant)).filter((g) => seesAllConnections || g.email.toLowerCase() === me).map(connectionView);
   const apiFacts = await apiFactsFor(tenant, scope);
-  const origin = installOrigin() ?? "https://<this install's address>";
+  const origin = installOrigin() ?? $t("settings.page.httpsThisInstall");
   return (
     <>
       {/* KeyManager carries its own create card and list. */}
@@ -489,7 +489,7 @@ async function ApiTab({
       </SettingsSection>
 
       <SettingsSection id="using-a-key">
-        <SettingsCard title="Using a key" description="Set it in the shell, then deploy and call agents from the CLI or over HTTP." flush>
+        <SettingsCard title={$t("settings.page.usingAKey")} description={$t("settings.page.setItInTheShellThen")} flush>
           <pre className="overflow-x-auto bg-sunken px-5 py-4 font-mono text-xs leading-relaxed text-fg-secondary sm:px-6">
             {`export FOLDRUN_TOKEN=fr_api_...
 export FOLDRUN_URL=${origin}
@@ -507,16 +507,15 @@ curl -X POST "$FOLDRUN_URL/api/workspaces/my-workspace/agents/writer/run?wait=tr
 
       <SettingsSection id="mcp">
         <SettingsCard
-          title="Connect an AI app (MCP)"
+          title={$t("settings.page.connectAnAiAppMcp")}
           description={
             <>
-              Claude Code, Claude Desktop, Cursor and Codex can use this account as tools: your inbox, approvals, runs and flows — and, with a key that may, approve, answer, start and stop. Each tool is an API call made with the key. Add{" "}
-              <span className="font-mono">?readonly=1</span> to offer only the tools that read.
+              {$rich("settings.page.claudeCodeClaudeDesktopCursorAnd", { span: (chunks) => <span className="font-mono">{chunks}</span> })}
             </>
           }
           hint={
             <Link href={`/dashboard/docs/mcp${qs}`} className="text-link hover:underline">
-              MCP docs
+              {$t("settings.page.mcpDocs")}
             </Link>
           }
         >
@@ -535,7 +534,7 @@ claude mcp add --transport http foldrun ${origin}/api/mcp \\
 { "mcpServers": { "foldrun": { "command": "foldrun", "args": ["mcp"] } } }`}
             </pre>
             <p className="text-sm text-fg-muted">
-              claude.ai and other apps that sign in with OAuth need no key: add the address above as a custom connector, and you approve it here in foldrun. What a tool returns is data from your runs, and the app is told so.
+              {$t("settings.page.claudeAiAndOtherAppsThat")}
             </p>
           </div>
         </SettingsCard>
@@ -545,7 +544,7 @@ claude mcp add --transport http foldrun ${origin}/api/mcp \\
         <McpConnections connections={connections} everyone={seesAllConnections} />
       </SettingsSection>
 
-      <SettingsSection id="api" title="API" description="How fast this account may call the API, which dated version answers it, and what it has called lately.">
+      <SettingsSection id="api" title="API" description={$t("settings.page.howFastThisAccountMayCall")}>
         <ApiSettings facts={apiFacts} qs={qs} />
       </SettingsSection>
 
@@ -610,7 +609,7 @@ async function SecretsTab({
       </SettingsSection>
 
       {hooks.length > 0 && (
-        <SettingsSection id="webhooks" title="Webhook triggers" description="Flows that start when something POSTs their URL. The body becomes the run's input." action={<span className="text-sm tabular-nums text-fg-muted">{hooks.length}</span>}>
+        <SettingsSection id="webhooks" title={$t("settings.page.webhookTriggers")} description={$t("settings.page.flowsThatStartWhenSomethingPosts")} action={<span className="text-sm tabular-nums text-fg-muted">{hooks.length}</span>}>
           <div className="overflow-hidden rounded-lg border border-line bg-surface">
             <ul className="divide-y divide-line">
               {hooks.map((h) => (
@@ -624,7 +623,7 @@ async function SecretsTab({
                     </p>
                     <RotateHookButton workspace={h.workspace} flow={h.flow} />
                   </div>
-                  <code className="mt-2 block overflow-x-auto rounded-md border border-line bg-sunken px-2.5 py-1.5 font-mono text-xs text-fg-secondary">{h.path ? `POST ${h.path}` : "webhook URL — visible to admins"}</code>
+                  <code className="mt-2 block overflow-x-auto rounded-md border border-line bg-sunken px-2.5 py-1.5 font-mono text-xs text-fg-secondary">{h.path ? `POST ${h.path}` : $t("settings.page.webhookUrlVisibleToAdmins")}</code>
                   {h.deliveries.length > 0 && (
                     <ul className="mt-2 space-y-0.5">
                       {h.deliveries.map((d, i) => (
@@ -641,7 +640,7 @@ async function SecretsTab({
             </ul>
           </div>
           <p className="mt-3 px-1 text-sm text-fg-muted">
-            Rotate one URL above, or rotate <code className="font-mono">FOLDRUN_SECRET_KEY</code> to invalidate every URL at once.
+            {$rich("settings.page.rotateOneUrlAboveOrRotate", { code: (chunks) => <code className="font-mono">{chunks}</code> })}
           </p>
         </SettingsSection>
       )}
@@ -670,14 +669,14 @@ function SchedulesTab({ tenant, qs, amp, workspaces }: { tenant: string; qs: str
       }),
   );
   return (
-    <SettingsSection id="schedules" title="Scheduled flows" description={$t("settings.page.everyCronInEveryWorkspaceWith")} action={<TickButton />}>
+    <SettingsSection id="schedules" title={$t("settings.page.scheduledFlows")} description={$t("settings.page.everyCronInEveryWorkspaceWith")} action={<TickButton />}>
       {scheduled.length === 0 ? (
         <EmptyState
           icon={<CalendarClock />}
-          title="No scheduled flows"
+          title={$t("settings.page.noScheduledFlows")}
           description={
             <>
-              Add <code className="font-mono text-xs">trigger: schedule</code> and <code className="font-mono text-xs">schedule: &quot;0 8 * * MON&quot;</code> to a flow&apos;s frontmatter.
+              {$rich("settings.page.addTriggerScheduleAndSchedule0", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code> })}
             </>
           }
         />
@@ -699,11 +698,11 @@ function SchedulesTab({ tenant, qs, amp, workspaces }: { tenant: string; qs: str
                   <p className="mt-0.5 text-sm text-fg-muted">
                     {s.next.length > 0 ? (
                       <>
-                        {`next ${s.next.join(" · ")} (${s.zone})`}
+                        {$t("settings.page.next", { v0: String(s.next.join(" · ")), zone: String(s.zone) })}
                         <ScheduleInYourTime iso={s.nextIso} zone={s.zone} />
                       </>
                     ) : (
-                      "no upcoming fire times"
+                      $t("settings.page.noUpcomingFireTimes")
                     )}
                   </p>
                 </div>
@@ -727,27 +726,26 @@ function SecurityTab({ tenant, qs }: { tenant: string; qs: string }) {
   const keySource = masterKeySource();
   return (
     <SettingsSection id="security">
-      <SettingsCard title="This install" description="Two facts that decide whether it is safe to expose." flush>
+      <SettingsCard title={$t("settings.page.thisInstall")} description={$t("settings.page.twoFactsThatDecideWhetherIt")} flush>
         <div className="divide-y divide-line">
           <StatusRow
             ok={authRequired}
-            title={authRequired ? "Every API request needs a key" : "Auth is disabled for local development"}
+            title={authRequired ? $t("settings.page.everyApiRequestNeedsAKey") : $t("settings.page.authIsDisabledForLocalDevelopment")}
             detail={
               authRequired
-                ? "The x-foldrun-tenant header alone is rejected."
-                : "FOLDRUN_DEV_NO_AUTH=1 is set, so requests without a key fall back to the x-foldrun-tenant header. Never set it on a server anyone else can reach."
+                ? $t("settings.page.theXFoldrunTenantHeaderAlone")
+                : $t("settings.page.foldrunDevNoAuth1Is")
             }
           />
           <StatusRow
             ok={keySource.source === "env"}
-            title={keySource.source === "env" ? "The master key comes from the environment" : "The master key is stored on disk"}
+            title={keySource.source === "env" ? $t("settings.page.theMasterKeyComesFromThe") : $t("settings.page.theMasterKeyIsStoredOn")}
             detail={
               keySource.source === "env" ? (
-                "FOLDRUN_SECRET_KEY is set, so the key that decrypts every secret is not stored beside the secrets themselves."
+                $t("settings.page.foldrunSecretKeyIsSetSo")
               ) : (
                 <>
-                  The key that decrypts every secret sits next to them, so one filesystem read gets both. Before exposing this server, move it:{" "}
-                  <code className="break-all font-mono">node scripts/rotate-secret-key.mjs {tenant} --to &quot;$(openssl rand -hex 32)&quot;</code>, then set <code className="font-mono">FOLDRUN_SECRET_KEY</code>.
+                  {$rich("settings.page.theKeyThatDecryptsEverySecret", { tenant: tenant, code: (chunks) => <code className="break-all font-mono">{chunks}</code>, code2: (chunks) => <code className="font-mono">{chunks}</code> })}
                 </>
               )
             }
@@ -755,12 +753,12 @@ function SecurityTab({ tenant, qs }: { tenant: string; qs: string }) {
         </div>
       </SettingsCard>
       <SettingsCard
-        title="Audit log"
-        description="Sign-ins, keys, invites, secrets by name, deploys, plan changes — and every time support viewed this account."
+        title={$t("settings.page.auditLog")}
+        description={$t("settings.page.signInsKeysInvitesSecretsBy")}
         footer={
           <Link href={`/dashboard/settings/audit${qs}`} className={buttonVariants({ variant: "secondary" })}>
             <ScrollText aria-hidden />
-            Open audit log
+            {$t("settings.page.openAuditLog")}
           </Link>
         }
       />

@@ -1,4 +1,5 @@
 "use client";
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { buttonVariants } from "@foldrun/ui/react/button";
 import { Input } from "@foldrun/ui/react/input";
@@ -21,11 +22,11 @@ export function ForgotForm() {
         setBusy(false);
       }}
     >
-      <Field label="Email">
+      <Field label={$t("auth.forgot-form.email")}>
         <Input name="email" type="email" required autoFocus className="w-full" />
       </Field>
       {msg && <p className="rounded-md border border-line bg-sunken px-3 py-2 text-sm text-fg-secondary">{msg}</p>}
-      <button disabled={busy} className={cn(buttonVariants({ variant: "primary", size: "md" }), "w-full")}>{busy ? "…" : "Send reset link"}</button>
+      <button disabled={busy} className={cn(buttonVariants({ variant: "primary", size: "md" }), "w-full")}>{busy ? "…" : $t("auth.forgot-form.sendResetLink")}</button>
     </form>
   );
 }

@@ -9,6 +9,7 @@
 // so it is a revision like the rest, attributed to whoever pressed the button,
 // and it can itself be undone.
 
+import { $t } from "@/i18n";
 import { useEffect, useState } from "react";
 import { LocalTime } from "@/components/local-time";
 import { Button } from "@foldrun/ui/react/button";
@@ -60,7 +61,7 @@ export function HistoryPanel({
     fetch(`/api/workspaces/${workspace}/history?path=${encodeURIComponent(path)}`, { headers })
       .then((r) => r.json())
       .then((d) => live && setRevisions(d.revisions ?? []))
-      .catch(() => live && setError("could not load history"));
+      .catch(() => live && setError($t("components.history-panel.couldNotLoadHistory")));
     return () => {
       live = false;
     };
@@ -76,7 +77,7 @@ export function HistoryPanel({
     fetch(`/api/workspaces/${workspace}/history?id=${encodeURIComponent(open)}&path=${encodeURIComponent(path)}`, { headers })
       .then((r) => r.json())
       .then((d) => live && setDetail(d))
-      .catch(() => live && setError("could not load that revision"));
+      .catch(() => live && setError($t("components.history-panel.couldNotLoadThatRevision")));
     return () => {
       live = false;
     };
@@ -84,11 +85,11 @@ export function HistoryPanel({
   }, [open, workspace, tenant, path]);
 
   if (error) return <p className="mt-2 text-xs text-danger">{error}</p>;
-  if (revisions === null) return <p className="mt-2 text-xs text-fg-muted">Loading history…</p>;
+  if (revisions === null) return <p className="mt-2 text-xs text-fg-muted">{$t("components.history-panel.loadingHistory")}</p>;
   if (revisions.length === 0) {
     return (
       <p className="mt-2 text-xs text-fg-muted">
-        No history yet — the first save from now on starts it.
+        {$t("components.history-panel.noHistoryYetTheFirstSave")}
       </p>
     );
   }
@@ -129,7 +130,7 @@ export function HistoryPanel({
       {open && (
         <div className="border-t border-line-faint">
           {!file ? (
-            <p className="px-3 py-2 text-xs text-fg-muted">Loading…</p>
+            <p className="px-3 py-2 text-xs text-fg-muted">{$t("components.history-panel.loading")}</p>
           ) : (
             <>
               <pre className="max-h-72 overflow-auto px-3 py-2 font-mono text-[11px] leading-relaxed">
@@ -154,20 +155,20 @@ export function HistoryPanel({
               <div className="flex flex-wrap items-center gap-2 border-t border-line-faint bg-sunken px-3 py-2">
                 {file.after !== null ? (
                   <Button size="xs" onClick={() => onUse(file.after!)}>
-                    Use this version
+                    {$t("components.history-panel.useThisVersion")}
                   </Button>
                 ) : (
-                  <span className="text-xs text-fg-muted">This revision deleted the file.</span>
+                  <span className="text-xs text-fg-muted">{$t("components.history-panel.thisRevisionDeletedTheFile")}</span>
                 )}
                 {file.before !== null && file.after !== null && (
-                  <Tooltip label="What the file said before this change">
+                  <Tooltip label={$t("components.history-panel.whatTheFileSaidBeforeThis")}>
                     <Button size="xs" variant="ghost" onClick={() => onUse(file.before!)}>
-                      Use the version before it
+                      {$t("components.history-panel.useTheVersionBeforeIt")}
                     </Button>
                   </Tooltip>
                 )}
                 <span className="ml-auto text-xs text-fg-muted">
-                  Loads into the editor — nothing changes until you save.
+                  {$t("components.history-panel.loadsIntoTheEditorNothingChanges")}
                 </span>
               </div>
             </>

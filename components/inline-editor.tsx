@@ -245,7 +245,7 @@ export function InlineEditor({
         setLoadedPath(path);
         setError(null);
       })
-      .catch(() => live && setError("could not load this file"));
+      .catch(() => live && setError($t("components.inline-editor.couldNotLoadThisFile")));
     return () => {
       live = false;
     };
@@ -275,7 +275,7 @@ export function InlineEditor({
     } else {
       const data = (await res.json().catch(() => ({}))) as { error?: string; issues?: { level: string }[] };
       setStatus(null);
-      setError(accountFile && res.status === 409 ? "AGENTS.md changed since this page loaded — reload to see it (your edit is still here; copy it first)" : (data.error ?? `save failed (${res.status})`));
+      setError(accountFile && res.status === 409 ? $t("components.inline-editor.agentsMdChangedSinceThisPage") : (data.error ?? $t("components.inline-editor.saveFailed", { status: String(res.status) })));
       // Every workspace reads the account's file: a broken one is never saved anyway.
       setRefused(!accountFile && res.status === 422 && (data.issues ?? []).some((i) => i.level === "error") ? `${path}\n${content}` : null);
     }
@@ -302,14 +302,14 @@ export function InlineEditor({
   // than above so `content` is known to be loaded.
   const alt: { label: string; node: ReactNode } | { label: string; why: string } | null = isFlow
       ? {
-          label: "Read",
+          label: $t("components.inline-editor.read"),
           why:
-            "the board above is this flow's rendered view — as markdown, the steps would be " +
-            "renumbered and the parallel groups would disappear",
+            $t("components.inline-editor.theBoardAboveIsThisFlow") +
+            $t("components.inline-editor.renumberedAndTheParallelGroupsWould"),
         }
       : path.endsWith(".md")
         ? {
-            label: "Read",
+            label: $t("components.inline-editor.read"),
             node: (
               <div className="rounded-lg border border-line bg-surface p-4 text-sm text-fg-secondary">
                 <Frontmatter raw={content} />
@@ -324,7 +324,7 @@ export function InlineEditor({
     <div className={toolbarTarget ? "pt-3" : bare ? "" : "mt-3 border-t border-line-faint pt-3"}>
       {siblingHref && sibling && !hideSibling && (
         <p className="mb-2 text-xs text-fg-muted">
-          {sibling.label === "tool.md" ? "The definition for this program: " : "The program this tool runs: "}
+          {sibling.label === "tool.md" ? $t("components.inline-editor.theDefinitionForThisProgram") : $t("components.inline-editor.theProgramThisToolRuns")}
           <a href={siblingHref} className="font-medium text-fg underline underline-offset-2 hover:text-fg-secondary">
             {sibling.label}
           </a>
@@ -342,7 +342,7 @@ export function InlineEditor({
               onClick={() => chooseView(false)}
               className={`h-full rounded-sm px-2.5 text-xs font-medium transition-colors ${!showAlt ? "bg-surface text-fg shadow-[0_1px_2px_rgb(0_0_0/0.06)]" : "text-fg-muted hover:text-fg"}`}
             >
-              Edit
+              {$t("components.inline-editor.edit")}
             </button>
             <button
               type="button"
@@ -354,7 +354,7 @@ export function InlineEditor({
             </button>
           </div>
           {((!altNode && "why" in alt) || (showAlt && altNode)) && (
-            <span className="text-xs text-fg-subtle">{!altNode && "why" in alt ? alt.why : "Switch to Edit to make changes"}</span>
+            <span className="text-xs text-fg-subtle">{!altNode && "why" in alt ? alt.why : $t("components.inline-editor.switchToEditToMakeChanges")}</span>
           )}
         </div>
       )}
@@ -395,7 +395,7 @@ export function InlineEditor({
                   onClick={() => chooseView(false)}
                   className={`h-full rounded-sm px-2.5 text-xs font-medium transition-colors ${!showAlt ? "bg-surface text-fg shadow-[0_1px_2px_rgb(0_0_0/0.06)]" : "text-fg-muted hover:text-fg"}`}
                 >
-                  Edit
+                  {$t("components.inline-editor.edit")}
                 </button>
                 <Tooltip label={!altNode && "why" in alt ? alt.why : undefined}>
                   <span className="inline-flex h-full">
@@ -411,7 +411,7 @@ export function InlineEditor({
                 </Tooltip>
               </div>
             )}
-            <Tooltip label={mayWrite ? "⌘S" : "Your role is viewer — saving needs editor or above"}>
+            <Tooltip label={mayWrite ? "⌘S" : $t("components.inline-editor.yourRoleIsViewerSavingNeeds")}>
               <span className="inline-flex">
                 <Button
                   variant="primary"
@@ -419,26 +419,26 @@ export function InlineEditor({
                   onClick={() => void save()}
                   disabled={!dirty || !mayWrite}
                 >
-                  Save
+                  {$t("components.inline-editor.save")}
                 </Button>
               </span>
             </Tooltip>
-            {dirty && <Chip tone="warn">unsaved</Chip>}
+            {dirty && <Chip tone="warn">{$t("components.inline-editor.unsaved")}</Chip>}
             {status && <Chip tone="good">{status}</Chip>}
             {error && <Chip tone="bad" className="max-w-full whitespace-normal">{error}</Chip>}
             {refused !== null && refused === `${path}\n${content}` && mayWrite && (
-              <Tooltip label="Save with the errors: the file goes live as it is, and runs that read it may fail">
+              <Tooltip label={$t("components.inline-editor.saveWithTheErrorsTheFile")}>
                 <button
                   type="button"
                   onClick={() => void save(true)}
                   className="text-xs font-medium text-danger underline underline-offset-2 hover:opacity-80"
                 >
-                  Save anyway
+                  {$t("components.inline-editor.saveAnyway")}
                 </button>
               </Tooltip>
             )}
             {workspace && !libraryKind && (
-              <Tooltip label="Every saved version of this file, with diffs">
+              <Tooltip label={$t("components.inline-editor.everySavedVersionOfThisFile")}>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -446,7 +446,7 @@ export function InlineEditor({
                   aria-pressed={showHistory}
                   className={showHistory ? "bg-muted text-fg" : undefined}
                 >
-                  History
+                  {$t("components.inline-editor.history")}
                 </Button>
               </Tooltip>
             )}
@@ -473,8 +473,8 @@ export function InlineEditor({
       {!toolbarTarget && (
       <p className="mt-1.5 text-xs text-fg-subtle">
         {isCodePath(path)
-          ? "⌘S saves · Tab indents · Test runs what is saved"
-          : "⌘S saves · suggestions appear as you type · frontmatter is validated on save"}
+          ? $t("components.inline-editor.sSavesTabIndentsTestRuns")
+          : $t("components.inline-editor.sSavesSuggestionsAppearAsYou")}
         {libraryKind && $t("components.inline-editor.sharedWithEveryWorkspace")}
       </p>
       )}

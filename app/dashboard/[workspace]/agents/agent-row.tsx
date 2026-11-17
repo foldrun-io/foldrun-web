@@ -7,6 +7,7 @@
 // two different ways. This matches the asset rows exactly: chevron to expand,
 // name and badges, actions on hover, editor underneath.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import Link from "@foldrun/ui/react/link";
 import { ExpandableTitle } from "@/components/expandable";
@@ -49,7 +50,7 @@ export function AgentRow({
           onToggle={() => setOpen((o) => !o)}
           name={name}
           badges={badges}
-          subtitle={description || "No description"}
+          subtitle={description || $t("workspace.agents-agent-row.noDescription")}
           meta={path}
         />
 
@@ -61,14 +62,14 @@ export function AgentRow({
             href={`/dashboard/${workspace}/agents/${name}${tenant !== "default" ? `?tenant=${tenant}` : ""}`}
             className="text-sm text-fg-muted hover:text-fg hover:underline"
           >
-            Activity
+            {$t("workspace.agents-agent-row.activity")}
           </Link>
           <span className="opacity-0 transition-opacity group-hover:opacity-100">
             <DeleteButton
               endpoint={`/api/workspaces/${workspace}/source`}
               tenant={tenant}
               body={{ path: `agents/${name}` }}
-              confirmText={`Delete agent ${name}?`}
+              confirmText={$t("workspace.agents-agent-row.deleteAgent", { name: String(name) })}
             />
           </span>
           {/* No task field here. A bare agent run is a debugging move, and the
@@ -77,7 +78,7 @@ export function AgentRow({
           <RunButton
             endpoint={`/api/workspaces/${workspace}/agents/${name}/run`}
             tenant={tenant}
-            label="Run"
+            label={$t("workspace.agents-agent-row.run")}
             withTask={false}
           />
         </span>

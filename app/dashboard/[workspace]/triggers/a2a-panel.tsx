@@ -7,7 +7,7 @@
 // with the key that asked and the run that served each. One read: GET
 // /api/workspaces/<ws>/a2a. Publishing is on each flow's card (Flows page).
 
-import { $t } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useEffect, useState } from "react";
 import { Chip, EmptyState, Panel } from "@foldrun/ui/react/page";
@@ -54,14 +54,14 @@ export function A2aPanel({ workspace, tenant }: { workspace: string; tenant: str
   }, [workspace, tenant]);
 
   if (error) return <p role="alert" className="text-sm text-danger">{error}</p>;
-  if (!view) return <p className="text-sm text-fg-subtle">Loading…</p>;
+  if (!view) return <p className="text-sm text-fg-subtle">{$t("workspace.triggers-a2a-panel.loading")}</p>;
   const flowsHref = `/dashboard/${encodeURIComponent(workspace)}/flows${tenant !== "default" ? `?tenant=${encodeURIComponent(tenant)}` : ""}`;
 
   return (
     <div className="space-y-8">
       <Panel
-        title="Flows served over A2A"
-        description="Flows published with a2a: can be called by another company's agent over A2A 1.0, with an A2A key that names them. Gates and questions stay with your people: the caller sees “waiting for a person”."
+        title={$t("workspace.triggers-a2a-panel.flowsServedOverA2a")}
+        description={$t("workspace.triggers-a2a-panel.flowsPublishedWithA2aCanBe")}
         flush
       >
         {view.flows.length === 0 ? (
@@ -69,10 +69,10 @@ export function A2aPanel({ workspace, tenant }: { workspace: string; tenant: str
             bare
             compact
             icon={<Globe />}
-            title="No flow here says a2a:"
+            title={$t("workspace.triggers-a2a-panel.noFlowHereSaysA2a")}
             description={
               <>
-                Publish one from its Settings tab on the <Link href={flowsHref} className="text-link hover:underline">Flows</Link> page (admins), then make an A2A key for it under Settings → API keys.
+                {$rich("workspace.triggers-a2a-panel.publishOneFromItsSettingsTab", { link: (chunks) => <Link href={flowsHref} className="text-link hover:underline">{chunks}</Link> })}
               </>
             }
           />
@@ -83,20 +83,18 @@ export function A2aPanel({ workspace, tenant }: { workspace: string; tenant: str
                 <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-fg">
                   <span className="font-mono">{f.flow}</span>
                   {f.name !== f.flow && <span className="font-normal text-fg-muted">— {f.name}</span>}
-                  <Chip tone={f.published ? "good" : "default"}>{f.published ? "published" : "not published"}</Chip>
-                  {f.publicCard && <Tooltip label="The card is readable without a key; calling the flow never is"><span><Chip>public card</Chip></span></Tooltip>}
-                  {f.hasInputSchema && <Tooltip label="a2a: input: — the request's data part must match this JSON Schema"><span><Chip>input schema</Chip></span></Tooltip>}
+                  <Chip tone={f.published ? "good" : "default"}>{f.published ? "published" : $t("workspace.triggers-a2a-panel.notPublished")}</Chip>
+                  {f.publicCard && <Tooltip label={$t("workspace.triggers-a2a-panel.theCardIsReadableWithoutA")}><span><Chip>{$t("workspace.triggers-a2a-panel.publicCard")}</Chip></span></Tooltip>}
+                  {f.hasInputSchema && <Tooltip label={$t("workspace.triggers-a2a-panel.a2aInputTheRequestSData")}><span><Chip>{$t("workspace.triggers-a2a-panel.inputSchema")}</Chip></span></Tooltip>}
                 </p>
                 {f.description && <p className="mt-1 text-sm text-fg-muted">{f.description}</p>}
                 {f.published && (
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     <div className="text-xs text-fg-muted">
-                      Agent card
-                      <CopyField value={f.card} className="mt-1" />
+                      {$rich("workspace.triggers-a2a-panel.agentCard", { copyField: $el(<CopyField value={f.card} className="mt-1" />) })}
                     </div>
                     <div className="text-xs text-fg-muted">
-                      JSON-RPC endpoint
-                      <CopyField value={f.url} className="mt-1" />
+                      {$rich("workspace.triggers-a2a-panel.jsonRpcEndpoint", { copyField: $el(<CopyField value={f.url} className="mt-1" />) })}
                     </div>
                   </div>
                 )}
@@ -109,7 +107,7 @@ export function A2aPanel({ workspace, tenant }: { workspace: string; tenant: str
       {view.keys !== null && (
         <Panel title={$t("workspace.triggers-a2a-panel.a2aKeysForThisWorkspace")} flush>
           {view.keys.length === 0 ? (
-            <EmptyState bare compact title="No A2A keys" description="Make one under Settings → API keys (A2A key)." />
+            <EmptyState bare compact title={$t("workspace.triggers-a2a-panel.noA2aKeys")} description={$t("workspace.triggers-a2a-panel.makeOneUnderSettingsApiKeys")} />
           ) : (
             <ul className="divide-y divide-line">
               {view.keys.map((k) => (
@@ -117,10 +115,10 @@ export function A2aPanel({ workspace, tenant }: { workspace: string; tenant: str
                   <span className="font-medium text-fg">{k.label || k.prefix}</span>
                   <span className="font-mono text-xs text-fg-muted">{k.prefix}…</span>
                   <span className="text-fg-secondary">{k.flows.join(", ")}</span>
-                  {k.maxTasks !== null && <span className="text-fg-muted">at most {k.maxTasks} open</span>}
+                  {k.maxTasks !== null && <span className="text-fg-muted">{$t("workspace.triggers-a2a-panel.atMostOpen", { maxTasks: String(k.maxTasks) })}</span>}
                   {k.expiresAt && (
                     <span className="text-fg-muted">
-                      expires <LocalTime iso={k.expiresAt} options={{ dateStyle: "medium" }} />
+                      {$rich("workspace.triggers-a2a-panel.expires", { localTime: $el(<LocalTime iso={k.expiresAt} options={{ dateStyle: "medium" }} />) })}
                     </span>
                   )}
                 </li>
@@ -130,19 +128,19 @@ export function A2aPanel({ workspace, tenant }: { workspace: string; tenant: str
         </Panel>
       )}
 
-      <Panel title="Recent A2A tasks" flush>
+      <Panel title={$t("workspace.triggers-a2a-panel.recentA2aTasks")} flush>
         {view.tasks.length === 0 ? (
-          <EmptyState bare compact title="No tasks yet" description="No outside agent has called a flow here yet." />
+          <EmptyState bare compact title={$t("workspace.triggers-a2a-panel.noTasksYet")} description={$t("workspace.triggers-a2a-panel.noOutsideAgentHasCalledA")} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
               <thead className="border-b border-line bg-sunken text-left text-[13px] text-fg-muted">
                 <tr>
-                  <th className="h-10 px-4 font-medium">Changed</th>
-                  <th className="h-10 px-4 font-medium">Flow</th>
-                  <th className="h-10 px-4 font-medium">State</th>
-                  <th className="h-10 px-4 font-medium">Key</th>
-                  <th className="h-10 px-4 font-medium">Run</th>
+                  <th className="h-10 px-4 font-medium">{$t("workspace.triggers-a2a-panel.changed")}</th>
+                  <th className="h-10 px-4 font-medium">{$t("workspace.triggers-a2a-panel.flow")}</th>
+                  <th className="h-10 px-4 font-medium">{$t("workspace.triggers-a2a-panel.state")}</th>
+                  <th className="h-10 px-4 font-medium">{$t("workspace.triggers-a2a-panel.key")}</th>
+                  <th className="h-10 px-4 font-medium">{$t("workspace.triggers-a2a-panel.run")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -156,8 +154,8 @@ export function A2aPanel({ workspace, tenant }: { workspace: string; tenant: str
                       <Chip tone={TONE[t.state] ?? "default"}>{a2aStateWord(t.state)}</Chip>
                     </td>
                     <td className="px-4 py-3 text-fg-secondary">
-                      {t.key.label || (t.key.prefix ? `${t.key.prefix}…` : "a key")}
-                      {t.key.revoked && <span className="ml-1 text-fg-muted">(revoked)</span>}
+                      {t.key.label || (t.key.prefix ? `${t.key.prefix}…` : $t("workspace.triggers-a2a-panel.aKey"))}
+                      {t.key.revoked && <span className="ml-1 text-fg-muted">{$t("workspace.triggers-a2a-panel.revoked")}</span>}
                     </td>
                     <td className="px-4 py-3">
                       {t.runId ? (
@@ -165,7 +163,7 @@ export function A2aPanel({ workspace, tenant }: { workspace: string; tenant: str
                           {t.runId}
                         </Link>
                       ) : (
-                        <span className="text-fg-muted">starting</span>
+                        <span className="text-fg-muted">{$t("workspace.triggers-a2a-panel.starting")}</span>
                       )}
                     </td>
                   </tr>

@@ -7,6 +7,7 @@
 // dashboard's error screen with no way back to the page. These keep the
 // frame and say which it is.
 
+import { $rich, $t } from "@/i18n";
 import { buttonVariants } from "@foldrun/ui/react/button";
 import { Card } from "@foldrun/ui/react/page";
 
@@ -20,7 +21,7 @@ export function SegmentLoading({ label }: { label: string }) {
         ))}
       </div>
       <div className="h-64 animate-pulse rounded-lg bg-muted" />
-      <p className="sr-only" role="status">Loading {label}…</p>
+      <p className="sr-only" role="status">{$t("components.segment-states.loading", { label: label })}</p>
     </main>
   );
 }
@@ -30,13 +31,13 @@ export function SegmentError({ label, error, retry }: { label: string; error: Er
     <main className="mx-auto max-w-7xl px-6 py-8">
       <Card className="p-6">
         <p className="text-sm font-semibold text-fg" role="alert">
-          {label} could not be loaded.
+          {$t("components.segment-states.couldNotBeLoaded", { label: label })}
         </p>
         <p className="mt-1 text-sm text-fg-tertiary">
-          Nothing was changed — this page only reads. {error.digest ? <>If it keeps happening, quote <code className="font-mono">{error.digest}</code>.</> : null}
+          {$t("components.segment-states.nothingWasChangedThisPageOnly")}{" "}{error.digest ? <>{$rich("components.segment-states.ifItKeepsHappeningQuote", { digest: error.digest, code: (chunks) => <code className="font-mono">{chunks}</code> })}</> : null}
         </p>
         <button onClick={() => retry()} className={`${buttonVariants({ variant: "secondary" })} mt-4`}>
-          Try again
+          {$t("components.segment-states.tryAgain")}
         </button>
       </Card>
     </main>

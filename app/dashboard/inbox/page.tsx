@@ -15,19 +15,19 @@ import { InboxList } from "@/components/inbox-list";
 export const dynamic = "force-dynamic";
 
 const TABS = [
-  { key: "mine", label: "For me", hint: "You are named as an approver, you own the flow or agent, or you asked for it." },
-  { key: "started", label: "Started by me", hint: "Runs you started: a failure or BLOCKED this week, a gate or a question on one." },
-  { key: "team", label: "Team", hint: $t("inbox.page.everythingElseWaitingInYourWorkspace") },
-  { key: "dismissed", label: "Set aside", hint: "What you hid from your view. Each one is still waiting where it lives." },
+  { key: "mine", label: $t("inbox.page.forMe"), hint: $t("inbox.page.youAreNamedAsAnApprover") },
+  { key: "started", label: $t("inbox.page.startedByMe"), hint: $t("inbox.page.runsYouStartedAFailureOr") },
+  { key: "team", label: $t("inbox.page.team"), hint: $t("inbox.page.everythingElseWaitingInYourWorkspace") },
+  { key: "dismissed", label: $t("inbox.page.setAside"), hint: $t("inbox.page.whatYouHidFromYourView") },
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
 
 const KINDS: { key: InboxKind; label: string }[] = [
-  { key: "approval", label: "Approvals" },
-  { key: "question", label: "Questions" },
-  { key: "issue", label: "Issues" },
-  { key: "proposal", label: "Proposed fixes" },
-  { key: "run", label: "Your runs" },
+  { key: "approval", label: $t("inbox.page.approvals") },
+  { key: "question", label: $t("inbox.page.questions") },
+  { key: "issue", label: $t("inbox.page.issues") },
+  { key: "proposal", label: $t("inbox.page.proposedFixes") },
+  { key: "run", label: $t("inbox.page.yourRuns") },
 ];
 
 export default async function InboxPage({ searchParams }: { searchParams: Promise<{ tenant?: string; tab?: string; kind?: string }> }) {
@@ -39,8 +39,8 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
   if (!person) {
     return (
       <Page>
-        <PageHeader title="Inbox" description={$t("inbox.page.whatIsWaitingOnYouAcross")} />
-        <EmptyState icon={<LogIn />} title="Sign in to see your inbox" description="An inbox is a person's: what you approve, what you own, what you started. Nobody is signed in here." />
+        <PageHeader title={$t("inbox.page.inbox")} description={$t("inbox.page.whatIsWaitingOnYouAcross")} />
+        <EmptyState icon={<LogIn />} title={$t("inbox.page.signInToSeeYourInbox")} description={$t("inbox.page.anInboxIsAPersonS")} />
       </Page>
     );
   }
@@ -61,18 +61,18 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
 
   return (
     <Page>
-      <PageHeader title="Inbox" description={$t("inbox.page.whatIsWaitingOnYouAcross2")} />
+      <PageHeader title={$t("inbox.page.inbox")} description={$t("inbox.page.whatIsWaitingOnYouAcross2")} />
       <PageTabs tabs={TABS.map((t) => ({ label: t.label, href: href(t.key, kind), badge: count(t.key), active: t.key === tab }))} className="mb-4" />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <Segmented
-          label="Kind"
+          label={$t("inbox.page.kind")}
           value={kind ?? "all"}
-          items={[{ key: "all", label: "All", href: href(tab, null) }, ...KINDS.map((k) => ({ key: k.key, label: k.label, href: href(tab, k.key) }))]}
+          items={[{ key: "all", label: $t("inbox.page.all"), href: href(tab, null) }, ...KINDS.map((k) => ({ key: k.key, label: k.label, href: href(tab, k.key) }))]}
         />
         <p className="text-[13px] text-fg-muted">{hint}</p>
       </div>
       {items.length === 0 ? (
-        <EmptyState icon={<InboxIcon />} title={tab === "dismissed" ? "Nothing set aside" : "Nothing waiting here"} description={tab === "dismissed" ? undefined : "You are all caught up."} />
+        <EmptyState icon={<InboxIcon />} title={tab === "dismissed" ? $t("inbox.page.nothingSetAside") : $t("inbox.page.nothingWaitingHere")} description={tab === "dismissed" ? undefined : $t("inbox.page.youAreAllCaughtUp")} />
       ) : (
         <InboxList items={items} tenant={tenant} dismissedView={tab === "dismissed"} />
       )}

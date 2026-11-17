@@ -13,6 +13,7 @@
 // completion systems from having to be merged, and keeps this bundle out of
 // every page that never opens a program.
 
+import { $t } from "@/i18n";
 import { useEffect, useRef } from "react";
 import { EditorView, basicSetup } from "codemirror";
 import { EditorState, Compartment } from "@codemirror/state";
@@ -57,21 +58,21 @@ export const isCodePath = (path: string) => !path.endsWith(".md");
 
 // Every colour is a palette variable, so the editor follows the dashboard's
 // theme (globals.css) without being rebuilt when it changes.
-const v = (name: string) => `var(--color-${name})`;
+const v = (name: string) => $t("components.code-editor.varColor", { name: String(name) });
 const theme = EditorView.theme({
   "&": {
     fontSize: "12.5px",
     color: v("fg"),
     backgroundColor: v("surface"),
-    border: `1px solid ${v("line")}`,
+    border: $t("components.code-editor.1pxSolid", { v0: String(v("line")) }),
     borderRadius: "0.5rem",
   },
   "&.cm-focused": { outline: "none", borderColor: v("line-strong") },
-  ".cm-scroller": { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", lineHeight: "1.6" },
+  ".cm-scroller": { fontFamily: $t("components.code-editor.uiMonospaceSfmonoRegularMenloMonospace"), lineHeight: "1.6" },
   ".cm-gutters": { backgroundColor: v("sunken"), color: v("fg-subtle"), border: "none" },
   ".cm-activeLineGutter": { backgroundColor: v("muted") },
   ".cm-activeLine": { backgroundColor: v("sunken") },
-  ".cm-content": { padding: "8px 0", caretColor: v("fg") },
+  ".cm-content": { padding: $t("components.code-editor.8px0"), caretColor: v("fg") },
   ".cm-cursor, .cm-dropCursor": { borderLeftColor: v("fg") },
   "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": {
     backgroundColor: v("sky-100"),
@@ -79,7 +80,7 @@ const theme = EditorView.theme({
   ".cm-matchingBracket, &.cm-focused .cm-matchingBracket": { backgroundColor: v("emerald-100"), outline: "none" },
   ".cm-searchMatch": { backgroundColor: v("amber-100") },
   ".cm-panels": { backgroundColor: v("sunken"), color: v("fg"), borderColor: v("line") },
-  ".cm-tooltip": { backgroundColor: v("surface"), color: v("fg"), border: `1px solid ${v("line")}` },
+  ".cm-tooltip": { backgroundColor: v("surface"), color: v("fg"), border: $t("components.code-editor.1pxSolid", { v0: String(v("line")) }) },
   ".cm-tooltip-autocomplete ul li[aria-selected]": { backgroundColor: v("muted"), color: v("fg") },
   ".cm-foldPlaceholder": { backgroundColor: v("muted"), color: v("fg-muted"), border: "none" },
 });

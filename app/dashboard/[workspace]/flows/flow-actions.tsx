@@ -4,6 +4,7 @@
 // its saved versions, its .zip, and the way to delete it (which asks on the
 // Settings tab, where the danger card says what breaks).
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useEffect, useState } from "react";
 import { Download, History, MoreHorizontal, Trash2 } from "lucide-react";
@@ -20,22 +21,22 @@ export function FlowMoreMenu({ workspace, tenant, flow, file, deleteHref }: { wo
     <>
       <Menu>
         <MenuTrigger asChild>
-          <Button variant="secondary" size="icon-sm" aria-label={`More for ${flow}`}>
+          <Button variant="secondary" size="icon-sm" aria-label={$t("workspace.flows-flow-actions.moreFor", { flow: String(flow) })}>
             <MoreHorizontal />
           </Button>
         </MenuTrigger>
         <MenuContent>
-          <Tooltip label={`Every saved version of flows/${file}`} side="left">
+          <Tooltip label={$t("workspace.flows-flow-actions.everySavedVersionOfFlows", { file: String(file) })} side="left">
             <MenuItem onSelect={() => setHistory(true)}>
               <History />
-              Version history
+              {$t("workspace.flows-flow-actions.versionHistory")}
             </MenuItem>
           </Tooltip>
-          <Tooltip label="Download this flow and what it needs to run as a .zip" side="left">
+          <Tooltip label={$t("workspace.flows-flow-actions.downloadThisFlowAndWhatIt")} side="left">
             <MenuItem asChild>
               <a href={`/api/workspaces/${encodeURIComponent(workspace)}/export?kind=flow&name=${encodeURIComponent(flow)}`} download>
                 <Download />
-                Export .zip
+                {$t("workspace.flows-flow-actions.exportZip")}
               </a>
             </MenuItem>
           </Tooltip>
@@ -45,7 +46,7 @@ export function FlowMoreMenu({ workspace, tenant, flow, file, deleteHref }: { wo
               <MenuItem tone="danger" asChild>
                 <Link href={deleteHref}>
                   <Trash2 />
-                  Delete flow…
+                  {$t("workspace.flows-flow-actions.deleteFlow")}
                 </Link>
               </MenuItem>
             </>

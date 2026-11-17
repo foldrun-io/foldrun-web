@@ -16,6 +16,7 @@
 // all" that quietly meant every row on every page is how people delete the
 // wrong thousand things.
 
+import { $t } from "@/i18n";
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@foldrun/ui/react/confirm";
@@ -77,11 +78,11 @@ export function SelectionProvider({
 
 export function useSelection(): Selection {
   const ctx = useContext(Ctx);
-  if (!ctx) throw new Error("useSelection needs a SelectionProvider above it");
+  if (!ctx) throw new Error($t("components.bulk-select.useselectionNeedsASelectionproviderAboveIt"));
   return ctx;
 }
 
-export function SelectAllCheckbox({ label = "Select all on this page" }: { label?: string }) {
+export function SelectAllCheckbox({ label = $t("components.bulk-select.selectAllOnThisPage") }: { label?: string }) {
   const { ids, selected, setAll, enabled } = useSelection();
   const all = ids.length > 0 && ids.every((id) => selected.has(id));
   const some = !all && ids.some((id) => selected.has(id));
@@ -100,7 +101,7 @@ export function RowCheckbox({ id, label }: { id: string; label?: string }) {
   if (!enabled) return null;
   return (
     <Checkbox
-      aria-label={label ?? `Select ${id}`}
+      aria-label={label ?? $t("components.bulk-select.select", { id: String(id) })}
       checked={selected.has(id)}
       onCheckedChange={() => toggle(id)}
     />
@@ -174,12 +175,12 @@ export function BulkActionBar({ actions, noun = "items" }: { actions: BulkAction
       {confirmDialog}
       {busy ? (
         <span className="tabular-nums text-fg-tertiary">
-          {busy.label}… {busy.done} of {busy.of}
+          {$t("components.bulk-select.of", { label: busy.label, done: String(busy.done), of: String(busy.of) })}
         </span>
       ) : chosen.length > 0 ? (
         <>
           <span className="font-medium tabular-nums text-fg">
-            {chosen.length} {noun} selected
+            {$t("components.bulk-select.selected", { length: String(chosen.length), noun: noun })}
           </span>
           <span className="mx-1 h-4 w-px bg-muted-strong" />
           {actions
@@ -198,21 +199,21 @@ export function BulkActionBar({ actions, noun = "items" }: { actions: BulkAction
               </button>
             ))}
           <button type="button" onClick={clear} className="ml-auto font-medium text-fg-muted hover:text-fg">
-            Clear
+            {$t("components.bulk-select.clear")}
           </button>
         </>
       ) : null}
       {failed.length > 0 && !busy && (
         <div className="basis-full text-red-700">
-          {failed.length} refused:
+          {$t("components.bulk-select.refused", { length: String(failed.length) })}
           <ul className="mt-0.5 list-inside list-disc font-mono text-[11px]">
             {failed.slice(0, 5).map((f) => (
               <li key={f}>{f}</li>
             ))}
-            {failed.length > 5 && <li>…and {failed.length - 5} more</li>}
+            {failed.length > 5 && <li>{$t("components.bulk-select.andMore", { length: String(failed.length - 5) })}</li>}
           </ul>
           <button type="button" onClick={() => setFailed([])} className="mt-1 font-medium underline-offset-2 hover:underline">
-            Dismiss
+            {$t("components.bulk-select.dismiss")}
           </button>
         </div>
       )}

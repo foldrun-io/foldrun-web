@@ -1,0 +1,28 @@
+{
+  "page": {
+    "api": "API <span>{current}</span>",
+    "breakingChangesByVersion": "Breaking changes, by version",
+    "current": "current",
+    "deprecated": "Deprecated",
+    "docs": "Docs",
+    "features": "Features",
+    "fixes": "Fixes",
+    "noChangesSinceTheSameCode": "No changes since {previous} — the same code, deployed again.",
+    "noEndDateYet": ", no end date yet",
+    "noNotesForThisReleaseThe": "No notes for this release — the deploy could not read what changed.",
+    "noReleaseNotesOnThisInstall": "No release notes on this install",
+    "nothingHasChangedInAWay": "Nothing has changed in a way existing code would break on since {version}, and nothing is deprecated.",
+    "other": "Other",
+    "pinAVersionInSettingsApi": "Pin a version in <link>Settings → API keys → API</link> · each one works for at least {supportMonths} months after the next · <link2>how versions work</link2>",
+    "running": "running",
+    "since": "· since <a>{previous}</a>",
+    "since2": "<span>{route}</span> — since {deprecatedAt}",
+    "stopsAnswering": ", stops answering {sunsetAt}",
+    "theDeployWritesThemALocal": "The deploy writes them; a local or self-built install runs without them. The version and its commits are below.",
+    "theFirstReleaseOnRecord": "The first release on record.",
+    "thisInstallRunsAVersionIs": "This install runs <span>{version}</span>. A version is a deploy: the date it went out and that day's counter. <link>How versions work</link>.",
+    "thisVersion": "This version",
+    "whatReplacesIt": "what replaces it",
+    "whatSNew": "What's new"
+  }
+}

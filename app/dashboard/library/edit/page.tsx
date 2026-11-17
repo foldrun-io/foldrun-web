@@ -59,28 +59,28 @@ export default async function LibraryEditPage({
     if (entry) {
       const uses = libraryUsage(tenant, kind, entry.name);
       sections.push({
-        title: "Used by",
+        title: $t("library.edit-page.usedBy"),
         items: uses.map((u) => ({
           label: u.agent ? `${u.workspace} · ${u.agent}` : u.workspace,
           href: u.agent ? `/dashboard/${u.workspace}/edit?path=${encodeURIComponent(`agents/${u.agent}/agent.md`)}${rest}` : `/dashboard/${u.workspace}${qs}`,
           meta: u.relation === "shadowed" ? "overridden" : undefined,
           tone: u.relation === "shadowed" ? ("warn" as const) : undefined,
         })),
-        empty: kind === "tools" ? `No agent grants ${entry.name} yet.` : $t("library.edit-page.everyWorkspaceCanReadItNone"),
+        empty: kind === "tools" ? $t("library.edit-page.noAgentGrantsYet", { name: String(entry.name) }) : $t("library.edit-page.everyWorkspaceCanReadItNone"),
       });
     }
     const refs = secretRefs(content);
     if (refs.length > 0 || kind === "tools") {
       const set = new Set(listSecrets(tenant).map((s) => s.name));
       sections.push({
-        title: "Secrets",
-        items: refs.map((n) => ({ label: n, mono: true, meta: set.has(n) ? "set" : "missing at account scope", tone: set.has(n) ? ("ok" as const) : ("warn" as const) })),
-        empty: "Names none.",
-        more: { label: "Account secrets", href: `/dashboard/settings${qs}` },
+        title: $t("library.edit-page.secrets"),
+        items: refs.map((n) => ({ label: n, mono: true, meta: set.has(n) ? "set" : $t("library.edit-page.missingAtAccountScope"), tone: set.has(n) ? ("ok" as const) : ("warn" as const) })),
+        empty: $t("library.edit-page.namesNone"),
+        more: { label: $t("library.edit-page.accountSecrets"), href: `/dashboard/settings${qs}` },
       });
     }
     const doc = DOC_FOR[fileKind];
-    if (doc) sections.push({ title: "Reference", items: [{ label: `How a ${fileKind} is written`, href: `/dashboard/docs/${doc}${qs}` }] });
+    if (doc) sections.push({ title: $t("library.edit-page.reference"), items: [{ label: $t("library.edit-page.howAIsWritten", { fileKind: String(fileKind) }), href: `/dashboard/docs/${doc}${qs}` }] });
   }
 
   const crumbList = [
@@ -110,15 +110,15 @@ export default async function LibraryEditPage({
       header={
         <>
           <PageHeader
-            title="Library"
+            title={$t("library.edit-page.library")}
             description={$t("library.edit-page.sharedWithEveryWorkspaceInThis")}
-            back={{ href: `/dashboard/library?kind=${kind}${rest}`, label: "Back to the shelf" }}
+            back={{ href: `/dashboard/library?kind=${kind}${rest}`, label: $t("library.edit-page.backToTheShelf") }}
             className="mb-6"
           />
           <PageTabs tabs={libraryTabs(tenant).map((t) => ({ ...t, active: t.href.includes(`kind=${kind}`) && !t.href.includes("/files") }))} />
         </>
       }
-      emptyEditor={<EmptyState bare icon={<FileText />} title="Nothing here yet" description="Add a shared tool, skill, knowledge or memory file from its shelf." />}
+      emptyEditor={<EmptyState bare icon={<FileText />} title={$t("library.edit-page.nothingHereYet")} description={$t("library.edit-page.addASharedToolSkillKnowledge")} />}
     />
   );
 }

@@ -53,8 +53,8 @@ export async function WorkspaceHeader({ workspace, qs }: { workspace: string; qs
           }`}
         >
           ${spent.toFixed(2)}
-          {budget !== null && <> of ${budget.usd.toFixed(0)}</>} {window}
-          {hosted && <> · ${balance.toFixed(2)} left</>}
+          {budget !== null && <>{" "}{$t("components.workspace-header.of", { toFixed: budget.usd.toFixed(0) })}</>} {window}
+          {hosted && <>{" "}{$t("components.workspace-header.left", { toFixed: balance.toFixed(2) })}</>}
         </Link>
       </Tooltip>
     </header>

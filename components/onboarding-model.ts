@@ -84,10 +84,10 @@ export function onboardingSteps(f: OnboardingFacts, hidden: readonly string[] = 
       ? [
           {
             id: "model" as const,
-            title: "Add your model key",
-            why: "Agents run on your own API key from Anthropic, OpenAI or another provider; every run is refused until one is set.",
+            title: $t("components.onboarding-model.addYourModelKey"),
+            why: $t("components.onboarding-model.agentsRunOnYourOwnApi"),
             href: "/dashboard/settings?tab=models#provider",
-            cli: "foldrun account model set anthropic --key …",
+            cli: $t("components.onboarding-model.foldrunAccountModelSetAnthropicKey"),
             done: f.model.done,
           },
         ]
@@ -97,52 +97,52 @@ export function onboardingSteps(f: OnboardingFacts, hidden: readonly string[] = 
       title: $t("components.onboarding-model.createAWorkspace"),
       why: $t("components.onboarding-model.aWorkspaceHoldsOneDeskS"),
       href: "/dashboard/welcome?step=start",
-      cli: "foldrun init && foldrun deploy",
+      cli: $t("components.onboarding-model.foldrunInitFoldrunDeploy"),
       done: f.workspaces.length > 0,
     },
     {
       id: "agent",
-      title: "Write or deploy an agent",
-      why: "An agent is one role in markdown: what it is for, its model and tools.",
+      title: $t("components.onboarding-model.writeOrDeployAnAgent"),
+      why: $t("components.onboarding-model.anAgentIsOneRoleIn"),
       href: inWs("agents"),
-      cli: "foldrun deploy",
+      cli: $t("components.onboarding-model.foldrunDeploy"),
       done: f.agentAuthored,
     },
     {
       id: "run",
-      title: "Run a flow",
-      why: "A flow is the steps in order; running one is how you see the agents work.",
+      title: $t("components.onboarding-model.runAFlow"),
+      why: $t("components.onboarding-model.aFlowIsTheStepsIn"),
       href: inWs("flows"),
-      cli: "foldrun invoke <flow>",
+      cli: $t("components.onboarding-model.foldrunInvokeFlow"),
       done: f.runs > 0,
     },
     {
       id: "success",
-      title: "Get a run to finish",
-      why: "A run that completes end to end is the proof the desk works.",
+      title: $t("components.onboarding-model.getARunToFinish"),
+      why: $t("components.onboarding-model.aRunThatCompletesEndTo"),
       href: "/dashboard/runs",
-      cli: "foldrun runs",
+      cli: $t("components.onboarding-model.foldrunRuns"),
       done: f.completedRuns > 0,
     },
     {
       id: "secret",
-      title: "Add a secret",
-      why: "API keys for the services your agents call live in the vault, never in the files.",
+      title: $t("components.onboarding-model.addASecret"),
+      why: $t("components.onboarding-model.apiKeysForTheServicesYour"),
       href: "/dashboard/settings?tab=secrets#secrets",
-      cli: "foldrun secrets set <NAME>",
+      cli: $t("components.onboarding-model.foldrunSecretsSetName"),
       done: f.secrets > 0,
     },
     {
       id: "trigger",
-      title: "Schedule a flow or give it a webhook",
-      why: "A desk earns its keep when it runs without you pressing the button.",
+      title: $t("components.onboarding-model.scheduleAFlowOrGiveIt"),
+      why: $t("components.onboarding-model.aDeskEarnsItsKeepWhen"),
       href: inWs("triggers"),
       done: f.triggers > 0,
     },
     {
       id: "teammate",
-      title: "Invite a teammate",
-      why: "Someone else who can read the runs and approve the steps that wait for a person.",
+      title: $t("components.onboarding-model.inviteATeammate"),
+      why: $t("components.onboarding-model.someoneElseWhoCanReadThe"),
       href: "/dashboard/settings?tab=team#team",
       done: f.members > 1,
     },
@@ -150,8 +150,8 @@ export function onboardingSteps(f: OnboardingFacts, hidden: readonly string[] = 
       ? [
           {
             id: "billing" as const,
-            title: "Set up billing",
-            why: "A saved card or a plan keeps runs going once the free credits are spent.",
+            title: $t("components.onboarding-model.setUpBilling"),
+            why: $t("components.onboarding-model.aSavedCardOrAPlan"),
             href: "/dashboard/billing",
             done: f.billing.done,
           },
@@ -159,10 +159,10 @@ export function onboardingSteps(f: OnboardingFacts, hidden: readonly string[] = 
       : []),
     {
       id: "cli",
-      title: "Install the CLI",
-      why: "Edit agents as files in your own editor, check them offline and deploy from the terminal.",
+      title: $t("components.onboarding-model.installTheCli"),
+      why: $t("components.onboarding-model.editAgentsAsFilesInYour"),
       href: "/dashboard/settings?tab=api#api-keys",
-      cli: "npm i -g foldrun && foldrun login",
+      cli: $t("components.onboarding-model.npmIGFoldrunFoldrunLogin"),
       done: f.cli,
     },
   ];
@@ -209,10 +209,10 @@ const doneOf = (o: Onboarding, id: OnboardingStepId) => o.steps.find((s) => s.id
 export function welcomeFlow(o: Onboarding, asked?: string | null, firstVisit = false): WelcomeFlow {
   const hasModel = o.steps.some((s) => s.id === "model");
   const steps: WelcomeStep[] = [
-    ...(hasModel ? [{ id: "model" as const, title: "Your model", done: doneOf(o, "model") }] : []),
-    { id: "start", title: "Start with", done: doneOf(o, "workspace") },
-    { id: "run", title: "First run", done: doneOf(o, "success") },
-    { id: "next", title: "Next", done: doneOf(o, "teammate") && doneOf(o, "trigger") && doneOf(o, "secret") },
+    ...(hasModel ? [{ id: "model" as const, title: $t("components.onboarding-model.yourModel"), done: doneOf(o, "model") }] : []),
+    { id: "start", title: $t("components.onboarding-model.startWith"), done: doneOf(o, "workspace") },
+    { id: "run", title: $t("components.onboarding-model.firstRun"), done: doneOf(o, "success") },
+    { id: "next", title: $t("components.onboarding-model.next"), done: doneOf(o, "teammate") && doneOf(o, "trigger") && doneOf(o, "secret") },
   ];
   const pick = steps.find((s) => s.id === asked);
   const current = pick?.id ?? (firstVisit ? steps[0].id : (steps.find((s) => !s.done)?.id ?? "next"));

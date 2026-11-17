@@ -5,7 +5,7 @@
 // drawer and a floating bar at the bottom. Geist for everything, Geist Mono
 // for code (both from the root layout).
 
-import { $t } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import { Suspense } from "react";
 import Link from "@foldrun/ui/react/link";
 import { cookies } from "next/headers";
@@ -66,7 +66,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const accountPaused = accountPause && !accountPause.resumedAt ? accountPause : null;
   // "Metered" only when billing is enforced: a hosted install with billing
   // off (dev, staging) meters nothing, and the badge said otherwise (FOL-28).
-  const plan = edition === "hosted" ? (billing().enabled() ? "Metered" : "Free") : null;
+  const plan = edition === "hosted" ? (billing().enabled() ? $t("dashboard.layout.metered") : $t("dashboard.layout.free")) : null;
   // An account with no model key has every run refused (FOL-15). Said on
   // every page until it has one, and not dismissable: nothing else works.
   // A plan bought a moment ago is read now, not at the next poll.
@@ -111,22 +111,22 @@ export default async function DashboardLayout({ children }: { children: React.Re
             (suspended, paused, a live incident, no model key), then money,
             then the email check. */}
         {suspended && (
-          <Banner tone="danger" title="This account is suspended">
-            {suspended.reason}. Runs will not start until it is restored; everything here stays readable. Reply to the email you received, or write to hello@foldrun.io.
+          <Banner tone="danger" title={$t("dashboard.layout.thisAccountIsSuspended")}>
+            {$t("dashboard.layout.runsWillNotStartUntilIt", { reason: suspended.reason })}
           </Banner>
         )}
         {accountPaused && (
-          <Banner tone="danger" title="Runs are paused" action={<Link href="/dashboard/settings#governance">Resume</Link>}>
-            {$t("dashboard.layout.nothingNewStartsInAnyWorkspace")}{" "}<WithEmails text={`Paused by ${accountPaused.by}${accountPaused.reason ? `: ${accountPaused.reason}` : ""}.`} />
+          <Banner tone="danger" title={$t("dashboard.layout.runsArePaused")} action={<Link href="/dashboard/settings#governance">{$t("dashboard.layout.resume")}</Link>}>
+            {$rich("dashboard.layout.nothingNewStartsInAnyTerm", { withEmails: $el(<WithEmails text={$t("dashboard.layout.pausedBy", { by: String(accountPaused.by), v1: String(accountPaused.reason ? `: ${accountPaused.reason}` : "") })} />) })}
           </Banner>
         )}
         {/* An incident or maintenance the operator posted: on every page
             while it is live, gone when it is resolved. */}
         <StatusBanner statusPage={statusPageUrl()} />
         {noModelKey && (
-          <Banner tone="warning" title="No model key" action={can(role, "secrets:write") ? <Link href="/dashboard/settings#provider">Add a key</Link> : undefined}>
-            Runs on this account are refused until you add an API key from your model provider.
-            {!can(role, "secrets:write") && <span className="ml-1 opacity-80">Only an admin can add it — ask one.</span>}
+          <Banner tone="warning" title={$t("dashboard.layout.noModelKey")} action={can(role, "secrets:write") ? <Link href="/dashboard/settings#provider">{$t("dashboard.layout.addAKey")}</Link> : undefined}>
+            {$t("dashboard.layout.runsOnThisAccountAreRefused")}
+            {!can(role, "secrets:write") && <span className="ml-1 opacity-80">{$t("dashboard.layout.onlyAnAdminCanAddIt")}</span>}
           </Banner>
         )}
         <Suspense>

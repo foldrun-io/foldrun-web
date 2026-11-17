@@ -4,6 +4,7 @@
 // not loadable here.
 //
 //   node --import ./tests/register.mjs --test tests/usage-tabs.test.ts
+import { english } from "./i18n-source";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -11,7 +12,8 @@ import path from "node:path";
 import { fmtCredits, fmtQuantity, fmtTokens, rateUnit, periodQuery, METER_NAMES } from "../components/usage-format.ts";
 
 const root = path.join(import.meta.dirname, "..");
-const read = (f: string) => fs.readFileSync(path.join(root, f), "utf8");
+// The words are in messages/en: read each $t() as its English.
+const read = (f: string) => english(fs.readFileSync(path.join(root, f), "utf8"));
 
 test("credits are whole at a glance, exact when small, grouped", () => {
   assert.equal(fmtCredits(12340.4), "12,340");

@@ -3,17 +3,18 @@
 // entries behind the avatar; a customer's money is one subject and every
 // serious SaaS treats it as one section with tabs.
 
+import { $t } from "@/i18n";
 import { PageTabs } from "@foldrun/ui/react/page-tabs";
 
 export const BILLING_TABS = [
-  { key: "balance", name: "Balance", href: "/dashboard/billing" },
-  { key: "plans", name: "Plan", href: "/dashboard/billing/plans" },
-  { key: "usage", name: "Usage", href: "/dashboard/usage" },
-  { key: "statement", name: "Statement", href: "/dashboard/billing/statement" },
-  { key: "invoices", name: "Invoices", href: "/dashboard/billing/invoices" },
-  { key: "payment", name: "Payment", href: "/dashboard/billing/payment" },
-  { key: "details", name: "Details", href: "/dashboard/billing/details" },
-  { key: "limits", name: "Spend limits", href: "/dashboard/limits" },
+  { key: "balance", name: $t("components.billing-tabs.balance"), href: "/dashboard/billing" },
+  { key: "plans", name: $t("components.billing-tabs.plan"), href: "/dashboard/billing/plans" },
+  { key: "usage", name: $t("components.billing-tabs.usage"), href: "/dashboard/usage" },
+  { key: "statement", name: $t("components.billing-tabs.statement"), href: "/dashboard/billing/statement" },
+  { key: "invoices", name: $t("components.billing-tabs.invoices"), href: "/dashboard/billing/invoices" },
+  { key: "payment", name: $t("components.billing-tabs.payment"), href: "/dashboard/billing/payment" },
+  { key: "details", name: $t("components.billing-tabs.details"), href: "/dashboard/billing/details" },
+  { key: "limits", name: $t("components.billing-tabs.spendLimits"), href: "/dashboard/limits" },
 ] as const;
 
 export type BillingTab = (typeof BILLING_TABS)[number]["key"];
@@ -25,5 +26,5 @@ export function BillingTabs({ current, tenant, hosted }: { current: BillingTab; 
   // the engine's — usage and spend limits.
   const tabs = hosted ? BILLING_TABS : BILLING_TABS.filter((t) => t.key === "usage" || t.key === "limits");
   if (tabs.length < 2) return null;
-  return <PageTabs label="Billing" tabs={tabs.map((t) => ({ label: t.name, href: `${t.href}${qs}`, active: t.key === current }))} />;
+  return <PageTabs label={$t("components.billing-tabs.billing")} tabs={tabs.map((t) => ({ label: t.name, href: `${t.href}${qs}`, active: t.key === current }))} />;
 }

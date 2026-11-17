@@ -1,15 +1,16 @@
 // The reset link lands here with its token; a new password signs you in.
+import { $t } from "@/i18n";
 import { ResetForm } from "./form";
 import { AuthCard } from "../brand";
 import { Callout } from "@foldrun/ui/react/page";
 
-export const metadata = { title: "Choose a new password — foldrun" };
+export const metadata = { title: $t("auth.reset-page.chooseANewPasswordFoldrun") };
 
 export default async function ResetPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
   const { token = "" } = await searchParams;
   return (
-    <AuthCard title="Choose a new password" hint="At least 10 characters. Every other session of yours will be signed out.">
-      {token ? <ResetForm token={token} /> : <Callout tone="danger">This link is missing its token — open it from the email.</Callout>}
+    <AuthCard title={$t("auth.reset-page.chooseANewPassword")} hint={$t("auth.reset-page.atLeast10CharactersEveryOther")}>
+      {token ? <ResetForm token={token} /> : <Callout tone="danger">{$t("auth.reset-page.thisLinkIsMissingItsToken")}</Callout>}
     </AuthCard>
   );
 }

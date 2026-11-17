@@ -6,7 +6,7 @@
 // secret under the hood; the type only decides which fields to ask for and
 // how the value is used at run time.
 
-import { $t } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { buttonVariants, Button } from "@foldrun/ui/react/button";
@@ -21,15 +21,15 @@ import { Checkbox, RadioGroup, RadioGroupItem } from "@foldrun/ui/react/choice";
 type Kind = "key" | "api" | "ssh" | "oauth" | "oauth_m2m" | "service_account" | "file" | "client_cert" | "identity" | "token_exchange";
 
 const KIND_LABEL: Record<string, string> = {
-  key: "API key",
-  api: "API · headers",
+  key: $t("settings.connections.apiKey"),
+  api: $t("settings.connections.apiHeaders"),
   ssh: "SSH",
-  "client-cert": "Client certificate",
-  identity: "Identity · keyless",
-  "token-exchange": "OAuth · token exchange",
-  oauth2: "OAuth · auto-refresh",
-  "service-account": "Service account",
-  file: "File",
+  "client-cert": $t("settings.connections.clientCertificate"),
+  identity: $t("settings.connections.identityKeyless"),
+  "token-exchange": $t("settings.connections.oauthTokenExchange"),
+  oauth2: $t("settings.connections.oauthAutoRefresh"),
+  "service-account": $t("settings.connections.serviceAccount"),
+  file: $t("settings.connections.file"),
 };
 
 export interface ConnectionRow {
@@ -69,14 +69,14 @@ export interface OAuthConnectionRow {
 
 function GrantStatus({ c }: { c: OAuthConnectionRow }) {
   if (c.status === "failed") {
-    return <p className="mt-0.5 text-xs text-danger">refresh failed {c.lastErrorAt?.slice(0, 10)} — {c.lastError} · reconnect to fix</p>;
+    return <p className="mt-0.5 text-xs text-danger">{$t("settings.connections.refreshFailedReconnectToFix", { slice: c.lastErrorAt?.slice(0, 10) ?? "", lastError: c.lastError ?? "" })}</p>;
   }
-  if (c.status === "expired") return <p className="mt-0.5 text-xs text-danger">sign-in expired · reconnect to fix</p>;
-  if (c.status === "expiring") return <p className="mt-0.5 text-xs text-warning">sign-in expires in {c.daysLeft} days</p>;
-  if (c.status === "no-client") return <p className="mt-0.5 text-xs text-fg-subtle">connected {c.connectedAt?.slice(0, 10)} · no saved client, so no one-click reconnect</p>;
+  if (c.status === "expired") return <p className="mt-0.5 text-xs text-danger">{$t("settings.connections.signInExpiredReconnectToFix")}</p>;
+  if (c.status === "expiring") return <p className="mt-0.5 text-xs text-warning">{$t("settings.connections.signInExpiresInDays", { daysLeft: String(c.daysLeft ?? "") })}</p>;
+  if (c.status === "no-client") return <p className="mt-0.5 text-xs text-fg-subtle">{$t("settings.connections.connectedNoSavedClientSoNo", { slice: c.connectedAt?.slice(0, 10) ?? "" })}</p>;
   return (
     <p className="mt-0.5 text-xs text-success">
-      sign-in OK{c.daysLeft !== null ? ` · ${c.daysLeft} days left` : ""}{c.connectedAt ? ` · connected ${c.connectedAt.slice(0, 10)}` : ""}
+      {$t("settings.connections.signInOk2", { part: c.daysLeft !== null ? $t("settings.connections.daysLeft", { daysLeft: String(c.daysLeft) }) : "", part2: c.connectedAt ? $t("settings.connections.connected", { v0: String(c.connectedAt.slice(0, 10)) }) : "" })}
     </p>
   );
 }
@@ -94,31 +94,31 @@ function GrantStatus({ c }: { c: OAuthConnectionRow }) {
  */
 function SecretHealth({ health }: { health: ConnectionRow["health"] }) {
   if (!health) {
-    return <p className="mt-0.5 text-xs text-fg-subtle">not used yet — nothing has tried this credential</p>;
+    return <p className="mt-0.5 text-xs text-fg-subtle">{$t("settings.connections.notUsedYetNothingHasTried")}</p>;
   }
   const { last, refusals, lastAccepted } = health;
   const when = last.at.slice(0, 10);
   if (last.outcome === "refused") {
     return (
       <p className="mt-0.5 text-xs text-danger">
-        refused by {last.host} on {when}
+        {$t("settings.connections.refusedByOn", { host: last.host, when: when })}
         {last.status ? ` (${last.status})` : ""}
-        {refusals > 1 ? ` · ${refusals} times running` : ""}
-        {lastAccepted ? ` · last worked ${lastAccepted.slice(0, 10)}` : " · never seen working"}
+        {refusals > 1 ? $t("settings.connections.timesRunning", { refusals: String(refusals) }) : ""}
+        {lastAccepted ? $t("settings.connections.lastWorked", { v0: String(lastAccepted.slice(0, 10)) }) : $t("settings.connections.neverSeenWorking")}
       </p>
     );
   }
   if (last.outcome === "error") {
     return (
       <p className="mt-0.5 text-xs text-warning">
-        {last.host} failed on {when}
-        {last.status ? ` (${last.status})` : ""} — its end, not the key
+        {$t("settings.connections.failedOn", { host: last.host, when: when })}
+        {last.status ? ` (${last.status})` : ""}{" "}{$t("settings.connections.itsEndNotTheKey")}
       </p>
     );
   }
   return (
     <p className="mt-0.5 text-xs text-success">
-      accepted by {last.host} on {when}
+      {$t("settings.connections.acceptedByOn", { host: last.host, when: when })}
     </p>
   );
 }
@@ -133,7 +133,7 @@ function parseAuthorizeExtra(text: string): Record<string, string> {
   const out: Record<string, string> = {};
   for (const line of text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
     const i = line.indexOf("=");
-    if (i < 1) throw new Error(`extra authorize parameters are name=value, one per line — "${line}" is not`);
+    if (i < 1) throw new Error($t("settings.connections.extraAuthorizeParametersAreNameValue", { line: String(line) }));
     out[line.slice(0, i).trim()] = line.slice(i + 1).trim();
   }
   return out;
@@ -166,7 +166,7 @@ function SecretSites({ row, tenant, workspace, editable }: { row: ConnectionRow;
         headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
         body: JSON.stringify({ sites: next, name: row.name, workspace: row.scope === "workspace" ? workspace : undefined }),
       });
-      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "could not save");
+      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? $t("settings.connections.couldNotSave"));
       setEditing(false);
       router.refresh();
     } catch (err) {
@@ -181,28 +181,28 @@ function SecretSites({ row, tenant, workspace, editable }: { row: ConnectionRow;
         <p className="flex flex-wrap items-center gap-1.5 text-fg-subtle">
           {sites.length ? (
             <>
-              <span>Sent only to</span>
+              <span>{$t("settings.connections.sentOnlyTo")}</span>
               {sites.map((x) => <code key={x} className="font-mono text-fg">{x}</code>)}
-              <span>· never in a sandbox</span>
+              <span>{$t("settings.connections.neverInASandbox")}</span>
             </>
           ) : (
-            <span>Not bound to sites — a step with a script or Bash gets the real value in its sandbox</span>
+            <span>{$t("settings.connections.notBoundToSitesAStep")}</span>
           )}
           {editable && (
             <button type="button" onClick={() => setEditing(true)} className="font-medium text-link underline-offset-2 hover:underline">
-              {sites.length ? "Edit sites" : "Bind to sites"}
+              {sites.length ? $t("settings.connections.editSites") : $t("settings.connections.bindToSites")}
             </button>
           )}
         </p>
       ) : (
         <form onSubmit={(e) => { e.preventDefault(); void save(parseSites(text)); }} className="flex flex-wrap items-center gap-2">
           <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="api.example.com, *.example.org" autoFocus
-            aria-label={`Sites ${row.name} may be sent to`} className="w-72 font-mono text-xs" />
-          <button type="submit" disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })}>Save</button>
+            aria-label={$t("settings.connections.sitesMayBeSentTo", { name: String(row.name) })} className="w-72 font-mono text-xs" />
+          <button type="submit" disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })}>{$t("settings.connections.save")}</button>
           {sites.length > 0 && (
-            <button type="button" disabled={busy} onClick={() => void save([])} className={buttonVariants({ variant: "secondary", size: "md" })}>Unbind</button>
+            <button type="button" disabled={busy} onClick={() => void save([])} className={buttonVariants({ variant: "secondary", size: "md" })}>{$t("settings.connections.unbind")}</button>
           )}
-          <button type="button" onClick={() => { setEditing(false); setText(sites.join(", ")); }} className={buttonVariants({ variant: "ghost", size: "md" })}>Cancel</button>
+          <button type="button" onClick={() => { setEditing(false); setText(sites.join(", ")); }} className={buttonVariants({ variant: "ghost", size: "md" })}>{$t("settings.connections.cancel")}</button>
         </form>
       )}
       {error && <p className="mt-1 text-danger">{error}</p>}
@@ -235,7 +235,7 @@ function SecretWorkspaces({ row, tenant, choices }: { row: ConnectionRow; tenant
         // since is refused (409) rather than silently overwritten.
         body: JSON.stringify({ workspaces: mode === "all" ? null : picked, ifWorkspaces: row.workspaces ?? null, name: row.name }),
       });
-      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "could not save");
+      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? $t("settings.connections.couldNotSave"));
       setEditing(false);
       router.refresh();
     } catch (err) {
@@ -249,12 +249,12 @@ function SecretWorkspaces({ row, tenant, choices }: { row: ConnectionRow; tenant
     <div className="mt-1.5 text-xs">
       {!editing ? (
         <p className="flex flex-wrap items-center gap-1.5 text-fg-subtle">
-          <span>Workspaces:</span>
+          <span>{$t("settings.connections.workspaces")}</span>
           {!limited ? (
-            <span className="text-fg">all</span>
+            <span className="text-fg">{$t("settings.connections.all")}</span>
           ) : limited.length ? (
             <>
-              <span>only</span>
+              <span>{$t("settings.connections.only")}</span>
               {limited.map((w) => <code key={w} className="font-mono text-fg">{w}</code>)}
             </>
           ) : (
@@ -269,7 +269,7 @@ function SecretWorkspaces({ row, tenant, choices }: { row: ConnectionRow; tenant
               setError(null);
               setEditing(true);
             }} className="font-medium text-link underline-offset-2 hover:underline">
-              Change
+              {$t("settings.connections.change")}
             </button>
           )}
         </p>
@@ -277,12 +277,10 @@ function SecretWorkspaces({ row, tenant, choices }: { row: ConnectionRow; tenant
         <form onSubmit={(e) => { e.preventDefault(); void save(); }} className="flex flex-col gap-2">
           <RadioGroup className="flex flex-wrap items-center gap-3" aria-label={$t("settings.connections.workspaceThatMayUse", { name: String(row.name) })} value={mode} onValueChange={(v) => setMode(v as typeof mode)}>
             <label className="flex items-center gap-1.5">
-              <RadioGroupItem value="all" />
-              {$t("settings.connections.allWorkspace")}
+              {$rich("settings.connections.allTerm", { radioGroupItem: $el(<RadioGroupItem value="all" />) })}
             </label>
             <label className="flex items-center gap-1.5">
-              <RadioGroupItem value="selected" />
-              {$t("settings.connections.selectedWorkspace")}
+              {$rich("settings.connections.selectedTerm", { radioGroupItem: $el(<RadioGroupItem value="selected" />) })}
             </label>
           </RadioGroup>
           {mode === "selected" && (
@@ -300,8 +298,8 @@ function SecretWorkspaces({ row, tenant, choices }: { row: ConnectionRow; tenant
             {$t("settings.connections.allIncludesWorkspaceMadeLaterA")}
           </p>
           <div className="flex items-center gap-2">
-            <button type="submit" disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })}>Save</button>
-            <button type="button" onClick={() => setEditing(false)} className={buttonVariants({ variant: "ghost", size: "md" })}>Cancel</button>
+            <button type="submit" disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })}>{$t("settings.connections.save")}</button>
+            <button type="button" onClick={() => setEditing(false)} className={buttonVariants({ variant: "ghost", size: "md" })}>{$t("settings.connections.cancel")}</button>
           </div>
         </form>
       )}
@@ -380,7 +378,7 @@ export function Connections({
       body: JSON.stringify({ issuer, has_secret: hasSecret, ...(f.pkce === "off" ? { pkce: false } : {}) }),
     });
     const j = (await res.json().catch(() => ({}))) as { config?: Discovered; error?: string };
-    if (!res.ok || !j.config) throw new Error(j.error ?? "discovery failed");
+    if (!res.ok || !j.config) throw new Error(j.error ?? $t("settings.connections.discoveryFailed"));
     return j.config;
   };
   const discover = async () => {
@@ -427,7 +425,7 @@ export function Connections({
     });
     const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
     if (res.ok && data.url) window.location.href = data.url;
-    else setError(data.error ?? "could not start the reconnect");
+    else setError(data.error ?? $t("settings.connections.couldNotStartTheReconnect"));
   }
 
   const clientNameFor = (n: string) => n.toLowerCase().replaceAll("_", "-");
@@ -440,7 +438,7 @@ export function Connections({
       body: JSON.stringify({ workspace, ...payload, name, ...(!workspace && limitTo && newLimit !== null ? { workspaces: newLimit } : {}) }),
     });
     const answer = (await res.json().catch(() => ({}))) as { error?: string; public_jwk?: Record<string, unknown> };
-    if (!res.ok) throw new Error(answer.error ?? "could not save");
+    if (!res.ok) throw new Error(answer.error ?? $t("settings.connections.couldNotSave"));
     return answer;
   }
   /** private_key_jwt: the key pasted (and its certificate), or a new one made. */
@@ -500,7 +498,7 @@ export function Connections({
         // asking them to retype four fields out of it.
         const j = JSON.parse(f.json ?? "{}");
         // The key file names its own token endpoint; none is assumed.
-        if (!j.token_uri) throw new Error("the key file has no token_uri — paste the whole file the provider gave you");
+        if (!j.token_uri) throw new Error($t("settings.connections.theKeyFileHasNoToken"));
         await put({ service_account: {
           token_url: j.token_uri,
           issuer: j.client_email, private_key: j.private_key,
@@ -520,10 +518,10 @@ export function Connections({
         // asked for in so many words — an empty field would quietly mean the
         // app's default (Codex review).
         if (savedApp) {
-          if (!f.scope?.trim()) throw new Error("type the scopes this connection needs, as the provider spells them");
+          if (!f.scope?.trim()) throw new Error($t("settings.connections.typeTheScopesThisConnectionNeeds"));
           return connect(name, savedApp.name, f.scope);
         }
-        if (!newApp) throw new Error("choose an app — a saved one, or a new one");
+        if (!newApp) throw new Error($t("settings.connections.chooseAnAppASavedOne"));
         const authorize_extra = parseAuthorizeExtra(f.authorize_extra ?? "");
         // Discovered before the secret was entered (or cleared after): ask
         // again, so the app signs in at the token URL the way the server
@@ -556,7 +554,7 @@ export function Connections({
           }, name: clientNameFor(name) }),
         });
         const answer = (await saved.json().catch(() => ({}))) as { error?: string; public_jwk?: Record<string, unknown> };
-        if (!saved.ok) throw new Error(answer.error ?? "could not save the client");
+        if (!saved.ok) throw new Error(answer.error ?? $t("settings.connections.couldNotSaveTheClient"));
         // A key foldrun just made: the provider must know its public half
         // before any consent can be signed for — shown, and Connect waits.
         if (signedJwt() && !f.client_assertion_key?.trim() && answer.public_jwk) {
@@ -578,7 +576,7 @@ export function Connections({
    *  the grant is stored (POST /api/oauth/device, then …/device/<id>). */
   async function connectWithCode() {
     if (!savedApp) return;
-    if (!f.scope?.trim()) { setError("type the scopes this connection needs, as the provider spells them"); return; }
+    if (!f.scope?.trim()) { setError($t("settings.connections.typeTheScopesThisConnectionNeeds")); return; }
     setError(null); setBusy(true);
     try {
       const res = await fetch("/api/oauth/device", {
@@ -592,7 +590,7 @@ export function Connections({
       const deadline = Date.now() + ((started as { expires_in?: number }).expires_in ?? 600) * 1000;
       for (;;) {
         await new Promise((r) => setTimeout(r, interval * 1000));
-        if (Date.now() > deadline) throw new Error("the code ran out before anyone approved it — try again");
+        if (Date.now() > deadline) throw new Error($t("settings.connections.theCodeRanOutBeforeAnyone"));
         // A dropped connection or a server hiccup is retried, less often; only
         // the platform's own answer stops the wait (Codex review).
         let p: Response;
@@ -604,7 +602,7 @@ export function Connections({
         }
         if (p.status >= 500) { interval = interval >= 60 ? interval : Math.min(interval * 2, 60); continue; }
         const r = (await p.json().catch(() => ({}))) as { status?: string; reason?: string; error?: string; retry?: boolean };
-        if (!p.ok) throw new Error(r.error ?? "the connection stopped");
+        if (!p.ok) throw new Error(r.error ?? $t("settings.connections.theConnectionStopped"));
         // The provider timed out on the platform's side: poll less often too.
         if (r.retry) { interval = interval >= 60 ? interval : Math.min(interval * 2, 60); continue; }
         if (r.status === "slow_down") interval += 5;
@@ -628,16 +626,16 @@ export function Connections({
     });
     const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
     if (res.ok && data.url) window.location.href = data.url;
-    else setError(data.error ?? "could not start the flow");
+    else setError(data.error ?? $t("settings.connections.couldNotStartTheFlow"));
   }
 
   async function remove(row: ConnectionRow) {
     const where = row.scope === "account" ? $t("settings.connections.everyWorkspaceInThisAccount") : workspace;
     if (
       !(await confirm({
-        title: `Delete ${row.name}?`,
-        body: `It is removed from ${where}. Agents using it fail until it's replaced.${row.kind === "oauth2" ? " Its grant is also revoked at the provider, when the app has a revocation URL." : ""}`,
-        confirmLabel: "Delete",
+        title: $t("settings.connections.delete", { name: String(row.name) }),
+        body: $t("settings.connections.itIsRemovedFromAgentsUsing", { where: String(where), v1: String(row.kind === "oauth2" ? $t("settings.connections.itsGrantIsAlsoRevokedAt") : "") }),
+        confirmLabel: $t("settings.connections.delete2"),
       }))
     )
       return;
@@ -649,9 +647,9 @@ export function Connections({
     // Revoked after the delete (RFC 7009): a failure is said, not hidden —
     // the grant may still be live at the provider until revoked there.
     const r = ((await res.json().catch(() => ({}))) as { revoked?: { skipped?: string; revoked: string[]; error?: string } }).revoked;
-    if (r?.error) setNotice(`${row.name} is deleted, but ${r.error}. Revoke the app's access in the provider's own settings.`);
-    else if (r?.revoked.length) setNotice(`${row.name} is deleted and its grant revoked at the provider.`);
-    else if (r?.skipped === "shared-grant") setNotice(`${row.name} is deleted; its grant was not revoked: another connection uses the same app, and the provider may revoke them together.`);
+    if (r?.error) setNotice($t("settings.connections.isDeletedButRevokeTheApp", { name: String(row.name), error: String(r.error) }));
+    else if (r?.revoked.length) setNotice($t("settings.connections.isDeletedAndItsGrantRevoked", { name: String(row.name) }));
+    else if (r?.skipped === "shared-grant") setNotice($t("settings.connections.isDeletedItsGrantWasNot", { name: String(row.name) }));
     // The app saved under this secret's name goes with it only when it is
     // this connection's alone: other connections may share it (a saved app
     // serves any number of them), and a workspace page never deletes an
@@ -673,21 +671,21 @@ export function Connections({
   return (
     <section className={heading ? "mb-8" : ""}>
       {confirmDialog}
-      {heading && <SectionTitle title="Connections" />}
+      {heading && <SectionTitle title={$t("settings.connections.connections")} />}
       <div className="mb-8 min-w-0 overflow-hidden rounded-lg border border-line bg-surface">
         <div className="p-5 sm:p-6">
         <div className="mb-4 min-w-0 space-y-1.5">
-          <h2 className="text-lg font-semibold text-fg">Add a connection</h2>
-          <p className="text-sm text-fg-muted">A credential agents use by name, as <code className="font-mono">{"${NAME}"}</code>. Pick its type and fill what that type needs.</p>
+          <h2 className="text-lg font-semibold text-fg">{$t("settings.connections.addAConnection")}</h2>
+          <p className="text-sm text-fg-muted">{$rich("settings.connections.aCredentialAgentsUseByName", { code: (chunks) => <code className="font-mono">{chunks}</code> })}</p>
         </div>
         <form id="new-connection" onSubmit={(e) => { e.preventDefault(); void submit(); }} className="space-y-4" autoComplete="off">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Name">
+            <Field label={$t("settings.connections.name")}>
               <Input value={name} autoComplete="off"
                 onChange={(e) => { setError(null); setName(e.target.value.toUpperCase().replaceAll(/[^A-Z0-9_]/g, "_")); }}
                 placeholder="CRM_TOKEN" className="w-full font-mono" />
             </Field>
-            <Field label="Type">
+            <Field label={$t("settings.connections.type")}>
               <Select
                 value={kind}
                 onChange={(e) => {
@@ -698,20 +696,20 @@ export function Connections({
                 }}
                 className="w-full"
               >
-                <option value="key">API key / token</option>
-                <option value="api">API — base URL + headers</option>
-                <option value="ssh">SSH</option>
-                <option value="client_cert">Client certificate (mutual TLS)</option>
-                <option value="identity">Identity — keyless cloud access</option>
-                <option value="token_exchange">OAuth — token exchange</option>
+                <option value="key">{$t("settings.connections.apiKeyToken")}</option>
+                <option value="api">{$t("settings.connections.apiBaseUrlHeaders")}</option>
+                <option value="ssh">{$t("settings.connections.ssh")}</option>
+                <option value="client_cert">{$t("settings.connections.clientCertificateMutualTls")}</option>
+                <option value="identity">{$t("settings.connections.identityKeylessCloudAccess")}</option>
+                <option value="token_exchange">{$t("settings.connections.oauthTokenExchange2")}</option>
                 {/* Browser OAuth needs a saved app, which is account-scoped (an
                     app belongs to the account): a workspace connects through one
                     the account saved, and saves none itself. The other two are
                     self-contained secrets and work at either scope. */}
-                {(!workspace || clients.length > 0) && <option value="oauth">OAuth — browser sign-in</option>}
-                <option value="oauth_m2m">OAuth — client credentials</option>
-                <option value="service_account">Service account (JSON key)</option>
-                <option value="file">File (SSH key, certificate)</option>
+                {(!workspace || clients.length > 0) && <option value="oauth">{$t("settings.connections.oauthBrowserSignIn")}</option>}
+                <option value="oauth_m2m">{$t("settings.connections.oauthClientCredentials")}</option>
+                <option value="service_account">{$t("settings.connections.serviceAccountJsonKey")}</option>
+                <option value="file">{$t("settings.connections.fileSshKeyCertificate")}</option>
               </Select>
             </Field>
           </div>
@@ -722,12 +720,10 @@ export function Connections({
                 <span className="text-sm font-medium text-fg">{$t("settings.connections.workspace")}</span>
                 <RadioGroup className="flex flex-wrap items-center gap-3" aria-label={$t("settings.connections.workspaceThatMayUseIt")} value={newLimit === null ? "all" : "selected"} onValueChange={(v) => setNewLimit(v === "all" ? null : [])}>
                   <label className="flex items-center gap-1.5">
-                    <RadioGroupItem value="all" />
-                    {$t("settings.connections.allWorkspace")}
+                    {$rich("settings.connections.allTerm", { radioGroupItem: $el(<RadioGroupItem value="all" />) })}
                   </label>
                   <label className="flex items-center gap-1.5">
-                    <RadioGroupItem value="selected" />
-                    {$t("settings.connections.selectedWorkspace")}
+                    {$rich("settings.connections.selectedTerm", { radioGroupItem: $el(<RadioGroupItem value="selected" />) })}
                   </label>
                 </RadioGroup>
               </div>
@@ -747,15 +743,14 @@ export function Connections({
 
           {kind === "key" && (
             <>
-              <Field label="Value (write-only)">
+              <Field label={$t("settings.connections.valueWriteOnly")}>
                 <Input type="password" value={f.value ?? ""} onChange={set("value")} autoComplete="new-password" className={cred} />
               </Field>
-              <Field label="Sites (optional)">
+              <Field label={$t("settings.connections.sitesOptional")}>
                 <Input value={f.sites ?? ""} onChange={set("sites")} placeholder="api.example.com, *.example.org" autoComplete="off" className={`w-72 ${cred}`} />
               </Field>
               <p className="text-xs text-fg-muted">
-                Bound to sites, the value never enters a sandbox: scripts and Bash hold <code className="font-mono">{`\${${name || "NAME"}}`}</code> and
-                the egress proxy fills it in requests to those sites, and no other.
+                {$t("settings.connections.boundToSitesTheValueNever")}{" "}<code className="font-mono">{`\${${name || "NAME"}}`}</code>{" "}{$t("settings.connections.andTheEgressProxyFillsIt")}
               </p>
             </>
           )}
@@ -763,123 +758,123 @@ export function Connections({
           {kind === "ssh" && (
             <>
               <div className="flex flex-wrap gap-2">
-                <Field label="Host"><Input value={f.host ?? ""} onChange={set("host")} placeholder="10.0.4.20" className={`w-56 ${cred}`} autoComplete="off" /></Field>
-                <Field label="Port"><Input value={f.port ?? ""} onChange={set("port")} placeholder="22" className={`w-20 ${cred}`} autoComplete="off" /></Field>
-                <Field label="Username"><Input value={f.user ?? ""} onChange={set("user")} placeholder="deploy" className={`w-40 ${cred}`} autoComplete="off" /></Field>
-                <Field label="Auth">
+                <Field label={$t("settings.connections.host")}><Input value={f.host ?? ""} onChange={set("host")} placeholder="10.0.4.20" className={`w-56 ${cred}`} autoComplete="off" /></Field>
+                <Field label={$t("settings.connections.port")}><Input value={f.port ?? ""} onChange={set("port")} placeholder="22" className={`w-20 ${cred}`} autoComplete="off" /></Field>
+                <Field label={$t("settings.connections.username")}><Input value={f.user ?? ""} onChange={set("user")} placeholder="deploy" className={`w-40 ${cred}`} autoComplete="off" /></Field>
+                <Field label={$t("settings.connections.auth")}>
                   <Select value={f.auth ?? "key"} onChange={set("auth")} >
-                    <option value="key">Private key</option>
-                    <option value="password">Password</option>
+                    <option value="key">{$t("settings.connections.privateKey")}</option>
+                    <option value="password">{$t("settings.connections.password")}</option>
                   </Select>
                 </Field>
               </div>
               {(f.auth ?? "key") === "key" ? (
-                <Field label="Private key">
+                <Field label={$t("settings.connections.privateKey")}>
                   <Textarea value={f.key ?? ""} onChange={set("key")} rows={4}
-                    placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" className={cred} />
+                    placeholder={$t("settings.connections.beginOpensshPrivateKey")} className={cred} />
                 </Field>
               ) : (
-                <Field label="Password">
+                <Field label={$t("settings.connections.password")}>
                   <Input type="password" value={f.password ?? ""} onChange={set("password")} autoComplete="new-password" className={cred} />
                 </Field>
               )}
               <p className="text-xs text-fg-muted">
-                The agent gets a ready-to-run command: <code className="font-mono">{`"$${name || "NAME"}" 'uptime'`}</code> — key or password, same usage.
+                {$rich("settings.connections.theAgentGetsAReadyTo2", { part: $t("settings.connections.text", { v0: String(name || "NAME") }), code: (chunks) => <code className="font-mono">{chunks}</code> })}
               </p>
             </>
           )}
 
           {kind === "api" && (
             <>
-              <Field label="Base URL (optional)">
+              <Field label={$t("settings.connections.baseUrlOptional")}>
                 <Input value={f.base_url ?? ""} onChange={set("base_url")} placeholder="https://api.stripe.com" className={cred} autoComplete="off" />
               </Field>
-              <Field label="Headers — one per line, Name: value">
+              <Field label={$t("settings.connections.headersOnePerLineNameValue")}>
                 <Textarea value={f.headers ?? ""} onChange={set("headers")} rows={3}
                   placeholder={"Authorization: Bearer sk_live_…\nStripe-Version: 2026-01-28"} className={cred} />
               </Field>
               <div className="flex flex-wrap gap-2">
-                <Field label="Basic username (optional)">
+                <Field label={$t("settings.connections.basicUsernameOptional")}>
                   <Input value={f.basic_user ?? ""} onChange={set("basic_user")} className={cred} autoComplete="off" />
                 </Field>
-                <Field label="Basic password">
+                <Field label={$t("settings.connections.basicPassword")}>
                   <Input type="password" value={f.basic_password ?? ""} onChange={set("basic_password")} className={cred} autoComplete="new-password" />
                 </Field>
               </div>
               <p className="text-xs text-fg-muted">
-                The agent gets a curl with the headers baked in: <code className="font-mono">{`"$${name || "NAME"}" /v1/charges`}</code> — the secret never appears in the command.
+                {$t("settings.connections.theAgentGetsACurlWith")}{" "}<code className="font-mono">{`"$${name || "NAME"}" /v1/charges`}</code>{" "}{$t("settings.connections.theSecretNeverAppearsInThe")}
               </p>
             </>
           )}
 
           {kind === "file" && (
-            <Field label="File contents — written to a 0600 path at run time; the env var holds the path">
+            <Field label={$t("settings.connections.fileContentsWrittenToA0600")}>
               <Textarea value={f.file ?? ""} onChange={set("file")} rows={4}
-                placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" className={cred} />
+                placeholder={$t("settings.connections.beginOpensshPrivateKey")} className={cred} />
             </Field>
           )}
 
           {kind === "token_exchange" && (
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Token URL"><Input value={f.token_url ?? ""} onChange={set("token_url")} placeholder="https://auth.example.com/token" className="font-mono" autoComplete="off" /></Field>
+              <Field label={$t("settings.connections.tokenUrl")}><Input value={f.token_url ?? ""} onChange={set("token_url")} placeholder="https://auth.example.com/token" className="font-mono" autoComplete="off" /></Field>
               <Field label="client_id"><Input value={f.client_id ?? ""} onChange={set("client_id")} className="font-mono" autoComplete="off" /></Field>
               <Field label="client_secret"><Input type="password" value={f.client_secret ?? ""} onChange={set("client_secret")} className="font-mono" autoComplete="new-password" /></Field>
-              <Field label="Client authentication at the token URL">
+              <Field label={$t("settings.connections.clientAuthenticationAtTheTokenUrl")}>
                 <Select value={f.token_auth ?? "client_secret_post"} onChange={set("token_auth")} className="w-56">
-                  <option value="client_secret_post">in the form body</option>
-                  <option value="client_secret_basic">HTTP Basic</option>
+                  <option value="client_secret_post">{$t("settings.connections.inTheFormBody")}</option>
+                  <option value="client_secret_basic">{$t("settings.connections.httpBasic")}</option>
                 </Select>
               </Field>
-              <Field label="Subject: the secret whose token is traded"><Input value={f.subject_secret ?? ""} onChange={set("subject_secret")} placeholder="UPSTREAM_TOKEN" className="font-mono" autoComplete="off" /></Field>
-              <Field label="Audience (optional)"><Input value={f.audience ?? ""} onChange={set("audience")} className="font-mono" autoComplete="off" /></Field>
-              <Field label="Scopes (optional, fewer than the subject's)"><Input value={f.scope ?? ""} onChange={set("scope")} className="font-mono" autoComplete="off" /></Field>
-              <Field label="Requested token type (optional)"><Input value={f.requested_token_type ?? ""} onChange={set("requested_token_type")} placeholder="urn:ietf:params:oauth:token-type:access_token" className="font-mono" autoComplete="off" /></Field>
-              <p className="text-xs sm:col-span-2 text-fg-muted">Declare the subject secret beside this one in an agent&apos;s secrets:. Each use trades its live token for the narrower one (RFC 8693), cached until it expires.</p>
+              <Field label={$t("settings.connections.subjectTheSecretWhoseTokenIs")}><Input value={f.subject_secret ?? ""} onChange={set("subject_secret")} placeholder="UPSTREAM_TOKEN" className="font-mono" autoComplete="off" /></Field>
+              <Field label={$t("settings.connections.audienceOptional")}><Input value={f.audience ?? ""} onChange={set("audience")} className="font-mono" autoComplete="off" /></Field>
+              <Field label={$t("settings.connections.scopesOptionalFewerThanTheSubject")}><Input value={f.scope ?? ""} onChange={set("scope")} className="font-mono" autoComplete="off" /></Field>
+              <Field label={$t("settings.connections.requestedTokenTypeOptional")}><Input value={f.requested_token_type ?? ""} onChange={set("requested_token_type")} placeholder="urn:ietf:params:oauth:token-type:access_token" className="font-mono" autoComplete="off" /></Field>
+              <p className="text-xs sm:col-span-2 text-fg-muted">{$t("settings.connections.declareTheSubjectSecretBesideThis")}</p>
             </div>
           )}
           {kind === "identity" && <IdentityFields tenant={tenant} workspace={workspace} audience={f.audience ?? ""} onAudience={set("audience")} />}
 
           {kind === "client_cert" && (
             <>
-              <Field label="Certificate (PEM, chain included)">
-                <Textarea value={f.cert ?? ""} onChange={set("cert")} rows={3} placeholder="-----BEGIN CERTIFICATE-----" className={cred} />
+              <Field label={$t("settings.connections.certificatePemChainIncluded")}>
+                <Textarea value={f.cert ?? ""} onChange={set("cert")} rows={3} placeholder={$t("settings.connections.beginCertificate")} className={cred} />
               </Field>
-              <Field label="Private key (PEM)">
-                <Textarea value={f.cert_key ?? ""} onChange={set("cert_key")} rows={3} placeholder="-----BEGIN PRIVATE KEY-----" className={cred} />
+              <Field label={$t("settings.connections.privateKeyPem")}>
+                <Textarea value={f.cert_key ?? ""} onChange={set("cert_key")} rows={3} placeholder={$t("settings.connections.beginPrivateKey")} className={cred} />
               </Field>
               <div className="flex flex-wrap gap-2">
-                <Field label="Passphrase (if the key has one)">
+                <Field label={$t("settings.connections.passphraseIfTheKeyHasOne")}>
                   <Input type="password" value={f.passphrase ?? ""} onChange={set("passphrase")} className={cred} autoComplete="new-password" />
                 </Field>
-                <Field label="Sites it is presented to (exact hosts)">
+                <Field label={$t("settings.connections.sitesItIsPresentedToExact")}>
                   <Input value={f.sites ?? ""} onChange={set("sites")} placeholder="api.bank.example" className={`w-72 ${cred}`} autoComplete="off" />
                 </Field>
-                <Field label="In the sandbox">
+                <Field label={$t("settings.connections.inTheSandbox")}>
                   <Select value={f.cert_export ?? "no"} onChange={set("cert_export")} className="w-64">
-                    <option value="no">never — the egress proxy presents it</option>
-                    <option value="yes">as files too (a step with no proxy)</option>
+                    <option value="no">{$t("settings.connections.neverTheEgressProxyPresentsIt")}</option>
+                    <option value="yes">{$t("settings.connections.asFilesTooAStepWith")}</option>
                   </Select>
                 </Field>
               </div>
               <p className="text-xs text-fg-muted">
-                The egress proxy presents it on its own connection to the sites named — the key never enters the sandbox unless you choose files.
+                {$t("settings.connections.theEgressProxyPresentsItOn")}
               </p>
             </>
           )}
 
           {kind === "service_account" && (
             <>
-              <Field label="Service account JSON key (paste the whole file)">
+              <Field label={$t("settings.connections.serviceAccountJsonKeyPasteThe")}>
                 {/* The placeholder shows the SHAPE of a key so a person knows what
                     to paste; the scanner sees the shape too. It is a prompt with
                     ellipses in it, not a credential. */}
                 <Textarea value={f.json ?? ""} onChange={set("json")} rows={4}
-                  placeholder='{ "type": "service_account", "client_email": "…", "private_key": "…" }' className={cred} /> {/* nosemgrep: generic.secrets.security.detected-google-gcm-service-account.detected-google-gcm-service-account */}
+                  placeholder={$t("settings.connections.typeServiceAccountClientEmailPrivate")} className={cred} /> {/* nosemgrep: generic.secrets.security.detected-google-gcm-service-account.detected-google-gcm-service-account */}
               </Field>
-              <Field label="Scopes (space-separated)">
-                <Input value={f.scope ?? ""} onChange={set("scope")} placeholder="the scopes the provider documents" className={cred} />
+              <Field label={$t("settings.connections.scopesSpaceSeparated")}>
+                <Input value={f.scope ?? ""} onChange={set("scope")} placeholder={$t("settings.connections.theScopesTheProviderDocuments")} className={cred} />
               </Field>
-              <Field label="Act as (optional) — the user it works as, where the provider allows it">
+              <Field label={$t("settings.connections.actAsOptionalTheUserIt")}>
                 <Input value={f.subject ?? ""} onChange={set("subject")} placeholder="ana@example.com" className={cred} autoComplete="off" />
               </Field>
             </>
@@ -888,7 +883,7 @@ export function Connections({
           {(kind === "oauth" || kind === "oauth_m2m") && (
             <div className="grid gap-3 sm:grid-cols-2">
               {kind === "oauth" && clients.length > 0 && (
-                <Field label="App">
+                <Field label={$t("settings.connections.app")}>
                   <Select
                     value={app}
                     // Scopes are not carried over from the app: each connection
@@ -896,17 +891,15 @@ export function Connections({
                     onChange={(e) => { setError(null); setApp(e.target.value); setF({ ...f, scope: "" }); }}
                     className="w-72"
                   >
-                    <option value="" disabled>Choose an app…</option>
-                    {!workspace && <option value={NEW_APP}>A new app — enter its client id and secret</option>}
-                    {clients.map((c) => <option key={c.name} value={c.name}>{c.name} (saved)</option>)}
+                    <option value="" disabled>{$t("settings.connections.chooseAnApp")}</option>
+                    {!workspace && <option value={NEW_APP}>{$t("settings.connections.aNewAppEnterItsClient")}</option>}
+                    {clients.map((c) => <option key={c.name} value={c.name}>{$t("settings.connections.saved", { name: c.name })}</option>)}
                   </Select>
                 </Field>
               )}
               {savedApp && (
                 <p className="text-xs sm:col-span-2 text-fg-muted">
-                  Connects with the saved app <code className="font-mono">{savedApp.name}</code>. Ask for the scopes this
-                  connection needs, as the provider spells them; they stay with this connection, so Reconnect asks for the
-                  same ones. The provider must allow them for the app.
+                  {$rich("settings.connections.connectsWithTheSavedAppAsk", { name: savedApp.name, code: (chunks) => <code className="font-mono">{chunks}</code> })}
                 </p>
               )}
               {newApp && (
@@ -914,103 +907,100 @@ export function Connections({
                 // provider's console refuses a redirect it has not seen, and
                 // the address is whichever one this page was opened at.
                 <Callout tone="warning" className="sm:col-span-2 px-3 py-2 text-xs">
-                  <div className="font-medium">1. Register this redirect URL on your app, then connect.</div>
+                  <div className="font-medium">{$t("settings.connections.1RegisterThisRedirectUrlOn")}</div>
                   <div className="mt-1 flex items-center gap-2">
                     <code className="font-mono break-all">{redirect || "…/api/oauth/callback"}</code>
-                    <button type="button" onClick={copyRedirect} className={buttonVariants({ variant: "secondary", size: "md" })}>{copied ? "Copied" : "Copy"}</button>
+                    <button type="button" onClick={copyRedirect} className={buttonVariants({ variant: "secondary", size: "md" })}>{copied ? $t("settings.connections.copied") : $t("settings.connections.copy")}</button>
                   </div>
                   <div className="mt-1">
-                    It is the address you opened this dashboard at. Most providers accept https, or http on localhost only,
-                    so open the dashboard from an address the provider allows before you click Save &amp; Connect.
+                    {$t("settings.connections.itIsTheAddressYouOpened")}
                   </div>
                 </Callout>
               )}
               {newApp && (
                 <div className="sm:col-span-2">
-                  <Field label="Issuer — fills the URLs below from the provider's own metadata (optional)">
+                  <Field label={$t("settings.connections.issuerFillsTheUrlsBelowFrom")}>
                     <div className="flex items-center gap-2">
                       <Input value={f.issuer ?? ""} onChange={set("issuer")} placeholder="https://login.example.com" className={cred} autoComplete="off" />
-                      <button type="button" disabled={discovering || !f.issuer?.trim()} onClick={() => void discover()} className={buttonVariants({ variant: "secondary", size: "md" })}>{discovering ? "Reading…" : "Discover"}</button>
+                      <button type="button" disabled={discovering || !f.issuer?.trim()} onClick={() => void discover()} className={buttonVariants({ variant: "secondary", size: "md" })}>{discovering ? "Reading…" : $t("settings.connections.discover")}</button>
                     </div>
                   </Field>
                   {f.iss_parameter && (
                     <p className="mt-1 text-xs text-fg-muted">
-                      Found: {[f.revocation_url && "revocation", f.device_url && "device sign-in", f.par_url && "pushed requests (PAR)"].filter(Boolean).join(", ") || "authorize and token URLs"}
-                      {f.iss_parameter === "true" ? " · the provider says who it is on every answer (RFC 9207), so foldrun checks it" : ""}
+                      {$t("settings.connections.found")}{" "}{[f.revocation_url && "revocation", f.device_url && $t("settings.connections.deviceSignIn"), f.par_url && $t("settings.connections.pushedRequestsPar")].filter(Boolean).join(", ") || $t("settings.connections.authorizeAndTokenUrls")}
+                      {f.iss_parameter === "true" ? $t("settings.connections.theProviderSaysWhoItIs") : ""}
                     </p>
                   )}
                 </div>
               )}
               {newApp && (
-                <Field label="Authorize URL"><Input value={f.authorize_url ?? ""} onChange={set("authorize_url")} placeholder="https://auth.example.com/authorize" className={cred} autoComplete="off" /></Field>
+                <Field label={$t("settings.connections.authorizeUrl")}><Input value={f.authorize_url ?? ""} onChange={set("authorize_url")} placeholder="https://auth.example.com/authorize" className={cred} autoComplete="off" /></Field>
               )}
               {(kind === "oauth_m2m" || newApp) && <>
-              <Field label="Token URL"><Input value={f.token_url ?? ""} onChange={set("token_url")} placeholder="https://auth.example.com/token" className={cred} autoComplete="off" /></Field>
+              <Field label={$t("settings.connections.tokenUrl")}><Input value={f.token_url ?? ""} onChange={set("token_url")} placeholder="https://auth.example.com/token" className={cred} autoComplete="off" /></Field>
               <Field label="client_id"><Input value={f.client_id ?? ""} onChange={set("client_id")} className={cred} autoComplete="off" /></Field>
               {f.token_auth !== "private_key_jwt" && f.token_auth !== "tls_client_auth" && (
-                <Field label={kind === "oauth" ? "client_secret (empty for a public app)" : "client_secret"}><Input type="password" value={f.client_secret ?? ""} onChange={set("client_secret")} className={cred} autoComplete="new-password" /></Field>
+                <Field label={kind === "oauth" ? $t("settings.connections.clientSecretEmptyForAPublic") : "client_secret"}><Input type="password" value={f.client_secret ?? ""} onChange={set("client_secret")} className={cred} autoComplete="new-password" /></Field>
               )}
-              <Field label="Client authentication at the token URL">
+              <Field label={$t("settings.connections.clientAuthenticationAtTheTokenUrl")}>
                 <Select value={f.token_auth ?? "client_secret_post"} onChange={set("token_auth")} className="w-56">
-                  <option value="client_secret_post">in the form body (most providers)</option>
-                  <option value="client_secret_basic">HTTP Basic (Notion, Spotify, Reddit, Zoom)</option>
-                  <option value="private_key_jwt">signed JWT with a key (Entra certificates, Okta, FAPI)</option>
-                  <option value="tls_client_auth">client certificate — mutual TLS (banks, FAPI)</option>
+                  <option value="client_secret_post">{$t("settings.connections.inTheFormBodyMostProviders")}</option>
+                  <option value="client_secret_basic">{$t("settings.connections.httpBasicNotionSpotifyRedditZoom")}</option>
+                  <option value="private_key_jwt">{$t("settings.connections.signedJwtWithAKeyEntra")}</option>
+                  <option value="tls_client_auth">{$t("settings.connections.clientCertificateMutualTlsBanksFapi")}</option>
                 </Select>
               </Field>
-              <Field label="DPoP-bound tokens (Bluesky, Okta DPoP)">
+              <Field label={$t("settings.connections.dpopBoundTokensBlueskyOktaDpop")}>
                 <Select value={f.dpop ?? "off"} onChange={set("dpop")} className="w-56">
-                  <option value="off">off (most providers)</option>
-                  <option value="on">on — use it through a site binding</option>
+                  <option value="off">{$t("settings.connections.offMostProviders")}</option>
+                  <option value="on">{$t("settings.connections.onUseItThroughASite")}</option>
                 </Select>
               </Field>
               {f.token_auth === "tls_client_auth" && (
                 <div className="sm:col-span-2">
-                  <Field label="Client certificate, PEM">
-                    <Textarea value={f.tls_client_cert ?? ""} onChange={set("tls_client_cert")} rows={2} placeholder="-----BEGIN CERTIFICATE-----" className={cred} autoComplete="off" />
+                  <Field label={$t("settings.connections.clientCertificatePem")}>
+                    <Textarea value={f.tls_client_cert ?? ""} onChange={set("tls_client_cert")} rows={2} placeholder={$t("settings.connections.beginCertificate")} className={cred} autoComplete="off" />
                   </Field>
-                  <Field label="Its private key, PEM">
-                    <Textarea value={f.tls_client_key ?? ""} onChange={set("tls_client_key")} rows={2} placeholder="the PEM private key (BEGIN PRIVATE KEY …)" className={cred} autoComplete="off" />
+                  <Field label={$t("settings.connections.itsPrivateKeyPem")}>
+                    <Textarea value={f.tls_client_key ?? ""} onChange={set("tls_client_key")} rows={2} placeholder={$t("settings.connections.thePemPrivateKeyBeginPrivate")} className={cred} autoComplete="off" />
                   </Field>
-                  <p className="mt-1 text-xs text-fg-muted">Presented to the token URL instead of a secret, and on the calls the token is bound to — bind this connection to the API&apos;s sites. The key is sealed and never shown again.</p>
+                  <p className="mt-1 text-xs text-fg-muted">{$t("settings.connections.presentedToTheTokenUrlInstead")}</p>
                 </div>
               )}
               {f.token_auth === "private_key_jwt" && (
                 <div className="sm:col-span-2">
-                  <Field label="Private key, PEM or JWK — leave empty and foldrun makes one">
-                    <Textarea value={f.client_assertion_key ?? ""} onChange={set("client_assertion_key")} rows={3} placeholder="the PEM private key (BEGIN PRIVATE KEY …)" className={cred} autoComplete="off" />
+                  <Field label={$t("settings.connections.privateKeyPemOrJwkLeave")}>
+                    <Textarea value={f.client_assertion_key ?? ""} onChange={set("client_assertion_key")} rows={3} placeholder={$t("settings.connections.thePemPrivateKeyBeginPrivate")} className={cred} autoComplete="off" />
                   </Field>
-                  <Field label="Its certificate, PEM (optional — Microsoft Entra names keys by it)">
-                    <Textarea value={f.client_assertion_cert ?? ""} onChange={set("client_assertion_cert")} rows={2} placeholder="-----BEGIN CERTIFICATE-----" className={cred} autoComplete="off" />
+                  <Field label={$t("settings.connections.itsCertificatePemOptionalMicrosoftEntra")}>
+                    <Textarea value={f.client_assertion_cert ?? ""} onChange={set("client_assertion_cert")} rows={2} placeholder={$t("settings.connections.beginCertificate")} className={cred} autoComplete="off" />
                   </Field>
                   <p className="mt-1 text-xs text-fg-muted">
-                    The key signs a short JWT at the token URL instead of sending a secret. It is stored sealed, like a secret, and never shown again.
+                    {$t("settings.connections.theKeySignsAShortJwt")}
                   </p>
                 </div>
               )}
               {kind === "oauth" && (
                 <Field label="PKCE">
                   <Select value={f.pkce ?? "on"} onChange={set("pkce")} className="w-56">
-                    <option value="on">on (recommended)</option>
-                    <option value="off">off — only if the provider refuses it</option>
+                    <option value="on">{$t("settings.connections.onRecommended")}</option>
+                    <option value="off">{$t("settings.connections.offOnlyIfTheProviderRefuses")}</option>
                   </Select>
                 </Field>
               )}
               {kind === "oauth" && (
                 <div className="sm:col-span-2">
-                  <Field label="Extra authorize parameters (optional) — one name=value per line, as the provider documents">
+                  <Field label={$t("settings.connections.extraAuthorizeParametersOptionalOneName")}>
                     <Textarea value={f.authorize_extra ?? ""} onChange={set("authorize_extra")} rows={2} placeholder="name=value" className={cred} />
                   </Field>
                   <p className="mt-1 text-xs text-fg-muted">
-                    Whatever else the provider&apos;s authorize URL takes. Some issue a refresh token only when asked here
-                    (Google: <code className="font-mono">access_type=offline</code> and <code className="font-mono">prompt=consent</code>);
-                    without one the connection stops when the first access token expires.
+                    {$rich("settings.connections.whateverElseTheProviderSAuthorize", { code: (chunks) => <code className="font-mono">{chunks}</code> })}
                   </p>
                 </div>
               )}
               </>}
               {(kind === "oauth_m2m" || savedApp || newApp) && (
-                <Field label="Scopes (space-separated)"><Input value={f.scope ?? ""} onChange={set("scope")} className={cred} autoComplete="off" /></Field>
+                <Field label={$t("settings.connections.scopesSpaceSeparated")}><Input value={f.scope ?? ""} onChange={set("scope")} className={cred} autoComplete="off" /></Field>
               )}
             </div>
           )}
@@ -1019,43 +1009,43 @@ export function Connections({
         {notice && <p className="mt-3 text-sm text-fg-muted">{notice}</p>}
         {device && (
           <div className="mt-4 rounded-md border border-line bg-sunken p-4 text-sm">
-            <div className="font-medium text-fg">On any device, open <a className="underline" href={device.verification_uri_complete ?? device.verification_uri} target="_blank" rel="noreferrer">{device.verification_uri}</a> and type this code:</div>
+            <div className="font-medium text-fg">{$rich("settings.connections.onAnyDeviceOpenAndType", { verification_uri: device.verification_uri, a: (chunks) => <a className="underline" href={device.verification_uri_complete ?? device.verification_uri} target="_blank" rel="noreferrer">{chunks}</a> })}</div>
             <div className="mt-2 font-mono text-lg tracking-widest">{device.user_code}</div>
-            <div className="mt-1 text-fg-muted">Waiting for the provider to say yes…</div>
+            <div className="mt-1 text-fg-muted">{$t("settings.connections.waitingForTheProviderToSay")}</div>
           </div>
         )}
         {jwk && (
           <div className="mt-4 rounded-md border border-line bg-sunken p-4 text-sm">
-            <div className="font-medium text-fg">Register this public key with the provider (as a JWK, or the JWKS it asks for). It is not secret.</div>
+            <div className="font-medium text-fg">{$t("settings.connections.registerThisPublicKeyWithThe")}</div>
             <pre className="mt-2 overflow-x-auto font-mono text-xs text-fg-secondary">{jwk.key}</pre>
             <div className="mt-2 flex gap-2">
-              <button type="button" onClick={() => void navigator.clipboard?.writeText(jwk.key)} className={buttonVariants({ variant: "secondary", size: "md" })}>Copy</button>
-              {jwk.connect && <button type="button" onClick={() => { const n = jwk.connect!; setJwk(null); void connect(n); }} className={buttonVariants({ variant: "primary", size: "md" })}>Registered — connect</button>}
-              {!jwk.connect && <button type="button" onClick={() => setJwk(null)} className={buttonVariants({ variant: "ghost", size: "md" })}>Done</button>}
+              <button type="button" onClick={() => void navigator.clipboard?.writeText(jwk.key)} className={buttonVariants({ variant: "secondary", size: "md" })}>{$t("settings.connections.copy")}</button>
+              {jwk.connect && <button type="button" onClick={() => { const n = jwk.connect!; setJwk(null); void connect(n); }} className={buttonVariants({ variant: "primary", size: "md" })}>{$t("settings.connections.registeredConnect")}</button>}
+              {!jwk.connect && <button type="button" onClick={() => setJwk(null)} className={buttonVariants({ variant: "ghost", size: "md" })}>{$t("settings.connections.done")}</button>}
             </div>
           </div>
         )}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-sunken px-5 py-3 text-sm text-fg-muted sm:px-6">
-          <span className="min-w-0">The value is write-only: nobody sees it again, the model never.</span>
+          <span className="min-w-0">{$t("settings.connections.theValueIsWriteOnlyNobody")}</span>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             {savedApp?.device_url && (
-              <Button type="button" variant="secondary" disabled={busy || !name} onClick={() => void connectWithCode()}>Connect with a code</Button>
+              <Button type="button" variant="secondary" disabled={busy || !name} onClick={() => void connectWithCode()}>{$t("settings.connections.connectWithACode")}</Button>
             )}
             <Button type="submit" form="new-connection" variant="primary" disabled={busy || !name || (oauthBrowser && !savedApp && !newApp)}>
-              {oauthBrowser ? (savedApp ? "Connect →" : "Save & Connect →") : "Save"}
+              {oauthBrowser ? (savedApp ? $t("settings.connections.connect") : $t("settings.connections.saveConnect")) : $t("settings.connections.save")}
             </Button>
           </div>
         </div>
       </div>
 
       <div className="mb-3 flex items-end justify-between gap-2 px-1">
-        <h2 className="text-base font-medium text-fg">{workspace ? "Connections here" : "Connections"}</h2>
+        <h2 className="text-base font-medium text-fg">{workspace ? $t("settings.connections.connectionsHere") : $t("settings.connections.connections")}</h2>
         <span className="text-sm tabular-nums text-fg-muted">{secrets.length}</span>
       </div>
       <div className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface">
         {secrets.length === 0 ? (
-          <EmptyState bare compact icon={<KeyRound />} title="No connections yet" description="Add one above; agents receive it by name." />
+          <EmptyState bare compact icon={<KeyRound />} title={$t("settings.connections.noConnectionsYet")} description={$t("settings.connections.addOneAboveAgentsReceiveIt")} />
         ) : (
           <ul className="divide-y divide-line">
             {secrets.map((s) => { const grant = grantOf(s); /* any kind: a plain token from an OAuth consent has a connection too */ return (
@@ -1065,10 +1055,10 @@ export function Connections({
                   <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-fg">
                     <span className="mr-0.5 break-all font-mono">{s.name}</span>
                     <Tag>{KIND_LABEL[s.kind ?? "key"]}</Tag>
-                    {workspace && s.scope === "account" && <Chip>inherited</Chip>}
-                    {s.shadowed && <Chip tone="warn">overrides account</Chip>}
+                    {workspace && s.scope === "account" && <Chip>{$t("settings.connections.inherited")}</Chip>}
+                    {s.shadowed && <Chip tone="warn">{$t("settings.connections.overridesAccount")}</Chip>}
                   </p>
-                  <p className="mt-0.5 text-xs text-fg-muted">•••••••• · updated {s.updatedAt.slice(0, 10)}</p>
+                  <p className="mt-0.5 text-xs text-fg-muted">{$t("settings.connections.updated", { slice: s.updatedAt.slice(0, 10) })}</p>
                   {grant && <GrantStatus c={grant} />}
                   <SecretHealth health={s.health ?? null} />
                   <SecretSites row={s} tenant={tenant} workspace={workspace} editable={!workspace || s.scope === "workspace"} />
@@ -1076,12 +1066,12 @@ export function Connections({
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                 {grant?.client && (!workspace || s.scope === "workspace") ? (
-                  <Button variant={grant.status === "ok" ? "secondary" : "primary"} onClick={() => reconnect(s)}>Reconnect</Button>
+                  <Button variant={grant.status === "ok" ? "secondary" : "primary"} onClick={() => reconnect(s)}>{$t("settings.connections.reconnect")}</Button>
                 ) : !workspace && hasClient(s.name) && (
-                  <Button variant="secondary" onClick={() => connect(s.name)}>Reconnect</Button>
+                  <Button variant="secondary" onClick={() => connect(s.name)}>{$t("settings.connections.reconnect")}</Button>
                 )}
                 {(!workspace || s.scope === "workspace") && (
-                  <Button variant="ghost" className="hover:text-danger" onClick={() => remove(s)}>Delete</Button>
+                  <Button variant="ghost" className="hover:text-danger" onClick={() => remove(s)}>{$t("settings.connections.delete2")}</Button>
                 )}
                 </div>
               </li>
@@ -1090,10 +1080,7 @@ export function Connections({
         )}
       </div>
       <p className="mt-3 px-1 text-sm text-fg-muted">
-        An agent declares <code className="font-mono">secrets:</code> to receive a connection as an
-        environment variable, or references it in <code className="font-mono">apis:</code> headers as{" "}
-        <code className="font-mono">{"${NAME}"}</code>. The model never sees the value. Bind a connection to the sites it is
-        for and the value stays out of every sandbox too — the egress proxy fills it on the way out.
+        {$rich("settings.connections.anAgentDeclaresSecretsToReceive", { code: (chunks) => <code className="font-mono">{chunks}</code> })}
       </p>
     </section>
   );
@@ -1111,16 +1098,16 @@ function IdentityFields({ tenant, workspace, audience, onAudience }: { tenant: s
   }, [tenant, workspace]);
   return (
     <>
-      <Field label="Audience — the value your cloud's trust expects in aud">
+      <Field label={$t("settings.connections.audienceTheValueYourCloudS")}>
         <Input value={audience} onChange={onAudience} placeholder="sts.amazonaws.com" className="w-full max-w-md font-mono" autoComplete="off" />
       </Field>
       {info && !info.enabled ? (
-        <p className="text-xs text-danger">This install does not issue identity tokens yet (its operator sets FOLDRUN_OIDC_ISSUER).</p>
+        <p className="text-xs text-danger">{$t("settings.connections.thisInstallDoesNotIssueIdentity")}</p>
       ) : info ? (
         <div className="text-xs text-fg-muted">
-          <p>Trust this issuer in your cloud: <code className="font-mono text-fg">{info.issuer}</code></p>
-          <p className="mt-1">Each agent&apos;s tokens carry the subject <code className="font-mono text-fg">{info.subject}</code> — pin at least the account in the trust policy.</p>
-          <p className="mt-1">A step that declares it gets <code className="font-mono">$NAME_FILE</code>: a token lasting ten minutes, renewed while the step runs. Nothing is stored here but the audience.</p>
+          <p>{$rich("settings.connections.trustThisIssuerInYourCloud", { issuer: info.issuer ?? "", code: (chunks) => <code className="font-mono text-fg">{chunks}</code> })}</p>
+          <p className="mt-1">{$rich("settings.connections.eachAgentSTokensCarryThe", { subject: info.subject, code: (chunks) => <code className="font-mono text-fg">{chunks}</code> })}</p>
+          <p className="mt-1">{$rich("settings.connections.aStepThatDeclaresItGets", { code: (chunks) => <code className="font-mono">{chunks}</code> })}</p>
         </div>
       ) : null}
     </>

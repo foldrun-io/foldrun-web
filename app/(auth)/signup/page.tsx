@@ -1,4 +1,4 @@
-import { $t } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import { Suspense } from "react";
 import Link from "@foldrun/ui/react/link";
 import { findUser, hasUsers, peekInvite, setupTokenRequired } from "@/server/users";
@@ -9,7 +9,7 @@ import { AuthForm } from "../auth-form";
 import { Email } from "@/components/email";
 import { AuthCard } from "../brand";
 
-export const metadata = { title: "Create account" };
+export const metadata = { title: $t("auth.signup-page.createAccount") };
 export const dynamic = "force-dynamic";
 
 export default async function SignupPage({
@@ -26,22 +26,22 @@ export default async function SignupPage({
     const linked = readSignupLink(link);
     if (!linked) {
       return (
-        <AuthCard center title="That sign-up link is no longer valid" hint="It has expired or is not complete. Ask for a new one where you got it — a link works for seven days." />
+        <AuthCard center title={$t("auth.signup-page.thatSignUpLinkIsNo")} hint={$t("auth.signup-page.itHasExpiredOrIsNot")} />
       );
     }
     if (await findUser(linked.email)) {
       return (
         <AuthCard
           center
-          title="This address already has an account"
+          title={$t("auth.signup-page.thisAddressAlreadyHasAnAccount")}
           hint={
             <>
-              <Email value={linked.email} /> is already signed up. Sign in with it instead.
+              {$rich("auth.signup-page.isAlreadySignedUpSignIn", { email: $el(<Email value={linked.email} />) })}
             </>
           }
           footer={
             <Link href="/login" className="font-medium text-fg hover:underline">
-              Sign in
+              {$t("auth.signup-page.signIn")}
             </Link>
           }
         />
@@ -49,18 +49,15 @@ export default async function SignupPage({
     }
     return (
       <AuthCard
-        title="Create your account"
+        title={$t("auth.signup-page.createYourAccount")}
         hint={
           <>
-            For <Email value={linked.email} />. Choose an account name and a password.
+            {$rich("auth.signup-page.forChooseAnAccountNameAnd", { email: $el(<Email value={linked.email} />) })}
           </>
         }
         footer={
           <>
-            Already have one?{" "}
-            <Link href="/login" className="font-medium text-fg hover:underline">
-              Sign in
-            </Link>
+            {$rich("auth.signup-page.alreadyHaveOneSignIn", { link: (chunks) => <Link href="/login" className="font-medium text-fg hover:underline">{chunks}</Link> })}
           </>
         }
       >
@@ -90,19 +87,18 @@ export default async function SignupPage({
       <AuthCard
         title={
           <>
-            Join <span className="font-mono">{invited.tenant}</span>
+            {$rich("auth.signup-page.join", { tenant: invited.tenant, span: (chunks) => <span className="font-mono">{chunks}</span> })}
           </>
         }
         hint={
           <>
-            You were invited as {invited.role}, with access to {invited.workspaces === null ? $t("auth.signup-page.everyWorkspace") : invited.workspaces.length ? invited.workspaces.join(", ") : $t("auth.signup-page.noWorkspaceYet")}.
+            {$t("auth.signup-page.youWereInvitedAsWithAccess", { role: invited.role, part: invited.workspaces === null ? $t("auth.signup-page.everyWorkspace") : invited.workspaces.length ? invited.workspaces.join(", ") : $t("auth.signup-page.noWorkspaceYet") })}
             {invited.email ? (
               <>
-                {" "}
-                Sign up with <Email value={invited.email} /> — the invite is for that address, and works once.
+                {" "}{$rich("auth.signup-page.signUpWithTheInviteIs", { email: $el(<Email value={invited.email} />) })}
               </>
             ) : (
-              " The link works once."
+              $t("auth.signup-page.theLinkWorksOnce")
             )}
           </>
         }
@@ -115,7 +111,7 @@ export default async function SignupPage({
   }
   if (state === "invite-invalid") {
     return (
-      <AuthCard center title="That invite is no longer valid" hint="Used, revoked or expired — ask your teammate for a fresh link. An invite works once, for seven days." />
+      <AuthCard center title={$t("auth.signup-page.thatInviteIsNoLongerValid")} hint={$t("auth.signup-page.usedRevokedOrExpiredAskYour")} />
     );
   }
 
@@ -126,11 +122,10 @@ export default async function SignupPage({
     return (
       <AuthCard
         center
-        title="Open your setup link"
+        title={$t("auth.signup-page.openYourSetupLink")}
         hint={
           <>
-            This install&apos;s first account is created from the link the installer printed (<code className="rounded bg-muted px-1">/signup?setup=…</code>). It is also in the install&apos;s{" "}
-            <code className="rounded bg-muted px-1">.env</code> as <code className="rounded bg-muted px-1">FOLDRUN_SETUP_TOKEN</code>.
+            {$rich("auth.signup-page.thisInstallSEnvAsFoldrun", { code: (chunks) => <code className="rounded bg-muted px-1">{chunks}</code> })}
           </>
         }
       />
@@ -144,24 +139,21 @@ export default async function SignupPage({
     return (
       <AuthCard
         center
-        title="New account registration is closed"
+        title={$t("auth.signup-page.newAccountRegistrationIsClosed")}
         hint={
           platform.edition() === "hosted" ? (
             <>
-              Contact <Email value={SIGNUP_CONTACT} /> to ask for an account. If a teammate invited you, open the link they sent.
+              {$rich("auth.signup-page.contactToAskForAnAccount", { email: $el(<Email value={SIGNUP_CONTACT} />) })}
             </>
           ) : (
             <>
-              This install doesn&apos;t accept new accounts — ask whoever runs it for an invite. If it&apos;s yours, start the server with <code className="rounded bg-muted px-1">FOLDRUN_OPEN_SIGNUP=1</code>.
+              {$rich("auth.signup-page.thisInstallDoesnSYoursStart", { code: (chunks) => <code className="rounded bg-muted px-1">{chunks}</code> })}
             </>
           )
         }
         footer={
           <>
-            Already have an account?{" "}
-            <Link href="/login" className="font-medium text-fg hover:underline">
-              Sign in
-            </Link>
+            {$rich("auth.signup-page.alreadyHaveAnAccountSignIn", { link: (chunks) => <Link href="/login" className="font-medium text-fg hover:underline">{chunks}</Link> })}
           </>
         }
       />
@@ -169,14 +161,11 @@ export default async function SignupPage({
   }
   return (
     <AuthCard
-      title="Create your account"
-      hint="A folder of markdown, running on a schedule, by tonight."
+      title={$t("auth.signup-page.createYourAccount")}
+      hint={$t("auth.signup-page.aFolderOfMarkdownRunningOn")}
       footer={
         <>
-          Already have one?{" "}
-          <Link href="/login" className="font-medium text-fg hover:underline">
-            Sign in
-          </Link>
+          {$rich("auth.signup-page.alreadyHaveOneSignIn", { link: (chunks) => <Link href="/login" className="font-medium text-fg hover:underline">{chunks}</Link> })}
         </>
       }
     >

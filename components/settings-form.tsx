@@ -6,6 +6,7 @@
 // Every form on a settings page is this plus its fields, so they all save
 // the same way, disable the same way, and say "Saved" the same way.
 
+import { $t } from "@/i18n";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "@foldrun/ui/react/button";
 
@@ -42,7 +43,7 @@ export function useSettingsForm<T>(initial: T, submit: (value: T) => Promise<voi
 
 export function SettingsForm({
   form,
-  saveLabel = "Save",
+  saveLabel = $t("components.settings-form.save"),
   hint,
   title,
   description,
@@ -79,11 +80,11 @@ export function SettingsForm({
         </Button>
         {form.dirty && !form.busy && (
           <Button type="button" variant="ghost" onClick={form.reset}>
-            Cancel
+            {$t("components.settings-form.cancel")}
           </Button>
         )}
         {form.error && <span className="text-xs text-danger">{form.error}</span>}
-        {form.done && !form.dirty && <span className="text-xs text-success">Saved</span>}
+        {form.done && !form.dirty && <span className="text-xs text-success">{$t("components.settings-form.saved")}</span>}
       </form>
     );
   }
@@ -105,7 +106,7 @@ export function SettingsForm({
               {form.error}
             </span>
           ) : form.done && !form.dirty ? (
-            <span className="text-success">Saved</span>
+            <span className="text-success">{$t("components.settings-form.saved")}</span>
           ) : (
             hint
           )}
@@ -113,7 +114,7 @@ export function SettingsForm({
         <div className="flex shrink-0 items-center gap-2">
           {form.dirty && !form.busy && (
             <Button type="button" variant="ghost" onClick={form.reset}>
-              Cancel
+              {$t("components.settings-form.cancel")}
             </Button>
           )}
           <Button type="submit" variant="primary" disabled={!form.dirty || form.busy}>

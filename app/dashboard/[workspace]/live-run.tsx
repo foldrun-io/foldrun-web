@@ -11,6 +11,7 @@
 // The rules — what counts as live, which cards open, which record is newer
 // — live in components/live-run-model.ts, where tests can reach them.
 
+import { $el, $rich, $t } from "@/i18n";
 import { OperatorPanel } from "@/components/operator-panel";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -49,7 +50,7 @@ import { cn } from "@foldrun/ui/react/cn";
 import { AlertTriangle, ChevronRight, CircleHelp, Code2, Ellipsis, FlaskConical, Hand, Pencil, RotateCcw, Square, Trash2, Webhook, XCircle } from "lucide-react";
 import { Disclosure } from "@foldrun/ui/react/disclosure";
 import { Tooltip } from "@foldrun/ui/react/tooltip";
-const TEST_RUN = "A test run: every step ran, nothing outward happened, state/ and storage/ were left alone";
+const TEST_RUN = $t("workspace.live-run.aTestRunEveryStepRan");
 // Mirrored from store.ts#runVerdict, for the same reason.
 const runVerdict = (r: Pick<RunRecord, "verdict" | "summary">) => {
   if (r.verdict !== undefined) return r.verdict;
@@ -306,7 +307,7 @@ export function LiveRun({
   const showStep = (i: number) => {
     atPageBottom.current = false;
     setFolded((f) => ({ ...f, [foldKey(i, run.steps[i].status)]: false }));
-    document.getElementById(`step-${run.id}-${i}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById($t("workspace.live-run.step", { id: String(run.id), i: String(i) }))?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
   // #step-3 in the address opens and shows that step — what a link from a
   // failure, an alert or a colleague's message points at.
@@ -414,7 +415,7 @@ export function LiveRun({
         setPromoted({ file: data.file, created: Boolean(data.created) });
         router.refresh();
       } else {
-        setPromoted({ error: data.error ?? `could not save (${res.status})` });
+        setPromoted({ error: data.error ?? $t("workspace.live-run.couldNotSave", { status: String(res.status) }) });
       }
     } finally {
       setBusy(false);
@@ -442,9 +443,9 @@ export function LiveRun({
 
   const remove = async () => {
     if (!(await confirm({
-      title: `Delete run ${run.id}?`,
-      body: "Its trace and archived outputs are erased. The ledger keeps what it cost.",
-      confirmLabel: "Delete",
+      title: $t("workspace.live-run.deleteRun", { id: String(run.id) }),
+      body: $t("workspace.live-run.itsTraceAndArchivedOutputsAre"),
+      confirmLabel: $t("workspace.live-run.delete"),
     }))) return;
     setBusy(true);
     try {
@@ -498,18 +499,18 @@ export function LiveRun({
   const wentWrongOutcome = outcome === "failed" || outcome === "blocked" || outcome === "bad";
   const doctor = wentWrongOutcome ? (
     <AskAiButton
-      label="Doctor"
-      title="The run doctor: open Ask AI with this run"
-      prompt={`Doctor: why did run ${run.id} ${page?.failure || outcome === "failed" ? "fail" : `end ${runVerdict(run)}`}, and how do I fix it?`}
+      label={$t("workspace.live-run.doctor")}
+      title={$t("workspace.live-run.theRunDoctorOpenAskAi")}
+      prompt={$t("workspace.live-run.doctorWhyDidRunAndHow", { id: String(run.id), v1: String(page?.failure || outcome === "failed" ? "fail" : `end ${runVerdict(run)}`) })}
     />
   ) : null;
   const liveDot = live ? (
     <Tooltip
       label={
-        link === "live" ? "Live — updates arrive as the run writes them. Click to jump to the active step."
-        : link === "reconnecting" ? "Stream dropped — reconnecting. The run is still going; the page catches up when it does."
-        : link === "connecting" ? "Connecting to the run…"
-        : "Stream closed"
+        link === "live" ? $t("workspace.live-run.liveUpdatesArriveAsTheRun")
+        : link === "reconnecting" ? $t("workspace.live-run.streamDroppedReconnectingTheRunIs")
+        : link === "connecting" ? $t("workspace.live-run.connectingToTheRun")
+        : $t("workspace.live-run.streamClosed")
       }
     >
     <button
@@ -540,19 +541,19 @@ export function LiveRun({
       {!finished && (
         <Button size="md" variant="danger-outline" onClick={() => void stop()} disabled={busy}>
           <Square aria-hidden />
-          Stop run
+          {$t("workspace.live-run.stopRun")}
         </Button>
       )}
       {run.status === "completed" && !wentWrong && (
-        <Tooltip label="Write this run's task and conclusion into evals/ as a regression case">
+        <Tooltip label={$t("workspace.live-run.writeThisRunSTaskAnd")}>
           <Button size="md" onClick={() => void promote()} disabled={busy}>
             <FlaskConical aria-hidden />
-            Save as eval
+            {$t("workspace.live-run.saveAsEval")}
           </Button>
         </Tooltip>
       )}
       {finished && wentWrong && (
-        <Tooltip label="Write this run's task into evals/ with what it should have done, so the fix stays fixed">
+        <Tooltip label={$t("workspace.live-run.writeThisRunSTaskInto")}>
           <Button
             size="md"
             onClick={() => setShouldOpen((v) => !v)}
@@ -560,12 +561,12 @@ export function LiveRun({
             aria-expanded={shouldOpen}
           >
             <FlaskConical aria-hidden />
-            Turn into a test
+            {$t("workspace.live-run.turnIntoATest")}
           </Button>
         </Tooltip>
       )}
       {finished && run.steps.length > 0 && (
-        <Tooltip label={failedAt > 0 ? "Start a new run: the steps before the failed one carried as context, it and later ones run again" : "Start this run again as a new run"}>
+        <Tooltip label={failedAt > 0 ? $t("workspace.live-run.startANewRunTheSteps") : $t("workspace.live-run.startThisRunAgainAsA")}>
           <Button
             size="md"
             variant="primary"
@@ -573,22 +574,22 @@ export function LiveRun({
             disabled={busy}
           >
             <RotateCcw aria-hidden />
-            {failedAt > 0 ? `Rerun from step ${failedAt + 1}` : "Rerun"}
+            {failedAt > 0 ? $t("workspace.live-run.rerunFromStep", { v0: String(failedAt + 1) }) : $t("workspace.live-run.rerun")}
           </Button>
         </Tooltip>
       )}
       <Menu>
         <MenuTrigger asChild>
-          <Button size="icon" variant="secondary" aria-label="More actions">
+          <Button size="icon" variant="secondary" aria-label={$t("workspace.live-run.moreActions")}>
             <Ellipsis aria-hidden />
           </Button>
         </MenuTrigger>
         <MenuContent>
-          <Tooltip label="The run record as the runner wrote it — every event, every stamp" side="left">
+          <Tooltip label={$t("workspace.live-run.theRunRecordAsTheRunner")} side="left">
             <MenuItem asChild>
               <a href={`/api/workspaces/${encodeURIComponent(workspace)}/runs/${run.id}`} target="_blank" rel="noreferrer">
                 <Code2 aria-hidden />
-                Run record (JSON)
+                {$t("workspace.live-run.runRecordJson")}
               </a>
             </MenuItem>
           </Tooltip>
@@ -597,7 +598,7 @@ export function LiveRun({
               <MenuSeparator />
               <MenuItem tone="danger" disabled={busy} onSelect={() => void remove()}>
                 <Trash2 aria-hidden />
-                Delete run
+                {$t("workspace.live-run.deleteRun2")}
               </MenuItem>
             </>
           )}
@@ -620,7 +621,7 @@ export function LiveRun({
               <>
                 <Status outcome={outcome} className="text-sm" />
                 {run.test && (
-                  <Tag hint={TEST_RUN}>test</Tag>
+                  <Tag hint={TEST_RUN}>{$t("workspace.live-run.test")}</Tag>
                 )}
                 {page.tags}
                 {liveDot}
@@ -637,12 +638,12 @@ export function LiveRun({
             <Callout size="lg" role="alert"
               tone="danger"
               icon={<XCircle />}
-              title={failedAt >= 0 ? `Step ${failedAt + 1} · ${page.failure.agent} failed` : `${page.failure.agent} failed`}
+              title={failedAt >= 0 ? $t("workspace.live-run.stepFailed", { v0: String(failedAt + 1), agent: String(page.failure.agent) }) : `${page.failure.agent} failed`}
               actions={
                 <>
                   {failedAt >= 0 && (
                     <Button size="sm" onClick={() => showStep(failedAt)}>
-                      Go to step
+                      {$t("workspace.live-run.goToStep")}
                     </Button>
                   )}
                   {doctor}
@@ -659,41 +660,41 @@ export function LiveRun({
           ) : outcome === "failed" ? (
             // A run can fail with no failed step (a budget hit between
             // groups), and that one needs the doctor too.
-            <Callout size="lg" role="alert" tone="danger" icon={<XCircle />} title="The run failed" actions={doctor}>
-              <p className="text-fg-secondary">No step failed on its own; the run was ended between steps. The run doctor reads its record and says why.</p>
+            <Callout size="lg" role="alert" tone="danger" icon={<XCircle />} title={$t("workspace.live-run.theRunFailed")} actions={doctor}>
+              <p className="text-fg-secondary">{$t("workspace.live-run.noStepFailedOnItsOwn")}</p>
             </Callout>
           ) : outcome === "blocked" || outcome === "bad" ? (
-            <Callout size="lg" role="alert" tone="warning" icon={<AlertTriangle />} title={`The run completed, and the agent reported ${runVerdict(run)}`} actions={doctor}>
-              {run.summary?.trim() ? <p className="line-clamp-4 break-words text-fg-secondary">{run.summary.trim()}</p> : <p className="text-fg-secondary">The last step says why, below.</p>}
+            <Callout size="lg" role="alert" tone="warning" icon={<AlertTriangle />} title={$t("workspace.live-run.theRunCompletedAndTheAgent", { v0: String(runVerdict(run)) })} actions={doctor}>
+              {run.summary?.trim() ? <p className="line-clamp-4 break-words text-fg-secondary">{run.summary.trim()}</p> : <p className="text-fg-secondary">{$t("workspace.live-run.theLastStepSaysWhyBelow")}</p>}
             </Callout>
           ) : null}
           {gates.map(({ st, i }) =>
             st.waitFor === "event" ? (
-              <Callout size="lg" role="status" key={`g${i}`} tone="info" icon={<Webhook />} title={`Step ${i + 1} · ${st.agent} is waiting for an external event`} actions={<Button size="sm" variant="primary" onClick={() => showStep(i)}>Release or reject</Button>}>
-                <p className="text-fg-secondary">Whatever POSTs its event URL releases it. You can also release it from the step.</p>
+              <Callout size="lg" role="status" key={`g${i}`} tone="info" icon={<Webhook />} title={$t("workspace.live-run.stepIsWaitingForAnExternal", { v0: String(i + 1), agent: String(st.agent) })} actions={<Button size="sm" variant="primary" onClick={() => showStep(i)}>{$t("workspace.live-run.releaseOrReject")}</Button>}>
+                <p className="text-fg-secondary">{$t("workspace.live-run.whateverPostsItsEventUrlReleases")}</p>
               </Callout>
             ) : (
               <Callout size="lg" role="alert"
                 key={`g${i}`}
                 tone="warning"
                 icon={<Hand />}
-                title={`Step ${i + 1} · ${st.agent} is waiting for you`}
-                actions={<Button size="sm" variant="primary" onClick={() => showStep(i)}>{st.ask ? "Answer" : "Review and decide"}</Button>}
+                title={$t("workspace.live-run.stepIsWaitingForYou", { v0: String(i + 1), agent: String(st.agent) })}
+                actions={<Button size="sm" variant="primary" onClick={() => showStep(i)}>{st.ask ? $t("workspace.live-run.answer") : $t("workspace.live-run.reviewAndDecide")}</Button>}
               >
-                <p className="break-words text-fg-secondary">{st.ask ? `It asks: ${st.ask}` : "Approve it to run, or reject it with a reason. What it will act on is shown on the step."}</p>
+                <p className="break-words text-fg-secondary">{st.ask ? $t("workspace.live-run.itAsks", { ask: String(st.ask) }) : $t("workspace.live-run.approveItToRunOrReject")}</p>
               </Callout>
             ),
           )}
           {asks.map(({ q, i, agent }) => (
-            <Callout size="lg" role="status" key={q.id} tone="info" icon={<CircleHelp />} title={`Step ${i + 1} · ${agent} is asking you`} actions={<Button size="sm" variant="primary" onClick={() => showStep(i)}>Answer</Button>}>
+            <Callout size="lg" role="status" key={q.id} tone="info" icon={<CircleHelp />} title={$t("workspace.live-run.stepIsAskingYou", { v0: String(i + 1), agent: String(agent) })} actions={<Button size="sm" variant="primary" onClick={() => showStep(i)}>{$t("workspace.live-run.answer")}</Button>}>
               <p className="break-words text-fg-secondary">{q.question}</p>
             </Callout>
           ))}
 
           <SummaryCard
             items={[
-              { label: live ? "Running for" : "Took", value: <span className="tabular-nums">{elapsedText}</span> },
-              { label: "Steps", value: <span className="tabular-nums">{doneSteps} of {run.steps.length}</span> },
+              { label: live ? $t("workspace.live-run.runningFor") : $t("workspace.live-run.took"), value: <span className="tabular-nums">{elapsedText}</span> },
+              { label: $t("workspace.live-run.steps"), value: <span className="tabular-nums">{$t("workspace.live-run.of", { doneSteps: String(doneSteps), length: String(run.steps.length) })}</span> },
               ...page.facts,
             ]}
           />
@@ -707,7 +708,7 @@ export function LiveRun({
           <span className="font-medium text-fg-secondary">{run.flow}</span>
           <Status outcome={outcome} />
         </>)}
-        {run.test && <Tag hint={TEST_RUN}>test</Tag>}
+        {run.test && <Tag hint={TEST_RUN}>{$t("workspace.live-run.test")}</Tag>}
         {liveDot}
         {(!compactHeader || live) && <span className="tabular-nums">{run.finishedAt || hydrated ? `${elapsed(run, clock).toFixed(1)}s` : "…"}</span>}
         {!compactHeader && totalCost > 0 && <span className="tabular-nums">${totalCost.toFixed(4)}</span>}
@@ -717,14 +718,14 @@ export function LiveRun({
       {shouldOpen && wentWrong && (
         <div className="rounded-lg border border-line bg-surface p-4">
           <label htmlFor="should" className="block text-sm font-medium text-fg">
-            What should it have done?
+            {$t("workspace.live-run.whatShouldItHaveDone")}
           </label>
-          <p className="mt-0.5 text-[13px] text-fg-muted">A judge holds the next run of this task to it — the case goes into evals/.</p>
-          <Textarea id="should" value={should} onChange={(e) => setShould(e.target.value)} rows={3} placeholder="e.g. finds the two newest filings and quotes their dates" className="mt-3" />
+          <p className="mt-0.5 text-[13px] text-fg-muted">{$t("workspace.live-run.aJudgeHoldsTheNextRun")}</p>
+          <Textarea id="should" value={should} onChange={(e) => setShould(e.target.value)} rows={3} placeholder={$t("workspace.live-run.eGFindsTheTwoNewest")} className="mt-3" />
           <div className="mt-3 flex items-center justify-end gap-2">
-            <Button onClick={() => setShouldOpen(false)} variant="ghost">Cancel</Button>
+            <Button onClick={() => setShouldOpen(false)} variant="ghost">{$t("workspace.live-run.cancel")}</Button>
             <Button onClick={() => void promote(should.trim())} disabled={busy || !should.trim()} variant="primary">
-              Save the test
+              {$t("workspace.live-run.saveTheTest")}
             </Button>
           </div>
         </div>
@@ -738,14 +739,13 @@ export function LiveRun({
         return (
           <Callout tone="info" className="px-4 py-3 text-[13px] text-fg-secondary">
             <p>
-              <span className="font-medium text-info">Test run — {testEffectSummary(effects)}.</span>{" "}
-              Every step ran against the real files and real read APIs; nothing outward happened, and state/ and storage/ were left as they were.
+              {$rich("workspace.live-run.testRunEveryStepRanAgainst", { effects: testEffectSummary(effects), span: (chunks) => <span className="font-medium text-info">{chunks}</span> })}
             </p>
             {effects.length > 0 && (
               <ul className="mt-2 space-y-0.5 font-mono text-xs">
                 {effects.map((e, i) => (
                   <li key={i}>
-                    <span className="text-info">step {e.step} · {e.agent} · {e.kind}</span>{" "}
+                    <span className="text-info">{$t("workspace.live-run.step2", { step: String(e.step), agent: e.agent, kind: e.kind })}</span>{" "}
                     {e.method && e.host ? `${e.method} ${e.host}${e.path ?? ""} — ` : ""}
                     {e.summary}
                   </li>
@@ -758,18 +758,18 @@ export function LiveRun({
       {/* Outputs the install did not keep (over its size limits, FOL-126
           phase 5): named, with the limit, so a missing file is never a mystery. */}
       {run.outputsRefused && run.outputsRefused.length > 0 && (
-        <Callout tone="warning" icon={<AlertTriangle />} title={`${run.outputsRefusedCount ?? run.outputsRefused.length} output ${(run.outputsRefusedCount ?? run.outputsRefused.length) === 1 ? "file was" : "files were"} not kept`} className="px-4 py-3 text-[13px] text-fg-secondary">
+        <Callout tone="warning" icon={<AlertTriangle />} title={$t("workspace.live-run.outputNotKept", { v0: String(run.outputsRefusedCount ?? run.outputsRefused.length), v1: String((run.outputsRefusedCount ?? run.outputsRefused.length) === 1 ? $t("workspace.live-run.fileWas") : $t("workspace.live-run.filesWere")) })} className="px-4 py-3 text-[13px] text-fg-secondary">
           <ul className="space-y-0.5 break-words">
             {run.outputsRefused.slice(0, 10).map((r) => (
               <li key={`${r.agent}/${r.path}`}>{refusalText(r)}</li>
             ))}
-            {run.outputsRefused.length > 10 && <li>… and {(run.outputsRefusedCount ?? run.outputsRefused.length) - 10} more</li>}
+            {run.outputsRefused.length > 10 && <li>{$t("workspace.live-run.andMore", { outputsRefusedCount: String((run.outputsRefusedCount ?? run.outputsRefused.length) - 10) })}</li>}
           </ul>
         </Callout>
       )}
       {run.memoryWrites && run.memoryWrites.length > 0 && (
         <p className="text-[13px] text-fg-muted">
-          Remembered:{" "}
+          {$t("workspace.live-run.remembered")}{" "}
           {run.memoryWrites.map((rel, i) => (
             <span key={rel}>
               {i > 0 && ", "}
@@ -786,7 +786,7 @@ export function LiveRun({
             promoted.error
           ) : (
             <>
-              {promoted.created ? "Created " : "Added a case to "}
+              {promoted.created ? $t("workspace.live-run.created") : $t("workspace.live-run.addedACaseTo")}
               <a href={editHref(promoted.file)} className="font-mono text-fg-secondary hover:underline">
                 {promoted.file}
               </a>
@@ -797,7 +797,7 @@ export function LiveRun({
 
       {run.steps.length > 0 && (
         <section>
-          <SectionTitle title="Timeline" description="Drag across it to zoom; click a bar to open its step." />
+          <SectionTitle title={$t("workspace.live-run.timeline")} description={$t("workspace.live-run.dragAcrossItToZoomClick")} />
           <RunTimeline run={run} now={clock} onSelect={showStep} />
         </section>
       )}
@@ -805,8 +805,8 @@ export function LiveRun({
       {run.steps.length > 0 && (
         <section>
           <SectionTitle
-            title="Trace"
-            description="Run, step, model call, tool call — opened on the first thing that went wrong."
+            title={$t("workspace.live-run.trace")}
+            description={$t("workspace.live-run.runStepModelCallToolCall")}
           />
           <RunTree run={run} workspace={workspace} tenant={tenant} now={clock} />
           {finished && (
@@ -821,13 +821,13 @@ export function LiveRun({
       {run.steps.length > 0 && (
         <SectionTitle
           className="mb-0"
-          title="Steps"
-          description={`${run.steps.length} step${run.steps.length === 1 ? "" : "s"}${live ? " — the step that starts next opens on its own" : ""}`}
+          title={$t("workspace.live-run.steps")}
+          description={$t("workspace.live-run.stepCount", { n: run.steps.length, live: live ? "yes" : "no" })}
           actions={
             run.steps.length > 1 ? (
               <>
-                <Button size="sm" variant="ghost" onClick={() => foldAll(false)}>Expand all</Button>
-                <Button size="sm" variant="ghost" onClick={() => foldAll(true)}>Collapse all</Button>
+                <Button size="sm" variant="ghost" onClick={() => foldAll(false)}>{$t("workspace.live-run.expandAll")}</Button>
+                <Button size="sm" variant="ghost" onClick={() => foldAll(true)}>{$t("workspace.live-run.collapseAll")}</Button>
               </>
             ) : undefined
           }
@@ -839,7 +839,7 @@ export function LiveRun({
         const foldedHeadline = unfolded ? null : stepOutputs(step).headline ?? null;
         const span = stepSpan(step, clock);
         const tokens = step.tokens ? step.tokens.input + step.tokens.output : 0;
-        const shownStatus = step.skipReason === "run stopped" ? "stopped" : (step.status === "pending" || step.status === "running") && step.roomWait ? "waiting for room" : step.status;
+        const shownStatus = step.skipReason === "run stopped" ? "stopped" : (step.status === "pending" || step.status === "running") && step.roomWait ? $t("workspace.live-run.waitingForRoom") : step.status;
         const chip = (c: { label: string; title: string } | null | undefined) =>
           c ? (
             <Tooltip label={c.title}>
@@ -867,33 +867,33 @@ export function LiveRun({
               <ChevronRight className={cn("size-4 shrink-0 text-fg-muted transition-transform", unfolded && "rotate-90")} aria-hidden />
               <StatusDot outcome={STEP_OUTCOME[shownStatus] ?? "quiet"} label={shownStatus} />
               <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="shrink-0 text-fg-muted">Step {i + 1}</span>
+                <span className="shrink-0 text-fg-muted">{$t("workspace.live-run.step3", { i: String(i + 1) })}</span>
                 <span className="shrink-0 font-medium text-fg">{step.agent}</span>
                 {/* sandbox: own — a job another step handed this agent; it ran
                     in its own sandbox and only its reply went back. */}
                 {step.subagentOf && (
-                  <Tooltip label="a sub-agent with sandbox: own — its own sandbox, tools, secrets and network; only its reply went back">
+                  <Tooltip label={$t("workspace.live-run.aSubAgentWithSandboxOwn")}>
                     <span className="text-xs text-fg-muted">
-                      ↳ job from {step.subagentOf} · own sandbox
+                      {$t("workspace.live-run.jobFromOwnSandbox", { subagentOf: step.subagentOf })}
                     </span>
                   </Tooltip>
                 )}
-                {step.optional && !step.subagentOf && <span className="text-xs text-fg-muted">optional</span>}
+                {step.optional && !step.subagentOf && <span className="text-xs text-fg-muted">{$t("workspace.live-run.optional")}</span>}
                 {step.delegations?.length ? (
-                  <Tooltip label="jobs this step handed to sub-agents with sandbox: own">
+                  <Tooltip label={$t("workspace.live-run.jobsThisStepHandedToSub")}>
                     <span className="text-xs text-fg-muted">
-                      handed{" "}
+                      {$t("workspace.live-run.handed")}{" "}
                       {step.delegations
                         .map((d) => {
                           const at = run.steps.findIndex((s) => s.delegation === d.id);
-                          return `${d.agent} (${at >= 0 ? `step ${at + 1}, ` : ""}${d.status})`;
+                          return `${d.agent} (${at >= 0 ? $t("workspace.live-run.step4", { v0: String(at + 1) }) : ""}${d.status})`;
                         })
                         .join(", ")}
                     </span>
                   </Tooltip>
                 ) : null}
-                {step.approve && <span className="text-xs text-warning">needs approval</span>}
-                {(step.attempts ?? 0) > 1 && <span className="text-xs text-fg-muted">attempt {step.attempts}</span>}
+                {step.approve && <span className="text-xs text-warning">{$t("workspace.live-run.needsApproval")}</span>}
+                {(step.attempts ?? 0) > 1 && <span className="text-xs text-fg-muted">{$t("workspace.live-run.attempt", { attempts: String(step.attempts ?? "") })}</span>}
                 {/* Which runner image the step ran on — "slim · browser pod"
                     when it browsed through the account's pod from slim — how
                     long it was held, how long it took to start, and which
@@ -911,12 +911,12 @@ export function LiveRun({
                   time and the money go" without opening a card. */}
               <span className="hidden items-center gap-3 text-xs tabular-nums text-fg-muted md:flex">
                 {span && (
-                  <Tooltip label={span.live ? "running for" : "took"}><span>{span.live && !hydrated ? "…" : fmtDur(span.end - span.start)}</span></Tooltip>
+                  <Tooltip label={span.live ? $t("workspace.live-run.runningFor2") : "took"}><span>{span.live && !hydrated ? "…" : fmtDur(span.end - span.start)}</span></Tooltip>
                 )}
                 {tokens > 0 && (
                   <Tooltip label={fmtTokenDetail(step.tokens)}>
                     <span>
-                      {fmtTokens(tokens)} tok{fmtCached(step.tokens) ? ` · ${fmtCached(step.tokens)}` : ""}
+                      {$t("workspace.live-run.tok", { tokens: fmtTokens(tokens) })}{fmtCached(step.tokens) ? ` · ${fmtCached(step.tokens)}` : ""}
                     </span>
                   </Tooltip>
                 )}
@@ -930,18 +930,18 @@ export function LiveRun({
               {finished && (
                 <Menu>
                   <MenuTrigger asChild>
-                    <Button size="icon-xs" variant="ghost" aria-label={`Step ${i + 1} actions`} disabled={busy}>
+                    <Button size="icon-xs" variant="ghost" aria-label={$t("workspace.live-run.stepActions", { v0: String(i + 1) })} disabled={busy}>
                       <Ellipsis aria-hidden />
                     </Button>
                   </MenuTrigger>
                   <MenuContent>
-                    <Tooltip label="Start a new run: earlier steps carried as context, this step and later ones run again" side="left">
+                    <Tooltip label={$t("workspace.live-run.startANewRunEarlierSteps")} side="left">
                       <MenuItem onSelect={() => void rerun(i)}>
                         <RotateCcw aria-hidden />
-                        Re-run from here
+                        {$t("workspace.live-run.reRunFromHere")}
                       </MenuItem>
                     </Tooltip>
-                    <Tooltip label="Re-run from here with a different instruction for this step, this once — the flow file is not changed" side="left">
+                    <Tooltip label={$t("workspace.live-run.reRunFromHereWithA")} side="left">
                       <MenuItem
                         onSelect={() => {
                           setDraft(step.instruction ?? "");
@@ -949,7 +949,7 @@ export function LiveRun({
                         }}
                       >
                         <Pencil aria-hidden />
-                        Edit &amp; re-run
+                        {$t("workspace.live-run.editReRun")}
                       </MenuItem>
                     </Tooltip>
                   </MenuContent>
@@ -961,15 +961,15 @@ export function LiveRun({
           {editing === i && (
             <div className="mx-3 mb-3 rounded-lg border border-line bg-sunken p-3 sm:mx-4">
               <label className="block text-[13px] text-fg-muted" htmlFor={`edit-${i}`}>
-                This step&apos;s instruction for one re-run — the flow file is not changed. Earlier steps are carried as context.
+                {$t("workspace.live-run.thisStepSInstructionForOne")}
               </label>
               <Textarea id={`edit-${i}`} value={draft} onChange={(e) => setDraft(e.target.value)} rows={5} className="mt-2 font-mono text-xs" />
               <div className="mt-2 flex items-center justify-end gap-2">
                 <Button variant="ghost" onClick={() => setEditing(null)}>
-                  Cancel
+                  {$t("workspace.live-run.cancel")}
                 </Button>
                 <Button variant="primary" onClick={() => void rerun(i, draft)} disabled={busy || !draft.trim()}>
-                  Re-run with this
+                  {$t("workspace.live-run.reRunWithThis")}
                 </Button>
               </div>
             </div>
@@ -995,12 +995,12 @@ export function LiveRun({
               <p className={`mb-3 rounded-md border px-3 py-2 text-[13px] ${tone}`}>
                 {pod.line && (
                   <span className="block">
-                    <span className="font-medium">Browser pod:</span> {pod.line}
+                    <span className="font-medium">{$t("workspace.live-run.browserPod")}</span> {pod.line}
                   </span>
                 )}
                 {pod.tries && (
                   <span className={pod.line ? "mt-0.5 block" : "block"}>
-                    <span className="font-medium">Tries:</span> {pod.tries}
+                    <span className="font-medium">{$t("workspace.live-run.tries")}</span> {pod.tries}
                   </span>
                 )}
               </p>
@@ -1013,7 +1013,7 @@ export function LiveRun({
             if (!refused) return null;
             return (
               <Callout tone="warning" className="mb-3 px-3 py-2 text-[13px] text-fg">
-                <span className="block"><span className="font-medium">Not kept:</span> {refused.line}</span>
+                <span className="block"><span className="font-medium">{$t("workspace.live-run.notKept")}</span> {refused.line}</span>
                 <span className="mt-0.5 block font-mono">{refused.paths.join(", ")}</span>
               </Callout>
             );
@@ -1023,10 +1023,10 @@ export function LiveRun({
           {(step.status === "pending" || step.status === "running") && step.roomWait && (
             <Callout tone="info" className="mb-3 px-3 py-2.5 text-[13px] text-fg-secondary">
               <span className="block font-medium text-info">
-                Waiting for room to start{run.status === "queued" ? " — the run waits in the queue" : ""}, since <LocalTime iso={step.roomWait.since} />
+                {$t("workspace.live-run.waitingForRoomToStart")}{run.status === "queued" ? $t("workspace.live-run.theRunWaitsInTheQueue") : ""}{$rich("workspace.live-run.since", { localTime: $el(<LocalTime iso={step.roomWait.since} />) })}
               </span>
               <span className="block">
-                {step.roomWait.why}. It needs {step.roomWait.cpus} vCPU · {step.roomWait.memGiB} GiB{step.roomWait.diskGiB ? ` · ${step.roomWait.diskGiB} GiB disk` : ""}, starts in turn when there is room, and is not charged while it waits.
+                {$t("workspace.live-run.startsInTurnWhenThereIs2", { part: $t("workspace.live-run.itNeedsVcpuGib", { why: step.roomWait.why, cpus: String(step.roomWait.cpus), memGiB: String(step.roomWait.memGiB) }), part2: step.roomWait.diskGiB ? $t("workspace.live-run.gibDisk", { diskGiB: String(step.roomWait.diskGiB) }) : "" })}
               </span>
             </Callout>
           )}
@@ -1039,11 +1039,11 @@ export function LiveRun({
             <Callout tone="warning" className="mb-4 p-3 sm:p-4" bodyClassName="space-y-3">
               <span className="flex items-center gap-2 text-sm font-medium text-fg">
                 <Hand className="size-4 shrink-0 text-warning" aria-hidden />
-                {step.ask ? `This step asks you: ${step.ask}` : "Waiting for you before this step runs."}
+                {step.ask ? $t("workspace.live-run.thisStepAsksYou", { ask: String(step.ask) }) : $t("workspace.live-run.waitingForYouBeforeThisStep")}
               </span>
               {run.test && (
                 <span className="block text-[13px] text-fg-secondary">
-                  This is a test run: approving lets the step run, but nothing it sends will go out and nothing it writes to state/ will be kept.
+                  {$t("workspace.live-run.thisIsATestRunApproving")}
                 </span>
               )}
               {/* What is being approved, in full, where the decision is made.
@@ -1085,7 +1085,7 @@ export function LiveRun({
                   `/api/workspaces/${encodeURIComponent(workspace)}/storage/download?path=${encodeURIComponent(rel)}&inline=1`;
                 return (
                   <div className="rounded-md border border-line bg-surface p-3">
-                    <div className="mb-1.5 text-[13px] font-medium text-fg">What this step will act on</div>
+                    <div className="mb-1.5 text-[13px] font-medium text-fg">{$t("workspace.live-run.whatThisStepWillActOn")}</div>
                     {gate.instruction && (
                       <p className="mb-2 text-[13px] italic text-fg-tertiary">{gate.instruction}</p>
                     )}
@@ -1104,13 +1104,13 @@ export function LiveRun({
                       <GateDocument key={rel} workspace={workspace} tenant={tenant} rel={rel} src={imageSrc(rel)} />
                     ))}
                     {material.length === 0 ? (
-                      <p className="text-[13px] text-fg-muted">No earlier result reaches this step; it runs on its instruction alone.</p>
+                      <p className="text-[13px] text-fg-muted">{$t("workspace.live-run.noEarlierResultReachesThisStep")}</p>
                     ) : (
                       <div className="space-y-3">
                         {material.map(({ ref, text }) => (
                           <div key={ref.index}>
                             <div className="mb-1 text-xs text-fg-muted">
-                              Step {ref.index + 1} · {ref.agent}
+                              {$t("workspace.live-run.step5", { index: String(ref.index + 1), agent: ref.agent })}
                               {ref.item && <span className="text-fg-subtle"> ({ref.item.slice(0, 60)})</span>}
                             </div>
                             <div className="max-h-[32rem] overflow-y-auto rounded-md border border-line bg-sunken px-3 py-2">
@@ -1137,19 +1137,19 @@ export function LiveRun({
               <SmartTextarea
                 workspace={workspace}
                 tenant={tenant}
-                path={`flows/${run.flow ?? "flow"}.md`}
+                path={$t("workspace.live-run.flowsMd", { v0: String(run.flow ?? "flow") })}
                 value={notes[i] ?? ""}
                 onChange={(next) => setNotes((n) => ({ ...n, [i]: next }))}
-                placeholder={step.ask ? "Your answer — it reaches the step as its instruction" : "Optional: guidance for this step if you approve — or why, if you reject"}
+                placeholder={step.ask ? $t("workspace.live-run.yourAnswerItReachesTheStep") : $t("workspace.live-run.optionalGuidanceForThisStepIf")}
                 rows={2}
                 className={cn(inputBase, "py-2 text-[13px]")}
               />
               <span className="flex items-center justify-end gap-2">
                 <Button size="md" variant="danger-outline" onClick={() => decide("reject", i)} disabled={busy}>
-                  Reject
+                  {$t("workspace.live-run.reject")}
                 </Button>
                 <Button size="md" variant="primary" onClick={() => decide("approve", i)} disabled={busy}>
-                  Approve
+                  {$t("workspace.live-run.approve")}
                 </Button>
               </span>
             </Callout>
@@ -1180,7 +1180,7 @@ export function LiveRun({
                   onClick={() => showStep(ref.index)}
                   className="font-medium text-fg-secondary underline-offset-2 hover:underline"
                 >
-                  step {ref.index + 1} · {ref.agent}
+                  {$t("workspace.live-run.step6", { index: String(ref.index + 1), agent: ref.agent })}
                 </button>
                 {ref.item && <span className="text-fg-subtle"> ({ref.item.slice(0, 40)})</span>}
               </span>
@@ -1195,7 +1195,7 @@ export function LiveRun({
               fmtTokenLine(step.tokens),
               typeof step.turns === "number" ? `${step.turns} turn${step.turns === 1 ? "" : "s"}` : null,
               durationMs != null && durationMs > 0 ? fmtDur(durationMs) : null,
-              denied ? `${denied} path${denied === 1 ? "" : "s"} refused` : null,
+              denied ? $t("workspace.live-run.pathRefused", { denied: String(denied), v1: String(denied === 1 ? "" : "s") }) : null,
             ].filter(Boolean);
             // A step that wrote much of its input to the prompt cache says
             // which layer of its prompt changed since the agent's last step
@@ -1204,23 +1204,23 @@ export function LiveRun({
             return (
               <div>
                 <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-                <IoPanel label="In">
+                <IoPanel label={$t("workspace.live-run.in")}>
                   <IoRow k="instruction">
                     {io.instruction ? (
                       <span className="italic text-fg-tertiary">{io.instruction}</span>
                     ) : (
-                      <span className="text-fg-subtle">none — the agent runs on its own instructions</span>
+                      <span className="text-fg-subtle">{$t("workspace.live-run.noneTheAgentRunsOnIts")}</span>
                     )}
                   </IoRow>
                   {io.item && <IoRow k="item">{io.item}</IoRow>}
-                  <IoRow k="results of">
+                  <IoRow k={$t("workspace.live-run.resultsOf")}>
                     {io.results ? (
                       io.results.from.map(stepLink)
                     ) : (
-                      <span className="text-fg-subtle">{io.first ? "nothing — first group" : "nothing — no earlier step produced a result"}</span>
+                      <span className="text-fg-subtle">{io.first ? $t("workspace.live-run.nothingFirstGroup") : $t("workspace.live-run.nothingNoEarlierStepProducedA")}</span>
                     )}
                   </IoRow>
-                  {io.data && <IoRow k="data from">{io.data.from.map(stepLink)}</IoRow>}
+                  {io.data && <IoRow k={$t("workspace.live-run.dataFrom")}>{io.data.from.map(stepLink)}</IoRow>}
                   {io.event && (
                     <IoRow k="event">
                       <Tooltip label={io.event.length > 200 ? io.event : undefined}>
@@ -1232,28 +1232,28 @@ export function LiveRun({
                   )}
                   {io.note && (
                     <IoRow k={io.ask ? "answer" : "guidance"}>
-                      {io.ask && <span className="text-fg-subtle">to “{io.ask}”: </span>}
+                      {io.ask && <span className="text-fg-subtle">{$t("workspace.live-run.to", { ask: io.ask })}{" "}</span>}
                       {io.note}
                     </IoRow>
                   )}
                   {io.carriedFrom && (
                     <IoRow k="carried">
-                      <span className="text-fg-subtle">from run </span>
+                      <span className="text-fg-subtle">{$t("workspace.live-run.fromRun")}{" "}</span>
                       <span className="font-mono">{io.carriedFrom}</span>
-                      <span className="text-fg-subtle"> — not run again</span>
+                      <span className="text-fg-subtle">{" "}{$t("workspace.live-run.notRunAgain")}</span>
                     </IoRow>
                   )}
                 </IoPanel>
-                <IoPanel label="Out">
+                <IoPanel label={$t("workspace.live-run.out")}>
                   {out.skipReason && <IoRow k="skipped">{out.skipReason}</IoRow>}
                   {stepLive && (
                     <IoRow k="headline">
-                      <span className="text-info">working…</span>
+                      <span className="text-info">{$t("workspace.live-run.working")}</span>
                     </IoRow>
                   )}
                   {notYet && !out.skipReason && (
                     <IoRow k="headline">
-                      <span className="text-fg-subtle">not yet run</span>
+                      <span className="text-fg-subtle">{$t("workspace.live-run.notYetRun")}</span>
                     </IoRow>
                   )}
                   {out.headline && !stepLive && (
@@ -1265,7 +1265,7 @@ export function LiveRun({
                           onClick={() => toggle(`${i}:answer`)}
                           className="ml-2 text-[11px] font-medium text-fg-muted underline-offset-2 hover:underline"
                         >
-                          {answerOpen ? "hide full answer" : "full answer"}
+                          {answerOpen ? $t("workspace.live-run.hideFullAnswer") : $t("workspace.live-run.fullAnswer")}
                         </button>
                       )}
                       {out.answer && answerOpen && (
@@ -1286,7 +1286,7 @@ export function LiveRun({
                           onClick={() => toggle(`${i}:data`)}
                           className="mt-1 text-[11px] font-medium text-fg-muted underline-offset-2 hover:underline"
                         >
-                          {jsonOpen ? "show less" : `show all ${jsonLines.length} lines`}
+                          {jsonOpen ? $t("workspace.live-run.showLess") : $t("workspace.live-run.showAllLines", { length: String(jsonLines.length) })}
                         </button>
                       )}
                     </IoRow>
@@ -1321,22 +1321,22 @@ export function LiveRun({
                     </IoRow>
                   )}
                   {cacheNote && (
-                    <IoRow k="prompt cache">
+                    <IoRow k={$t("workspace.live-run.promptCache")}>
                       <span className="text-fg-muted">{cacheNote}</span>
                     </IoRow>
                   )}
                   {(step.calls?.length ?? 0) > 0 && (
-                    <IoRow k="model calls">
-                      <Disclosure summaryClassName="text-fg-muted hover:text-fg" summary={<>{step.calls!.length} call{step.calls!.length === 1 ? "" : "s"} · slowest {fmtDur(Math.max(...step.calls!.map((c) => c.ms)))} · largest {fmtCount(Math.max(...step.calls!.map((c) => c.tokens.input)))} in</>}>
+                    <IoRow k={$t("workspace.live-run.modelCalls")}>
+                      <Disclosure summaryClassName="text-fg-muted hover:text-fg" summary={<>{$t("workspace.live-run.callSlowest", { length: step.calls!.length })}{" "}{fmtDur(Math.max(...step.calls!.map((c) => c.ms)))}{" "}{$t("workspace.live-run.largest")}{" "}{fmtCount(Math.max(...step.calls!.map((c) => c.tokens.input)))}{" "}{$t("workspace.live-run.in3")}</>}>
                         <ol className="mt-1 space-y-0.5 font-mono text-[11px] tabular-nums text-fg-muted">
                           {step.calls!.map((c) => (
                             <Tooltip key={c.id} label={c.id}>
                             <li>
                               {c.n}. {c.model ?? "model"}
-                              {c.subagent ? ` ↳ ${c.subagent}` : ""} · {fmtDur(c.ms)} · {fmtCount(c.tokens.input)} in
-                              {c.tokens.input > 0 && c.tokens.cacheRead > 0 ? ` (${Math.round((100 * c.tokens.cacheRead) / c.tokens.input)}% cached)` : ""} · {fmtCount(c.tokens.output)} out
+                              {c.subagent ? ` ↳ ${c.subagent}` : ""}{" "}{$t("workspace.live-run.in2", { fmtDur: fmtDur(c.ms), fmtCount: fmtCount(c.tokens.input) })}
+                              {c.tokens.input > 0 && c.tokens.cacheRead > 0 ? $t("workspace.live-run.cached", { v0: String(Math.round((100 * c.tokens.cacheRead) / c.tokens.input)) }) : ""}{" "}{$t("workspace.live-run.out2", { fmtCount: fmtCount(c.tokens.output) })}
                               {c.stop ? ` · ${c.stop}` : ""}
-                              {c.tools ? ` · ${c.tools} tool${c.tools === 1 ? "" : "s"}` : ""}
+                              {c.tools ? $t("workspace.live-run.tool", { tools: String(c.tools), v1: String(c.tools === 1 ? "" : "s") }) : ""}
                             </li>
                             </Tooltip>
                           ))}
@@ -1381,7 +1381,7 @@ export function LiveRun({
         );
       })}
 
-      {run.steps.length === 0 && <EmptyState compact title="No steps" description="This run has no steps on record." />}
+      {run.steps.length === 0 && <EmptyState compact title={$t("workspace.live-run.noSteps")} description={$t("workspace.live-run.thisRunHasNoStepsOn")} />}
       </section>
       <div ref={bottomRef} />
     </div>
@@ -1429,7 +1429,7 @@ function GateDocument({ workspace, tenant, rel, src }: { workspace: string; tena
     let live = true;
     fetch(src, { headers: { "x-foldrun-tenant": tenant } })
       .then(async (res) => {
-        if (!res.ok) throw new Error(res.status === 404 ? "not in the file store yet" : `HTTP ${res.status}`);
+        if (!res.ok) throw new Error(res.status === 404 ? $t("workspace.live-run.notInTheFileStoreYet") : `HTTP ${res.status}`);
         return res.text();
       })
       .then((t) => { if (live) setText(t); })

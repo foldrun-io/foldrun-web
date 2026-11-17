@@ -6,6 +6,7 @@
 // CLI and the HTTP API were documented in the repo and nowhere a user could
 // reach, which is the same failure as prose that reached no model.
 
+import { $rich, $t } from "@/i18n";
 import fs from "node:fs";
 import path from "node:path";
 import Link from "@foldrun/ui/react/link";
@@ -31,11 +32,11 @@ export default function DocsPage() {
   return (
     <Page className="pb-16">
       <PageHeader
-        title="Docs"
-        description="Agents are just folders and flows are numbered lists, so there is no build step: edit, check, run, deploy. Start on your own machine — none of it needs an account."
+        title={$t("docs.page.docs")}
+        description={$t("docs.page.agentsAreJustFoldersAndFlows")}
       />
 
-      <Panel title="The loop" className="mb-10">
+      <Panel title={$t("docs.page.theLoop")} className="mb-10">
         <pre className="overflow-x-auto rounded-md border border-line bg-sunken p-3 font-mono text-xs leading-relaxed text-fg-secondary">{`npm install -g foldrun
 
 foldrun init my-workspace     # a workspace that already runs
@@ -43,7 +44,7 @@ foldrun check                 # validate everything — no model is called
 foldrun run publish           # run it, locally, for real
 foldrun deploy --url …        # push it here`}</pre>
         <p className="mt-3 text-sm text-fg-muted">
-          <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-fg">check</code> is free and catches a broken flow at push time rather than at 3am when its schedule fires. Run it after edits, the way you would run a typecheck.
+          {$rich("docs.page.checkIsFreeAndCatchesA", { code: (chunks) => <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-fg">{chunks}</code> })}
         </p>
       </Panel>
 
@@ -59,23 +60,22 @@ foldrun deploy --url …        # push it here`}</pre>
       ))}
 
       <section>
-        <SectionTitle title="Also" />
+        <SectionTitle title={$t("docs.page.also")} />
         <DocGrid>
           <DocCard
             href="/dashboard/help"
             icon={<BookOpen />}
-            title="How foldrun reads your files"
-            summary="The whole grammar on one page — every field an agent or a flow can carry, and what each one does. The page to keep open while editing."
+            title={$t("docs.page.howFoldrunReadsYourFiles")}
+            summary={$t("docs.page.theWholeGrammarOnOnePage")}
           />
           <div className="flex h-full min-w-0 gap-3 rounded-lg border border-line bg-surface p-5">
             <IconBox>
               <Bot />
             </IconBox>
             <div className="min-w-0">
-              <h3 className="text-sm font-semibold text-fg">Using Claude Code?</h3>
+              <h3 className="text-sm font-semibold text-fg">{$t("docs.page.usingClaudeCode")}</h3>
               <p className="mt-1 text-sm leading-relaxed text-fg-muted">
-                A subagent at <code className="font-mono text-xs">.claude/agents/&lt;name&gt;.md</code> deploys as an agent here — no conversion. <code className="font-mono text-xs">init</code> also writes a CLAUDE.md so your editor
-                knows the conventions instead of guessing.
+                {$rich("docs.page.aSubagentAtClaudeAgentsName", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code> })}
               </p>
             </div>
           </div>

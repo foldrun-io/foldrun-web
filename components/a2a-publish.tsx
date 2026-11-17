@@ -13,6 +13,7 @@
 // served new tasks) until an admin ticks "accept" for it, which writes
 // `a2a: accept_risk: [<agent>]`.
 
+import { $rich, $t, $el } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input, Textarea, labelClass } from "@foldrun/ui/react/input";
@@ -89,7 +90,7 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
 
   if (!open) {
     return (
-      <Tooltip label={initial?.publish ? "Published over A2A — outside agents with an A2A key naming this flow may call it" : "Let outside agents call this flow over A2A"}>
+      <Tooltip label={initial?.publish ? $t("components.a2a-publish.publishedOverA2aOutsideAgentsWith") : $t("components.a2a-publish.letOutsideAgentsCallThisFlow")}>
         <button
           type="button"
           onClick={() => {
@@ -99,7 +100,7 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
           className={buttonVariants({ variant: "secondary" })}
         >
           <Globe aria-hidden />
-          {initial?.publish ? "Change publishing" : "Publish over A2A…"}
+          {initial?.publish ? $t("components.a2a-publish.changePublishing") : $t("components.a2a-publish.publishOverA2a")}
         </button>
       </Tooltip>
     );
@@ -108,44 +109,41 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
   return (
     <div className="w-full rounded-lg border border-line bg-sunken p-4">
       <p className="text-xs text-fg-muted">
-        A published flow can be called by an outside agent over A2A 1.0 — only with an A2A key that names it (Settings → API keys). A person still approves every gate.
-        {!mayManage && <span className="ml-1 font-medium text-fg-secondary">Publishing needs the admin role.</span>}
+        {$t("components.a2a-publish.aPublishedFlowCanBeCalled")}
+        {!mayManage && <span className="ml-1 font-medium text-fg-secondary">{$t("components.a2a-publish.publishingNeedsTheAdminRole")}</span>}
       </p>
       <fieldset disabled={!mayManage || busy} className="mt-3 grid gap-3 sm:grid-cols-2">
         <label className="flex items-center gap-2 text-sm text-fg-secondary sm:col-span-2">
-          <Switch checked={form.publish} onCheckedChange={(checked: boolean) => set("publish", checked)} />
-          Published — outside agents with an A2A key may call it
+          {$rich("components.a2a-publish.publishedOutsideAgentsWithAnA2a", { switch: $el(<Switch checked={form.publish} onCheckedChange={(checked: boolean) => set("publish", checked)} />) })}
         </label>
         <label>
-          <span className={labelClass}>Card name</span>
+          <span className={labelClass}>{$t("components.a2a-publish.cardName")}</span>
           <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder={flow} maxLength={100} className="w-full" />
         </label>
         <label className="flex items-center gap-2 self-end pb-2 text-sm text-fg-secondary">
-          <Switch checked={form.publicCard} onCheckedChange={(checked: boolean) => set("publicCard", checked)} />
-          Public card — readable without a key (calling it never is)
+          {$rich("components.a2a-publish.publicCardReadableWithoutAKey", { switch: $el(<Switch checked={form.publicCard} onCheckedChange={(checked: boolean) => set("publicCard", checked)} />) })}
         </label>
         <label className="sm:col-span-2">
-          <span className={labelClass}>Description</span>
+          <span className={labelClass}>{$t("components.a2a-publish.description")}</span>
           <Textarea
             value={form.description}
             onChange={(e) => set("description", e.target.value)}
             rows={2}
             maxLength={2000}
-            placeholder="What this agent does, for the agents that call it. Written for strangers: no internal names, no secrets."
+            placeholder={$t("components.a2a-publish.whatThisAgentDoesForThe")}
             className="w-full"
           />
         </label>
         <label className="sm:col-span-2">
-          <span className={labelClass}>Example requests — one per line</span>
+          <span className={labelClass}>{$t("components.a2a-publish.exampleRequestsOnePerLine")}</span>
           <Textarea value={form.examples} onChange={(e) => set("examples", e.target.value)} rows={2} className="w-full font-mono text-xs" />
         </label>
       </fieldset>
       {risk.items.length > 0 && (
         <Callout tone="warning" className="mt-3 p-3 text-xs text-fg-secondary" role="alert">
-          <p className="font-medium text-warning">The answer goes back to the caller</p>
+          <p className="font-medium text-warning">{$t("components.a2a-publish.theAnswerGoesBackToThe")}</p>
           <p className="mt-1">
-            {risk.items.length === 1 ? "This agent holds" : "These agents hold"} a secret and can run code (Bash), so a caller can ask for the secret in the answer. Take Bash or the secret away
-            from {risk.items.length === 1 ? "it" : "them"} (or bind the secret to its sites), or accept the risk — until then the flow is not published and takes no new tasks.
+            {$t("components.a2a-publish.aSecretAndCanRunCode", { length: risk.items.length })}
           </p>
           <ul className="mt-2 space-y-1">
             {risk.items.map((r) => (
@@ -153,17 +151,17 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
                 <label className="flex items-center gap-2">
                   <Checkbox checked={r.accepted} disabled={!mayManage || busy} onCheckedChange={(checked: boolean) => accept(r.agent, checked)} />
                   <span>
-                    Accept for <span className="font-mono">{r.agent}</span> — holds <span className="font-mono">{r.secrets.slice(0, 3).join(", ")}{r.secrets.length > 3 ? ", …" : ""}</span>
+                    {$rich("components.a2a-publish.acceptForHolds", { agent: r.agent, span: (chunks) => <span className="font-mono">{chunks}</span>, join: r.secrets.slice(0, 3).join(", "), value: r.secrets.length > 3 ? ", …" : "" })}
                   </span>
                 </label>
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-fg-subtle">Written as a2a: accept_risk in the flow and in the audit log.</p>
+          <p className="mt-2 text-fg-subtle">{$t("components.a2a-publish.writtenAsA2aAcceptRiskIn")}</p>
         </Callout>
       )}
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Tooltip label={!mayManage ? "Publishing a flow needs the admin role (workspace:manage)" : risk.blocks ? "Accept the risk for each agent above, or take Bash or the secret away from it" : undefined}>
+        <Tooltip label={!mayManage ? $t("components.a2a-publish.publishingAFlowNeedsTheAdmin") : risk.blocks ? $t("components.a2a-publish.acceptTheRiskForEachAgent") : undefined}>
           <span className="inline-flex">
             <button
               type="button"
@@ -171,29 +169,29 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
               disabled={!mayManage || busy || !dirty || risk.blocks}
               className={buttonVariants({ variant: "primary", size: "md" })}
             >
-              {busy ? "Saving…" : "Save"}
+              {busy ? "Saving…" : $t("components.a2a-publish.save")}
             </button>
           </span>
         </Tooltip>
         <button type="button" onClick={() => { setForm(saved); setError(null); setOpen(false); }} className={buttonVariants({ variant: "ghost", size: "md" })}>
-          Close
+          {$t("components.a2a-publish.close")}
         </button>
         {error && <span role="alert" className="text-xs text-danger">{error}</span>}
-        <span className="ml-auto text-xs text-fg-subtle">a2a: in the flow</span>
+        <span className="ml-auto text-xs text-fg-subtle">{$t("components.a2a-publish.a2aInTheFlow")}</span>
       </div>
       {where && saved.publish && (
         <div className="mt-3 space-y-2 border-t border-line-faint pt-3">
           <div>
-            <span className={labelClass}>Agent card</span>
+            <span className={labelClass}>{$t("components.a2a-publish.agentCard")}</span>
             <CopyField value={where.card} className="mt-1" />
           </div>
           <div>
-            <span className={labelClass}>Try it — with an A2A key in $FOLDRUN_A2A_KEY</span>
-            <CopyBlock text={a2aCurl(where.url, { text: saved.examples.split("\n")[0]?.trim() || "Hello" })} />
+            <span className={labelClass}>{$t("components.a2a-publish.tryItWithAnA2aKey")}</span>
+            <CopyBlock text={a2aCurl(where.url, { text: saved.examples.split("\n")[0]?.trim() || $t("components.a2a-publish.hello") })} />
           </div>
         </div>
       )}
-      {!saved.publish && <p className="mt-3 text-xs text-fg-subtle">Not published: the card and the endpoint answer 404 to every key.</p>}
+      {!saved.publish && <p className="mt-3 text-xs text-fg-subtle">{$t("components.a2a-publish.notPublishedTheCardAndThe")}</p>}
     </div>
   );
 }
@@ -217,7 +215,7 @@ function CopyBlock({ text }: { text: string }) {
         }}
         className={cn(buttonVariants({ variant: "secondary", size: "md" }), "mt-1")}
       >
-        {done ? "Copied" : "Copy curl"}
+        {done ? $t("components.a2a-publish.copied") : $t("components.a2a-publish.copyCurl")}
       </button>
     </div>
   );

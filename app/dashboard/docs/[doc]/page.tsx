@@ -4,6 +4,7 @@
 // 28 Oct 2026, for the CSP nonce): the markdown ships in the image and
 // changes only when a deploy does.
 
+import { $t } from "@/i18n";
 import fs from "node:fs";
 import path from "node:path";
 import { notFound } from "next/navigation";
@@ -28,7 +29,7 @@ export default async function DocPage({ params }: { params: Promise<{ doc: strin
 
   return (
     <Page width="narrow" className="pb-16">
-      <PageHeader back={{ href: "/dashboard/docs", label: "Docs" }} title={docTitle(raw, doc)} description={docSummary(raw)} />
+      <PageHeader back={{ href: "/dashboard/docs", label: $t("docs.doc-page.docs") }} title={docTitle(raw, doc)} description={docSummary(raw)} />
       <Card className="p-5 sm:p-8">
         <Markdown text={body} document />
       </Card>

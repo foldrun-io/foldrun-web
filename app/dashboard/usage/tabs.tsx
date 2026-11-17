@@ -2,7 +2,7 @@
 // (FOL-125). Server components over what GET /api/usage and GET /api/usage/rates
 // answer: the page and the API read the same function, so they cannot differ.
 
-import { $t } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import { Calculator, Coins } from "lucide-react";
 import { Callout, Chip, EmptyState, SectionTitle, Stat, StatGrid } from "@foldrun/ui/react/page";
 import { DataTable } from "@foldrun/ui/react/table";
@@ -22,27 +22,27 @@ export function CreditsBlock({ c }: { c: UsageBreakdowns["credits"] }) {
   const plan = c.plan;
   return (
     <section className="mb-10">
-      <SectionTitle title="Your credits" description="One credit is one cent. Two pots, spent in this order: plan credits first on compute, storage and network; bought credits for tokens on foldrun's models." />
+      <SectionTitle title={$t("usage.tabs.yourCredits")} description={$t("usage.tabs.oneCreditIsOneCentTwo")} />
       <StatGrid className="md:grid-cols-3 xl:grid-cols-3">
         <Stat
-          label="Plan credits"
+          label={$t("usage.tabs.planCredits")}
           value={credits(c.pots.planUsd)}
-          sub={plan ? `${plan.name} · ${fmtCredits(plan.creditsPerMonth)} credits a month` : "No plan"}
+          sub={plan ? $t("usage.tabs.creditsAMonth", { name: String(plan.name), v1: String(fmtCredits(plan.creditsPerMonth)) }) : $t("usage.tabs.noPlan")}
         />
         <Stat
-          label="Bought credits"
+          label={$t("usage.tabs.boughtCredits")}
           value={credits(c.pots.boughtUsd)}
-          sub={c.boughtOldestExpiresAt ? <>The oldest expires <LocalTime iso={c.boughtOldestExpiresAt} /></> : "Top-ups last 12 months"}
+          sub={c.boughtOldestExpiresAt ? <>{$rich("usage.tabs.theOldestExpires", { localTime: $el(<LocalTime iso={c.boughtOldestExpiresAt} />) })}</> : $t("usage.tabs.topUpsLast12Months")}
         />
         <Stat
-          label="Plan"
+          label={$t("usage.tabs.plan")}
           value={plan?.name ?? "—"}
-          sub={plan ? (plan.rollover ? `Unused credits roll over, up to ${fmtCredits(plan.rolloverCapCredits)}` : "Unused credits are lost at month end") : undefined}
+          sub={plan ? (plan.rollover ? $t("usage.tabs.unusedCreditsRollOverUpTo", { v0: String(fmtCredits(plan.rolloverCapCredits)) }) : $t("usage.tabs.unusedCreditsAreLostAtMonth")) : undefined}
         />
       </StatGrid>
       {plan?.resetsAt && (
         <p className="mt-2 px-1 text-xs text-fg-muted">
-          {plan.rollover ? "The plan renews" : "Plan credits reset"} <LocalTime iso={plan.resetsAt} />.
+          {plan.rollover ? $t("usage.tabs.thePlanRenews") : $t("usage.tabs.planCreditsReset")} <LocalTime iso={plan.resetsAt} />.
         </p>
       )}
     </section>
@@ -52,22 +52,22 @@ export function CreditsBlock({ c }: { c: UsageBreakdowns["credits"] }) {
 export function TokensTab({ u }: { u: UsageBreakdowns }) {
   const t = u.tokens;
   if (t.byModel.length === 0) {
-    return <EmptyState icon={<Coins />} title="No model calls in this period" description="Calls show here by provider and model once a run has used one. Pick another period above to look further back." />;
+    return <EmptyState icon={<Coins />} title={$t("usage.tabs.noModelCallsInThisPeriod")} description={$t("usage.tabs.callsShowHereByProviderAnd")} />;
   }
   return (
     <>
       <StatGrid className="mb-8 md:grid-cols-3 xl:grid-cols-3">
-        <Stat label="Model calls" value={t.totals.calls} />
-        <Stat label="Billed" value={`${fmtCredits(t.totals.billedCredits)} credits`} sub="foldrun's models only" />
-        <Stat label="On your own key" value={fmtTokens(t.totals.byokTokens)} sub="Tokens billed by your provider, 0 credits here" />
+        <Stat label={$t("usage.tabs.modelCalls")} value={t.totals.calls} />
+        <Stat label={$t("usage.tabs.billed")} value={`${fmtCredits(t.totals.billedCredits)} credits`} sub={$t("usage.tabs.foldrunSModelsOnly")} />
+        <Stat label={$t("usage.tabs.onYourOwnKey")} value={fmtTokens(t.totals.byokTokens)} sub={$t("usage.tabs.tokensBilledByYourProvider0")} />
       </StatGrid>
       <DataTable
-        title="By provider and model"
+        title={$t("usage.tabs.byProviderAndModel")}
         minWidth="min-w-[760px]"
         columns={[
-          { label: "Provider" }, { label: "Model" }, { label: "Key" },
-          { label: "Calls", align: "right" }, { label: "In", align: "right" }, { label: "Cached", align: "right" },
-          { label: "Out", align: "right" }, { label: "Billed", align: "right" },
+          { label: $t("usage.tabs.provider") }, { label: $t("usage.tabs.model") }, { label: $t("usage.tabs.key") },
+          { label: $t("usage.tabs.calls"), align: "right" }, { label: $t("usage.tabs.in"), align: "right" }, { label: $t("usage.tabs.cached"), align: "right" },
+          { label: $t("usage.tabs.out"), align: "right" }, { label: $t("usage.tabs.billed"), align: "right" },
         ]}
         rows={t.byModel.map((r) => ({
           key: `${r.supply}:${r.provider}:${r.model}`,
@@ -77,25 +77,24 @@ export function TokensTab({ u }: { u: UsageBreakdowns }) {
             <Chip key="s" tone={r.supply === "own" ? "default" : "info"}>{SUPPLY_NAMES[r.supply] ?? r.supply}</Chip>,
             r.calls,
             fmtTokens(r.inputTokens),
-            <Tooltip key="c" label={`${fmtTokens(r.cacheReadTokens)} read from the prompt cache, ${fmtTokens(r.cacheWriteTokens)} written to it`}>
+            <Tooltip key="c" label={$t("usage.tabs.readFromThePromptCacheWritten", { v0: String(fmtTokens(r.cacheReadTokens)), v1: String(fmtTokens(r.cacheWriteTokens)) })}>
               <span>{r.cacheReadTokens + r.cacheWriteTokens > 0 ? fmtTokens(r.cacheReadTokens + r.cacheWriteTokens) : dim}</span>
             </Tooltip>,
             fmtTokens(r.outputTokens),
             r.supply === "own" ? (
-              <Tooltip key="b" label={r.billedNote ?? "your own key; the provider bills you"}>
-                <span className="text-fg-muted">0 credits</span>
+              <Tooltip key="b" label={r.billedNote ?? $t("usage.tabs.yourOwnKeyTheProviderBills")}>
+                <span className="text-fg-muted">{$t("usage.tabs.0Credits")}</span>
               </Tooltip>
             ) : (
-              <Tooltip key="b" label={`${r.providerCostUsd !== undefined ? `provider price ${usdExact(r.providerCostUsd)}` : "provider price × margin"}${r.estimatedCalls ? ` · ${r.estimatedCalls} call(s) charged at an estimate, no usage came back` : ""}`}>
-                <span className="font-medium">{fmtCredits(r.billedCredits)} credits</span>
+              <Tooltip key="b" label={`${r.providerCostUsd !== undefined ? $t("usage.tabs.providerPrice", { v0: String(usdExact(r.providerCostUsd)) }) : $t("usage.tabs.providerPriceMargin")}${r.estimatedCalls ? $t("usage.tabs.callSChargedAtAnEstimate", { estimatedCalls: String(r.estimatedCalls) }) : ""}`}>
+                <span className="font-medium">{$t("usage.tabs.credits", { fmtCredits: fmtCredits(r.billedCredits) })}</span>
               </Tooltip>
             ),
           ],
         }))}
       />
       <p className="mt-3 max-w-3xl px-1 text-sm leading-relaxed text-fg-muted">
-        Tokens on foldrun&apos;s models are the provider&apos;s price with the platform&apos;s margin, paid from bought credits only. On your own key the
-        provider bills you directly; the rows are here so you can see what was used.
+        {$t("usage.tabs.tokensOnFoldrunSPriceWith")}
       </p>
     </>
   );
@@ -105,14 +104,14 @@ export function ComputeTab({ u }: { u: UsageBreakdowns }) {
   const c = u.compute;
   const used = c.meters.some((m) => (m.quantity ?? 0) > 0 || m.credits > 0);
   if (!used && !c.planFee) {
-    return <EmptyState icon={<Calculator />} title="No compute in this period" description="Sandbox time, storage and network show here by meter once a run has used them." />;
+    return <EmptyState icon={<Calculator />} title={$t("usage.tabs.noComputeInThisPeriod")} description={$t("usage.tabs.sandboxTimeStorageAndNetworkShow")} />;
   }
   return (
     <>
       <DataTable
-        title="By meter"
+        title={$t("usage.tabs.byMeter")}
         minWidth="min-w-[640px]"
-        columns={[{ label: "Meter" }, { label: "Quantity", align: "right" }, { label: "Rate", align: "right" }, { label: "Credits", align: "right" }]}
+        columns={[{ label: $t("usage.tabs.meter") }, { label: $t("usage.tabs.quantity"), align: "right" }, { label: $t("usage.tabs.rate"), align: "right" }, { label: $t("usage.tabs.credits2"), align: "right" }]}
         rows={c.meters.map((m) => ({
           key: m.meter,
           cells: [
@@ -124,15 +123,15 @@ export function ComputeTab({ u }: { u: UsageBreakdowns }) {
               <span key="q">
                 {fmtQuantity(m.quantity)} <span className="text-fg-subtle">{m.unit}</span>
                 {m.meter === "storage" && m.includedGb !== undefined && (
-                  <span className="block text-xs text-fg-muted">{fmtQuantity(m.includedGb)} GB included · {fmtQuantity(m.overGb ?? 0)} GB over</span>
+                  <span className="block text-xs text-fg-muted">{$t("usage.tabs.gbIncludedGbOver", { fmtQuantity: fmtQuantity(m.includedGb), fmtQuantity2: fmtQuantity(m.overGb ?? 0) })}</span>
                 )}
-                {m.meter === "storage" && <span className="block text-xs text-fg-muted">Your files and run history, as of now</span>}
+                {m.meter === "storage" && <span className="block text-xs text-fg-muted">{$t("usage.tabs.yourFilesAndRunHistoryAs")}</span>}
                 {m.sessions !== undefined && (
-                  <span className="block text-xs text-fg-muted">{m.sessions} {m.sessions === 1 ? "session" : "sessions"} · {fmtQuantity(m.networkGb ?? 0)} GB moved</span>
+                  <span className="block text-xs text-fg-muted">{$t("usage.tabs.gbMoved", { sessions: m.sessions, fmtQuantity: fmtQuantity(m.networkGb ?? 0) })}</span>
                 )}
               </span>
             ),
-            m.rateCreditsPerUnit === null ? dim : <span key="r">{fmtCredits(m.rateCreditsPerUnit)} <span className="text-fg-subtle">per {rateUnit(m.meter, m.unit)}</span></span>,
+            m.rateCreditsPerUnit === null ? dim : <span key="r">{fmtCredits(m.rateCreditsPerUnit)} <span className="text-fg-subtle">{$t("usage.tabs.per", { rateUnit: rateUnit(m.meter, m.unit) })}</span></span>,
             <span key="c" className="font-medium">{fmtCredits(m.credits)}</span>,
           ],
         }))}
@@ -140,9 +139,9 @@ export function ComputeTab({ u }: { u: UsageBreakdowns }) {
       {c.planFee && (
         <div className="mt-4">
           <DataTable
-            title="Plan fee"
+            title={$t("usage.tabs.planFee")}
             minWidth="min-w-[480px]"
-            columns={[{ label: "Line" }, { label: "Fee", align: "right" }, { label: "Credits it gives", align: "right" }]}
+            columns={[{ label: $t("usage.tabs.line") }, { label: $t("usage.tabs.fee"), align: "right" }, { label: $t("usage.tabs.creditsItGives"), align: "right" }]}
             rows={[{ key: "fee", cells: [<span key="l" className="font-medium">{c.planFee.label}</span>, usd(c.planFee.usd), fmtCredits(c.planFee.includedCredits)] }]}
           />
         </div>
@@ -150,16 +149,16 @@ export function ComputeTab({ u }: { u: UsageBreakdowns }) {
       {c.bySize.length > 0 && (
         <div className="mt-4">
           <DataTable
-            title="By step size"
+            title={$t("usage.tabs.byStepSize")}
             minWidth="min-w-[640px]"
-            columns={[{ label: "Size" }, { label: "Steps", align: "right" }, { label: "Hours", align: "right" }, { label: "Reserved", align: "right" }, { label: "Credits per hour", align: "right" }]}
+            columns={[{ label: $t("usage.tabs.size") }, { label: $t("usage.tabs.steps"), align: "right" }, { label: $t("usage.tabs.hours"), align: "right" }, { label: $t("usage.tabs.reserved"), align: "right" }, { label: $t("usage.tabs.creditsPerHour"), align: "right" }]}
             rows={c.bySize.map((s) => ({
               key: s.size,
               cells: [
                 <span key="s" className="font-medium">{s.size}</span>,
                 s.steps,
                 fmtQuantity(s.hours),
-                `${fmtQuantity(s.vcpu)} vCPU · ${fmtQuantity(s.memGiB)} GiB · ${fmtQuantity(s.diskGiB)} GiB disk`,
+                $t("usage.tabs.vcpuGibGibDisk", { v0: String(fmtQuantity(s.vcpu)), v1: String(fmtQuantity(s.memGiB)), v2: String(fmtQuantity(s.diskGiB)) }),
                 s.creditsPerHour === null ? dim : fmtCredits(s.creditsPerHour),
               ],
             }))}
@@ -167,8 +166,7 @@ export function ComputeTab({ u }: { u: UsageBreakdowns }) {
         </div>
       )}
       <p className="mt-3 max-w-3xl px-1 text-sm leading-relaxed text-fg-muted">
-        Compute is priced on what a step reserves, per second, not on what it touched. Quantities are at today&apos;s rates; the ledger&apos;s
-        total for the period is {u.billed ? <strong className="font-medium text-fg">{fmtCredits(u.billed.totalCredits)} credits</strong> : $t("usage.tabs.notShownToAMemberLimited")}.
+        {$t("usage.tabs.computeIsPricedOnWhatA")}{" "}{u.billed ? <strong className="font-medium text-fg">{$t("usage.tabs.credits", { fmtCredits: fmtCredits(u.billed.totalCredits) })}</strong> : $t("usage.tabs.notShownToAMemberLimited")}.
       </p>
     </>
   );
@@ -176,21 +174,21 @@ export function ComputeTab({ u }: { u: UsageBreakdowns }) {
 
 export function RatesTab({ rates, catalogue, planId }: { rates: MeterRates | null; catalogue: PricingCatalogue | null; planId: string | null }) {
   if (!rates && !catalogue) {
-    return <EmptyState icon={<Coins />} title="Nothing is billed here" description="This install does not charge for sandbox time, storage or network, so there are no rates to show." />;
+    return <EmptyState icon={<Coins />} title={$t("usage.tabs.nothingIsBilledHere")} description={$t("usage.tabs.thisInstallDoesNotChargeFor")} />;
   }
   return (
     <>
       {rates && (
         <DataTable
-          title="What you are charged"
+          title={$t("usage.tabs.whatYouAreCharged")}
           minWidth="min-w-[520px]"
-          columns={[{ label: "Meter" }, { label: "Rate", align: "right" }, { label: "In credits", align: "right" }]}
+          columns={[{ label: $t("usage.tabs.meter") }, { label: $t("usage.tabs.rate"), align: "right" }, { label: $t("usage.tabs.inCredits"), align: "right" }]}
           rows={[
             ["vCPU", rates.vcpuUsdPerHour, "per vCPU-hour"],
             ["RAM", rates.ramUsdPerGibHour, "per GiB-hour"],
             ["Step disk", rates.diskUsdPerGibMonth, "per GiB-month"],
-            ["Storage over your plan's allowance", rates.storageUsdPerGbMonth, "per GB-month"],
-            ["Network, in and out", rates.networkUsdPerGb, "per GB"],
+            [$t("usage.tabs.storageOverYourPlanSAllowance"), rates.storageUsdPerGbMonth, "per GB-month"],
+            [$t("usage.tabs.networkInAndOut"), rates.networkUsdPerGb, "per GB"],
           ].map(([name, rate, per]) => ({
             key: String(name),
             cells: [name, <span key="r">{usdExact(rate as number)} <span className="text-fg-subtle">{per}</span></span>, fmtCredits((rate as number) / rates.creditUsd)],
@@ -200,17 +198,17 @@ export function RatesTab({ rates, catalogue, planId }: { rates: MeterRates | nul
       {catalogue && (
         <div className="mt-4">
           <DataTable
-            title="Plans"
+            title={$t("usage.tabs.plans")}
             minWidth="min-w-[720px]"
-            columns={[{ label: "Plan" }, { label: "Price", align: "right" }, { label: "Credits a month", align: "right" }, { label: "Storage", align: "right" }, { label: "Compute at once", align: "right" }, { label: "Queue" }]}
+            columns={[{ label: $t("usage.tabs.plan") }, { label: $t("usage.tabs.price"), align: "right" }, { label: $t("usage.tabs.creditsAMonth2"), align: "right" }, { label: $t("usage.tabs.storage"), align: "right" }, { label: $t("usage.tabs.computeAtOnce"), align: "right" }, { label: $t("usage.tabs.queue") }]}
             rows={catalogue.plans.map((p) => ({
               key: p.id,
               cells: [
-                <span key="n" className="font-medium">{p.name}{p.id === planId && <Chip tone="good" className="ml-2">yours</Chip>}</span>,
-                p.feeUsd === 0 ? "Free" : `${usd(p.feeUsd)}/month`,
+                <span key="n" className="font-medium">{p.name}{p.id === planId && <Chip tone="good" className="ml-2">{$t("usage.tabs.yours")}</Chip>}</span>,
+                p.feeUsd === 0 ? $t("usage.tabs.free") : `${usd(p.feeUsd)}/month`,
                 p.creditsPerMonth,
                 `${p.storageGb} GB`,
-                `${p.computeAtOnce.vcpu} vCPU · ${p.computeAtOnce.memGiB} GiB`,
+                $t("usage.tabs.vcpuGib", { vcpu: String(p.computeAtOnce.vcpu), memGiB: String(p.computeAtOnce.memGiB) }),
                 p.lane === "fast" ? "fast" : "normal",
               ],
             }))}
@@ -219,17 +217,15 @@ export function RatesTab({ rates, catalogue, planId }: { rates: MeterRates | nul
       )}
       {catalogue && (
         <p className="mt-3 max-w-3xl px-1 text-sm leading-relaxed text-fg-muted">
-          A default step ({catalogue.example.vcpu} vCPU, {catalogue.example.memGiB} GiB) costs about {fmtCredits(catalogue.example.creditsPerHour)} credits an hour.
-          Plan credits roll over up to twice the monthly amount on paid plans and are lost at month end on Free. They never pay for tokens on foldrun&apos;s
-          models; bought credits do.
+          {$t("usage.tabs.aDefaultStepVcpuGibCosts", { vcpu: String(catalogue.example.vcpu), memGiB: String(catalogue.example.memGiB), fmtCredits: fmtCredits(catalogue.example.creditsPerHour) })}
         </p>
       )}
       {catalogue && catalogue.models.prices.length > 0 && (
         <div className="mt-4">
           <DataTable
-            title={`Tokens on foldrun's models (provider price × ${catalogue.models.margin})`}
+            title={$t("usage.tabs.tokensOnFoldrunSModelsProvider", { margin: String(catalogue.models.margin) })}
             minWidth="min-w-[640px]"
-            columns={[{ label: "Provider" }, { label: "Model" }, { label: "Input / 1M", align: "right" }, { label: "Output / 1M", align: "right" }, { label: "Cache read / 1M", align: "right" }]}
+            columns={[{ label: $t("usage.tabs.provider") }, { label: $t("usage.tabs.model") }, { label: $t("usage.tabs.input1m"), align: "right" }, { label: $t("usage.tabs.output1m"), align: "right" }, { label: $t("usage.tabs.cacheRead1m"), align: "right" }]}
             rows={catalogue.models.prices.map((m) => ({
               key: `${m.provider}:${m.model}`,
               cells: [m.provider, <span key="m" className="font-mono text-[13px]">{m.model}</span>, usd(m.inputPerMTok), usd(m.outputPerMTok), m.cacheReadPerMTok === null ? dim : usd(m.cacheReadPerMTok)],
@@ -238,7 +234,7 @@ export function RatesTab({ rates, catalogue, planId }: { rates: MeterRates | nul
         </div>
       )}
       {catalogue && catalogue.models.soon.length > 0 && (
-        <Callout tone="info" className="mt-4">Coming to foldrun&apos;s models: {catalogue.models.soon.join(", ")}.</Callout>
+        <Callout tone="info" className="mt-4">{$t("usage.tabs.comingToFoldrunSModels", { join: catalogue.models.soon.join(", ") })}</Callout>
       )}
     </>
   );

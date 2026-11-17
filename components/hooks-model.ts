@@ -2,6 +2,7 @@
 // `hook` record (core hooks.ts HookRecord, store.ts RunEvent.hook): a deny, a
 // rewrite, context, a reply, a note, a failure. The Hooks page and the API
 // list them; the run page badges them. Pure, so the rules are tested.
+import { $t } from "@/i18n";
 import type { Tone } from "@foldrun/ui/react/page";
 
 export interface HookRecordLike {
@@ -80,8 +81,8 @@ export function hookBadge(r: Pick<HookRecordLike, "hook" | "did">): { label: str
     case "deny": return { label: `${r.hook} denied`, tone: "error" };
     case "error": return { label: `${r.hook} failed`, tone: "error" };
     case "rewrite": return { label: `${r.hook} rewrote`, tone: "warn" };
-    case "context": return { label: `${r.hook} added context`, tone: "info" };
-    case "reply": return { label: `${r.hook} rewrote the reply`, tone: "warn" };
+    case "context": return { label: $t("components.hooks-model.addedContext", { hook: String(r.hook) }), tone: "info" };
+    case "reply": return { label: $t("components.hooks-model.rewroteTheReply", { hook: String(r.hook) }), tone: "warn" };
     default: return { label: r.hook, tone: "muted" };
   }
 }

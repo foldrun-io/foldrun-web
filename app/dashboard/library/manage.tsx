@@ -1,5 +1,6 @@
 "use client";
 
+import { $t } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@foldrun/ui/react/confirm";
 import { Trash2 } from "lucide-react";
@@ -25,14 +26,14 @@ export function DeleteLibraryItem({
   return (
     <>
       {confirmDialog}
-      <Tooltip label="Delete">
+      <Tooltip label={$t("library.manage.delete")}>
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label={`Delete ${name}`}
+        aria-label={$t("library.manage.delete2", { name: String(name) })}
         className="hover:text-danger"
         onClick={async () => {
-          if (!(await confirm({ title: `Delete ${name} from the library?`, confirmLabel: "Delete" }))) return;
+          if (!(await confirm({ title: $t("library.manage.deleteFromTheLibrary", { name: String(name) }), confirmLabel: $t("library.manage.delete") }))) return;
           // For standard skills the folder is the unit, not the SKILL.md file.
           const target = wholeFolder ? path.replace(/\/(SKILL|tool)\.md$/, "") : path;
           await fetch(`/api/library/${kind}`, {

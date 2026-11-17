@@ -3,6 +3,7 @@
 // way back in. Shared by the two PATCH routes and the forms, so one rule
 // says what a valid budget or a valid notify is. tests/defaults.test.ts.
 
+import { $t } from "@/i18n";
 import { parseBudget, budgetProblem, type Budget } from "../../foldrun-core/src/budget.ts";
 import { parseTelemetry, type TelemetryConfig } from "../../foldrun-core/src/otel-config.ts";
 import { parseAlerts } from "../../foldrun-core/src/alerts.ts";
@@ -139,7 +140,7 @@ function computeOf(raw: unknown): Defaults["compute"] {
 /** A GiB figure as the file reads it: 8 → 8Gi, 1.5 → 1536Mi. */
 const gib = (v: unknown) => {
   const g = Number(v);
-  return Number.isFinite(g) && g > 0 ? (Number.isInteger(g) ? `${g}Gi` : `${Math.round(g * 1024)}Mi`) : String(v);
+  return Number.isFinite(g) && g > 0 ? (Number.isInteger(g) ? $t("components.defaults-model.gi", { g: String(g) }) : $t("components.defaults-model.mi", { v0: String(Math.round(g * 1024)) })) : String(v);
 };
 
 /**
@@ -152,7 +153,7 @@ const gib = (v: unknown) => {
  */
 export function computePatch(c: unknown, current: unknown): { value: Record<string, unknown> | null } | { error: string } {
   if (c === null || c === "") return { value: null };
-  if (typeof c !== "object" || Array.isArray(c)) return { error: "compute must be { vcpu?, memGiB?, diskGiB? } or null" };
+  if (typeof c !== "object" || Array.isArray(c)) return { error: $t("components.defaults-model.computeMustBeVcpuMemgibDiskgib") };
   const o = c as Record<string, unknown>;
   const blank = (v: unknown) => v === null || v === "";
   const out: Record<string, unknown> = current && typeof current === "object" && !Array.isArray(current) ? { ...(current as Record<string, unknown>) } : {};
@@ -164,7 +165,7 @@ export function computePatch(c: unknown, current: unknown): { value: Record<stri
   const { problems } = readCompute(out);
   if (problems.length) return { error: `compute: ${problems.join("; ")}` };
   for (const k of ["memory", "disk"] as const) {
-    if (out[k] !== undefined && !Number.isFinite(quantityMi(out[k]))) return { error: `compute: ${k === "memory" ? "memGiB" : "diskGiB"} must be a number of GiB` };
+    if (out[k] !== undefined && !Number.isFinite(quantityMi(out[k]))) return { error: $t("components.defaults-model.computeMustBeANumberOf", { v0: String(k === "memory" ? "memGiB" : "diskGiB") }) };
   }
   return { value: Object.keys(out).length ? out : null };
 }
@@ -218,7 +219,7 @@ export function defaultsPatch(body: Record<string, unknown>, current?: Record<st
   if ("timezone" in body) {
     const tz = body.timezone;
     if (tz === null || tz === "") keys.timezone = null;
-    else if (typeof tz !== "string" || !validZone(tz)) return { error: `"${String(tz)}" is not an IANA time zone — Australia/Sydney, UTC, America/New_York` };
+    else if (typeof tz !== "string" || !validZone(tz)) return { error: $t("components.defaults-model.isNotAnIanaTimeZone", { v0: String(String(tz)) }) };
     else keys.timezone = tz;
   }
   if ("budget" in body) {
@@ -244,7 +245,7 @@ export function defaultsPatch(body: Record<string, unknown>, current?: Record<st
     if (c === null || c === "") keys.concurrency = null;
     else {
       const n = typeof c === "number" ? c : Number(c);
-      if (!Number.isInteger(n) || n < 1 || n > 64) return { error: "concurrency must be a whole number of runs from 1 to 64, or empty for the plan's" };
+      if (!Number.isInteger(n) || n < 1 || n > 64) return { error: $t("components.defaults-model.concurrencyMustBeAWholeNumber") };
       keys.concurrency = n;
     }
   }
@@ -256,23 +257,23 @@ export function defaultsPatch(body: Record<string, unknown>, current?: Record<st
   if ("notify" in body) {
     const n = body.notify;
     if (n === null) keys.notify = null;
-    else if (!n || typeof n !== "object") return { error: "notify must be { url?, email?, events }" };
+    else if (!n || typeof n !== "object") return { error: $t("components.defaults-model.notifyMustBeUrlEmailEvents") };
     else {
       const o = n as Record<string, unknown>;
       const url = typeof o.url === "string" ? o.url.trim() : "";
       const email = typeof o.email === "string" ? o.email.trim() : "";
-      if (!url && !email) return { error: "notify needs a webhook URL, an email, or both" };
-      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: `"${email}" is not an email address` };
-      if (url && !/^(https?:\/\/|\$\{[A-Z][A-Z0-9_]*\})/.test(url)) return { error: "the webhook URL must start with https:// or be a ${SECRET_NAME}" };
+      if (!url && !email) return { error: $t("components.defaults-model.notifyNeedsAWebhookUrlAn") };
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: $t("components.defaults-model.isNotAnEmailAddress", { email: String(email) }) };
+      if (url && !/^(https?:\/\/|\$\{[A-Z][A-Z0-9_]*\})/.test(url)) return { error: $t("components.defaults-model.theWebhookUrlMustStartWith") };
       const events = Array.isArray(o.events) ? o.events.filter((e): e is string => typeof e === "string" && (NOTIFY_EVENTS as readonly string[]).includes(e)) : [];
-      if (events.length === 0) return { error: "pick at least one event to notify on" };
+      if (events.length === 0) return { error: $t("components.defaults-model.pickAtLeastOneEventTo") };
       keys.notify = { ...(url ? { url } : {}), ...(email ? { email } : {}), events };
     }
   }
   if ("deploy_block" in body) {
     const d = body.deploy_block;
     if (d === null || d === "") keys.deploy_block = null;
-    else if (typeof d !== "string" || !(DEPLOY_BLOCKS as readonly string[]).includes(d)) return { error: `deploy_block is ${DEPLOY_BLOCKS.join(", ")} — not "${String(d)}"` };
+    else if (typeof d !== "string" || !(DEPLOY_BLOCKS as readonly string[]).includes(d)) return { error: $t("components.defaults-model.deployBlockIsNot", { v0: String(DEPLOY_BLOCKS.join(", ")), v1: String(String(d)) }) };
     else keys.deploy_block = d;
   }
   if ("network_enforce" in body) {
@@ -281,7 +282,7 @@ export function defaultsPatch(body: Record<string, unknown>, current?: Record<st
     const v = body.network_enforce;
     if (v === null || v === false) keys.network_enforce = null;
     else if (v === true) keys.network_enforce = true;
-    else return { error: `network_enforce is true or false — not "${String(v)}"` };
+    else return { error: $t("components.defaults-model.networkEnforceIsTrueOrFalse", { v0: String(String(v)) }) };
   }
   if ("telemetry" in body) {
     // { otlp, headers } as AGENTS.md takes it, or null to stop sending.
@@ -289,21 +290,21 @@ export function defaultsPatch(body: Record<string, unknown>, current?: Record<st
     if (t === null) keys.telemetry = null;
     else {
       const { config, problems } = parseTelemetry(t);
-      if (!config) return { error: problems[0] ?? "telemetry needs otlp: an https URL" };
+      if (!config) return { error: problems[0] ?? $t("components.defaults-model.telemetryNeedsOtlpAnHttpsUrl") };
       keys.telemetry = { otlp: config.endpoint, ...(Object.keys(config.headers).length ? { headers: config.headers } : {}) };
     }
   }
   if ("owner" in body) {
     const o = body.owner;
     if (o === null || o === "") keys.owner = null;
-    else if (typeof o !== "string" || o.trim().length > 200) return { error: "owner is a person's email or name, up to 200 characters" };
+    else if (typeof o !== "string" || o.trim().length > 200) return { error: $t("components.defaults-model.ownerIsAPersonSEmail") };
     else keys.owner = o.trim();
   }
   if ("alerts" in body) {
     // What the form sends: only the thresholds set; empty or null clears.
     const a = body.alerts;
     if (a === null) keys.alerts = null;
-    else if (!a || typeof a !== "object" || Array.isArray(a)) return { error: "alerts is a block of thresholds — failure_rate, min_runs, credits_day, run_minutes, stale_days, cost_spike, runs_per_hour, new_host" };
+    else if (!a || typeof a !== "object" || Array.isArray(a)) return { error: $t("components.defaults-model.alertsIsABlockOfThresholds") };
     else {
       // Blank fields are left out; `new_host: false` and an empty block are
       // kept — at a workspace `{}` is "no alerts here", null "the account's".
@@ -324,6 +325,6 @@ export function defaultsPatch(body: Record<string, unknown>, current?: Record<st
       keys.judge = read.model || read.effort ? { ...(read.model ? { model: read.model } : {}), ...(read.effort ? { effort: read.effort } : {}) } : null;
     }
   }
-  if (Object.keys(keys).length === 0) return { error: "nothing to change — send timezone, budget, concurrency, compute, notify, deploy_block, network_enforce, telemetry, owner, alerts or judge" };
+  if (Object.keys(keys).length === 0) return { error: $t("components.defaults-model.nothingToChangeSendTimezoneBudget") };
   return { keys };
 }

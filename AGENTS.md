@@ -40,3 +40,22 @@ nothing.
 (through eslint-config-next) and `next build` load TypeScript's JavaScript
 API, which TypeScript 7 does not ship yet. When typescript-eslint supports
 TypeScript 7, move `typescript` to 7 and drop the alias.
+
+## Words on a page: language files
+
+Every word the dashboard shows lives in `messages/en/<area>.json`, not in the
+code (since 17 Nov 2026; Persian comes later as `messages/fa/`). Write
+`$t("area.file.key")`, or `$t("…", { n })` for an ICU message with values and
+plurals. A sentence with markup inside is one message with tags:
+`$rich("…", { link: (chunks) => <Link href=…>{chunks}</Link> })`, and an
+element placed inside one is `$el(<LocalTime … />)`. The product's nouns are
+defined once in `messages/en/terms.json` and written `{@workspace.one}` in a
+message ("Project" today), so renaming a noun is one edit.
+
+- `tests/i18n.test.ts` fails on a key that is missing, unused or does not
+  resolve, and on new text written in code (the ratchet against
+  `tests/i18n-baseline.json`, which may only shrink).
+- `node scripts/i18n-extract.mjs --files <paths>… --write` moves a file's
+  text for you; run it until it moves 0, then read the diff.
+- Never translate code samples, paths, permissions, protocol values or
+  anything code compares; route handlers (`route.ts`) are never touched.

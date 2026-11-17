@@ -38,12 +38,12 @@ export default async function ChecksPage({
   return (
     <Page>
       <PageHeader
-        title="Checks"
+        title={$t("workspace.checks-page.checks")}
         description={$t("workspace.checks-page.whatFoldrunCheckSaysAboutThis")}
         actions={
           <Link href="https://docs.foldrun.io/checks" className={buttonVariants({ variant: "secondary", size: "md" })}>
             <BookOpen aria-hidden />
-            Every rule
+            {$t("workspace.checks-page.everyRule")}
           </Link>
         }
       />

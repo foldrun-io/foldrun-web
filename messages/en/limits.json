@@ -1,8 +1,23 @@
 {
   "page": {
+    "aWarningHasBeenSent": " · a warning has been sent",
+    "accountCap": "Account cap",
     "acrossEveryWorkspaceAtTheCap": "Across every {@workspace.one}. At the cap, everything stops starting until the window turns.",
-    "lineInThatWorkspaceS": "line in that {@workspace.one}'s",
+    "atTheCapNewRunsAre": " · at the cap, new runs are refused until {turns}",
+    "billing": "Billing",
+    "billingSpendLimits": "Billing · Spend limits",
+    "everyCapHereIsTheBudget": "Every cap here is the <code>budget:</code> line in that {@workspace.one}'s <code>AGENTS.md</code>, editable in either place. A flow can also carry its own per-run <code>budget:</code>, and so can an agent — the most it may spend in one run. Both are hard caps that stop a step mid-turn, and both live in their own files.",
+    "howMuchMayBeSpentIn": "How much may be spent in a day, a week or a month before runs stop starting — and where the warnings sit. Unset is no limit.",
+    "nextWeek": "next week",
     "noWorkspaceYet": "No {@workspace.other} yet",
-    "perWorkspace": "Per {@workspace.one}"
+    "of": "{spent} of {label} {window} · {pct}%",
+    "perWorkspace": "Per {@workspace.one}",
+    "spentThisMonth": "{spent} spent this month",
+    "theNewMonth": "the new month",
+    "unknownAccount": "Unknown account",
+    "usage": "Usage",
+    "warningsAt80And95": " · warnings at 80% and 95%",
+    "warningsHaveNowhereToGoThe": "Warnings have nowhere to go: the account has no notify: destination. <link>Set one</link>.",
+    "wholeAccount": "Whole account"
   }
 }

@@ -1,5 +1,23 @@
 {
+  "id-accept": {
+    "acceptAndContinue": "Accept and continue →",
+    "cancel": "Cancel",
+    "couldNotStartTheConnection": "could not start the connection"
+  },
   "id-page": {
+    "aConnectionWasStartedFromA": "A connection was started from a terminal. Check it is yours before you go on.",
+    "acceptingSendsYouToTheProvider": "Accepting sends you to the provider to approve it; the grant lands in this secret.",
+    "app": "App",
+    "connectAnAccount": "Connect an account",
+    "itExpiredWasAlreadyUsedOr": "It expired, was already used, or belongs to another account. Start it again from where you began.",
+    "scopes": "Scopes",
+    "secret": "Secret",
+    "startedBy": "Started by",
+    "storedIn": "Stored in",
+    "theAccount": "the account",
+    "theAppSDefault": "the app's default",
+    "theConnection": "The connection",
+    "thisLinkNoLongerWorks": "This link no longer works",
     "workspaceNamed": "{@workspace.one} {name}"
   }
 }

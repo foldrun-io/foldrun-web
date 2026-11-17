@@ -1,7 +1,7 @@
 // Issues (FOL-54 step 3): what went wrong, grouped, and kept open until a
 // person resolves it. Same list as GET /api/issues and `foldrun issues`.
 
-import { $t } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { AlertTriangle, Ban, CalendarX2, CheckCircle2, ServerCrash, XCircle, X } from "lucide-react";
 import { Page, PageHeader, Chip, Tag, EmptyState, type Tone } from "@foldrun/ui/react/page";
@@ -22,18 +22,18 @@ import { Tooltip } from "@foldrun/ui/react/tooltip";
 export const dynamic = "force-dynamic";
 
 const TABS: { key: IssueFilter; label: string }[] = [
-  { key: "active", label: "Open" },
-  { key: "snoozed", label: "Snoozed" },
-  { key: "resolved", label: "Resolved" },
-  { key: "all", label: "All" },
+  { key: "active", label: $t("issues.page.open") },
+  { key: "snoozed", label: $t("issues.page.snoozed") },
+  { key: "resolved", label: $t("issues.page.resolved") },
+  { key: "all", label: $t("issues.page.all") },
 ];
 
 const KIND: Record<Issue["kind"], { label: string; tone: Tone; icon: React.ReactNode; box: string }> = {
   platform: { label: "platform", tone: "info", icon: <ServerCrash />, box: "border-info-line bg-info-soft text-info" },
   failed: { label: "failed", tone: "bad", icon: <XCircle />, box: "border-danger-line bg-danger-soft text-danger" },
   blocked: { label: "blocked", tone: "warn", icon: <Ban />, box: "border-warning-line bg-warning-soft text-warning" },
-  bad: { label: "problem found", tone: "bad", icon: <AlertTriangle />, box: "border-danger-line bg-danger-soft text-danger" },
-  missed: { label: "missed schedule", tone: "warn", icon: <CalendarX2 />, box: "border-warning-line bg-warning-soft text-warning" },
+  bad: { label: $t("issues.page.problemFound"), tone: "bad", icon: <AlertTriangle />, box: "border-danger-line bg-danger-soft text-danger" },
+  missed: { label: $t("issues.page.missedSchedule"), tone: "warn", icon: <CalendarX2 />, box: "border-warning-line bg-warning-soft text-warning" },
 };
 
 const ACTED: Record<string, string> = { acknowledge: "acknowledged", snooze: "snoozed", resolve: "resolved", reopen: "reopened" };
@@ -57,17 +57,17 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
 
   return (
     <Page>
-      <PageHeader title="Issues" description="What went wrong, grouped, and kept open until someone resolves it. A later good run does not close one." />
+      <PageHeader title={$t("issues.page.issues")} description={$t("issues.page.whatWentWrongGroupedAndKept")} />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Segmented label="Status" value={status} items={TABS.map((t) => ({ key: t.key, label: t.label, href: q(t.key), count: count(t.key) }))} />
+        <Segmented label={$t("issues.page.status")} value={status} items={TABS.map((t) => ({ key: t.key, label: t.label, href: q(t.key), count: count(t.key) }))} />
         {workspace && (
           <Tooltip label={$t("issues.page.showEveryWorkspace")}>
             <Link
               href={`/dashboard/issues${tenant !== "default" ? `?tenant=${tenant}` : ""}`}
               className="inline-flex h-9 items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-[13px] text-fg-secondary transition-colors hover:border-line-strong hover:text-fg"
             >
-              Only <span className="font-medium text-fg">{workspace}</span>
+              {$rich("issues.page.only", { workspace: workspace, span: (chunks) => <span className="font-medium text-fg">{chunks}</span> })}
               <X className="size-3.5 text-fg-muted" aria-label={$t("issues.page.everyWorkspace")} />
             </Link>
           </Tooltip>
@@ -79,21 +79,21 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
           icon={<CheckCircle2 />}
           title={
             status === "active"
-              ? "No open issues"
+              ? $t("issues.page.noOpenIssues")
               : status === "snoozed"
-                ? "Nothing snoozed"
+                ? $t("issues.page.nothingSnoozed")
                 : status === "resolved"
-                  ? "Nothing resolved yet"
-                  : "No issues yet"
+                  ? $t("issues.page.nothingResolvedYet")
+                  : $t("issues.page.noIssuesYet")
           }
           description={
             status === "active"
-              ? "Anything that fails, ends BLOCKED or finds a problem shows up here until someone resolves it."
+              ? $t("issues.page.anythingThatFailsEndsBlockedOr")
               : status === "snoozed"
-                ? "An issue you snooze for a day, or until it happens five more times, waits here and comes back on its own."
+                ? $t("issues.page.anIssueYouSnoozeForA")
                 : status === "resolved"
-                  ? "Issues someone resolved stay here; one that happens again opens again."
-                  : "Every failure, BLOCKED or BAD result appears here, grouped, until someone resolves it."
+                  ? $t("issues.page.issuesSomeoneResolvedStayHereOne")
+                  : $t("issues.page.everyFailureBlockedOrBadResult")
           }
         />
       ) : (
@@ -109,7 +109,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
                   <div className="min-w-0 flex-1 space-y-1">
                     <p className="text-sm font-medium text-fg [overflow-wrap:anywhere]">
                       {i.what}
-                      {i.agent && <span className="font-normal text-fg-muted"> · at {i.agent}</span>}
+                      {i.agent && <span className="font-normal text-fg-muted">{" "}{$t("issues.page.at", { agent: i.agent })}</span>}
                     </p>
                     <p className="line-clamp-1 text-sm text-fg-muted [overflow-wrap:anywhere]">
                       <WithEmails text={i.reason} />
@@ -124,38 +124,38 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
                           {i.status}
                           {i.snoozedUntil ? " until " : ""}
                           {i.snoozedUntil && <LocalTime iso={i.snoozedUntil} />}
-                          {i.snoozedFor ? ` for ${i.snoozedFor} more` : ""}
-                          {i.resolved?.by.startsWith("auto:") ? " (auto: a later run went fine)" : ""}
+                          {i.snoozedFor ? $t("issues.page.forMore", { snoozedFor: String(i.snoozedFor) }) : ""}
+                          {i.resolved?.by.startsWith("auto:") ? $t("issues.page.autoALaterRunWentFine") : ""}
                         </Chip>
                       )}
                       {i.regressed && (
-                        <Tooltip label="It was resolved and came back">
+                        <Tooltip label={$t("issues.page.itWasResolvedAndCameBack")}>
                           <span>
-                            <Chip tone="bad">regressed{i.sinceRevision ? ` since ${i.sinceRevision.slice(0, 7)}` : ""}</Chip>
+                            <Chip tone="bad">{$t("issues.page.regressed")}{i.sinceRevision ? ` since ${i.sinceRevision.slice(0, 7)}` : ""}</Chip>
                           </span>
                         </Tooltip>
                       )}
                       <span className="text-xs text-fg-muted">
-                        {i.count} time{i.count === 1 ? "" : "s"} · latest {fmtSpan(Math.max(0, now - Date.parse(i.lastSeen)))} ago
+                        {$t("issues.page.timeLatestAgo", { count: i.count, fmtSpan: fmtSpan(Math.max(0, now - Date.parse(i.lastSeen))) })}
                       </span>
                     </div>
-                    <Disclosure className="pt-1" summaryClassName="inline-flex items-center gap-1 rounded-sm text-[13px] font-medium text-fg-secondary hover:text-fg" summary="Details">
+                    <Disclosure className="pt-1" summaryClassName="inline-flex items-center gap-1 rounded-sm text-[13px] font-medium text-fg-secondary hover:text-fg" summary={$t("issues.page.details")}>
                       <div className="mt-2 space-y-2 rounded-md border border-line bg-sunken p-3 text-[13px]">
                         <p className="text-fg">
-                          <span className="text-fg-muted">What to do:</span> {i.action}
+                          <span className="text-fg-muted">{$t("issues.page.whatToDo")}</span> {i.action}
                         </p>
                         <p className="text-fg-secondary [overflow-wrap:anywhere]">
                           <WithEmails text={i.reason} />
                         </p>
                         <p className="text-fg-muted">
-                          First <LocalTime iso={i.firstSeen} />
-                          {i.recoveredAt && <span className="text-success"> · fine since {fmtSpan(Math.max(0, now - Date.parse(i.recoveredAt)))} ago</span>}
+                          {$rich("issues.page.first", { localTime: $el(<LocalTime iso={i.firstSeen} />) })}
+                          {i.recoveredAt && <span className="text-success">{" "}{$t("issues.page.fineSinceAgo", { fmtSpan: fmtSpan(Math.max(0, now - Date.parse(i.recoveredAt))) })}</span>}
                         </p>
                         <p className="flex flex-wrap gap-x-3 gap-y-1">
                           {i.runs.slice(0, 6).map((r) =>
                             r.missed ? (
                               <span key={r.id} className="text-fg-muted">
-                                due <LocalTime iso={r.at} />
+                                {$rich("issues.page.due", { localTime: $el(<LocalTime iso={r.at} />) })}
                               </span>
                             ) : (
                               <Link key={r.id} href={runHref(r.workspace, r.id, tenant)} className="font-mono text-xs text-fg-secondary hover:text-fg hover:underline">
@@ -163,7 +163,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
                               </Link>
                             ),
                           )}
-                          {i.runs.length > 6 && <span className="text-fg-subtle">and {i.count - 6} more</span>}
+                          {i.runs.length > 6 && <span className="text-fg-subtle">{$t("issues.page.andMore", { count: String(i.count - 6) })}</span>}
                         </p>
                         {i.history.length > 0 && (
                           <ol className="space-y-0.5 border-t border-line pt-2 text-xs text-fg-muted">
@@ -172,11 +172,10 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
                               .slice(0, 8)
                               .map((e, n) => (
                                 <li key={n}>
-                                  <LocalTime iso={e.at} /> — {ACTED[e.action] ?? e.action} by <Email value={e.by} />
+                                  {$rich("issues.page.by", { localTime: $el(<LocalTime iso={e.at} />), action: ACTED[e.action] ?? e.action, email: $el(<Email value={e.by} />) })}
                                   {e.until && (
                                     <>
-                                      {" "}
-                                      until <LocalTime iso={e.until} />
+                                      {" "}{$rich("issues.page.until", { localTime: $el(<LocalTime iso={e.until} />) })}
                                     </>
                                   )}
                                   {e.note && (

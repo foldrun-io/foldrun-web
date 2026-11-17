@@ -9,6 +9,7 @@
 // text. ←/→ step through what is listed; drop files on the list (or on a
 // desk's row) to upload them there.
 
+import { $rich, $t } from "@/i18n";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
@@ -113,7 +114,7 @@ function Thumb({ f, size = "size-9" }: { f: BrowserFile; size?: string }) {
 
 function SharePill({ share, now }: { share: BrowserShare | null; now: number }) {
   const s = shareState(share, now);
-  if (s.state === "private") return <span className="text-fg-subtle">Private</span>;
+  if (s.state === "private") return <span className="text-fg-subtle">{$t("components.file-browser.private")}</span>;
   return (
     <Chip tone={s.soon ? "warn" : "good"}>
       <Link2 className="size-3" aria-hidden />
@@ -291,15 +292,15 @@ export function FileBrowser({
     // A live link this viewer may copy is copied; one whose token is masked
     // (another person's, and this viewer is not an admin) is not theirs to
     // hand out, so Share mints them their own (30 Oct 2026).
-    if (f.share?.url && shareState(f.share, now).state === "shared") return copy(f.share.url, "Link copied");
+    if (f.share?.url && shareState(f.share, now).state === "shared") return copy(f.share.url, $t("components.file-browser.linkCopied"));
     setBusy(keyOf(f));
     try {
       const r = await fetch(`/api/workspaces/${encodeURIComponent(f.workspace)}/shares`, { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ path: `storage/${f.path}` }) });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j.error ?? `sharing failed (${r.status})`);
+      if (!r.ok) throw new Error(j.error ?? $t("components.file-browser.sharingFailed", { status: String(r.status) }));
       const s: BrowserShare = { id: j.id, token: j.token, url: j.url, expiresAt: j.expiresAt ?? null };
       patch(f, { share: s });
-      await copy(j.url, `Shared — link copied${s.expiresAt ? ", works for 7 days" : ""}`);
+      await copy(j.url, $t("components.file-browser.sharedLinkCopied", { v0: String(s.expiresAt ? $t("components.file-browser.worksFor7Days") : "") }));
       // The page's link list reads the store too: read it again.
       router.refresh();
     } catch (err) {
@@ -310,9 +311,9 @@ export function FileBrowser({
   };
   const unshare = async (f: BrowserFile) => {
     if (!f.share) return;
-    if (!(await confirm({ title: `Stop sharing ${f.path}?`, body: "The link stops working for everyone who has it.", confirmLabel: "Stop sharing" }))) return;
+    if (!(await confirm({ title: $t("components.file-browser.stopSharing", { path: String(f.path) }), body: $t("components.file-browser.theLinkStopsWorkingForEveryone"), confirmLabel: $t("components.file-browser.stopSharing2") }))) return;
     const r = await fetch(`/api/workspaces/${encodeURIComponent(f.workspace)}/shares?id=${encodeURIComponent(f.share.id)}`, { method: "DELETE", headers });
-    if (r.ok) { patch(f, { share: null }); setToast("No longer shared"); router.refresh(); } else setToast(`could not stop sharing (${r.status})`);
+    if (r.ok) { patch(f, { share: null }); setToast($t("components.file-browser.noLongerShared")); router.refresh(); } else setToast($t("components.file-browser.couldNotStopSharing", { status: String(r.status) }));
   };
   // Files into a desk (into the folder being looked at), one after another,
   // then the page reads the store again.
@@ -333,7 +334,7 @@ export function FileBrowser({
     setUploading(null);
     // Show the desk it landed in.
     if (!single && at.desk !== workspace) go(workspace, dir);
-    setToast(failed.length ? `${ok} uploaded to ${workspace}; ${failed.length} refused — ${failed[0]}` : `${ok} file${ok === 1 ? "" : "s"} uploaded to ${workspace}`);
+    setToast(failed.length ? $t("components.file-browser.uploadedToRefused", { ok: String(ok), workspace: String(workspace), length: String(failed.length), v3: String(failed[0]) }) : $t("components.file-browser.fileUploadedTo", { ok: String(ok), v1: String(ok === 1 ? "" : "s"), workspace: String(workspace) }));
     router.refresh();
   };
   const pickFor = (desk: string, dir = "") => {
@@ -348,24 +349,24 @@ export function FileBrowser({
     try {
       const r = await fetch(`/api/workspaces/${encodeURIComponent(f.workspace)}/storage/extract`, { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ path: f.path, write: true, wait: 20 }) });
       let j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j.error ?? `extracting text failed (${r.status})`);
+      if (!r.ok) throw new Error(j.error ?? $t("components.file-browser.extractingTextFailed", { status: String(r.status) }));
       if (r.status === 202) {
-        setToast(`Reading ${f.path.split("/").pop()} — this can take a few minutes`);
+        setToast($t("components.file-browser.readingThisCanTakeAFew", { v0: String(f.path.split("/").pop()) }));
         // Up to an hour, polled every 3 s; a job lasts at most a few hours,
         // and its .txt still lands if this stops looking.
         for (let tries = 0; ; tries++) {
-          if (tries >= 1200) throw new Error("still reading — the .txt appears beside the file when it is done");
+          if (tries >= 1200) throw new Error($t("components.file-browser.stillReadingTheTxtAppearsBeside"));
           await new Promise((done) => setTimeout(done, 3000));
           const p = await fetch(`/api/extract/${encodeURIComponent(j.id)}`, { headers, cache: "no-store" });
           const s = await p.json().catch(() => ({}));
-          if (!p.ok) throw new Error(s.error ?? `extracting text failed (${p.status})`);
+          if (!p.ok) throw new Error(s.error ?? $t("components.file-browser.extractingTextFailed", { status: String(p.status) }));
           if (s.status === "running") continue;
-          if (s.status === "failed") throw new Error(s.error?.message ?? "extracting text failed");
+          if (s.status === "failed") throw new Error(s.error?.message ?? $t("components.file-browser.extractingTextFailed2"));
           j = { ...s.result, wrote: s.wrote };
           break;
         }
       }
-      setToast(j.wrote ? `Text written to ${j.wrote}${j.truncated ? " (cut short)" : ""}` : "No text was written");
+      setToast(j.wrote ? $t("components.file-browser.textWrittenTo", { wrote: String(j.wrote), v1: String(j.truncated ? $t("components.file-browser.cutShort") : "") }) : $t("components.file-browser.noTextWasWritten"));
       router.refresh();
     } catch (err) {
       setToast(err instanceof Error ? err.message : String(err));
@@ -375,9 +376,9 @@ export function FileBrowser({
   };
 
   const remove = async (f: BrowserFile) => {
-    if (!(await confirm({ title: `Delete ${f.path}?`, body: "Runs that expect to find it stop seeing it. This cannot be undone.", confirmLabel: "Delete" }))) return;
+    if (!(await confirm({ title: $t("components.file-browser.delete", { path: String(f.path) }), body: $t("components.file-browser.runsThatExpectToFindIt"), confirmLabel: $t("components.file-browser.delete2") }))) return;
     const r = await fetch(`${base(f.workspace)}?path=${encodeURIComponent(f.path)}`, { method: "DELETE", headers });
-    if (r.ok) { patch(f, null); setPreviewKey(null); setToast("Deleted"); router.refresh(); } else setToast(`delete failed (${r.status})`);
+    if (r.ok) { patch(f, null); setPreviewKey(null); setToast($t("components.file-browser.deleted")); router.refresh(); } else setToast($t("components.file-browser.deleteFailed", { status: String(r.status) }));
   };
 
   // Keys in the preview: Esc closes, ← → move through what is listed.
@@ -398,8 +399,8 @@ export function FileBrowser({
   const qs = tenant !== "default" ? `?tenant=${tenant}` : "";
   const uploadable = workspaces ?? desks.map((d) => d.workspace);
   const isShared = (f: BrowserFile) => shareState(f.share, now).state === "shared" && !!f.share?.url;
-  const shareLabel = (f: BrowserFile) => (busy === keyOf(f) ? "Sharing…" : isShared(f) ? "Copy link" : "Share");
-  const shareTitle = (f: BrowserFile) => (!canShare ? "This install has no public address to share from" : isShared(f) ? "Copy the public link" : "Make a public link (7 days) and copy it");
+  const shareLabel = (f: BrowserFile) => (busy === keyOf(f) ? "Sharing…" : isShared(f) ? $t("components.file-browser.copyLink") : $t("components.file-browser.share"));
+  const shareTitle = (f: BrowserFile) => (!canShare ? $t("components.file-browser.thisInstallHasNoPublicAddress") : isShared(f) ? $t("components.file-browser.copyThePublicLink") : $t("components.file-browser.makeAPublicLink7Days"));
 
   // Drop zones: a desk's row, or the table while inside a desk.
   const dropFor = (desk: string, dir: string, id: string) => ({
@@ -425,17 +426,17 @@ export function FileBrowser({
   const fileMenu = (f: BrowserFile) => (
     <Menu>
       <MenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${f.path}`}>
+        <Button variant="ghost" size="icon-sm" aria-label={$t("components.file-browser.actionsFor", { path: String(f.path) })}>
           <Ellipsis />
         </Button>
       </MenuTrigger>
       <MenuContent>
         <MenuItem onSelect={() => setPreviewKey(keyOf(f))}>
-          <Eye /> Preview
+          <Eye />{" "}{$t("components.file-browser.preview")}
         </MenuItem>
         <MenuItem asChild>
           <a href={downloadHref(f)}>
-            <Download /> Download
+            <Download />{" "}{$t("components.file-browser.download")}
           </a>
         </MenuItem>
         <Tooltip label={shareTitle(f)} side="left">
@@ -447,12 +448,12 @@ export function FileBrowser({
         </Tooltip>
         {f.share && shareState(f.share, now).state === "shared" && (
           <MenuItem onSelect={() => void unshare(f)}>
-            <Unlink /> Stop sharing
+            <Unlink />{" "}{$t("components.file-browser.stopSharing2")}
           </MenuItem>
         )}
         <MenuSeparator />
         <MenuItem tone="danger" onSelect={() => void remove(f)}>
-          <Trash2 /> Delete
+          <Trash2 />{" "}{$t("components.file-browser.delete2")}
         </MenuItem>
       </MenuContent>
     </Menu>
@@ -476,7 +477,7 @@ export function FileBrowser({
         }
         sub={
           <>
-            {by.kind === "run" ? <>from {by.agent} · run</> : by.kind === "user" ? <>uploaded by {by.who}</> : "stored"}
+            {by.kind === "run" ? <>{$t("components.file-browser.fromRun", { agent: by.agent })}</> : by.kind === "user" ? <>{$t("components.file-browser.uploadedBy", { who: by.who })}</> : "stored"}
             <span className="sm:hidden"> · {fmtSize(f.size)} · {fmtAge(f.updatedAt, now)}</span>
           </>
         }
@@ -493,7 +494,7 @@ export function FileBrowser({
 
   // The path, as links back up.
   const crumbs: { label: ReactNode; onClick?: () => void }[] = [];
-  if (!single) crumbs.push({ label: "All desks", onClick: at.desk ? () => go(null) : undefined });
+  if (!single) crumbs.push({ label: $t("components.file-browser.allDesks"), onClick: at.desk ? () => go(null) : undefined });
   if (at.desk) {
     crumbs.push({ label: single ? "storage" : at.desk, onClick: at.dir && !searching ? () => go(at.desk) : undefined });
     // A search covers the whole desk, so the path stops at the desk.
@@ -514,7 +515,7 @@ export function FileBrowser({
         <Toast>
           <span className="size-2 shrink-0 animate-pulse rounded-full bg-info" />
           <span className="truncate">
-            Uploading {uploading.name} to {uploading.workspace} · {uploading.done + 1} of {uploading.total}
+            {$t("components.file-browser.uploadingToOf", { name: uploading.name, workspace: uploading.workspace, done: String(uploading.done + 1), total: String(uploading.total) })}
           </span>
         </Toast>
       )}
@@ -528,10 +529,10 @@ export function FileBrowser({
             setQ(v);
             setOffset(0);
           }}
-          placeholder={at.desk ? (single ? "Find a file…" : `Find a file in ${at.desk}…`) : "Find a file in any desk…"}
+          placeholder={at.desk ? (single ? $t("components.file-browser.findAFile") : $t("components.file-browser.findAFileIn", { desk: String(at.desk) })) : $t("components.file-browser.findAFileInAnyDesk")}
           className="min-w-48 flex-1"
         />
-        <div role="group" aria-label="Filter" className="inline-flex h-10 max-w-full items-center gap-0.5 overflow-x-auto rounded-md border border-line bg-sunken p-0.5">
+        <div role="group" aria-label={$t("components.file-browser.filter")} className="inline-flex h-10 max-w-full items-center gap-0.5 overflow-x-auto rounded-md border border-line bg-sunken p-0.5">
           {FILTERS.filter((x) => x.key === "all" || counts[x.key] > 0).map((x) => (
             <button
               key={x.key}
@@ -554,20 +555,20 @@ export function FileBrowser({
         {toolbarExtra}
         {!single && uploadable.length > 0 && (
           at.desk ? (
-            <Tooltip label={`Upload files to ${at.desk} — or drop them on the list`}>
+            <Tooltip label={$t("components.file-browser.uploadFilesToOrDropThem", { desk: String(at.desk) })}>
               <Button variant="primary" size="lg" onClick={() => pickFor(at.desk!, at.dir)}>
-                <Upload /> Upload
+                <Upload />{" "}{$t("components.file-browser.upload")}
               </Button>
             </Tooltip>
           ) : (
             <Menu>
               <MenuTrigger asChild>
                 <Button variant="primary" size="lg">
-                  <Upload /> Upload
+                  <Upload />{" "}{$t("components.file-browser.upload")}
                 </Button>
               </MenuTrigger>
               <MenuContent className="max-w-72">
-                <MenuLabel>To which desk</MenuLabel>
+                <MenuLabel>{$t("components.file-browser.toWhichDesk")}</MenuLabel>
                 {uploadable.map((w) => (
                   <MenuItem key={w} onSelect={() => pickFor(w)}>
                     <HardDrive /> {w}
@@ -575,7 +576,7 @@ export function FileBrowser({
                 ))}
                 <MenuSeparator />
                 <p className="px-2 py-1.5 text-xs text-fg-muted">
-                  Any file, up to 512 MB each. Its runs read it at <code className="font-mono">workspace/storage/</code>.
+                  {$rich("components.file-browser.anyFileUpTo512Mb", { code: (chunks) => <code className="font-mono">{chunks}</code> })}
                 </p>
               </MenuContent>
             </Menu>
@@ -585,7 +586,7 @@ export function FileBrowser({
 
       {/* Where you are, and how much is here. */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1">
-        <nav aria-label="Path" className="flex min-w-0 flex-wrap items-center gap-1 text-sm">
+        <nav aria-label={$t("components.file-browser.path")} className="flex min-w-0 flex-wrap items-center gap-1 text-sm">
           {crumbs.map((c, i) => (
             <Fragment key={i}>
               {i > 0 && <ChevronRight className="size-3.5 shrink-0 text-fg-subtle" aria-hidden />}
@@ -600,10 +601,10 @@ export function FileBrowser({
               )}
             </Fragment>
           ))}
-          {searching && <span className="text-fg-muted">· matches</span>}
+          {searching && <span className="text-fg-muted">{$t("components.file-browser.matches")}</span>}
         </nav>
         <span className="text-[13px] tabular-nums text-fg-muted">
-          {inScope.length} file{inScope.length === 1 ? "" : "s"} · {fmtSize(totalBytes)}
+          {$t("components.file-browser.file", { length: inScope.length, totalBytes: fmtSize(totalBytes) })}
         </span>
       </div>
 
@@ -611,13 +612,13 @@ export function FileBrowser({
         <div onDragOver={tableDrop?.over} onDragLeave={tableDrop?.leave} onDrop={tableDrop?.dropped} className={cn("rounded-lg transition-shadow", tableDrop?.on && "ring-2 ring-focus")}>
           <EmptyState
             icon={searching ? <FileIcon /> : <HardDrive />}
-            title={searching ? "Nothing matches" : at.desk ? (at.dir ? "This folder is empty" : "Nothing stored yet") : "Nothing stored yet"}
+            title={searching ? $t("components.file-browser.nothingMatches") : at.desk ? (at.dir ? $t("components.file-browser.thisFolderIsEmpty") : $t("components.file-browser.nothingStoredYet")) : $t("components.file-browser.nothingStoredYet")}
             description={
               searching
-                ? "Try another word, or clear the filter."
+                ? $t("components.file-browser.tryAnotherWordOrClearThe")
                 : at.desk
-                  ? "Drop files here or use Upload. Runs write theirs to storage/."
-                  : "Upload a file to a desk, or let a run write one to storage/."
+                  ? $t("components.file-browser.dropFilesHereOrUseUpload")
+                  : $t("components.file-browser.uploadAFileToADesk")
             }
             action={
               searching ? (
@@ -627,7 +628,7 @@ export function FileBrowser({
                     setFilter("all");
                   }}
                 >
-                  Clear
+                  {$t("components.file-browser.clear")}
                 </Button>
               ) : undefined
             }
@@ -642,17 +643,17 @@ export function FileBrowser({
         >
           {tableDrop?.on && (
             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-info-soft/90 text-sm font-medium text-info">
-              Drop to upload to {at.desk}/{at.dir}
+              {$t("components.file-browser.dropToUploadTo", { desk: at.desk ?? "", dir: at.dir })}
             </div>
           )}
           <table className="w-full text-sm">
             <thead className="bg-sunken">
               <tr className="border-b border-line">
-                <th className={th}>{at.desk || searching ? "Name" : "Desk"}</th>
-                <th className={cn(th, "text-right max-sm:hidden")}>Size</th>
-                <th className={cn(th, "max-sm:hidden")}>Modified</th>
-                <th className={cn(th, "max-md:hidden")}>Sharing</th>
-                <th className="w-px px-3" aria-label="Actions" />
+                <th className={th}>{at.desk || searching ? $t("components.file-browser.name") : $t("components.file-browser.desk")}</th>
+                <th className={cn(th, "text-right max-sm:hidden")}>{$t("components.file-browser.size")}</th>
+                <th className={cn(th, "max-sm:hidden")}>{$t("components.file-browser.modified")}</th>
+                <th className={cn(th, "max-md:hidden")}>{$t("components.file-browser.sharing")}</th>
+                <th className="w-px px-3" aria-label={$t("components.file-browser.actions")} />
               </tr>
             </thead>
             <tbody className="[&_tr:last-child]:border-0">
@@ -672,28 +673,28 @@ export function FileBrowser({
                       size={fmtSize(bytes)}
                       age={latest ? fmtAge(latest, now) : "—"}
                       ageTitle={latest || undefined}
-                      sharing={sharedN > 0 ? <Chip tone="good">{sharedN} shared</Chip> : <span className="text-fg-subtle">—</span>}
+                      sharing={sharedN > 0 ? <Chip tone="good">{$t("components.file-browser.shared", { sharedN: String(sharedN) })}</Chip> : <span className="text-fg-subtle">—</span>}
                       onOpen={() => go(d.workspace)}
-                      drop={{ ...dropFor(d.workspace, "", `desk:${d.workspace}`), label: `Drop to upload to ${d.workspace}` }}
+                      drop={{ ...dropFor(d.workspace, "", `desk:${d.workspace}`), label: $t("components.file-browser.dropToUploadTo2", { workspace: String(d.workspace) }) }}
                       action={
                         <Menu>
                           <MenuTrigger asChild>
-                            <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${d.workspace}`}>
+                            <Button variant="ghost" size="icon-sm" aria-label={$t("components.file-browser.actionsFor2", { workspace: String(d.workspace) })}>
                               <Ellipsis />
                             </Button>
                           </MenuTrigger>
                           <MenuContent>
                             <MenuItem onSelect={() => go(d.workspace)}>
-                              <Folder /> Open
+                              <Folder />{" "}{$t("components.file-browser.open")}
                             </MenuItem>
-                            <Tooltip label={`Upload files to ${d.workspace} — or drop them on its row`} side="left">
+                            <Tooltip label={$t("components.file-browser.uploadFilesToOrDropThem2", { workspace: String(d.workspace) })} side="left">
                               <MenuItem onSelect={() => pickFor(d.workspace)}>
-                                <Upload /> Upload files…
+                                <Upload />{" "}{$t("components.file-browser.uploadFiles")}
                               </MenuItem>
                             </Tooltip>
                             <MenuItem asChild>
                               <Link href={`/dashboard/${d.workspace}/storage${qs}`}>
-                                <HardDrive /> Open desk page
+                                <HardDrive />{" "}{$t("components.file-browser.openDeskPage")}
                               </Link>
                             </MenuItem>
                           </MenuContent>
@@ -715,7 +716,7 @@ export function FileBrowser({
                   size={fmtSize(d.bytes)}
                   age={fmtAge(d.latest, now)}
                   ageTitle={d.latest}
-                  sharing={d.shared > 0 ? <Chip tone="good">{d.shared} shared</Chip> : <span className="text-fg-subtle">—</span>}
+                  sharing={d.shared > 0 ? <Chip tone="good">{$t("components.file-browser.shared2", { shared: String(d.shared) })}</Chip> : <span className="text-fg-subtle">—</span>}
                   onOpen={() => go(at.desk, `${at.dir}${d.name}/`)}
                 />
               ))}
@@ -729,26 +730,26 @@ export function FileBrowser({
       {/* The preview: the file as itself, and what is known about it. */}
       {current && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={() => setPreviewKey(null)}>
-          <aside data-preview className="flex h-full w-full max-w-3xl flex-col border-l border-line bg-surface shadow-menu" onClick={(e) => e.stopPropagation()} aria-label="File preview">
+          <aside data-preview className="flex h-full w-full max-w-3xl flex-col border-l border-line bg-surface shadow-menu" onClick={(e) => e.stopPropagation()} aria-label={$t("components.file-browser.filePreview")}>
             <header className="flex items-start gap-3 border-b border-line px-5 py-4">
               <Thumb f={current} size="size-10" />
               <div className="min-w-0 flex-1">
                 <Tooltip label={current.path}><p className="truncate text-base font-semibold text-fg">{current.path.split("/").pop()}</p></Tooltip>
-                <p className="truncate text-[13px] text-fg-muted">{current.workspace} · storage/{current.path}</p>
+                <p className="truncate text-[13px] text-fg-muted">{$t("components.file-browser.storage", { workspace: current.workspace, path: current.path })}</p>
               </div>
-              <Tooltip label="Close (Esc)">
-                <Button variant="ghost" size="icon-sm" onClick={() => setPreviewKey(null)} aria-label="Close">
+              <Tooltip label={$t("components.file-browser.closeEsc")}>
+                <Button variant="ghost" size="icon-sm" onClick={() => setPreviewKey(null)} aria-label={$t("components.file-browser.close")}>
                   <X />
                 </Button>
               </Tooltip>
             </header>
             <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-line bg-sunken px-5 py-2.5 text-[13px] text-fg-secondary">
               <span className="tabular-nums">{fmtSize(current.size)}</span>
-              <Tooltip label={current.updatedAt}><span>modified {fmtAge(current.updatedAt, now)}</span></Tooltip>
+              <Tooltip label={current.updatedAt}><span>{$t("components.file-browser.modified2", { fmtAge: fmtAge(current.updatedAt, now) })}</span></Tooltip>
               {(() => {
                 const by = provenance(current.by);
-                if (by.kind === "run") return <Link href={runHref(current.workspace, by.runId, tenant)} className="font-medium text-link hover:underline">from {by.agent} · open the run</Link>;
-                if (by.kind === "user") return <span>uploaded by {by.who}</span>;
+                if (by.kind === "run") return <Link href={runHref(current.workspace, by.runId, tenant)} className="font-medium text-link hover:underline">{$t("components.file-browser.fromOpenTheRun", { agent: by.agent })}</Link>;
+                if (by.kind === "user") return <span>{$t("components.file-browser.uploadedBy", { who: by.who })}</span>;
                 return null;
               })()}
               <SharePill share={current.share} now={now} />
@@ -758,7 +759,7 @@ export function FileBrowser({
             </div>
             <footer className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-3">
               <a href={downloadHref(current)} className={buttonVariants({ variant: "secondary", size: "md" })}>
-                <Download /> Download
+                <Download />{" "}{$t("components.file-browser.download")}
               </a>
               <Tooltip label={shareTitle(current)}>
                 <span className="inline-flex">
@@ -769,21 +770,21 @@ export function FileBrowser({
               </Tooltip>
               {current.share && shareState(current.share, now).state === "shared" && (
                 <Button variant="ghost" size="md" onClick={() => void unshare(current)}>
-                  Stop sharing
+                  {$t("components.file-browser.stopSharing2")}
                 </Button>
               )}
-              <Tooltip label={isText(current) ? "This is already text" : "Read its text — OCR, documents, speech — into a .txt file beside it"}>
+              <Tooltip label={isText(current) ? $t("components.file-browser.thisIsAlreadyText") : $t("components.file-browser.readItsTextOcrDocumentsSpeech")}>
                 <span className="inline-flex">
                   <Button variant="secondary" size="md" disabled={isText(current) || busy === `extract:${keyOf(current)}`} onClick={() => void extract(current)}>
-                    <ScanText /> {busy === `extract:${keyOf(current)}` ? "Extracting…" : "Extract text"}
+                    <ScanText /> {busy === `extract:${keyOf(current)}` ? "Extracting…" : $t("components.file-browser.extractText")}
                   </Button>
                 </span>
               </Tooltip>
               <span className="ml-auto hidden text-xs text-fg-subtle sm:inline">
-                <kbd className="rounded border border-line px-1">←</kbd> <kbd className="rounded border border-line px-1">→</kbd> next file · <kbd className="rounded border border-line px-1">esc</kbd> close
+                {$rich("components.file-browser.nextFileEscClose", { kbd: (chunks) => <kbd className="rounded border border-line px-1">{chunks}</kbd> })}
               </span>
               <Button variant="danger-outline" size="md" onClick={() => void remove(current)} className="max-sm:ml-auto">
-                <Trash2 /> Delete
+                <Trash2 />{" "}{$t("components.file-browser.delete2")}
               </Button>
             </footer>
           </aside>
@@ -806,7 +807,7 @@ function Preview({ f }: { f: BrowserFile }) {
     fetch(`${base(f.workspace)}/preview?path=${encodeURIComponent(f.path)}`, { cache: "no-store" })
       .then(async (r) => {
         const j = await r.json().catch(() => null);
-        if (!r.ok) throw new Error(j?.error ?? `the platform answered ${r.status}`);
+        if (!r.ok) throw new Error(j?.error ?? $t("components.file-browser.thePlatformAnswered", { status: String(r.status) }));
         if (alive) setData(j as ServerPreview);
       })
       .catch((err) => alive && setError(err instanceof Error ? err.message : String(err)));
@@ -821,17 +822,17 @@ function Preview({ f }: { f: BrowserFile }) {
   if (as === "audio") return <div className="flex h-full items-center justify-center"><audio key={f.path} src={inlineHref(f)} controls onError={() => setFallback(true)} className="w-full max-w-lg" /></div>;
   if (as === "font") return <FontSample f={f} onFail={() => setFallback(true)} />;
   if (as === "pdf") return <iframe key={f.path} src={inlineHref(f)} title={f.path} className="h-full min-h-[70vh] w-full rounded-lg border border-line bg-surface shadow-sm" />;
-  if (error) return <NoPreview f={f} note={`No preview: ${error}`} />;
-  if (fallback && data?.kind === "binary") return <ServerView f={f} p={{ ...data, note: data.note ?? `Your browser cannot ${kindOf(f.path) === "video" || kindOf(f.path) === "audio" ? "play" : "show"} this format itself. Download it to open it.` }} />;
-  if (!data) return <p className="p-6 text-center text-xs text-fg-subtle">Reading the file…</p>;
+  if (error) return <NoPreview f={f} note={$t("components.file-browser.noPreview", { error: String(error) })} />;
+  if (fallback && data?.kind === "binary") return <ServerView f={f} p={{ ...data, note: data.note ?? $t("components.file-browser.yourBrowserCannotThisFormatItself", { v0: String(kindOf(f.path) === "video" || kindOf(f.path) === "audio" ? "play" : "show") }) }} />;
+  if (!data) return <p className="p-6 text-center text-xs text-fg-subtle">{$t("components.file-browser.readingTheFile")}</p>;
   return <ServerView f={f} p={data} />;
 }
 
 const Paper = ({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) => (
   <div className={`mx-auto min-h-full rounded-lg border border-line bg-surface shadow-sm ${wide ? "" : "max-w-3xl"}`}>{children}</div>
 );
-const Cut = ({ show, what = "the rest is in the download" }: { show: boolean; what?: string }) =>
-  show ? <p className="border-t border-line-faint px-4 py-2 text-[11px] text-fg-subtle">Showing the start — {what}.</p> : null;
+const Cut = ({ show, what = $t("components.file-browser.theRestIsInTheDownload") }: { show: boolean; what?: string }) =>
+  show ? <p className="border-t border-line-faint px-4 py-2 text-[11px] text-fg-subtle">{$t("components.file-browser.showingTheStart", { what: what })}</p> : null;
 
 function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
   const [tab, setTab] = useState(0);
@@ -843,7 +844,7 @@ function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
         const fm = p.text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
         return (
           <Paper>
-            <div className="flex justify-end px-4 pt-3"><button type="button" onClick={() => setSource(true)} className="text-[11px] text-fg-subtle hover:text-fg-secondary">view source</button></div>
+            <div className="flex justify-end px-4 pt-3"><button type="button" onClick={() => setSource(true)} className="text-[11px] text-fg-subtle hover:text-fg-secondary">{$t("components.file-browser.viewSource")}</button></div>
             {fm && <pre className="mx-8 mb-4 overflow-auto rounded-md border border-line-faint bg-sunken px-3 py-2 font-mono text-[11.5px] text-fg-tertiary">{fm[1]}</pre>}
             <div className="px-8 pb-8"><Markdown text={fm ? p.text.slice(fm[0].length) : p.text} className="text-[15px] leading-relaxed text-fg" /></div>
             <Cut show={p.truncated} />
@@ -853,8 +854,8 @@ function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
       return (
         <Paper wide>
           <div className="flex items-center gap-2 border-b border-line-faint px-4 py-1.5 text-[11px] text-fg-subtle">
-            <span>{p.format === "code" ? p.language : p.format === "markdown" ? "markdown source" : p.format === "json" ? "JSON" : "text"}</span>
-            {p.format === "markdown" && <button type="button" onClick={() => setSource(false)} className="ml-auto hover:text-fg-secondary">rendered</button>}
+            <span>{p.format === "code" ? p.language : p.format === "markdown" ? $t("components.file-browser.markdownSource") : p.format === "json" ? "JSON" : "text"}</span>
+            {p.format === "markdown" && <button type="button" onClick={() => setSource(false)} className="ml-auto hover:text-fg-secondary">{$t("components.file-browser.rendered")}</button>}
           </div>
           <pre className="overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-[12px] leading-relaxed text-fg">{p.text || "(empty)"}</pre>
           <Cut show={p.truncated} />
@@ -862,7 +863,7 @@ function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
       );
     case "table": {
       const sheet = p.sheets[Math.min(tab, p.sheets.length - 1)];
-      if (!sheet) return <NoPreview f={f} note="The spreadsheet has no sheets." />;
+      if (!sheet) return <NoPreview f={f} note={$t("components.file-browser.theSpreadsheetHasNoSheets")} />;
       const [head, ...body] = sheet.rows;
       const cols = Math.max(0, ...sheet.rows.map((r) => r.length));
       return (
@@ -894,7 +895,7 @@ function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
               </tbody>
             </table>
           </div>
-          <p className="border-t border-line-faint px-4 py-2 text-[11px] text-fg-subtle">{sheet.rows.length} row{sheet.rows.length === 1 ? "" : "s"} · {cols} column{cols === 1 ? "" : "s"}{sheet.truncated ? " — the first 500; the rest is in the download" : ""}</p>
+          <p className="border-t border-line-faint px-4 py-2 text-[11px] text-fg-subtle">{$t("components.file-browser.rowColumn", { length: sheet.rows.length, cols: cols })}{sheet.truncated ? $t("components.file-browser.theFirst500TheRestIs") : ""}</p>
         </Paper>
       );
     }
@@ -903,7 +904,7 @@ function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
         <Paper>
           {p.note && <p className="border-b border-warning-line bg-warning-soft px-6 py-2 text-xs text-warning">{p.note}</p>}
           <article className="space-y-3 px-10 py-10 font-serif text-[15px] leading-relaxed text-fg">
-            {p.blocks.length === 0 && <p className="font-sans text-sm text-fg-subtle">The document has no text.</p>}
+            {p.blocks.length === 0 && <p className="font-sans text-sm text-fg-subtle">{$t("components.file-browser.theDocumentHasNoText")}</p>}
             {p.blocks.map((b, i) =>
               b.style === "h1" ? <h2 key={i} className="pt-2 font-sans text-xl font-semibold text-fg">{b.text}</h2>
               : b.style === "h2" ? <h3 key={i} className="pt-1 font-sans text-lg font-semibold text-fg">{b.text}</h3>
@@ -918,10 +919,10 @@ function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
     case "slides":
       return (
         <div className="mx-auto max-w-3xl space-y-3">
-          {p.slides.length === 0 && <NoPreview f={f} note="The deck has no slides with text." />}
+          {p.slides.length === 0 && <NoPreview f={f} note={$t("components.file-browser.theDeckHasNoSlidesWith")} />}
           {p.slides.map((sl, i) => (
             <div key={i} className="aspect-[16/9] overflow-hidden rounded-lg border border-line bg-surface p-8 shadow-sm">
-              <p className="text-xs text-fg-muted">Slide {i + 1}</p>
+              <p className="text-xs text-fg-muted">{$t("components.file-browser.slide", { i: String(i + 1) })}</p>
               <h3 className="mt-2 text-xl font-semibold text-fg">{sl.title}</h3>
               <ul className="mt-3 space-y-1 text-sm text-fg-secondary">{sl.lines.slice(0, 14).map((l, j) => <li key={j} className="flex gap-2"><span className="text-fg-subtle">•</span>{l}</li>)}</ul>
             </div>
@@ -931,22 +932,22 @@ function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
     case "archive":
       return (
         <Paper wide>
-          <p className="border-b border-line-faint px-4 py-2 text-xs text-fg-muted">{p.entries.length} item{p.entries.length === 1 ? "" : "s"} inside</p>
+          <p className="border-b border-line-faint px-4 py-2 text-xs text-fg-muted">{$t("components.file-browser.itemInside", { length: p.entries.length })}</p>
           <ul className="divide-y divide-line-faint font-mono text-[12px]">
             {p.entries.map((e) => (
               <li key={e.name} className="flex gap-4 px-4 py-1"><span className="min-w-0 flex-1 truncate text-fg">{e.name}</span><span className="shrink-0 tabular-nums text-fg-subtle">{e.name.endsWith("/") ? "" : fmtSize(e.size)}</span></li>
             ))}
           </ul>
-          <Cut show={p.truncated} what="the first 2,000 entries" />
+          <Cut show={p.truncated} what={$t("components.file-browser.theFirst2000Entries")} />
         </Paper>
       );
     case "html":
       return (
         <Paper wide>
           <div className="flex items-center gap-1 border-b border-line-faint px-3 py-1.5 text-[11px]">
-            <button type="button" onClick={() => setSource(false)} className={`rounded px-2 py-0.5 ${!source ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`}>Page</button>
-            <button type="button" onClick={() => setSource(true)} className={`rounded px-2 py-0.5 ${source ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`}>Source</button>
-            <span className="ml-auto text-fg-subtle">scripts off — shown in a sealed frame</span>
+            <button type="button" onClick={() => setSource(false)} className={`rounded px-2 py-0.5 ${!source ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`}>{$t("components.file-browser.page")}</button>
+            <button type="button" onClick={() => setSource(true)} className={`rounded px-2 py-0.5 ${source ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`}>{$t("components.file-browser.source")}</button>
+            <span className="ml-auto text-fg-subtle">{$t("components.file-browser.scriptsOffShownInASealed")}</span>
           </div>
           {source ? (
             <pre className="overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-[12px] leading-relaxed text-fg">{p.html}</pre>
@@ -977,13 +978,13 @@ function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
             {p.headers.map((h, i) => <Fragment key={i}><dt className="text-fg-subtle">{h.name}</dt><dd className={`break-words ${/subject/i.test(h.name) ? "font-semibold text-fg" : "text-fg-secondary"}`}>{h.value}</dd></Fragment>)}
           </dl>
           {p.attachments.length > 0 && <p className="border-b border-line-faint px-6 py-2 text-xs text-fg-muted">{p.attachments.join(" · ")}</p>}
-          <pre className="whitespace-pre-wrap break-words px-6 py-5 font-sans text-sm leading-relaxed text-fg">{p.body || "(no text body)"}</pre>
+          <pre className="whitespace-pre-wrap break-words px-6 py-5 font-sans text-sm leading-relaxed text-fg">{p.body || $t("components.file-browser.noTextBody")}</pre>
         </Paper>
       );
     case "calendar":
       return (
         <Paper>
-          <p className="border-b border-line-faint px-5 py-2 text-xs text-fg-muted">{p.events.length} event{p.events.length === 1 ? "" : "s"}</p>
+          <p className="border-b border-line-faint px-5 py-2 text-xs text-fg-muted">{$t("components.file-browser.event", { length: p.events.length })}</p>
           <ul className="divide-y divide-line-faint">
             {p.events.map((e, i) => (
               <li key={i} className="flex gap-4 px-5 py-3">
@@ -1014,7 +1015,7 @@ function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
                 <div className="px-6 py-4"><Markdown text={c.source} className="text-sm text-fg" /></div>
               ) : (
                 <>
-                  <pre className="overflow-auto bg-sunken px-4 py-3 font-mono text-[12px] text-fg"><span className="mr-2 select-none text-info">In [{i + 1}]</span>{c.source}</pre>
+                  <pre className="overflow-auto bg-sunken px-4 py-3 font-mono text-[12px] text-fg"><span className="mr-2 select-none text-info">{$t("components.file-browser.in", { i: String(i + 1) })}</span>{c.source}</pre>
                   {c.outputs.map((o, j) => <pre key={j} className="overflow-auto border-t border-line-faint px-4 py-2 font-mono text-[12px] text-fg-tertiary">{o}</pre>)}
                 </>
               )}
@@ -1025,7 +1026,7 @@ function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
     case "link":
       return (
         <div className="flex h-full min-h-[30vh] flex-col items-center justify-center gap-3 text-center">
-          <p className="text-sm text-fg-muted">A saved link</p>
+          <p className="text-sm text-fg-muted">{$t("components.file-browser.aSavedLink")}</p>
           <a href={p.url} target="_blank" rel="noreferrer noopener" className="max-w-lg break-all text-lg font-medium text-link underline-offset-2 hover:underline">{p.url}</a>
         </div>
       );
@@ -1034,9 +1035,9 @@ function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
     case "binary":
       return (
         <Paper wide>
-          <p className="border-b border-line-faint px-4 py-2 text-xs text-fg-muted">{p.note ?? "A binary file — no reader for this kind. Its first bytes:"}</p>
+          <p className="border-b border-line-faint px-4 py-2 text-xs text-fg-muted">{p.note ?? $t("components.file-browser.aBinaryFileNoReaderFor")}</p>
           <pre className="overflow-auto p-4 font-mono text-[11.5px] leading-relaxed text-fg-secondary">{p.hex}</pre>
-          <Cut show={p.size > 1024} what="download it to open it in the program it belongs to" />
+          <Cut show={p.size > 1024} what={$t("components.file-browser.downloadItToOpenItIn")} />
         </Paper>
       );
   }
@@ -1055,12 +1056,12 @@ function FontSample({ f, onFail }: { f: BrowserFile; onFail: () => void }) {
       .catch(() => alive && onFail());
     return () => { alive = false; };
   }, [f, onFail]);
-  if (!family) return <p className="p-6 text-center text-xs text-fg-subtle">Loading the font…</p>;
+  if (!family) return <p className="p-6 text-center text-xs text-fg-subtle">{$t("components.file-browser.loadingTheFont")}</p>;
   return (
     <Paper>
       <div className="space-y-5 px-10 py-10" style={{ fontFamily: `"${family}"` }}>
-        {[64, 40, 24, 16].map((px) => <p key={px} style={{ fontSize: px, lineHeight: 1.15 }} className="text-fg">The quick brown fox jumps over the lazy dog</p>)}
-        <p className="break-all text-2xl text-fg-secondary">ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 &amp;@$%!?</p>
+        {[64, 40, 24, 16].map((px) => <p key={px} style={{ fontSize: px, lineHeight: 1.15 }} className="text-fg">{$t("components.file-browser.theQuickBrownFoxJumpsOver")}</p>)}
+        <p className="break-all text-2xl text-fg-secondary">{$t("components.file-browser.abcdefghijklmnopqrstuvwxyzAbcdefghijklmnopqrstuvwxyz0123456789")}</p>
       </div>
     </Paper>
   );
@@ -1115,7 +1116,7 @@ function MeshView({ p }: { p: Extract<ServerPreview, { kind: "mesh" }> }) {
     ctx.lineWidth = Math.max(0.5, devicePixelRatio * 0.5);
     for (const fc of faces) {
       const l = fc.shade;
-      ctx.fillStyle = `rgb(${Math.round(40 + 90 * l)},${Math.round(90 + 110 * l)},${Math.round(140 + 110 * l)})`;
+      ctx.fillStyle = $t("components.file-browser.rgb", { v0: String(Math.round(40 + 90 * l)), v1: String(Math.round(90 + 110 * l)), v2: String(Math.round(140 + 110 * l)) });
       ctx.strokeStyle = faces.length < 4000 ? "rgba(15,23,42,0.18)" : ctx.fillStyle;
       ctx.beginPath();
       ctx.moveTo(fc.pts[0][0], fc.pts[0][1]); ctx.lineTo(fc.pts[1][0], fc.pts[1][1]); ctx.lineTo(fc.pts[2][0], fc.pts[2][1]);
@@ -1138,7 +1139,7 @@ function MeshView({ p }: { p: Extract<ServerPreview, { kind: "mesh" }> }) {
         }}
         onPointerUp={() => { drag.current = null; }}
       />
-      <p className="text-center text-[11px] text-fg-muted">{String(p.count).replace(/\B(?=(\d{3})+(?!\d))/g, ",")} triangles{p.truncated ? " (the first 60,000 drawn)" : ""} · drag to turn</p>
+      <p className="text-center text-[11px] text-fg-muted">{$t("components.file-browser.dragToTurn2", { part: $t("components.file-browser.triangles", { replace: String(p.count).replace(/\B(?=(\d{3})+(?!\d))/g, ",") }), part2: p.truncated ? $t("components.file-browser.theFirst60000Drawn") : "" })}</p>
     </div>
   );
 }
@@ -1149,7 +1150,7 @@ function NoPreview({ f, note }: { f: BrowserFile; note: string }) {
       <Thumb f={f} size="h-14 w-14" />
       <p className="max-w-sm text-sm text-fg-tertiary">{note}</p>
       <a href={downloadHref(f)} className={buttonVariants({ variant: "primary", size: "md" })}>
-        <Download /> Download
+        <Download />{" "}{$t("components.file-browser.download")}
       </a>
     </div>
   );

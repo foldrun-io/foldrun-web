@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 // Cron, spoken. The file stores cron — an open format has no private
 // schedule syntax — but people read "Every Monday at 08:00", so both the
 // trigger editor and the schedule badges translate through this one module.
@@ -5,8 +6,8 @@
 
 export const SCHEDULE_DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;
 export const SCHEDULE_DAY_NAMES: Record<string, string> = {
-  MON: "Monday", TUE: "Tuesday", WED: "Wednesday", THU: "Thursday",
-  FRI: "Friday", SAT: "Saturday", SUN: "Sunday",
+  MON: $t("components.schedule-human.monday"), TUE: $t("components.schedule-human.tuesday"), WED: $t("components.schedule-human.wednesday"), THU: $t("components.schedule-human.thursday"),
+  FRI: $t("components.schedule-human.friday"), SAT: $t("components.schedule-human.saturday"), SUN: $t("components.schedule-human.sunday"),
 };
 
 export type SchedulePreset = "hourly" | "daily" | "weekly" | "monthly" | "custom";
@@ -43,10 +44,10 @@ export function humanSchedule(cron: string): string | null {
   const { preset, time, day } = scheduleFromCron(cron);
   const minute = time.split(":")[1] ?? "00";
   switch (preset) {
-    case "hourly": return `Every hour at :${minute}`;
-    case "daily": return `Every day at ${time}`;
-    case "weekly": return `Every ${SCHEDULE_DAY_NAMES[day]} at ${time}`;
-    case "monthly": return `Monthly on the 1st at ${time}`;
+    case "hourly": return $t("components.schedule-human.everyHourAt", { minute: String(minute) });
+    case "daily": return $t("components.schedule-human.everyDayAt", { time: String(time) });
+    case "weekly": return $t("components.schedule-human.everyAt", { v0: String(SCHEDULE_DAY_NAMES[day]), time: String(time) });
+    case "monthly": return $t("components.schedule-human.monthlyOnThe1stAt", { time: String(time) });
     default: return null;
   }
 }

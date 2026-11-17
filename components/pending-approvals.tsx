@@ -16,6 +16,7 @@
 // in the same frame; the refetch confirms it against the step's own status,
 // so the gate cannot come back while the worker is still picking the run up.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -65,7 +66,7 @@ const key = (g: { runId: string; step: number }) => `${g.runId}#${g.step}`;
 
 function waitedFor(iso: string): string {
   const min = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60_000));
-  if (min < 1) return "just now";
+  if (min < 1) return $t("components.pending-approvals.justNow");
   if (min < 60) return `${min} min`;
   const h = Math.floor(min / 60);
   return h < 24 ? `${h} h` : `${Math.floor(h / 24)} d`;
@@ -169,13 +170,13 @@ export function PendingApprovals() {
           delete n[q.id];
           return n;
         });
-      } else if (res.status === 403) fail("you cannot answer — it needs permission to start runs");
+      } else if (res.status === 403) fail($t("components.pending-approvals.youCannotAnswerItNeedsPermission"));
       else {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        fail(body.error ?? `could not answer (${res.status})`);
+        fail(body.error ?? $t("components.pending-approvals.couldNotAnswer", { status: String(res.status) }));
       }
     } catch (err) {
-      fail(`could not answer: ${err instanceof Error ? err.message : String(err)}`);
+      fail($t("components.pending-approvals.couldNotAnswer2", { v0: String(err instanceof Error ? err.message : String(err)) }));
     } finally {
       setBusy((b) => {
         const n = new Set(b);
@@ -197,7 +198,7 @@ export function PendingApprovals() {
           <div className="mb-2">
             <div className="flex items-center gap-2 font-medium">
               <span className="inline-flex size-2 shrink-0 animate-pulse rounded-full bg-info" aria-hidden />
-              {questions.length === 1 ? "An agent is asking you something" : `${questions.length} agents are asking you something`}
+              {questions.length === 1 ? $t("components.pending-approvals.anAgentIsAskingYouSomething") : $t("components.pending-approvals.agentsAreAskingYouSomething", { length: String(questions.length) })}
             </div>
             <ul className="mt-1.5 space-y-1">
               {questions.slice(0, 3).map((q) => (
@@ -214,7 +215,7 @@ export function PendingApprovals() {
                     </Button>
                   ))}
                   <Link href={`/dashboard/${q.workspace}/runs/${q.runId}${tenantParam.replace("&", "?")}`} className="text-xs font-medium text-fg-secondary hover:text-fg hover:underline">
-                    Answer →
+                    {$t("components.pending-approvals.answer")}
                   </Link>
                   {answerError[q.id] && (
                     <span role="alert" className="basis-full text-xs text-danger">
@@ -230,10 +231,10 @@ export function PendingApprovals() {
         <div className="flex items-center gap-2 font-medium">
           <span className="inline-flex size-2 shrink-0 animate-pulse rounded-full bg-warning" aria-hidden />
           {gates.length === 1
-            ? "A run is waiting for your approval"
+            ? $t("components.pending-approvals.aRunIsWaitingForYour")
             : runs.length === 1
-              ? `${gates.length} gates in one run are waiting for your approval`
-              : `${gates.length} gates in ${runs.length} runs are waiting for your approval`}
+              ? $t("components.pending-approvals.gatesInOneRunAreWaiting", { length: String(gates.length) })
+              : $t("components.pending-approvals.gatesInRunsAreWaitingFor", { length: String(gates.length), length1: String(runs.length) })}
         </div>
         )}
         <ul className="mt-1.5 space-y-1">
@@ -251,21 +252,21 @@ export function PendingApprovals() {
                 <Tag mono className="h-5">{g.agent}</Tag>
                 <Tooltip label={g.question}>
                   <span className="min-w-0 flex-1 truncate text-fg-secondary">
-                    {g.asked ? g.question : `approve “${g.question}”?`}
+                    {g.asked ? g.question : $t("components.pending-approvals.approve", { question: String(g.question) })}
                   </span>
                 </Tooltip>
                 <span className="text-xs text-fg-muted">{waitedFor(g.waitingSince)}</span>
                 <Button size="xs" variant="primary" disabled={busy.has(key(g))} onClick={() => decide(g, "approve")}>
-                  Approve
+                  {$t("components.pending-approvals.approve2")}
                 </Button>
                 <Button size="xs" variant="danger-outline" disabled={busy.has(key(g))} onClick={() => decide(g, "reject")}>
-                  Reject
+                  {$t("components.pending-approvals.reject")}
                 </Button>
                 <Link
                   href={`/dashboard/${g.workspace}/runs/${g.runId}${tenantParam.replace("&", "?")}`}
                   className="text-xs font-medium text-fg-secondary hover:text-fg hover:underline"
                 >
-                  Review →
+                  {$t("components.pending-approvals.review")}
                 </Link>
               </li>
             )),
@@ -273,7 +274,7 @@ export function PendingApprovals() {
         </ul>
         {hiddenGates > 0 && (
           <Link href={`/dashboard/runs?status=awaiting-approval${tenantParam}`} className="mt-1 inline-block text-xs text-fg-secondary hover:underline">
-            and {hiddenGates} more — see all
+            {$t("components.pending-approvals.andMoreSeeAll", { hiddenGates: String(hiddenGates) })}
           </Link>
         )}
       </div>

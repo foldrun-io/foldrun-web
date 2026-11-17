@@ -11,6 +11,7 @@
 // there is no bucket, `url` comes back null, and the bytes go to the
 // platform instead.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Upload } from "lucide-react";
@@ -33,7 +34,7 @@ export function UploadZone({ workspace, tenant, maxMb }: { workspace: string; te
     setError(null);
     for (const file of Array.from(chosen)) {
       if (file.size > maxMb * 1024 * 1024) {
-        setError(`${file.name} is ${humanSize(file.size)} — the limit is ${maxMb} MB`);
+        setError($t("workspace.storage-storage-tools.isTheLimitIsMb", { name: String(file.name), v1: String(humanSize(file.size)), maxMb: String(maxMb) }));
         continue;
       }
       setBusy(file.name);
@@ -49,7 +50,7 @@ export function UploadZone({ workspace, tenant, maxMb }: { workspace: string; te
 
   return (
     <>
-      {busy && <Chip tone="info">Uploading {busy}…</Chip>}
+      {busy && <Chip tone="info">{$t("workspace.storage-storage-tools.uploading", { busy: busy })}</Chip>}
       {error && (
         <Tooltip label={error}>
           <span role="alert" className="max-w-xs truncate text-[13px] text-danger">
@@ -57,9 +58,9 @@ export function UploadZone({ workspace, tenant, maxMb }: { workspace: string; te
           </span>
         </Tooltip>
       )}
-      <Tooltip label={`Any file, up to ${maxMb} MB each — or drop files on the list`}>
+      <Tooltip label={$t("workspace.storage-storage-tools.anyFileUpToMbEach", { maxMb: String(maxMb) })}>
         <Button variant="primary" size="md" onClick={picker.open} disabled={!!busy}>
-          <Upload /> Upload
+          <Upload />{" "}{$t("workspace.storage-storage-tools.upload")}
         </Button>
       </Tooltip>
       {picker.input}
@@ -72,9 +73,9 @@ export function StorageUsage({ used, quotaMb, count, driver }: { used: number; q
   const share = used / (quotaMb * 1024 * 1024);
   return (
     <span className="inline-flex min-w-0 items-center gap-2">
-      <RingProgress value={share} label={`${Math.round(share * 100)}% of the quota`} />
+      <RingProgress value={share} label={$t("workspace.storage-storage-tools.ofTheQuota", { v0: String(Math.round(share * 100)) })} />
       <span className="min-w-0 truncate tabular-nums">
-        {humanSize(used)} of {quotaMb} MB · {count} file{count === 1 ? "" : "s"} · {driver === "s3" ? "object storage" : "this server"}
+        {$t("workspace.storage-storage-tools.ofMbFile", { used: humanSize(used), quotaMb: String(quotaMb), count: count })}{" "}{driver === "s3" ? $t("workspace.storage-storage-tools.objectStorage") : $t("workspace.storage-storage-tools.thisServer")}
       </span>
     </span>
   );

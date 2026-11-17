@@ -3,7 +3,7 @@
 // is running and what fires next, then the flows with their last runs as a
 // strip, and the agents. Files live on Edit; runs on Runs.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import { viewerScope, verifySession, SESSION_COOKIE } from "@/server/users";
 import { cookies } from "next/headers";
 import { onboardingPrefs, workspaceChecklistFor } from "@/server/onboarding";
@@ -85,25 +85,25 @@ export default async function ProjectPage({
     const beat = strips.get(f.name);
     const last = beat?.last ?? null;
     const href = `/dashboard/${workspace}/flows?flow=${encodeURIComponent(f.name)}${tenantParam}`;
-    const when = f.schedule ? (humanSchedule(f.schedule) ?? f.schedule) : f.trigger === "webhook" ? "Webhook" : f.trigger === "manual" ? "Run by hand" : f.trigger;
+    const when = f.schedule ? (humanSchedule(f.schedule) ?? f.schedule) : f.trigger === "webhook" ? $t("workspace.page.webhook") : f.trigger === "manual" ? $t("workspace.page.runByHand") : f.trigger;
     const lastLine = last ? (
       <>
         <StatusDot outcome={last.outcome} label="" />
         <span className="truncate">
-          {OUTCOME[last.outcome].label} {fmtSpan(now - Date.parse(last.startedAt))} ago
+          {$t("workspace.page.ago", { label: OUTCOME[last.outcome].label, fmtSpan: fmtSpan(now - Date.parse(last.startedAt)) })}
           {last.failure ? ` · ${last.failure.agent}: ${last.failure.reason}` : last.headline ? ` · ${last.headline}` : ""}
         </span>
       </>
     ) : (
       <>
         <CircleDashed />
-        <span className="truncate">Never ran</span>
+        <span className="truncate">{$t("workspace.page.neverRan")}</span>
       </>
     );
     const nextLine = f.nextFireAt ? (
       <>
         <Clock3 />
-        <span className="truncate">Next {fmtIn(Date.parse(f.nextFireAt) - now)}</span>
+        <span className="truncate">{$t("workspace.page.next", { fmtIn: fmtIn(Date.parse(f.nextFireAt) - now) })}</span>
       </>
     ) : null;
     return {
@@ -112,14 +112,14 @@ export default async function ProjectPage({
       href,
       icon: <Workflow />,
       name: f.name,
-      sub: `${when} · ${f.steps} step${f.steps === 1 ? "" : "s"}`,
+      sub: $t("workspace.page.step", { when: String(when), steps: String(f.steps), v2: String(f.steps === 1 ? "" : "s") }),
       cells: {
-        status: last ? <Status outcome={last.outcome} /> : <span className="text-fg-muted">Never ran</span>,
+        status: last ? <Status outcome={last.outcome} /> : <span className="text-fg-muted">{$t("workspace.page.neverRan")}</span>,
         runs: beat ? <Cells beat={beat} n={12} tenant={tenant} /> : undefined,
         next: f.nextFireAt ? fmtIn(Date.parse(f.nextFireAt) - now) : undefined,
         spend: `${f.runs7d} · ${creditsShort(f.spend7d)}`,
       },
-      action: <RunButton endpoint={`/api/workspaces/${workspace}/flows/${f.name}/run`} tenant={tenant} label="Run" />,
+      action: <RunButton endpoint={`/api/workspaces/${workspace}/flows/${f.name}/run`} tenant={tenant} label={$t("workspace.page.run")} />,
       card: (
         <ResourceCard
           href={href}
@@ -127,8 +127,8 @@ export default async function ProjectPage({
           name={f.name}
           sub={when}
           status={f.live > 0 ? "busy" : outcomeRing(last?.outcome)}
-          statusLabel={f.live > 0 ? `${f.live} running` : last ? OUTCOME[last.outcome].hint : "never ran"}
-          lines={[lastLine, ...(nextLine ? [nextLine] : []), <><BarChart3 /><span className="truncate">{f.runs7d} run{f.runs7d === 1 ? "" : "s"} · {creditsShort(f.spend7d)} in 7 days</span></>]}
+          statusLabel={f.live > 0 ? `${f.live} running` : last ? OUTCOME[last.outcome].hint : $t("workspace.page.neverRan2")}
+          lines={[lastLine, ...(nextLine ? [nextLine] : []), <><BarChart3 /><span className="truncate">{$t("workspace.page.runIn7Days", { runs7d: f.runs7d, creditsShort: creditsShort(f.spend7d) })}</span></>]}
         />
       ),
     };
@@ -148,18 +148,18 @@ export default async function ProjectPage({
         description={summary?.description || undefined}
         meta={
           <>
-            <Fact label="Agents">{agents.length}</Fact>
-            <Fact label="Flows">{flows.length}</Fact>
+            <Fact label={$t("workspace.page.agents")}>{agents.length}</Fact>
+            <Fact label={$t("workspace.page.flows")}>{flows.length}</Fact>
             {/* The commit the last deploy named (foldrun deploy --commit), when
                 it named one; either way, History is where the changes are. */}
             <Link href={`/dashboard/${workspace}/history${qs}`} className="inline-flex items-center gap-1.5 hover:text-fg">
               <GitCommitHorizontal className="size-4" aria-hidden />
               {commit ? (
                 <span>
-                  <span className="font-mono">{commit.commit.slice(0, 7)}</span> deployed {fmtAgo(now - Date.parse(commit.at))}
+                  {$rich("workspace.page.deployed", { slice: commit.commit.slice(0, 7), span: (chunks) => <span className="font-mono">{chunks}</span>, fmtAgo: fmtAgo(now - Date.parse(commit.at)) })}
                 </span>
               ) : (
-                "History"
+                $t("workspace.page.history")
               )}
             </Link>
           </>
@@ -168,7 +168,7 @@ export default async function ProjectPage({
           <>
             <Link href={`/dashboard/${workspace}/edit${qs}`} className={buttonVariants({ variant: "secondary" })}>
               <FolderTree aria-hidden />
-              Files
+              {$t("workspace.page.files")}
             </Link>
             <Link href={`/dashboard/${workspace}/settings${qs}`} className={buttonVariants({ variant: "secondary", size: "icon-sm" })} aria-label={$t("workspace.page.workspaceSettings")}>
               <Settings aria-hidden />
@@ -177,32 +177,32 @@ export default async function ProjectPage({
         }
       />
       <SplitOverview
-        search="Search flows…"
-        title="Flows"
+        search={$t("workspace.page.searchFlows")}
+        title={$t("workspace.page.flows")}
         actions={
           <Link href={`/dashboard/${workspace}/flows${qs}`} className={buttonVariants({ variant: "secondary" })}>
-            All flows
+            {$t("workspace.page.allFlows")}
           </Link>
         }
         columns={[
-          { key: "status", header: "Last run" },
-          { key: "runs", header: "Recent runs", hide: "lg" },
-          { key: "next", header: "Next", hide: "md" },
-          { key: "spend", header: "7 days", align: "end", hide: "sm" },
+          { key: "status", header: $t("workspace.page.lastRun") },
+          { key: "runs", header: $t("workspace.page.recentRuns"), hide: "lg" },
+          { key: "next", header: $t("workspace.page.next2"), hide: "md" },
+          { key: "spend", header: $t("workspace.page.7Days"), align: "end", hide: "sm" },
         ]}
         rows={flowRowsUi}
         empty={
           <EmptyState
             icon={<Workflow />}
-            title="No flows yet"
-            description="A flow is a numbered list of steps in flows/, each naming the agent that runs it."
+            title={$t("workspace.page.noFlowsYet")}
+            description={$t("workspace.page.aFlowIsANumberedList")}
             action={
               <>
                 <Link href={`/dashboard/${workspace}/flows?create=flows${tenantParam}`} className={buttonVariants({ variant: "primary" })}>
-                  New flow
+                  {$t("workspace.page.newFlow")}
                 </Link>
                 <Link href={`/dashboard/welcome?step=start${tenantParam}`} className={buttonVariants({ variant: "secondary" })}>
-                  Other ways to start
+                  {$t("workspace.page.otherWaysToStart")}
                 </Link>
               </>
             }
@@ -224,9 +224,9 @@ export default async function ProjectPage({
         after={
           <>
             <RuntimesPanel runtimes={runtimes} />
-            <Panel title="Agents" count={agentList.length} actions={<PanelLink href={`/dashboard/${workspace}/agents${qs}`}>All agents</PanelLink>} flush>
+            <Panel title={$t("workspace.page.agents")} count={agentList.length} actions={<PanelLink href={`/dashboard/${workspace}/agents${qs}`}>{$t("workspace.page.allAgents")}</PanelLink>} flush>
               {agentList.length === 0 ? (
-                <p className="px-5 py-8 text-center text-sm text-fg-muted">No agents yet.</p>
+                <p className="px-5 py-8 text-center text-sm text-fg-muted">{$t("workspace.page.noAgentsYet")}</p>
               ) : (
                 <ul className="divide-y divide-line">
                   {agentList.map((a) => (
@@ -239,7 +239,7 @@ export default async function ProjectPage({
                           <span className="block truncate text-sm font-medium text-fg">{a.name}</span>
                           <span className="block truncate text-xs text-fg-muted">{a.description || a.model}</span>
                         </span>
-                        <span className="hidden shrink-0 text-xs text-fg-muted sm:block">{a.lastAt ? `ran ${fmtAgo(now - Date.parse(a.lastAt))}` : "never ran"}</span>
+                        <span className="hidden shrink-0 text-xs text-fg-muted sm:block">{a.lastAt ? `ran ${fmtAgo(now - Date.parse(a.lastAt))}` : $t("workspace.page.neverRan2")}</span>
                       </Link>
                     </li>
                   ))}

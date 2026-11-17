@@ -4,7 +4,7 @@
 // /api/mcp over OAuth (server/mcp-oauth.ts), with Revoke — which ends every
 // token the connection issued at once.
 
-import { $t } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Cpu, Plug } from "lucide-react";
@@ -51,7 +51,7 @@ export function McpConnections({ connections, everyone }: { connections: Connect
     });
     const j = (await res.json().catch(() => ({}))) as { client_id?: string; client_secret?: string; token_endpoint?: string; error?: string };
     setBusy(null);
-    if (!res.ok || !j.client_id) { setError(j.error ?? "could not register it"); return; }
+    if (!res.ok || !j.client_id) { setError(j.error ?? $t("settings.mcp-connections.couldNotRegisterIt")); return; }
     setMade({ client_id: j.client_id, ...(j.client_secret ? { client_secret: j.client_secret } : {}), token_endpoint: j.token_endpoint ?? "" });
     setAdding(false);
     setM({ name: "", role: "viewer", access: "read", workspaces: "" });
@@ -62,42 +62,42 @@ export function McpConnections({ connections, everyone }: { connections: Connect
     <div className="border-t border-line bg-sunken px-5 py-3 text-sm sm:px-6">
       {made && (
         <Callout tone="success" className="mb-3 p-3 text-xs text-fg" role="status">
-          <div className="font-medium text-success">Copy the secret now — it is not shown again.</div>
-          <div className="mt-1 break-all font-mono">client_id: {made.client_id}</div>
-          {made.client_secret && <div className="break-all font-mono">client_secret: {made.client_secret}</div>}
-          <div className="mt-1 text-fg-muted">POST {made.token_endpoint} with grant_type=client_credentials, the id and secret as HTTP Basic; then Bearer the access token to /api/mcp.</div>
-          <Button variant="ghost" className="mt-2" onClick={() => setMade(null)}>Done</Button>
+          <div className="font-medium text-success">{$t("settings.mcp-connections.copyTheSecretNowItIs")}</div>
+          <div className="mt-1 break-all font-mono">{$t("settings.mcp-connections.clientId", { client_id: made.client_id })}</div>
+          {made.client_secret && <div className="break-all font-mono">{$t("settings.mcp-connections.clientSecret", { client_secret: made.client_secret })}</div>}
+          <div className="mt-1 text-fg-muted">{$t("settings.mcp-connections.postWithGrantTypeClientCredentials", { token_endpoint: made.token_endpoint })}</div>
+          <Button variant="ghost" className="mt-2" onClick={() => setMade(null)}>{$t("settings.mcp-connections.done")}</Button>
         </Callout>
       )}
       {adding ? (
         <div className="space-y-3 py-1">
           <div className="grid gap-3 sm:grid-cols-3">
-            <Field label="Name"><Input value={m.name} onChange={(e) => setM({ ...m, name: e.target.value })} placeholder="Nightly report bot" /></Field>
-            <Field label="Role"><Select value={m.role} onChange={(e) => setM({ ...m, role: e.target.value })} className="w-full">{["viewer", "editor", "admin"].map((r) => <option key={r} value={r}>{r}</option>)}</Select></Field>
-            <Field label="Access"><Select value={m.access} onChange={(e) => setM({ ...m, access: e.target.value as "read" | "write" })} className="w-full"><option value="read">read only</option><option value="write">read and act</option></Select></Field>
-            <Field label={<>{$t("settings.mcp-connections.workspace")}{" "}<span className="font-normal text-fg-muted">— comma-separated; empty for all you can open</span></>} className="sm:col-span-3"><Input value={m.workspaces} onChange={(e) => setM({ ...m, workspaces: e.target.value })} /></Field>
+            <Field label={$t("settings.mcp-connections.name")}><Input value={m.name} onChange={(e) => setM({ ...m, name: e.target.value })} placeholder={$t("settings.mcp-connections.nightlyReportBot")} /></Field>
+            <Field label={$t("settings.mcp-connections.role")}><Select value={m.role} onChange={(e) => setM({ ...m, role: e.target.value })} className="w-full">{["viewer", "editor", "admin"].map((r) => <option key={r} value={r}>{r}</option>)}</Select></Field>
+            <Field label={$t("settings.mcp-connections.access")}><Select value={m.access} onChange={(e) => setM({ ...m, access: e.target.value as "read" | "write" })} className="w-full"><option value="read">{$t("settings.mcp-connections.readOnly")}</option><option value="write">{$t("settings.mcp-connections.readAndAct")}</option></Select></Field>
+            <Field label={<>{$t("settings.mcp-connections.workspace")}{" "}<span className="font-normal text-fg-muted">{$t("settings.mcp-connections.commaSeparatedEmptyForAllYou")}</span></>} className="sm:col-span-3"><Input value={m.workspaces} onChange={(e) => setM({ ...m, workspaces: e.target.value })} /></Field>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setAdding(false)}>Cancel</Button>
-            <Button variant="primary" disabled={busy === "add" || !m.name.trim()} onClick={() => void addMachine()}>Register</Button>
+            <Button variant="ghost" onClick={() => setAdding(false)}>{$t("settings.mcp-connections.cancel")}</Button>
+            <Button variant="primary" disabled={busy === "add" || !m.name.trim()} onClick={() => void addMachine()}>{$t("settings.mcp-connections.register")}</Button>
           </div>
         </div>
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="min-w-0 flex-1 text-fg-muted">{$t("settings.mcp-connections.aProgramThatSignsInTo")}</p>
-          <Button variant="secondary" onClick={() => setAdding(true)}>Add a machine client</Button>
+          <Button variant="secondary" onClick={() => setAdding(true)}>{$t("settings.mcp-connections.addAMachineClient")}</Button>
         </div>
       )}
     </div>
   ) : null;
 
   async function revoke(c: ConnectionRow) {
-    const ok = await confirm({ title: `Disconnect ${c.client}?`, body: <>Every token it holds stops working now. <Email value={c.person} /> can connect it again.</>, confirmLabel: "Disconnect" });
+    const ok = await confirm({ title: $t("settings.mcp-connections.disconnect", { client: String(c.client) }), body: <>{$rich("settings.mcp-connections.everyTokenItHoldsStopsWorking", { email: $el(<Email value={c.person} />) })}</>, confirmLabel: $t("settings.mcp-connections.disconnect2") });
     if (!ok) return;
     setBusy(c.id);
     setError(null);
     const res = await fetch(`/api/mcp/connections/${encodeURIComponent(c.id)}`, { method: "DELETE" });
-    if (!res.ok) setError(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "could not disconnect it");
+    if (!res.ok) setError(((await res.json().catch(() => ({}))) as { error?: string }).error ?? $t("settings.mcp-connections.couldNotDisconnectIt"));
     setBusy(null);
     router.refresh();
   }
@@ -106,12 +106,12 @@ export function McpConnections({ connections, everyone }: { connections: Connect
     <div className="mb-6 min-w-0 overflow-hidden rounded-lg border border-line bg-surface">
       {confirmDialog}
       <div className="space-y-1.5 p-5 pb-3 sm:p-6 sm:pb-3">
-        <h2 className="text-lg font-semibold text-fg">Connected AI apps</h2>
-        <p className="text-sm text-fg-muted">Apps signed in to this account over OAuth. Disconnect one and every token it holds stops working.</p>
+        <h2 className="text-lg font-semibold text-fg">{$t("settings.mcp-connections.connectedAiApps")}</h2>
+        <p className="text-sm text-fg-muted">{$t("settings.mcp-connections.appsSignedInToThisAccount")}</p>
       </div>
       {connections.length === 0 ? (
         <p className="px-5 pb-5 text-sm text-fg-muted sm:px-6">
-          No AI app is connected{everyone ? " to this account" : " as you"}. claude.ai connects by itself when you add this install&apos;s /api/mcp as a custom connector.
+          {$t("settings.mcp-connections.noAiAppIsConnectedClaude", { part: everyone ? $t("settings.mcp-connections.toThisAccount") : $t("settings.mcp-connections.asYou") })}
         </p>
       ) : (
         <ul className="divide-y divide-line border-t border-line">
@@ -120,16 +120,16 @@ export function McpConnections({ connections, everyone }: { connections: Connect
               <IconBox className="max-sm:hidden">{c.machine ? <Cpu /> : <Plug />}</IconBox>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium text-fg">
-                  {c.client} <span className="font-normal text-fg-muted">· {c.machine ? "machine client" : c.redirectHost}</span>
+                  {c.client} <span className="font-normal text-fg-muted">· {c.machine ? $t("settings.mcp-connections.machineClient") : c.redirectHost}</span>
                 </p>
                 <p className="text-xs text-fg-muted">
-                  {c.access === "read" ? "read only" : "read and act"} · {c.workspaces ? c.workspaces.join(", ") : $t("settings.mcp-connections.allWorkspace")}
-                  {everyone ? <> · <Email value={c.person} /></> : null} · connected <LocalTime iso={c.createdAt} />
-                  {c.lastUsedAt ? <> · last used <LocalTime iso={c.lastUsedAt} /></> : null}
+                  {c.access === "read" ? $t("settings.mcp-connections.readOnly") : $t("settings.mcp-connections.readAndAct")} · {c.workspaces ? c.workspaces.join(", ") : $t("settings.mcp-connections.allWorkspace")}
+                  {everyone ? <> · <Email value={c.person} /></> : null}{" "}{$rich("settings.mcp-connections.connected", { localTime: $el(<LocalTime iso={c.createdAt} />) })}
+                  {c.lastUsedAt ? <>{" "}{$rich("settings.mcp-connections.lastUsed", { localTime: $el(<LocalTime iso={c.lastUsedAt} />) })}</> : null}
                 </p>
               </div>
               <Button variant="ghost" className="hover:text-danger" disabled={busy === c.id} onClick={() => revoke(c)}>
-                Disconnect
+                {$t("settings.mcp-connections.disconnect2")}
               </Button>
             </li>
           ))}

@@ -14,6 +14,7 @@
 // with 409 and nothing is written — a restore must never quietly undo a
 // change nobody in this drawer has seen.
 
+import { $t } from "@/i18n";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
@@ -50,7 +51,7 @@ export function DiffView({ rows, empty }: { rows: DiffRow[]; empty: string }) {
       {rows.map((r, i) =>
         r.kind === "gap" ? (
           <div key={i} className="select-none bg-sunken px-3 py-0.5 text-[11px] text-fg-subtle">
-            ⋯ {r.count} unchanged line{r.count === 1 ? "" : "s"}
+            {$t("components.flow-history.unchangedLine", { count: r.count })}
           </div>
         ) : (
           <div
@@ -76,10 +77,10 @@ export function FlowHistory({ workspace, tenant, flow, file }: { workspace: stri
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Tooltip label={`Every saved version of flows/${file}`}>
+      <Tooltip label={$t("components.flow-history.everySavedVersionOfFlows", { file: String(file) })}>
         <button type="button" onClick={() => setOpen(true)} className={buttonVariants({ variant: "ghost", size: "sm" })}>
           <History aria-hidden />
-          History
+          {$t("components.flow-history.history")}
         </button>
       </Tooltip>
       {open && <HistoryDrawer workspace={workspace} tenant={tenant} flow={flow} file={file} onClose={() => setOpen(false)} />}
@@ -129,13 +130,13 @@ export function HistoryDrawer({
     ])
       .then(([src, hist]) => {
         if (!live) return;
-        if (typeof src.content !== "string") throw new Error(src.error ?? "could not read the flow");
+        if (typeof src.content !== "string") throw new Error(src.error ?? $t("components.flow-history.couldNotReadTheFlow"));
         setCurrent({ content: src.content, sha256: src.sha256 });
         const list = (hist.revisions ?? []) as Summary[];
         setRevisions(list);
         setSelected((s) => s ?? list[0]?.id ?? null);
       })
-      .catch((err) => live && setError(err instanceof Error ? err.message : "could not load history"));
+      .catch((err) => live && setError(err instanceof Error ? err.message : $t("components.flow-history.couldNotLoadHistory")));
     return () => {
       live = false;
     };
@@ -147,7 +148,7 @@ export function HistoryDrawer({
     fetch(`/api/workspaces/${workspace}/history?id=${encodeURIComponent(selected)}&path=${encodeURIComponent(path)}`, { headers })
       .then((r) => r.json())
       .then((d) => live && setDetail({ ...d, requested: selected }))
-      .catch(() => live && setError("could not load that revision"));
+      .catch(() => live && setError($t("components.flow-history.couldNotLoadThatRevision")));
     return () => {
       live = false;
     };
@@ -168,14 +169,13 @@ export function HistoryDrawer({
     if (!detail || after === null || !current) return;
     const label = detail.commit ? detail.commit.slice(0, 7) : detail.id;
     const ok = await ask({
-      title: `Restore ${flow} to ${label}?`,
+      title: $t("components.flow-history.restoreTo", { flow: String(flow), label: String(label) }),
       body: (
         <>
-          flows/{file} is rewritten with that version&apos;s text, as a new revision named
-          &ldquo;{restoreMessage(detail)}&rdquo;. What it says now stays in this history and can be restored back.
+          {$t("components.flow-history.flowsIsRewrittenWithThatVersion", { file: file, detail: restoreMessage(detail) })}
         </>
       ),
-      confirmLabel: "Restore this version",
+      confirmLabel: $t("components.flow-history.restoreThisVersion"),
       destructive: false,
     });
     if (!ok) return;
@@ -193,24 +193,24 @@ export function HistoryDrawer({
       const body = (await res.json().catch(() => ({}))) as { error?: string; issues?: { level: string; message: string }[] };
       if (res.status === 409) {
         setError(
-          `flows/${file} changed after this drawer opened, so nothing was restored. Close and reopen History to see the newer version, then restore again if you still want to.`,
+          $t("components.flow-history.flowsChangedAfterThisDrawerOpened", { file: String(file) }),
         );
         return;
       }
       if (!res.ok) {
-        setError(body.error ?? `restore refused (${res.status})`);
+        setError(body.error ?? $t("components.flow-history.restoreRefused", { status: String(res.status) }));
         return;
       }
       const broken = (body.issues ?? []).filter((i) => i.level === "error");
       setNotice(
-        `Restored ${label}. The flow now reads as it did then.` +
-          (broken.length ? ` It does not pass today's checks: ${broken[0].message}${broken.length > 1 ? ` (and ${broken.length - 1} more)` : ""}.` : ""),
+        $t("components.flow-history.restoredTheFlowNowReadsAs", { label: String(label) }) +
+          (broken.length ? $t("components.flow-history.itDoesNotPassTodayS", { message: String(broken[0].message), v1: String(broken.length > 1 ? $t("components.flow-history.andMore", { v0: String(broken.length - 1) }) : "") }) : ""),
       );
       setSelected(null);
       setGeneration((g) => g + 1);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "restore failed");
+      setError(err instanceof Error ? err.message : $t("components.flow-history.restoreFailed"));
     } finally {
       setBusy(false);
     }
@@ -221,15 +221,15 @@ export function HistoryDrawer({
   return (
     <>
     <Sheet open onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="right" hideClose aria-label={`History of ${flow}`} aria-describedby={undefined} className="w-full max-w-3xl">
-        <SheetTitle className="sr-only">History of {flow}</SheetTitle>
+      <SheetContent side="right" hideClose aria-label={$t("components.flow-history.historyOf", { flow: String(flow) })} aria-describedby={undefined} className="w-full max-w-3xl">
+        <SheetTitle className="sr-only">{$t("components.flow-history.historyOf", { flow: flow })}</SheetTitle>
         <header className="flex items-center gap-3 border-b border-line px-4 py-3">
           <div className="min-w-0">
-            <h2 className="text-base font-semibold text-fg">History</h2>
+            <h2 className="text-base font-semibold text-fg">{$t("components.flow-history.history")}</h2>
             <p className="truncate font-mono text-[11px] text-fg-muted">{path}</p>
           </div>
-          <button type="button" onClick={onClose} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ml-auto")} aria-label="Close history">
-            Close
+          <button type="button" onClick={onClose} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ml-auto")} aria-label={$t("components.flow-history.closeHistory")}>
+            {$t("components.flow-history.close")}
           </button>
         </header>
 
@@ -242,9 +242,9 @@ export function HistoryDrawer({
 
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           <ul className="max-h-48 shrink-0 divide-y divide-line-faint overflow-y-auto border-b border-line-faint md:max-h-none md:w-64 md:border-b-0 md:border-r">
-            {revisions === null && !error && <li className="px-3 py-2 text-xs text-fg-subtle">Loading…</li>}
+            {revisions === null && !error && <li className="px-3 py-2 text-xs text-fg-subtle">{$t("components.flow-history.loading")}</li>}
             {revisions?.length === 0 && (
-              <li className="px-3 py-2 text-xs text-fg-subtle">No revisions yet — the next save of this flow starts its history.</li>
+              <li className="px-3 py-2 text-xs text-fg-subtle">{$t("components.flow-history.noRevisionsYetTheNextSave")}</li>
             )}
             {revisions?.map((r, i) => (
               <li key={r.id}>
@@ -257,12 +257,12 @@ export function HistoryDrawer({
                   aria-current={selected === r.id}
                   className={`block w-full px-3 py-2 text-left text-xs hover:bg-sunken ${selected === r.id ? "bg-muted" : ""}`}
                 >
-                  <span className="block truncate font-medium text-fg">{r.message || "(no message)"}</span>
+                  <span className="block truncate font-medium text-fg">{r.message || $t("components.flow-history.noMessage")}</span>
                   <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-fg-muted">
                     <span className="truncate">{r.by}</span>
                     <span>·</span>
                     <LocalTime iso={r.at} options={{ dateStyle: "medium", timeStyle: "short" }} />
-                    {i === 0 && <Tag className="ml-auto h-5 px-1.5 text-[11px]">latest</Tag>}
+                    {i === 0 && <Tag className="ml-auto h-5 px-1.5 text-[11px]">{$t("components.flow-history.latest")}</Tag>}
                   </span>
                 </button>
               </li>
@@ -275,12 +275,12 @@ export function HistoryDrawer({
                 <Segmented
                   role="tablist"
                   size="sm"
-                  label="What to compare"
+                  label={$t("components.flow-history.whatToCompare")}
                   value={mode}
                   onChange={(m) => setMode(m as typeof mode)}
                   items={[
-                    { key: "change", label: "What it changed" },
-                    { key: "current", label: "Compare with current" },
+                    { key: "change", label: $t("components.flow-history.whatItChanged") },
+                    { key: "current", label: $t("components.flow-history.compareWithCurrent") },
                   ]}
                 />
                 {stats && mode === "change" && (
@@ -288,12 +288,12 @@ export function HistoryDrawer({
                     <span className="text-success">+{stats.added}</span> <span className="text-danger">−{stats.removed}</span>
                   </span>
                 )}
-                {mode === "current" && <span className="text-[11px] text-fg-muted">− this version · + the file now</span>}
+                {mode === "current" && <span className="text-[11px] text-fg-muted">{$t("components.flow-history.thisVersionTheFileNow")}</span>}
                 <span className="ml-auto" />
                 {after === null && revFile ? (
-                  <span className="text-[11px] text-fg-muted">This revision deleted the file.</span>
+                  <span className="text-[11px] text-fg-muted">{$t("components.flow-history.thisRevisionDeletedTheFile")}</span>
                 ) : isCurrent ? (
-                  <span className="text-[11px] text-fg-muted">This is what the file says now.</span>
+                  <span className="text-[11px] text-fg-muted">{$t("components.flow-history.thisIsWhatTheFileSays")}</span>
                 ) : (
                   <Tooltip label={mayWrite ? undefined : needs("workspace:write")}>
                     <span className="inline-flex">
@@ -303,7 +303,7 @@ export function HistoryDrawer({
                         disabled={!mayWrite || busy || !revFile || !current}
                         className={buttonVariants({ variant: "secondary", size: "xs" })}
                       >
-                        {busy ? "Restoring…" : "Restore this version"}
+                        {busy ? "Restoring…" : $t("components.flow-history.restoreThisVersion")}
                       </button>
                     </span>
                   </Tooltip>
@@ -311,11 +311,11 @@ export function HistoryDrawer({
               </div>
             )}
             <div className="min-h-0 flex-1 overflow-auto">
-              {selected && !revFile && !error && <p className="px-3 py-3 text-xs text-fg-subtle">Loading…</p>}
+              {selected && !revFile && !error && <p className="px-3 py-3 text-xs text-fg-subtle">{$t("components.flow-history.loading")}</p>}
               {revFile && (
                 <DiffView
                   rows={rows}
-                  empty={mode === "current" ? "Identical to the file as it is now." : "This revision did not change the text."}
+                  empty={mode === "current" ? $t("components.flow-history.identicalToTheFileAsIt") : $t("components.flow-history.thisRevisionDidNotChangeThe")}
                 />
               )}
             </div>

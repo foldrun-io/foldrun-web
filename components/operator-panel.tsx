@@ -10,6 +10,7 @@
 // one this step sent shows who it went to — the same list, so the whole
 // conversation a step had while it ran reads top to bottom.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import type { StepRecord } from "@/lib/store";
 import { Button } from "@foldrun/ui/react/button";
@@ -55,10 +56,10 @@ export function OperatorPanel({
       // 409 with an answer: someone answered first, and theirs stands. 409
       // without one: the agent stopped waiting — say so, send nothing.
       if (res.ok || (res.status === 409 && typeof body.answer === "string")) setSent((s) => ({ ...s, [id]: body.answer ?? text.trim() }));
-      else if (res.status === 403) setError("You cannot answer here — answering needs permission to start runs.");
-      else setError(body.error ?? `could not answer (${res.status})`);
+      else if (res.status === 403) setError($t("components.operator-panel.youCannotAnswerHereAnsweringNeeds"));
+      else setError(body.error ?? $t("components.operator-panel.couldNotAnswer", { status: String(res.status) }));
     } catch (err) {
-      setError(`could not answer: ${err instanceof Error ? err.message : String(err)}`);
+      setError($t("components.operator-panel.couldNotAnswer2", { v0: String(err instanceof Error ? err.message : String(err)) }));
     } finally {
       setBusy(false);
     }
@@ -79,10 +80,10 @@ export function OperatorPanel({
       if (res.ok) {
         setPending((p) => [...p, text]);
         setMessage("");
-      } else if (res.status === 403) setError("You cannot write to this run — it needs permission to start runs.");
-      else setError(body.error ?? `could not send (${res.status})`);
+      } else if (res.status === 403) setError($t("components.operator-panel.youCannotWriteToThisRun"));
+      else setError(body.error ?? $t("components.operator-panel.couldNotSend", { status: String(res.status) }));
     } catch (err) {
-      setError(`could not send: ${err instanceof Error ? err.message : String(err)}`);
+      setError($t("components.operator-panel.couldNotSend2", { v0: String(err instanceof Error ? err.message : String(err)) }));
     } finally {
       setBusy(false);
     }
@@ -99,18 +100,18 @@ export function OperatorPanel({
         return (
           <Callout key={q.id} tone={open && !given ? "info" : "neutral"} className={`p-3 text-[13px] text-fg ${open && !given ? "" : "bg-surface"}`} bodyClassName="space-y-2.5">
             <div className="font-medium text-fg">
-              <span className="mr-1.5 font-normal text-fg-muted">{step.agent} asks:</span>
+              <span className="mr-1.5 font-normal text-fg-muted">{$t("components.operator-panel.asks", { agent: step.agent })}</span>
               {q.question}
             </div>
             {q.answer !== undefined ? (
               <div className="text-fg-secondary">
-                <span className="text-fg-muted">answered{q.by ? ` by ${q.by}` : ""}:</span> {q.answer}
+                <span className="text-fg-muted">{$t("components.operator-panel.answered")}{q.by ? ` by ${q.by}` : ""}:</span> {q.answer}
               </div>
             ) : q.unanswered ? (
-              <div className="text-fg-muted">No one answered in time; the agent was told to decide or stop.</div>
+              <div className="text-fg-muted">{$t("components.operator-panel.noOneAnsweredInTimeThe")}</div>
             ) : given ? (
               <div className="text-fg-secondary">
-                <span className="text-fg-muted">sent:</span> {given} <span className="text-fg-subtle">— reaching the agent</span>
+                <span className="text-fg-muted">{$t("components.operator-panel.sent")}</span> {given} <span className="text-fg-subtle">{$t("components.operator-panel.reachingTheAgent")}</span>
               </div>
             ) : running ? (
               <div className="space-y-2">
@@ -130,17 +131,17 @@ export function OperatorPanel({
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !busy) void answer(q.id, drafts[q.id] ?? "");
                     }}
-                    placeholder={q.options?.length ? "…or answer in your own words" : "Your answer"}
-                    aria-label="Your answer"
+                    placeholder={q.options?.length ? $t("components.operator-panel.orAnswerInYourOwnWords") : $t("components.operator-panel.yourAnswer")}
+                    aria-label={$t("components.operator-panel.yourAnswer")}
                     className="flex-1 text-[13px]"
                   />
                   <Button size="md" variant="primary" disabled={busy || !(drafts[q.id] ?? "").trim()} onClick={() => void answer(q.id, drafts[q.id] ?? "")}>
-                    Answer
+                    {$t("components.operator-panel.answer")}
                   </Button>
                 </div>
               </div>
             ) : (
-              <div className="text-fg-muted">The step ended before it was answered.</div>
+              <div className="text-fg-muted">{$t("components.operator-panel.theStepEndedBeforeItWas")}</div>
             )}
           </Callout>
         );
@@ -158,12 +159,12 @@ export function OperatorPanel({
               ) : m.from ? (
                 <>
                   <Tag className="h-5">{m.from} → {step.agent}</Tag>
-                  {m.text} <span className="text-fg-subtle">— delivered</span>
+                  {m.text} <span className="text-fg-subtle">{$t("components.operator-panel.delivered")}</span>
                 </>
               ) : (
                 <>
-                  <span className="text-fg-subtle">you said{m.by ? ` (${m.by})` : ""}:</span> {m.text}{" "}
-                  <span className="text-fg-subtle">— delivered</span>
+                  <span className="text-fg-subtle">{$t("components.operator-panel.youSaid")}{m.by ? ` (${m.by})` : ""}:</span> {m.text}{" "}
+                  <span className="text-fg-subtle">{$t("components.operator-panel.delivered")}</span>
                 </>
               )}
             </li>
@@ -172,7 +173,7 @@ export function OperatorPanel({
       )}
       {onTheWay.map((t, i) => (
         <div key={`p-${i}`} className="text-[13px] text-fg-muted">
-          <span className="text-fg-subtle">you said:</span> {t} <span className="text-fg-subtle">— reaches it after its next tool call</span>
+          <span className="text-fg-subtle">{$t("components.operator-panel.youSaid2")}</span> {t} <span className="text-fg-subtle">{$t("components.operator-panel.reachesItAfterItsNextTool")}</span>
         </div>
       ))}
 
@@ -184,13 +185,13 @@ export function OperatorPanel({
             onKeyDown={(e) => {
               if (e.key === "Enter" && !busy) void send();
             }}
-            placeholder={`Message ${step.agent} while it works`}
-            aria-label="Message the agent"
+            placeholder={$t("components.operator-panel.messageWhileItWorks", { agent: String(step.agent) })}
+            aria-label={$t("components.operator-panel.messageTheAgent")}
             maxLength={4000}
             className="flex-1 text-[13px]"
           />
           <Button size="md" disabled={busy || !message.trim()} onClick={() => void send()}>
-            Send
+            {$t("components.operator-panel.send")}
           </Button>
         </div>
       )}

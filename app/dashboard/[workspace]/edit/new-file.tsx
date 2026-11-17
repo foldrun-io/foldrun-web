@@ -3,6 +3,7 @@
 // Create a new file (skill, memory, flow) from the editor sidebar.
 // e.g. agents/writer/skills/tone.md · agents/writer/memory/style.md · flows/nightly.md
 
+import { $t } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@foldrun/ui/react/button";
@@ -47,7 +48,7 @@ export function NewFile({ workspace, tenant, scope }: { workspace: string; tenan
   if (!open) {
     return (
       <Button variant="secondary" size="sm" onClick={() => setOpen(true)} className="w-full">
-        <Plus /> New file
+        <Plus />{" "}{$t("workspace.edit-new-file.newFile")}
       </Button>
     );
   }
@@ -73,7 +74,7 @@ export function NewFile({ workspace, tenant, scope }: { workspace: string; tenan
           router.refresh();
         } else {
           const data = await res.json().catch(() => ({}));
-          setError(data.error ?? `failed (${res.status})`);
+          setError(data.error ?? $t("workspace.edit-new-file.failed", { status: String(res.status) }));
         }
       }}
     >
@@ -85,9 +86,9 @@ export function NewFile({ workspace, tenant, scope }: { workspace: string; tenan
         className="h-8 font-mono text-xs"
       />
       <div className="flex items-center gap-2">
-        <Button type="submit" variant="primary" size="sm">Create</Button>
+        <Button type="submit" variant="primary" size="sm">{$t("workspace.edit-new-file.create")}</Button>
         <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
-          Cancel
+          {$t("workspace.edit-new-file.cancel")}
         </Button>
       </div>
       {error && <p className="text-xs text-danger">{error}</p>}

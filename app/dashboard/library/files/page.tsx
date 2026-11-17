@@ -8,7 +8,7 @@
 // workspace markdown file opens in the editor; a record opens pretty; the
 // vault and the ledger say why they will not open.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import { scopeAllows } from "@/platform/scope";
 import { viewerScope } from "@/server/users";
 import Link from "@foldrun/ui/react/link";
@@ -73,28 +73,28 @@ export default async function AccountFilesPage({
   if (selected) {
     if (isWorkspaceFile) {
       sections.push({
-        title: "Where",
+        title: $t("library.files-page.where"),
         items: [
           { label: owner, href: `/dashboard/${owner}${qs}`, meta: $t("common.workspaceOne") },
-          { label: "Open in its editor", href: `/dashboard/${owner}/edit?path=${encodeURIComponent(relative)}${rest}` },
+          { label: $t("library.files-page.openInItsEditor"), href: `/dashboard/${owner}/edit?path=${encodeURIComponent(relative)}${rest}` },
         ],
       });
     } else if (isShared) {
       sections.push({
-        title: "Where",
+        title: $t("library.files-page.where"),
         items: [
           { label: `shared ${owner}`, href: `/dashboard/library?kind=${owner}${rest}`, meta: "shelf" },
-          { label: "Open in the shelf editor", href: `/dashboard/library/edit?kind=${owner}&path=${encodeURIComponent(relative)}${rest}` },
+          { label: $t("library.files-page.openInTheShelfEditor"), href: `/dashboard/library/edit?kind=${owner}&path=${encodeURIComponent(relative)}${rest}` },
         ],
       });
     } else {
-      sections.push({ title: "Where", items: [{ label: "account root", meta: sealed ? "sealed" : "read-only here", tone: "muted" }] });
+      sections.push({ title: $t("library.files-page.where"), items: [{ label: $t("library.files-page.accountRoot"), meta: sealed ? "sealed" : $t("library.files-page.readOnlyHere"), tone: "muted" }] });
     }
   }
   sections.push({
-    title: "This tree",
+    title: $t("library.files-page.thisTree"),
     items: [
-      { label: "library/", href: `/dashboard/library${qs}`, meta: "the shared shelf" },
+      { label: "library/", href: `/dashboard/library${qs}`, meta: $t("library.files-page.theSharedShelf") },
       { label: "workspaces/", href: `/dashboard${qs}`, meta: `${workspaces.length}` },
     ],
   });
@@ -106,7 +106,7 @@ export default async function AccountFilesPage({
         <Lock className="mt-0.5 size-4 shrink-0 text-fg-muted" aria-hidden />
         <div className="min-w-0">
           <p className="font-mono text-sm text-fg [overflow-wrap:anywhere]">{selected}</p>
-          <p className="mt-1 text-sm text-fg-muted">This file is on disk and listed here, but its contents are not served: {sealed}</p>
+          <p className="mt-1 text-sm text-fg-muted">{$t("library.files-page.thisFileIsOnDiskAnd", { sealed: sealed })}</p>
         </div>
       </Card>
     )
@@ -136,11 +136,10 @@ export default async function AccountFilesPage({
       header={
         <>
           <PageHeader
-            title="Library"
+            title={$t("library.files-page.library")}
             description={
               <>
-                The whole account as one tree: {files.length} files as they sit on disk, minus the platform&apos;s own bookkeeping. Add or remove under{" "}
-                <Link href={`/dashboard/library${qs}`} className="text-link hover:underline">each shelf</Link> {$t("library.files-page.orInAWorkspace")}
+                {$rich("library.files-page.theWholeAccountAsOneTree", { length: String(files.length), link: (chunks) => <Link href={`/dashboard/library${qs}`} className="text-link hover:underline">{chunks}</Link> })}
               </>
             }
             className="mb-6"
@@ -148,7 +147,7 @@ export default async function AccountFilesPage({
           <PageTabs tabs={libraryTabs(tenant)} />
         </>
       }
-      emptyEditor={<EmptyState bare icon={<FileText />} title="Nothing here yet" description={$t("library.files-page.createAWorkspaceOrAddA")} />}
+      emptyEditor={<EmptyState bare icon={<FileText />} title={$t("library.files-page.nothingHereYet")} description={$t("library.files-page.createAWorkspaceOrAddA")} />}
     />
   );
 }

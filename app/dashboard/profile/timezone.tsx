@@ -11,6 +11,7 @@
 // This does NOT change when anything runs. A flow's `timezone:` decides that,
 // and it is a property of the schedule, not of whoever is looking at it.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { buttonVariants } from "@foldrun/ui/react/button";
 import { useDetectedTimeZone, useViewerTime } from "@/components/viewer-time";
@@ -60,7 +61,7 @@ export function TimezoneForm({ current }: { current: string | null }) {
         });
         const body = (await res.json().catch(() => ({}))) as { error?: string };
         setBusy(false);
-        if (!res.ok) return setError(body.error ?? "could not save your timezone");
+        if (!res.ok) return setError(body.error ?? $t("profile.timezone.couldNotSaveYourTimezone"));
         setSaved(value === AUTOMATIC ? null : value);
         // The provider is read at the layout, so the new clock applies once
         // the server re-renders. Reloading is the honest way to show that
@@ -70,7 +71,7 @@ export function TimezoneForm({ current }: { current: string | null }) {
     >
       <div>
         <label className="block text-sm font-medium text-fg" htmlFor="tz">
-          Timezone
+          {$t("profile.timezone.timezone")}
         </label>
         <Select
           id="tz"
@@ -79,7 +80,7 @@ export function TimezoneForm({ current }: { current: string | null }) {
           className="mt-1.5 w-full max-w-sm"
         >
           <option value={AUTOMATIC}>
-            Automatic{detected ? ` — ${detected}` : ""}
+            {$t("profile.timezone.automatic")}{detected ? ` — ${detected}` : ""}
           </option>
           {all.map((z) => (
             <option key={z} value={z}>
@@ -91,16 +92,16 @@ export function TimezoneForm({ current }: { current: string | null }) {
 
       <p className="text-xs text-fg-muted">
         {saved
-          ? `Times are shown in ${saved}.`
-          : "Times are shown in whatever zone your device reports."}
-        {preview ? ` Right now that reads ${preview}.` : ""}
+          ? $t("profile.timezone.timesAreShownIn", { saved: String(saved) })
+          : $t("profile.timezone.timesAreShownInWhateverZone")}
+        {preview ? $t("profile.timezone.rightNowThatReads", { preview: String(preview) }) : ""}
       </p>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">
         <button type="submit" className={buttonVariants({ variant: "primary" })} disabled={busy || !dirty}>
-          {busy ? "Saving…" : "Save timezone"}
+          {busy ? "Saving…" : $t("profile.timezone.saveTimezone")}
         </button>
-        {error ? <span className="text-xs text-danger">{error}</span> : !dirty && <span className="text-xs text-fg-subtle">Nothing to save.</span>}
+        {error ? <span className="text-xs text-danger">{error}</span> : !dirty && <span className="text-xs text-fg-subtle">{$t("profile.timezone.nothingToSave")}</span>}
       </div>
     </form>
   );

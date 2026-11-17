@@ -71,21 +71,21 @@ export function NotificationPreferences({ workspaces }: { workspaces: string[] }
             <div className="min-w-0">
               <p className="text-sm font-medium text-fg">
                 {c.label}
-                {c.required && <Tag className="ml-2">always sent</Tag>}
+                {c.required && <Tag className="ml-2">{$t("profile.notifications.alwaysSent")}</Tag>}
               </p>
               <p className="mt-0.5 text-xs text-fg-muted">{c.description}</p>
-              {c.required && c.why && <p className="mt-1 text-xs text-fg-subtle">Cannot be turned off: {c.why}.</p>}
+              {c.required && c.why && <p className="mt-1 text-xs text-fg-subtle">{$t("profile.notifications.cannotBeTurnedOff", { why: c.why })}</p>}
             </div>
             <Switch aria-label={c.label} checked={c.required || c.enabled} disabled={c.required || busy} onCheckedChange={(v) => void set(c.category, v)} />
           </div>
           {c.perWorkspace && !c.required && workspaces.length > 0 && (
-            <Disclosure className="mt-2" summaryClassName="text-xs text-fg-muted hover:text-fg" summary={<>{$t("profile.notifications.perWorkspace")}{Object.keys(c.workspaces).length ? ` · ${Object.keys(c.workspaces).length} set` : ""}</>}>
+            <Disclosure className="mt-2" summaryClassName="text-xs text-fg-muted hover:text-fg" summary={<>{$t("profile.notifications.perTerm", { part: Object.keys(c.workspaces).length ? $t("profile.notifications.set", { length: String(Object.keys(c.workspaces).length) }) : "" })}</>}>
               <ul className="mt-2 space-y-1.5">
                 {workspaces.map((w) => {
                   const on = c.workspaces[w] ?? c.enabled;
                   return (
                     <li key={w} className="flex items-center justify-between gap-4 text-xs">
-                      <span className="font-mono text-fg-secondary">{w}{w in c.workspaces ? "" : <span className="ml-1 font-sans text-fg-subtle">(as above)</span>}</span>
+                      <span className="font-mono text-fg-secondary">{w}{w in c.workspaces ? "" : <span className="ml-1 font-sans text-fg-subtle">{$t("profile.notifications.asAbove")}</span>}</span>
                       <Switch aria-label={`${c.label} from ${w}`} checked={on} disabled={busy} onCheckedChange={(v) => void set(c.category, v, w)} />
                     </li>
                   );
@@ -96,7 +96,7 @@ export function NotificationPreferences({ workspaces }: { workspaces: string[] }
         </div>
       ))}
       <p className="px-5 py-3 text-xs text-fg-subtle">
-        For {email}. Every optional mail also carries a one-click unsubscribe for its own category.
+        {$t("profile.notifications.forEveryOptionalMailAlsoCarries", { email: email })}
       </p>
     </Card>
   );

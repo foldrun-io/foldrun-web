@@ -6,6 +6,7 @@
 // result, by this run's id — its own verdict, whatever else runs or writes
 // the latest result meanwhile.
 
+import { $t } from "@/i18n";
 import type { EvalResult } from "@/lib/evals";
 
 export async function runEval(workspace: string, tenant: string, name: string): Promise<EvalResult> {
@@ -23,9 +24,9 @@ export async function runEval(workspace: string, tenant: string, name: string): 
     await new Promise((r) => setTimeout(r, 4000));
     const poll = await fetch(`/api/workspaces/${workspace}/evals/${name}/run?run=${runId}`, { headers });
     const view = (await poll.json()) as { state?: string; error?: string; result?: EvalResult };
-    if (!poll.ok) throw new Error(`could not read the run's state (${view.error ?? poll.status}) — it may still be running; reload to see`);
+    if (!poll.ok) throw new Error($t("workspace.evals-run-eval.couldNotReadTheRunS", { v0: String(view.error ?? poll.status) }));
     if (view.state === "running") continue;
     if (view.state === "done" && view.result) return view.result;
-    throw new Error(view.error ?? `the run ended as ${view.state ?? "unknown"}, with no result`);
+    throw new Error(view.error ?? $t("workspace.evals-run-eval.theRunEndedAsWithNo", { v0: String(view.state ?? "unknown") }));
   }
 }

@@ -4,6 +4,7 @@
 // it read; Set aside hides it from your view only — a gate still waits, an
 // issue stays open for everyone else (POST /api/me/inbox).
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -18,11 +19,11 @@ import { Menu, MenuContent, MenuItem, MenuTrigger } from "@foldrun/ui/react/menu
 import { cn } from "@foldrun/ui/react/cn";
 
 const KIND: Record<InboxItem["kind"], { label: string; tone: Tone; icon: React.ReactNode; open: string }> = {
-  approval: { label: "approval", tone: "warn", icon: <ShieldCheck />, open: "Review" },
-  question: { label: "question", tone: "info", icon: <MessageCircleQuestion />, open: "Answer" },
-  issue: { label: "issue", tone: "bad", icon: <AlertTriangle />, open: "Open" },
-  proposal: { label: "proposed fix", tone: "info", icon: <Wand2 />, open: "Review" },
-  run: { label: "your run", tone: "default", icon: <Play />, open: "Open" },
+  approval: { label: "approval", tone: "warn", icon: <ShieldCheck />, open: $t("components.inbox-list.review") },
+  question: { label: "question", tone: "info", icon: <MessageCircleQuestion />, open: $t("components.inbox-list.answer") },
+  issue: { label: "issue", tone: "bad", icon: <AlertTriangle />, open: $t("components.inbox-list.open") },
+  proposal: { label: $t("components.inbox-list.proposedFix"), tone: "info", icon: <Wand2 />, open: $t("components.inbox-list.review") },
+  run: { label: $t("components.inbox-list.yourRun"), tone: "default", icon: <Play />, open: $t("components.inbox-list.open") },
 };
 
 export function InboxList({ items, tenant, dismissedView }: { items: InboxItem[]; tenant: string; dismissedView: boolean }) {
@@ -62,11 +63,11 @@ export function InboxList({ items, tenant, dismissedView }: { items: InboxItem[]
     <div className="min-w-0 space-y-3">
       {!dismissedView && unread.length > 0 && (
         <div className="flex items-center justify-between gap-2 px-1">
-          <span className="text-[13px] tabular-nums text-fg-muted">{unread.length} unread</span>
+          <span className="text-[13px] tabular-nums text-fg-muted">{$t("components.inbox-list.unread", { length: String(unread.length) })}</span>
           {unread.length > 1 && (
             <Button size="sm" variant="ghost" onClick={() => mark(unread, "read", "all")} disabled={busy === "all"}>
               <CheckCheck aria-hidden />
-              Mark all read
+              {$t("components.inbox-list.markAllRead")}
             </Button>
           )}
         </div>
@@ -91,7 +92,7 @@ export function InboxList({ items, tenant, dismissedView }: { items: InboxItem[]
                   )}
                 >
                   <WithEmails text={i.title} />
-                  {!i.read && <span className="sr-only"> (unread)</span>}
+                  {!i.read && <span className="sr-only">{" "}{$t("components.inbox-list.unread2")}</span>}
                 </Link>
                 {/* An address in a question or a reason goes through WithEmails: a proxy may rewrite one in the HTML. */}
                 {i.detail && (
@@ -112,10 +113,10 @@ export function InboxList({ items, tenant, dismissedView }: { items: InboxItem[]
               </div>
               <span className="relative z-10 flex shrink-0 items-center gap-1">
                 {dismissedView ? (
-                  <Tooltip label="Put it back in your inbox">
+                  <Tooltip label={$t("components.inbox-list.putItBackInYourInbox")}>
                     <Button size="sm" onClick={() => mark([i.id], "restore", `${i.id}-d`)} disabled={!!busy}>
                       <ArchiveRestore aria-hidden />
-                      Put back
+                      {$t("components.inbox-list.putBack")}
                     </Button>
                   </Tooltip>
                 ) : (
@@ -126,20 +127,20 @@ export function InboxList({ items, tenant, dismissedView }: { items: InboxItem[]
                 {!dismissedView && (
                   <Menu>
                     <MenuTrigger asChild>
-                      <Button size="icon-sm" variant="ghost" aria-label="More actions" disabled={!!busy}>
+                      <Button size="icon-sm" variant="ghost" aria-label={$t("components.inbox-list.moreActions")} disabled={!!busy}>
                         <MoreHorizontal />
                       </Button>
                     </MenuTrigger>
                     <MenuContent className="w-60">
                       <MenuItem onSelect={() => mark([i.id], i.read ? "unread" : "read", `${i.id}-r`)}>
                         {i.read ? <Mail /> : <MailOpen />}
-                        {i.read ? "Mark unread" : "Mark read"}
+                        {i.read ? $t("components.inbox-list.markUnread") : $t("components.inbox-list.markRead")}
                       </MenuItem>
                       <MenuItem onSelect={() => mark([i.id], "dismiss", `${i.id}-d`)}>
                         <Archive />
                         <span className="flex flex-col">
-                          <span>Set aside</span>
-                          <span className="text-xs text-fg-muted">Hidden from you; still waiting for whoever decides it</span>
+                          <span>{$t("components.inbox-list.setAside")}</span>
+                          <span className="text-xs text-fg-muted">{$t("components.inbox-list.hiddenFromYouStillWaitingFor")}</span>
                         </span>
                       </MenuItem>
                     </MenuContent>

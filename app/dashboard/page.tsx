@@ -124,13 +124,13 @@ export default async function Dashboard({
       <>
         <StatusDot outcome={last.outcome} label="" />
         <span className="truncate">
-          {last.what} · {OUTCOME[last.outcome].label} {fmtSpan(now - Date.parse(last.startedAt))} ago
+          {$t("dashboard.page.ago", { what: last.what, label: OUTCOME[last.outcome].label, fmtSpan: fmtSpan(now - Date.parse(last.startedAt)) })}
         </span>
       </>
     ) : (
       <>
         <CircleDashed />
-        <span className="truncate">No runs yet</span>
+        <span className="truncate">{$t("dashboard.page.noRunsYet")}</span>
       </>
     );
     const nextLine = d.next ? (
@@ -147,9 +147,9 @@ export default async function Dashboard({
       href,
       icon: <Avatar name={d.name} src={d.avatar ?? null} size="sm" square />,
       name: d.name,
-      sub: d.description || `${d.agents} agents · ${d.flows} flows`,
+      sub: d.description || $t("dashboard.page.agentsFlows", { agents: String(d.agents), flows: String(d.flows) }),
       cells: {
-        status: <Status outcome={last?.outcome ?? "quiet"} label={last ? undefined : "No runs"} />,
+        status: <Status outcome={last?.outcome ?? "quiet"} label={last ? undefined : $t("dashboard.page.noRuns")} />,
         runs: <Cells beat={d.beat} n={12} tenant={tenant} />,
         next: d.next ? `${d.next.flow} ${fmtIn(Math.max(0, Date.parse(d.next.at) - now))}` : undefined,
         spend: creditsShort(d.beat.spend7dUsd),
@@ -159,9 +159,9 @@ export default async function Dashboard({
           href={href}
           mark={mark}
           name={d.name}
-          sub={`${d.agents} agent${d.agents === 1 ? "" : "s"} · ${d.flows} flow${d.flows === 1 ? "" : "s"}`}
+          sub={$t("dashboard.page.agentFlow", { agents: String(d.agents), v1: String(d.agents === 1 ? "" : "s"), flows: String(d.flows), v3: String(d.flows === 1 ? "" : "s") })}
           status={d.beat.live ? "busy" : ring}
-          statusLabel={d.beat.live ? `${d.beat.live} running` : last ? OUTCOME[last.outcome].hint : "no runs yet"}
+          statusLabel={d.beat.live ? `${d.beat.live} running` : last ? OUTCOME[last.outcome].hint : $t("dashboard.page.noRunsYet2")}
           lines={[lastLine, ...(nextLine ? [nextLine] : [])]}
         />
       ),
@@ -177,7 +177,7 @@ export default async function Dashboard({
         placeholder="marketing"
         hint={$t("dashboard.page.itsOwnAgentsFlowsSecretsAnd")}
         tenant={tenant}
-        options={[{ where: "account", label: "Account", target: { endpoint: "/api/workspaces", body: { template: true, ifAbsent: true } } }]}
+        options={[{ where: "account", label: $t("dashboard.page.account"), target: { endpoint: "/api/workspaces", body: { template: true, ifAbsent: true } } }]}
         trigger={false}
         autoOpen={create === "workspace"}
       />
@@ -200,10 +200,10 @@ export default async function Dashboard({
           </Link>
         }
         columns={[
-          { key: "status", header: "Last run" },
-          { key: "runs", header: "Recent runs", hide: "lg" },
-          { key: "next", header: "Next", hide: "md" },
-          { key: "spend", header: "7 days", align: "end", hide: "sm" },
+          { key: "status", header: $t("dashboard.page.lastRun") },
+          { key: "runs", header: $t("dashboard.page.recentRuns"), hide: "lg" },
+          { key: "next", header: $t("dashboard.page.next"), hide: "md" },
+          { key: "spend", header: $t("dashboard.page.7Days"), align: "end", hide: "sm" },
         ]}
         rows={rows}
         empty={
@@ -213,10 +213,10 @@ export default async function Dashboard({
             description={$t("dashboard.page.aWorkspaceHoldsItsOwnAgents")}
             action={
               <>
-                <DemoButton tenant={tenant} exists={false} then={`/dashboard/welcome?step=run${rest}`} label="Try the demo pipeline" variant="primary" />
+                <DemoButton tenant={tenant} exists={false} then={`/dashboard/welcome?step=run${rest}`} label={$t("dashboard.page.tryTheDemoPipeline")} variant="primary" />
                 <Link href={`/dashboard/welcome${qs}`} className={buttonVariants({ variant: "secondary", size: "md" })}>
                   <ListChecks aria-hidden />
-                  Set up step by step
+                  {$t("dashboard.page.setUpStepByStep")}
                 </Link>
               </>
             }

@@ -4,6 +4,7 @@
 // good run — or the run it re-ran, or one you name — from
 // GET …/runs/<id>/compare, the route `foldrun report --compare` reads.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import Link from "@foldrun/ui/react/link";
 import type { RunComparison } from "@/lib/compare";
@@ -30,7 +31,7 @@ export function RunCompare({ workspace, runId, tenant }: { workspace: string; ru
     return (
       <Button onClick={() => void load()} disabled={loading}>
         <GitCompare aria-hidden />
-        {loading ? "Comparing…" : "Compare with the last good run"}
+        {loading ? "Comparing…" : $t("components.run-compare.compareWithTheLastGoodRun")}
       </Button>
     );
   }
@@ -40,29 +41,29 @@ export function RunCompare({ workspace, runId, tenant }: { workspace: string; ru
   return (
     <section className="rounded-lg border border-line bg-surface p-4 text-[13px]">
       <header className="flex flex-wrap items-center gap-2">
-        <span className="font-medium text-fg">Compared with</span>
+        <span className="font-medium text-fg">{$t("components.run-compare.comparedWith")}</span>
         <Link href={runHref(workspace, c.base.id, tenant)} className="font-mono text-fg hover:underline">{c.base.id}</Link>
         <span className="text-fg-muted">({state.chosen}, {c.base.status})</span>
-        <Button size="icon-xs" variant="ghost" onClick={() => setState(null)} aria-label="Close" className="ml-auto">
+        <Button size="icon-xs" variant="ghost" onClick={() => setState(null)} aria-label={$t("components.run-compare.close")} className="ml-auto">
           <X aria-hidden />
         </Button>
       </header>
       <p className="mt-2 text-fg-secondary">
         {c.revisionChanged
           ? c.changedFiles === null
-            ? "They ran different versions of the files (the history does not say which files)."
+            ? $t("components.run-compare.theyRanDifferentVersionsOfThe")
             : c.changedFiles.length
-              ? `Files changed between them: ${c.changedFiles.slice(0, 8).join(", ")}${c.changedFiles.length > 8 ? ` and ${c.changedFiles.length - 8} more` : ""}.`
-              : "They ran different revisions with no file changes between them."
-          : "Both ran the same version of the files."}
+              ? $t("components.run-compare.filesChangedBetweenThem", { v0: String(c.changedFiles.slice(0, 8).join(", ")), v1: String(c.changedFiles.length > 8 ? $t("components.run-compare.andMore", { v0: String(c.changedFiles.length - 8) }) : "") })
+              : $t("components.run-compare.theyRanDifferentRevisionsWithNo")
+          : $t("components.run-compare.bothRanTheSameVersionOf")}
       </p>
       {changed.length === 0 ? (
-        <p className="mt-2 text-fg-muted">No step differs in status, instruction, model, tools, errors, time or tokens.</p>
+        <p className="mt-2 text-fg-muted">{$t("components.run-compare.noStepDiffersInStatusInstruction")}</p>
       ) : (
         <ul className="mt-3 space-y-2">
           {changed.map((s) => (
             <li key={`${s.step}/${s.agent}`}>
-              <span className="font-medium text-fg">Step {s.step} · {s.agent}</span>
+              <span className="font-medium text-fg">{$t("components.run-compare.step", { step: String(s.step), agent: s.agent })}</span>
               <ul className="ml-4 mt-0.5 list-disc text-fg-secondary">
                 {s.changes.map((ch) => (
                   <li key={ch} className={/^(status|new error|tool errors)/.test(ch) ? "text-danger" : ""}>{ch}</li>

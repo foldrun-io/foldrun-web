@@ -8,6 +8,7 @@
 // failed is the server's (runFailure), handed in after the stream's `done`
 // refreshes the page.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -59,7 +60,7 @@ export function FirstRun({ tenant, target, noModel, modelHref, onContinue }: { t
       const body = (await res.json().catch(() => ({}))) as { runId?: string; error?: string };
       // overlap: skip answers 409 with the live run's id — follow that one.
       if (body.runId) setRunId(body.runId);
-      else setRefused(body.error ?? `refused (${res.status})`);
+      else setRefused(body.error ?? $t("components.first-run.refused", { status: String(res.status) }));
       router.refresh();
     } catch (err) {
       setRefused(err instanceof Error ? err.message : String(err));
@@ -86,16 +87,16 @@ export function FirstRun({ tenant, target, noModel, modelHref, onContinue }: { t
           actions={
             modelHref && (
               <Link href={modelHref} className="font-medium underline underline-offset-2">
-                Add a key
+                {$t("components.first-run.addAKey")}
               </Link>
             )
           }
         >
-          This account has no model key yet, so the run will stop at its first step — nothing is charged.
+          {$t("components.first-run.thisAccountHasNoModelKey")}
         </Callout>
       )}
 
-      <section className="overflow-hidden rounded-lg border border-line bg-surface" aria-label="First run">
+      <section className="overflow-hidden rounded-lg border border-line bg-surface" aria-label={$t("components.first-run.firstRun")}>
         <div className="flex flex-wrap items-center gap-3 p-5">
           <IconBox>
             <Workflow />
@@ -103,7 +104,7 @@ export function FirstRun({ tenant, target, noModel, modelHref, onContinue }: { t
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-fg">{target.flow}</p>
             <p className="truncate text-sm text-fg-muted">
-              {target.workspace} · {steps.length} step{steps.length === 1 ? "" : "s"}
+              {$t("components.first-run.step", { workspace: target.workspace, length: steps.length })}
             </p>
           </div>
           {outcome && <Status outcome={outcome} />}
@@ -112,7 +113,7 @@ export function FirstRun({ tenant, target, noModel, modelHref, onContinue }: { t
               <span className="inline-flex max-sm:w-full">
                 <Button variant="primary" size="lg" disabled={!mayRun || busy} onClick={() => void start()} className="max-sm:w-full">
                   <Play aria-hidden />
-                  {busy ? "Starting…" : "Run it"}
+                  {busy ? "Starting…" : $t("components.first-run.runIt")}
                 </Button>
               </span>
             </Tooltip>
@@ -125,7 +126,7 @@ export function FirstRun({ tenant, target, noModel, modelHref, onContinue }: { t
               <span className="w-5 shrink-0 text-right text-xs tabular-nums text-fg-subtle">{s.group}</span>
               <StatusDot outcome={stepOutcome(s.status)} label={s.status} />
               <span className={cn("min-w-0 flex-1 truncate", i === at ? "font-medium text-fg" : "text-fg-secondary")}>{s.agent}</span>
-              <span className="shrink-0 text-xs text-fg-muted">{run ? s.status.replace("awaiting-approval", "waiting for you") : ""}</span>
+              <span className="shrink-0 text-xs text-fg-muted">{run ? s.status.replace("awaiting-approval", $t("components.first-run.waitingForYou")) : ""}</span>
             </li>
           ))}
         </ol>
@@ -138,11 +139,11 @@ export function FirstRun({ tenant, target, noModel, modelHref, onContinue }: { t
           icon={<TriangleAlert />}
           actions={
             <Button size="sm" onClick={() => setRefused(null)}>
-              Dismiss
+              {$t("components.first-run.dismiss")}
             </Button>
           }
         >
-          Not started: {refused}
+          {$t("components.first-run.notStarted", { refused: refused })}
         </Callout>
       )}
 
@@ -151,14 +152,14 @@ export function FirstRun({ tenant, target, noModel, modelHref, onContinue }: { t
           size="lg"
           tone="neutral"
           icon={<Hand />}
-          title="It is waiting for you"
+          title={$t("components.first-run.itIsWaitingForYou")}
           actions={
             <Link href={runHref} className={buttonVariants({ variant: "primary", size: "md" })}>
-              Open the run
+              {$t("components.first-run.openTheRun")}
             </Link>
           }
         >
-          The flow stops at an approval gate before its last step. Open the run, read what it made, and approve or reject it.
+          {$t("components.first-run.theFlowStopsAtAnApproval")}
         </Callout>
       )}
 
@@ -167,19 +168,19 @@ export function FirstRun({ tenant, target, noModel, modelHref, onContinue }: { t
           size="lg"
           tone="success"
           icon={<CircleCheck />}
-          title="Your first run finished"
+          title={$t("components.first-run.yourFirstRunFinished")}
           actions={
             <>
               <Link href={runHref} className={buttonVariants({ variant: "primary", size: "md" })}>
-                Open the run
+                {$t("components.first-run.openTheRun")}
               </Link>
               <Button size="md" onClick={onContinue}>
-                What next
+                {$t("components.first-run.whatNext")}
               </Button>
             </>
           }
         >
-          Every step ran end to end. The run page has each step&apos;s output, what it cost and the full trace.
+          {$t("components.first-run.everyStepRanEndToEnd")}
         </Callout>
       )}
 
@@ -188,26 +189,26 @@ export function FirstRun({ tenant, target, noModel, modelHref, onContinue }: { t
           size="lg"
           tone="danger"
           icon={<TriangleAlert />}
-          title="The run stopped"
+          title={$t("components.first-run.theRunStopped")}
           actions={
             <>
               {noModel && modelHref && (
                 <Link href={modelHref} className={buttonVariants({ variant: "primary", size: "md" })}>
-                  Add a model key
+                  {$t("components.first-run.addAModelKey")}
                 </Link>
               )}
               {doctor && (
                 <Button variant={noModel && modelHref ? "secondary" : "primary"} size="md" onClick={() => openAssistant(doctor.prompt, doctor.workspace)}>
                   <Stethoscope aria-hidden />
-                  Ask the doctor
+                  {$t("components.first-run.askTheDoctor")}
                 </Button>
               )}
               <Link href={runHref} className={buttonVariants({ size: "md" })}>
-                Open the run
+                {$t("components.first-run.openTheRun")}
               </Link>
               <Button size="md" variant="ghost" disabled={!mayRun || busy} onClick={() => void start()}>
                 <RotateCcw aria-hidden />
-                Run again
+                {$t("components.first-run.runAgain")}
               </Button>
             </>
           }
@@ -217,7 +218,7 @@ export function FirstRun({ tenant, target, noModel, modelHref, onContinue }: { t
               <span className="font-medium text-fg">{failure.agent}</span>: {failure.reason}
             </>
           ) : (
-            "A step failed. The run page shows which, and why."
+            $t("components.first-run.aStepFailedTheRunPage")
           )}
         </Callout>
       )}

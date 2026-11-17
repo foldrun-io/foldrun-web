@@ -42,9 +42,9 @@ export function useAssetActions(item: Pick<AssetItem, "path" | "name" | "kind" |
   // everywhere" means copying the file by hand and deleting the original.
   const promote = async (): Promise<boolean> => {
     if (!(await confirm({
-      title: `Move ${name} to shared?`,
+      title: $t("workspace.assets-asset-row.moveToShared", { name: String(name) }),
       body: $t("workspace.assets-asset-row.everyWorkspaceInThisAccountWill"),
-      confirmLabel: "Move",
+      confirmLabel: $t("workspace.assets-asset-row.move"),
       destructive: false,
     }))) return false;
     setStatus({ text: "Moving…" });
@@ -64,14 +64,14 @@ export function useAssetActions(item: Pick<AssetItem, "path" | "name" | "kind" |
       router.refresh();
       return true;
     } catch (err) {
-      setStatus({ text: err instanceof Error ? `Could not move — ${err.message}` : "Could not move", failed: true });
+      setStatus({ text: err instanceof Error ? $t("workspace.assets-asset-row.couldNotMove", { message: String(err.message) }) : $t("workspace.assets-asset-row.couldNotMove2"), failed: true });
       return false;
     }
   };
 
   const remove = async (): Promise<boolean> => {
     const where = account ? $t("workspace.assets-asset-row.fromEveryWorkspaceInThisAccount") : "";
-    if (!(await confirm({ title: `Delete ${name}${where}?`, confirmLabel: "Delete" }))) return false;
+    if (!(await confirm({ title: $t("workspace.assets-asset-row.delete", { name: String(name), where: String(where) }), confirmLabel: $t("workspace.assets-asset-row.delete2") }))) return false;
     // A folder is the unit — a skill's, and a folder tool's. Sending tool.md
     // alone was refused by the store ("delete the whole folder instead").
     const target = path.replace(/\/(SKILL|tool)\.md$/, "");
@@ -82,7 +82,7 @@ export function useAssetActions(item: Pick<AssetItem, "path" | "name" | "kind" |
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setStatus({ text: `Could not delete — ${data.error ?? res.status}`, failed: true });
+      setStatus({ text: $t("workspace.assets-asset-row.couldNotDelete", { v0: String(data.error ?? res.status) }), failed: true });
       return false;
     }
     router.refresh();
@@ -110,7 +110,7 @@ export function AssetMenuItems({
     <>
       <MenuItem asChild>
         <Link href={editorHref}>
-          <ExternalLink /> Open in Files
+          <ExternalLink />{" "}{$t("workspace.assets-asset-row.openInFiles")}
         </Link>
       </MenuItem>
       {canPromote && (
@@ -120,7 +120,7 @@ export function AssetMenuItems({
               onSelect={() => void promote().then((ok) => ok && onDone?.())}
               disabled={moving || !mayWrite}
             >
-              <Share2 /> Move to shared
+              <Share2 />{" "}{$t("workspace.assets-asset-row.moveToShared2")}
             </MenuItem>
           </span>
         </Tooltip>
@@ -133,7 +133,7 @@ export function AssetMenuItems({
             disabled={!mayWrite}
             onSelect={() => void remove().then((ok) => ok && onDone?.())}
           >
-            <Trash2 /> Delete
+            <Trash2 />{" "}{$t("workspace.assets-asset-row.delete2")}
           </MenuItem>
         </span>
       </Tooltip>
@@ -156,7 +156,7 @@ export function AssetMenu({ item, workspace, tenant }: { item: Pick<AssetItem, "
       )}
       <Menu>
         <MenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label={`More for ${item.name}`}>
+          <Button variant="ghost" size="icon-sm" aria-label={$t("workspace.assets-asset-row.moreFor", { name: String(item.name) })}>
             <MoreHorizontal />
           </Button>
         </MenuTrigger>

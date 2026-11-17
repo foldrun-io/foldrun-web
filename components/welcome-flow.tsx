@@ -8,7 +8,7 @@
 // store. The one thing kept is that this person has seen it, so the home
 // page stops sending them here.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -74,35 +74,35 @@ export function WelcomeFlow(p: WelcomeProps) {
   const rail: RailStep[] = p.flow.steps.map((s) => ({ key: s.id, label: s.title, state: s.id === cur ? "current" : s.done ? "done" : "todo", href: stepHref(s.id) }));
   const skip = after ? (
     <Button variant="ghost" size="md" onClick={next}>
-      Skip
+      {$t("components.welcome-flow.skip")}
     </Button>
   ) : null;
 
-  const kicker = `Step ${index + 1} of ${p.flow.steps.length}`;
+  const kicker = $t("components.welcome-flow.stepOf", { v0: String(index + 1), length: String(p.flow.steps.length) });
   return (
-    <StepLayout rail={<StepRail steps={rail} label="Setup steps" />}>
+    <StepLayout rail={<StepRail steps={rail} label={$t("components.welcome-flow.setupSteps")} />}>
 
         {cur === "model" && (
           <StepPanel
             kicker={kicker}
-            title="Add your model key"
-            body="Agents run on your own API key from Anthropic, OpenAI or another provider. Until the account has one, every run is refused."
+            title={$t("components.welcome-flow.addYourModelKey")}
+            body={$t("components.welcome-flow.agentsRunOnYourOwnApi")}
             actions={
               <>
                 {p.flow.steps.find((s) => s.id === "model")?.done ? (
                   <Button variant="primary" size="md" onClick={next}>
-                    Continue
+                    {$t("components.welcome-flow.continue")}
                   </Button>
                 ) : null}
                 {!p.flow.steps.find((s) => s.id === "model")?.done && (
                   <Button variant="ghost" size="md" onClick={next}>
-                    Skip for now
+                    {$t("components.welcome-flow.skipForNow")}
                   </Button>
                 )}
               </>
             }
           >
-            {p.flow.steps.find((s) => s.id === "model")?.done && <Done>This account has a model key. Runs can start.</Done>}
+            {p.flow.steps.find((s) => s.id === "model")?.done && <Done>{$t("components.welcome-flow.thisAccountHasAModelKey")}</Done>}
             <div className="[&>section]:mb-0">{p.modelCard}</div>
           </StepPanel>
         )}
@@ -112,13 +112,13 @@ export function WelcomeFlow(p: WelcomeProps) {
         {cur === "run" && (
           <StepPanel
             kicker={kicker}
-            title="Run it once"
-            body="Press Run it and watch each step work. A run is the flow's steps in order, each handed to the agent it names."
+            title={$t("components.welcome-flow.runItOnce")}
+            body={$t("components.welcome-flow.pressRunItAndWatchEach")}
             actions={
               <>
                 {p.flow.steps.find((s) => s.id === "run")?.done && (
                   <Button variant="primary" size="md" onClick={next}>
-                    Continue
+                    {$t("components.welcome-flow.continue")}
                   </Button>
                 )}
                 {skip}
@@ -136,11 +136,11 @@ export function WelcomeFlow(p: WelcomeProps) {
             ) : p.emptyWorkspace ? (
               <EmptyState
                 icon={<Sparkles />}
-                title="Nothing to run yet"
-                description={`${p.emptyWorkspace} has no flow. A flow is a numbered list of steps, each naming the agent that runs it.`}
+                title={$t("components.welcome-flow.nothingToRunYet")}
+                description={$t("components.welcome-flow.hasNoFlowAFlowIs", { emptyWorkspace: String(p.emptyWorkspace) })}
                 action={
                   <Link href={`/dashboard/${encodeURIComponent(p.emptyWorkspace)}/flows?create=flows${t ? `&${t}` : ""}`} className={buttonVariants({ variant: "primary", size: "md" })}>
-                    Write a flow
+                    {$t("components.welcome-flow.writeAFlow")}
                   </Link>
                 }
               />
@@ -148,10 +148,10 @@ export function WelcomeFlow(p: WelcomeProps) {
               <EmptyState
                 icon={<Boxes />}
                 title={$t("components.welcome-flow.noWorkspaceYet")}
-                description="Start with the demo pipeline: four agents and a flow you can run in a minute."
+                description={$t("components.welcome-flow.startWithTheDemoPipelineFour")}
                 action={
                   <Link href={stepHref("start")} className={buttonVariants({ variant: "primary", size: "md" })}>
-                    Choose how to start
+                    {$t("components.welcome-flow.chooseHowToStart")}
                   </Link>
                 }
               />
@@ -183,44 +183,44 @@ function StartStep(p: WelcomeProps & { kicker: string; done: boolean; next: () =
   return (
     <StepPanel
       kicker={p.kicker}
-      title="What do you want to start with?"
-      body="Pick one to begin — the others stay a click away."
+      title={$t("components.welcome-flow.whatDoYouWantToStart")}
+      body={$t("components.welcome-flow.pickOneToBeginTheOthers")}
       actions={
         <>
           {p.done && (
             <Button variant="primary" size="md" onClick={p.next}>
-              Continue
+              {$t("components.welcome-flow.continue")}
             </Button>
           )}
           {p.skip}
         </>
       }
     >
-      {p.done && <Done>{$t("components.welcome-flow.youHaveAWorkspace")}{p.workspaces[0] ? ` — ${p.workspaces[0]}` : ""}. Continue to run it.</Done>}
+      {p.done && <Done>{$t("components.welcome-flow.youHaveAWorkspace")}{p.workspaces[0] ? ` — ${p.workspaces[0]}` : ""}{$t("components.welcome-flow.continueToRunIt")}</Done>}
       <ChoiceCards
-        label="What do you want to start with?"
+        label={$t("components.welcome-flow.whatDoYouWantToStart")}
         value={pick}
         onChange={(v) => setPick(v as Start)}
         options={[
-          { value: "demo", title: "Demo pipeline", description: "Four agents and an approval gate. Runs in a minute.", icon: <Sparkles />, badge: p.demoExists ? "Ready" : "Recommended" },
-          { value: "blank", title: $t("components.welcome-flow.blankWorkspace"), description: "Write your own agents and flows from scratch.", icon: <Boxes /> },
-          { value: "import", title: "Import", description: $t("components.welcome-flow.aWorkspaceFlowOrAgentExported"), icon: <FileArchive /> },
-          { value: "cli", title: "Use the CLI", description: "Agents as files in your editor; deploy from the terminal.", icon: <Terminal /> },
-          { value: "mcp", title: "Connect your AI app", description: "Claude, Cursor or Codex drive this account as tools.", icon: <PlugZap /> },
+          { value: "demo", title: $t("components.welcome-flow.demoPipeline"), description: $t("components.welcome-flow.fourAgentsAndAnApprovalGate"), icon: <Sparkles />, badge: p.demoExists ? $t("components.welcome-flow.ready") : $t("components.welcome-flow.recommended") },
+          { value: "blank", title: $t("components.welcome-flow.blankWorkspace"), description: $t("components.welcome-flow.writeYourOwnAgentsAndFlows"), icon: <Boxes /> },
+          { value: "import", title: $t("components.welcome-flow.import"), description: $t("components.welcome-flow.aWorkspaceFlowOrAgentExported"), icon: <FileArchive /> },
+          { value: "cli", title: $t("components.welcome-flow.useTheCli"), description: $t("components.welcome-flow.agentsAsFilesInYourEditor"), icon: <Terminal /> },
+          { value: "mcp", title: $t("components.welcome-flow.connectYourAiApp"), description: $t("components.welcome-flow.claudeCursorOrCodexDriveThis"), icon: <PlugZap /> },
         ]}
       />
 
       <Card className="p-5">
         {pick === "demo" && (
           <Choice
-            text="A real pipeline, safe to play in: extract leads from a knowledge file, enrich and verify them in parallel, stop for your approval, then a pretend CRM import that sends nothing anywhere. Capped at $5 a month."
+            text={$t("components.welcome-flow.aRealPipelineSafeToPlay")}
             action={
               p.demoExists ? (
                 <Link href={runNext} className={buttonVariants({ variant: "primary", size: "md" })}>
-                  Run the demo
+                  {$t("components.welcome-flow.runTheDemo")}
                 </Link>
               ) : p.canCreate ? (
-                <DemoButton tenant={p.tenant} exists={false} then={runIn(p.demoWorkspace)} label="Create the demo" variant="primary" />
+                <DemoButton tenant={p.tenant} exists={false} then={runIn(p.demoWorkspace)} label={$t("components.welcome-flow.createTheDemo")} variant="primary" />
               ) : (
                 <NoRights />
               )
@@ -238,7 +238,7 @@ function StartStep(p: WelcomeProps & { kicker: string; done: boolean; next: () =
                   placeholder="marketing"
                   hint={$t("components.welcome-flow.itsOwnAgentsFlowsSecretsAnd")}
                   tenant={p.tenant}
-                  options={[{ where: "account", label: "Account", target: { endpoint: "/api/workspaces", body: { template: true, ifAbsent: true } } }]}
+                  options={[{ where: "account", label: $t("components.welcome-flow.account"), target: { endpoint: "/api/workspaces", body: { template: true, ifAbsent: true } } }]}
                   then={runIn("{name}")}
                 />
               ) : (
@@ -254,55 +254,50 @@ function StartStep(p: WelcomeProps & { kicker: string; done: boolean; next: () =
                 {$t("components.welcome-flow.aZipExportedFromFoldrunA")}
                 {p.workspaces[0] && (
                   <>
-                    {" "}
-                    {$t("components.welcome-flow.toCopyAnAgentFromA")}{" "}
-                    <Link href={`/dashboard/${encodeURIComponent(p.workspaces[0])}/agents${p.qs}`} className="text-link hover:underline">
-                      Agents → Import
-                    </Link>
-                    .
+                    {" "}{$rich("components.welcome-flow.toCopyAnAgentFromA2", { link: (chunks) => <Link href={`/dashboard/${encodeURIComponent(p.workspaces[0])}/agents${p.qs}`} className="text-link hover:underline">{chunks}</Link> })}
                   </>
                 )}
               </>
             }
-            action={p.canCreate ? <ImportPackageButton tenant={p.tenant} newWorkspace label="Import a .zip" color="primary" /> : <NoRights />}
+            action={p.canCreate ? <ImportPackageButton tenant={p.tenant} newWorkspace label={$t("components.welcome-flow.importAZip")} color="primary" /> : <NoRights />}
           />
         )}
         {pick === "cli" && (
           <div className="space-y-4">
             <p className="text-sm text-fg-muted">
-              An account is a folder of markdown: edit agents in your own editor, check them offline with <code className="font-mono text-[13px]">foldrun check</code>, and deploy.
+              {$rich("components.welcome-flow.anAccountIsAFolderOf", { code: (chunks) => <code className="font-mono text-[13px]">{chunks}</code> })}
             </p>
             <CopyBlock
               items={[
-                { label: "Install", value: "npm install -g foldrun" },
-                { label: "Sign this machine in", value: p.cliLogin },
-                { label: "Make an account folder", value: "foldrun init my-account" },
-                { label: "Push it here", value: "cd my-account && foldrun deploy" },
+                { label: $t("components.welcome-flow.install"), value: $t("components.welcome-flow.npmInstallGFoldrun") },
+                { label: $t("components.welcome-flow.signThisMachineIn"), value: p.cliLogin },
+                { label: $t("components.welcome-flow.makeAnAccountFolder"), value: $t("components.welcome-flow.foldrunInitMyAccount") },
+                { label: $t("components.welcome-flow.pushItHere"), value: $t("components.welcome-flow.cdMyAccountFoldrunDeploy") },
               ]}
             />
             <Link href={`/dashboard/docs/getting-started${p.qs}`} className="inline-flex items-center gap-1.5 text-sm text-link hover:underline">
               <BookOpen className="size-4" aria-hidden />
-              Getting started with the CLI
+              {$t("components.welcome-flow.gettingStartedWithTheCli")}
             </Link>
           </div>
         )}
         {pick === "mcp" && (
           <div className="space-y-4">
-            <p className="text-sm text-fg-muted">Claude Code, Claude Desktop, Cursor and Codex can use this account as tools: your inbox, approvals, runs and flows.</p>
+            <p className="text-sm text-fg-muted">{$t("components.welcome-flow.claudeCodeClaudeDesktopCursorAnd")}</p>
             <CopyBlock
               items={[
-                { label: "With this machine's foldrun sign-in", value: "claude mcp add foldrun -- foldrun mcp" },
-                { label: "Or straight to this install, with an API key", value: `claude mcp add --transport http foldrun ${p.mcpUrl} --header "Authorization: Bearer <API key>"` },
+                { label: $t("components.welcome-flow.withThisMachineSFoldrunSign"), value: $t("components.welcome-flow.claudeMcpAddFoldrunFoldrunMcp") },
+                { label: $t("components.welcome-flow.orStraightToThisInstallWith"), value: $t("components.welcome-flow.claudeMcpAddTransportHttpFoldrun", { mcpUrl: String(p.mcpUrl) }) },
               ]}
             />
             <div className="flex flex-wrap gap-2">
               <Link href={`/dashboard/settings?${p.qs ? `${p.qs.slice(1)}&` : ""}tab=api#mcp`} className={buttonVariants({ size: "md" })}>
                 <KeyRound aria-hidden />
-                Keys and connections
+                {$t("components.welcome-flow.keysAndConnections")}
               </Link>
               <Link href={`/dashboard/docs/mcp${p.qs}`} className={buttonVariants({ variant: "ghost", size: "md" })}>
                 <BookOpen aria-hidden />
-                MCP docs
+                {$t("components.welcome-flow.mcpDocs")}
               </Link>
             </div>
           </div>
@@ -328,9 +323,9 @@ function NoRights() {
 // ---- Next ----
 
 const NEXT: { id: OnboardingStepId; title: string }[] = [
-  { id: "teammate", title: "Invite a teammate" },
-  { id: "trigger", title: "Schedule a flow or give it a webhook" },
-  { id: "secret", title: "Add a secret" },
+  { id: "teammate", title: $t("components.welcome-flow.inviteATeammate") },
+  { id: "trigger", title: $t("components.welcome-flow.scheduleAFlowOrGiveIt") },
+  { id: "secret", title: $t("components.welcome-flow.addASecret") },
 ];
 
 function NextStep({ kicker, onboarding, qs, firstWorkspace }: { kicker: string; onboarding: Onboarding; qs: string; firstWorkspace: string | null }) {
@@ -341,21 +336,21 @@ function NextStep({ kicker, onboarding, qs, firstWorkspace }: { kicker: string; 
   return (
     <StepPanel
       kicker={kicker}
-      title="What next"
-      body="These make a desk run on its own, with the people and keys it needs. Each opens where it is done."
+      title={$t("components.welcome-flow.whatNext")}
+      body={$t("components.welcome-flow.theseMakeADeskRunOn")}
       actions={
         <>
           <Link href={`/dashboard${qs}`} className={buttonVariants({ variant: "primary", size: "md" })}>
-            {firstWorkspace ? "Go to the dashboard" : "Finish"}
+            {firstWorkspace ? $t("components.welcome-flow.goToTheDashboard") : $t("components.welcome-flow.finish")}
           </Link>
           <Link href={`/dashboard/docs${qs}`} className={buttonVariants({ variant: "ghost", size: "md" })}>
             <BookOpen aria-hidden />
-            Open docs
+            {$t("components.welcome-flow.openDocs")}
           </Link>
         </>
       }
     >
-      <ChecklistCard title="Make it run on its own" rows={rows} />
+      <ChecklistCard title={$t("components.welcome-flow.makeItRunOnItsOwn")} rows={rows} />
     </StepPanel>
   );
 }

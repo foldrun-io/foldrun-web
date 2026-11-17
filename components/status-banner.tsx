@@ -7,6 +7,7 @@
 // platform is simply up. Not dismissable — it goes when the operator
 // resolves it.
 
+import { $t } from "@/i18n";
 import { useEffect, useState } from "react";
 
 interface Incident {
@@ -53,10 +54,10 @@ export function StatusBanner({ statusPage }: { statusPage: string }) {
             role="status"
             className={`border-b px-6 py-2 text-sm ${red ? "border-red-200 bg-red-50 text-red-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}
           >
-            <span className="font-medium">{i.kind === "maintenance" ? "Maintenance" : red ? "Outage" : "Incident"}: {i.title}</span>
+            <span className="font-medium">{i.kind === "maintenance" ? $t("components.status-banner.maintenance") : red ? $t("components.status-banner.outage") : $t("components.status-banner.incident")}: {i.title}</span>
             {last && <> — {last.body}</>}{" "}
             <a href={statusPage} target="_blank" rel="noreferrer" className="whitespace-nowrap underline">
-              Status page →
+              {$t("components.status-banner.statusPage")}
             </a>
           </div>
         );

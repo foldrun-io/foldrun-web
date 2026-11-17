@@ -5,7 +5,7 @@
 // that failed and why, and a box to grade one run now (POST …/evals/<e>/grade).
 // Nothing here starts a run; a grader only reads the ones that happened.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -99,7 +99,7 @@ export function GraderDetail({
   return (
     <Page>
       <PageHeader
-        back={{ href: listHref, label: "Evals" }}
+        back={{ href: listHref, label: $t("workspace.evals-grader-card.evals") }}
         icon={
           <IconBox>
             <Gauge />
@@ -109,29 +109,29 @@ export function GraderDetail({
         badge={
           <>
             {summary.graded > 0 ? (
-              <Tooltip label={`${week.passed} passed, ${week.failed} failed in 7 days; ${pct(summary.rate)} over 30`}>
+              <Tooltip label={$t("workspace.evals-grader-card.passedFailedIn7DaysOver", { passed: String(week.passed), failed: String(week.failed), v2: String(pct(summary.rate)) })}>
                 <span>
-                  <Chip tone={rateTone(week.rate)}>{pct(week.rate)} passing · 7 days</Chip>
+                  <Chip tone={rateTone(week.rate)}>{$t("workspace.evals-grader-card.passing7Days", { pct: pct(week.rate) })}</Chip>
                 </span>
               </Tooltip>
             ) : (
-              <Chip>no runs graded yet</Chip>
+              <Chip>{$t("workspace.evals-grader-card.noRunsGradedYet")}</Chip>
             )}
-            {info.problems.length > 0 && <Chip tone="bad">cannot be read</Chip>}
+            {info.problems.length > 0 && <Chip tone="bad">{$t("workspace.evals-grader-card.cannotBeRead")}</Chip>}
           </>
         }
         description={
           <>
-            Grades real finished runs of {kind} <span className="font-medium text-fg">{target}</span> against its checks.
+            {$rich("workspace.evals-grader-card.gradesRealFinishedRunsOfAgainst", { kind: kind, target: target, span: (chunks) => <span className="font-medium text-fg">{chunks}</span> })}
           </>
         }
-        actions={<EvalMenu workspace={workspace} tenant={tenant} file={info.file} listHref={listHref} confirmText={`Delete grader ${info.name}? The grades it gave stay on disk until they age out.`} />}
+        actions={<EvalMenu workspace={workspace} tenant={tenant} file={info.file} listHref={listHref} confirmText={$t("workspace.evals-grader-card.deleteGraderTheGradesItGave", { name: String(info.name) })} />}
       />
 
       <div className="space-y-8 pb-12">
         {(info.problems.length > 0 || missingTarget) && (
           <Callout tone="danger" className="px-4 py-3 text-sm" bodyClassName="space-y-1">
-            {missingTarget && <p>{kind} &quot;{target}{$t("workspace.evals-grader-card.notFoundInThisWorkspace")}</p>}
+            {missingTarget && <p>{$t("workspace.evals-grader-card.notFoundInThisTerm", { kind: kind, target: target })}</p>}
             {info.problems.map((p) => (
               <p key={p}>
                 <WithEmails text={p} />
@@ -143,7 +143,7 @@ export function GraderDetail({
         <SummaryCard
           items={[
             {
-              label: kind === "flow" ? "Flow" : "Agent",
+              label: kind === "flow" ? $t("workspace.evals-grader-card.flow") : $t("workspace.evals-grader-card.agent"),
               value: missingTarget ? (
                 <span className="text-danger">{target}</span>
               ) : (
@@ -153,37 +153,37 @@ export function GraderDetail({
               ),
             },
             {
-              label: "Grades",
+              label: $t("workspace.evals-grader-card.grades"),
               value: (
-                <Tooltip label="The share of finished runs this grader reads, chosen by a hash of the run id — the same run is always in or out.">
-                  <span>{info.sample}% of runs</span>
+                <Tooltip label={$t("workspace.evals-grader-card.theShareOfFinishedRunsThis")}>
+                  <span>{$t("workspace.evals-grader-card.ofRuns", { sample: String(info.sample) })}</span>
                 </Tooltip>
               ),
             },
-            { label: "Judge", value: <span className="font-mono">{info.model}</span> },
+            { label: $t("workspace.evals-grader-card.judge"), value: <span className="font-mono">{info.model}</span> },
             {
-              label: "Proposes a fix",
+              label: $t("workspace.evals-grader-card.proposesAFix"),
               value: info.improve ? (
-                <Tooltip label={`A fix is proposed once ${info.improve} graded runs failed and nobody has looked.`}>
-                  <span>after {info.improve} failures</span>
+                <Tooltip label={$t("workspace.evals-grader-card.aFixIsProposedOnceGraded", { improve: String(info.improve) })}>
+                  <span>{$t("workspace.evals-grader-card.afterFailures", { improve: String(info.improve) })}</span>
                 </Tooltip>
-              ) : "Only when asked",
+              ) : $t("workspace.evals-grader-card.onlyWhenAsked"),
             },
           ]}
         />
 
         <StatGrid>
-          <Stat label="Graded · 30 days" value={String(summary.graded)} />
-          <Stat label="Passing · 30 days" value={pct(summary.rate)} />
-          <Stat label="Failed · 30 days" value={String(summary.failed)} tone={summary.failed > 0 ? "danger" : undefined} />
-          <Stat label="Judges cost" value={`$${summary.costUsd.toFixed(4)}`} />
+          <Stat label={$t("workspace.evals-grader-card.graded30Days")} value={String(summary.graded)} />
+          <Stat label={$t("workspace.evals-grader-card.passing30Days")} value={pct(summary.rate)} />
+          <Stat label={$t("workspace.evals-grader-card.failed30Days")} value={String(summary.failed)} tone={summary.failed > 0 ? "danger" : undefined} />
+          <Stat label={$t("workspace.evals-grader-card.judgesCost")} value={`$${summary.costUsd.toFixed(4)}`} />
         </StatGrid>
 
         {days.length > 0 && (
-          <Panel title="Per day" description="A bar per day graded — passed under failed.">
-            <div className="flex h-16 items-end gap-1 overflow-x-auto" aria-label="grades per day, passed over failed">
+          <Panel title={$t("workspace.evals-grader-card.perDay")} description={$t("workspace.evals-grader-card.aBarPerDayGradedPassed")}>
+            <div className="flex h-16 items-end gap-1 overflow-x-auto" aria-label={$t("workspace.evals-grader-card.gradesPerDayPassedOverFailed")}>
               {days.map((d) => (
-                <Tooltip key={d.day} label={`${d.day}: ${d.passed} passed, ${d.failed} failed of ${d.graded}`}>
+                <Tooltip key={d.day} label={$t("workspace.evals-grader-card.passedFailedOf", { day: String(d.day), passed: String(d.passed), failed: String(d.failed), graded: String(d.graded) })}>
                   <div className="flex w-3 shrink-0 flex-col justify-end gap-px">
                     <div className="rounded-t-sm bg-danger" style={{ height: `${(d.failed / tallest) * 64}px` }} />
                     <div className="rounded-b-sm bg-success" style={{ height: `${(d.passed / tallest) * 64}px` }} />
@@ -194,9 +194,9 @@ export function GraderDetail({
           </Panel>
         )}
 
-        <Panel title="Checks" description="What every graded run is held to." flush>
+        <Panel title={$t("workspace.evals-grader-card.checks")} description={$t("workspace.evals-grader-card.whatEveryGradedRunIsHeld")} flush>
           {info.cases.length === 0 ? (
-            <p className="px-5 py-6 text-sm text-fg-muted">No checks yet.</p>
+            <p className="px-5 py-6 text-sm text-fg-muted">{$t("workspace.evals-grader-card.noChecksYet")}</p>
           ) : (
             <PanelList>
               {info.cases.map((c) => (
@@ -216,7 +216,7 @@ export function GraderDetail({
         </Panel>
 
         {failures.length > 0 && (
-          <Panel title="Recent failures" flush>
+          <Panel title={$t("workspace.evals-grader-card.recentFailures")} flush>
             <PanelList>
               {failures.map((g) => (
                 <li key={g.runId} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-5 py-3 text-sm">
@@ -234,13 +234,13 @@ export function GraderDetail({
         )}
 
         {extra && (
-          <Panel title="Proposed fixes" description="The assistant reads the failures and proposes the smallest change. Nothing is written until you apply it.">
+          <Panel title={$t("workspace.evals-grader-card.proposedFixes")} description={$t("workspace.evals-grader-card.theAssistantReadsTheFailuresAnd")}>
             {extra}
           </Panel>
         )}
 
         {canRun && (
-          <Panel title="Grade a run" description="Grade one finished run now, whether or not it is in the sample.">
+          <Panel title={$t("workspace.evals-grader-card.gradeARun")} description={$t("workspace.evals-grader-card.gradeOneFinishedRunNowWhether")}>
             <form
               className="flex flex-wrap items-center gap-2"
               onSubmit={(e) => {
@@ -248,9 +248,9 @@ export function GraderDetail({
                 if (runId.trim() && !busy) void gradeOne();
               }}
             >
-              <Input value={runId} onChange={(e) => setRunId(e.target.value)} placeholder="run-…" className="w-64 max-w-full font-mono text-[13px]" aria-label="run id to grade" />
+              <Input value={runId} onChange={(e) => setRunId(e.target.value)} placeholder="run-…" className="w-64 max-w-full font-mono text-[13px]" aria-label={$t("workspace.evals-grader-card.runIdToGrade")} />
               <Button type="submit" disabled={busy || !runId.trim()}>
-                {busy ? "Grading…" : "Grade a run"}
+                {busy ? "Grading…" : $t("workspace.evals-grader-card.gradeARun")}
               </Button>
               {fresh && (
                 <span className={`text-sm ${fresh.status === "pass" ? "text-success" : fresh.status === "fail" ? "text-danger" : "text-warning"}`}>

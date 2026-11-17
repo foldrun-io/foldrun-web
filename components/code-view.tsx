@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 // A read-only block of text with line numbers — a record, a preview, a
 // file that is shown rather than edited. JSON and JSONL are pretty-printed
 // first: the revision store writes one line per record, which is right for
@@ -45,7 +46,7 @@ export function CodeView({ path, text, maxLines = 4000 }: { path: string; text: 
       </table>
       {lines.length > maxLines && (
         <p className="border-t border-line-faint px-3 py-2 text-xs text-fg-subtle">
-          {lines.length - maxLines} more lines not shown.
+          {$t("components.code-view.moreLinesNotShown", { length: String(lines.length - maxLines) })}
         </p>
       )}
     </div>

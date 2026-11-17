@@ -5,6 +5,7 @@
 // better than a round trip that says "not your current password" about the
 // wrong field.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { buttonVariants } from "@foldrun/ui/react/button";
 import { Input } from "@foldrun/ui/react/input";
@@ -24,7 +25,7 @@ export function PasswordForm() {
       onSubmit={async (e) => {
         e.preventDefault();
         setState({});
-        if (next !== again) return setState({ error: "the two new passwords do not match" });
+        if (next !== again) return setState({ error: $t("profile.password.theTwoNewPasswordsDoNot") });
         setBusy(true);
         const res = await fetch("/api/auth/password", {
           method: "POST",
@@ -39,13 +40,13 @@ export function PasswordForm() {
           setNext("");
           setAgain("");
         } else {
-          setState({ error: body.error ?? "could not change your password" });
+          setState({ error: body.error ?? $t("profile.password.couldNotChangeYourPassword") });
         }
       }}
     >
       <div className="grid gap-3">
         <label className="block sm:max-w-xs">
-          <span className="block pb-1.5 text-sm font-medium text-fg">Current password</span>
+          <span className="block pb-1.5 text-sm font-medium text-fg">{$t("profile.password.currentPassword")}</span>
           <Input
             type="password"
             autoComplete="current-password"
@@ -56,7 +57,7 @@ export function PasswordForm() {
         </label>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block">
-          <span className="block pb-1.5 text-sm font-medium text-fg">New password</span>
+          <span className="block pb-1.5 text-sm font-medium text-fg">{$t("profile.password.newPassword")}</span>
           <Input
             type="password"
             autoComplete="new-password"
@@ -66,7 +67,7 @@ export function PasswordForm() {
           />
         </label>
         <label className="block">
-          <span className="block pb-1.5 text-sm font-medium text-fg">New password again</span>
+          <span className="block pb-1.5 text-sm font-medium text-fg">{$t("profile.password.newPasswordAgain")}</span>
           <Input
             type="password"
             autoComplete="new-password"
@@ -84,13 +85,13 @@ export function PasswordForm() {
           disabled={busy || !current || next.length < 8 || mismatch}
           className={buttonVariants({ variant: "primary", size: "md" })}
         >
-          {busy ? "Changing…" : "Change password"}
+          {busy ? "Changing…" : $t("profile.password.changePassword")}
         </button>
-        {mismatch && <span className="text-xs text-danger">The two new passwords do not match.</span>}
+        {mismatch && <span className="text-xs text-danger">{$t("profile.password.theTwoNewPasswordsDoNot2")}</span>}
         {state.error && <span className="text-xs text-danger">{state.error}</span>}
         {state.done && <span className="text-xs text-success">{state.done}</span>}
         {!mismatch && !state.error && !state.done && (
-          <span className="text-xs text-fg-muted">At least 8 characters.</span>
+          <span className="text-xs text-fg-muted">{$t("profile.password.atLeast8Characters")}</span>
         )}
       </div>
     </form>

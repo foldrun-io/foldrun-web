@@ -30,11 +30,11 @@ export function HooksPanel({ tenant, workspace }: { tenant: string; workspace: s
     <div className="mt-10 space-y-10">
       {hooks.length > 0 && (
         <Panel
-          title="When each runs"
-          description="The event each hook listens for, and who turns it on."
+          title={$t("components.hooks-panel.whenEachRuns")}
+          description={$t("components.hooks-panel.theEventEachHookListensFor")}
           actions={
             <Link href={`/api/workspaces/${workspace}/hooks`} className="text-[13px] font-medium text-fg-muted hover:text-fg">
-              As JSON
+              {$t("components.hooks-panel.asJson")}
             </Link>
           }
           flush
@@ -42,12 +42,12 @@ export function HooksPanel({ tenant, workspace }: { tenant: string; workspace: s
           <Table className="min-w-[820px]">
             <THead>
               <tr>
-                <TH>Hook</TH>
-                <TH>On</TH>
-                <TH>Where</TH>
-                <TH>Turned on by</TH>
-                <TH>Last {HOOK_RUNS_READ} runs</TH>
-                <TH className="text-right">Test</TH>
+                <TH>{$t("components.hooks-panel.hook")}</TH>
+                <TH>{$t("components.hooks-panel.on")}</TH>
+                <TH>{$t("components.hooks-panel.where")}</TH>
+                <TH>{$t("components.hooks-panel.turnedOnBy")}</TH>
+                <TH>{$t("components.hooks-panel.lastRuns", { HOOK_RUNS_READ: String(HOOK_RUNS_READ) })}</TH>
+                <TH className="text-right">{$t("components.hooks-panel.test")}</TH>
               </tr>
             </THead>
             <TBody>
@@ -73,25 +73,25 @@ export function HooksPanel({ tenant, workspace }: { tenant: string; workspace: s
                       {h.scope === "workspace" ? workspace : "shared"}
                       {h.shadowed && (
                         <Tooltip label={$t("components.hooks-panel.aWorkspaceHookOfTheSame")}>
-                          <span className="ml-1 text-xs text-fg-subtle">(shadowed)</span>
+                          <span className="ml-1 text-xs text-fg-subtle">{$t("components.hooks-panel.shadowed")}</span>
                         </Tooltip>
                       )}
                     </TD>
                     <TD className="align-top">
                       {h.onFor.length === 0 ? (
-                        <span className="text-fg-subtle">nobody yet</span>
+                        <span className="text-fg-subtle">{$t("components.hooks-panel.nobodyYet")}</span>
                       ) : (
-                        h.onFor.map((who) => (who === "account" ? "every agent (account)" : who === "workspace" ? "every agent here" : who)).join(", ")
+                        h.onFor.map((who) => (who === "account" ? $t("components.hooks-panel.everyAgentAccount") : who === "workspace" ? $t("components.hooks-panel.everyAgentHere") : who)).join(", ")
                       )}
                     </TD>
                     <TD className="align-top">
                       {!t ? (
-                        <span className="text-fg-subtle">nothing</span>
+                        <span className="text-fg-subtle">{$t("components.hooks-panel.nothing")}</span>
                       ) : (
                         <span className="flex flex-wrap gap-1">
-                          {t.deny > 0 && <Chip tone="bad">{t.deny} denied</Chip>}
-                          {t.rewrite > 0 && <Chip tone="warn">{t.rewrite} rewrote</Chip>}
-                          {t.error > 0 && <Chip tone="bad">{t.error} failed</Chip>}
+                          {t.deny > 0 && <Chip tone="bad">{$t("components.hooks-panel.denied", { deny: String(t.deny) })}</Chip>}
+                          {t.rewrite > 0 && <Chip tone="warn">{$t("components.hooks-panel.rewrote", { rewrite: String(t.rewrite) })}</Chip>}
+                          {t.error > 0 && <Chip tone="bad">{$t("components.hooks-panel.failed", { error: String(t.error) })}</Chip>}
                         </span>
                       )}
                     </TD>
@@ -109,23 +109,23 @@ export function HooksPanel({ tenant, workspace }: { tenant: string; workspace: s
       )}
 
       {(hooks.length > 0 || activity.length > 0) && (
-      <Panel title="Lately" description={`What hooks denied, rewrote or failed in the last ${HOOK_RUNS_READ} runs.`} flush>
+      <Panel title={$t("components.hooks-panel.lately")} description={$t("components.hooks-panel.whatHooksDeniedRewroteOrFailed", { HOOK_RUNS_READ: String(HOOK_RUNS_READ) })} flush>
         {activity.length === 0 ? (
           <EmptyState
             bare
             compact
             icon={<ShieldCheck />}
-            title={hooks.length === 0 ? "Nothing to show until a hook is turned on." : "Nothing denied, rewritten or failed."}
+            title={hooks.length === 0 ? $t("components.hooks-panel.nothingToShowUntilAHook") : $t("components.hooks-panel.nothingDeniedRewrittenOrFailed")}
           />
         ) : (
           <Table className="min-w-[760px]">
             <THead>
               <tr>
-                <TH>When</TH>
-                <TH>Hook</TH>
-                <TH>Tool</TH>
-                <TH>Why</TH>
-                <TH>Run</TH>
+                <TH>{$t("components.hooks-panel.when")}</TH>
+                <TH>{$t("components.hooks-panel.hook")}</TH>
+                <TH>{$t("components.hooks-panel.tool")}</TH>
+                <TH>{$t("components.hooks-panel.why")}</TH>
+                <TH>{$t("components.hooks-panel.run")}</TH>
               </tr>
             </THead>
             <TBody>
@@ -141,7 +141,7 @@ export function HooksPanel({ tenant, workspace }: { tenant: string; workspace: s
                     <TD className="text-fg-tertiary">{a.record.reason || "—"}</TD>
                     <TD>
                       <Link href={`/dashboard/${workspace}/runs/${a.runId}${qs}`} className="whitespace-nowrap text-fg-muted hover:text-fg hover:underline">
-                        {a.flow} · step {a.step} ({a.agent})
+                        {$t("components.hooks-panel.step", { flow: a.flow, step: String(a.step), agent: a.agent })}
                       </Link>
                     </TD>
                   </TR>

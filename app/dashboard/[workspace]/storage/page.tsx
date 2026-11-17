@@ -3,7 +3,7 @@
 // and a preview of the file as itself. The account's Storage page shows
 // the same rows for every desk; both read server/storage-browser.ts.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import fs from "node:fs";
 import { notFound } from "next/navigation";
 import { workspaceDir } from "@/lib/store";
@@ -35,11 +35,11 @@ export default async function WorkspaceFilesPage({
   if (!fileStoreEnabled()) {
     return (
       <Page width="wide">
-        <PageHeader title="Storage" />
+        <PageHeader title={$t("workspace.storage-page.storage")} />
         <EmptyState
           icon={<HardDrive />}
-          title="No file store on this instance"
-          description={<>{$t("workspace.storage-page.thisInstanceRunsASingleWorkspace")}{" "}<code className="font-mono text-xs">storage/</code> is a directory in that folder. Put something in it and the next run will read it.</>}
+          title={$t("workspace.storage-page.noFileStoreOnThisInstance")}
+          description={<>{$rich("workspace.storage-page.thisInstanceRunsASingleTerm", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code> })}</>}
         />
       </Page>
     );
@@ -79,8 +79,8 @@ export default async function WorkspaceFilesPage({
   return (
     <Page width="wide">
       <PageHeader
-        title="Storage"
-        description={<>What you upload and what {workspace}&apos;s runs produce. Agents read these at <code className="font-mono text-xs">workspace/storage/</code>.</>}
+        title={$t("workspace.storage-page.storage")}
+        description={<>{$rich("workspace.storage-page.whatYouUploadAndWhatS", { workspace: workspace, code: (chunks) => <code className="font-mono text-xs">{chunks}</code> })}</>}
         meta={<StorageUsage used={used} quotaMb={quotaMb} count={count} driver={driver} />}
         actions={<UploadZone workspace={workspace} tenant={tenant} maxMb={Number(process.env.FOLDRUN_STORAGE_MAX_MB ?? 512)} />}
       />

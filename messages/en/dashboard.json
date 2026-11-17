@@ -1,13 +1,57 @@
 {
+  "demo-button": {
+    "couldNotCreateTheDemo": "could not create the demo",
+    "tryTheDemoPipeline": "Try the demo pipeline"
+  },
   "layout": {
-    "nothingNewStartsInAnyWorkspace": "Nothing new starts in any {@workspace.one}."
+    "addAKey": "Add a key",
+    "free": "Free",
+    "metered": "Metered",
+    "noModelKey": "No model key",
+    "nothingNewStartsInAnyTerm": "Nothing new starts in any {@workspace.one}. <withEmails></withEmails>",
+    "onlyAnAdminCanAddIt": "Only an admin can add it — ask one.",
+    "pausedBy": "Paused by {by}{v1}.",
+    "resume": "Resume",
+    "runsArePaused": "Runs are paused",
+    "runsOnThisAccountAreRefused": "Runs on this account are refused until you add an API key from your model provider.",
+    "runsWillNotStartUntilIt": "{reason}. Runs will not start until it is restored; everything here stays readable. Reply to the email you received, or write to hello@foldrun.io.",
+    "thisAccountIsSuspended": "This account is suspended"
+  },
+  "manage": {
+    "delete": "Delete"
   },
   "page": {
+    "7Days": "7 days",
     "aWorkspaceHoldsItsOwnAgents": "A {@workspace.one} holds its own agents, flows, secrets and runs. Start with the demo: a four-step pipeline you can run in a minute.",
+    "account": "Account",
+    "agentFlow": "{agents} agent{v1} · {flows} flow{v3}",
+    "agentsFlows": "{agents} agents · {flows} flows",
+    "ago": "{what} · {label} {fmtSpan} ago",
     "itsOwnAgentsFlowsSecretsAnd": "Its own agents, flows, secrets and runs. Starts blank: import agents from another {@workspace.one}, or create them.",
+    "lastRun": "Last run",
     "newWorkspace": "New {@workspace.one}",
+    "next": "Next",
+    "noRuns": "No runs",
+    "noRunsYet": "No runs yet",
+    "noRunsYet2": "no runs yet",
     "noWorkspaceYet": "No {@workspace.other} yet",
+    "recentRuns": "Recent runs",
     "searchWorkspace": "Search {@workspace.other}…",
+    "setUpStepByStep": "Set up step by step",
+    "tryTheDemoPipeline": "Try the demo pipeline",
     "workspace": "{@workspace.Other}"
+  },
+  "run-button": {
+    "addCredit": "Add credit",
+    "cancel": "Cancel",
+    "dismiss": "Dismiss",
+    "everyStepRunsSendsAreRefused": "Every step runs; sends are refused or sunk, send-capable secrets are withheld, and state/ and storage/ writes are kept under the run instead",
+    "refused": "refused ({status})",
+    "run": "Run",
+    "start": "Start",
+    "startTest": "Start test",
+    "taskForThisRunOptional": "Task for this run (optional)",
+    "testRun": "<checkbox></checkbox>Test run",
+    "yourRoleIsViewerRunningNeeds": "Your role is viewer — running needs editor or above"
   }
 }

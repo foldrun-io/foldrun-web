@@ -3,6 +3,7 @@
 // run label. No React, no fetch — tests/a2a-model.test.ts reads it, and the
 // flow PATCH route merges an `a2a` edit with the same a2aPatch.
 
+import { $t } from "@/i18n";
 import { a2aPublishProblems } from "@/lib/a2a-publish";
 
 /** The `a2a:` keys a PATCH may set, as the file spells them. */
@@ -18,10 +19,10 @@ const KEYS = ["publish", "name", "description", "examples", "public_card", "inpu
  */
 export function a2aPatch(given: unknown, current: unknown): { value: Record<string, unknown> | null } | { error: string } {
   if (given === null) return { value: null };
-  if (typeof given !== "object" || Array.isArray(given)) return { error: "a2a must be { publish, name?, description?, examples?, public_card?, input?, accept_risk? } or null" };
+  if (typeof given !== "object" || Array.isArray(given)) return { error: $t("components.a2a-model.a2aMustBePublishNameDescription") };
   const o = given as Record<string, unknown>;
   const unknown = Object.keys(o).filter((k) => !(KEYS as readonly string[]).includes(k));
-  if (unknown.length) return { error: `a2a: ${unknown.map((k) => `\`${k}\``).join(", ")} is not one of ${KEYS.join(", ")}` };
+  if (unknown.length) return { error: $t("components.a2a-model.a2aIsNotOneOf", { v0: String(unknown.map((k) => `\`${k}\``).join(", ")), v1: String(KEYS.join(", ")) }) };
   const out: Record<string, unknown> = current && typeof current === "object" && !Array.isArray(current) ? { ...(current as Record<string, unknown>) } : {};
   for (const k of KEYS) {
     if (!(k in o)) continue;
@@ -106,14 +107,14 @@ export function a2aCurl(endpoint: string, opts: { text?: string; keyEnv?: string
     id: 1,
     method: "SendMessage",
     params: {
-      message: { messageId: opts.messageId ?? "msg-1", role: "ROLE_USER", parts: [{ text: opts.text ?? "Hello" }] },
+      message: { messageId: opts.messageId ?? "msg-1", role: "ROLE_USER", parts: [{ text: opts.text ?? $t("components.a2a-model.hello") }] },
     },
   };
   return [
-    `curl -sS ${sq(endpoint)} \\`,
-    `  -H "authorization: Bearer $${env}" \\`,
+    $t("components.a2a-model.curlSs", { v0: String(sq(endpoint)) }),
+    $t("components.a2a-model.hAuthorizationBearer", { env: String(env) }),
     `  -H 'content-type: application/json' \\`,
-    `  -H 'A2A-Version: 1.0' \\`,
+    $t("components.a2a-model.h"),
     `  -d ${sq(JSON.stringify(body))}`,
   ].join("\n");
 }
@@ -125,7 +126,7 @@ export function a2aRunLabel(run: { trigger?: string; a2a?: { key: string } | nul
   if (run.trigger !== "a2a" && !run.a2a) return null;
   const key = run.a2a?.key;
   const label = (key && labels[key]?.trim()) || null;
-  return label ? `A2A · ${label}` : "A2A · an outside agent";
+  return label ? `A2A · ${label}` : $t("components.a2a-model.a2aAnOutsideAgent");
 }
 
 /** The principal → label map from a key list (GET /api/keys or listApiKeys):

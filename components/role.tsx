@@ -10,6 +10,7 @@
 // with no Run button reads as "running is not a thing here", which is a worse
 // lesson than "you cannot".
 
+import { $t } from "@/i18n";
 import { createContext, useContext, type ReactNode } from "react";
 import { can, type Action, type Role } from "@/platform/permissions";
 
@@ -30,5 +31,5 @@ export function useCan(action: Action): boolean {
 /** The sentence a disabled control shows on hover. */
 export function needs(action: Action): string {
   const least = { "workspace:read": "viewer", "workspace:write": "editor", "run:start": "editor" } as Record<string, string>;
-  return `Your role cannot do this — it needs ${least[action] ?? "a higher role"} or above`;
+  return $t("components.role.yourRoleCannotDoThisIt", { v0: String(least[action] ?? $t("components.role.aHigherRole")) });
 }

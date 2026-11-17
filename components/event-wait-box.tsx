@@ -11,6 +11,7 @@
 // eventRelease) is still shown, with a curl, for the system outside that is
 // meant to call it. Reject goes through the approve route, as for any gate.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { Button } from "@foldrun/ui/react/button";
 import { Textarea } from "@foldrun/ui/react/input";
@@ -69,7 +70,7 @@ export function EventWaitBox({
       body: JSON.stringify({
         decision,
         step: index,
-        ...(decision === "reject" ? { reason: "rejected while waiting for its event" } : { payload: parsed.body }),
+        ...(decision === "reject" ? { reason: $t("components.event-wait-box.rejectedWhileWaitingForItsEvent") } : { payload: parsed.body }),
       }),
     });
 
@@ -81,10 +82,10 @@ export function EventWaitBox({
     <Callout tone="info" className="mb-4 p-3 text-[13px] sm:p-4" bodyClassName="space-y-3">
       <span className="flex items-center gap-2 text-sm font-medium text-fg">
         <Webhook className="size-4 shrink-0 text-info" aria-hidden />
-        Waiting for an external event before this step runs.
+        {$t("components.event-wait-box.waitingForAnExternalEventBefore")}
       </span>
       <p className="text-fg-secondary">
-        Whatever POSTs this URL releases the step, and the body reaches it as the event. Hand the URL to the system that will say so — a payment hook, a reply, a job that finishes.
+        {$t("components.event-wait-box.whateverPostsThisUrlReleasesThe")}
       </p>
       {release ? (
         <div className="flex items-start gap-2">
@@ -97,29 +98,29 @@ export function EventWaitBox({
               });
             }}
           >
-            {copied ? "Copied" : "Copy"}
+            {copied ? $t("components.event-wait-box.copied") : $t("components.event-wait-box.copy")}
           </Button>
         </div>
       ) : (
         <p className="text-fg-muted">
-          The step&apos;s trace does not show its event URL. It carries a token the server derives from the run and is printed in the trace when the step parks; you can still release the step from here.
+          {$t("components.event-wait-box.theStepSTraceDoesNot")}
         </p>
       )}
-      <Disclosure summaryClassName="text-[13px] font-medium text-fg-muted hover:text-fg" summary="From a terminal">
+      <Disclosure summaryClassName="text-[13px] font-medium text-fg-muted hover:text-fg" summary={$t("components.event-wait-box.fromATerminal")}>
         <pre className="mt-1.5 overflow-x-auto rounded-md border border-line bg-surface p-2.5 font-mono text-xs text-fg-secondary">{curl}</pre>
       </Disclosure>
       <Textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={3}
-        placeholder='Payload — JSON or plain text, e.g. {"status":"paid","amount":120}'
-        aria-label="Event payload"
+        placeholder={$t("components.event-wait-box.payloadJsonOrPlainTextE")}
+        aria-label={$t("components.event-wait-box.eventPayload")}
         className="min-h-0 font-mono text-xs"
       />
       {parsed.error && <p className="text-danger">{parsed.error}</p>}
       {error && <p className="text-danger">{error}</p>}
       <span className="flex flex-wrap items-center justify-end gap-2">
-        <Tooltip label={mayRelease ? "Stops waiting: the step fails and the run ends" : needs("run:start")}>
+        <Tooltip label={mayRelease ? $t("components.event-wait-box.stopsWaitingTheStepFailsAnd") : needs("run:start")}>
           <span className="inline-flex">
             <Button
               size="md"
@@ -127,11 +128,11 @@ export function EventWaitBox({
               onClick={() => void viaApprove("reject")}
               disabled={busy || !mayRelease}
             >
-              Reject
+              {$t("components.event-wait-box.reject")}
             </Button>
           </span>
         </Tooltip>
-        <Tooltip label={mayRelease ? "Releases the step with this payload, recorded as released by you" : needs("run:start")}>
+        <Tooltip label={mayRelease ? $t("components.event-wait-box.releasesTheStepWithThisPayload") : needs("run:start")}>
           <span className="inline-flex">
             <Button
               size="md"
@@ -139,7 +140,7 @@ export function EventWaitBox({
               onClick={() => void viaApprove("approve")}
               disabled={busy || !mayRelease || !!parsed.error}
             >
-              {text.trim() ? "Release with payload" : "Release with empty payload"}
+              {text.trim() ? $t("components.event-wait-box.releaseWithPayload") : $t("components.event-wait-box.releaseWithEmptyPayload")}
             </Button>
           </span>
         </Tooltip>

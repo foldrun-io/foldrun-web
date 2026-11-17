@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 // Putting a file into a desk's storage from the browser. One path for the
 // desk page's drop zone and the storage browser's upload buttons: hash the
 // file, ask for a presigned PUT, send the bytes straight to the bucket, then
@@ -18,19 +19,19 @@ export async function uploadFile(workspace: string, tenant: string, file: File, 
   const said = async (r: Response, fallback: string) => {
     try { return (await r.json()).error ?? fallback; } catch { return fallback; }
   };
-  if (file.size === 0) throw new Error(`${file.name} is empty — the platform keeps no empty files`);
+  if (file.size === 0) throw new Error($t("components.upload.isEmptyThePlatformKeepsNo", { name: String(file.name) }));
   const sha = await sha256Of(file);
   const ask = await fetch(`${base}/upload-url`, { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ path: rel, sha, size: file.size }) });
-  if (!ask.ok) throw new Error(await said(ask, `the platform refused ${rel} (${ask.status})`));
+  if (!ask.ok) throw new Error(await said(ask, $t("components.upload.thePlatformRefused", { rel: String(rel), status: String(ask.status) })));
   const { url } = (await ask.json()) as { url: string | null };
   if (url) {
     const put = await fetch(url, { method: "PUT", body: file });
-    if (!put.ok) throw new Error(`the storage service refused ${rel} (${put.status})`);
+    if (!put.ok) throw new Error($t("components.upload.theStorageServiceRefused", { rel: String(rel), status: String(put.status) }));
     const done = await fetch(base, { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ path: rel, sha, size: file.size }) });
-    if (!done.ok) throw new Error(await said(done, `could not record ${rel}`));
+    if (!done.ok) throw new Error(await said(done, $t("components.upload.couldNotRecord", { rel: String(rel) })));
   } else {
     const put = await fetch(`${base}?path=${encodeURIComponent(rel)}`, { method: "PUT", headers, body: file });
-    if (!put.ok) throw new Error(await said(put, `upload of ${rel} failed (${put.status})`));
+    if (!put.ok) throw new Error(await said(put, $t("components.upload.uploadOfFailed", { rel: String(rel), status: String(put.status) })));
   }
 }
 

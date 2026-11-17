@@ -13,6 +13,7 @@
 // built-in's gap-to-next-event includes the model thinking, so inventing a
 // latency from it would be worse than not showing one.
 
+import { $el, $rich, $t } from "@/i18n";
 import { creditsShort } from "@/components/money";
 import { runCharges } from "@/server/run-charges";
 import Link from "@foldrun/ui/react/link";
@@ -32,9 +33,9 @@ import { Tooltip } from "@foldrun/ui/react/tooltip";
 export const dynamic = "force-dynamic";
 
 const WINDOWS = [
-  { days: 7, label: "7 days" },
-  { days: 30, label: "30 days" },
-  { days: 90, label: "90 days" },
+  { days: 7, label: $t("workspace.observe-page.7Days") },
+  { days: 30, label: $t("workspace.observe-page.30Days") },
+  { days: 90, label: $t("workspace.observe-page.90Days") },
 ];
 
 const secs = (v: number | null) => (v === null ? "—" : v >= 100 ? `${Math.round(v)}s` : `${v.toFixed(1)}s`);
@@ -58,7 +59,7 @@ function Spread({ s, unit }: { s: Sampled; unit: (v: number | null) => string })
   if (s.p50 === null) {
     // Too few to summarise; the worst one is still a fact.
     return (
-      <Tooltip label={`${s.n} sample${s.n === 1 ? "" : "s"} — too few for percentiles`}>
+      <Tooltip label={$t("workspace.observe-page.sampleTooFewForPercentiles", { n: String(s.n), v1: String(s.n === 1 ? "" : "s") })}>
         <span className="text-fg-tertiary">
           ≤{unit(s.max)} <span className="text-fg-subtle">(n={s.n})</span>
         </span>
@@ -66,7 +67,7 @@ function Spread({ s, unit }: { s: Sampled; unit: (v: number | null) => string })
     );
   }
   return (
-    <Tooltip label={`over ${s.n} samples`}>
+    <Tooltip label={$t("workspace.observe-page.overSamples", { n: String(s.n) })}>
       <span className="text-fg-tertiary">
         {unit(s.p50)} <span className="text-fg-subtle">/ p95 {unit(s.p95)}</span>
       </span>
@@ -107,19 +108,19 @@ export default async function ObservePage({
   return (
     <Page width="wide">
       <PageHeader
-        title="Observe"
-        description="What the agents here actually did: failures, retries, tool health and cost, read from the run records."
+        title={$t("workspace.observe-page.observe")}
+        description={$t("workspace.observe-page.whatTheAgentsHereActuallyDid")}
         actions={
           <>
             {/* The window, stated and switchable. Every number below describes it. */}
             <Segmented
-              label="Window"
+              label={$t("workspace.observe-page.window")}
               value={String(sinceDays)}
               items={WINDOWS.map((w) => ({ key: String(w.days), label: w.label, href: `/dashboard/${workspace}/observe?since=${w.days}${tenantParam}` }))}
             />
             <Link href={`/api/workspaces/${workspace}/observe?since=${sinceDays}`} className={buttonVariants({ variant: "secondary", size: "md" })}>
               <Braces aria-hidden />
-              JSON
+              {$t("workspace.observe-page.json")}
             </Link>
           </>
         }
@@ -132,15 +133,15 @@ export default async function ObservePage({
             Compared against the previous DIFFERENT commit, not the previous
             run — two runs on one commit differ only by the model's mood. */}
         {trends.length > 0 && (
-          <Panel title="Evals by change" description="Each eval's latest score against the last different commit." flush>
+          <Panel title={$t("workspace.observe-page.evalsByChange")} description={$t("workspace.observe-page.eachEvalSLatestScoreAgainst")} flush>
             <Table className="min-w-[560px]">
               <THead>
                 <tr>
-                  <TH>Eval</TH>
-                  <TH>Now</TH>
-                  <TH>At</TH>
-                  <TH>Before</TH>
-                  <TH>Change</TH>
+                  <TH>{$t("workspace.observe-page.eval")}</TH>
+                  <TH>{$t("workspace.observe-page.now")}</TH>
+                  <TH>{$t("workspace.observe-page.at")}</TH>
+                  <TH>{$t("workspace.observe-page.before")}</TH>
+                  <TH>{$t("workspace.observe-page.change")}</TH>
                 </tr>
               </THead>
               <TBody>
@@ -160,7 +161,7 @@ export default async function ObservePage({
                       </TD>
                       <TD className="font-mono text-xs text-fg-muted">
                         {/* Either names the change — History on the file shows it. */}
-                        {t.latest.commit ? shortRev(t.latest.commit) : <span className="font-sans text-fg-subtle">no change on record</span>}
+                        {t.latest.commit ? shortRev(t.latest.commit) : <span className="font-sans text-fg-subtle">{$t("workspace.observe-page.noChangeOnRecord")}</span>}
                       </TD>
                       <TD className="text-fg-muted">
                         {t.previous ? (
@@ -169,18 +170,18 @@ export default async function ObservePage({
                             <span className="ml-1.5 font-mono text-xs text-fg-subtle">{t.previous.commit ? shortRev(t.previous.commit) : "—"}</span>
                           </>
                         ) : (
-                          <span className="text-fg-subtle">first commit with a run</span>
+                          <span className="text-fg-subtle">{$t("workspace.observe-page.firstCommitWithARun")}</span>
                         )}
                       </TD>
                       <TD>
                         {t.delta === null ? (
                           dash
                         ) : dropped ? (
-                          <Chip tone="bad">{t.delta} — this change made it worse</Chip>
+                          <Chip tone="bad">{$t("workspace.observe-page.thisChangeMadeItWorse", { delta: String(t.delta) })}</Chip>
                         ) : improved ? (
                           <Chip tone="good">+{t.delta}</Chip>
                         ) : (
-                          <span className="text-fg-subtle">unchanged</span>
+                          <span className="text-fg-subtle">{$t("workspace.observe-page.unchanged")}</span>
                         )}
                       </TD>
                     </TR>
@@ -194,36 +195,36 @@ export default async function ObservePage({
         {o.runs === 0 ? (
           <EmptyState
             icon={<Activity />}
-            title="Nothing ran in this window"
-            description="Widen the window, or start a run: this page fills itself from the run records."
+            title={$t("workspace.observe-page.nothingRanInThisWindow")}
+            description={$t("workspace.observe-page.widenTheWindowOrStartA")}
           />
         ) : (
           <>
             <StatGrid className="xl:grid-cols-5">
-              <Stat label="Runs" value={o.runs} sub={`in ${windowLabel}`} />
-              <Stat label="Failed runs" value={o.failedRuns} tone={o.failedRuns > 0 ? "danger" : undefined} />
-              <Stat label="Steps" value={o.steps} />
-              <Stat label="Charged" value={usd(o.chargedUsd)} />
-              <Stat label="Completed" value={o.tally.completedPct === null ? "—" : `${o.tally.completedPct}%`} />
+              <Stat label={$t("workspace.observe-page.runs")} value={o.runs} sub={`in ${windowLabel}`} />
+              <Stat label={$t("workspace.observe-page.failedRuns")} value={o.failedRuns} tone={o.failedRuns > 0 ? "danger" : undefined} />
+              <Stat label={$t("workspace.observe-page.steps")} value={o.steps} />
+              <Stat label={$t("workspace.observe-page.charged")} value={usd(o.chargedUsd)} />
+              <Stat label={$t("workspace.observe-page.completed")} value={o.tally.completedPct === null ? "—" : `${o.tally.completedPct}%`} />
             </StatGrid>
 
             {/* Day by day: volume with failures burned in. A bar is a link to
                 nothing — the table of failures below is where names live. */}
-            <Panel title="Runs by day">
+            <Panel title={$t("workspace.observe-page.runsByDay")}>
               <ChartLegend
                 className="mb-4"
                 items={[
                   { key: "runs", label: "runs", swatch: "bg-muted-strong" },
                   { key: "failed", label: "failed", swatch: "bg-danger" },
                 ]}
-                aside={`busiest day ${maxDayRuns} run${maxDayRuns === 1 ? "" : "s"}`}
+                aside={$t("workspace.observe-page.busiestDayRun", { maxDayRuns: String(maxDayRuns), v1: String(maxDayRuns === 1 ? "" : "s") })}
               />
               <div className="flex h-28 items-end gap-[2px] border-b border-line">
                 {o.days.map((d) => {
                   const h = Math.max(4, Math.round((d.runs / maxDayRuns) * 100));
                   const failH = d.runs ? (d.failed / d.runs) * h : 0;
                   return (
-                    <Tooltip key={d.day} label={`${d.day}: ${d.runs} run${d.runs === 1 ? "" : "s"}, ${d.failed} failed, ${usd(d.chargedUsd)}`}>
+                    <Tooltip key={d.day} label={$t("workspace.observe-page.runFailed", { day: String(d.day), runs: String(d.runs), v2: String(d.runs === 1 ? "" : "s"), failed: String(d.failed), v4: String(usd(d.chargedUsd)) })}>
                       <div className="flex h-full min-w-0 flex-1 flex-col justify-end rounded-t-sm hover:bg-sunken">
                         {failH > 0 && <div className="w-full rounded-t-sm bg-danger" style={{ height: `${failH}%` }} />}
                         <div className={`w-full bg-muted-strong ${failH > 0 ? "" : "rounded-t-sm"}`} style={{ height: `${h - failH}%` }} />
@@ -243,20 +244,20 @@ export default async function ObservePage({
             {/* Agents: the who. Sorted by cost because "which agent burns the
                 most" is the first question, but failures and retries are the
                 columns this page exists for. */}
-            <Panel title="Agents" description="Sorted by credits. Percentiles appear once there are enough samples." flush>
+            <Panel title={$t("workspace.observe-page.agents")} description={$t("workspace.observe-page.sortedByCreditsPercentilesAppearOnce")} flush>
               <Table className="min-w-[760px]">
                 <THead>
                   <tr>
-                    <TH>Agent</TH>
-                    <TH className="text-right">Steps</TH>
-                    <TH className="text-right">Failed</TH>
-                    <TH className="text-right">Retried</TH>
-                    <TH className="text-right">Skipped</TH>
-                    <TH>Step time</TH>
-                    <Tooltip label="model turns per step — the agent's whole context is sent again on each"><TH>Turns</TH></Tooltip>
-                    <TH>Tokens in / out</TH>
-                    <TH className="text-right">Cached</TH>
-                    <TH className="text-right">Credits</TH>
+                    <TH>{$t("workspace.observe-page.agent")}</TH>
+                    <TH className="text-right">{$t("workspace.observe-page.steps")}</TH>
+                    <TH className="text-right">{$t("workspace.observe-page.failed")}</TH>
+                    <TH className="text-right">{$t("workspace.observe-page.retried")}</TH>
+                    <TH className="text-right">{$t("workspace.observe-page.skipped")}</TH>
+                    <TH>{$t("workspace.observe-page.stepTime")}</TH>
+                    <Tooltip label={$t("workspace.observe-page.modelTurnsPerStepTheAgent")}><TH>{$t("workspace.observe-page.turns")}</TH></Tooltip>
+                    <TH>{$t("workspace.observe-page.tokensInOut")}</TH>
+                    <TH className="text-right">{$t("workspace.observe-page.cached")}</TH>
+                    <TH className="text-right">{$t("workspace.observe-page.credits")}</TH>
                   </tr>
                 </THead>
                 <TBody>
@@ -274,7 +275,7 @@ export default async function ObservePage({
                       <TD>
                         <Spread s={a.seconds} unit={secs} />
                       </TD>
-                      <Tooltip label={a.systemPromptChars?.max != null ? `system prompt ${chars(a.systemPromptChars.max)} characters, sent on every turn` : undefined} side="bottom">
+                      <Tooltip label={a.systemPromptChars?.max != null ? $t("workspace.observe-page.systemPromptCharactersSentOnEvery", { v0: String(chars(a.systemPromptChars.max)) }) : undefined} side="bottom">
                         <TD>
                           {a.turns ? <Spread s={a.turns} unit={count} /> : dash}
                         </TD>
@@ -282,7 +283,7 @@ export default async function ObservePage({
                       <TD className="tabular-nums text-fg-muted">
                         {num(a.inputTokens)} / {num(a.outputTokens)}
                       </TD>
-                      <Tooltip label={a.cacheHitRate == null ? "no step reports cache reads yet" : `${num(a.cacheReadTokens)} input tokens read from the prompt cache`}>
+                      <Tooltip label={a.cacheHitRate == null ? $t("workspace.observe-page.noStepReportsCacheReadsYet") : $t("workspace.observe-page.inputTokensReadFromThePrompt", { v0: String(num(a.cacheReadTokens)) })}>
                         <TD className="text-right tabular-nums text-fg-muted">
                           {a.cacheHitRate == null ? "—" : `${Math.round(a.cacheHitRate * 100)}%`}
                         </TD>
@@ -297,16 +298,16 @@ export default async function ObservePage({
             {/* Tools: the what-with. Latency only where the tool measured its
                 own; a built-in shows calls and an em dash, deliberately. */}
             {o.tools.length > 0 && (
-              <Panel title="Tools" description="Latency only where a tool times itself." flush>
+              <Panel title={$t("workspace.observe-page.tools")} description={$t("workspace.observe-page.latencyOnlyWhereAToolTimes")} flush>
                 <Table className="min-w-[640px]">
                   <THead>
                     <tr>
-                      <TH>Tool</TH>
-                      <TH className="text-right">Calls</TH>
-                      <TH className="text-right">Errors</TH>
-                      <TH>Latency</TH>
-                      <Tooltip label="characters each result put into the conversation — sent again on every later turn"><TH>Result size</TH></Tooltip>
-                      <TH>Called by</TH>
+                      <TH>{$t("workspace.observe-page.tool")}</TH>
+                      <TH className="text-right">{$t("workspace.observe-page.calls")}</TH>
+                      <TH className="text-right">{$t("workspace.observe-page.errors")}</TH>
+                      <TH>{$t("workspace.observe-page.latency")}</TH>
+                      <Tooltip label={$t("workspace.observe-page.charactersEachResultPutIntoThe")}><TH>{$t("workspace.observe-page.resultSize")}</TH></Tooltip>
+                      <TH>{$t("workspace.observe-page.calledBy")}</TH>
                     </tr>
                   </THead>
                   <TBody>
@@ -317,7 +318,7 @@ export default async function ObservePage({
                         <TD className={`text-right tabular-nums ${t.errors ? "font-medium text-danger" : "text-fg-subtle"}`}>{t.errors || "—"}</TD>
                         <TD>
                           {t.measured === 0 ? (
-                            <Tooltip label="this tool does not report its own duration; the gap to the next event includes model thinking, so no latency is invented for it">
+                            <Tooltip label={$t("workspace.observe-page.thisToolDoesNotReportIts")}>
                               <span className="text-fg-subtle">
                                 —
                               </span>
@@ -326,12 +327,12 @@ export default async function ObservePage({
                             <Spread s={t.ms} unit={ms} />
                           )}
                         </TD>
-                        <Tooltip label={t.resultSize && t.resultSize.n > 0 ? `${num(t.resultChars)} characters over ${t.resultSize.n} results; ${t.heavyCalls} over 10k` : "no result sizes recorded yet (from 18 Oct 2026)"} side="bottom">
+                        <Tooltip label={t.resultSize && t.resultSize.n > 0 ? $t("workspace.observe-page.charactersOverResultsOver10k", { v0: String(num(t.resultChars)), n: String(t.resultSize.n), heavyCalls: String(t.heavyCalls) }) : $t("workspace.observe-page.noResultSizesRecordedYetFrom")} side="bottom">
                           <TD>
                             {t.resultSize && t.resultSize.n > 0 ? (
                               <span className="inline-flex items-center gap-1.5">
                                 <Spread s={t.resultSize} unit={chars} />
-                                {t.heavyCalls > 0 && <Chip tone="warn">{t.heavyCalls} heavy</Chip>}
+                                {t.heavyCalls > 0 && <Chip tone="warn">{$t("workspace.observe-page.heavy", { heavyCalls: String(t.heavyCalls) })}</Chip>}
                               </span>
                             ) : (
                               dash
@@ -352,14 +353,14 @@ export default async function ObservePage({
                 services phase that booted beside the step pod is its own lane
                 (FOL-74): it starts at 0, and go starts when it was up. */}
             {o.startup.length > 0 && (
-              <Panel title="Start-up" description="Where a step's first seconds go, counted from the moment it started." flush>
+              <Panel title="Start-up" description={$t("workspace.observe-page.whereAStepSFirstSeconds")} flush>
                 <Table className="min-w-[560px]">
                   <THead>
                     <tr>
-                      <Tooltip label="in the order a step goes through them"><TH>Phase</TH></Tooltip>
-                      <Tooltip label="this phase's own share: from when it could begin to when it ended"><TH>Took</TH></Tooltip>
-                      <Tooltip label="when it began, counted from the moment the step started — the services pods boot alongside the step pod, from 0"><TH>Started</TH></Tooltip>
-                      <Tooltip label="counted from the moment the step started"><TH>Done by</TH></Tooltip>
+                      <Tooltip label={$t("workspace.observe-page.inTheOrderAStepGoes")}><TH>{$t("workspace.observe-page.phase")}</TH></Tooltip>
+                      <Tooltip label={$t("workspace.observe-page.thisPhaseSOwnShareFrom")}><TH>{$t("workspace.observe-page.took")}</TH></Tooltip>
+                      <Tooltip label={$t("workspace.observe-page.whenItBeganCountedFromThe")}><TH>{$t("workspace.observe-page.started")}</TH></Tooltip>
+                      <Tooltip label={$t("workspace.observe-page.countedFromTheMomentTheStep")}><TH>{$t("workspace.observe-page.doneBy")}</TH></Tooltip>
                     </tr>
                   </THead>
                   <TBody>
@@ -368,16 +369,16 @@ export default async function ObservePage({
                         <TD>
                           <span className="font-mono text-xs text-fg">{p.phase}</span>
                           {p.parallel > 0 && (
-                            <Tooltip label="booted alongside the step pod, not before it">
+                            <Tooltip label={$t("workspace.observe-page.bootedAlongsideTheStepPodNot")}>
                               <span className="ml-2 text-xs text-fg-muted">
-                                in parallel{p.parallel < p.took.n ? ` on ${p.parallel} of ${p.took.n}` : ""}
+                                {$t("workspace.observe-page.inParallel2", { part: p.parallel < p.took.n ? $t("workspace.observe-page.onOf", { parallel: String(p.parallel), n: String(p.took.n) }) : "" })}
                               </span>
                             </Tooltip>
                           )}
                           {(p.waited.max ?? 0) > 0 && (
-                            <Tooltip label="how long it was held for the services pods, before its own share" side="bottom">
+                            <Tooltip label={$t("workspace.observe-page.howLongItWasHeldFor")} side="bottom">
                               <span className="ml-2 text-xs text-fg-muted">
-                                held for services <Spread s={p.waited} unit={fine} />
+                                {$rich("workspace.observe-page.heldForServices", { spread: $el(<Spread s={p.waited} unit={fine} />) })}
                               </span>
                             </Tooltip>
                           )}
@@ -399,15 +400,15 @@ export default async function ObservePage({
             )}
 
             {/* Flows: the shape of whole runs. */}
-            <Panel title="Flows" flush>
+            <Panel title={$t("workspace.observe-page.flows")} flush>
               <Table className="min-w-[480px]">
                 <THead>
                   <tr>
-                    <TH>Flow</TH>
-                    <TH className="text-right">Runs</TH>
-                    <TH className="text-right">Failed</TH>
-                    <TH>Duration</TH>
-                    <TH className="text-right">Credits</TH>
+                    <TH>{$t("workspace.observe-page.flow")}</TH>
+                    <TH className="text-right">{$t("workspace.observe-page.runs")}</TH>
+                    <TH className="text-right">{$t("workspace.observe-page.failed")}</TH>
+                    <TH>{$t("workspace.observe-page.duration")}</TH>
+                    <TH className="text-right">{$t("workspace.observe-page.credits")}</TH>
                   </tr>
                 </THead>
                 <TBody>
@@ -430,15 +431,15 @@ export default async function ObservePage({
                 run trace — this list is the "what just broke", the trace is
                 the archive. */}
             {o.failures.length > 0 && (
-              <Panel title="Recent failures" flush>
+              <Panel title={$t("workspace.observe-page.recentFailures")} flush>
                 <PanelList>
                   {o.failures.slice(0, 12).map((f, i) => (
                     <li key={`${f.runId}-${i}`} className="px-5 py-3">
                       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                         <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
                           <span className="font-medium text-fg">{f.agent}</span>
-                          <span className="text-fg-muted">in {f.flow}</span>
-                          {f.attempts > 1 && <Chip tone="warn">{f.attempts} attempts</Chip>}
+                          <span className="text-fg-muted">{$t("workspace.observe-page.in", { flow: f.flow })}</span>
+                          {f.attempts > 1 && <Chip tone="warn">{$t("workspace.observe-page.attempts", { attempts: String(f.attempts) })}</Chip>}
                         </span>
                         <Link href={runHref(f.runId)} className="shrink-0 text-[13px] tabular-nums text-fg-muted hover:text-fg hover:underline">
                           {f.at.slice(0, 16).replace("T", " ")}

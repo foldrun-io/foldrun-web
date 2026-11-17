@@ -10,7 +10,7 @@
 // which is exactly what the PATCH endpoint takes. The server renumbers the
 // markdown and touches nothing else, so a rearrangement is a small git diff.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input, inputBase } from "@foldrun/ui/react/input";
@@ -117,7 +117,7 @@ export function FlowBoard({
       router.refresh();
     } catch (err) {
       setGroups(previous); // the file is the truth; put the board back
-      setStatus(err instanceof Error ? `not saved — ${err.message}` : "not saved");
+      setStatus(err instanceof Error ? $t("workspace.flows-flow-board.notSaved", { message: String(err.message) }) : $t("workspace.flows-flow-board.notSaved2"));
     }
   };
 
@@ -134,9 +134,9 @@ export function FlowBoard({
   const runFrom = async (stepNo: number) => {
     if (
       !(await confirm({
-        title: `Run ${name} from step ${stepNo}?`,
-        body: `Steps before ${stepNo} will be skipped — this run leans on whatever they last left in storage/.`,
-        confirmLabel: "Run",
+        title: $t("workspace.flows-flow-board.runFromStep", { name: String(name), stepNo: String(stepNo) }),
+        body: $t("workspace.flows-flow-board.stepsBeforeWillBeSkippedThis", { stepNo: String(stepNo) }),
+        confirmLabel: $t("workspace.flows-flow-board.run"),
       }))
     )
       return;
@@ -153,7 +153,7 @@ export function FlowBoard({
         `/dashboard/${workspace}/runs/${data.runId}${tenant !== "default" ? `?tenant=${tenant}` : ""}`,
       );
     } catch (err) {
-      setStatus(err instanceof Error ? `not started — ${err.message}` : "not started");
+      setStatus(err instanceof Error ? $t("workspace.flows-flow-board.notStarted", { message: String(err.message) }) : $t("workspace.flows-flow-board.notStarted2"));
     }
   };
 
@@ -171,7 +171,7 @@ export function FlowBoard({
       setTimeout(() => setStatus(null), 1500);
       router.refresh();
     } catch (err) {
-      setStatus(err instanceof Error ? `not saved — ${err.message}` : "not saved");
+      setStatus(err instanceof Error ? $t("workspace.flows-flow-board.notSaved", { message: String(err.message) }) : $t("workspace.flows-flow-board.notSaved2"));
     }
   };
 
@@ -184,7 +184,7 @@ export function FlowBoard({
       setTimeout(() => setStatus(null), 1500);
       router.refresh();
     } catch (err) {
-      setStatus(err instanceof Error ? `not saved — ${err.message}` : "not saved");
+      setStatus(err instanceof Error ? $t("workspace.flows-flow-board.notSaved", { message: String(err.message) }) : $t("workspace.flows-flow-board.notSaved2"));
     }
   };
 
@@ -200,10 +200,10 @@ export function FlowBoard({
     // outcome, not the mechanic.
     const label =
       at === 0
-        ? "runs first, before everything else"
+        ? $t("workspace.flows-flow-board.runsFirstBeforeEverythingElse")
         : at >= groups.length
-          ? "runs last, after everything else"
-          : `runs between step ${at} and step ${at + 1}`;
+          ? $t("workspace.flows-flow-board.runsLastAfterEverythingElse")
+          : $t("workspace.flows-flow-board.runsBetweenStepAndStep", { at: String(at), v1: String(at + 1) });
     return (
       <div
         onDragOver={(e) => {
@@ -234,7 +234,7 @@ export function FlowBoard({
       >
         {armed && (
           <span className="text-xs font-medium">
-            {active ? `release — ${label}` : label}
+            {active ? $t("workspace.flows-flow-board.release", { label: String(label) }) : label}
           </span>
         )}
       </div>
@@ -256,15 +256,15 @@ export function FlowBoard({
           className={buttonVariants({ variant: "secondary", size: "xs" })}
         >
           <FileCode2 aria-hidden />
-          {editing ? "Close" : "Edit"} <span className="font-mono">flows/{file}</span>
+          {editing ? $t("workspace.flows-flow-board.close") : $t("workspace.flows-flow-board.edit")} <span className="font-mono">{$t("workspace.flows-flow-board.flows", { file: file })}</span>
         </button>
         {dragging !== null && (
           <span className="text-fg-muted">
-            Drop on a step to run them in parallel, or on a line to make it its own step.
+            {$t("workspace.flows-flow-board.dropOnAStepToRun")}
           </span>
         )}
         {status && (
-          <Chip tone={status.startsWith("not saved") ? "bad" : status === "saved" ? "good" : "default"}>
+          <Chip tone={status.startsWith($t("workspace.flows-flow-board.notSaved2")) ? "bad" : status === "saved" ? "good" : "default"}>
             {status}
           </Chip>
         )}
@@ -300,7 +300,7 @@ export function FlowBoard({
                 {g > 0 && (
                   <span className="opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
                     <IconButton
-                      label={`Run from step ${g + 1} — earlier steps are skipped`}
+                      label={$t("workspace.flows-flow-board.runFromStepEarlierStepsAre", { v0: String(g + 1) })}
                       side="right"
                       onClick={() => void runFrom(steps[group[0]].group)}
                     >
@@ -312,7 +312,7 @@ export function FlowBoard({
               <div className="min-w-0 flex-1 space-y-1.5">
                 {group.length > 1 && (
                   <p className="text-xs font-medium text-fg-muted">
-                    {group.length} in parallel
+                    {$t("workspace.flows-flow-board.inParallel", { length: String(group.length) })}
                   </p>
                 )}
                 {group.map((index) => {
@@ -338,12 +338,12 @@ export function FlowBoard({
                       <div className="flex flex-wrap items-center gap-1.5">
                         <GripVertical className="size-4 shrink-0 text-fg-subtle" aria-hidden />
                         {s.subflow ? (
-                          <span className="text-sm font-medium text-fg">flow: {s.subflow}</span>
+                          <span className="text-sm font-medium text-fg">{$t("workspace.flows-flow-board.flow", { subflow: s.subflow })}</span>
                         ) : (
                           <Tooltip
                             label={
                               agentFor === index
-                                ? "Close this agent's file"
+                                ? $t("workspace.flows-flow-board.closeThisAgentSFile")
                                 : `Edit agents/${s.agent}/agent.md`
                             }
                           >
@@ -356,35 +356,35 @@ export function FlowBoard({
                             </button>
                           </Tooltip>
                         )}
-                        {missing && <Chip tone="bad">not found</Chip>}
-                        {s.optional && <Tag>optional</Tag>}
-                        {s.approve && <Chip tone="warn">needs approval</Chip>}
-                        {s.when && <Tag className="max-w-full"><Tooltip label={s.when}><span className="truncate">when: {s.when}</span></Tooltip></Tag>}
-                        {s.case && <Tag>case: {s.case}</Tag>}
-                        {s.else && <Tag>else</Tag>}
-                        {s.retry != null && <Tag>retry ×{s.retry}</Tag>}
+                        {missing && <Chip tone="bad">{$t("workspace.flows-flow-board.notFound")}</Chip>}
+                        {s.optional && <Tag>{$t("workspace.flows-flow-board.optional")}</Tag>}
+                        {s.approve && <Chip tone="warn">{$t("workspace.flows-flow-board.needsApproval")}</Chip>}
+                        {s.when && <Tag className="max-w-full"><Tooltip label={s.when}><span className="truncate">{$t("workspace.flows-flow-board.when", { when: s.when })}</span></Tooltip></Tag>}
+                        {s.case && <Tag>{$t("workspace.flows-flow-board.case", { case: s.case })}</Tag>}
+                        {s.else && <Tag>{$t("workspace.flows-flow-board.else")}</Tag>}
+                        {s.retry != null && <Tag>{$t("workspace.flows-flow-board.retry", { retry: String(s.retry) })}</Tag>}
                         {s.timeout != null && <Tag>{s.timeout}s</Tag>}
-                        {s.waitSecs != null && <Tag>wait {s.waitSecs >= 86400 ? `${Math.round(s.waitSecs / 86400)}d` : s.waitSecs >= 3600 ? `${Math.round(s.waitSecs / 3600)}h` : `${s.waitSecs}s`}</Tag>}
-                        {s.onFail && <Tag>on-fail → {s.onFail}</Tag>}
-                        {s.ask && <Chip tone="warn"><Tooltip label={s.ask}><span>asks a human</span></Tooltip></Chip>}
-                        {s.delegate && s.delegate.length > 0 && <Tag>delegates: {s.delegate.join(", ")}</Tag>}
+                        {s.waitSecs != null && <Tag>{$t("workspace.flows-flow-board.wait")}{" "}{s.waitSecs >= 86400 ? `${Math.round(s.waitSecs / 86400)}d` : s.waitSecs >= 3600 ? `${Math.round(s.waitSecs / 3600)}h` : `${s.waitSecs}s`}</Tag>}
+                        {s.onFail && <Tag>{$t("workspace.flows-flow-board.onFail", { onFail: s.onFail })}</Tag>}
+                        {s.ask && <Chip tone="warn"><Tooltip label={s.ask}><span>{$t("workspace.flows-flow-board.asksAHuman")}</span></Tooltip></Chip>}
+                        {s.delegate && s.delegate.length > 0 && <Tag>{$t("workspace.flows-flow-board.delegates", { join: s.delegate.join(", ") })}</Tag>}
                         {s.model && <Tag mono>{s.model}</Tag>}
-                        {s.verify && <Tag className="max-w-full"><Tooltip label={s.verify}><span className="truncate">verify: {s.verify}</span></Tooltip></Tag>}
-                        {s.loop != null && s.until && <Tag className="max-w-full"><Tooltip label={s.until}><span className="truncate">loop ×{s.loop} until “{s.until}”</span></Tooltip></Tag>}
-                        {s.each && <Tag>fan-out {s.each}{s.max != null ? ` ×${s.max}` : ""}</Tag>}
+                        {s.verify && <Tag className="max-w-full"><Tooltip label={s.verify}><span className="truncate">{$t("workspace.flows-flow-board.verify", { verify: s.verify })}</span></Tooltip></Tag>}
+                        {s.loop != null && s.until && <Tag className="max-w-full"><Tooltip label={s.until}><span className="truncate">{$t("workspace.flows-flow-board.loopUntil", { loop: String(s.loop), until: s.until })}</span></Tooltip></Tag>}
+                        {s.each && <Tag>{$t("workspace.flows-flow-board.fanOut", { each: s.each })}{s.max != null ? ` ×${s.max}` : ""}</Tag>}
 
                         {/* Drag is not reachable by keyboard, so the same two
                             moves are available as buttons. */}
                         <span className="ml-auto flex shrink-0 items-center gap-1">
                           <IconButton
-                            label="Move up"
+                            label={$t("workspace.flows-flow-board.moveUp")}
                             disabled={g === 0 && group.length === 1}
                             onClick={() => apply(splitToRail(groups, index, g))}
                           >
                             <ArrowUp className="size-3.5" />
                           </IconButton>
                           <IconButton
-                            label="Move down"
+                            label={$t("workspace.flows-flow-board.moveDown")}
                             disabled={g === groups.length - 1 && group.length === 1}
                             onClick={() => apply(splitToRail(groups, index, g + 2))}
                           >
@@ -392,26 +392,26 @@ export function FlowBoard({
                           </IconButton>
                           {g > 0 && (
                             <IconButton
-                              label="Run in parallel with the step above"
+                              label={$t("workspace.flows-flow-board.runInParallelWithTheStep")}
                               onClick={() => apply(joinGroup(groups, index, groups[g - 1][0]))}
                             >
                               <ChevronsUp className="size-3.5" />
                             </IconButton>
                           )}
                           <IconButton
-                            label="Step options — model, retries, loops, fan-out"
+                            label={$t("workspace.flows-flow-board.stepOptionsModelRetriesLoopsFan")}
                             onClick={() => setOptionsFor(optionsFor === index ? null : index)}
                           >
                             <Settings2 className="size-3.5" />
                           </IconButton>
                           <IconButton
-                            label="Remove this step"
+                            label={$t("workspace.flows-flow-board.removeThisStep")}
                             tone="danger"
                             onClick={async () => {
                               if (
                                 await confirm({
-                                  title: `Remove ${s.subflow ?? s.agent} from this flow?`,
-                                  confirmLabel: "Remove",
+                                  title: $t("workspace.flows-flow-board.removeFromThisFlow", { v0: String(s.subflow ?? s.agent) }),
+                                  confirmLabel: $t("workspace.flows-flow-board.remove"),
                                 })
                               ) {
                                 void mutate({ op: "remove", step: index });
@@ -432,14 +432,14 @@ export function FlowBoard({
                           onSave={(text) => void saveInstruction(index, text)}
                         />
                       ) : (
-                        <Tooltip label="Edit what this step tells the agent to do — this flow only">
+                        <Tooltip label={$t("workspace.flows-flow-board.editWhatThisStepTellsThe")}>
                           <button
                             type="button"
                             onClick={() => setInstructionFor(index)}
                             className="mt-1 block w-full rounded-md px-5 py-1 text-left text-[13px] leading-relaxed text-fg-muted hover:bg-sunken hover:text-fg"
                           >
                             {s.instruction || (
-                              <span className="text-fg-subtle">no instruction — click to write one</span>
+                              <span className="text-fg-subtle">{$t("workspace.flows-flow-board.noInstructionClickToWriteOne")}</span>
                             )}
                           </button>
                         </Tooltip>
@@ -451,17 +451,15 @@ export function FlowBoard({
                               opens inside a flow card implies otherwise unless
                               it says so. */}
                           <p className="pt-2 text-xs text-fg-muted">
-                            <span className="font-mono text-fg-subtle">agents/{s.agent}/agent.md</span>
+                            <span className="font-mono text-fg-subtle">{$t("workspace.flows-flow-board.agentsAgentMd", { agent: s.agent })}</span>
                             {(() => {
                               const others = (usedBy[s.agent] ?? []).filter((f) => f !== name);
                               return others.length ? (
                                 <>
-                                  {" — also used by "}
-                                  <span className="font-medium text-fg-tertiary">{others.join(", ")}</span>
-                                  . Changes here reach {others.length === 1 ? "that flow" : "those flows"} too.
+                                  {" "}{$rich("workspace.flows-flow-board.alsoUsedByChangesHereReach", { join: others.join(", "), span: (chunks) => <span className="font-medium text-fg-tertiary">{chunks}</span>, length: others.length })}
                                 </>
                               ) : (
-                                <> {$t("workspace.flows-flow-board.thisWorkspace")}{"'"}s agent; it can also be run on its own.</>
+                                <> {$t("workspace.flows-flow-board.thisTermSAgentItCan")}</>
                               );
                             })()}
                           </p>
@@ -564,12 +562,12 @@ export function InstructionEditor({
       />
       <div className="mt-1 flex items-center gap-2">
         <button type="button" onClick={() => onSave(text)} className={buttonVariants({ variant: "primary", size: "xs" })}>
-          Save
+          {$t("workspace.flows-flow-board.save")}
         </button>
         <button type="button" onClick={onCancel} className={buttonVariants({ variant: "ghost", size: "xs" })}>
-          Cancel
+          {$t("workspace.flows-flow-board.cancel")}
         </button>
-        <span className="text-xs text-fg-subtle">this flow only — the agent{"'"}s own file is unchanged</span>
+        <span className="text-xs text-fg-subtle">{$t("workspace.flows-flow-board.thisFlowOnlyTheAgentS")}</span>
       </div>
     </div>
   );
@@ -597,7 +595,7 @@ function AddStep({
         className={cn(buttonVariants({ variant: "dashed", size: "lg" }), "mt-3")}
       >
         <Plus className="size-4" aria-hidden />
-        Add step
+        {$t("workspace.flows-flow-board.addStep")}
       </button>
     );
   }
@@ -620,17 +618,17 @@ function AddStep({
         value={target}
         onChange={(e) => setTarget(e.target.value)}
       >
-        <option value="">Choose an agent…</option>
+        <option value="">{$t("workspace.flows-flow-board.chooseAnAgent")}</option>
         {knownAgents.map((a) => (
           <option key={a} value={a}>
             {a}
           </option>
         ))}
         {knownFlows.length > 0 && (
-          <optgroup label="Flows">
+          <optgroup label={$t("workspace.flows-flow-board.flows2")}>
             {knownFlows.map((f) => (
               <option key={f} value={`flow:${f}`}>
-                flow: {f}
+                {$t("workspace.flows-flow-board.flow2", { f: f })}
               </option>
             ))}
           </optgroup>
@@ -639,14 +637,14 @@ function AddStep({
       <Input
         value={instruction}
         onChange={(e) => setInstruction(e.target.value)}
-        placeholder="what this step should do (optional)"
+        placeholder={$t("workspace.flows-flow-board.whatThisStepShouldDoOptional")}
         className="min-w-0 flex-1"
       />
       <button className={buttonVariants({ variant: "primary", size: "md" })} disabled={!target}>
-        Add
+        {$t("workspace.flows-flow-board.add")}
       </button>
       <button type="button" onClick={() => setOpen(false)} className={buttonVariants({ variant: "ghost", size: "md" })}>
-        Cancel
+        {$t("workspace.flows-flow-board.cancel")}
       </button>
     </form>
   );

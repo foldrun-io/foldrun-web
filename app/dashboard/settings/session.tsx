@@ -3,6 +3,7 @@
 // The sign-out button. A form-less POST and a hard refresh — the proxy does
 // the rest by bouncing the next dashboard request to /login.
 
+import { $t } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { buttonVariants } from "@foldrun/ui/react/button";
 
@@ -17,7 +18,7 @@ export function SignOutButton() {
       }}
       className={buttonVariants({ variant: "secondary" })}
     >
-      Sign out
+      {$t("settings.session.signOut")}
     </button>
   );
 }

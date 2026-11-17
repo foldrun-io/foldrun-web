@@ -4,6 +4,7 @@
 // default; the choice is remembered per viewer (this browser), and a phone
 // width starts on the list, where a left-to-right canvas has no room.
 
+import { $t } from "@/i18n";
 import { useSyncExternalStore, type ReactNode } from "react";
 import { ListOrdered, Network } from "lucide-react";
 import { Segmented } from "@foldrun/ui/react/segmented";
@@ -23,7 +24,7 @@ function read(): View {
     // storage unavailable — fall through to memory and the width rule
   }
   if (memory) return memory;
-  return window.matchMedia("(max-width: 639px)").matches ? "list" : "canvas";
+  return window.matchMedia($t("workspace.flows-flow-view.maxWidth639px")).matches ? "list" : "canvas";
 }
 
 function subscribe(cb: () => void) {
@@ -54,12 +55,12 @@ export function FlowView({ canvas, list, toolbar }: { canvas: ReactNode; list: R
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Segmented
           role="tablist"
-          label="How to show this flow"
+          label={$t("workspace.flows-flow-view.howToShowThisFlow")}
           value={view ?? ""}
           onChange={(v) => choose(v as View)}
           items={[
-            { key: "canvas", label: "Canvas", icon: <Network aria-hidden /> },
-            { key: "list", label: "List", icon: <ListOrdered aria-hidden /> },
+            { key: "canvas", label: $t("workspace.flows-flow-view.canvas"), icon: <Network aria-hidden /> },
+            { key: "list", label: $t("workspace.flows-flow-view.list"), icon: <ListOrdered aria-hidden /> },
           ]}
         />
         {toolbar && <div className="ml-auto flex flex-wrap items-center gap-2">{toolbar}</div>}

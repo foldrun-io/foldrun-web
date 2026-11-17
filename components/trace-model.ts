@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 // A step's trace, sorted into what a person reads it for. The runner writes
 // one stream — the agent's words, tool calls, verify results, errors, and a
 // lot of plumbing (egress, timings, images) — and a single grey box made the
@@ -78,11 +79,11 @@ export function counts(lines: TraceLine[]): Record<TraceKind | "all", number> {
 /** What a viewer reads in place of a recorded call's input/output: the calls
  *  route needs workspace:write (they can hold what a tool read — customer data,
  *  fragments a mask missed). Courtesy only; the server is what refuses. */
-export const CALL_CONTENT_NEEDS = "Call content is for editors and above";
+export const CALL_CONTENT_NEEDS = $t("components.trace-model.callContentIsForEditorsAnd");
 
 /** The line shown when reading a recorded call fails. */
 export function callContentError(status: number, serverMessage: string | undefined): string {
   if (status === 403) return CALL_CONTENT_NEEDS;
-  if (status === 502) return "captured call unavailable";
+  if (status === 502) return $t("components.trace-model.capturedCallUnavailable");
   return serverMessage ?? `${status}`;
 }

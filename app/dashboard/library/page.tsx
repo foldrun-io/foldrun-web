@@ -1,4 +1,4 @@
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
 import path from "node:path";
@@ -48,11 +48,11 @@ function UsedByLine({ uses, kind }: { uses: LibraryUse[]; kind: LibraryKind }) {
   const shadowed = uses.filter((u) => u.relation === "shadowed");
   // Only tools have an opt-in, so only tools can be unused. For every other
   // kind, in-scope means available — saying "used by nobody" would be false.
-  const head = used.length ? used.map(where).join(", ") : kind === "tools" ? <span className="text-fg-subtle">No agent yet</span> : $t("library.page.everyWorkspace");
+  const head = used.length ? used.map(where).join(", ") : kind === "tools" ? <span className="text-fg-subtle">{$t("library.page.noAgentYet")}</span> : $t("library.page.everyWorkspace");
   return (
     <span className="inline-flex items-center gap-2">
       <span className="truncate">{head}</span>
-      {shadowed.length > 0 && <Chip tone="warn">overridden in {shadowed.length}</Chip>}
+      {shadowed.length > 0 && <Chip tone="warn">{$t("library.page.overriddenIn", { length: String(shadowed.length) })}</Chip>}
     </span>
   );
 }
@@ -66,11 +66,11 @@ function UsedByPanel({ uses, kind, tenant }: { uses: LibraryUse[]; kind: Library
   return (
     <div className="space-y-6 text-sm">
       <section className="space-y-2">
-        <h3 className="font-medium text-fg">{kind === "tools" ? "Granted to" : "Available to"}</h3>
+        <h3 className="font-medium text-fg">{kind === "tools" ? $t("library.page.grantedTo") : $t("library.page.availableTo")}</h3>
         {kind !== "tools" ? (
           <p className="text-fg-muted">{$t("library.page.everyAgentInEveryWorkspaceOf")}</p>
         ) : used.length === 0 ? (
-          <p className="text-fg-muted">No agent has granted it with <span className="font-mono">tools:</span> yet.</p>
+          <p className="text-fg-muted">{$rich("library.page.noAgentHasGrantedItWith", { span: (chunks) => <span className="font-mono">{chunks}</span> })}</p>
         ) : (
           <ul className="divide-y divide-line rounded-lg border border-line">
             {used.map((u) => (
@@ -83,18 +83,18 @@ function UsedByPanel({ uses, kind, tenant }: { uses: LibraryUse[]; kind: Library
             ))}
           </ul>
         )}
-        {kind === "tools" && <p className="text-xs text-fg-muted">Rotate a credential it uses and exactly these agents are affected.</p>}
+        {kind === "tools" && <p className="text-xs text-fg-muted">{$t("library.page.rotateACredentialItUsesAnd")}</p>}
       </section>
       {shadowed.length > 0 && (
         <section className="space-y-2">
-          <h3 className="font-medium text-fg">Overridden in</h3>
-          <p className="text-fg-muted">A nearer file of the same name runs there instead of this one.</p>
+          <h3 className="font-medium text-fg">{$t("library.page.overriddenIn2")}</h3>
+          <p className="text-fg-muted">{$t("library.page.aNearerFileOfTheSame")}</p>
           <ul className="divide-y divide-line rounded-lg border border-warning-line">
             {shadowed.map((u) => (
               <li key={`s-${where(u)}`}>
                 <Link href={href(u)} className="flex items-center justify-between gap-3 px-3 py-2.5 hover:bg-sunken">
                   <span className="truncate font-medium text-fg">{where(u)}</span>
-                  <Chip tone="warn">overridden</Chip>
+                  <Chip tone="warn">{$t("library.page.overridden")}</Chip>
                 </Link>
               </li>
             ))}
@@ -111,11 +111,11 @@ function UsedByPanel({ uses, kind, tenant }: { uses: LibraryUse[]; kind: Library
 // letting people discover it by granting a script that never runs.
 const BLURB: Record<LibraryKind, string> = {
   skills: $t("library.page.capabilitiesInTheOpenAgentSkills"),
-  scripts: "Code that script tools run, mounted as library/<file>. A file here is not a capability until a tool points at it.",
+  scripts: $t("library.page.codeThatScriptToolsRunMounted"),
   memory: $t("library.page.whatAgentsHaveLearnedSharedAcross"),
-  knowledge: "Reference material you give agents — specs, price lists, brand guidelines. Read, never rewritten.",
-  tools: "What an agent can do — an API, a script, or an MCP server. One definition, granted by name with `tools: [name]`.",
-  hooks: "Your own code at every tool call, step start or step end, on every model — one folder each, hook.md beside run.mjs. Turned on by name with `hooks: [name]`, or for every agent from an AGENTS.md.",
+  knowledge: $t("library.page.referenceMaterialYouGiveAgentsSpecs"),
+  tools: $t("library.page.whatAnAgentCanDoAn"),
+  hooks: $t("library.page.yourOwnCodeAtEveryTool"),
 };
 
 const KIND_ICON = { tools: Wrench, hooks: Webhook, skills: Sparkles, memory: Brain, knowledge: BookOpen, scripts: FileCode } as const;
@@ -180,7 +180,7 @@ export default async function LibraryPage({
       href: `/dashboard/library?kind=${kind}${tenantParam}&open=${encodeURIComponent(assetOpenId({ path: e.path, account: true }))}`,
       icon: <Icon />,
       name: e.name,
-      sub: e.description || "No description",
+      sub: e.description || $t("library.page.noDescription"),
       cells: {
         // Which of the three transports this is. A page of tool names whose
         // kinds are invisible is what makes "tool" and "script" read as
@@ -188,9 +188,9 @@ export default async function LibraryPage({
         type: (
           <span className="inline-flex items-center gap-1.5">
             {e.transport && <Tag>{e.transport === "http" ? "API" : e.transport}</Tag>}
-            {e.hasScripts && <Tag>bundles scripts</Tag>}
-            {e.runs && <Tag mono>runs {e.runs}</Tag>}
-            {d && (d.status === "current" ? <Tag>gallery</Tag> : <Chip tone="warn">gallery · differs</Chip>)}
+            {e.hasScripts && <Tag>{$t("library.page.bundlesScripts")}</Tag>}
+            {e.runs && <Tag mono>{$t("library.page.runs", { runs: e.runs })}</Tag>}
+            {d && (d.status === "current" ? <Tag>{$t("library.page.gallery")}</Tag> : <Chip tone="warn">{$t("library.page.galleryDiffers")}</Chip>)}
           </span>
         ),
         used: <UsedByLine uses={usage.get(e.name) ?? []} kind={kind} />,
@@ -202,7 +202,7 @@ export default async function LibraryPage({
   return (
     <Page>
       <PageHeader
-        title="Library"
+        title={$t("library.page.library")}
         description={BLURB[kind]}
         actions={
           <CreateButton
@@ -222,18 +222,18 @@ export default async function LibraryPage({
       <AssetBrowser items={items} workspace="" tenant={tenant}>
         <ResourceList
           id={`library-${kind}`}
-          search={`Search shared ${kind}…`}
-          nameHeader={kind === "memory" || kind === "knowledge" ? "Document" : kind[0].toUpperCase() + kind.slice(1, -1)}
+          search={$t("library.page.searchShared", { kind: String(kind) })}
+          nameHeader={kind === "memory" || kind === "knowledge" ? $t("library.page.document") : kind[0].toUpperCase() + kind.slice(1, -1)}
           columns={[
-            { key: "type", header: "Type", hide: "sm" },
-            { key: "used", header: kind === "tools" ? "Used by" : "Reaches", hide: "md" },
+            { key: "type", header: $t("library.page.type"), hide: "sm" },
+            { key: "used", header: kind === "tools" ? $t("library.page.usedBy") : $t("library.page.reaches"), hide: "md" },
           ]}
           rows={rows}
-          empty={<EmptyState icon={<Icon />} title={`No shared ${kind} yet`} description={BLURB[kind]} />}
+          empty={<EmptyState icon={<Icon />} title={$t("library.page.noSharedYet", { kind: String(kind) })} description={BLURB[kind]} />}
         />
       </AssetBrowser>
 
-      <Panel title="How agents reach these" className="mt-10" bodyClassName="p-0">
+      <Panel title={$t("library.page.howAgentsReachThese")} className="mt-10" bodyClassName="p-0">
         <pre className="overflow-x-auto bg-sunken p-4 font-mono text-xs leading-relaxed text-fg-secondary">
 {`# in an agent's agent.md
 tools: [google-ads]      # a library tool becomes a callable tool

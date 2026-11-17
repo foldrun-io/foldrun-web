@@ -2,7 +2,7 @@
 // where you are signed in, what mail you get — and the team you share the account with. On the
 // settings shell like every other settings page.
 
-import { $t } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import { cookies } from "next/headers";
 import Link from "@foldrun/ui/react/link";
 import { notFound } from "next/navigation";
@@ -41,17 +41,13 @@ export default async function ProfilePage({
 
   if (!session) {
     return (
-      <SettingsShell title="Profile" subtitle="Who you are on this install.">
+      <SettingsShell title={$t("profile.page.profile")} subtitle={$t("profile.page.whoYouAreOnThisInstall")}>
         <EmptyState
           icon={<UserRound />}
-          title="No one is signed in"
+          title={$t("profile.page.noOneIsSignedIn")}
           description={
             <>
-              This install is running with authentication off (<code className="font-mono text-xs">FOLDRUN_DEV_NO_AUTH=1</code>), so there is no profile to show. Account keys and secrets are on{" "}
-              <Link href={`/dashboard/settings${qs}`} className="font-medium text-link hover:underline">
-                Settings
-              </Link>
-              .
+              {$rich("profile.page.thisInstallIsRunningWithAuthentication", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code>, link: (chunks) => <Link href={`/dashboard/settings${qs}`} className="font-medium text-link hover:underline">{chunks}</Link> })}
             </>
           }
         />
@@ -76,20 +72,20 @@ export default async function ProfilePage({
 
   return (
     <SettingsShell
-      title="Profile"
-      subtitle="You, on this install — and who shares the account."
+      title={$t("profile.page.profile")}
+      subtitle={$t("profile.page.youOnThisInstallAndWho")}
       actions={<SignOutButton />}
       tabs={[
-        { label: "General", href: href("general"), active: tab === "general" },
-        { label: "Security", href: href("security"), active: tab === "security" },
-        { label: "Notifications", href: href("notifications"), active: tab === "notifications" },
-        { label: "Team", href: href("team"), active: tab === "team", badge: members.length },
+        { label: $t("profile.page.general"), href: href("general"), active: tab === "general" },
+        { label: $t("profile.page.security"), href: href("security"), active: tab === "security" },
+        { label: $t("profile.page.notifications"), href: href("notifications"), active: tab === "notifications" },
+        { label: $t("profile.page.team"), href: href("team"), active: tab === "team", badge: members.length },
       ]}
     >
       <HashTab sections={SECTIONS} current={tab} base={`${base}${qs}`} defaultTab="general" />
       {tab === "general" && (
         <>
-          <SettingsCard id="you" title="You" description="Your picture is shown wherever you are named: the top bar, the team, a run you approved.">
+          <SettingsCard id="you" title={$t("profile.page.you")} description={$t("profile.page.yourPictureIsShownWhereverYou")}>
             <div className="flex flex-wrap items-center gap-6">
               <AvatarEditor kind="user" id={session.id} name={session.email} src={avatarUrl(session.tenant, "user", session.id)} tenant={session.tenant} />
               <div className="min-w-0">
@@ -97,22 +93,21 @@ export default async function ProfilePage({
                   <Email value={session.email} />
                 </p>
                 <p className="mt-0.5 text-sm text-fg-muted">
-                  {me?.owner ? "Owner" : (me?.role ?? "member")} of <span className="font-mono text-fg-secondary">{session.tenant}</span> · {me?.owner ? $t("profile.page.allWorkspace") : describeScope(me?.workspaces ?? null)} · joined{" "}
-                  <LocalTime iso={session.createdAt} />
+                  {me?.owner ? $t("profile.page.owner") : (me?.role ?? "member")}{" "}{$rich("profile.page.ofJoined", { tenant: session.tenant, span: (chunks) => <span className="font-mono text-fg-secondary">{chunks}</span>, part: me?.owner ? $t("profile.page.allWorkspace") : describeScope(me?.workspaces ?? null), localTime: $el(<LocalTime iso={session.createdAt} />) })}
                 </p>
               </div>
             </div>
           </SettingsCard>
-          <SettingsCard id="name" title="Name" description="How you are addressed in mail and shown to your team. Optional — without it you are shown by email.">
+          <SettingsCard id="name" title={$t("profile.page.name")} description={$t("profile.page.howYouAreAddressedInMail")}>
             <NameForm firstName={session.firstName ?? null} lastName={session.lastName ?? null} />
           </SettingsCard>
-          <SettingsCard id="email" title="Email" description="Your login. Changing it asks for your password, sends a confirmation to the new address, and tells the old one.">
+          <SettingsCard id="email" title={$t("profile.page.email")} description={$t("profile.page.yourLoginChangingItAsksFor")}>
             <EmailForm current={session.email} />
           </SettingsCard>
-          <SettingsCard id="timezone" title="Timezone" description="How you read timestamps — every run time, every date, everywhere. A schedule fires on its own timezone:, not yours.">
+          <SettingsCard id="timezone" title={$t("profile.page.timezone")} description={$t("profile.page.howYouReadTimestampsEveryRun")}>
             <TimezoneForm current={session.timezone ?? null} />
           </SettingsCard>
-          <SettingsCard id="appearance" title="Appearance" description="Light, dark, or the same as your computer. Yours alone, on every browser you sign in on.">
+          <SettingsCard id="appearance" title={$t("profile.page.appearance")} description={$t("profile.page.lightDarkOrTheSameAs")}>
             <AppearanceForm current={themePreference(session.prefs)} />
           </SettingsCard>
         </>
@@ -120,13 +115,13 @@ export default async function ProfilePage({
 
       {tab === "security" && (
         <>
-          <SettingsCard id="password" title="Password" description="Changing it does not end sessions on other devices; end those below.">
+          <SettingsCard id="password" title={$t("profile.page.password")} description={$t("profile.page.changingItDoesNotEndSessions")}>
             <PasswordForm />
           </SettingsCard>
-          <SettingsCard id="mfa" title="Two-factor authentication" description="A code from an authenticator app at every sign-in. The one thing that makes a leaked password not enough.">
+          <SettingsCard id="mfa" title={$t("profile.page.twoFactorAuthentication")} description={$t("profile.page.aCodeFromAnAuthenticatorApp")}>
             <MfaSection enabled={!!session.mfaEnabledAt} />
           </SettingsCard>
-          <SettingsCard id="sessions" title="Signed in on" description="Every device holding a session for you. End one and it is signed out at once.">
+          <SettingsCard id="sessions" title={$t("profile.page.signedInOn")} description={$t("profile.page.everyDeviceHoldingASessionFor")}>
             <SessionList />
           </SettingsCard>
         </>
@@ -135,7 +130,7 @@ export default async function ProfilePage({
       {tab === "notifications" && (
         <SettingsSection
           id="notifications"
-          title="Notifications"
+          title={$t("profile.page.notifications")}
           description={$t("profile.page.whatMailYouGetRunAlerts")}
         >
           <NotificationPreferences workspaces={workspaces} />
@@ -143,7 +138,7 @@ export default async function ProfilePage({
       )}
 
       {tab === "team" && (
-        <SettingsSection id="team" title="Team" description={$t("profile.page.whoSharesThisAccountWhatEach")}>
+        <SettingsSection id="team" title={$t("profile.page.team")} description={$t("profile.page.whoSharesThisAccountWhatEach")}>
           <TeamManager members={members} self={session.email} workspaces={workspaces} />
         </SettingsSection>
       )}

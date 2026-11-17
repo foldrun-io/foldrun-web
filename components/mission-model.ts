@@ -3,6 +3,7 @@
 // reduces every run to a RunLite on the server (where the store's helpers
 // live) and these functions shape them, so tests reach every rule.
 
+import { $t } from "@/i18n";
 import { platformCause, isActiveIssue, type Issue, type PlatformCause } from "@/lib/issues";
 import { isLive, needsAttention, tally, type Outcome, type Tally } from "@/components/outcome-model";
 
@@ -102,11 +103,11 @@ export function attention(runs: RunLite[], now: number): AttentionItem[] {
         workspace: r.workspace, what: r.what, run: r, count: 1, kind: "waiting",
         reason: r.question
           ? `${r.active?.agent ?? "the agent"} asks: ${r.question}`
-          : r.active ? `step ${r.active.index} · ${r.active.agent} is waiting for your approval` : "waiting for your approval",
+          : r.active ? $t("components.mission-model.stepIsWaitingForYourApproval", { index: String(r.active.index), agent: String(r.active.agent) }) : $t("components.mission-model.waitingForYourApproval"),
         ageMs,
       });
     } else if (r.outcome === "running" && now - Date.parse(r.startedAt) > STUCK_MS) {
-      out.push({ workspace: r.workspace, what: r.what, run: r, count: 1, kind: "stuck", reason: `running for ${Math.round((now - Date.parse(r.startedAt)) / 60_000)} min${r.active ? ` — on step ${r.active.index} · ${r.active.agent}` : ""}`, ageMs: now - Date.parse(r.startedAt) });
+      out.push({ workspace: r.workspace, what: r.what, run: r, count: 1, kind: "stuck", reason: $t("components.mission-model.runningForMin", { v0: String(Math.round((now - Date.parse(r.startedAt)) / 60_000)), v1: String(r.active ? $t("components.mission-model.onStep", { index: String(r.active.index), agent: String(r.active.agent) }) : "") }), ageMs: now - Date.parse(r.startedAt) });
     } else if (needsAttention(r.outcome) && now - Date.parse(r.startedAt) <= DAY_MS) {
       const cause = r.outcome === "failed" ? platformCause(r.failure?.reason) : null;
       if (cause) {
@@ -128,7 +129,7 @@ export function attention(runs: RunLite[], now: number): AttentionItem[] {
       run: newestRun,
       count: hit.length,
       kind: "platform",
-      reason: `Fix ${cause.fix}`,
+      reason: $t("components.mission-model.fix", { fix: String(cause.fix) }),
       ageMs: Math.max(0, now - Date.parse(newestRun.finishedAt ?? newestRun.startedAt)),
       desks,
     });

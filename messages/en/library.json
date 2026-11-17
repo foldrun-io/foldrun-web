@@ -1,16 +1,77 @@
 {
   "edit-page": {
+    "accountSecrets": "Account secrets",
+    "addASharedToolSkillKnowledge": "Add a shared tool, skill, knowledge or memory file from its shelf.",
+    "backToTheShelf": "Back to the shelf",
     "everyWorkspaceCanReadItNone": "Every {@workspace.one} can read it; none overrides it.",
-    "sharedWithEveryWorkspaceInThis": "Shared with every {@workspace.one} in this account. Agents reach these files at ../../../../library/."
+    "howAIsWritten": "How a {fileKind} is written",
+    "library": "Library",
+    "missingAtAccountScope": "missing at account scope",
+    "namesNone": "Names none.",
+    "noAgentGrantsYet": "No agent grants {name} yet.",
+    "nothingHereYet": "Nothing here yet",
+    "reference": "Reference",
+    "secrets": "Secrets",
+    "sharedWithEveryWorkspaceInThis": "Shared with every {@workspace.one} in this account. Agents reach these files at ../../../../library/.",
+    "usedBy": "Used by"
   },
   "files-page": {
+    "accountRoot": "account root",
     "createAWorkspaceOrAddA": "Create a {@workspace.one}, or add a shared tool or skill that every {@workspace.one} can use.",
-    "orInAWorkspace": "or in a {@workspace.one}."
+    "library": "Library",
+    "nothingHereYet": "Nothing here yet",
+    "openInItsEditor": "Open in its editor",
+    "openInTheShelfEditor": "Open in the shelf editor",
+    "readOnlyHere": "read-only here",
+    "theSharedShelf": "the shared shelf",
+    "theWholeAccountAsOneTree": "The whole account as one tree: {length} files as they sit on disk, minus the platform's own bookkeeping. Add or remove under <link>each shelf</link> or in a {@workspace.one}.",
+    "thisFileIsOnDiskAnd": "This file is on disk and listed here, but its contents are not served: {sealed}",
+    "thisTree": "This tree",
+    "where": "Where"
+  },
+  "gallery-drift": {
+    "galleryCurrent": "gallery · current",
+    "galleryDiffers": "gallery · differs",
+    "installedFromTheGalleryAndIdentical": "Installed from the gallery, and identical to the version the platform ships now",
+    "installedFromTheGalleryButNot": "Installed from the gallery, but not identical to the version the platform ships now — either the gallery moved on, or this copy was edited",
+    "replaceThisCopyWithTheGallery": "Replace this copy with the gallery's current version. The previous content stays one revision back.",
+    "updateToGalleryVersion": "update to gallery version"
+  },
+  "manage": {
+    "delete": "Delete",
+    "delete2": "Delete {name}",
+    "deleteFromTheLibrary": "Delete {name} from the library?"
   },
   "page": {
+    "aNearerFileOfTheSame": "A nearer file of the same name runs there instead of this one.",
+    "availableTo": "Available to",
+    "bundlesScripts": "bundles scripts",
     "capabilitiesInTheOpenAgentSkills": "Capabilities in the open Agent Skills format, available to every {@workspace.one} in this account.",
+    "codeThatScriptToolsRunMounted": "Code that script tools run, mounted as library/'<'file'>'. A file here is not a capability until a tool points at it.",
+    "document": "Document",
     "everyAgentInEveryWorkspaceOf": "Every agent in every {@workspace.one} of this account — the nearest file of the same name wins.",
     "everyWorkspace": "Every {@workspace.one}",
-    "whatAgentsHaveLearnedSharedAcross": "What agents have learned, shared across {@workspace.other}. One fact per file; the index is generated."
+    "gallery": "gallery",
+    "galleryDiffers": "gallery · differs",
+    "grantedTo": "Granted to",
+    "howAgentsReachThese": "How agents reach these",
+    "library": "Library",
+    "noAgentHasGrantedItWith": "No agent has granted it with <span>tools:</span> yet.",
+    "noAgentYet": "No agent yet",
+    "noDescription": "No description",
+    "noSharedYet": "No shared {kind} yet",
+    "overridden": "overridden",
+    "overriddenIn": "overridden in {length}",
+    "overriddenIn2": "Overridden in",
+    "reaches": "Reaches",
+    "referenceMaterialYouGiveAgentsSpecs": "Reference material you give agents — specs, price lists, brand guidelines. Read, never rewritten.",
+    "rotateACredentialItUsesAnd": "Rotate a credential it uses and exactly these agents are affected.",
+    "runs": "runs {runs}",
+    "searchShared": "Search shared {kind}…",
+    "type": "Type",
+    "usedBy": "Used by",
+    "whatAgentsHaveLearnedSharedAcross": "What agents have learned, shared across {@workspace.other}. One fact per file; the index is generated.",
+    "whatAnAgentCanDoAn": "What an agent can do — an API, a script, or an MCP server. One definition, granted by name with `tools: [name]`.",
+    "yourOwnCodeAtEveryTool": "Your own code at every tool call, step start or step end, on every model — one folder each, hook.md beside run.mjs. Turned on by name with `hooks: [name]`, or for every agent from an AGENTS.md."
   }
 }

@@ -6,6 +6,7 @@
 // answer is a table — passing, cost and time per setting, and per case where
 // the settings differ — plus the comparisons kept before.
 
+import { $t } from "@/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "@foldrun/ui/react/link";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -126,7 +127,7 @@ export function ComparePanel({
           continue;
         }
         if (view.state === "done" && view.result) setShown(view.result);
-        else throw new Error(view.error ?? `the comparison ended as ${view.state ?? "unknown"}`);
+        else throw new Error(view.error ?? $t("workspace.evals-compare-panel.theComparisonEndedAs", { v0: String(view.state ?? "unknown") }));
         break;
       }
       await loadPast();
@@ -169,38 +170,38 @@ export function ComparePanel({
   return (
     <div>
       <p className="mb-4 text-sm text-fg-muted">
-        Each setting runs every case{repeat > 1 ? `, ${repeat} times` : ""}, as test runs — nothing is sent. The judge stays this eval&apos;s own. It stops at the spend limit.
+        {$t("workspace.evals-compare-panel.eachSettingRunsEveryCaseAs", { part: repeat > 1 ? $t("workspace.evals-compare-panel.times", { repeat: String(repeat) }) : "" })}
       </p>
       {canStart && (<>
       <div className="space-y-2">
         {rows.map((r, i) => (
           <div key={i} className="flex flex-wrap items-end gap-2">
             <label>
-              <span className={labelClass}>Model</span>
+              <span className={labelClass}>{$t("workspace.evals-compare-panel.model")}</span>
               <Combobox options={TIERS} value={r.model} onChange={(e) => set(i, { model: e.target.value })} className="w-44 font-mono text-xs" />
             </label>
             <label>
-              <span className={labelClass}>Effort</span>
+              <span className={labelClass}>{$t("workspace.evals-compare-panel.effort")}</span>
               <Select value={r.effort} onChange={(e) => set(i, { effort: e.target.value })} >
                 {EFFORTS.map((e) => (
-                  <option key={e} value={e}>{e || "as written"}</option>
+                  <option key={e} value={e}>{e || $t("workspace.evals-compare-panel.asWritten")}</option>
                 ))}
               </Select>
             </label>
             {flowAgents && (
               <label>
-                <span className={labelClass}>Steps</span>
+                <span className={labelClass}>{$t("workspace.evals-compare-panel.steps")}</span>
                 <Select value={r.agent} onChange={(e) => set(i, { agent: e.target.value })} >
-                  <option value="">every step</option>
+                  <option value="">{$t("workspace.evals-compare-panel.everyStep")}</option>
                   {flowAgents.map((a) => (
-                    <option key={a} value={a}>{a} only</option>
+                    <option key={a} value={a}>{$t("workspace.evals-compare-panel.only", { a: a })}</option>
                   ))}
                 </Select>
               </label>
             )}
             {rows.length > 2 && (
-              <button onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} className={buttonVariants({ variant: "ghost", size: "md" })} aria-label="remove this setting">
-                Remove
+              <button onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} className={buttonVariants({ variant: "ghost", size: "md" })} aria-label={$t("workspace.evals-compare-panel.removeThisSetting")}>
+                {$t("workspace.evals-compare-panel.remove")}
               </button>
             )}
           </div>
@@ -209,28 +210,28 @@ export function ComparePanel({
       <div className="mt-3 flex flex-wrap items-end gap-3">
         {rows.length < MAX_CONFIGS && (
           <button onClick={() => setRows((rs) => [...rs, { model: "max", effort: "", agent: "" }])} className={buttonVariants({ variant: "ghost", size: "md" })}>
-            + setting
+            {$t("workspace.evals-compare-panel.setting")}
           </button>
         )}
         <label>
-          <span className={labelClass}>Repeat</span>
+          <span className={labelClass}>{$t("workspace.evals-compare-panel.repeat")}</span>
           <Input type="number" min={1} max={5} value={repeat} onChange={(e) => setRepeat(Math.min(5, Math.max(1, Number(e.target.value) || 1)))} className="w-16" />
         </label>
         <label>
-          <span className={labelClass}>Spend limit, USD</span>
+          <span className={labelClass}>{$t("workspace.evals-compare-panel.spendLimitUsd")}</span>
           <Input type="number" min={0.5} max={100} step={0.5} value={maxUsd} onChange={(e) => setMaxUsd(Math.min(100, Math.max(0.5, Number(e.target.value) || 5)))} className="w-20" />
         </label>
         <span className={`pb-2 text-xs ${trials > MAX_TRIALS ? "text-danger" : "text-fg-muted"}`}>
-          {trials} runs{trials > MAX_TRIALS ? ` — at most ${MAX_TRIALS}` : ""}
+          {$t("workspace.evals-compare-panel.runs", { trials: String(trials) })}{trials > MAX_TRIALS ? $t("workspace.evals-compare-panel.atMost", { MAX_TRIALS: String(MAX_TRIALS) }) : ""}
         </span>
         <button onClick={start} disabled={busy || trials > MAX_TRIALS || rows.some((r) => !r.model.trim())} className={buttonVariants({ variant: "primary", size: "md" })}>
-          {busy ? "Comparing…" : "Compare"}
+          {busy ? "Comparing…" : $t("workspace.evals-compare-panel.compare")}
         </button>
       </div>
       </>)}
       {busy && progress && (
         <p className="mt-2 text-xs text-fg-muted">
-          {progress.done} of {progress.total} runs done — this takes as long as the runs do; you can leave and come back.
+          {$t("workspace.evals-compare-panel.ofRunsDoneThisTakesAs", { done: String(progress.done), total: String(progress.total) })}
         </p>
       )}
       {error && <p className="mt-2 text-xs text-danger">{error}</p>}
@@ -239,15 +240,15 @@ export function ComparePanel({
 
       {past.length > 0 && (
         <div className="mt-5 border-t border-line pt-4">
-          <p className="mb-1.5 text-[13px] font-medium text-fg-muted">Earlier comparisons</p>
+          <p className="mb-1.5 text-[13px] font-medium text-fg-muted">{$t("workspace.evals-compare-panel.earlierComparisons")}</p>
           <ul className="space-y-1">
             {past.slice(0, 8).map((p) => (
               <li key={p.runId} className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="text-fg-muted">{p.startedAt.slice(0, 16).replace("T", " ")} UTC</span>
+                <span className="text-fg-muted">{$t("workspace.evals-compare-panel.utc", { replace: p.startedAt.slice(0, 16).replace("T", " ") })}</span>
                 {p.status === "done" && p.result ? (
                   <>
                     <span className="text-fg-secondary">{p.result.configs.map((c) => `${c.label}: ${pct(c.rate)}`).join(" · ")}</span>
-                    <button onClick={() => setShown(p.result!)} className="text-link hover:underline">show</button>
+                    <button onClick={() => setShown(p.result!)} className="text-link hover:underline">{$t("workspace.evals-compare-panel.show")}</button>
                   </>
                 ) : (
                   <span className="text-danger">{p.error ?? "failed"}</span>
@@ -265,15 +266,15 @@ export function ComparisonTable({ workspace, tenant, result }: { workspace: stri
   const best = Math.max(...result.configs.map((c) => c.rate ?? -1));
   return (
     <div className="mt-3 overflow-x-auto">
-      {result.stopped && <p className="mb-2 text-xs text-warning">Stopped early: {result.stopped}. The settings that ran fewer trials are marked.</p>}
+      {result.stopped && <p className="mb-2 text-xs text-warning">{$t("workspace.evals-compare-panel.stoppedEarlyTheSettingsThatRan", { stopped: result.stopped })}</p>}
       <table className="w-full min-w-[560px] text-left text-xs">
         <thead className="text-[13px] text-fg-muted">
           <tr>
-            <th className="py-1 pr-3 font-medium">Setting</th>
-            <th className="py-1 pr-3 font-medium">Passing</th>
-            <th className="py-1 pr-3 font-medium">Cost</th>
-            <th className="py-1 pr-3 font-medium">Per run</th>
-            <th className="py-1 pr-3 font-medium">Time per run</th>
+            <th className="py-1 pr-3 font-medium">{$t("workspace.evals-compare-panel.setting2")}</th>
+            <th className="py-1 pr-3 font-medium">{$t("workspace.evals-compare-panel.passing")}</th>
+            <th className="py-1 pr-3 font-medium">{$t("workspace.evals-compare-panel.cost")}</th>
+            <th className="py-1 pr-3 font-medium">{$t("workspace.evals-compare-panel.perRun")}</th>
+            <th className="py-1 pr-3 font-medium">{$t("workspace.evals-compare-panel.timePerRun")}</th>
             {result.cases.map((c) => (
               <Tooltip key={c.case} label={c.case.length > 18 ? c.case : undefined}>
                 <th className="py-1 pr-3 font-medium normal-case">{c.case.length > 18 ? `${c.case.slice(0, 17)}…` : c.case}</th>
@@ -287,7 +288,7 @@ export function ComparisonTable({ workspace, tenant, result }: { workspace: stri
               <td className="py-1.5 pr-3 font-mono text-fg">{c.label}</td>
               <td className="py-1.5 pr-3">
                 <Chip tone={c.rate !== null && c.rate === best ? "good" : "default"}>{pct(c.rate)}</Chip>{" "}
-                <span className="text-fg-muted">{c.passed}/{c.trials - c.notRun}{c.notRun ? ` (${c.notRun} not run)` : ""}</span>
+                <span className="text-fg-muted">{c.passed}/{c.trials - c.notRun}{c.notRun ? $t("workspace.evals-compare-panel.notRun", { notRun: String(c.notRun) }) : ""}</span>
               </td>
               <td className="py-1.5 pr-3 tabular-nums">{usd(c.costUsd)}</td>
               <td className="py-1.5 pr-3 tabular-nums">{usd(c.avgCostUsd)}</td>
@@ -302,9 +303,9 @@ export function ComparisonTable({ workspace, tenant, result }: { workspace: stri
         </tbody>
       </table>
       <p className="mt-1 text-xs text-fg-muted">
-        Judge: {result.judge.model}{result.judge.effort ? ` · ${result.judge.effort}` : ""} · spent ${result.spentUsd.toFixed(2)} of ${result.maxUsd.toFixed(2)} · cost includes the judges
+        {$t("workspace.evals-compare-panel.judge", { model: result.judge.model })}{result.judge.effort ? ` · ${result.judge.effort}` : ""}{" "}{$t("workspace.evals-compare-panel.spentOfCostIncludesTheJudges", { toFixed: result.spentUsd.toFixed(2), toFixed2: result.maxUsd.toFixed(2) })}
         {result.configs[0]?.runIds[0] && (
-          <> · e.g. <Link href={runHref(workspace, result.configs[0].runIds[0], tenant)} className="text-link hover:underline">a run</Link></>
+          <> · e.g. <Link href={runHref(workspace, result.configs[0].runIds[0], tenant)} className="text-link hover:underline">{$t("workspace.evals-compare-panel.aRun")}</Link></>
         )}
       </p>
     </div>

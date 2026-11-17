@@ -163,7 +163,7 @@ const clip = (s: string, n = 22) => (s.length > n ? `${s.slice(0, n - 1)}…` : 
  *  drawn as edges, not chips, so they are not repeated here. */
 export function stepChips(s: FlowStep): Chip[] {
   const out: Chip[] = [];
-  if (s.approve) out.push({ label: "needs approval", tone: "warning" });
+  if (s.approve) out.push({ label: $t("components.flow-canvas-model.needsApproval"), tone: "warning" });
   if (s.optional) out.push({ label: "optional", tone: "default" });
   if (s.ask) out.push({ label: `asks: ${clip(s.ask, 18)}`, tone: "warning", title: s.ask });
   if (s.waitFor === "event") out.push({ label: "wait: event", tone: "info" });
@@ -174,7 +174,7 @@ export function stepChips(s: FlowStep): Chip[] {
     out.push({ label: `each: ${what}${s.max != null ? ` ×${s.max}` : ""}`, tone: "info", title: s.eachPath });
   }
   if (s.verify) out.push({ label: "verify", tone: "success", title: s.verify });
-  if (s.retry != null && s.retry > 0) out.push({ label: `retry ×${s.retry}`, tone: "default" });
+  if (s.retry != null && s.retry > 0) out.push({ label: $t("components.flow-canvas-model.retry", { retry: String(s.retry) }), tone: "default" });
   if (s.timeout != null) out.push({ label: `timeout ${humanWait(s.timeout)}`, tone: "default" });
   if (s.delegate?.length) out.push({ label: `delegate: ${clip(s.delegate.join(", "), 18)}`, tone: "info", title: s.delegate.join(", ") });
   if (s.output === "json") out.push({ label: "output: json", tone: "default" });
@@ -194,8 +194,8 @@ export function teamProblems(agent: AgentTeam, agents: Record<string, AgentTeam>
   for (const sub of agent.subagents) {
     const a = agents[sub];
     if (!a) out.push({ name: sub, kind: "sub", message: $t("components.flow-canvas-model.subagentsIsNotAnAgentIn", { sub: String(sub) }) });
-    else if (sub === agent.name) out.push({ name: sub, kind: "sub", message: `subagents: "${sub}" is this agent itself` });
-    else if (!String(a.description ?? "").trim()) out.push({ name: sub, kind: "sub", message: `subagents: "${sub}" has no description — the model picks a sub-agent by it` });
+    else if (sub === agent.name) out.push({ name: sub, kind: "sub", message: $t("components.flow-canvas-model.subagentsIsThisAgentItself", { sub: String(sub) }) });
+    else if (!String(a.description ?? "").trim()) out.push({ name: sub, kind: "sub", message: $t("components.flow-canvas-model.subagentsHasNoDescriptionTheModel", { sub: String(sub) }) });
   }
   for (const c of agent.consults) {
     if (!agents[c]) out.push({ name: c, kind: "consult", message: $t("components.flow-canvas-model.agentsIsNotAnAgentIn", { c: String(c) }) });
@@ -354,7 +354,7 @@ export function buildCanvas(input: CanvasInput): CanvasLayout {
             source: id,
             target: cid,
             kind: c.kind === "sub" ? "delegate" : c.kind === "consult" ? "consult" : "onfail",
-            label: c.kind === "sub" ? "sub-agent" : c.kind === "consult" ? "consults" : "on fail",
+            label: c.kind === "sub" ? "sub-agent" : c.kind === "consult" ? "consults" : $t("components.flow-canvas-model.onFail"),
           });
         });
         y += children.length * (CHILD_H + CHILD_ROW_GAP) - CHILD_ROW_GAP;
@@ -375,7 +375,7 @@ export function buildCanvas(input: CanvasInput): CanvasLayout {
       const summary = me !== stepId(i);
       const kind: EdgeKind = summary ? "seq" : s.case ? "case" : s.else ? "else" : "seq";
       sources.forEach((src, k) => {
-        const id = `seq:${src}->${me}`;
+        const id = $t("components.flow-canvas-model.seq", { src: String(src), me: String(me) });
         if (seen.has(id)) return;
         seen.add(id);
         edges.push({
@@ -397,7 +397,7 @@ export function buildCanvas(input: CanvasInput): CanvasLayout {
           source: me,
           target: back,
           kind: "loop",
-          label: `loop ×${s.loop}${s.until ? ` until ${clip(s.until, 14)}` : ""}`,
+          label: $t("components.flow-canvas-model.loop", { loop: String(s.loop), v1: String(s.until ? ` until ${clip(s.until, 14)}` : "") }),
         });
       }
     }
@@ -429,10 +429,10 @@ export function dropTarget(columns: CanvasColumn[], x: number): DropTarget | nul
 
 /** Words for a drop target — what releasing here will do. */
 export function describeDrop(t: DropTarget, columns: number): string {
-  if (t.kind === "column") return `run in parallel with step ${t.column + 1}`;
-  if (t.rail === 0) return "run first";
-  if (t.rail >= columns) return "run last";
-  return `run between step ${t.rail} and step ${t.rail + 1}`;
+  if (t.kind === "column") return $t("components.flow-canvas-model.runInParallelWithStep", { v0: String(t.column + 1) });
+  if (t.rail === 0) return $t("components.flow-canvas-model.runFirst");
+  if (t.rail >= columns) return $t("components.flow-canvas-model.runLast");
+  return $t("components.flow-canvas-model.runBetweenStepAndStep", { rail: String(t.rail), v1: String(t.rail + 1) });
 }
 
 export function groupsOf(steps: FlowStep[]): Groups {
@@ -443,11 +443,11 @@ export function groupsOf(steps: FlowStep[]): Groups {
 
 /** Options that read the previous group's result, so cannot run first. */
 export function needsPrevious(s: FlowStep): string | null {
-  if (s.case) return "case: routes on the step before it";
-  if (s.else) return "else: is the route when no case: before it matched";
-  if (s.when && !/^rows of /.test(s.when)) return "when: reads the step before it";
-  if (s.loop != null) return "loop: winds back to the step before it";
-  if (s.each === "lines" || s.each === "items") return `each: ${s.each} fans out over the step before it`;
+  if (s.case) return $t("components.flow-canvas-model.caseRoutesOnTheStepBefore");
+  if (s.else) return $t("components.flow-canvas-model.elseIsTheRouteWhenNo");
+  if (s.when && !/^rows of /.test(s.when)) return $t("components.flow-canvas-model.whenReadsTheStepBeforeIt");
+  if (s.loop != null) return $t("components.flow-canvas-model.loopWindsBackToTheStep");
+  if (s.each === "lines" || s.each === "items") return $t("components.flow-canvas-model.eachFansOutOverTheStep", { each: String(s.each) });
   return null;
 }
 
@@ -456,7 +456,7 @@ export type MovePlan = { groups: Groups } | { refused: string } | { noop: true }
 /** Moving step `index` to `target`: the new arrangement, or why not. */
 export function planMove(steps: FlowStep[], index: number, target: DropTarget): MovePlan {
   const groups = groupsOf(steps);
-  if (target.kind === "column" && !groups[target.column]) return { refused: "no such column" };
+  if (target.kind === "column" && !groups[target.column]) return { refused: $t("components.flow-canvas-model.noSuchColumn") };
   const next =
     target.kind === "column" ? joinGroup(groups, index, groups[target.column][0]) : splitToRail(groups, index, target.rail);
   if (JSON.stringify(next) === JSON.stringify(groups)) return { noop: true };
@@ -465,7 +465,7 @@ export function planMove(steps: FlowStep[], index: number, target: DropTarget): 
   for (const i of next[0] ?? []) {
     if (before.has(i)) continue;
     const why = needsPrevious(steps[i]);
-    if (why) return { refused: `"${steps[i].subflow ?? steps[i].agent}" cannot run first — ${why}` };
+    if (why) return { refused: $t("components.flow-canvas-model.cannotRunFirst", { v0: String(steps[i].subflow ?? steps[i].agent), why: String(why) }) };
   }
   return { groups: next };
 }
@@ -485,7 +485,7 @@ export function planMoveMany(steps: FlowStep[], indices: number[], target: DropT
   let next: Groups;
   if (target.kind === "column") {
     const col = groups[target.column];
-    if (!col) return { refused: "no such column" };
+    if (!col) return { refused: $t("components.flow-canvas-model.noSuchColumn") };
     const kept = groups.map((g) => g.filter((i) => !pickedSet.has(i) || g === col));
     const at = kept.indexOf(kept[target.column]);
     kept[at] = [...kept[at], ...picked.filter((i) => !col.includes(i))];
@@ -507,7 +507,7 @@ export function planMoveMany(steps: FlowStep[], indices: number[], target: DropT
   for (const i of next[0] ?? []) {
     if (before.has(i)) continue;
     const why = needsPrevious(steps[i]);
-    if (why) return { refused: `"${steps[i].subflow ?? steps[i].agent}" cannot run first — ${why}` };
+    if (why) return { refused: $t("components.flow-canvas-model.cannotRunFirst", { v0: String(steps[i].subflow ?? steps[i].agent), why: String(why) }) };
   }
   return { groups: next };
 }
@@ -582,18 +582,18 @@ export function recordEdit(h: History, before: string, after: string): History {
 export type HistoryStep = { write: string; next: History } | { refused: string; next: History };
 
 export function planUndo(h: History, current: string): HistoryStep {
-  if (!h.past.length) return { refused: "nothing to undo", next: h };
+  if (!h.past.length) return { refused: $t("components.flow-canvas-model.nothingToUndo"), next: h };
   if (h.wrote !== null && current !== h.wrote) {
-    return { refused: "the flow changed outside the canvas since your last edit — undo cleared", next: emptyHistory() };
+    return { refused: $t("components.flow-canvas-model.theFlowChangedOutsideTheCanvas"), next: emptyHistory() };
   }
   const write = h.past[h.past.length - 1];
   return { write, next: { past: h.past.slice(0, -1), future: [...h.future, current].slice(-HISTORY_LIMIT), wrote: write } };
 }
 
 export function planRedo(h: History, current: string): HistoryStep {
-  if (!h.future.length) return { refused: "nothing to redo", next: h };
+  if (!h.future.length) return { refused: $t("components.flow-canvas-model.nothingToRedo"), next: h };
   if (h.wrote !== null && current !== h.wrote) {
-    return { refused: "the flow changed outside the canvas since your last edit — redo cleared", next: emptyHistory() };
+    return { refused: $t("components.flow-canvas-model.theFlowChangedOutsideTheCanvas2"), next: emptyHistory() };
   }
   const write = h.future[h.future.length - 1];
   return { write, next: { past: [...h.past, current].slice(-HISTORY_LIMIT), future: h.future.slice(0, -1), wrote: write } };

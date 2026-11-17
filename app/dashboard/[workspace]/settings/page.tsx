@@ -3,7 +3,7 @@
 // it. cloudhost's settings: a narrow column of cards, tabs by ?tab=, the
 // Danger zone last.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import { HashTab } from "../../settings/anchor";
 import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
@@ -96,8 +96,8 @@ export default async function WorkspaceSettingsPage({
   const effective = wsProvider?.baseUrl
     ? { label: wsProvider.baseUrl, source: $t("workspace.settings-page.thisWorkspaceSAgentsMd"), models: wsProvider.models }
     : acctProvider?.baseUrl
-      ? { label: acctProvider.baseUrl, source: "the account's AGENTS.md", models: acctProvider.models }
-      : { label: "The account's model provider", source: "Settings → Models", models: {} as Record<string, string> };
+      ? { label: acctProvider.baseUrl, source: $t("workspace.settings-page.theAccountSAgentsMd"), models: acctProvider.models }
+      : { label: $t("workspace.settings-page.theAccountSModelProvider"), source: $t("workspace.settings-page.settingsModels"), models: {} as Record<string, string> };
   const remaps = Object.entries(effective.models ?? {});
   const agentsMd = `/dashboard/${workspace}/edit?path=AGENTS.md${rest}`;
 
@@ -108,14 +108,10 @@ export default async function WorkspaceSettingsPage({
     <Page width="narrow" className="pb-16">
       <PageHeader
         className="mb-6"
-        title="Settings"
+        title={$t("workspace.settings-page.settings")}
         description={
           <>
-            What belongs to <span className="font-mono text-fg-secondary">{workspace}</span> alone. Keys, account secrets and the team are in{" "}
-            <Link href={`/dashboard/settings${qs}`} className="font-medium text-link hover:underline">
-              account settings
-            </Link>
-            .
+            {$rich("workspace.settings-page.whatBelongsToAloneKeysAccount", { workspace: workspace, span: (chunks) => <span className="font-mono text-fg-secondary">{chunks}</span>, link: (chunks) => <Link href={`/dashboard/settings${qs}`} className="font-medium text-link hover:underline">{chunks}</Link> })}
           </>
         }
       />
@@ -133,10 +129,10 @@ export default async function WorkspaceSettingsPage({
       />
       <PageTabs
         tabs={[
-          { label: "General", href: tabHref("general"), active: tab === "general" },
-          { label: "Policies", href: tabHref("policies"), active: tab === "policies" },
-          { label: "Secrets", href: tabHref("secrets"), active: tab === "secrets", badge: secrets.length || undefined },
-          { label: "Triggers", href: tabHref("triggers"), active: tab === "triggers", badge: scheduled.length + hooks.length || undefined },
+          { label: $t("workspace.settings-page.general"), href: tabHref("general"), active: tab === "general" },
+          { label: $t("workspace.settings-page.policies"), href: tabHref("policies"), active: tab === "policies" },
+          { label: $t("workspace.settings-page.secrets"), href: tabHref("secrets"), active: tab === "secrets", badge: secrets.length || undefined },
+          { label: $t("workspace.settings-page.triggers"), href: tabHref("triggers"), active: tab === "triggers", badge: scheduled.length + hooks.length || undefined },
         ]}
       />
 
@@ -149,7 +145,7 @@ export default async function WorkspaceSettingsPage({
               description={listWorkspaces(tenant).find((w) => w.name === workspace)?.description ?? ""}
               webhookFlows={hooks.map((f) => f.name)}
             />
-            <SettingsCard title="Picture" description={$t("workspace.settings-page.shownOnTheWorkspaceSCard")}>
+            <SettingsCard title={$t("workspace.settings-page.picture")} description={$t("workspace.settings-page.shownOnTheWorkspaceSCard")}>
               <AvatarEditor kind="workspace" id={workspace} name={workspace} src={avatarUrl(tenant, "workspace", workspace)} tenant={tenant} square />
             </SettingsCard>
             <TimezoneCard endpoint={endpoint} tenant={tenant} initial={own.timezone} inherited={inherited.timezone} />
@@ -157,27 +153,27 @@ export default async function WorkspaceSettingsPage({
 
           <SettingsSection id="provider">
             <SettingsCard
-              title="Model provider"
+              title={$t("workspace.settings-page.modelProvider")}
               description={
                 <>
-                  {$t("workspace.settings-page.whereThisWorkspaceSModelCalls")}{" "}<code className="font-mono text-xs">provider:</code> block to its AGENTS.md.
+                  {$rich("workspace.settings-page.whereThisTermSModelCalls", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code> })}
                 </>
               }
               hint={
                 <Link href={`/dashboard/docs/providers${qs}`} className="text-link hover:underline">
-                  Providers reference
+                  {$t("workspace.settings-page.providersReference")}
                 </Link>
               }
               footer={
                 <Link href={agentsMd} className={buttonVariants({ variant: "secondary" })}>
-                  Edit AGENTS.md
+                  {$t("workspace.settings-page.editAgentsMd")}
                 </Link>
               }
             >
               <div className="rounded-md border border-line bg-sunken px-3 py-2">
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <code className="break-all font-mono text-sm text-fg">{effective.label}</code>
-                  <span className="text-xs text-fg-muted">set by {effective.source}</span>
+                  <span className="text-xs text-fg-muted">{$t("workspace.settings-page.setBy", { source: effective.source })}</span>
                 </div>
                 {remaps.length > 0 && <p className="mt-1.5 font-mono text-xs text-fg-muted">{remaps.map(([tier, id]) => `${tier} → ${id}`).join(" · ")}</p>}
               </div>
@@ -186,9 +182,9 @@ export default async function WorkspaceSettingsPage({
 
           <SettingsSection id="export">
             <SettingsCard
-              title="Export and import"
+              title={$t("workspace.settings-page.exportAndImport")}
               description={$t("workspace.settings-page.thisWorkspaceAsAZipAgents")}
-              hint="Import previews what it adds and replaces first."
+              hint={$t("workspace.settings-page.importPreviewsWhatItAddsAnd")}
               footer={
                 <>
                   <ImportPackageButton tenant={tenant} workspace={workspace} />
@@ -202,8 +198,8 @@ export default async function WorkspaceSettingsPage({
             <SettingsCard
               danger
               title={$t("workspace.settings-page.deleteThisWorkspace")}
-              description="Its agents, flows, runs, secrets and previews go with it. There is no undo."
-              hint="The ledger keeps what its runs cost; everything else is removed."
+              description={$t("workspace.settings-page.itsAgentsFlowsRunsSecretsAnd")}
+              hint={$t("workspace.settings-page.theLedgerKeepsWhatItsRuns")}
               footer={<DeleteButton variant="button" endpoint={`/api/workspaces/${workspace}`} tenant={tenant} confirmText={$t("workspace.settings-page.deleteWorkspaceAndEverythingInIt", { workspace: String(workspace) })} redirectTo={`/dashboard${qs}`} />}
             />
           </SettingsSection>
@@ -212,7 +208,7 @@ export default async function WorkspaceSettingsPage({
 
       {tab === "policies" && (
         <div>
-          <SettingsSection id="governance" title="Governance" description={$t("workspace.settings-page.whoAnswersForThisWorkspaceS")}>
+          <SettingsSection id="governance" title={$t("workspace.settings-page.governance")} description={$t("workspace.settings-page.whoAnswersForThisWorkspaceS")}>
             {halt.workspace || halt.account ? <PauseCard workspace={workspace} tenant={tenant} scope="workspace" own={halt.workspace ?? null} heldByAccount={halt.account} mayManage={managesWorkspace} /> : null}
             <OwnerCard endpoint={endpoint} tenant={tenant} initial={own.owner} inherited={inherited.owner} />
             <BudgetCard endpoint={endpoint} tenant={tenant} initial={budget} spent={spent} />
@@ -229,11 +225,11 @@ export default async function WorkspaceSettingsPage({
             />
           </SettingsSection>
 
-          <SettingsSection id="guardrail" title="Guardrail" description={$t("workspace.settings-page.whatThisWorkspaceSAgentsMay")}>
+          <SettingsSection id="guardrail" title={$t("workspace.settings-page.guardrail")} description={$t("workspace.settings-page.whatThisWorkspaceSAgentsMay")}>
             <NetworkEnforceCard endpoint={endpoint} tenant={tenant} initial={own.networkEnforce || inherited.networkEnforce} inherited={inherited.networkEnforce} />
           </SettingsSection>
 
-          <SettingsSection id="observability" title="Observability" description={$t("workspace.settings-page.whoIsToldAboutThisWorkspace")}>
+          <SettingsSection id="observability" title={$t("workspace.settings-page.observability")} description={$t("workspace.settings-page.whoIsToldAboutThisWorkspace")}>
             <NotifyCard
               endpoint={endpoint}
               tenant={tenant}
@@ -245,19 +241,15 @@ export default async function WorkspaceSettingsPage({
             <AlertsCard endpoint={endpoint} tenant={tenant} initial={own.alerts} inherited={inherited.alerts} />
           </SettingsSection>
 
-          <SettingsSection id="evaluation" title="Evaluation" description={$t("workspace.settings-page.howThisWorkspaceSWorkIs")}>
+          <SettingsSection id="evaluation" title={$t("workspace.settings-page.evaluation")} description={$t("workspace.settings-page.howThisWorkspaceSWorkIs")}>
             <JudgeCard endpoint={endpoint} tenant={tenant} initial={own.judge} inherited={inherited.judge} />
             <p className="px-1 text-sm text-fg-muted">
-              Its evals and their last results are on the{" "}
-              <Link href={`/dashboard/${workspace}/evals${qs}`} className="font-medium text-link hover:underline">
-                Evals page
-              </Link>
-              .
+              {$rich("workspace.settings-page.itsEvalsAndTheirLastResults", { link: (chunks) => <Link href={`/dashboard/${workspace}/evals${qs}`} className="font-medium text-link hover:underline">{chunks}</Link> })}
             </p>
           </SettingsSection>
 
           {!halt.workspace && !halt.account && (
-            <SettingsSection id="pause" title="Danger zone" danger>
+            <SettingsSection id="pause" title={$t("workspace.settings-page.dangerZone")} danger>
               <PauseCard workspace={workspace} tenant={tenant} scope="workspace" own={null} heldByAccount={null} mayManage={managesWorkspace} />
             </SettingsSection>
           )}
@@ -265,7 +257,7 @@ export default async function WorkspaceSettingsPage({
       )}
 
       {tab === "secrets" && (
-        <SettingsSection id="secrets" title="Secrets" description={$t("workspace.settings-page.credentialsThisWorkspaceSAgentsRead")}>
+        <SettingsSection id="secrets" title={$t("workspace.settings-page.secrets")} description={$t("workspace.settings-page.credentialsThisWorkspaceSAgentsRead")}>
           <Connections
             tenant={tenant}
             secrets={secrets}
@@ -280,21 +272,21 @@ export default async function WorkspaceSettingsPage({
       {tab === "triggers" && (
         <SettingsSection
           id="triggers"
-          title="Triggers"
-          description="What starts a flow here without a person. Set in each flow's frontmatter."
+          title={$t("workspace.settings-page.triggers")}
+          description={$t("workspace.settings-page.whatStartsAFlowHereWithout")}
           action={
             <Link href={`/dashboard/${workspace}/flows${qs}`} className={buttonVariants({ variant: "secondary" })}>
-              Flows
+              {$t("workspace.settings-page.flows")}
             </Link>
           }
         >
           {scheduled.length === 0 && hooks.length === 0 ? (
             <EmptyState
               icon={<Zap />}
-              title="No scheduled or webhook flows"
+              title={$t("workspace.settings-page.noScheduledOrWebhookFlows")}
               description={
                 <>
-                  Set <code className="font-mono">trigger:</code> in a flow&apos;s frontmatter to add one.
+                  {$rich("workspace.settings-page.setTriggerInAFlowS", { code: (chunks) => <code className="font-mono">{chunks}</code> })}
                 </>
               }
             />
@@ -307,7 +299,7 @@ export default async function WorkspaceSettingsPage({
                     <Link href={`/dashboard/${workspace}/edit?path=${encodeURIComponent(`flows/${f.file}`)}${rest}`} className="min-w-0 flex-1 truncate text-sm font-medium text-fg hover:underline">
                       {f.name}
                     </Link>
-                    {parseCron(f.schedule!) === null ? <Chip tone="bad">invalid cron</Chip> : null}
+                    {parseCron(f.schedule!) === null ? <Chip tone="bad">{$t("workspace.settings-page.invalidCron")}</Chip> : null}
                     <Tag mono>{f.schedule}</Tag>
                     <Tag>{f.timezone ?? "UTC"}</Tag>
                   </li>
@@ -319,7 +311,7 @@ export default async function WorkspaceSettingsPage({
                       <Link href={`/dashboard/${workspace}/edit?path=${encodeURIComponent(`flows/${f.file}`)}${rest}`} className="min-w-0 flex-1 truncate text-sm font-medium text-fg hover:underline">
                         {f.name}
                       </Link>
-                      <Tag>webhook</Tag>
+                      <Tag>{$t("workspace.settings-page.webhook")}</Tag>
                     </div>
                     {managesWorkspace ? (
                       <CopyField value={`${publicUrl() ?? ""}${webhookPath(tenant, workspace, f.name)}`} className="w-full min-w-0" />

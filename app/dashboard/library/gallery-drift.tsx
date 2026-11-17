@@ -1,5 +1,6 @@
 "use client";
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Chip, Tag } from "@foldrun/ui/react/page";
@@ -16,21 +17,21 @@ export function GalleryDrift({ tenant, name, status }: { tenant: string; name: s
   const [busy, setBusy] = useState(false);
   if (status === "current") {
     return (
-      <Tooltip label="Installed from the gallery, and identical to the version the platform ships now">
+      <Tooltip label={$t("library.gallery-drift.installedFromTheGalleryAndIdentical")}>
         <span>
-          <Tag>gallery · current</Tag>
+          <Tag>{$t("library.gallery-drift.galleryCurrent")}</Tag>
         </span>
       </Tooltip>
     );
   }
   return (
     <span className="inline-flex items-center gap-1.5">
-      <Tooltip label="Installed from the gallery, but not identical to the version the platform ships now — either the gallery moved on, or this copy was edited">
+      <Tooltip label={$t("library.gallery-drift.installedFromTheGalleryButNot")}>
         <span>
-          <Chip tone="warn">gallery · differs</Chip>
+          <Chip tone="warn">{$t("library.gallery-drift.galleryDiffers")}</Chip>
         </span>
       </Tooltip>
-      <Tooltip label="Replace this copy with the gallery's current version. The previous content stays one revision back.">
+      <Tooltip label={$t("library.gallery-drift.replaceThisCopyWithTheGallery")}>
       <button
         disabled={busy}
         onClick={async (e) => {
@@ -47,7 +48,7 @@ export function GalleryDrift({ tenant, name, status }: { tenant: string; name: s
         }}
         className="text-xs font-medium text-link hover:underline disabled:opacity-50"
       >
-        {busy ? "updating…" : "update to gallery version"}
+        {busy ? "updating…" : $t("library.gallery-drift.updateToGalleryVersion")}
       </button>
       </Tooltip>
     </span>

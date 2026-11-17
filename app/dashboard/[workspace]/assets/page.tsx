@@ -1,4 +1,4 @@
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import fs from "node:fs";
 import path from "node:path";
 import { notFound } from "next/navigation";
@@ -34,22 +34,22 @@ type Kind = (typeof KINDS)[number];
 const BLURB: Record<Kind, string> = {
   skills: $t("workspace.assets-page.capabilitiesEveryAgentInThisWorkspace"),
   memory: $t("workspace.assets-page.whatAgentsInThisWorkspaceHave"),
-  knowledge: "Reference material you give agents — specs, price lists, guidelines. Loaded like memory, but agents never rewrite it.",
-  tools: "What an agent here can do — an API, a script, or an MCP server. Granted by name with `tools: [name]`; credentials resolve server-side.",
-  hooks: "Your own code at every tool call, step start or step end, on every model — one folder each, hook.md beside run.mjs. Turned on with `hooks: [name]` in an agent, or for every agent from an AGENTS.md.",
-  scripts: "Code that script tools run, referenced as shared/<file>. A file here is not a capability until a tool points at it.",
+  knowledge: $t("workspace.assets-page.referenceMaterialYouGiveAgentsSpecs"),
+  tools: $t("workspace.assets-page.whatAnAgentHereCanDo"),
+  hooks: $t("workspace.assets-page.yourOwnCodeAtEveryTool"),
+  scripts: $t("workspace.assets-page.codeThatScriptToolsRunReferenced"),
 };
 
-const PAGE_TITLE: Partial<Record<Kind, string>> = { scripts: "Code" };
+const PAGE_TITLE: Partial<Record<Kind, string>> = { scripts: $t("workspace.assets-page.code") };
 
 // The header's one line, where the page has tabs: short, the rest is in the
 // empty state and the docs.
 const LINE: Partial<Record<Kind, string>> = {
-  tools: "What an agent here can do — an API, a script or an MCP server, granted with tools: [name].",
-  hooks: "Your own code at every tool call, step start or step end, turned on with hooks: [name].",
-  knowledge: "Reference material you give agents. They read it and never rewrite it.",
+  tools: $t("workspace.assets-page.whatAnAgentHereCanDo2"),
+  hooks: $t("workspace.assets-page.yourOwnCodeAtEveryTool2"),
+  knowledge: $t("workspace.assets-page.referenceMaterialYouGiveAgentsThey"),
   memory: $t("workspace.assets-page.whatAgentsInThisWorkspaceHave2"),
-  skills: "Procedures every agent here can load, in the open Agent Skills format.",
+  skills: $t("workspace.assets-page.proceduresEveryAgentHereCanLoad"),
 };
 
 interface Entry {
@@ -139,7 +139,7 @@ function collect(dir: string, kind: Kind, agents: string[]): Entry[] {
         if (!fs.existsSync(skillMd)) continue;
         const meta = read(skillMd);
         out.push({
-          path: `${prefix}${kind}/${rel}/SKILL.md`,
+          path: $t("workspace.assets-page.skillMd", { prefix: String(prefix), kind: String(kind), rel: String(rel) }),
           name: meta.name || entry,
           description: meta.description,
           owner,
@@ -201,7 +201,7 @@ function collect(dir: string, kind: Kind, agents: string[]): Entry[] {
   scan(dir, "", null);
   // Hooks resolve from the workspace's hooks/ and the library only — an
   // agent's own folder is not looked in, so listing one there would lie.
-  if (kind !== "hooks") for (const agent of agents) scan(path.join(dir, "agents", agent), `agents/${agent}/`, agent);
+  if (kind !== "hooks") for (const agent of agents) scan(path.join(dir, "agents", agent), $t("workspace.assets-page.agents", { agent: String(agent) }), agent);
   return out;
 }
 
@@ -233,8 +233,8 @@ function okfBadges(dir: string, rel: string, kind: Kind, account = false) {
   // One quiet type and the one state that matters most; every state is in
   // the hover title, so nothing the row used to say is lost.
   const states: { label: string; tone: "bad" | "warn" | "good" | "default" }[] = [
-    ...(!doc.type ? [{ label: "no type — not OKF conformant", tone: "bad" as const }] : []),
-    ...(doc.stale ? [{ label: `stale since ${doc.staleAfter}`, tone: "bad" as const }] : []),
+    ...(!doc.type ? [{ label: $t("workspace.assets-page.noTypeNotOkfConformant"), tone: "bad" as const }] : []),
+    ...(doc.stale ? [{ label: $t("workspace.assets-page.staleSince", { staleAfter: String(doc.staleAfter) }), tone: "bad" as const }] : []),
     ...(doc.status !== "stable" ? [{ label: doc.status, tone: "warn" as const }] : []),
     ...(doc.trust === "unverified" ? [{ label: "unverified", tone: "warn" as const }] : []),
     // A machine wrote it. Distinct from unverified: a person's unchecked
@@ -301,44 +301,43 @@ function reachOf(e: Entry, kind: Kind, agents: AgentInfo[], all: Entry[], hookOn
 
 function ReachLine({ r, kind }: { r: Reach; kind: Kind }) {
   const head =
-    r.levels.length > 0 ? "Every agent" : r.agents === null ? "Every agent" : r.agents.length ? r.agents.join(", ") : <span className="text-fg-subtle">{kind === "scripts" ? "—" : "No agent yet"}</span>;
+    r.levels.length > 0 ? $t("workspace.assets-page.everyAgent") : r.agents === null ? $t("workspace.assets-page.everyAgent") : r.agents.length ? r.agents.join(", ") : <span className="text-fg-subtle">{kind === "scripts" ? "—" : $t("workspace.assets-page.noAgentYet")}</span>;
   return (
     <span className="inline-flex items-center gap-2">
       <span className="truncate">{head}</span>
-      {r.overriddenBy.length > 0 && <Chip tone="warn">overridden</Chip>}
+      {r.overriddenBy.length > 0 && <Chip tone="warn">{$t("workspace.assets-page.overridden")}</Chip>}
     </span>
   );
 }
 
 function ReachPanel({ r, e, kind, workspace, qs }: { r: Reach; e: Entry; kind: Kind; workspace: string; qs: string }) {
   const agentHref = (a: string) => `/dashboard/${workspace}/agents/${a}${qs}`;
-  const scopeOf = (x: Entry) => (x.account ? "shared" : x.owner ? `${x.owner}'s own` : $t("workspace.assets-page.thisWorkspaceS"));
-  const verb = kind === "tools" ? "Granted to" : kind === "hooks" ? "Turned on for" : kind === "scripts" ? "Run by" : "Read by";
+  const scopeOf = (x: Entry) => (x.account ? "shared" : x.owner ? $t("workspace.assets-page.sOwn", { owner: String(x.owner) }) : $t("workspace.assets-page.thisWorkspaceS"));
+  const verb = kind === "tools" ? $t("workspace.assets-page.grantedTo") : kind === "hooks" ? $t("workspace.assets-page.turnedOnFor") : kind === "scripts" ? $t("workspace.assets-page.runBy") : $t("workspace.assets-page.readBy");
   return (
     <div className="space-y-6 text-sm">
       <section className="space-y-2">
         <h3 className="font-medium text-fg">{verb}</h3>
         {r.levels.length > 0 && (
           <p className="text-fg-muted">
-            Every agent {r.levels.includes("account") ? "in the account" : $t("workspace.assets-page.inThisWorkspace")}, from {r.levels.includes("account") ? "the account's" : $t("workspace.assets-page.thisWorkspaceS")} AGENTS.md
-            <span className="font-mono"> hooks:</span>.
+            {$t("workspace.assets-page.everyAgent")}{" "}{r.levels.includes("account") ? $t("workspace.assets-page.inTheAccount") : $t("workspace.assets-page.inThisWorkspace")}{$t("workspace.assets-page.from")}{" "}{r.levels.includes("account") ? $t("workspace.assets-page.theAccountS") : $t("workspace.assets-page.thisWorkspaceS")}{" "}{$rich("workspace.assets-page.agentsMdHooks", { span: (chunks) => <span className="font-mono">{chunks}</span> })}
           </p>
         )}
         {r.agents === null ? (
           <p className="text-fg-muted">
             {e.account ? $t("workspace.assets-page.everyAgentInEveryWorkspaceOf") : $t("workspace.assets-page.everyAgentInThisWorkspace")}
-            {kind === "skills" && " None of them narrows its skills: list."}
+            {kind === "skills" && $t("workspace.assets-page.noneOfThemNarrowsItsSkills")}
           </p>
         ) : r.agents.length === 0 && r.levels.length === 0 ? (
           <p className="text-fg-muted">
             {kind === "tools" ? (
-              <>No agent here has granted it with <span className="font-mono">tools: [{e.name}]</span> yet.</>
+              <>{$rich("workspace.assets-page.noAgentHereHasGrantedIt", { name: e.name, span: (chunks) => <span className="font-mono">{chunks}</span> })}</>
             ) : kind === "hooks" ? (
-              <>Nobody turns it on yet — add <span className="font-mono">hooks: [{e.name}]</span> to an agent or an AGENTS.md.</>
+              <>{$rich("workspace.assets-page.nobodyTurnsItOnYetAdd", { name: e.name, span: (chunks) => <span className="font-mono">{chunks}</span> })}</>
             ) : kind === "scripts" ? (
-              "A script runs when a script tool points at it with run:."
+              $t("workspace.assets-page.aScriptRunsWhenAScript")
             ) : (
-              "No agent here loads it."
+              $t("workspace.assets-page.noAgentHereLoadsIt")
             )}
           </p>
         ) : r.agents.length > 0 ? (
@@ -347,26 +346,26 @@ function ReachPanel({ r, e, kind, workspace, qs }: { r: Reach; e: Entry; kind: K
               <li key={a}>
                 <Link href={agentHref(a)} className="flex items-center justify-between gap-3 px-3 py-2.5 hover:bg-sunken">
                   <span className="truncate font-medium text-fg">{a}</span>
-                  <span className="text-xs text-fg-muted">agent</span>
+                  <span className="text-xs text-fg-muted">{$t("workspace.assets-page.agent")}</span>
                 </Link>
               </li>
             ))}
           </ul>
         ) : null}
-        {e.owner && <p className="text-xs text-fg-muted">It sits in {e.owner}&apos;s own folder, so only that agent sees it.</p>}
+        {e.owner && <p className="text-xs text-fg-muted">{$t("workspace.assets-page.itSitsInSOwnFolder", { owner: e.owner })}</p>}
       </section>
       {(r.overriddenBy.length > 0 || r.overrides) && (
         <section className="space-y-2">
-          <h3 className="font-medium text-fg">Overrides</h3>
+          <h3 className="font-medium text-fg">{$t("workspace.assets-page.overrides")}</h3>
           <ul className="space-y-2 text-fg-muted">
             {r.overriddenBy.map((x) => (
               <li key={x.path} className="flex flex-wrap items-center gap-2">
-                <Chip tone="warn">overridden</Chip> {scopeOf(x)} <span className="font-mono text-xs">{x.path}</span> runs instead of this one{x.owner ? ` for ${x.owner}` : ""}.
+                <Chip tone="warn">{$t("workspace.assets-page.overridden")}</Chip> {$rich("workspace.assets-page.runsInsteadOfThisOne", { x: scopeOf(x), path: x.path, span: (chunks) => <span className="font-mono text-xs">{chunks}</span> })}{x.owner ? ` for ${x.owner}` : ""}.
               </li>
             ))}
             {r.overrides && (
               <li className="flex flex-wrap items-center gap-2">
-                <Tag>overrides</Tag> This runs instead of the {scopeOf(r.overrides)} {e.name}.
+                <Tag>{$t("workspace.assets-page.overrides2")}</Tag>{" "}{$t("workspace.assets-page.thisRunsInsteadOfThe", { scopeOf: scopeOf(r.overrides), name: e.name })}
               </li>
             )}
           </ul>
@@ -374,10 +373,7 @@ function ReachPanel({ r, e, kind, workspace, qs }: { r: Reach; e: Entry; kind: K
       )}
       {e.account && (
         <p className="text-xs text-fg-muted">
-          {$t("workspace.assets-page.sharedFromTheAccountLibraryEditing")}{" "}
-          <Link href={`/dashboard/library?kind=${kind}${qs.replace("?", "&")}`} className="text-link hover:underline">
-            Open the library
-          </Link>
+          {$rich("workspace.assets-page.sharedFromTheAccountLibraryEditing2", { link: (chunks) => <Link href={`/dashboard/library?kind=${kind}${qs.replace("?", "&")}`} className="text-link hover:underline">{chunks}</Link> })}
         </p>
       )}
     </div>
@@ -414,10 +410,10 @@ export default async function ProjectAssetsPage({
   // Tools and hooks are one door with two tabs; knowledge, memory and skills
   // open here as cards from the Files door, so they carry its tabs.
   const door = kind === "tools" || kind === "hooks" ? toolsTabs(workspace, tenant) : kind === "scripts" ? null : filesTabs(workspace, tenant).map((t) => ({ ...t, active: t.href.includes(`scope=${kind}`) }));
-  const title = kind === "tools" || kind === "hooks" ? "Tools & hooks" : PAGE_TITLE[kind] ?? kind[0].toUpperCase() + kind.slice(1);
+  const title = kind === "tools" || kind === "hooks" ? $t("workspace.assets-page.toolsHooks") : PAGE_TITLE[kind] ?? kind[0].toUpperCase() + kind.slice(1);
 
   const reach = new Map(all.map((e) => [e.path, reachOf(e, kind, agentInfo, all, hookOn)]));
-  const scopeLabel = (e: Entry) => (e.account ? "Shared" : e.owner ? e.owner : $t("workspace.assets-page.workspace"));
+  const scopeLabel = (e: Entry) => (e.account ? $t("workspace.assets-page.shared") : e.owner ? e.owner : $t("workspace.assets-page.workspace"));
   const badgesOf = (e: Entry) => okfBadges(dir, e.path, kind, e.account) ?? (e.transport ? <Tag>{e.transport === "http" ? "API" : e.transport}</Tag> : null);
 
   const items: AssetItem[] = all.map((e) => {
@@ -446,7 +442,7 @@ export default async function ProjectAssetsPage({
     href: `/dashboard/${workspace}/assets?kind=${kind}${qs.replace("?", "&")}&open=${encodeURIComponent(assetOpenId(e))}`,
     icon: <Icon />,
     name: e.name,
-    sub: e.description || "No description",
+    sub: e.description || $t("workspace.assets-page.noDescription"),
     cells: {
       type: badgesOf(e),
       scope: e.account ? <Tag>{scopeLabel(e)}</Tag> : <span className="text-fg-secondary">{scopeLabel(e)}</span>,
@@ -464,7 +460,7 @@ export default async function ProjectAssetsPage({
           <>
             {kind !== "tools" && kind !== "hooks" && kind !== "scripts" && (
               <Link href={`/dashboard/${workspace}/edit?scope=${kind}${qs.replace("?", "&")}`} className={buttonVariants({ variant: "secondary", size: "md" })}>
-                <FolderTree /> View as files
+                <FolderTree />{" "}{$t("workspace.assets-page.viewAsFiles")}
               </Link>
             )}
             <CreateButton
@@ -483,12 +479,12 @@ export default async function ProjectAssetsPage({
       <AssetBrowser items={items} workspace={workspace} tenant={tenant}>
         <ResourceList
           id={`assets-${kind}`}
-          search={`Search ${kind}…`}
-          nameHeader={kind === "memory" || kind === "knowledge" ? "Document" : kind === "scripts" ? "File" : kind[0].toUpperCase() + kind.slice(1, -1)}
+          search={$t("workspace.assets-page.search", { kind: String(kind) })}
+          nameHeader={kind === "memory" || kind === "knowledge" ? $t("workspace.assets-page.document") : kind === "scripts" ? $t("workspace.assets-page.file") : kind[0].toUpperCase() + kind.slice(1, -1)}
           columns={[
-            { key: "type", header: "Type", hide: "lg" },
-            { key: "scope", header: "Scope", hide: "sm" },
-            { key: "used", header: kind === "tools" ? "Used by" : kind === "hooks" ? "Turned on for" : "Reaches", hide: "md" },
+            { key: "type", header: $t("workspace.assets-page.type"), hide: "lg" },
+            { key: "scope", header: $t("workspace.assets-page.scope"), hide: "sm" },
+            { key: "used", header: kind === "tools" ? $t("workspace.assets-page.usedBy") : kind === "hooks" ? $t("workspace.assets-page.turnedOnFor") : $t("workspace.assets-page.reaches"), hide: "md" },
           ]}
           rows={rows}
           empty={<EmptyState icon={<Icon />} title={$t("workspace.assets-page.noInThisWorkspaceYet", { kind: String(kind) })} description={BLURB[kind]} />}

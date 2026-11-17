@@ -7,7 +7,7 @@
 // flow — its steps on the canvas, its runs and its settings, in tabs
 // (`&tab=runs|settings`). `?create=flows` opens the New flow dialog.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
 import path from "node:path";
@@ -108,10 +108,10 @@ export default async function FlowsPage({
     return {
       n: done.length,
       cost: tight ? `≈ ${money(costs[0])}` : `${money(costs[0])}–${money(costs[costs.length - 1])}`,
-      time: mins.length === 0 ? null : mins[mins.length - 1] <= mins[0] * 1.5 ? `≈ ${time(mins[0])} min` : `${time(mins[0])}–${time(mins[mins.length - 1])} min`,
+      time: mins.length === 0 ? null : mins[mins.length - 1] <= mins[0] * 1.5 ? $t("workspace.flows-page.min", { v0: String(time(mins[0])) }) : $t("workspace.flows-page.min2", { v0: String(time(mins[0])), v1: String(time(mins[mins.length - 1])) }),
     };
   };
-  const costTitle = (p: { n: number }) => `From the last ${plural(p.n, "completed run")}. What a run costs depends on how much work it finds, so this is a range, not a price.`;
+  const costTitle = (p: { n: number }) => $t("workspace.flows-page.fromTheLastWhatARun", { v0: String(plural(p.n, "completed run")) });
 
   // The checks `foldrun check` runs, per flow: the agents a step names, the
   // ones that can act outside the workspace, and — when a gateway is
@@ -141,14 +141,14 @@ export default async function FlowsPage({
     if (!f) {
       return (
         <Page>
-          <PageHeader back={{ href: `${base}${qs}`, label: "Flows" }} title={chosen} />
+          <PageHeader back={{ href: `${base}${qs}`, label: $t("workspace.flows-page.flows") }} title={chosen} />
           <EmptyState
             icon={<Workflow />}
-            title="No flow by that name"
-            description="It may have been renamed or deleted. Its past runs stay on the Runs page."
+            title={$t("workspace.flows-page.noFlowByThatName")}
+            description={$t("workspace.flows-page.itMayHaveBeenRenamedOr")}
             action={
               <Link href={`${base}${qs}`} className={buttonVariants({ variant: "secondary" })}>
-                All flows
+                {$t("workspace.flows-page.allFlows")}
               </Link>
             }
           />
@@ -187,12 +187,12 @@ export default async function FlowsPage({
       const self = `${base}?flow=${encodeURIComponent(f.name)}`;
       const editHref = `/dashboard/${workspace}/edit?path=${encodeURIComponent(`flows/${f.file}`)}${tenantParam}`;
       const callers = flows.filter((x) => x.steps.some((s) => s.subflow === f.name)).map((x) => x.name);
-      const compute = f.compute ? [f.compute.vcpu !== undefined ? `${f.compute.vcpu} vCPU` : null, f.compute.memGiB !== undefined ? `${f.compute.memGiB} GiB` : null, f.compute.diskGiB !== undefined ? `${f.compute.diskGiB} GiB disk` : null].filter(Boolean).join(" · ") : null;
+      const compute = f.compute ? [f.compute.vcpu !== undefined ? `${f.compute.vcpu} vCPU` : null, f.compute.memGiB !== undefined ? `${f.compute.memGiB} GiB` : null, f.compute.diskGiB !== undefined ? $t("workspace.flows-page.gibDisk", { diskGiB: String(f.compute.diskGiB) }) : null].filter(Boolean).join(" · ") : null;
 
       return (
         <Page width="full">
           <PageHeader
-            back={{ href: `${base}${qs}`, label: "Flows" }}
+            back={{ href: `${base}${qs}`, label: $t("workspace.flows-page.flows") }}
             icon={
               <IconBox className="size-10">
                 <Workflow />
@@ -202,51 +202,51 @@ export default async function FlowsPage({
             badge={
               <>
                 <Tag>{triggerWord(f.trigger)}</Tag>
-                {last ? <Status outcome={last.outcome} /> : <span className="text-sm text-fg-muted">never ran</span>}
+                {last ? <Status outcome={last.outcome} /> : <span className="text-sm text-fg-muted">{$t("workspace.flows-page.neverRan")}</span>}
               </>
             }
             description={triggerLine(f)}
             meta={
               <>
-                <Fact label="Steps">{f.steps.length}</Fact>
-                {row?.nextFireAt && <Fact label="Next run">{fmtIn(Date.parse(row.nextFireAt) - now)}</Fact>}
+                <Fact label={$t("workspace.flows-page.steps")}>{f.steps.length}</Fact>
+                {row?.nextFireAt && <Fact label={$t("workspace.flows-page.nextRun")}>{fmtIn(Date.parse(row.nextFireAt) - now)}</Fact>}
                 {preview && (
                   <Tooltip label={costTitle(preview)}>
                     <span>
-                      <Fact label="Usual cost">
+                      <Fact label={$t("workspace.flows-page.usualCost")}>
                         {preview.cost}
                         {preview.time ? ` · ${preview.time}` : ""}
                       </Fact>
                     </span>
                   </Tooltip>
                 )}
-                {f.model && <Fact label="Model">{f.model}</Fact>}
-                {f.a2a?.publish && <Fact label="A2A">{f.a2a.publicCard ? "published · public card" : "published"}</Fact>}
+                {f.model && <Fact label={$t("workspace.flows-page.model")}>{f.model}</Fact>}
+                {f.a2a?.publish && <Fact label="A2A">{f.a2a.publicCard ? $t("workspace.flows-page.publishedPublicCard") : "published"}</Fact>}
               </>
             }
             actions={
               <>
                 <Link href={editHref} className={buttonVariants({ variant: "secondary" })}>
                   <FilePen aria-hidden />
-                  Edit
+                  {$t("workspace.flows-page.edit")}
                 </Link>
                 <FlowMoreMenu workspace={workspace} tenant={tenant} flow={f.name} file={f.file} deleteHref={`${self}&tab=settings${tenantParam}#delete`} />
-                <RunButton endpoint={`/api/workspaces/${workspace}/flows/${f.name}/run`} tenant={tenant} label="Run flow" />
+                <RunButton endpoint={`/api/workspaces/${workspace}/flows/${f.name}/run`} tenant={tenant} label={$t("workspace.flows-page.runFlow")} />
               </>
             }
           />
           <PageTabs
             tabs={[
-              { label: "Steps", href: `${self}${tenantParam}`, active: tab === "steps", badge: warnings.length || undefined },
-              { label: "Runs", href: `${self}&tab=runs${tenantParam}`, active: tab === "runs", badge: own.length || undefined },
-              { label: "Settings", href: `${self}&tab=settings${tenantParam}`, active: tab === "settings" },
+              { label: $t("workspace.flows-page.steps"), href: `${self}${tenantParam}`, active: tab === "steps", badge: warnings.length || undefined },
+              { label: $t("workspace.flows-page.runs"), href: `${self}&tab=runs${tenantParam}`, active: tab === "runs", badge: own.length || undefined },
+              { label: $t("workspace.flows-page.settings"), href: `${self}&tab=settings${tenantParam}`, active: tab === "settings" },
             ]}
           />
 
           {tab === "steps" && (
             <div className="space-y-6">
               {warnings.length > 0 && (
-                <Panel title="Checks" description={`${plural(warnings.length, errors ? "problem" : "warning")} from foldrun check — each is also drawn on the step it is about.`} flush>
+                <Panel title={$t("workspace.flows-page.checks")} description={$t("workspace.flows-page.fromFoldrunCheckEachIsAlso", { v0: String(plural(warnings.length, errors ? "problem" : "warning")) })} flush>
                   <PanelList>
                     {warnings.map((w, i) => (
                       <li key={i} className="flex min-w-0 gap-3 px-5 py-3">
@@ -316,9 +316,9 @@ export default async function FlowsPage({
             (own.length === 0 ? (
               <EmptyState
                 icon={<Workflow />}
-                title="This flow has not run yet"
-                description="Run it here, from the CLI or the API, or let its trigger start it. Every run appears here with the line it ended on."
-                action={<RunButton endpoint={`/api/workspaces/${workspace}/flows/${f.name}/run`} tenant={tenant} label="Run flow" />}
+                title={$t("workspace.flows-page.thisFlowHasNotRunYet")}
+                description={$t("workspace.flows-page.runItHereFromTheCli")}
+                action={<RunButton endpoint={`/api/workspaces/${workspace}/flows/${f.name}/run`} tenant={tenant} label={$t("workspace.flows-page.runFlow")} />}
               />
             ) : (
               <div className="max-w-5xl space-y-3">
@@ -344,9 +344,9 @@ export default async function FlowsPage({
                   </ul>
                 </div>
                 <div className="flex items-center justify-between gap-3 text-sm text-fg-muted">
-                  <span>{own.length > 25 ? `The newest 25 of ${own.length}` : plural(own.length, "run")}</span>
+                  <span>{own.length > 25 ? $t("workspace.flows-page.theNewest25Of", { length: String(own.length) }) : plural(own.length, "run")}</span>
                   <Link href={`/dashboard/${workspace}/runs?flow=${encodeURIComponent(f.name)}${tenantParam}`} className={buttonVariants({ variant: "secondary" })}>
-                    All runs of {f.name}
+                    {$t("workspace.flows-page.allRunsOf", { name: f.name })}
                   </Link>
                 </div>
               </div>
@@ -355,26 +355,25 @@ export default async function FlowsPage({
           {tab === "settings" && (
             <div className="max-w-3xl">
               <SettingsCard
-                title="Trigger"
+                title={$t("workspace.flows-page.trigger")}
                 description={
                   <>
-                    {triggerLine(f)}. Kept as <span className="font-mono">trigger:</span>
+                    {$rich("workspace.flows-page.keptAsTrigger", { f: triggerLine(f), span: (chunks) => <span className="font-mono">{chunks}</span> })}
                     {f.schedule ? (
                       <>
-                        {" "}and <span className="font-mono">schedule: {f.schedule}</span>
+                        {" "}{$rich("workspace.flows-page.andSchedule", { schedule: f.schedule, span: (chunks) => <span className="font-mono">{chunks}</span> })}
                       </>
-                    ) : null}{" "}
-                    in the flow file.
+                    ) : null}{" "}{$t("workspace.flows-page.inTheFlowFile")}
                   </>
                 }
-                hint={f.trigger === "webhook" || f.trigger === "email" || f.trigger === "storage" ? <Link href={`/dashboard/${workspace}/triggers${qs}`} className="text-link hover:underline">What fired, and what was held back</Link> : "Saved to the flow file at once."}
+                hint={f.trigger === "webhook" || f.trigger === "email" || f.trigger === "storage" ? <Link href={`/dashboard/${workspace}/triggers${qs}`} className="text-link hover:underline">{$t("workspace.flows-page.whatFiredAndWhatWasHeld")}</Link> : $t("workspace.flows-page.savedToTheFlowFileAt")}
               >
                 <TriggerEditor workspace={workspace} flow={f.name} trigger={f.trigger ?? "manual"} schedule={f.schedule} timezone={f.timezone} />
               </SettingsCard>
               <SettingsCard
-                title="Outside agents (A2A)"
-                description={f.a2a?.publish ? `Published${f.a2a.publicCard ? ", with a public card" : ""}: an outside agent with an A2A key naming this flow may call it.` : "Not published. Publishing lets another company's agent call this flow over A2A 1.0, with an A2A key that names it."}
-                hint={<Link href={`/dashboard/${workspace}/triggers?tab=a2a${tenantParam}`} className="text-link hover:underline">Keys and recent tasks</Link>}
+                title={$t("workspace.flows-page.outsideAgentsA2a")}
+                description={f.a2a?.publish ? $t("workspace.flows-page.publishedAnOutsideAgentWithAn", { v0: String(f.a2a.publicCard ? $t("workspace.flows-page.withAPublicCard") : "") }) : $t("workspace.flows-page.notPublishedPublishingLetsAnotherCompany")}
+                hint={<Link href={`/dashboard/${workspace}/triggers?tab=a2a${tenantParam}`} className="text-link hover:underline">{$t("workspace.flows-page.keysAndRecentTasks")}</Link>}
               >
                 <A2aPublish workspace={workspace} tenant={tenant} flow={f.name} initial={f.a2a ?? null} />
               </SettingsCard>
@@ -391,37 +390,37 @@ export default async function FlowsPage({
                 />
               </div>
               <SettingsCard
-                title="Definition"
+                title={$t("workspace.flows-page.definition")}
                 description={
                   <>
-                    The flow is <span className="font-mono">flows/{f.file}</span>: frontmatter, then the numbered steps.
-                    {compute ? ` Each run may hold ${compute}.` : ""}
+                    {$rich("workspace.flows-page.theFlowIsFlowsFrontmatterThen", { file: f.file, span: (chunks) => <span className="font-mono">{chunks}</span> })}
+                    {compute ? $t("workspace.flows-page.eachRunMayHold", { compute: String(compute) }) : ""}
                   </>
                 }
-                hint="Changes take effect on the next run."
+                hint={$t("workspace.flows-page.changesTakeEffectOnTheNext")}
                 footer={
                   <Link href={editHref} className={buttonVariants({ variant: "primary" })}>
-                    Edit flows/{f.file}
+                    {$t("workspace.flows-page.editFlows", { file: f.file })}
                   </Link>
                 }
               />
               <SettingsCard
-                title="Export"
+                title={$t("workspace.flows-page.export")}
                 description={$t("workspace.flows-page.theFlowAsAZipThe")}
-                footer={<ExportLink workspace={workspace} kind="flow" name={f.name} label="Export .zip" className={buttonVariants({ variant: "secondary" })} />}
+                footer={<ExportLink workspace={workspace} kind="flow" name={f.name} label={$t("workspace.flows-page.exportZip")} className={buttonVariants({ variant: "secondary" })} />}
               />
               <SettingsCard
                 id="delete"
                 danger
-                title="Delete flow"
-                description={callers.length ? `Deleting it breaks ${callers.length === 1 ? "the flow" : "the flows"} that run it as a step: ${callers.join(", ")}.` : $t("workspace.flows-page.itsFileIsRemovedFromThe")}
+                title={$t("workspace.flows-page.deleteFlow")}
+                description={callers.length ? $t("workspace.flows-page.deletingItBreaksThatRunIt", { v0: String(callers.length === 1 ? $t("workspace.flows-page.theFlow") : $t("workspace.flows-page.theFlows")), v1: String(callers.join(", ")) }) : $t("workspace.flows-page.itsFileIsRemovedFromThe")}
                 footer={
                   <DeleteButton
                 variant="button"
                     endpoint={`/api/workspaces/${workspace}/source`}
                     tenant={tenant}
                     body={{ path: `flows/${f.file}` }}
-                    confirmText={`Delete flow ${f.name}?`}
+                    confirmText={$t("workspace.flows-page.deleteFlow2", { name: String(f.name) })}
                     redirectTo={`${base}${qs}`}
                   />
                 }
@@ -450,14 +449,14 @@ export default async function FlowsPage({
       <>
         <StatusDot outcome={last.outcome} label="" />
         <span className="truncate">
-          {OUTCOME[last.outcome].label} {fmtSpan(now - Date.parse(last.startedAt))} ago
+          {$t("workspace.flows-page.ago", { label: OUTCOME[last.outcome].label, fmtSpan: fmtSpan(now - Date.parse(last.startedAt)) })}
           {last.failure ? ` · ${last.failure.agent}: ${last.failure.reason}` : last.headline ? ` · ${last.headline}` : ""}
         </span>
       </>
     ) : (
       <>
         <CircleDashed />
-        <span className="truncate">Never ran</span>
+        <span className="truncate">{$t("workspace.flows-page.neverRan2")}</span>
       </>
     );
     return {
@@ -473,12 +472,12 @@ export default async function FlowsPage({
         </>
       ),
       cells: {
-        status: last ? <Status outcome={last.outcome} /> : <span className="text-fg-muted">Never ran</span>,
+        status: last ? <Status outcome={last.outcome} /> : <span className="text-fg-muted">{$t("workspace.flows-page.neverRan2")}</span>,
         runs: beat && beat.cells.length ? <Cells beat={beat} n={12} tenant={tenant} /> : undefined,
         next: row?.nextFireAt ? fmtIn(Date.parse(row.nextFireAt) - now) : undefined,
         cost: preview ? <Tooltip label={costTitle(preview)}><span>{preview.cost}</span></Tooltip> : undefined,
       },
-      action: <RunButton endpoint={`/api/workspaces/${workspace}/flows/${f.name}/run`} tenant={tenant} label="Run" />,
+      action: <RunButton endpoint={`/api/workspaces/${workspace}/flows/${f.name}/run`} tenant={tenant} label={$t("workspace.flows-page.run")} />,
       card: (
         <ResourceCard
           href={href}
@@ -486,11 +485,11 @@ export default async function FlowsPage({
           name={f.name}
           sub={line}
           status={row && row.live > 0 ? "busy" : outcomeRing(last?.outcome)}
-          statusLabel={row && row.live > 0 ? `${row.live} running` : last ? OUTCOME[last.outcome].hint : "never ran"}
+          statusLabel={row && row.live > 0 ? `${row.live} running` : last ? OUTCOME[last.outcome].hint : $t("workspace.flows-page.neverRan")}
           lines={[
             lastLine,
-            ...(row?.nextFireAt ? [<><Clock3 /><span className="truncate">Next {fmtIn(Date.parse(row.nextFireAt) - now)}</span></>] : []),
-            <><Layers /><span className="truncate">{plural(f.steps.length, "step")}{preview ? ` · usually ${preview.cost}` : ""}</span></>,
+            ...(row?.nextFireAt ? [<><Clock3 /><span className="truncate">{$t("workspace.flows-page.next", { fmtIn: fmtIn(Date.parse(row.nextFireAt) - now) })}</span></>] : []),
+            <><Layers /><span className="truncate">{plural(f.steps.length, "step")}{preview ? $t("workspace.flows-page.usually", { cost: String(preview.cost) }) : ""}</span></>,
             ...(problems ? [<><AlertTriangle /><span className={errors ? "truncate text-danger" : "truncate text-warning"}>{problems}</span></>] : []),
           ]}
         />
@@ -502,35 +501,35 @@ export default async function FlowsPage({
     <Page>
       <FlowHashRedirect flows={flows.map((f) => ({ name: f.name, anchor: anchorId("flow", f.name) }))} query={tenantParam} />
       <PageHeader
-        title="Flows"
-        description="Which agents run, in what order, and where a person is asked."
+        title={$t("workspace.flows-page.flows")}
+        description={$t("workspace.flows-page.whichAgentsRunInWhatOrder")}
         actions={
           <>
             <ImportPackageButton tenant={tenant} workspace={workspace} />
-            <AskAiButton label="Draft with AI" prompt="Draft a flow that " title="Describe a flow; the assistant writes it and any agents it needs, checked, for you to save" />
+            <AskAiButton label={$t("workspace.flows-page.draftWithAi")} prompt={$t("workspace.flows-page.draftAFlowThat")} title={$t("workspace.flows-page.describeAFlowTheAssistantWrites")} />
             <NewFlowButton tenant={tenant} workspace={workspace} />
           </>
         }
       />
       <ResourceList
         id="flows"
-        search="Search flows…"
+        search={$t("workspace.flows-page.searchFlows")}
         nameHeader="Flow"
         columns={[
-          { key: "status", header: "Last run", hide: "sm" },
-          { key: "runs", header: "Recent runs", hide: "lg" },
-          { key: "next", header: "Next run", hide: "md" },
-          { key: "cost", header: "Usual cost", align: "end", hide: "lg" },
+          { key: "status", header: $t("workspace.flows-page.lastRun"), hide: "sm" },
+          { key: "runs", header: $t("workspace.flows-page.recentRuns"), hide: "lg" },
+          { key: "next", header: $t("workspace.flows-page.nextRun"), hide: "md" },
+          { key: "cost", header: $t("workspace.flows-page.usualCost"), align: "end", hide: "lg" },
         ]}
         rows={listRows}
         empty={
           <EmptyState
             icon={<Workflow />}
             title={$t("workspace.flows-page.noFlowsInThisWorkspaceYet")}
-            description="A flow is a numbered list of [[agent]] links under flows/. One agent per line; repeat a number to run those agents in parallel."
+            description={$t("workspace.flows-page.aFlowIsANumberedList")}
             action={
               <Link href={`${base}?create=flows${tenantParam}`} className={buttonVariants({ variant: "primary" })}>
-                New flow
+                {$t("workspace.flows-page.newFlow")}
               </Link>
             }
           />
@@ -553,11 +552,11 @@ function NewFlowButton({ tenant, workspace }: { tenant: string; workspace: strin
       variants={{
         key: "pattern",
         choices: [
-          { value: "pipeline", label: "Basic flow", hint: "Steps in order, one agent each. The shape you edit into anything.", section: "Start from scratch" },
-          { value: "review-loop", label: "Review loop", hint: "A maker and a checker — the loop repeats until the checker approves.", section: "Start from an example" },
-          { value: "fan-out", label: "Fan-out", hint: "One step runs once per line of a list, in parallel.", section: "Start from an example" },
-          { value: "debate", label: "Debate", hint: "Two agents take positions; a third weighs them and decides.", section: "Start from an example" },
-          { value: "router", label: "Router", hint: "A triage step whose verdict picks which branch runs.", section: "Start from an example" },
+          { value: "pipeline", label: $t("workspace.flows-page.basicFlow"), hint: $t("workspace.flows-page.stepsInOrderOneAgentEach"), section: $t("workspace.flows-page.startFromScratch") },
+          { value: "review-loop", label: $t("workspace.flows-page.reviewLoop"), hint: $t("workspace.flows-page.aMakerAndACheckerThe"), section: $t("workspace.flows-page.startFromAnExample") },
+          { value: "fan-out", label: "Fan-out", hint: $t("workspace.flows-page.oneStepRunsOncePerLine"), section: $t("workspace.flows-page.startFromAnExample") },
+          { value: "debate", label: $t("workspace.flows-page.debate"), hint: $t("workspace.flows-page.twoAgentsTakePositionsAThird"), section: $t("workspace.flows-page.startFromAnExample") },
+          { value: "router", label: $t("workspace.flows-page.router"), hint: $t("workspace.flows-page.aTriageStepWhoseVerdictPicks"), section: $t("workspace.flows-page.startFromAnExample") },
         ],
       }}
     />

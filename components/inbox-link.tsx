@@ -6,6 +6,7 @@
 // navigation, by one shared poll; hidden when there is no person to have an
 // inbox (dev mode with nobody signed in).
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
@@ -57,10 +58,10 @@ export function InboxLink({ className }: { className?: string }) {
   if (n === null) return null;
   const on = pathname === "/dashboard/inbox";
   return (
-    <Tooltip label={n ? `${n} unread in your inbox` : "Inbox"}>
+    <Tooltip label={n ? $t("components.inbox-link.unreadInYourInbox", { n: String(n) }) : $t("components.inbox-link.inbox")}>
     <Link
       href={`/dashboard/inbox${t !== "default" ? `?tenant=${encodeURIComponent(t)}` : ""}`}
-      aria-label={n ? `Inbox, ${n} unread` : "Inbox"}
+      aria-label={n ? $t("components.inbox-link.inboxUnread", { n: String(n) }) : $t("components.inbox-link.inbox")}
       className={cn(
         "relative flex size-8 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
         on ? "bg-muted text-fg" : "text-fg-muted hover:bg-muted hover:text-fg",

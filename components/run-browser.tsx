@@ -6,6 +6,7 @@
 // recorded — each call's video and each screenshot — to play in the same
 // stage afterwards. One place to watch a browser agent, during and after.
 
+import { $t } from "@/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LIVE_POLL_MS, REWIND_FRAMES, frameAge, mediaFiles, mediaKind, recordingLabel } from "@/components/run-browser-model";
 import { useViewerTime } from "@/components/viewer-time";
@@ -127,7 +128,7 @@ export function BrowserTheater({
     <div className={`palette-fixed relative w-full overflow-hidden bg-neutral-950 ${theater ? "h-full" : "aspect-[16/10]"}`}>
       {frame && (
         // eslint-disable-next-line @next/next/no-img-element -- a blob of a live frame
-        <img src={frame.src} alt={`What ${agent}'s browser shows`} className="absolute inset-0 h-full w-full object-contain" />
+        <img src={frame.src} alt={$t("components.run-browser.whatSBrowserShows", { agent: String(agent) })} className="absolute inset-0 h-full w-full object-contain" />
       )}
       {file && mediaKind(file.path) === "video" && (
         <video key={file.path} controls autoPlay={!!shown} playsInline preload="metadata" src={hrefOf(file)} className="absolute inset-0 h-full w-full object-contain" />
@@ -140,7 +141,7 @@ export function BrowserTheater({
         <div className="pointer-events-none absolute left-3 top-3 flex items-center gap-2">
           <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider shadow ${live && rewind === null ? "bg-red-600 text-white" : "bg-black/70 text-gray-200"}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${live && rewind === null ? "animate-pulse bg-surface" : "bg-gray-400"}`} />
-            {live ? (rewind === null ? "live" : `${behind}s behind`) : "last seen"}
+            {live ? (rewind === null ? "live" : $t("components.run-browser.sBehind", { behind: String(behind) })) : $t("components.run-browser.lastSeen")}
           </span>
           <span className="rounded-full bg-black/60 px-2 py-0.5 text-[10px] tabular-nums text-gray-200">{frameAge(frame.at, now)}</span>
         </div>
@@ -151,7 +152,7 @@ export function BrowserTheater({
   const tiles = (
     <div className="flex gap-2 overflow-x-auto px-3 py-2.5">
       {latest && (
-        <Tooltip label={live ? "Watch live" : "The last frame seen"}>
+        <Tooltip label={live ? $t("components.run-browser.watchLive") : $t("components.run-browser.theLastFrameSeen")}>
         <button
           type="button"
           onClick={() => pick({ kind: "live" })}
@@ -209,18 +210,18 @@ export function BrowserTheater({
         </Tooltip>
         {latest?.engine && <span className="hidden rounded bg-neutral-700 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-gray-300 sm:inline">{latest.engine}</span>}
         {videos.length > 0 && (
-          <Tooltip label="recordings of this step">
-            <span className="rounded bg-neutral-700 px-1.5 py-0.5 text-[10px] font-medium text-gray-200">● rec {videos.length}</span>
+          <Tooltip label={$t("components.run-browser.recordingsOfThisStep")}>
+            <span className="rounded bg-neutral-700 px-1.5 py-0.5 text-[10px] font-medium text-gray-200">{$t("components.run-browser.rec", { length: String(videos.length) })}</span>
           </Tooltip>
         )}
-        <Tooltip label={theater ? "Close (Esc)" : "Watch full screen"}>
+        <Tooltip label={theater ? $t("components.run-browser.closeEsc") : $t("components.run-browser.watchFullScreen")}>
           <button type="button" onClick={() => setTheater((t) => !t)} className="rounded px-1.5 py-0.5 text-[11px] text-gray-300 hover:bg-neutral-700 hover:text-white">
-            {theater ? "✕ close" : "⤢ theater"}
+            {theater ? $t("components.run-browser.close") : $t("components.run-browser.theater")}
           </button>
         </Tooltip>
         {file && (
-          <Tooltip label="Open the file on its own">
-            <a href={hrefOf(file)} target="_blank" rel="noreferrer" aria-label="Open the file on its own" className="rounded px-1.5 py-0.5 text-[11px] text-gray-300 hover:bg-neutral-700 hover:text-white">↗</a>
+          <Tooltip label={$t("components.run-browser.openTheFileOnItsOwn")}>
+            <a href={hrefOf(file)} target="_blank" rel="noreferrer" aria-label={$t("components.run-browser.openTheFileOnItsOwn")} className="rounded px-1.5 py-0.5 text-[11px] text-gray-300 hover:bg-neutral-700 hover:text-white">↗</a>
           </Tooltip>
         )}
       </div>
@@ -228,7 +229,7 @@ export function BrowserTheater({
       {/* Rewind: the minute of frames this page has seen, while live. */}
       {current.kind === "live" && frames.length > 1 && (
         <div className="flex items-center gap-3 border-t border-gray-800 px-3 py-2 text-[11px] text-fg-subtle">
-          <span className="shrink-0">rewind</span>
+          <span className="shrink-0">{$t("components.run-browser.rewind")}</span>
           <Slider
             min={0}
             max={frames.length - 1}
@@ -236,12 +237,12 @@ export function BrowserTheater({
             onValueChange={(v) => setRewind(v === frames.length - 1 ? null : v)}
             tone="danger"
             className="flex-1"
-            aria-label="Rewind the live view"
+            aria-label={$t("components.run-browser.rewindTheLiveView")}
           />
-          <span className="w-24 shrink-0 text-right tabular-nums">{rewind === null ? `${frames.length} frames` : `${behind}s behind`}</span>
+          <span className="w-24 shrink-0 text-right tabular-nums">{rewind === null ? `${frames.length} frames` : $t("components.run-browser.sBehind", { behind: String(behind) })}</span>
           {rewind !== null && (
             <button type="button" onClick={() => setRewind(null)} className="shrink-0 rounded bg-red-600 px-2 py-0.5 font-medium text-white hover:bg-red-500">
-              {live ? "back to live" : "latest"}
+              {live ? $t("components.run-browser.backToLive") : "latest"}
             </button>
           )}
         </div>
@@ -253,7 +254,7 @@ export function BrowserTheater({
   if (theater) {
     return (
       <>
-        <div className="mb-3 flex aspect-[16/10] items-center justify-center rounded-lg border border-dashed border-line-strong text-xs text-fg-subtle">showing in theater — Esc to bring it back</div>
+        <div className="mb-3 flex aspect-[16/10] items-center justify-center rounded-lg border border-dashed border-line-strong text-xs text-fg-subtle">{$t("components.run-browser.showingInTheaterEscToBring")}</div>
         <div className="fixed inset-0 z-50 bg-black/85 p-4 backdrop-blur-sm md:p-8" onClick={(e) => { if (e.target === e.currentTarget) setTheater(false); }}>
           {body}
         </div>

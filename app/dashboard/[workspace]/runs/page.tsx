@@ -90,11 +90,11 @@ export default async function WorkspaceRunsPage({
       <AutoRefresh active={runs.some((r) => r.status === "running" || r.status === "queued")} />
 
       <PageHeader
-        title="Runs"
+        title={$t("workspace.runs-page.runs")}
         description={
           awaiting.length
-            ? `${awaiting.length} run${awaiting.length === 1 ? "" : "s"} waiting for you to approve a step.`
-            : `Every run in ${workspace}. Open one to watch it step by step.`
+            ? $t("workspace.runs-page.runWaitingForYouToApprove", { length: String(awaiting.length), v1: String(awaiting.length === 1 ? "" : "s") })
+            : $t("workspace.runs-page.everyRunInOpenOneTo", { workspace: String(workspace) })
         }
         actions={
           <Link href={`/dashboard/runs${wider}`} className={buttonVariants({ variant: "secondary" })}>
@@ -112,7 +112,7 @@ export default async function WorkspaceRunsPage({
           only appears on the pager's own links. */}
       <div className="mb-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <RunQuery value={q} placeholder="Search runs — id, flow, headline, error…" className="min-w-48 flex-1" />
+          <RunQuery value={q} placeholder={$t("workspace.runs-page.searchRunsIdFlowHeadlineError")} className="min-w-48 flex-1" />
           {/* Keyed by the search, so a saved view, back and forward reset its
               fields to what the URL says (Codex review). */}
           <RunSearch key={JSON.stringify(searchKept)} tenant={tenant} />
@@ -137,7 +137,7 @@ export default async function WorkspaceRunsPage({
           tenant={tenant}
           tenantParam={tenantParam}
           showWorkspace={false}
-          emptyDescription={`Nothing in ${workspace} matches. Run an agent or a flow to see it here.`}
+          emptyDescription={$t("workspace.runs-page.nothingInMatchesRunAnAgent", { workspace: String(workspace) })}
         />
       </RunsSelection>
       <Pager

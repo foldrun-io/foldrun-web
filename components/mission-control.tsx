@@ -12,6 +12,7 @@
 // attention, a Recent runs list that repeated the heartbeat, and an Up next
 // card that repeated the empty Running panel's "Next:" line.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { CheckCircle2, Clock3, Coins } from "lucide-react";
 import { OUTCOME, type Outcome } from "@/components/outcome-model";
@@ -29,13 +30,13 @@ import { StatusDot } from "@/components/status";
 import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 const KIND: Record<AttentionItem["kind"], { label: string; tone: Tone }> = {
-  platform: { label: "Platform", tone: "default" },
-  waiting: { label: "Needs you", tone: "info" },
-  stuck: { label: "Stuck", tone: "warn" },
-  failed: { label: "Failed", tone: "bad" },
-  bad: { label: "Bad", tone: "bad" },
-  blocked: { label: "Blocked", tone: "warn" },
-  missed: { label: "Missed", tone: "warn" },
+  platform: { label: $t("components.mission-control.platform"), tone: "default" },
+  waiting: { label: $t("components.mission-control.needsYou"), tone: "info" },
+  stuck: { label: $t("components.mission-control.stuck"), tone: "warn" },
+  failed: { label: $t("components.mission-control.failed"), tone: "bad" },
+  bad: { label: $t("components.mission-control.bad"), tone: "bad" },
+  blocked: { label: $t("components.mission-control.blocked"), tone: "warn" },
+  missed: { label: $t("components.mission-control.missed"), tone: "warn" },
 };
 
 /** A run's outcome as a card's ring — the outcome's own word as its label,
@@ -72,20 +73,20 @@ export function StatusStrip({ facts, now }: { facts: StatusFacts; now: number })
       <Stat
         href={f.links.attention}
         icon={f.attention === 0 ? <CheckCircle2 className="text-success" /> : <span className="size-2 rounded-full bg-red-500" />}
-        label="Needs attention"
-        value={f.attention === 0 ? "All clear" : f.attention}
+        label={$t("components.mission-control.needsAttention")}
+        value={f.attention === 0 ? $t("components.mission-control.allClear") : f.attention}
         tone={f.attention ? "danger" : undefined}
-        sub={f.platform > 0 ? `${f.platform} the platform's` : undefined}
+        sub={f.platform > 0 ? $t("components.mission-control.thePlatformS", { platform: String(f.platform) }) : undefined}
       />
-      <Stat href={f.links.running} icon={<span className={`size-2 rounded-full ${f.running ? "animate-pulse bg-sky-500" : "bg-gray-300"}`} />} label="Running now" value={f.running} />
+      <Stat href={f.links.running} icon={<span className={`size-2 rounded-full ${f.running ? "animate-pulse bg-sky-500" : "bg-gray-300"}`} />} label={$t("components.mission-control.runningNow")} value={f.running} />
       <Stat
         href={f.links.next}
         icon={<Clock3 />}
-        label="Next run"
-        value={f.next ? <span className="truncate text-lg">{f.next.flow}</span> : <span className="text-base font-normal text-fg-subtle">Nothing scheduled</span>}
+        label={$t("components.mission-control.nextRun")}
+        value={f.next ? <span className="truncate text-lg">{f.next.flow}</span> : <span className="text-base font-normal text-fg-subtle">{$t("components.mission-control.nothingScheduled")}</span>}
         sub={f.next ? `${fmtIn(Math.max(0, Date.parse(f.next.at) - now))}${f.next.workspace ? ` · ${f.next.workspace}` : ""}` : undefined}
       />
-      <Stat href={f.links.spend} icon={<Coins />} label="Spend today" value={creditsShort(f.spendDayUsd)} sub={`${creditsShort(f.spend7dUsd)} in 7 days`} />
+      <Stat href={f.links.spend} icon={<Coins />} label={$t("components.mission-control.spendToday")} value={creditsShort(f.spendDayUsd)} sub={$t("components.mission-control.in7Days", { v0: String(creditsShort(f.spend7dUsd)) })} />
     </StatGrid>
   );
 }
@@ -109,14 +110,14 @@ export function SpendPanel({
   balanceHref?: string;
 }) {
   const rows: UsageRow[] = [
-    { key: "day", label: "Spent today", used: 0, limit: null, shown: creditsShort(dayUsd), href },
-    { key: "week", label: "Spent in 7 days", used: 0, limit: null, shown: creditsShort(weekUsd), href },
-    ...(budget ? [{ key: "budget", label: `Budget ${budget.label}`, used: budget.spentUsd, limit: budget.limitUsd, shown: `${creditsShort(budget.spentUsd)} / ${creditsShort(budget.limitUsd)}`, href }] : []),
-    ...(balanceUsd !== undefined && balanceUsd !== null ? [{ key: "balance", label: "Balance", used: balanceUsd <= 0 ? 1 : 0, limit: 1, shown: creditsShort(balanceUsd), href: balanceHref ?? href }] : []),
+    { key: "day", label: $t("components.mission-control.spentToday"), used: 0, limit: null, shown: creditsShort(dayUsd), href },
+    { key: "week", label: $t("components.mission-control.spentIn7Days"), used: 0, limit: null, shown: creditsShort(weekUsd), href },
+    ...(budget ? [{ key: "budget", label: $t("components.mission-control.budget", { label: String(budget.label) }), used: budget.spentUsd, limit: budget.limitUsd, shown: `${creditsShort(budget.spentUsd)} / ${creditsShort(budget.limitUsd)}`, href }] : []),
+    ...(balanceUsd !== undefined && balanceUsd !== null ? [{ key: "balance", label: $t("components.mission-control.balance"), used: balanceUsd <= 0 ? 1 : 0, limit: 1, shown: creditsShort(balanceUsd), href: balanceHref ?? href }] : []),
   ];
   return (
-    <Panel title="Usage" actions={<PanelLink href={href}>Usage</PanelLink>} flush>
-      <UsageRows rows={rows} heading="This week" />
+    <Panel title={$t("components.mission-control.usage")} actions={<PanelLink href={href}>{$t("components.mission-control.usage")}</PanelLink>} flush>
+      <UsageRows rows={rows} heading={$t("components.mission-control.thisWeek")} />
     </Panel>
   );
 }
@@ -126,9 +127,9 @@ export function SpendPanel({
 export function AttentionPanel({ items, alerts = [], tenant, showWorkspace = true, issuesHref, accountWide = true, limit = 6 }: { items: AttentionItem[]; alerts?: Alert[]; tenant: string; showWorkspace?: boolean; issuesHref?: string; accountWide?: boolean; limit?: number }) {
   const total = items.length + alerts.length;
   return (
-    <Panel title="Needs attention" count={total || undefined} actions={issuesHref ? <PanelLink href={issuesHref}>All issues</PanelLink> : undefined} flush>
+    <Panel title={$t("components.mission-control.needsAttention")} count={total || undefined} actions={issuesHref ? <PanelLink href={issuesHref}>{$t("components.mission-control.allIssues")}</PanelLink> : undefined} flush>
       {total === 0 ? (
-        <EmptyState bare icon={<CheckCircle2 className="text-success" />} title="All clear" description="Nothing failed, stuck or waiting for you." />
+        <EmptyState bare icon={<CheckCircle2 className="text-success" />} title={$t("components.mission-control.allClear")} description={$t("components.mission-control.nothingFailedStuckOrWaitingFor")} />
       ) : (
         <ul id="attention" className="divide-y divide-line">
           {items.slice(0, limit).map((a) => {
@@ -148,13 +149,13 @@ export function AttentionPanel({ items, alerts = [], tenant, showWorkspace = tru
                       {k.label}
                     </Chip>
                     {a.kind !== "platform" && showWorkspace && <Chip>{a.workspace}</Chip>}
-                    {a.kind === "platform" && a.desks && a.desks.length > 1 && <Chip>{a.desks.length} workspaces</Chip>}
+                    {a.kind === "platform" && a.desks && a.desks.length > 1 && <Chip>{$t("components.mission-control.term", { length: String(a.desks.length) })}</Chip>}
                     {a.count > 1 && <Chip>×{a.count}</Chip>}
-                    {a.issue?.regressed && <Chip tone="bad">regressed</Chip>}
-                    {a.issue?.status === "acknowledged" && <Chip>acknowledged</Chip>}
-                    <span className="text-xs text-fg-muted">{fmtSpan(a.ageMs)} ago</span>
+                    {a.issue?.regressed && <Chip tone="bad">{$t("components.mission-control.regressed")}</Chip>}
+                    {a.issue?.status === "acknowledged" && <Chip>{$t("components.mission-control.acknowledged")}</Chip>}
+                    <span className="text-xs text-fg-muted">{$t("components.mission-control.ago", { fmtSpan: fmtSpan(a.ageMs) })}</span>
                   </div>
-                  {a.fineMs != null && <p className="text-xs text-success">Fine for {fmtSpan(a.fineMs)}: resolve it if it is fixed.</p>}
+                  {a.fineMs != null && <p className="text-xs text-success">{$t("components.mission-control.fineForResolveItIfIt", { fmtSpan: fmtSpan(a.fineMs) })}</p>}
                 </div>
                 {a.issue && (
                   <div className="shrink-0 pt-0.5">
@@ -171,7 +172,7 @@ export function AttentionPanel({ items, alerts = [], tenant, showWorkspace = tru
                   {a.text}
                 </Link>
                 <Chip tone={a.level === "error" ? "bad" : "warn"} dot>
-                  Money
+                  {$t("components.mission-control.money")}
                 </Chip>
               </div>
             </li>
@@ -179,7 +180,7 @@ export function AttentionPanel({ items, alerts = [], tenant, showWorkspace = tru
           {items.length > limit && issuesHref && (
             <li>
               <Link href={issuesHref} className="block px-5 py-2.5 text-center text-sm text-fg-muted hover:bg-sunken hover:text-fg">
-                {items.length - limit} more
+                {$t("components.mission-control.more", { length: String(items.length - limit) })}
               </Link>
             </li>
           )}
@@ -201,7 +202,7 @@ export function NowNext({ board, upcoming, now, tenant, showWorkspace = true, ru
   return (
     <>
       {board.length > 0 && (
-        <Panel title="Running now" count={board.length} actions={<PanelLink href={runsHref}>All runs</PanelLink>} flush>
+        <Panel title={$t("components.mission-control.runningNow")} count={board.length} actions={<PanelLink href={runsHref}>{$t("components.mission-control.allRuns")}</PanelLink>} flush>
           <ul className="divide-y divide-line">
             {board.slice(0, 6).map((r) => {
               const pct = r.steps ? Math.round((100 * r.done) / r.steps) : 0;
@@ -218,8 +219,8 @@ export function NowNext({ board, upcoming, now, tenant, showWorkspace = true, ru
                       <div className={`h-full rounded-full ${r.outcome === "waiting" ? "bg-violet-500" : "bg-sky-500"}`} style={{ width: `${Math.max(pct, 4)}%` }} />
                     </div>
                     <p className="mt-1.5 truncate text-xs text-fg-muted">
-                      {r.outcome === "waiting" ? (r.question ? "Asking you a question" : "Waiting for approval") : r.outcome === "queued" ? "Queued" : r.active ? `Step ${r.active.index} of ${r.steps} · ${r.active.agent}` : `${r.done} of ${r.steps} steps`}
-                      {r.stuck && " · stuck?"}
+                      {r.outcome === "waiting" ? (r.question ? $t("components.mission-control.askingYouAQuestion") : $t("components.mission-control.waitingForApproval")) : r.outcome === "queued" ? $t("components.mission-control.queued") : r.active ? $t("components.mission-control.stepOf", { index: String(r.active.index), steps: String(r.steps), agent: String(r.active.agent) }) : $t("components.mission-control.ofSteps", { done: String(r.done), steps: String(r.steps) })}
+                      {r.stuck && $t("components.mission-control.stuck2")}
                     </p>
                   </Link>
                 </li>
@@ -228,9 +229,9 @@ export function NowNext({ board, upcoming, now, tenant, showWorkspace = true, ru
           </ul>
         </Panel>
       )}
-      <Panel title="Up next" flush>
+      <Panel title={$t("components.mission-control.upNext")} flush>
         {upcoming.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-fg-muted">Nothing scheduled.</p>
+          <p className="px-5 py-8 text-center text-sm text-fg-muted">{$t("components.mission-control.nothingScheduled2")}</p>
         ) : (
           <ul className="divide-y divide-line">
             {upcoming.slice(0, 5).map((u) => (
@@ -264,7 +265,7 @@ export function Cells({ beat, n, tenant }: { beat: Heartbeat; n: number; tenant:
         <span key={`e${i}`} className="h-5 w-1.5 rounded-full bg-muted" />
       ))}
       {beat.cells.map((r) => {
-        const tip = `${r.what} · ${OUTCOME[r.outcome].hint} · ${r.startedAt.slice(0, 16).replace("T", " ")} UTC${r.headline ? `\n${r.headline}` : ""}`;
+        const tip = $t("components.mission-control.utc", { what: String(r.what), hint: String(OUTCOME[r.outcome].hint), v2: String(r.startedAt.slice(0, 16).replace("T", " ")), v3: String(r.headline ? `\n${r.headline}` : "") });
         return (
           <Tooltip key={r.id} label={<span className="whitespace-pre-line">{tip}</span>}>
             <Link

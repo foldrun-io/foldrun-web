@@ -33,31 +33,31 @@ export const dynamic = "force-dynamic";
 
 const SCOPES: Record<string, { title: string; blurb: string; empty?: string; list?: string }> = {
   state: {
-    title: "State",
+    title: $t("workspace.edit-page.state"),
     blurb: $t("workspace.edit-page.whatThisWorkspaceCarriesBetweenRuns"),
   },
   // The markdown an account is made of opens as files, the way State does:
   // a tree to walk and the file beside it. The cards stay one link away.
   knowledge: {
-    title: "Knowledge",
-    blurb: "Reference material you give agents — specs, price lists, guidelines. Agents read it and never rewrite it.",
-    empty: "Nothing in knowledge/ yet — add one with + New file.",
+    title: $t("workspace.edit-page.knowledge"),
+    blurb: $t("workspace.edit-page.referenceMaterialYouGiveAgentsSpecs"),
+    empty: $t("workspace.edit-page.nothingInKnowledgeYetAddOne"),
     list: "knowledge",
   },
   memory: {
-    title: "Memory",
+    title: $t("workspace.edit-page.memory"),
     blurb: $t("workspace.edit-page.whatPastRunsWorkedOutWritten"),
-    empty: "Agents write here as they learn — nothing yet.",
+    empty: $t("workspace.edit-page.agentsWriteHereAsTheyLearn"),
     list: "memory",
   },
   hooks: {
-    title: "Hooks",
-    blurb: "Your own code at the points every step passes through — one folder each, hook.md beside run.mjs. What they did lately is on the Hooks page.",
+    title: $t("workspace.edit-page.hooks"),
+    blurb: $t("workspace.edit-page.yourOwnCodeAtThePoints"),
     empty: $t("workspace.edit-page.noHooksInThisWorkspaceYet"),
   },
   skills: {
-    title: "Skills",
-    blurb: "Procedures an agent follows, one folder each with its SKILL.md.",
+    title: $t("workspace.edit-page.skills"),
+    blurb: $t("workspace.edit-page.proceduresAnAgentFollowsOneFolder"),
     empty: $t("workspace.edit-page.noSkillsInThisWorkspaceYet"),
     list: "skills",
   },
@@ -103,7 +103,7 @@ export default async function EditPage({
   const scope = scopeOf(rawScope);
   const all = listWorkspaceFiles(tenant, workspace);
   const inScope = (f: string) =>
-    !!scope && (f.startsWith(`${scope.dir}/`) || (AGENT_SCOPED.has(scope.dir) && new RegExp(`^agents/[^/]+/${scope.dir}/`).test(f)));
+    !!scope && (f.startsWith(`${scope.dir}/`) || (AGENT_SCOPED.has(scope.dir) && new RegExp($t("workspace.edit-page.agents", { dir: String(scope.dir) })).test(f)));
   const files = scope ? all.filter(inScope) : all;
   const selected =
     filePath && files.includes(filePath)
@@ -153,9 +153,9 @@ export default async function EditPage({
       const toolName = typeof fm.name === "string" ? fm.name : selected.split("/").at(-2) ?? "";
       const users = agents.filter((a) => a.tools.includes(toolName));
       sections.push({
-        title: "Used by",
+        title: $t("workspace.edit-page.usedBy"),
         items: users.map((a) => ({ label: a.name, href: editHref(`agents/${a.name}/agent.md`), meta: a.model })),
-        empty: `No agent grants ${toolName} yet — add it under tools: in an agent.`,
+        empty: $t("workspace.edit-page.noAgentGrantsYetAddIt", { toolName: String(toolName) }),
       });
       const transport = (typeof fm.transport === "string" ? fm.transport : typeof fm.type === "string" ? fm.type : null) as "http" | "script" | "mcp" | null;
       const defined = Object.keys(workspaceTools(tenant, workspace)).includes(toolName);
@@ -167,51 +167,51 @@ export default async function EditPage({
       const agentName = selected.split("/")[1];
       const inFlows = flows.filter((f) => f.steps.some((s) => s.agent === agentName));
       sections.push({
-        title: "Steps in",
+        title: $t("workspace.edit-page.stepsIn"),
         items: inFlows.map((f) => ({ label: f.name, href: editHref(`flows/${f.file}`), meta: f.trigger })),
-        empty: "No flow steps this agent yet.",
+        empty: $t("workspace.edit-page.noFlowStepsThisAgentYet"),
       });
       const info = agents.find((a) => a.name === agentName);
       if (info) {
         sections.push({
-          title: "Tools",
+          title: $t("workspace.edit-page.tools"),
           items: info.tools.map((t) => ({ label: t, mono: true, ...(info.ownTools.includes(t) ? { href: `/dashboard/${workspace}/assets?kind=tools${rest}` } : { meta: "built-in", tone: "muted" as const }) })),
-          empty: "No tools granted.",
+          empty: $t("workspace.edit-page.noToolsGranted"),
         });
       }
       const own = runs.filter((r) => r.steps.some((s) => s.agent === agentName)).slice(0, 5);
       sections.push({
-        title: "Recent runs",
+        title: $t("workspace.edit-page.recentRuns"),
         items: own.map((r) => ({ label: r.summary?.trim() || r.flow, href: `/dashboard/${workspace}/runs/${r.id}${rest.replace("&", "?")}`, meta: runDisplayStatus(r), tone: runDisplayStatus(r) === "failed" ? "error" : runDisplayStatus(r) === "completed" ? "ok" : "warn" })),
-        empty: "This agent has not run yet.",
-        more: { label: "All runs", href: `/dashboard/${workspace}/runs${qs}` },
+        empty: $t("workspace.edit-page.thisAgentHasNotRunYet"),
+        more: { label: $t("workspace.edit-page.allRuns"), href: `/dashboard/${workspace}/runs${qs}` },
       });
     }
     if (kind === "flow") {
       const flowName = typeof fm.name === "string" ? fm.name : path.basename(selected, ".md");
       const flow = flows.find((f) => f.name === flowName);
       sections.push({
-        title: "Steps",
+        title: $t("workspace.edit-page.steps"),
         items: (flow?.steps ?? []).map((s, i) => ({ label: `${i + 1}. ${s.agent}`, href: agents.some((a) => a.name === s.agent) ? editHref(`agents/${s.agent}/agent.md`) : undefined, tone: agents.some((a) => a.name === s.agent) ? undefined : ("error" as const), meta: agents.some((a) => a.name === s.agent) ? undefined : "missing" })),
-        empty: "No steps yet — one [[agent]] per numbered line.",
+        empty: $t("workspace.edit-page.noStepsYetOneAgentPer"),
       });
       const own = runs.filter((r) => r.flow === flowName).slice(0, 5);
       sections.push({
-        title: "Recent runs",
+        title: $t("workspace.edit-page.recentRuns"),
         items: own.map((r) => ({ label: r.summary?.trim() || r.startedAt.slice(0, 16).replace("T", " "), href: `/dashboard/${workspace}/runs/${r.id}${rest.replace("&", "?")}`, meta: runDisplayStatus(r), tone: runDisplayStatus(r) === "failed" ? "error" : runDisplayStatus(r) === "completed" ? "ok" : "warn" })),
-        empty: "This flow has not run yet.",
-        more: { label: "All runs", href: `/dashboard/${workspace}/runs?flow=${encodeURIComponent(flowName)}${rest}` },
+        empty: $t("workspace.edit-page.thisFlowHasNotRunYet"),
+        more: { label: $t("workspace.edit-page.allRuns"), href: `/dashboard/${workspace}/runs?flow=${encodeURIComponent(flowName)}${rest}` },
       });
     }
     if (kind === "skill") {
       const skillName = typeof fm.name === "string" ? fm.name : selected.split("/").at(-2) ?? "";
       const owner = selected.startsWith("agents/") ? selected.split("/")[1] : null;
       sections.push({
-        title: "Loaded by",
+        title: $t("workspace.edit-page.loadedBy"),
         items: owner
-          ? [{ label: owner, href: editHref(`agents/${owner}/agent.md`), meta: "its own" }]
+          ? [{ label: owner, href: editHref(`agents/${owner}/agent.md`), meta: $t("workspace.edit-page.itsOwn") }]
           : agents.map((a) => ({ label: a.name, href: editHref(`agents/${a.name}/agent.md`) })),
-        empty: `No agent loads ${skillName}.`,
+        empty: $t("workspace.edit-page.noAgentLoads", { skillName: String(skillName) }),
       });
     }
 
@@ -221,22 +221,22 @@ export default async function EditPage({
     if (refs.length > 0 || kind === "tool" || kind === "agent") {
       const set = new Set(listSecrets(tenant, workspace).map((s) => s.name));
       sections.push({
-        title: "Secrets",
+        title: $t("workspace.edit-page.secrets"),
         items: refs.map((n) => ({ label: n, mono: true, meta: set.has(n) ? "set" : "missing", tone: set.has(n) ? ("ok" as const) : ("error" as const) })),
-        empty: "Names none.",
-        more: { label: "Secrets", href: `/dashboard/${workspace}/settings?tab=secrets${qs.replace("?", "&")}` },
+        empty: $t("workspace.edit-page.namesNone"),
+        more: { label: $t("workspace.edit-page.secrets"), href: `/dashboard/${workspace}/settings?tab=secrets${qs.replace("?", "&")}` },
       });
     }
 
     const revisions = await listRevisions(tenant, workspace, { forPath: selected, limit: 5 });
     sections.push({
-      title: "Changes",
-      items: revisions.map((r) => ({ label: r.message || "(no message)", meta: `${r.by} · ${r.at.slice(0, 10)}`, href: `/dashboard/${workspace}/history?q=${encodeURIComponent(selected)}${rest}` })),
-      empty: "No saved versions yet.",
-      more: { label: "History", href: `/dashboard/${workspace}/history?q=${encodeURIComponent(selected)}${rest}` },
+      title: $t("workspace.edit-page.changes"),
+      items: revisions.map((r) => ({ label: r.message || $t("workspace.edit-page.noMessage"), meta: `${r.by} · ${r.at.slice(0, 10)}`, href: `/dashboard/${workspace}/history?q=${encodeURIComponent(selected)}${rest}` })),
+      empty: $t("workspace.edit-page.noSavedVersionsYet"),
+      more: { label: $t("workspace.edit-page.history"), href: `/dashboard/${workspace}/history?q=${encodeURIComponent(selected)}${rest}` },
     });
     const doc = DOC_FOR[kind];
-    if (doc) sections.push({ title: "Reference", items: [{ label: `How a ${KIND_LABEL[kind]} is written`, href: `/dashboard/docs/${doc}${qs}` }] });
+    if (doc) sections.push({ title: $t("workspace.edit-page.reference"), items: [{ label: $t("workspace.edit-page.howAIsWritten", { v0: String(KIND_LABEL[kind]) }), href: `/dashboard/docs/${doc}${qs}` }] });
   }
 
   const lastChange = selected ? ((await listRevisions(tenant, workspace, { forPath: selected, limit: 1 }))[0] ?? null) : null;
@@ -266,16 +266,16 @@ export default async function EditPage({
       header={
         <>
           <PageHeader
-            title={scope ? scope.title : "Files"}
+            title={scope ? scope.title : $t("workspace.edit-page.files")}
             description={scope ? scope.blurb : $t("workspace.edit-page.everythingThisWorkspaceIsMadeOf")}
             actions={
               scope?.list ? (
                 <Link href={`/dashboard/${workspace}/assets?kind=${scope.list}${rest}`} className={buttonVariants({ variant: "secondary", size: "md" })}>
-                  <LayoutGrid /> View as cards
+                  <LayoutGrid />{" "}{$t("workspace.edit-page.viewAsCards")}
                 </Link>
               ) : !scope ? (
                 <Link href={`/dashboard/library/files${qs}`} className={buttonVariants({ variant: "secondary", size: "md" })}>
-                  <Library /> Shared files
+                  <Library />{" "}{$t("workspace.edit-page.sharedFiles")}
                 </Link>
               ) : undefined
             }
@@ -289,8 +289,8 @@ export default async function EditPage({
         <EmptyState
           bare
           icon={<FileText />}
-          title={scope ? `Nothing in ${scope.dir}/ yet` : "No file selected"}
-          description={scope ? (scope.empty ?? "Agents create these as they run — there is nothing to write by hand yet.") : "Pick a file from the tree, or create one."}
+          title={scope ? $t("workspace.edit-page.nothingInYet", { dir: String(scope.dir) }) : $t("workspace.edit-page.noFileSelected")}
+          description={scope ? (scope.empty ?? $t("workspace.edit-page.agentsCreateTheseAsTheyRun")) : $t("workspace.edit-page.pickAFileFromTheTree")}
         />
       }
     />

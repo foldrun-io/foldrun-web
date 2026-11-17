@@ -13,6 +13,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
+import { looksLikeClasses, looksLikeCode } from "./i18n-shared.mjs";
 
 export const WEB = path.resolve(import.meta.dirname, "..");
 const ts = createRequire(import.meta.url)(path.join(WEB, "node_modules/typescript"));
@@ -25,7 +26,7 @@ const VISIBLE_KEYS = /^(title|label|placeholder|description|hint|help|empty|mess
 export function dashboardFiles() {
   return execFileSync("git", ["ls-files", "app", "components"], { cwd: WEB, encoding: "utf8" })
     .split("\n")
-    .filter((f) => /\.(tsx|ts)$/.test(f) && !f.startsWith("app/api/") && !/\.(test|d)\.ts$/.test(f));
+    .filter((f) => /\.(tsx|ts)$/.test(f) && !f.startsWith("app/api/") && !f.startsWith("app/.well-known/") && !/(^|\/)route\.ts$/.test(f) && !/\.(test|d)\.ts$/.test(f));
 }
 
 export function fingerprint(text) {
@@ -40,7 +41,9 @@ export function hardcoded(rel) {
   const found = [];
   const visit = (node) => {
     let text = null;
-    if (ts.isJsxText(node) && /[A-Za-z]{2,}/.test(node.text)) text = node.text;
+    // Text inside a code element is code (CODE_TAGS in i18n-extract.mjs).
+    const inCode = (n) => { for (let q = n.parent; q; q = q.parent) if (ts.isJsxElement(q) && /^(code|kbd|pre|samp|Code|Kbd|Mono)$/.test(q.openingElement.tagName.getText(sf))) return true; return false; };
+    if (ts.isJsxText(node) && /[A-Za-z]{2,}/.test(node.text) && !inCode(node)) text = node.text;
     else if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateHead(node)) {
       const t = node.text;
       if (/[A-Za-z]{2,}\s+[A-Za-z]{2,}/.test(t) || /^[A-Z][a-z]+$/.test(t)) {
@@ -50,6 +53,7 @@ export function hardcoded(rel) {
         else if (/[A-Za-z]{2,}\s+[A-Za-z]{2,}\s+[A-Za-z]{2,}/.test(t) && !ts.isImportDeclaration(node.parent)) text = t;
       }
     }
+    if (text !== null && (looksLikeClasses(text) || looksLikeCode(text))) text = null; // not words
     if (text !== null) found.push({ text: text.replace(/\s+/g, " ").trim(), line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1 });
     ts.forEachChild(node, visit);
   };

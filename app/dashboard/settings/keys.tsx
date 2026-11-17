@@ -1,6 +1,6 @@
 "use client";
 
-import { $t } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
 import { WithEmails } from "@/components/email";
@@ -52,15 +52,15 @@ interface KeyRow {
 const A2A_MAX_TASKS = 100;
 
 const EXPIRY = [
-  { v: "30d", label: "30 days" },
-  { v: "90d", label: "90 days" },
-  { v: "365d", label: "1 year" },
-  { v: "never", label: "Never expires" },
+  { v: "30d", label: $t("settings.keys.30Days") },
+  { v: "90d", label: $t("settings.keys.90Days") },
+  { v: "365d", label: $t("settings.keys.1Year") },
+  { v: "never", label: $t("settings.keys.neverExpires") },
 ];
 const GRACE = [
-  { v: "0", label: "Revoke the old key now" },
-  { v: "1h", label: "Keep the old key 1 hour" },
-  { v: "24h", label: "Keep the old key 24 hours" },
+  { v: "0", label: $t("settings.keys.revokeTheOldKeyNow") },
+  { v: "1h", label: $t("settings.keys.keepTheOldKey1Hour") },
+  { v: "24h", label: $t("settings.keys.keepTheOldKey24Hours") },
 ];
 
 type Kind = "api" | "a2a" | "gateway";
@@ -69,7 +69,7 @@ const usd = (n: number | null | undefined) => `$${(n ?? 0).toFixed(2)}`;
 // Claude Code's status line for a gateway key: its spend, from the gateway's
 // GET /v1/usage. Claude Code hands the command the env it runs on, so the
 // curl form reads the same two settings the key was set with.
-const STATUS_LINE_SETTING = `"statusLine": { "type": "command", "command": "foldrun gateway status-line" }`;
+const STATUS_LINE_SETTING = $t("settings.keys.statuslineTypeCommandCommandFoldrunGateway");
 const STATUS_LINE_CURL = `curl -s -m 3 -H "authorization: Bearer $ANTHROPIC_AUTH_TOKEN" "$ANTHROPIC_BASE_URL/v1/usage?format=line"`;
 
 /** A gateway key's limits and spend, in one line. */
@@ -77,12 +77,12 @@ function gatewaySpend(g: NonNullable<KeyRow["gateway"]>): string {
   const parts: string[] = [];
   if (g.capUsd !== null) parts.push(`${usd(g.spentUsd)} of ${usd(g.capUsd)}`);
   else parts.push(`${usd(g.spentUsd)} spent`);
-  if (g.dailyUsd !== null) parts.push(`${usd(g.todayUsd)} of ${usd(g.dailyUsd)} today`);
+  if (g.dailyUsd !== null) parts.push($t("settings.keys.ofToday", { v0: String(usd(g.todayUsd)), v1: String(usd(g.dailyUsd)) }));
   return parts.join(" · ");
 }
 
 const TIERS = ["opus", "sonnet", "haiku"] as const;
-const TIER_LABEL = { opus: "Opus", sonnet: "Sonnet", haiku: "Haiku" } as const;
+const TIER_LABEL = { opus: $t("settings.keys.opus"), sonnet: $t("settings.keys.sonnet"), haiku: $t("settings.keys.haiku") } as const;
 
 /** What a gateway key's Claude Code tiers run on, in one line; null when
  *  every tier runs as Claude Code names it. */
@@ -189,10 +189,10 @@ export function KeyManager({
         setChosen([]);
         router.refresh();
       } else {
-        setError(data.error ?? "failed to create key");
+        setError(data.error ?? $t("settings.keys.failedToCreateKey"));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "failed to create key");
+      setError(err instanceof Error ? err.message : $t("settings.keys.failedToCreateKey"));
     } finally {
       setBusy(false);
     }
@@ -200,9 +200,9 @@ export function KeyManager({
 
   const revoke = async (id: string) => {
     if (!(await confirm({
-      title: "Revoke this key?",
-      body: "Clients using it stop working immediately.",
-      confirmLabel: "Revoke",
+      title: $t("settings.keys.revokeThisKey"),
+      body: $t("settings.keys.clientsUsingItStopWorkingImmediately"),
+      confirmLabel: $t("settings.keys.revoke"),
     }))) return;
     await fetch("/api/keys", {
       method: "DELETE",
@@ -234,9 +234,9 @@ export function KeyManager({
       if (res.ok) {
         setEditingModels(null);
         router.refresh();
-      } else setRowError({ id, message: data.error ?? "failed to save the models" });
+      } else setRowError({ id, message: data.error ?? $t("settings.keys.failedToSaveTheModels") });
     } catch (err) {
-      setRowError({ id, message: err instanceof Error ? err.message : "failed to save the models" });
+      setRowError({ id, message: err instanceof Error ? err.message : $t("settings.keys.failedToSaveTheModels") });
     } finally {
       setBusy(false);
     }
@@ -250,9 +250,9 @@ export function KeyManager({
       const res = await fetch(`/api/keys/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ requireCustomer: on }) });
       const data = await res.json();
       if (res.ok) router.refresh();
-      else setRowError({ id, message: data.error ?? "failed to change it" });
+      else setRowError({ id, message: data.error ?? $t("settings.keys.failedToChangeIt") });
     } catch (err) {
-      setRowError({ id, message: err instanceof Error ? err.message : "failed to change it" });
+      setRowError({ id, message: err instanceof Error ? err.message : $t("settings.keys.failedToChangeIt") });
     } finally {
       setBusy(false);
     }
@@ -275,9 +275,9 @@ export function KeyManager({
         setCreatedKind(was === "a2a" || was === "gateway" ? was : "api");
         setRotating(null);
         router.refresh();
-      } else setRowError({ id, message: data.error ?? "failed to rotate the key" });
+      } else setRowError({ id, message: data.error ?? $t("settings.keys.failedToRotateTheKey") });
     } catch (err) {
-      setRowError({ id, message: err instanceof Error ? err.message : "failed to rotate the key" });
+      setRowError({ id, message: err instanceof Error ? err.message : $t("settings.keys.failedToRotateTheKey") });
     } finally {
       setBusy(false);
     }
@@ -299,39 +299,39 @@ export function KeyManager({
         >
           <SettingsCard
             id="create-key"
-            title="Create a key"
+            title={$t("settings.keys.createAKey")}
             description={$t("settings.keys.aKeyIsYouOnA")}
             hint={
               kind === "a2a"
-                ? "Opens /a2a only — every /api route refuses it."
+                ? $t("settings.keys.opensA2aOnlyEveryApiRoute")
                 : kind === "gateway"
-                  ? "Opens the gateway only — every /api route refuses it."
-                  : "Shown once. Copy it when it appears."
+                  ? $t("settings.keys.opensTheGatewayOnlyEveryApi")
+                  : $t("settings.keys.shownOnceCopyItWhenIt")
             }
             footer={
               <Button type="submit" variant="primary" disabled={createDisabled}>
-                {busy ? "Creating…" : "Create key"}
+                {busy ? "Creating…" : $t("settings.keys.createKey")}
               </Button>
             }
           >
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Name" className="sm:col-span-2">
-                  <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="laptop, CI" className="w-full max-w-md" />
+                <Field label={$t("settings.keys.name")} className="sm:col-span-2">
+                  <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={$t("settings.keys.laptopCi")} className="w-full max-w-md" />
                 </Field>
-                <Field label="Kind">
-                  <Select value={kind} onChange={(e) => setKind(e.target.value as Kind)} className="w-full" aria-label="What the key is for">
-                    <option value="api">API key</option>
-                    <option value="a2a">A2A key — an outside agent</option>
-                    {gateway && <option value="gateway">Gateway key — Claude Code</option>}
+                <Field label={$t("settings.keys.kind")}>
+                  <Select value={kind} onChange={(e) => setKind(e.target.value as Kind)} className="w-full" aria-label={$t("settings.keys.whatTheKeyIsFor")}>
+                    <option value="api">{$t("settings.keys.apiKey")}</option>
+                    <option value="a2a">{$t("settings.keys.a2aKeyAnOutsideAgent")}</option>
+                    {gateway && <option value="gateway">{$t("settings.keys.gatewayKeyClaudeCode")}</option>}
                   </Select>
                 </Field>
                 {/* A key carries a role like a member does. Editor is the default
                     and the right answer for CI; admin is for a key that manages
                     the account and should be rare. */}
                 {kind === "api" && (
-                  <Field label="Role">
-                    <Select value={role} onChange={(e) => setRole(e.target.value as Role)} className="w-full" aria-label="Role for the key">
+                  <Field label={$t("settings.keys.role")}>
+                    <Select value={role} onChange={(e) => setRole(e.target.value as Role)} className="w-full" aria-label={$t("settings.keys.roleForTheKey")}>
                       {ASSIGNABLE.map((r) => (
                         <option key={r} value={r}>
                           {r}
@@ -340,8 +340,8 @@ export function KeyManager({
                     </Select>
                   </Field>
                 )}
-                <Field label="Expires">
-                  <Select value={expires} onChange={(e) => setExpires(e.target.value)} className="w-full" aria-label="When the key expires">
+                <Field label={$t("settings.keys.expires")}>
+                  <Select value={expires} onChange={(e) => setExpires(e.target.value)} className="w-full" aria-label={$t("settings.keys.whenTheKeyExpires")}>
                     {EXPIRY.map((x) => (
                       <option key={x.v} value={x.v}>
                         {x.label}
@@ -376,10 +376,9 @@ export function KeyManager({
                         ))}
                       </Select>
                     </label>
-                    <Tooltip label="How many of its tasks may be open at once; one more is refused until one ends">
+                    <Tooltip label={$t("settings.keys.howManyOfItsTasksMay")}>
                       <label className="inline-flex items-center gap-2 text-fg">
-                        Open tasks at most
-                        <Input type="number" min={1} max={A2A_MAX_TASKS} value={maxTasks} onChange={(e) => setMaxTasks(e.target.value)} className="w-20" />
+                        {$rich("settings.keys.openTasksAtMost", { input: $el(<Input type="number" min={1} max={A2A_MAX_TASKS} value={maxTasks} onChange={(e) => setMaxTasks(e.target.value)} className="w-20" />) })}
                       </label>
                     </Tooltip>
                   </div>
@@ -387,7 +386,7 @@ export function KeyManager({
                     {(a2aFlows[a2aWs] ?? []).map((f) => (
                       <Tooltip
                         key={f.name}
-                        label={f.published ? "Published over A2A" : "Not published — publish it first (the flow's Publish over A2A control); a key names published flows only"}
+                        label={f.published ? $t("settings.keys.publishedOverA2a") : $t("settings.keys.notPublishedPublishItFirstThe")}
                       >
                         <label className="inline-flex items-center gap-1.5 font-mono text-fg-secondary">
                           <Checkbox
@@ -396,7 +395,7 @@ export function KeyManager({
                             onCheckedChange={(checked: boolean) => setA2aChosen((c) => (checked ? [...c, f.name] : c.filter((x) => x !== f.name)))}
                           />
                           {f.name}
-                          {!f.published && <span className="font-sans text-fg-subtle">(not published)</span>}
+                          {!f.published && <span className="font-sans text-fg-subtle">{$t("settings.keys.notPublished")}</span>}
                         </label>
                       </Tooltip>
                     ))}
@@ -412,37 +411,37 @@ export function KeyManager({
                       credits on foldrun's models through the
                       gateway, up to the limits set here. No /api route. */}
                   {gateway.login && (
-                    <Field label="Runs on">
-                      <Select value={runsOn} onChange={(e) => setRunsOn(e.target.value as "models" | "login")} className="w-full max-w-md" aria-label="What the key's calls run on">
-                        <option value="models">foldrun&apos;s models — billed, with limits</option>
-                        <option value="login">This account&apos;s plan — not billed per call</option>
+                    <Field label={$t("settings.keys.runsOn")}>
+                      <Select value={runsOn} onChange={(e) => setRunsOn(e.target.value as "models" | "login")} className="w-full max-w-md" aria-label={$t("settings.keys.whatTheKeySCallsRun")}>
+                        <option value="models">{$t("settings.keys.foldrunSModelsBilledWithLimits")}</option>
+                        <option value="login">{$t("settings.keys.thisAccountSPlanNotBilled")}</option>
                       </Select>
                     </Field>
                   )}
                   {onLogin && (
-                    <Field label="Size">
-                      <Select value={plan} onChange={(e) => setPlan(e.target.value as "pro" | "max")} className="w-full max-w-md" aria-label="The key's size">
-                        <option value="pro">Pro</option>
-                        <option value="max">Max — five times Pro&apos;s usage limits</option>
+                    <Field label={$t("settings.keys.size")}>
+                      <Select value={plan} onChange={(e) => setPlan(e.target.value as "pro" | "max")} className="w-full max-w-md" aria-label={$t("settings.keys.theKeySSize")}>
+                        <option value="pro">{$t("settings.keys.pro")}</option>
+                        <option value="max">{$t("settings.keys.maxFiveTimesProSUsage")}</option>
                       </Select>
                     </Field>
                   )}
                   {onLogin ? (
-                    <p>Claude Code runs on this account&apos;s plan. Its calls are not billed one by one, so it takes no dollar limit; the plan&apos;s own usage limits apply. Claude models only. It opens nothing else: every /api route refuses it.</p>
+                    <p>{$t("settings.keys.claudeCodeRunsOnThisAccount")}</p>
                   ) : (
-                    <p>A gateway key lets Claude Code use foldrun&apos;s models (Claude, and any other model on the price list, picked by name) on this account&apos;s credits, up to the limits below. It opens nothing else: every /api route refuses it.</p>
+                    <p>{$t("settings.keys.aGatewayKeyLetsClaudeCode")}</p>
                   )}
                   {!onLogin && (
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="Spending limit, USD">
-                      <Input type="number" min={0.01} step={0.01} value={capUsd} onChange={(e) => setCapUsd(e.target.value)} placeholder="none" className="w-full" aria-label="The most the key may spend in all, USD" />
+                    <Field label={$t("settings.keys.spendingLimitUsd")}>
+                      <Input type="number" min={0.01} step={0.01} value={capUsd} onChange={(e) => setCapUsd(e.target.value)} placeholder="none" className="w-full" aria-label={$t("settings.keys.theMostTheKeyMaySpend")} />
                     </Field>
-                    <Field label="Daily limit, USD (UTC day)">
-                      <Input type="number" min={0.01} step={0.01} value={dailyUsd} onChange={(e) => setDailyUsd(e.target.value)} placeholder="none" className="w-full" aria-label="The most the key may spend per UTC day, USD" />
+                    <Field label={$t("settings.keys.dailyLimitUsdUtcDay")}>
+                      <Input type="number" min={0.01} step={0.01} value={dailyUsd} onChange={(e) => setDailyUsd(e.target.value)} placeholder="none" className="w-full" aria-label={$t("settings.keys.theMostTheKeyMaySpend2")} />
                     </Field>
                   </div>
                   )}
-                  {!onLogin && <p>Set at least one. Each call is held at its most it could cost, so a call that would pass a limit is refused before it is sent.</p>}
+                  {!onLogin && <p>{$t("settings.keys.setAtLeastOneEachCall")}</p>}
                 </div>
               )}
 
@@ -451,13 +450,12 @@ export function KeyManager({
                   {/* FOL-168: a partner's guard — nothing this key does slips past
                       its per-customer limits by leaving the customer out. */}
                   <label className="inline-flex items-center gap-2 text-fg">
-                    <Checkbox checked={requireCust} onCheckedChange={(checked: boolean) => setRequireCust(checked)} />
-                    Require a customer id
+                    {$rich("settings.keys.requireACustomerId", { checkbox: $el(<Checkbox checked={requireCust} onCheckedChange={(checked: boolean) => setRequireCust(checked)} />) })}
                   </label>
                   <p className="mt-1">
                     {kind === "gateway"
-                      ? "Every call must send x-foldrun-customer, naming which of your users it is for; a call without one is refused."
-                      : "Every run it starts must name a customer — which of your users it is for; a run without one is refused."}
+                      ? $t("settings.keys.everyCallMustSendXFoldrun")
+                      : $t("settings.keys.everyRunItStartsMustName")}
                   </p>
                 </div>
               )}
@@ -467,8 +465,7 @@ export function KeyManager({
                       key is never more than its minter: a role at or below yours,
                       and only workspaces you can open. */}
                   <label className="inline-flex items-center gap-2 text-fg">
-                    <Checkbox checked={narrow} onCheckedChange={(checked: boolean) => setNarrow(checked)} />
-                    {$t("settings.keys.limitToSomeWorkspace")}
+                    {$rich("settings.keys.limitToSomeTerm", { checkbox: $el(<Checkbox checked={narrow} onCheckedChange={(checked: boolean) => setNarrow(checked)} />) })}
                   </label>
                   {!narrow && (
                     <p className="mt-1">
@@ -505,7 +502,7 @@ export function KeyManager({
 
       {created && (
         <Callout tone="success" className="mb-6 p-4 sm:p-5" role="status">
-          <p className="text-sm font-medium text-success">Key created — copy it now, it won&apos;t be shown again.</p>
+          <p className="text-sm font-medium text-success">{$t("settings.keys.keyCreatedCopyItNowIt")}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <code className="min-w-0 flex-1 truncate rounded-md border border-line bg-surface px-3 py-2 font-mono text-xs text-fg">{created}</code>
             <Button
@@ -517,10 +514,10 @@ export function KeyManager({
               }}
             >
               {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
-              {copied ? "Copied" : "Copy"}
+              {copied ? $t("settings.keys.copied") : $t("settings.keys.copy")}
             </Button>
             <Button variant="ghost" onClick={() => setCreated(null)}>
-              Done
+              {$t("settings.keys.done")}
             </Button>
           </div>
           {createdKind === "gateway" ? (
@@ -529,30 +526,30 @@ export function KeyManager({
             </pre>
           ) : (
             <p className="mt-2 font-mono text-xs leading-relaxed text-fg-secondary">
-              export {createdKind === "a2a" ? "FOLDRUN_A2A_KEY" : "FOLDRUN_TOKEN"}={created.slice(0, 12)}…
+              {$t("settings.keys.export")}{" "}{createdKind === "a2a" ? "FOLDRUN_A2A_KEY" : "FOLDRUN_TOKEN"}={created.slice(0, 12)}…
             </p>
           )}
-          {createdKind === "gateway" && <p className="mt-1 text-xs text-fg-secondary">Set both, then run claude. It opens the gateway only.</p>}
+          {createdKind === "gateway" && <p className="mt-1 text-xs text-fg-secondary">{$t("settings.keys.setBothThenRunClaudeIt")}</p>}
           {createdKind === "gateway" && (
             <>
-              <p className="mt-3 text-xs text-fg-secondary">To see the key&apos;s spend under Claude Code&apos;s input box, add this to ~/.claude/settings.json (foldrun CLI 20.11 or later):</p>
+              <p className="mt-3 text-xs text-fg-secondary">{$t("settings.keys.toSeeTheKeySInput")}</p>
               <pre className="mt-1 overflow-x-auto font-mono text-xs leading-relaxed text-fg-secondary">{STATUS_LINE_SETTING}</pre>
-              <p className="mt-1 text-xs text-fg-secondary">Without the foldrun CLI, use this command instead:</p>
+              <p className="mt-1 text-xs text-fg-secondary">{$t("settings.keys.withoutTheFoldrunCliUseThis")}</p>
               <pre className="mt-1 overflow-x-auto font-mono text-xs leading-relaxed text-fg-secondary">{STATUS_LINE_CURL}</pre>
             </>
           )}
-          {createdKind === "a2a" && <p className="mt-1 text-xs text-fg-secondary">Give it to the outside agent; it sends it as Authorization: Bearer to /a2a only.</p>}
+          {createdKind === "a2a" && <p className="mt-1 text-xs text-fg-secondary">{$t("settings.keys.giveItToTheOutsideAgent")}</p>}
         </Callout>
       )}
 
       <section className="min-w-0 space-y-3">
         <div className="flex items-end justify-between gap-2 px-1">
-          <h2 className="text-base font-medium text-fg">Keys</h2>
+          <h2 className="text-base font-medium text-fg">{$t("settings.keys.keys")}</h2>
           <span className="text-sm tabular-nums text-fg-muted">{keys.length}</span>
         </div>
         <div className="overflow-hidden rounded-lg border border-line bg-surface">
           {keys.length === 0 ? (
-            <EmptyState bare compact icon={<KeyRound />} title="No keys yet" description="Create one to authenticate the CLI and API." />
+            <EmptyState bare compact icon={<KeyRound />} title={$t("settings.keys.noKeysYet")} description={$t("settings.keys.createOneToAuthenticateTheCli")} />
           ) : (
             <ul className="divide-y divide-line">
               {keys.map((k) => {
@@ -568,55 +565,55 @@ export function KeyManager({
                         <span className="mr-0.5 truncate">{k.label}</span>
                         {k.purpose === "a2a" ? (
                           <Tag>
-                            <Tooltip label="An outside agent's key: it opens /a2a only — the published flows it names — and no /api route"><span>A2A</span></Tooltip>
+                            <Tooltip label={$t("settings.keys.anOutsideAgentSKeyIt")}><span>A2A</span></Tooltip>
                           </Tag>
                         ) : k.purpose === "gateway" ? (
                           <Tag>
-                            <Tooltip label="A coding agent's key (Claude Code): it spends the account's credits on foldrun's models through the gateway, up to its own limits, and opens no /api route"><span>gateway</span></Tooltip>
+                            <Tooltip label={$t("settings.keys.aCodingAgentSCreditsOn")}><span>{$t("settings.keys.gateway")}</span></Tooltip>
                           </Tag>
                         ) : (
                           <Tag>
-                            <Tooltip label={k.role ? "What this key may do" : "Minted before roles existed — acts as admin"}><span>{k.role ?? "admin"}</span></Tooltip>
+                            <Tooltip label={k.role ? $t("settings.keys.whatThisKeyMayDo") : $t("settings.keys.mintedBeforeRolesExistedActsAs")}><span>{k.role ?? "admin"}</span></Tooltip>
                           </Tag>
                         )}
                         {k.requireCustomer && !k.revokedAt && (
-                          <Tooltip label={k.purpose === "gateway" ? "Every call must send x-foldrun-customer — a call without one is refused" : "Every run it starts must name a customer — a run without one is refused"}>
+                          <Tooltip label={k.purpose === "gateway" ? $t("settings.keys.everyCallMustSendXFoldrun2") : $t("settings.keys.everyRunItStartsMustName2")}>
                             <span>
-                              <Chip>customer required</Chip>
+                              <Chip>{$t("settings.keys.customerRequired")}</Chip>
                             </span>
                           </Tooltip>
                         )}
-                        {k.revokedAt && <Chip tone="bad">revoked</Chip>}
-                        {!k.revokedAt && expired && <Chip tone="bad">expired</Chip>}
+                        {k.revokedAt && <Chip tone="bad">{$t("settings.keys.revoked")}</Chip>}
+                        {!k.revokedAt && expired && <Chip tone="bad">{$t("settings.keys.expired")}</Chip>}
                         {!k.revokedAt && k.origin !== "cli-login" && k.expiresAt && !expired && Date.parse(k.expiresAt) - Date.now() < 7 * 86_400_000 && (
-                          <Chip tone="warn">expires {relative(k.expiresAt)}</Chip>
+                          <Chip tone="warn">{$t("settings.keys.expires2", { relative: relative(k.expiresAt) })}</Chip>
                         )}
                       </p>
                       <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-fg-muted">
                         {k.purpose === "a2a" && k.a2a && (
-                          <Tooltip label={`The flows this key may call in ${k.a2a.workspace}, each also published; at most ${k.a2a.maxTasks} tasks open at once`}>
+                          <Tooltip label={$t("settings.keys.theFlowsThisKeyMayCall", { workspace: String(k.a2a.workspace), maxTasks: String(k.a2a.maxTasks) })}>
                             <span>
-                              {k.a2a.workspace}: {k.a2a.flows.join(", ")} · {k.a2a.maxTasks} open
+                              {$t("settings.keys.open", { workspace: k.a2a.workspace, join: k.a2a.flows.join(", "), maxTasks: String(k.a2a.maxTasks) })}
                             </span>
                           </Tooltip>
                         )}
                         {k.scope && (
-                          <Tooltip label="A deploy key, for the platform's own git — which went on 17 Oct 2026, so it opens nothing now. Revoke it.">
-                            <span className="text-warning">deploy key · opens nothing · revoke</span>
+                          <Tooltip label={$t("settings.keys.aDeployKeyForThePlatform")}>
+                            <span className="text-warning">{$t("settings.keys.deployKeyOpensNothingRevoke")}</span>
                           </Tooltip>
                         )}
                         {k.purpose === "gateway" && k.gateway?.credential === "login" && (
-                          <Tooltip label="Runs on this account's plan: not billed per call, and the plan's usage limits apply">
-                            <span>{k.gateway.plan === "max" ? "Max" : "Pro"} plan · not billed per call</span>
+                          <Tooltip label={$t("settings.keys.runsOnThisAccountSUsage")}>
+                            <span>{k.gateway.plan === "max" ? $t("settings.keys.max") : $t("settings.keys.pro")}{" "}{$t("settings.keys.planNotBilledPerCall")}</span>
                           </Tooltip>
                         )}
                         {k.purpose === "gateway" && modelsLine(k.gateway?.models) && (
-                          <Tooltip label="What Claude Code's tiers run on with this key: picking one in /model sends it here">
+                          <Tooltip label={$t("settings.keys.whatClaudeCodeSTiersRun")}>
                             <span>{modelsLine(k.gateway?.models)}</span>
                           </Tooltip>
                         )}
                         {k.purpose === "gateway" && k.gateway && k.gateway.credential !== "login" && (
-                          <Tooltip label="What it has spent against its limits; calls in flight count at their estimate">
+                          <Tooltip label={$t("settings.keys.whatItHasSpentAgainstIts")}>
                             <span>{gatewaySpend(k.gateway)}</span>
                           </Tooltip>
                         )}
@@ -626,23 +623,22 @@ export function KeyManager({
                           </Tooltip>
                         )}
                         {k.origin === "cli-login" && !k.revokedAt && (
-                          <Tooltip label="Minted by foldrun login on that machine. It lasts 90 days and the CLI renews it while the machine is in use; revoke it to sign that machine out."><span>CLI sign-in · renews itself</span></Tooltip>
+                          <Tooltip label={$t("settings.keys.mintedByFoldrunLoginOnThat")}><span>{$t("settings.keys.cliSignInRenewsItself")}</span></Tooltip>
                         )}
                         {k.replacedBy && (
-                          <Tooltip label="Rotated: this key is not rotated again — rotate the new one (also if its secret was lost)">
-                            <span>rotated → {next ? `${next.label} · ${next.prefix}…` : k.replacedBy}</span>
+                          <Tooltip label={$t("settings.keys.rotatedThisKeyIsNotRotated")}>
+                            <span>{$t("settings.keys.rotated")}{" "}{next ? `${next.label} · ${next.prefix}…` : k.replacedBy}</span>
                           </Tooltip>
                         )}
                       </p>
                       <dl className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-fg-muted">
                         <div>
-                          <dt className="inline text-fg-subtle">Created </dt>
+                          <dt className="inline text-fg-subtle">{$t("settings.keys.created")}{" "}</dt>
                           <dd className="inline">
                             <LocalTime iso={k.createdAt} options={{ dateStyle: "medium" }} />
                             {k.createdBy ? (
                               <>
-                                {" "}
-                                by <WithEmails text={k.createdBy} />
+                                {" "}{$rich("settings.keys.by", { withEmails: $el(<WithEmails text={k.createdBy} />) })}
                               </>
                             ) : (
                               ""
@@ -650,7 +646,7 @@ export function KeyManager({
                           </dd>
                         </div>
                         <div>
-                          <dt className="inline text-fg-subtle">Last used </dt>
+                          <dt className="inline text-fg-subtle">{$t("settings.keys.lastUsed")}{" "}</dt>
                           <dd className="inline">
                             {k.lastUsedAt ? (
                               <>
@@ -664,19 +660,19 @@ export function KeyManager({
                         </div>
                         {k.purpose !== "a2a" && !k.revokedAt && (
                           <div>
-                            <dt className="inline text-fg-subtle">Customer </dt>
+                            <dt className="inline text-fg-subtle">{$t("settings.keys.customer")}{" "}</dt>
                             <dd className="inline">
-                              {k.requireCustomer ? "required" : "not required"}
+                              {k.requireCustomer ? "required" : $t("settings.keys.notRequired")}
                               {!scoped && (
                                 <button type="button" disabled={busy} onClick={() => void toggleRequireCustomer(k.id, !k.requireCustomer)} className="ml-2 text-fg-secondary underline decoration-line underline-offset-2 hover:text-fg">
-                                  {k.requireCustomer ? "stop requiring" : "require"}
+                                  {k.requireCustomer ? $t("settings.keys.stopRequiring") : "require"}
                                 </button>
                               )}
                             </dd>
                           </div>
                         )}
                         <div>
-                          <dt className="inline text-fg-subtle">Expires </dt>
+                          <dt className="inline text-fg-subtle">{$t("settings.keys.expires")}{" "}</dt>
                           <dd className="inline">{k.expiresAt ? <LocalTime iso={k.expiresAt} options={{ dateStyle: "medium" }} /> : "never"}</dd>
                         </div>
                         <div className="font-mono text-fg-subtle">
@@ -686,19 +682,19 @@ export function KeyManager({
                       {editingModels === k.id && (
                         <div className="mt-3 space-y-3 rounded-md border border-line bg-sunken p-3 text-sm">
                           <p className="text-fg-muted">
-                            Which model Claude Code&apos;s tiers run on with this key. Leave one empty to run it as Claude Code names it. A model is written as <span className="font-mono">openai/gpt-6</span>, <span className="font-mono">deepseek/deepseek-v4</span>, <span className="font-mono">zai/glm-5.3</span>, <span className="font-mono">qwen/qwen3.8-max</span> or <span className="font-mono">gemini/…</span> (also <span className="font-mono">kimi/</span>, <span className="font-mono">minimax/</span>, <span className="font-mono">mimo/</span>)
-                            {k.gateway?.credential === "login" ? " — this key runs on the plan, so Claude models only." : "; it must be on foldrun's price list."}
+                            {$rich("settings.keys.whichModelClaudeCodeSTiers", { span: (chunks) => <span className="font-mono">{chunks}</span> })}
+                            {k.gateway?.credential === "login" ? $t("settings.keys.thisKeyRunsOnThePlan") : $t("settings.keys.itMustBeOnFoldrunS")}
                           </p>
                           <div className="grid gap-3 sm:grid-cols-3">
                             {TIERS.map((t) => (
                               <Field key={t} label={TIER_LABEL[t]}>
-                                <Input value={modelDraft[t]} onChange={(e) => setModelDraft((d) => ({ ...d, [t]: e.target.value }))} placeholder="as named" className="w-full font-mono" aria-label={`Model for ${TIER_LABEL[t]}`} />
+                                <Input value={modelDraft[t]} onChange={(e) => setModelDraft((d) => ({ ...d, [t]: e.target.value }))} placeholder={$t("settings.keys.asNamed")} className="w-full font-mono" aria-label={$t("settings.keys.modelFor", { v0: String(TIER_LABEL[t]) })} />
                               </Field>
                             ))}
                           </div>
                           <div className="flex flex-wrap gap-2">
                             <Button variant="primary" onClick={() => void saveModels(k.id)} disabled={busy}>
-                              {busy ? "Saving…" : "Save"}
+                              {busy ? "Saving…" : $t("settings.keys.save")}
                             </Button>
                             <Button
                               variant="ghost"
@@ -707,15 +703,15 @@ export function KeyManager({
                                 setRowError(null);
                               }}
                             >
-                              Cancel
+                              {$t("settings.keys.cancel")}
                             </Button>
                           </div>
                         </div>
                       )}
                       {rotating === k.id && (
                         <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-line bg-sunken p-3 text-sm">
-                          <span className="text-fg-muted">{k.purpose === "gateway" ? "A new key with this label and limits (its spend starts afresh) —" : $t("settings.keys.aNewKeyWithThisLabel")}</span>
-                          <Select value={grace} onChange={(e) => setGrace(e.target.value)} size="sm" aria-label="What happens to the old key">
+                          <span className="text-fg-muted">{k.purpose === "gateway" ? $t("settings.keys.aNewKeyWithThisLabel2") : $t("settings.keys.aNewKeyWithThisLabel")}</span>
+                          <Select value={grace} onChange={(e) => setGrace(e.target.value)} size="sm" aria-label={$t("settings.keys.whatHappensToTheOldKey")}>
                             {GRACE.map((g) => (
                               <option key={g.v} value={g.v}>
                                 {g.label}
@@ -723,7 +719,7 @@ export function KeyManager({
                             ))}
                           </Select>
                           <Button variant="primary" onClick={() => void rotate(k.id)} disabled={busy}>
-                            {busy ? "Rotating…" : "Rotate"}
+                            {busy ? "Rotating…" : $t("settings.keys.rotate")}
                           </Button>
                           <Button
                             variant="ghost"
@@ -732,7 +728,7 @@ export function KeyManager({
                               setRowError(null);
                             }}
                           >
-                            Cancel
+                            {$t("settings.keys.cancel")}
                           </Button>
                         </div>
                       )}
@@ -754,16 +750,16 @@ export function KeyManager({
                               setEditingModels(k.id);
                             }}
                           >
-                            Models
+                            {$t("settings.keys.models")}
                           </Button>
                         )}
                         {!expired && !k.replacedBy && (
                           <Button variant="ghost" size="sm" onClick={() => setRotating(rotating === k.id ? null : k.id)}>
-                            Rotate
+                            {$t("settings.keys.rotate")}
                           </Button>
                         )}
                         <Button variant="ghost" size="sm" className="hover:text-danger" onClick={() => revoke(k.id)}>
-                          Revoke
+                          {$t("settings.keys.revoke")}
                         </Button>
                       </div>
                     )}
@@ -795,7 +791,7 @@ export function TickButton() {
             const res = await fetch("/api/schedule", { method: "POST" });
             const data = await res.json();
             setResult(
-              data.fired?.length ? `fired: ${data.fired.join(", ")}` : "nothing due right now",
+              data.fired?.length ? `fired: ${data.fired.join(", ")}` : $t("settings.keys.nothingDueRightNow"),
             );
             router.refresh();
           } finally {
@@ -804,7 +800,7 @@ export function TickButton() {
         }}
       >
         <Play aria-hidden />
-        {busy ? "Ticking…" : "Run scheduler now"}
+        {busy ? "Ticking…" : $t("settings.keys.runSchedulerNow")}
       </Button>
     </div>
   );

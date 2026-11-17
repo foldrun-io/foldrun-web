@@ -13,6 +13,7 @@
 // editor keeps its own state (InlineEditor) and renders its controls into
 // the header through a portal, so nothing about saving moved.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -139,7 +140,7 @@ export function EditorShell({
     e.preventDefault();
     e.stopPropagation();
     const href = a.getAttribute("href");
-    void confirm({ title: "Leave without saving?", body: "This file has unsaved changes. They are lost if you leave.", confirmLabel: "Leave" }).then((ok) => {
+    void confirm({ title: $t("components.editor-shell.leaveWithoutSaving"), body: $t("components.editor-shell.thisFileHasUnsavedChangesThey"), confirmLabel: $t("components.editor-shell.leave") }).then((ok) => {
       if (ok && href) router.push(href);
     });
   };
@@ -163,7 +164,7 @@ export function EditorShell({
           className="flex shrink-0 flex-col border-line bg-sunken max-md:max-h-[40vh] max-md:border-b md:w-64 md:border-r"
         >
           <div className="shrink-0 p-2">
-            <SearchField id="editor-tree-filter" size="sm" value={filter} onChange={setFilter} placeholder="Find a file…" autoFocusKey={false} slashHint />
+            <SearchField id="editor-tree-filter" size="sm" value={filter} onChange={setFilter} placeholder={$t("components.editor-shell.findAFile")} autoFocusKey={false} slashHint />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
             <FileTree
@@ -179,7 +180,7 @@ export function EditorShell({
               filter={filter}
             />
             {filter.trim() && files.filter((f) => f.toLowerCase().includes(filter.trim().toLowerCase())).length === 0 && (
-              <p className="px-2 py-4 text-center text-xs text-fg-muted">No file matches “{filter}”.</p>
+              <p className="px-2 py-4 text-center text-xs text-fg-muted">{$t("components.editor-shell.noFileMatches", { filter: filter })}</p>
             )}
           </div>
           {treeFooter && <div className="shrink-0 border-t border-line px-3 py-2.5 text-xs leading-relaxed text-fg-muted">{treeFooter}</div>}
@@ -193,7 +194,7 @@ export function EditorShell({
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <Tooltip label={crumbs.map((c) => c.label).join("/")} side="bottom" align="start">
-                <nav className="flex min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap text-[13px] text-fg-muted" aria-label="Path">
+                <nav className="flex min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap text-[13px] text-fg-muted" aria-label={$t("components.editor-shell.path")}>
                   {folded && (
                     <span className="flex items-center gap-1">
                       {folded.href ? <Link href={folded.href} className="hover:text-fg">…</Link> : <span>…</span>}
@@ -223,14 +224,14 @@ export function EditorShell({
                     </Link>
                   </Tooltip>
                 )}
-                <Tooltip label={showContext ? "Hide the context panel" : "Show the context panel"}>
+                <Tooltip label={showContext ? $t("components.editor-shell.hideTheContextPanel") : $t("components.editor-shell.showTheContextPanel")}>
                   <Button
                     variant="ghost"
                     size="icon-sm"
                     onClick={() => setShowContext((v) => !v)}
                     className="max-lg:hidden"
                     aria-pressed={showContext}
-                    aria-label={showContext ? "Hide the context panel" : "Show the context panel"}
+                    aria-label={showContext ? $t("components.editor-shell.hideTheContextPanel") : $t("components.editor-shell.showTheContextPanel")}
                   >
                     {showContext ? <PanelRightClose /> : <PanelRightOpen />}
                   </Button>
@@ -310,7 +311,7 @@ export function EditorShell({
             {test && workspace && (
               <div className="px-4 py-3.5">
                 <p className="mb-2 flex items-center gap-2 text-[13px] font-medium text-fg">
-                  Test {dirty && <Chip tone="warn">runs what is saved</Chip>}
+                  {$t("components.editor-shell.test")}{" "}{dirty && <Chip tone="warn">{$t("components.editor-shell.runsWhatIsSaved")}</Chip>}
                 </p>
                 <ToolTest workspace={workspace} tenant={tenant} tool={test.tool} transport={test.transport} scriptArgs={test.scriptArgs} stale={dirty} />
               </div>

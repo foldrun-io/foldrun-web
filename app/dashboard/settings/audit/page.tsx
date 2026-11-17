@@ -5,7 +5,7 @@
 // The same reader as GET /api/audit, with the same gate: the owner and
 // admins who can see the whole account.
 
-import { $t } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { Input } from "@foldrun/ui/react/input";
 import { Select } from "@foldrun/ui/react/select";
@@ -25,15 +25,15 @@ import { WithEmails } from "@/components/email";
 import { Tooltip } from "@foldrun/ui/react/tooltip";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Audit log · Settings" };
+export const metadata = { title: $t("settings.audit-page.auditLogSettings") };
 
 const FAMILIES = ["login", "logout", "session", "password", "mfa", "email", "apikey", "member", "owner", "secret", "workspace", "support", "account", "plan", "billing"];
 const WINDOWS = [
-  { v: "24h", label: "Last 24 hours" },
-  { v: "7d", label: "Last 7 days" },
-  { v: "30d", label: "Last 30 days" },
-  { v: "90d", label: "Last 90 days" },
-  { v: "", label: "All time" },
+  { v: "24h", label: $t("settings.audit-page.last24Hours") },
+  { v: "7d", label: $t("settings.audit-page.last7Days") },
+  { v: "30d", label: $t("settings.audit-page.last30Days") },
+  { v: "90d", label: $t("settings.audit-page.last90Days") },
+  { v: "", label: $t("settings.audit-page.allTime") },
 ];
 
 const toneOf = (action: string): Tone =>
@@ -45,37 +45,37 @@ function describe(e: AuditEntry): string {
   const s = (k: string) => (typeof d[k] === "string" ? (d[k] as string) : "");
   switch (e.action) {
     case "support.viewed":
-      return `Support viewed your account (read-only, until ${s("until").slice(11, 16)} UTC): ${s("reason")}`;
+      return $t("settings.audit-page.supportViewedYourAccountReadOnly", { v0: String(s("until").slice(11, 16)), v1: String(s("reason")) });
     case "support.ended":
-      return `Support's view ended: ${s("reason")}`;
+      return $t("settings.audit-page.supportSViewEnded", { v0: String(s("reason")) });
     case "apikey.created":
-      return `${s("label")} (${s("prefix")}…) · ${s("role") || "editor"}${s("expiresAt") ? ` · expires ${s("expiresAt").slice(0, 10)}` : " · never expires"}${s("via") ? ` · via ${s("via")}` : ""}`;
+      return `${s("label")} (${s("prefix")}…) · ${s("role") || "editor"}${s("expiresAt") ? $t("settings.audit-page.expires", { v0: String(s("expiresAt").slice(0, 10)) }) : $t("settings.audit-page.neverExpires")}${s("via") ? $t("settings.audit-page.via", { v0: String(s("via")) }) : ""}`;
     case "apikey.rotated":
-      return `${s("label")}: new ${s("prefix")}… replaces ${s("replacesPrefix")}…, which ends ${s("oldEndsAt").slice(0, 16).replace("T", " ")} UTC`;
+      return $t("settings.audit-page.newReplacesWhichEndsUtc", { v0: String(s("label")), v1: String(s("prefix")), v2: String(s("replacesPrefix")), v3: String(s("oldEndsAt").slice(0, 16).replace("T", " ")) });
     case "apikey.revoked":
       return `${s("label")} (${s("prefix")}…)`;
     case "apikey.models": {
       const m = (d.models && typeof d.models === "object" ? d.models : {}) as Record<string, string>;
       const parts = Object.entries(m).map(([t, v]) => `${t} → ${v}`);
-      return `${s("label")} (${s("prefix")}…): ${parts.length ? parts.join(", ") : "runs Claude Code's models as named"}`;
+      return `${s("label")} (${s("prefix")}…): ${parts.length ? parts.join(", ") : $t("settings.audit-page.runsClaudeCodeSModelsAs")}`;
     }
     case "secret.set":
     case "secret.deleted":
       return `${s("name")}${s("kind") ? ` (${s("kind")})` : ""}${s("workspace") ? ` in ${s("workspace")}` : " (account)"}`;
     case "secret.sites": {
       const sites = Array.isArray(d.sites) ? (d.sites as string[]) : [];
-      return `${s("name")}${s("workspace") ? ` in ${s("workspace")}` : " (account)"} · ${sites.length ? `bound to ${sites.join(", ")}` : "unbound"}`;
+      return `${s("name")}${s("workspace") ? ` in ${s("workspace")}` : " (account)"} · ${sites.length ? $t("settings.audit-page.boundTo", { v0: String(sites.join(", ")) }) : "unbound"}`;
     }
     case "secret.workspaces": {
       const list = Array.isArray(d.workspaces) ? (d.workspaces as string[]) : null;
-      return `${s("name")} (account) · ${list === null ? $t("settings.audit-page.everyWorkspace") : list.length ? `only ${list.join(", ")}` : $t("settings.audit-page.noWorkspace")}`;
+      return $t("settings.audit-page.account", { v0: String(s("name")), v1: String(list === null ? $t("settings.audit-page.everyWorkspace") : list.length ? `only ${list.join(", ")}` : $t("settings.audit-page.noWorkspace")) });
     }
     case "workspace.deployed":
       return `${s("workspace")}${s("commit") ? ` @ ${s("commit").slice(0, 8)}` : ""} · +${d.added ?? 0} ~${d.updated ?? 0} −${d.removed ?? 0}`;
     case "workspace.exported":
-      return `${s("kind") === "workspace" ? s("workspace") : `${s("kind")} ${s("name")} from ${s("workspace")}`} · ${d.files ?? 0} files`;
+      return $t("settings.audit-page.files", { v0: String(s("kind") === "workspace" ? s("workspace") : `${s("kind")} ${s("name")} from ${s("workspace")}`), v1: String(d.files ?? 0) });
     case "workspace.imported":
-      return `${s("kind") === "workspace" ? $t("common.workspaceOne") : `${s("kind")} ${s("name")}`}${s("from") ? ` from ${s("from")}` : ""} into ${s("workspace")}${d.created ? " (new)" : ""} · ${d.written ?? 0} files${d.overwritten ? `, ${d.overwritten} overwritten` : ""}`;
+      return $t("settings.audit-page.intoFiles", { v0: String(s("kind") === "workspace" ? $t("common.workspaceOne") : `${s("kind")} ${s("name")}`), v1: String(s("from") ? ` from ${s("from")}` : ""), v2: String(s("workspace")), v3: String(d.created ? " (new)" : ""), v4: String(d.written ?? 0), v5: String(d.overwritten ? $t("settings.audit-page.overwritten", { overwritten: String(d.overwritten) }) : "") });
     default: {
       const parts = Object.entries(d)
         .filter(([, v]) => v !== null && v !== undefined && typeof v !== "object")
@@ -108,12 +108,12 @@ export default async function AuditLogPage({
 
   const session = await verifySession((await cookies()).get(SESSION_COOKIE)?.value);
   const tabs = settingsTabs(tenant, { team: Boolean(session), active: "audit" });
-  const subtitle = "Who signed in, minted a key, invited someone, changed a secret, deployed — and when support looked.";
+  const subtitle = $t("settings.audit-page.whoSignedInMintedAKey");
 
   if (!allowed) {
     return (
-      <SettingsShell title="Settings" subtitle={subtitle} tabs={tabs}>
-        <EmptyState icon={<ScrollText />} title="Owner and admins only" description={$t("settings.audit-page.theAuditLogIsForThe")} />
+      <SettingsShell title={$t("settings.audit-page.settings")} subtitle={subtitle} tabs={tabs}>
+        <EmptyState icon={<ScrollText />} title={$t("settings.audit-page.ownerAndAdminsOnly")} description={$t("settings.audit-page.theAuditLogIsForThe")} />
       </SettingsShell>
     );
   }
@@ -139,16 +139,16 @@ export default async function AuditLogPage({
   const field = "grid min-w-0 gap-1.5 text-sm font-medium text-fg";
 
   return (
-    <SettingsShell title="Settings" subtitle={subtitle} tabs={tabs}>
+    <SettingsShell title={$t("settings.audit-page.settings")} subtitle={subtitle} tabs={tabs}>
       <section className="min-w-0 space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-2 px-1">
           <div className="min-w-0">
-            <h2 className="text-base font-medium text-fg">Audit log</h2>
-            <p className="text-sm text-fg-muted">Kept for the life of the account, newest first.</p>
+            <h2 className="text-base font-medium text-fg">{$t("settings.audit-page.auditLog")}</h2>
+            <p className="text-sm text-fg-muted">{$t("settings.audit-page.keptForTheLifeOfThe")}</p>
           </div>
           <a href={csv} className={buttonVariants({ variant: "secondary" })} download>
             <Download aria-hidden />
-            Download CSV
+            {$t("settings.audit-page.downloadCsv")}
           </a>
         </div>
 
@@ -156,7 +156,7 @@ export default async function AuditLogPage({
           {tenant !== "default" && <input type="hidden" name="tenant" value={tenant} />}
           <div className="grid gap-3 sm:grid-cols-2">
             <label className={field}>
-              When
+              {$t("settings.audit-page.when")}
               <Select name="since" defaultValue={since} className="w-full font-normal">
                 {WINDOWS.map((w) => (
                   <option key={w.v} value={w.v}>
@@ -166,9 +166,9 @@ export default async function AuditLogPage({
               </Select>
             </label>
             <label className={field}>
-              Action
+              {$t("settings.audit-page.action")}
               <Select name="action" defaultValue={sp.action ?? ""} className="w-full font-normal">
-                <option value="">Everything</option>
+                <option value="">{$t("settings.audit-page.everything")}</option>
                 {FAMILIES.map((f) => (
                   <option key={f} value={f}>
                     {f}
@@ -177,13 +177,12 @@ export default async function AuditLogPage({
               </Select>
             </label>
             <label className={field}>
-              Who
-              <Input name="actor" defaultValue={sp.actor ?? ""} placeholder="email, key:label, support:…" className="font-normal" />
+              {$rich("settings.audit-page.who", { input: $el(<Input name="actor" defaultValue={sp.actor ?? ""} placeholder="email, key:label, support:…" className="font-normal" />) })}
             </label>
             <label className={field}>
               {$t("settings.audit-page.workspace")}
               <Select name="workspace" defaultValue={sp.workspace ?? ""} className="w-full font-normal">
-                <option value="">Any</option>
+                <option value="">{$t("settings.audit-page.any")}</option>
                 {workspaces.map((w) => (
                   <option key={w} value={w}>
                     {w}
@@ -195,11 +194,11 @@ export default async function AuditLogPage({
           <div className="mt-3 flex justify-end gap-2">
             {filtered && (
               <Link href={`/dashboard/settings/audit${tenant !== "default" ? `?tenant=${tenant}` : ""}`} className={buttonVariants({ variant: "ghost" })}>
-                Clear
+                {$t("settings.audit-page.clear")}
               </Link>
             )}
             <Button type="submit" variant="primary">
-              Filter
+              {$t("settings.audit-page.filter")}
             </Button>
           </div>
         </form>
@@ -212,7 +211,7 @@ export default async function AuditLogPage({
 
         <div className="overflow-hidden rounded-lg border border-line bg-surface">
           {page.entries.length === 0 ? (
-            <EmptyState bare compact icon={<ScrollText />} title="Nothing matches" description="Widen the window or clear the filters." />
+            <EmptyState bare compact icon={<ScrollText />} title={$t("settings.audit-page.nothingMatches")} description={$t("settings.audit-page.widenTheWindowOrClearThe")} />
           ) : (
             <ul className="divide-y divide-line">
               {page.entries.map((e) => (
@@ -240,23 +239,23 @@ export default async function AuditLogPage({
 
         <div className="flex items-center justify-between px-1 text-sm text-fg-muted">
           <span>
-            {page.entries.length} shown{sp.cursor ? " · older entries" : ""}
+            {$t("settings.audit-page.shown", { length: String(page.entries.length) })}{sp.cursor ? $t("settings.audit-page.olderEntries") : ""}
           </span>
           <div className="flex gap-2">
             {sp.cursor && (
               <Link href={`/dashboard/settings/audit${qs({ cursor: undefined })}`} className={buttonVariants({ variant: "ghost" })}>
-                Newest
+                {$t("settings.audit-page.newest")}
               </Link>
             )}
             {page.next && (
               <Link href={`/dashboard/settings/audit${qs({ cursor: page.next })}`} className={buttonVariants({ variant: "secondary" })}>
-                Older →
+                {$t("settings.audit-page.older")}
               </Link>
             )}
           </div>
         </div>
         <p className="px-1 text-sm text-fg-muted">
-          Also on the API (<code className="font-mono">GET /api/audit</code>) and the CLI (<code className="font-mono">foldrun audit --since 7d --csv</code>). Secrets are recorded by name — a value never reaches this log.
+          {$rich("settings.audit-page.alsoOnTheApiGetApi", { code: (chunks) => <code className="font-mono">{chunks}</code> })}
         </p>
       </section>
     </SettingsShell>

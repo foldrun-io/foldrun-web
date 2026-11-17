@@ -7,7 +7,7 @@
 // 30m, 2h, 6h); this is for the one that gave up, or for a receiver you just
 // fixed and want to prove.
 
-import { $t } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { buttonVariants } from "@foldrun/ui/react/button";
 import { Chip, EmptyState, Callout } from "@foldrun/ui/react/page";
@@ -81,7 +81,7 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
       const res = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/notify/deliveries/${encodeURIComponent(id)}/redeliver`, { method: "POST" });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) setNote(body.error ?? `HTTP ${res.status}`);
-      else setNote(body.ok ? `${id} redelivered — accepted (${body.attempt?.statusCode})` : `${id} redelivered — ${body.attempt?.error ?? "refused"}`);
+      else setNote(body.ok ? $t("workspace.triggers-webhook-deliveries.redeliveredAccepted", { id: String(id), statusCode: String(body.attempt?.statusCode) }) : $t("workspace.triggers-webhook-deliveries.redelivered", { id: String(id), v1: String(body.attempt?.error ?? "refused") }));
       await load();
     } finally {
       setBusy(null);
@@ -89,24 +89,23 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
   };
 
   if (error) return <p role="alert" className="text-sm text-danger">{error}</p>;
-  if (!data) return <p className="text-sm text-fg-subtle">Loading…</p>;
+  if (!data) return <p className="text-sm text-fg-subtle">{$t("workspace.triggers-webhook-deliveries.loading")}</p>;
   const { deliveries, total, endpoint } = data;
 
   return (
     <div className="space-y-3">
       {endpoint?.disabledAt && (
         <Callout tone="danger" className="p-4 text-sm" role="alert">
-          {$t("workspace.triggers-webhook-deliveries.thisWorkspaceSWebhookIs")}{" "}<strong>switched off</strong> since <LocalTime iso={endpoint.disabledAt} />: {endpoint.disabledReason}{$t("workspace.triggers-webhook-deliveries.newNotificationsAreRecordedBelowBut")}{" "}<code>notify:</code> starts it fresh.
+          {$rich("workspace.triggers-webhook-deliveries.thisTermSWebhookIsSwitched", { strong: (chunks) => <strong>{chunks}</strong>, localTime: $el(<LocalTime iso={endpoint.disabledAt} />), disabledReason: endpoint.disabledReason ?? "", code: (chunks) => <code>{chunks}</code> })}
         </Callout>
       )}
       {!endpoint?.disabledAt && endpoint?.failingSince && (
         <p className="text-sm text-warning">
-          Every delivery has failed since <LocalTime iso={endpoint.failingSince} />. After a few days
-          of that the webhook is switched off and the account owner is emailed.
+          {$rich("workspace.triggers-webhook-deliveries.everyDeliveryHasFailedSinceAfter", { localTime: $el(<LocalTime iso={endpoint.failingSince} />) })}
         </p>
       )}
       <div className="flex flex-wrap items-center gap-3 text-sm">
-        <div role="group" aria-label="Show" className="inline-flex h-8 items-center gap-0.5 rounded-md border border-line bg-sunken p-0.5">
+        <div role="group" aria-label={$t("workspace.triggers-webhook-deliveries.show")} className="inline-flex h-8 items-center gap-0.5 rounded-md border border-line bg-sunken p-0.5">
         {(["", "failed", "pending"] as const).map((f) => (
           <button
             key={f || "all"}
@@ -118,18 +117,18 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
               setOffset(0);
             }}
           >
-            {f === "" ? "All" : f === "failed" ? "Failed" : "Retrying"}
+            {f === "" ? $t("workspace.triggers-webhook-deliveries.all") : f === "failed" ? $t("workspace.triggers-webhook-deliveries.failed") : $t("workspace.triggers-webhook-deliveries.retrying")}
           </button>
         ))}
         </div>
-        <span className="text-[13px] text-fg-muted">{total} deliver{total === 1 ? "y" : "ies"}</span>
+        <span className="text-[13px] text-fg-muted">{$t("workspace.triggers-webhook-deliveries.deliver", { total: total })}</span>
         {note && <span className="text-[13px] text-fg-secondary">{note}</span>}
       </div>
       {deliveries.length === 0 ? (
         <EmptyState
           compact
           icon={<Send />}
-          title={filter ? "None match." : "No webhook deliveries yet"}
+          title={filter ? $t("workspace.triggers-webhook-deliveries.noneMatch") : $t("workspace.triggers-webhook-deliveries.noWebhookDeliveriesYet")}
           description={filter ? undefined : $t("workspace.triggers-webhook-deliveries.aWorkspaceWhoseNotifyIsA")}
         />
       ) : (
@@ -137,11 +136,11 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
           <table className="w-full min-w-[720px] text-sm">
             <thead className="border-b border-line bg-sunken text-left text-[13px] text-fg-muted">
               <tr>
-                <th className="h-10 px-3 font-medium">When</th>
-                <th className="h-10 px-3 font-medium">Event</th>
-                <th className="h-10 px-3 font-medium">Status</th>
-                <th className="h-10 px-3 font-medium">Attempts</th>
-                <th className="h-10 px-3 font-medium">Last answer</th>
+                <th className="h-10 px-3 font-medium">{$t("workspace.triggers-webhook-deliveries.when")}</th>
+                <th className="h-10 px-3 font-medium">{$t("workspace.triggers-webhook-deliveries.event")}</th>
+                <th className="h-10 px-3 font-medium">{$t("workspace.triggers-webhook-deliveries.status")}</th>
+                <th className="h-10 px-3 font-medium">{$t("workspace.triggers-webhook-deliveries.attempts")}</th>
+                <th className="h-10 px-3 font-medium">{$t("workspace.triggers-webhook-deliveries.lastAnswer")}</th>
                 <th className="px-3 py-2" />
               </tr>
             </thead>
@@ -156,7 +155,7 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
                         type="button"
                         aria-expanded={open === d.id}
                         aria-controls={`delivery-${d.id}`}
-                        aria-label={`${open === d.id ? "Hide" : "Show"} the attempt log for ${d.event}`}
+                        aria-label={$t("workspace.triggers-webhook-deliveries.theAttemptLogFor", { v0: String(open === d.id ? $t("workspace.triggers-webhook-deliveries.hide") : $t("workspace.triggers-webhook-deliveries.show")), event: String(d.event) })}
                         onClick={(e) => {
                           e.stopPropagation();
                           setOpen(open === d.id ? null : d.id);
@@ -170,7 +169,7 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
                     <td className="px-3 py-3">
                       <Chip tone={TONE[d.status]}>{d.status === "pending" ? "retrying" : d.status}</Chip>
                       {d.status === "pending" && d.nextAttemptAt && (
-                        <span className="ml-1 text-xs text-fg-subtle">next <LocalTime iso={d.nextAttemptAt} /></span>
+                        <span className="ml-1 text-xs text-fg-subtle">{$rich("workspace.triggers-webhook-deliveries.next", { localTime: $el(<LocalTime iso={d.nextAttemptAt} />) })}</span>
                       )}
                     </td>
                     <td className="px-3 py-3 text-fg-tertiary">{d.attempts}</td>
@@ -185,7 +184,7 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
                             void redeliver(d.id);
                           }}
                         >
-                          {busy === d.id ? "…" : "Redeliver"}
+                          {busy === d.id ? "…" : $t("workspace.triggers-webhook-deliveries.redeliver")}
                         </button>
                       )}
                     </td>
@@ -194,7 +193,7 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
                     <tr id={`delivery-${d.id}`}>
                       <td colSpan={6} className="bg-sunken px-3 py-3">
                         <p className="mb-2 font-mono text-xs text-fg-muted">
-                          X-Foldrun-Delivery: {d.id} · to {d.destination ?? "?"}
+                          {$t("workspace.triggers-webhook-deliveries.xFoldrunDeliveryTo", { id: d.id, destination: d.destination ?? "?" })}
                         </p>
                         <ul className="space-y-1 text-xs">
                           {d.attemptLog.map((a) => (
@@ -202,7 +201,7 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
                               <span className="text-fg-subtle">#{a.n}{a.manual ? " (manual)" : ""}</span>
                               <span className="text-fg-muted"><LocalTime iso={a.at} /></span>
                               <span className={a.error ? "text-danger" : "text-success"}>{a.statusCode ? `HTTP ${a.statusCode}` : a.error}</span>
-                              <span className="text-fg-subtle">{a.durationMs} ms</span>
+                              <span className="text-fg-subtle">{$t("workspace.triggers-webhook-deliveries.ms", { durationMs: String(a.durationMs) })}</span>
                               {a.response && <code className="max-w-full truncate text-fg-tertiary">{a.response}</code>}
                             </li>
                           ))}
@@ -218,9 +217,9 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
       )}
       {total > PAGE && (
         <div className="flex items-center gap-2 text-sm">
-          <button className={buttonVariants({ variant: "ghost" })} disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE))}>← Newer</button>
-          <span className="text-xs text-fg-subtle">{offset + 1}–{Math.min(total, offset + PAGE)} of {total}</span>
-          <button className={buttonVariants({ variant: "ghost" })} disabled={offset + PAGE >= total} onClick={() => setOffset(offset + PAGE)}>Older →</button>
+          <button className={buttonVariants({ variant: "ghost" })} disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE))}>{$t("workspace.triggers-webhook-deliveries.newer")}</button>
+          <span className="text-xs text-fg-subtle">{$t("workspace.triggers-webhook-deliveries.of", { offset: String(offset + 1), total: String(Math.min(total, offset + PAGE)), total2: String(total) })}</span>
+          <button className={buttonVariants({ variant: "ghost" })} disabled={offset + PAGE >= total} onClick={() => setOffset(offset + PAGE)}>{$t("workspace.triggers-webhook-deliveries.older")}</button>
         </div>
       )}
     </div>

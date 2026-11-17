@@ -11,6 +11,7 @@
 // handshake — and shows what came back, including *which* secrets are unset.
 // Never their values.
 
+import { $rich, $t } from "@/i18n";
 import { useState } from "react";
 import { Check, Play, X } from "lucide-react";
 import { Button } from "@foldrun/ui/react/button";
@@ -105,13 +106,13 @@ export function ToolTest({
           <Input
             value={probePath}
             onChange={(e) => setProbePath(e.target.value)}
-            placeholder="/path to try"
-            aria-label="Path to try"
+            placeholder={$t("components.tool-test.pathToTry")}
+            aria-label={$t("components.tool-test.pathToTry2")}
             spellCheck={false}
             className="w-56 font-mono text-[13px]"
           />
         )}
-        <Tooltip label={stale ? "Save first — a test runs the file on disk, not the text on screen" : undefined}>
+        <Tooltip label={stale ? $t("components.tool-test.saveFirstATestRunsThe") : undefined}>
           <span className="inline-flex">
             <Button
               variant="primary"
@@ -119,12 +120,12 @@ export function ToolTest({
               onClick={run}
               disabled={busy || stale}
             >
-              <Play /> {busy ? "Calling…" : "Test"}
+              <Play /> {busy ? "Calling…" : $t("components.tool-test.test")}
             </Button>
           </span>
         </Tooltip>
         {stale && (
-          <span className="text-xs text-warning">Save first — the test runs what is on disk.</span>
+          <span className="text-xs text-warning">{$t("components.tool-test.saveFirstTheTestRunsWhat")}</span>
         )}
       </div>
 
@@ -133,16 +134,14 @@ export function ToolTest({
           {result.ok ? <Check className="mt-0.5 size-4 shrink-0" aria-hidden /> : <X className="mt-0.5 size-4 shrink-0" aria-hidden />}
           <span className="min-w-0 break-words">
             {result.summary}
-            <span className="ml-1.5 font-normal text-fg-subtle">{result.ms}ms</span>
+            <span className="ml-1.5 font-normal text-fg-subtle">{$t("components.tool-test.ms", { ms: String(result.ms) })}</span>
           </span>
         </p>
       )}
 
       {result?.missingSecrets.length ? (
         <Callout tone="warning" className="px-3 py-2 text-xs">
-          Unset secret{result.missingSecrets.length === 1 ? "" : "s"}:{" "}
-          <span className="font-mono">{result.missingSecrets.join(", ")}</span> — the call went out
-          without {result.missingSecrets.length === 1 ? "it" : "them"}.
+          {$rich("components.tool-test.unsetSecretTheCallWentOut", { length: result.missingSecrets.length, join: result.missingSecrets.join(", "), span: (chunks) => <span className="font-mono">{chunks}</span> })}
         </Callout>
       ) : null}
 

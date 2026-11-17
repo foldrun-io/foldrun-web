@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 // Picking the files a run is handed (FOL-163): storage paths, filtered by
 // what is typed, at most 20 and 100 MiB together — the limits core
 // run-inputs.ts holds a run to, said here before the route refuses.
@@ -17,9 +18,9 @@ export function matchFiles(files: StoredFile[], filter: string): StoredFile[] {
 
 /** Why the picked set would be refused, or null. */
 export function pickProblem(picked: string[], files: StoredFile[]): string | null {
-  if (picked.length > PICK_LIMITS.files) return `At most ${PICK_LIMITS.files} files on one run.`;
+  if (picked.length > PICK_LIMITS.files) return $t("components.run-inputs-model.atMostFilesOnOneRun", { files: String(PICK_LIMITS.files) });
   const total = picked.reduce((n, p) => n + (files.find((f) => f.path === p)?.size ?? 0), 0);
-  if (total > PICK_LIMITS.totalBytes) return `${(total / 1048576).toFixed(1)} MiB picked — at most 100 MiB on one run.`;
+  if (total > PICK_LIMITS.totalBytes) return $t("components.run-inputs-model.mibPickedAtMost100Mib", { v0: String((total / 1048576).toFixed(1)) });
   return null;
 }
 

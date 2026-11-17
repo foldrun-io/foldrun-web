@@ -4,6 +4,7 @@
 // by tests/live-run.test.ts — these decide what a person watching a run
 // sees move, and a wrong one is "the page is stuck" with nothing to grep.
 
+import { $t } from "@/i18n";
 import type { RunRecord, StepRecord } from "@/lib/store";
 
 type RunStatus = RunRecord["status"];
@@ -100,7 +101,7 @@ export function newer<T extends Pick<RunRecord, "status" | "steps">>(held: T, in
 export function tabTitle(run: Pick<RunRecord, "status" | "steps" | "flow" | "stopRequested">, appName = "foldrun"): string {
   const total = run.steps.length;
   const idx = activeStep(run);
-  const where = idx >= 0 ? `step ${idx + 1}/${total}` : "";
+  const where = idx >= 0 ? $t("components.live-run-model.step", { v0: String(idx + 1), total: String(total) }) : "";
   const glyph =
     run.status === "completed" ? "✓" :
     run.status === "failed" ? (run.stopRequested ? "■" : "✗") :
@@ -158,6 +159,6 @@ export function eventBody(text: string): { body: string; contentType: string; er
     return { body: JSON.stringify(JSON.parse(t)), contentType: "application/json", error: null };
   } catch (err) {
     const looksJson = t.startsWith("{") || t.startsWith("[");
-    return { body: t, contentType: "text/plain", error: looksJson ? `not valid JSON: ${err instanceof Error ? err.message : String(err)}` : null };
+    return { body: t, contentType: "text/plain", error: looksJson ? $t("components.live-run-model.notValidJson", { v0: String(err instanceof Error ? err.message : String(err)) }) : null };
   }
 }

@@ -5,7 +5,7 @@
 // rides in); more are written in AGENTS.md. The token itself is a vault
 // secret, named, never typed into this form.
 
-import { $t } from "@/i18n";
+import { $rich, $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@foldrun/ui/react/input";
@@ -45,13 +45,13 @@ export function TelemetryCard({ tenant, initial, mayEdit }: { tenant: string; in
       const answer = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) setError(answer.error ?? `HTTP ${res.status}`);
       else {
-        setNote(clear ? "Runs are no longer sent." : "Saved. Every run that finishes from now on is sent.");
+        setNote(clear ? $t("components.telemetry-card.runsAreNoLongerSent") : $t("components.telemetry-card.savedEveryRunThatFinishesFrom"));
         setOwns(clear || !secret.trim() ? null : header.trim().toLowerCase());
         if (clear) setEndpoint("");
         router.refresh();
       }
     } catch (err) {
-      setError(`could not reach the platform — ${err instanceof Error ? err.message : String(err)}`);
+      setError($t("components.telemetry-card.couldNotReachThePlatform", { v0: String(err instanceof Error ? err.message : String(err)) }));
     }
     setBusy(null);
   };
@@ -64,10 +64,10 @@ export function TelemetryCard({ tenant, initial, mayEdit }: { tenant: string; in
       const res = await fetch("/api/account/telemetry/test", { method: "POST", headers, body: "{}" });
       const answer = (await res.json().catch(() => ({}))) as { ok?: boolean; status?: number; error?: string; spans?: number };
       if (!res.ok) setError(answer.error ?? `HTTP ${res.status}`);
-      else if (answer.ok) setNote(`The collector took it: ${answer.spans ?? 0} spans, HTTP ${answer.status}. Look for the trace "run foldrun-telemetry-test".`);
-      else setError(`Not delivered — ${answer.error ?? "no answer"}.`);
+      else if (answer.ok) setNote($t("components.telemetry-card.theCollectorTookItSpansHttp", { v0: String(answer.spans ?? 0), status: String(answer.status) }));
+      else setError($t("components.telemetry-card.notDelivered", { v0: String(answer.error ?? $t("components.telemetry-card.noAnswer")) }));
     } catch (err) {
-      setError(`could not reach the platform — ${err instanceof Error ? err.message : String(err)}`);
+      setError($t("components.telemetry-card.couldNotReachThePlatform", { v0: String(err instanceof Error ? err.message : String(err)) }));
     }
     setBusy(null);
   };
@@ -75,29 +75,28 @@ export function TelemetryCard({ tenant, initial, mayEdit }: { tenant: string; in
   return (
     <SettingsCard
       id="telemetry"
-      title="Send runs to your tracing"
+      title={$t("components.telemetry-card.sendRunsToYourTracing")}
       description={
         <>
-          {$t("components.telemetry-card.eachFinishedRunGoesToYour")}{" "}
-          <code className="font-mono">telemetry:</code> in its AGENTS.md replaces this one.
+          {$rich("components.telemetry-card.eachFinishedRunGoesToYour2", { code: (chunks) => <code className="font-mono">{chunks}</code> })}
         </>
       }
-      hint={mayEdit ? <><code className="font-mono text-xs">telemetry:</code> in AGENTS.md</> : "An admin of this account can set this."}
+      hint={mayEdit ? <>{$rich("components.telemetry-card.telemetryInAgentsMd", { code: (chunks) => <code className="font-mono text-xs">{chunks}</code> })}</> : $t("components.telemetry-card.anAdminOfThisAccountCan")}
       footer={
         mayEdit && (
           <>
             {initial && (
               <>
                 <Button variant="ghost" disabled={busy !== null} onClick={() => save(true)}>
-                  {busy === "clear" ? "Stopping…" : "Stop sending"}
+                  {busy === "clear" ? "Stopping…" : $t("components.telemetry-card.stopSending")}
                 </Button>
                 <Button variant="secondary" disabled={busy !== null} onClick={test}>
-                  {busy === "test" ? "Sending…" : "Send a test trace"}
+                  {busy === "test" ? "Sending…" : $t("components.telemetry-card.sendATestTrace")}
                 </Button>
               </>
             )}
             <Button variant="primary" disabled={busy !== null || !endpoint.trim()} onClick={() => save(false)}>
-              {busy === "save" ? "Saving…" : "Save"}
+              {busy === "save" ? "Saving…" : $t("components.telemetry-card.save")}
             </Button>
           </>
         )
@@ -111,14 +110,14 @@ export function TelemetryCard({ tenant, initial, mayEdit }: { tenant: string; in
         {initial?.hidden && <p className="text-sm text-fg-muted">{$t("components.telemetry-card.runsAreSentToACollector")}</p>}
         {!initial?.hidden && (
           <>
-            <Field label="Collector URL (OTLP/HTTP traces)">
+            <Field label={$t("components.telemetry-card.collectorUrlOtlpHttpTraces")}>
               <Input value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="https://otel.example.com/v1/traces" disabled={!mayEdit} className="w-full font-mono" />
             </Field>
             <div className="flex flex-wrap gap-4">
-              <Field label="Header">
+              <Field label={$t("components.telemetry-card.header")}>
                 <Input value={header} onChange={(e) => setHeader(e.target.value)} disabled={!mayEdit} className="w-48 font-mono" />
               </Field>
-              <Field label="Its value: a vault secret, by name">
+              <Field label={$t("components.telemetry-card.itsValueAVaultSecretBy")}>
                 <Input value={secret} onChange={(e) => setSecret(e.target.value.toUpperCase())} placeholder="OTEL_TOKEN" disabled={!mayEdit} className="w-56 font-mono" />
               </Field>
             </div>

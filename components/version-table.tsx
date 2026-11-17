@@ -1,6 +1,7 @@
 // The version and the commits behind it, as a table. One rendering for
 // Settings → About and What's new, so the two cannot disagree about what a component is called or where its sha links.
 
+import { $rich, $t } from "@/i18n";
 import type { VersionInfo } from "@/server/release";
 
 const REPO_OF: Record<string, string> = {
@@ -13,24 +14,24 @@ const REPO_OF: Record<string, string> = {
 };
 
 const WHAT: Record<string, string> = {
-  core: "the runtime: the format, the engine, check",
-  platform: "the hosted layer: queue, worker, storage, billing",
-  web: "this dashboard and the HTTP API",
-  docs: "the documentation",
-  infra: "how it is built and deployed",
-  cli: "the CLI released with this version",
+  core: $t("components.version-table.theRuntimeTheFormatTheEngine"),
+  platform: $t("components.version-table.theHostedLayerQueueWorkerStorage"),
+  web: $t("components.version-table.thisDashboardAndTheHttpApi"),
+  docs: $t("components.version-table.theDocumentation"),
+  infra: $t("components.version-table.howItIsBuiltAndDeployed"),
+  cli: $t("components.version-table.theCliReleasedWithThisVersion"),
 };
 
 export function VersionFacts({ info }: { info: VersionInfo }) {
   return (
     <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-1.5 text-sm">
-      <dt className="text-fg-muted">Version</dt>
+      <dt className="text-fg-muted">{$t("components.version-table.version")}</dt>
       <dd className="font-mono text-fg">{info.version}</dd>
-      <dt className="text-fg-muted">Released</dt>
+      <dt className="text-fg-muted">{$t("components.version-table.released")}</dt>
       <dd className="text-fg">{info.released_at ? new Date(info.released_at).toISOString().replace("T", " ").replace(/:\d{2}\.\d{3}Z$/, " UTC") : "—"}</dd>
-      <dt className="text-fg-muted">API version</dt>
+      <dt className="text-fg-muted">{$t("components.version-table.apiVersion")}</dt>
       <dd className="font-mono text-fg">{info.api}</dd>
-      <dt className="text-fg-muted">Build</dt>
+      <dt className="text-fg-muted">{$t("components.version-table.build")}</dt>
       <dd className="break-all font-mono text-xs text-fg-tertiary">{info.build ?? "—"}</dd>
       {info.packages.core && (
         <>
@@ -40,15 +41,15 @@ export function VersionFacts({ info }: { info: VersionInfo }) {
       )}
       {info.packages.cli && (
         <>
-          <dt className="text-fg-muted">CLI</dt>
+          <dt className="text-fg-muted">{$t("components.version-table.cli")}</dt>
           <dd className="font-mono text-fg">
-            foldrun {info.packages.cli} <span className="font-sans text-xs text-fg-muted">— npm i -g foldrun@latest</span>
+            {$rich("components.version-table.foldrunNpmIGFoldrunLatest", { cli: info.packages.cli, span: (chunks) => <span className="font-sans text-xs text-fg-muted">{chunks}</span> })}
           </dd>
         </>
       )}
       {info.browsers && (
         <>
-          <dt className="text-fg-muted">Browsers</dt>
+          <dt className="text-fg-muted">{$t("components.version-table.browsers")}</dt>
           <dd className="font-mono text-fg">
             {info.browsers.map((b) => (info.browser_versions?.[b] ? `${b} ${info.browser_versions[b]}` : b)).join(", ")}
           </dd>
@@ -65,9 +66,9 @@ export function ComponentTable({ info }: { info: VersionInfo }) {
       <table className="w-full min-w-[420px] text-sm">
         <thead>
           <tr className="border-b border-line text-left text-[13px] text-fg-muted">
-            <th className="py-2 pr-4 font-medium">Component</th>
-            <th className="py-2 pr-4 font-medium">Commit</th>
-            <th className="py-2 font-medium">What it is</th>
+            <th className="py-2 pr-4 font-medium">{$t("components.version-table.component")}</th>
+            <th className="py-2 pr-4 font-medium">{$t("components.version-table.commit")}</th>
+            <th className="py-2 font-medium">{$t("components.version-table.whatItIs")}</th>
           </tr>
         </thead>
         <tbody>

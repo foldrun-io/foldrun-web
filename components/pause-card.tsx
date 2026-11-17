@@ -5,7 +5,7 @@
 // optionally stopping the runs already going, and resume. server/pause.ts
 // is the route side.
 
-import { $t } from "@/i18n";
+import { $el, $rich, $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@foldrun/ui/react/input";
@@ -21,7 +21,7 @@ export interface PauseMarkView {
   reason?: string;
 }
 
-const since = (m: PauseMarkView) => `${m.at.slice(0, 16).replace("T", " ")} UTC by ${m.by}${m.reason ? ` — ${m.reason}` : ""}`;
+const since = (m: PauseMarkView) => $t("components.pause-card.utcBy", { v0: String(m.at.slice(0, 16).replace("T", " ")), by: String(m.by), v2: String(m.reason ? ` — ${m.reason}` : "") });
 
 export function PauseCard({
   workspace,
@@ -55,9 +55,9 @@ export function PauseCard({
     if (
       method === "POST" &&
       !(await confirm({
-        title: scope === "account" ? "Pause the account?" : $t("components.pause-card.pauseThisWorkspace"),
-        body: `No new run starts in ${what} until someone resumes it.${stop ? " Every run going now is stopped, and a stopped run cannot be picked up again." : " Runs already under way finish; queued ones wait for the resume."}`,
-        confirmLabel: stop ? "Pause and stop runs" : "Pause",
+        title: scope === "account" ? $t("components.pause-card.pauseTheAccount") : $t("components.pause-card.pauseThisWorkspace"),
+        body: $t("components.pause-card.noNewRunStartsInUntil", { what: String(what), v1: String(stop ? $t("components.pause-card.everyRunGoingNowIsStopped") : $t("components.pause-card.runsAlreadyUnderWayFinishQueued")) }),
+        confirmLabel: stop ? $t("components.pause-card.pauseAndStopRuns") : $t("components.pause-card.pause"),
       }))
     )
       return;
@@ -105,15 +105,15 @@ export function PauseCard({
         if (method === "POST" && stop) {
           const n = answer.stopped?.length ?? 0;
           const failed = answer.failed?.length ?? 0;
-          setNote(`Paused, and ${n} run${n === 1 ? "" : "s"} stopped.`);
-          if (failed) setError(`${failed} run${failed === 1 ? "" : "s"} could not be stopped — open Runs and stop ${failed === 1 ? "it" : "them"} there.`);
+          setNote($t("components.pause-card.pausedAndRunStopped", { n: String(n), v1: String(n === 1 ? "" : "s") }));
+          if (failed) setError($t("components.pause-card.runCouldNotBeStoppedOpen", { failed: String(failed), v1: String(failed === 1 ? "" : "s"), v2: String(failed === 1 ? "it" : "them") }));
         }
         setReason("");
         setStop(false);
         router.refresh();
       }
     } catch (err) {
-      setError(`could not reach the platform — ${err instanceof Error ? err.message : String(err)}`);
+      setError($t("components.pause-card.couldNotReachThePlatform", { v0: String(err instanceof Error ? err.message : String(err)) }));
     }
     setBusy(false);
   };
@@ -132,7 +132,7 @@ export function PauseCard({
       )}
       {heldByAccount && (
         <Callout tone="warning">
-          The account is paused, so nothing here runs either — <WithEmails text={since(heldByAccount)} />. Resume it in the account&apos;s Settings.
+          {$rich("components.pause-card.theAccountIsPausedSoNothing", { withEmails: $el(<WithEmails text={since(heldByAccount)} />) })}
         </Callout>
       )}
     </>
@@ -145,17 +145,17 @@ export function PauseCard({
         {dialog}
         <SettingsCard
           id="pause"
-          title="Paused"
+          title={$t("components.pause-card.paused")}
           description={
             <>
-              No new run starts in {what}. Since <WithEmails text={since(own)} />.
+              {$rich("components.pause-card.noNewRunStartsInSince", { what: what, withEmails: $el(<WithEmails text={since(own)} />) })}
             </>
           }
-          hint={mayManage ? "Resuming lets schedules, webhooks and Run start again." : "An admin of this account can resume it."}
+          hint={mayManage ? $t("components.pause-card.resumingLetsSchedulesWebhooksAndRun") : $t("components.pause-card.anAdminOfThisAccountCan")}
           footer={
             mayManage && (
               <Button variant="primary" disabled={busy} onClick={() => send("DELETE")}>
-                {busy ? "Resuming…" : "Resume"}
+                {busy ? "Resuming…" : $t("components.pause-card.resume")}
               </Button>
             )
           }
@@ -172,18 +172,17 @@ export function PauseCard({
       <SettingsCard
         id="pause"
         danger
-        title="Pause runs"
+        title={$t("components.pause-card.pauseRuns")}
         description={
           <>
-            Stops {what} starting anything — schedules, webhooks, chained flows and the Run button — until someone resumes it. A fire while paused is logged on Triggers as &ldquo;paused by a
-            person&rdquo; and is not run later.
+            {$t("components.pause-card.stopsStartingAnythingSchedulesWebhooksChained", { what: what })}
           </>
         }
-        hint={mayManage ? undefined : "An admin of this account can pause it."}
+        hint={mayManage ? undefined : $t("components.pause-card.anAdminOfThisAccountCan2")}
         footer={
           mayManage && (
             <Button variant="danger" disabled={busy} onClick={() => send("POST")}>
-              {busy ? "Pausing…" : scope === "account" ? "Pause the account" : $t("components.pause-card.pauseThisWorkspace2")}
+              {busy ? "Pausing…" : scope === "account" ? $t("components.pause-card.pauseTheAccount2") : $t("components.pause-card.pauseThisWorkspace2")}
             </Button>
           )
         }
@@ -193,12 +192,11 @@ export function PauseCard({
             {notes}
             {mayManage && (
               <>
-                <Field label="Why" className="max-w-md">
-                  <Input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} placeholder="Optional — shown to everyone who opens it" className="w-full" />
+                <Field label={$t("components.pause-card.why")} className="max-w-md">
+                  <Input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} placeholder={$t("components.pause-card.optionalShownToEveryoneWhoOpens")} className="w-full" />
                 </Field>
                 <label className="flex items-center gap-2 text-sm text-fg">
-                  <Checkbox checked={stop} onCheckedChange={(checked: boolean) => setStop(checked)} />
-                  Also stop the runs going now
+                  {$rich("components.pause-card.alsoStopTheRunsGoingNow", { checkbox: $el(<Checkbox checked={stop} onCheckedChange={(checked: boolean) => setStop(checked)} />) })}
                 </label>
               </>
             )}

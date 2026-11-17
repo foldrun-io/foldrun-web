@@ -109,11 +109,11 @@ function anchoredWhy(rel: string): string | null {
   if (rel === "AGENTS.md" || rel === "project.md") {
     return $t("components.file-tree.isTheWorkspaceSOwnIdentity", { base: String(base) });
   }
-  if (base === "agent.md") return "agent.md is the agent because of where it sits — to rename the agent, rename its folder";
-  if (base === "SKILL.md") return "SKILL.md names its skill — to rename the skill, rename its folder";
-  if (base === "tool.md") return "tool.md names its tool — to rename the tool, rename its folder";
+  if (base === "agent.md") return $t("components.file-tree.agentMdIsTheAgentBecause");
+  if (base === "SKILL.md") return $t("components.file-tree.skillMdNamesItsSkillTo");
+  if (base === "tool.md") return $t("components.file-tree.toolMdNamesItsToolTo");
   if (/(^|\/)(knowledge|memory)\/(.*\/)?(index|log)\.md$/.test(rel)) {
-    return `${base} is generated from the files around it — it is rebuilt in place on the next write`;
+    return $t("components.file-tree.isGeneratedFromTheFilesAround", { base: String(base) });
   }
   return null;
 }
@@ -122,7 +122,7 @@ const deleteWhy = (rel: string): string | null => {
   if (!why) return null;
   const base = rel.split("/").pop()!;
   if (/^(agent|SKILL|tool)\.md$/.test(base)) {
-    return `${base} is its folder's identity — delete the whole folder instead`;
+    return $t("components.file-tree.isItsFolderSIdentityDelete", { base: String(base) });
   }
   return why;
 };
@@ -208,10 +208,10 @@ function Node({
           </Link>
         </Tooltip>
         {canEdit && (
-          <Tooltip label={anchoredWhy(node.path!) ?? "Rename"}>
+          <Tooltip label={anchoredWhy(node.path!) ?? $t("components.file-tree.rename")}>
             <button
               type="button"
-              aria-label="Rename"
+              aria-label={$t("components.file-tree.rename")}
               onClick={() => {
                 const why = anchoredWhy(node.path!);
                 if (why) return onAnchored(why);
@@ -226,10 +226,10 @@ function Node({
           </Tooltip>
         )}
         {canEdit && (
-          <Tooltip label={deleteWhy(node.path!) ?? "Delete"}>
+          <Tooltip label={deleteWhy(node.path!) ?? $t("components.file-tree.delete")}>
             <button
               type="button"
-              aria-label="Delete"
+              aria-label={$t("components.file-tree.delete")}
               onClick={() => {
                 const why = deleteWhy(node.path!);
                 if (why) return onAnchored(why);
@@ -277,10 +277,10 @@ function Node({
           <span className="truncate text-fg">{node.name}</span>
         </button>
         <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-          <Tooltip label="New file">
+          <Tooltip label={$t("components.file-tree.newFile")}>
             <button
               type="button"
-              aria-label="New file"
+              aria-label={$t("components.file-tree.newFile")}
               onClick={() => {
                 if (!open) toggle(node.id);
                 setDraft({ parent: node.id, kind: "file" });
@@ -290,10 +290,10 @@ function Node({
               <NewFileIcon />
             </button>
           </Tooltip>
-          <Tooltip label="New folder">
+          <Tooltip label={$t("components.file-tree.newFolder")}>
             <button
               type="button"
-              aria-label="New folder"
+              aria-label={$t("components.file-tree.newFolder")}
               onClick={() => {
                 if (!open) toggle(node.id);
                 setDraft({ parent: node.id, kind: "folder" });
@@ -304,10 +304,10 @@ function Node({
             </button>
           </Tooltip>
           {canEdit && deletableFolder(node.id) && (
-            <Tooltip label="Delete this and everything in it">
+            <Tooltip label={$t("components.file-tree.deleteThisAndEverythingInIt")}>
               <button
                 type="button"
-                aria-label="Delete this and everything in it"
+                aria-label={$t("components.file-tree.deleteThisAndEverythingInIt")}
                 onClick={() => remove(node.id, true)}
                 className="rounded p-0.5 text-fg-subtle hover:bg-muted-strong hover:text-danger"
               >
@@ -533,7 +533,7 @@ export function FileTree({
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error ?? `could not create ${rel}`);
+      setError(data.error ?? $t("components.file-tree.couldNotCreate", { rel: String(rel) }));
       return;
     }
     setDraft(null);
@@ -560,7 +560,7 @@ export function FileTree({
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error ?? `could not move ${from}`);
+      setError(data.error ?? $t("components.file-tree.couldNotMove", { from: String(from) }));
       return;
     }
     if (selected === from) router.push(`${linkBase}?path=${encodeURIComponent(to)}${linkSuffix}`);
@@ -571,11 +571,11 @@ export function FileTree({
     setError(null);
     if (
       !(await confirm({
-        title: `Delete ${rel}?`,
+        title: $t("components.file-tree.delete2", { rel: String(rel) }),
         body: folder
-          ? "Everything inside it is deleted with it."
-          : "Runs and agents that expect this file stop finding it.",
-        confirmLabel: "Delete",
+          ? $t("components.file-tree.everythingInsideItIsDeletedWith")
+          : $t("components.file-tree.runsAndAgentsThatExpectThis"),
+        confirmLabel: $t("components.file-tree.delete"),
       }))
     )
       return;
@@ -586,7 +586,7 @@ export function FileTree({
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error ?? `could not delete ${rel}`);
+      setError(data.error ?? $t("components.file-tree.couldNotDelete", { rel: String(rel) }));
       return;
     }
     if (selected === rel || selected?.startsWith(`${rel}/`)) {
@@ -612,7 +612,7 @@ export function FileTree({
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error ?? `could not rename ${from}`);
+      setError(data.error ?? $t("components.file-tree.couldNotRename", { from: String(from) }));
       return;
     }
     setRenaming(null);

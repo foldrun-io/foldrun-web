@@ -7,6 +7,7 @@
 // run outcomes through server/run-lite.ts, steps and tools through
 // platform/observe.ts, shaped by components/account-observe-model.ts.
 
+import { $t } from "@/i18n";
 import { cachedAccountInsights } from "@/server/insights";
 import { creditsShort } from "@/components/money";
 import Link from "@foldrun/ui/react/link";
@@ -26,9 +27,9 @@ import { Tooltip } from "@foldrun/ui/react/tooltip";
 export const dynamic = "force-dynamic";
 
 const WINDOWS = [
-  { days: 1, label: "24 hours" },
-  { days: 7, label: "7 days" },
-  { days: 30, label: "30 days" },
+  { days: 1, label: $t("observe.page.24Hours") },
+  { days: 7, label: $t("observe.page.7Days") },
+  { days: 30, label: $t("observe.page.30Days") },
 ];
 
 // Credits charged (FOL-54): the ledger's figure, list price for a run not
@@ -43,9 +44,9 @@ const FMT = { pts: (v: number) => `${Math.round(v * 100)} pts`, money };
 
 function Delta({ now, before, upIsGood, as }: { now: number | null; before: number | null; upIsGood: boolean; as: keyof typeof FMT }) {
   const fmt = FMT[as];
-  if (now === null || before === null) return <span className="text-fg-subtle">no earlier window to compare</span>;
+  if (now === null || before === null) return <span className="text-fg-subtle">{$t("observe.page.noEarlierWindowToCompare")}</span>;
   const d = now - before;
-  if (Math.abs(d) < 1e-9) return <span>same as the window before</span>;
+  if (Math.abs(d) < 1e-9) return <span>{$t("observe.page.sameAsTheWindowBefore")}</span>;
   const good = d > 0 === upIsGood;
   const Arrow = d > 0 ? ArrowUpRight : ArrowDownRight;
   return (
@@ -54,7 +55,7 @@ function Delta({ now, before, upIsGood, as }: { now: number | null; before: numb
         <Arrow className="size-3.5" aria-label={d > 0 ? "up" : "down"} />
         {fmt(Math.abs(d))}
       </span>
-      vs before
+      {$t("observe.page.vsBefore")}
     </span>
   );
 }
@@ -64,8 +65,8 @@ function Delta({ now, before, upIsGood, as }: { now: number | null; before: numb
 const SERIES = [
   { key: "good", label: "succeeded", cls: "bg-emerald-500" },
   { key: "attention", label: "blocked / bad", cls: "bg-orange-400" },
-  { key: "desk", label: "failed — desk", cls: "bg-red-500" },
-  { key: "platform", label: "failed — platform", cls: "bg-slate-700" },
+  { key: "desk", label: $t("observe.page.failedDesk"), cls: "bg-red-500" },
+  { key: "platform", label: $t("observe.page.failedPlatform"), cls: "bg-slate-700" },
 ] as const;
 
 function OutcomeChart({ days, tz }: { days: DayBucket[]; tz: string }) {
@@ -73,12 +74,12 @@ function OutcomeChart({ days, tz }: { days: DayBucket[]; tz: string }) {
   const dense = days.length > 14;
   return (
     <div>
-      <ChartLegend className="mb-4" items={SERIES.map((s) => ({ key: s.key, label: s.label, swatch: s.cls }))} aside={`runs per day · ${tz}`} />
+      <ChartLegend className="mb-4" items={SERIES.map((s) => ({ key: s.key, label: s.label, swatch: s.cls }))} aside={$t("observe.page.runsPerDay", { tz: String(tz) })} />
       <div className="flex h-44 items-end gap-1 border-b border-line">
         {days.map((d) => {
           const parts = { good: d.good, attention: d.attention, desk: d.failed - d.platform, platform: d.platform };
           const total = d.good + d.attention + d.failed + d.other;
-          const title = `${d.day}: ${total} run${total === 1 ? "" : "s"} — ${d.good} succeeded, ${d.attention} blocked/bad, ${d.failed - d.platform} failed (desk), ${d.platform} failed (platform) · ${money(d.spendUsd)}`;
+          const title = $t("observe.page.runSucceededBlockedBadFailedDesk", { day: String(d.day), total: String(total), v2: String(total === 1 ? "" : "s"), good: String(d.good), attention: String(d.attention), v5: String(d.failed - d.platform), platform: String(d.platform), v7: String(money(d.spendUsd)) });
           return (
             <Tooltip key={d.day} label={title}>
               <div className="flex h-full min-w-0 flex-1 flex-col-reverse gap-[2px] rounded-t hover:bg-sunken">
@@ -108,8 +109,8 @@ function SpendChart({ days }: { days: DayBucket[] }) {
     <div>
       <ChartLegend
         className="mb-4"
-        items={[{ key: "spend", label: "spend per day", swatch: "bg-sky-500" }]}
-        aside={peak && peak.spendUsd > 0 ? `peak ${money(peak.spendUsd)} on ${peak.day.slice(5).replace("-", "/")}` : undefined}
+        items={[{ key: "spend", label: $t("observe.page.spendPerDay"), swatch: "bg-sky-500" }]}
+        aside={peak && peak.spendUsd > 0 ? $t("observe.page.peakOn", { v0: String(money(peak.spendUsd)), v1: String(peak.day.slice(5).replace("-", "/")) }) : undefined}
       />
       <div className="flex h-36 items-end gap-1 border-b border-line">
         {days.map((d) => (
@@ -151,9 +152,9 @@ export default async function AccountObservePage({ searchParams }: { searchParam
   return (
     <Page width="wide">
       <PageHeader
-        title="Observe"
-        description={`Every desk in the account over the last ${WINDOWS.find((w) => w.days === days)!.label}, against the ${days === 1 ? "day" : `${days} days`} before.`}
-        actions={<Segmented label="Window" value={String(days)} items={WINDOWS.map((w) => ({ key: String(w.days), label: w.label, href: `/dashboard/observe?days=${w.days}${amp}` }))} />}
+        title={$t("observe.page.observe")}
+        description={$t("observe.page.everyDeskInTheAccountOver", { label: String(WINDOWS.find((w) => w.days === days)!.label), v1: String(days === 1 ? "day" : `${days} days`) })}
+        actions={<Segmented label={$t("observe.page.window")} value={String(days)} items={WINDOWS.map((w) => ({ key: String(w.days), label: w.label, href: `/dashboard/observe?days=${w.days}${amp}` }))} />}
       />
 
       <div className="space-y-8">
@@ -163,7 +164,7 @@ export default async function AccountObservePage({ searchParams }: { searchParam
             <ServerCrash className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
             <div className="min-w-0 space-y-1 text-sm">
               <p className="font-medium text-fg">
-                {k.platformFailures} run{k.platformFailures === 1 ? "" : "s"} failed because of the platform, not the desks
+                {$t("observe.page.runFailedBecauseOfThePlatform", { platformFailures: k.platformFailures })}
               </p>
               <ul className="space-y-0.5 text-fg-secondary">
                 {platformRows.map((c) => (
@@ -172,38 +173,38 @@ export default async function AccountObservePage({ searchParams }: { searchParam
                       {c.label}
                     </Link>{" "}
                     <span className="text-fg-muted">
-                      · {c.count} run{c.count === 1 ? "" : "s"} on {c.desks.length} desk{c.desks.length === 1 ? "" : "s"}, last {fmtSpan(now - Date.parse(c.newest.startedAt))} ago
+                      {$t("observe.page.runOnDeskLastAgo", { count: c.count, length: c.desks.length, fmtSpan: fmtSpan(now - Date.parse(c.newest.startedAt)) })}
                     </span>
                   </li>
                 ))}
               </ul>
-              <p className="text-xs text-fg-muted">No desk edit fixes these; once the platform is right, rerun them.</p>
+              <p className="text-xs text-fg-muted">{$t("observe.page.noDeskEditFixesTheseOnce")}</p>
             </div>
           </Callout>
         )}
 
         <StatGrid className="xl:grid-cols-5">
-          <Stat label="Completed" value={pctOf(k.rate)} tone={k.rate !== null && k.rate < 0.8 ? "danger" : undefined} sub={<Delta now={k.rate} before={k.prevRate} upIsGood as="pts" />} />
-          <Stat label="Runs" value={k.runs} sub={`${k.finished} finished · ${k.runs - k.finished} going`} />
-          <Stat label="Went wrong" value={wrong} tone={wrong > 0 ? "danger" : "success"} sub={`${k.deskFailures} desk · ${k.platformFailures} platform`} />
-          <Stat label="Charged" value={money(k.spendUsd)} sub={<Delta now={k.spendUsd} before={previous.runs ? k.prevSpendUsd : null} upIsGood={false} as="money" />} />
-          <Stat label="Median run" value={secs(k.medianSecs)} sub={k.medianSecs === null ? "fewer than 5 finished runs" : "start to finish"} />
+          <Stat label={$t("observe.page.completed")} value={pctOf(k.rate)} tone={k.rate !== null && k.rate < 0.8 ? "danger" : undefined} sub={<Delta now={k.rate} before={k.prevRate} upIsGood as="pts" />} />
+          <Stat label={$t("observe.page.runs")} value={k.runs} sub={$t("observe.page.finishedGoing", { finished: String(k.finished), v1: String(k.runs - k.finished) })} />
+          <Stat label={$t("observe.page.wentWrong")} value={wrong} tone={wrong > 0 ? "danger" : "success"} sub={$t("observe.page.deskPlatform", { deskFailures: String(k.deskFailures), platformFailures: String(k.platformFailures) })} />
+          <Stat label={$t("observe.page.charged")} value={money(k.spendUsd)} sub={<Delta now={k.spendUsd} before={previous.runs ? k.prevSpendUsd : null} upIsGood={false} as="money" />} />
+          <Stat label={$t("observe.page.medianRun")} value={secs(k.medianSecs)} sub={k.medianSecs === null ? $t("observe.page.fewerThan5FinishedRuns") : "start to finish"} />
         </StatGrid>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <Panel title="What each day looked like">
+          <Panel title={$t("observe.page.whatEachDayLookedLike")}>
             <OutcomeChart days={daily} tz={tz} />
           </Panel>
-          <Panel title="Cost">
+          <Panel title={$t("observe.page.cost")}>
             <SpendChart days={daily} />
             <div className="mt-3 flex justify-end">
-              <PanelLink href={`/dashboard/usage${qs}`}>Usage</PanelLink>
+              <PanelLink href={`/dashboard/usage${qs}`}>{$t("observe.page.usage")}</PanelLink>
             </div>
           </Panel>
         </div>
 
         {insights.length > 0 && (
-          <Panel title="What keeps costing you" count={insights.length} flush>
+          <Panel title={$t("observe.page.whatKeepsCostingYou")} count={insights.length} flush>
             <PanelList>
               {insights.slice(0, 8).map((i) => (
                 <li key={i.id} className="space-y-1 px-5 py-3">
@@ -211,18 +212,18 @@ export default async function AccountObservePage({ searchParams }: { searchParam
                     <span className="font-medium text-fg">{i.title}</span>
                     <Tag>{i.workspace}</Tag>
                     <span className="ml-auto shrink-0 text-[13px] tabular-nums text-fg-muted">
-                      {i.credits !== null && i.credits > 0 ? `about ${creditsShort(i.credits / 100)} · ` : ""}
-                      {i.steps} step{i.steps === 1 ? "" : "s"}
+                      {i.credits !== null && i.credits > 0 ? $t("observe.page.about", { v0: String(creditsShort(i.credits / 100)) }) : ""}
+                      {$t("observe.page.step", { steps: i.steps })}
                     </span>
                   </div>
                   <p className="text-sm text-fg-muted">{i.why}</p>
                   <p className="text-sm text-fg">
-                    <span className="text-fg-muted">Fix:</span> {i.fix}
+                    <span className="text-fg-muted">{$t("observe.page.fix")}</span> {i.fix}
                   </p>
                   <p className="flex flex-wrap gap-x-3 text-xs">
                     {i.evidence.map((e) => (
                       <Link key={`${e.runId}/${e.step}`} href={runHref(e.workspace, e.runId, tenant)} className="font-mono text-fg-muted hover:text-fg hover:underline">
-                        {e.runId} · step {e.step}
+                        {$t("observe.page.step2", { runId: e.runId, step: String(e.step) })}
                       </Link>
                     ))}
                   </p>
@@ -232,17 +233,17 @@ export default async function AccountObservePage({ searchParams }: { searchParam
           </Panel>
         )}
 
-        <Panel title="Why runs went wrong" count={why.length} flush>
+        <Panel title={$t("observe.page.whyRunsWentWrong")} count={why.length} flush>
           {why.length === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-fg-muted">Nothing went wrong in this window.</p>
+            <p className="px-5 py-8 text-center text-sm text-fg-muted">{$t("observe.page.nothingWentWrongInThisWindow")}</p>
           ) : (
             <Table className="min-w-[640px]">
               <THead>
                 <tr>
-                  <TH>Cause</TH>
-                  <TH className="text-right">Runs</TH>
-                  <TH>Desks</TH>
-                  <TH>Latest, in its own words</TH>
+                  <TH>{$t("observe.page.cause")}</TH>
+                  <TH className="text-right">{$t("observe.page.runs")}</TH>
+                  <TH>{$t("observe.page.desks")}</TH>
+                  <TH>{$t("observe.page.latestInItsOwnWords")}</TH>
                 </tr>
               </THead>
               <TBody>
@@ -273,7 +274,7 @@ export default async function AccountObservePage({ searchParams }: { searchParam
                           </Link>
                         </Tooltip>
                         <span className="text-xs text-fg-subtle">
-                          {c.newest.workspace} · {fmtSpan(now - Date.parse(c.newest.startedAt))} ago
+                          {$t("observe.page.ago", { workspace: c.newest.workspace, fmtSpan: fmtSpan(now - Date.parse(c.newest.startedAt)) })}
                         </span>
                       </TD>
                     </TR>
@@ -284,21 +285,21 @@ export default async function AccountObservePage({ searchParams }: { searchParam
           )}
         </Panel>
 
-        <Panel title="Desks, worst first" count={desks.length} flush>
+        <Panel title={$t("observe.page.desksWorstFirst")} count={desks.length} flush>
           <Table className="min-w-[760px]">
             <THead>
               <tr>
-                <TH>Desk</TH>
-                <TH className="text-right">Runs</TH>
-                <Tooltip label="Ran to the end without failing, of completed + failed runs (stopped left out)">
-                  <TH className="text-right">Completed</TH>
+                <TH>{$t("observe.page.desk")}</TH>
+                <TH className="text-right">{$t("observe.page.runs")}</TH>
+                <Tooltip label={$t("observe.page.ranToTheEndWithoutFailing")}>
+                  <TH className="text-right">{$t("observe.page.completed")}</TH>
                 </Tooltip>
-                <TH>Trend</TH>
-                <TH className="text-right">Went wrong</TH>
-                <TH>Worst flow</TH>
-                <TH className="text-right">Median run</TH>
-                <Tooltip label="Credits charged">
-                  <TH className="text-right">Credits</TH>
+                <TH>{$t("observe.page.trend")}</TH>
+                <TH className="text-right">{$t("observe.page.wentWrong")}</TH>
+                <TH>{$t("observe.page.worstFlow")}</TH>
+                <TH className="text-right">{$t("observe.page.medianRun")}</TH>
+                <Tooltip label={$t("observe.page.creditsCharged")}>
+                  <TH className="text-right">{$t("observe.page.credits")}</TH>
                 </Tooltip>
               </tr>
             </THead>
@@ -318,11 +319,11 @@ export default async function AccountObservePage({ searchParams }: { searchParam
                       {trend === null ? (
                         none
                       ) : Math.abs(trend) < 0.005 ? (
-                        <span className="text-fg-muted">steady</span>
+                        <span className="text-fg-muted">{$t("observe.page.steady")}</span>
                       ) : (
                         <span className={`inline-flex items-center gap-0.5 ${trend > 0 ? "text-success" : "text-danger"}`}>
                           {trend > 0 ? <ArrowUpRight className="size-3.5" aria-label="up" /> : <ArrowDownRight className="size-3.5" aria-label="down" />}
-                          {Math.round(Math.abs(trend) * 100)} pts
+                          {$t("observe.page.pts", { round: String(Math.round(Math.abs(trend) * 100)) })}
                         </span>
                       )}
                     </TD>
@@ -332,7 +333,7 @@ export default async function AccountObservePage({ searchParams }: { searchParam
                       ) : (
                         <Link href={d.lastBad ? runHref(d.workspace, d.lastBad.id, tenant) : `/dashboard/${d.workspace}/runs${qs}`} className="hover:underline">
                           <span className="font-medium text-danger">{d.deskFailures}</span>
-                          {d.platformFailures > 0 && <span className="text-fg-muted"> +{d.platformFailures} platform</span>}
+                          {d.platformFailures > 0 && <span className="text-fg-muted">{" "}{$t("observe.page.platform", { platformFailures: String(d.platformFailures) })}</span>}
                         </Link>
                       )}
                     </TD>
@@ -355,19 +356,19 @@ export default async function AccountObservePage({ searchParams }: { searchParam
         </Panel>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-          <Panel title="Agents to watch" count={agents.length} flush>
+          <Panel title={$t("observe.page.agentsToWatch")} count={agents.length} flush>
             {agents.length === 0 ? (
-              <p className="px-5 py-8 text-center text-sm text-fg-muted">No agent ran in this window.</p>
+              <p className="px-5 py-8 text-center text-sm text-fg-muted">{$t("observe.page.noAgentRanInThisWindow")}</p>
             ) : (
               <Table>
                 <THead>
                   <tr>
-                    <TH>Agent</TH>
-                    <TH className="text-right">Failed</TH>
-                    <TH className="text-right">Retried</TH>
+                    <TH>{$t("observe.page.agent")}</TH>
+                    <TH className="text-right">{$t("observe.page.failed")}</TH>
+                    <TH className="text-right">{$t("observe.page.retried")}</TH>
                     <TH className="text-right">p50</TH>
-                    <Tooltip label="Credits charged">
-                      <TH className="text-right">Credits</TH>
+                    <Tooltip label={$t("observe.page.creditsCharged")}>
+                      <TH className="text-right">{$t("observe.page.credits")}</TH>
                     </Tooltip>
                   </tr>
                 </THead>
@@ -393,18 +394,18 @@ export default async function AccountObservePage({ searchParams }: { searchParam
               </Table>
             )}
           </Panel>
-          <Panel title="Tools" count={tools.length} flush>
+          <Panel title={$t("observe.page.tools")} count={tools.length} flush>
             {tools.length === 0 ? (
-              <p className="px-5 py-8 text-center text-sm text-fg-muted">No tool calls in this window.</p>
+              <p className="px-5 py-8 text-center text-sm text-fg-muted">{$t("observe.page.noToolCallsInThisWindow")}</p>
             ) : (
               <Table>
                 <THead>
                   <tr>
-                    <TH>Tool</TH>
-                    <TH className="text-right">Calls</TH>
-                    <TH className="text-right">Errors</TH>
-                    <TH className="text-right">Slowest p95</TH>
-                    <TH>Used by</TH>
+                    <TH>{$t("observe.page.tool")}</TH>
+                    <TH className="text-right">{$t("observe.page.calls")}</TH>
+                    <TH className="text-right">{$t("observe.page.errors")}</TH>
+                    <TH className="text-right">{$t("observe.page.slowestP95")}</TH>
+                    <TH>{$t("observe.page.usedBy")}</TH>
                   </tr>
                 </THead>
                 <TBody>
@@ -416,7 +417,7 @@ export default async function AccountObservePage({ searchParams }: { searchParam
                         {t.errors}
                         {t.errors > 0 && <span className="font-normal text-fg-subtle"> · {Math.round((t.errors / t.calls) * 100)}%</span>}
                       </TD>
-                      <Tooltip label="Only tools that time themselves report a latency">
+                      <Tooltip label={$t("observe.page.onlyToolsThatTimeThemselvesReport")}>
                         <TD className="text-right tabular-nums text-fg-muted">
                           {t.p95ms === null ? "—" : t.p95ms >= 1000 ? `${(t.p95ms / 1000).toFixed(1)}s` : `${Math.round(t.p95ms)}ms`}
                         </TD>

@@ -1,0 +1,28 @@
+{
+  "api-reference-page": {
+    "200Response": "200 response",
+    "apiReference": "API reference",
+    "docs": "Docs",
+    "idempotencyKey": "idempotency-key",
+    "jsonSeeDocsApiMdFor": "JSON — see docs/api.md for this route's fields",
+    "noKey": "no key",
+    "requestBody": "Request body",
+    "schema": "Schema",
+    "tags": "Tags",
+    "versionEveryRouteFromApiOpenapi": "Version <span>{version}</span> · every route, from <a>/api/openapi.json</a> · <link>Using the API</link>"
+  },
+  "doc-page": {
+    "docs": "Docs"
+  },
+  "page": {
+    "aSubagentAtClaudeAgentsName": "A subagent at <code>.claude/agents/'<'name'>'.md</code> deploys as an agent here — no conversion. <code>init</code> also writes a CLAUDE.md so your editor knows the conventions instead of guessing.",
+    "agentsAreJustFoldersAndFlows": "Agents are just folders and flows are numbered lists, so there is no build step: edit, check, run, deploy. Start on your own machine — none of it needs an account.",
+    "also": "Also",
+    "checkIsFreeAndCatchesA": "<code>check</code> is free and catches a broken flow at push time rather than at 3am when its schedule fires. Run it after edits, the way you would run a typecheck.",
+    "docs": "Docs",
+    "howFoldrunReadsYourFiles": "How foldrun reads your files",
+    "theLoop": "The loop",
+    "theWholeGrammarOnOnePage": "The whole grammar on one page — every field an agent or a flow can carry, and what each one does. The page to keep open while editing.",
+    "usingClaudeCode": "Using Claude Code?"
+  }
+}
