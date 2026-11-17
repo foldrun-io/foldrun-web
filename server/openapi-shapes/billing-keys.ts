@@ -394,6 +394,9 @@ export const SHAPES: Record<string, Shape> = {
     ),
     response: obj({ ok: bool, id: str(), models: { type: ["object", "null"], properties: { opus: str(), sonnet: str(), haiku: str() } }, requireCustomer: bool }, ["ok", "id"]),
   },
+  "DELETE /api/keys/{id}": {
+    response: obj({ ok: bool, id: str(), revoked: { ...bool, description: "whether this call ended a live key (false: it was already revoked or expired)" } }, ["ok", "id", "revoked"]),
+  },
   "POST /api/keys/{id}/rotate": {
     body: obj({
       grace: { type: ["string", "integer"], description: "how long the old key keeps working: 0 (default) or a duration up to 7d — 30m, 1h, 24h. A cli-login key rotating itself ignores it (10 minutes)" },
