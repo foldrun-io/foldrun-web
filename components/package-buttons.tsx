@@ -11,6 +11,7 @@
 // secrets, library tools, an agent it consults — before anything is written.
 // See core package.ts.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -39,7 +40,7 @@ export function ExportLink({
     <Tooltip
       label={
         kind === "workspace"
-          ? "Download this workspace's agents, flows, tools and knowledge as a .zip — never memory, state or secret values"
+          ? $t("components.package-buttons.downloadThisWorkspaceSAgentsFlows")
           : `Download this ${kind} and what it needs to run as a .zip`
       }
     >
@@ -151,7 +152,7 @@ export function ImportPackageButton({
     (
       [
         ["Secrets to set", p.needs.secrets],
-        ["Tools not in this workspace or the library", p.needs.tools],
+        [$t("components.package-buttons.toolsNotInThisWorkspaceOr"), p.needs.tools],
         ["Skills not found", p.needs.skills],
         ["Scripts not found", p.needs.scripts],
         ["Agents it names that are not here", p.needs.agents],
@@ -159,23 +160,22 @@ export function ImportPackageButton({
       ] as const
     ).filter(([, v]) => v.length > 0);
 
-  const what = (p: Plan) => (p.kind === "workspace" ? "workspace" : `${p.kind} ${p.name}`) + (p.from ? ` from ${p.from}` : "");
+  const what = (p: Plan) => (p.kind === "workspace" ? $t("common.workspaceOne") : `${p.kind} ${p.name}`) + (p.from ? ` from ${p.from}` : "");
 
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className={buttonVariants({ variant: color, size: "md" })}>
-        {label ?? (newWorkspace ? "Import workspace" : "Import .zip")}
+        {label ?? (newWorkspace ? $t("components.package-buttons.importWorkspace") : "Import .zip")}
       </button>
       <Dialog open={open} onOpenChange={(o) => !o && close()}>
         <DialogContent hideClose aria-describedby={undefined} className="top-[10vh] max-h-[85dvh] translate-y-0 rounded-xl" size="md">
             <form onSubmit={preview} className="flex min-h-0 flex-col">
               <header className="border-b border-line-faint px-5 py-4">
                 <DialogTitle className="font-cal text-base font-semibold text-fg">
-                  {newWorkspace ? "Import a workspace" : `Import into ${workspace}`}
+                  {newWorkspace ? $t("components.package-buttons.importAWorkspace") : `Import into ${workspace}`}
                 </DialogTitle>
                 <p className="mt-0.5 text-xs text-fg-muted">
-                  A .zip from Export — a workspace, a flow or an agent, from this account or another. You see what it adds and
-                  needs before anything is written. Nothing is deleted.
+                  {$t("components.package-buttons.aZipFromExportAWorkspace")}
                 </p>
               </header>
 
@@ -192,7 +192,7 @@ export function ImportPackageButton({
                   <div className="space-y-3 text-sm">
                     <p className="text-fg">
                       {what(plan)} → <span className="font-mono">{plan.workspace}</span>
-                      {plan.creates && <span className="ml-1 text-xs text-fg-muted">(a new workspace)</span>}
+                      {plan.creates && <span className="ml-1 text-xs text-fg-muted">{$t("components.package-buttons.aNewWorkspace")}</span>}
                     </p>
                     <ul className="space-y-1 text-xs text-fg-secondary">
                       <li>
@@ -252,7 +252,7 @@ export function ImportPackageButton({
                     {newWorkspace && (
                       <div>
                         <label className={labelClass} htmlFor="pkg-target">
-                          Workspace name
+                          {$t("components.package-buttons.workspaceName")}
                         </label>
                         <Input
                           id="pkg-target"
@@ -261,7 +261,7 @@ export function ImportPackageButton({
                           placeholder="marketing"
                           className="mt-1 w-full font-mono"
                         />
-                        <p className="mt-1 text-[11px] text-fg-subtle">A new name makes a new workspace; an existing one imports into it.</p>
+                        <p className="mt-1 text-[11px] text-fg-subtle">{$t("components.package-buttons.aNewNameMakesANew")}</p>
                       </div>
                     )}
                   </>

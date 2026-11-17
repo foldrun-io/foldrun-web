@@ -1,0 +1,8 @@
+{
+  "page": {
+    "acrossEveryWorkspaceAtTheCap": "Across every {@workspace.one}. At the cap, everything stops starting until the window turns.",
+    "lineInThatWorkspaceS": "line in that {@workspace.one}'s",
+    "noWorkspaceYet": "No {@workspace.other} yet",
+    "perWorkspace": "Per {@workspace.one}"
+  }
+}

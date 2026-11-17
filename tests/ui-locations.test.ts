@@ -13,8 +13,21 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { $t } from "@/i18n";
 
 const WEB = path.join(import.meta.dirname, "..");
+
+// The pages' words live in messages/en (17 Nov 2026): read each $t("key")
+// as the English it shows, so a title moved to a language file still counts.
+function english(src: string): string {
+  return src.replace(/\{?\$t\("([^"]+)"[^)]*\)\}?/g, (_m, key: string) => {
+    try {
+      return `"${$t(key)}"`;
+    } catch {
+      return `"${key}"`;
+    }
+  });
+}
 const ROOT = path.join(WEB, "..");
 
 function files(dir: string, keep: RegExp, out: string[] = []): string[] {
@@ -30,8 +43,8 @@ function files(dir: string, keep: RegExp, out: string[] = []): string[] {
 
 // The tabs, as the pages draw them: the account's Settings (tabs.ts) and a
 // workspace's own Settings ("its Settings → Triggers").
-const tabsSrc = fs.readFileSync(path.join(WEB, "app/dashboard/settings/tabs.ts"), "utf8");
-const wsSettings = fs.readFileSync(path.join(WEB, "app/dashboard/[workspace]/settings/page.tsx"), "utf8");
+const tabsSrc = english(fs.readFileSync(path.join(WEB, "app/dashboard/settings/tabs.ts"), "utf8"));
+const wsSettings = english(fs.readFileSync(path.join(WEB, "app/dashboard/[workspace]/settings/page.tsx"), "utf8"));
 const TABS = new Set([
   ...[...tabsSrc.matchAll(/tab\("[a-z]+", "([^"]+)"\)/g), ...tabsSrc.matchAll(/label: "([^"]+)", href: `\$\{ROUTE/g)].map((m) => m[1]),
   ...[...wsSettings.matchAll(/\{ label: "([^"]+)", href: tabHref/g)].map((m) => m[1]),
@@ -40,10 +53,10 @@ const TABS = new Set([
 const settingsSrc = files(path.join(WEB, "app/dashboard/settings"), /\.tsx?$/)
   .concat(files(path.join(WEB, "app/dashboard/[workspace]/settings"), /\.tsx?$/))
   .concat(files(path.join(WEB, "components"), /^(pause-card|telemetry-card|settings-.*)\.tsx$/))
-  .map((f) => fs.readFileSync(f, "utf8"))
+  .map((f) => english(fs.readFileSync(f, "utf8")))
   .join("\n");
 const TITLES = new Set(
-  [...settingsSrc.matchAll(/(?:title|label)=\{?"([^"]+)"|title: "([^"]+)"|<h[23][^>]*>([^<{]+)</g)].map((m) => (m[1] ?? m[2] ?? m[3]).trim()),
+  [...settingsSrc.matchAll(/(?:title|label)=\{?"([^"]+)"|title: "([^"]+)"|<h[23][^>]*>([^<{]+)</g)].map((m) => (m[1] ?? m[2] ?? m[3]).trim().replace(/^"(.*)"$/, "$1")),
 );
 // Sections of the General tab, the one Settings opens on — the account's,
 // and a workspace's own.

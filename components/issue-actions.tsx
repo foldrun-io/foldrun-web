@@ -3,6 +3,7 @@
 // Acknowledge, snooze, resolve or reopen one issue (FOL-54 step 3), through
 // POST /api/issues/<id> — the route the CLI's `foldrun issues` uses.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { needs, useCan } from "@/components/role";
@@ -44,7 +45,7 @@ export function IssueActions({ id, status, tenant, platform = false, accountWide
     }
   }
   const off = busy || !allowed;
-  const title = allowed ? undefined : role ? "A platform issue is the account's — acting on it needs access to every workspace" : needs("run:start");
+  const title = allowed ? undefined : role ? $t("components.issue-actions.aPlatformIssueIsTheAccount") : needs("run:start");
   const open = status === "open" || status === "acknowledged";
   // One visible action, the rest behind "…" (the refactor's action rule):
   // Doctor when there is a run to read, else Resolve or Reopen.

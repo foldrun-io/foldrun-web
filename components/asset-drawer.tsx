@@ -16,6 +16,7 @@
 // and Back closes it. Opening is a history push the router hears without a
 // server round trip, so the drawer is instant.
 
+import { $t } from "@/i18n";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -381,7 +382,7 @@ function AssetDetail({
   });
 
   const Icon = KIND_ICON[item.kind] ?? FileText;
-  const scope = item.account ? "Shared" : item.owner ? `Agent · ${item.owner}` : "Workspace";
+  const scope = item.account ? "Shared" : item.owner ? `Agent · ${item.owner}` : $t("components.asset-drawer.workspace");
   const kindLabel = item.kind === "tools" && item.transport ? `${KIND_LABEL.tools} · ${TRANSPORT_LABEL[item.transport]}` : KIND_LABEL[item.kind];
   const prose = isProse(item);
   const showFooter = tab === "overview" && item.kind !== "scripts" && !loadError && (!prose || editing || dirty);
@@ -513,9 +514,9 @@ function AssetDetail({
                 <Check className="size-3.5" aria-hidden /> Saved
               </span>
             ) : dirty ? (
-              <span className="text-fg-muted">Unsaved changes{item.account ? " · shared with every workspace" : ""}</span>
+              <span className="text-fg-muted">Unsaved changes{item.account ? $t("components.asset-drawer.sharedWithEveryWorkspace") : ""}</span>
             ) : (
-              <span className="text-fg-subtle">{mayWrite ? (item.account ? "Changes here reach every workspace." : "⌘S saves.") : needs("workspace:write")}</span>
+              <span className="text-fg-subtle">{mayWrite ? (item.account ? $t("components.asset-drawer.changesHereReachEveryWorkspace") : "⌘S saves.") : needs("workspace:write")}</span>
             )}
           </div>
           {dirty && (
@@ -912,10 +913,10 @@ function TestPane({ item, workspace, tenant, stale }: { item: AssetItem; workspa
     if (!workspace) {
       // A test runs from an agent's folder in a workspace — secrets, state
       // and paths all resolve there. The library has none of that.
-      return <Callout role="status" className="mb-4 text-[13px]">Test it from a workspace that grants it — a run stands in that workspace, not here.</Callout>;
+      return <Callout role="status" className="mb-4 text-[13px]">{$t("components.asset-drawer.testItFromAWorkspaceThat")}</Callout>;
     }
     if (item.overridden) {
-      return <Callout role="status" className="mb-4 text-[13px]">This workspace has its own {item.name}, which runs instead of the shared one. Test that one.</Callout>;
+      return <Callout role="status" className="mb-4 text-[13px]">{$t("components.asset-drawer.thisWorkspaceHasItsOwn")}{" "}{item.name}, which runs instead of the shared one. Test that one.</Callout>;
     }
     return (
       <div className="space-y-3">
@@ -925,10 +926,10 @@ function TestPane({ item, workspace, tenant, stale }: { item: AssetItem; workspa
     );
   }
   const h = item.hook;
-  if (!workspace) return <Callout role="status" className="mb-4 text-[13px]">Test it from a workspace that turns it on — a hook runs inside a workspace&apos;s steps.</Callout>;
+  if (!workspace) return <Callout role="status" className="mb-4 text-[13px]">{$t("components.asset-drawer.testItFromAWorkspaceThat2")}</Callout>;
   if (!h) return <Callout role="status" className="mb-4 text-[13px]">Nothing to test yet.</Callout>;
   if (h.error) return <Callout tone="warning" role="status" className="mb-4 text-[13px]">{h.error}</Callout>;
-  if (h.shadowed) return <Callout role="status" className="mb-4 text-[13px]">A workspace hook with the same name runs instead of this one. Test that one.</Callout>;
+  if (h.shadowed) return <Callout role="status" className="mb-4 text-[13px]">{$t("components.asset-drawer.aWorkspaceHookWithTheSame")}</Callout>;
   if (!h.on || !h.sample) return <Callout role="status" className="mb-4 text-[13px]">Say which event it runs on (Overview → Runs on) to test it.</Callout>;
   return (
     <div className="space-y-3">

@@ -1,0 +1,6 @@
+{
+  "page": {
+    "everyWorkspace": "Every {@workspace.one}",
+    "showEveryWorkspace": "Show every {@workspace.one}"
+  }
+}

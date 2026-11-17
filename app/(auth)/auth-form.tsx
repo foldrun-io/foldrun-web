@@ -4,6 +4,7 @@
 // endpoint, and keeping them in one component keeps their behaviour —
 // errors, redirect, disabled state — from drifting apart.
 
+import { $t } from "@/i18n";
 import { useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -141,7 +142,7 @@ export function AuthForm({ mode, invite, setup, link, codeSignIn }: {
         </Field>
       )}
       {!challenge && mode === "signup" && !invite && (
-        <Field label="Account name" hint="Lowercase, hyphens allowed. This names your workspace URLs.">
+        <Field label="Account name" hint={$t("auth.auth-form.lowercaseHyphensAllowedThisNamesYour")}>
           <Tooltip label="lowercase letters, digits and single hyphens — like a good directory name">
             <Input
               name="account"

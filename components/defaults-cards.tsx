@@ -5,6 +5,7 @@
 // same SettingsForm, posting to the scope's PATCH. A workspace shows what
 // it would inherit from the account beside each empty field.
 
+import { $t } from "@/i18n";
 import { useEffect, useState } from "react";
 import { SettingsForm, useSettingsForm } from "./settings-form";
 import { Field } from "@foldrun/ui/react/page";
@@ -171,8 +172,8 @@ export type RunsWaitingRow = { waiting: number | null; limit: number | null };
 
 const LEVEL_WORDS = {
   account: { own: "Your own cap", help: "Cores, GiB and disk all your running steps may hold together, lower than the plan's. A step that would pass it waits for another to finish — as long as it takes, in turn — and you hear of it after an hour; one bigger than the whole cap fails with a message. Empty is the plan's." },
-  workspace: { own: "This workspace's cap", help: "Cores, GiB and disk the steps running in this workspace may hold together. It only narrows the account's: every step must fit both. A step that would pass it waits, in turn; one bigger than it fails with a message. Empty is no cap of its own." },
-  flow: { own: "Each run's cap", help: "Cores, GiB and disk one run of this flow may hold at once across its parallel steps. It only narrows the workspace's and the account's. A step that would pass it waits for one of its run's steps to finish; one bigger than it fails with a message. Empty is no cap of its own." },
+  workspace: { own: $t("components.defaults-cards.thisWorkspaceSCap"), help: $t("components.defaults-cards.coresGibAndDiskTheSteps") },
+  flow: { own: "Each run's cap", help: $t("components.defaults-cards.coresGibAndDiskOneRun") },
 } as const;
 
 /** compute: at one level (27 Oct 2026) — the account's pool (the plan's,
@@ -381,10 +382,10 @@ export function AlertsCard({ endpoint, tenant, initial, inherited }: { endpoint:
       hint={<><code className="font-mono text-xs">alerts:</code> in AGENTS.md</>}
     >
       {workspace && (
-        <Field label="Thresholds" hint={own ? "Set here, these replace the account's thresholds whole — an empty set means no alerts for this workspace." : "The account's thresholds apply here."}>
+        <Field label="Thresholds" hint={own ? $t("components.defaults-cards.setHereTheseReplaceTheAccount") : "The account's thresholds apply here."}>
           <Select value={own ? "own" : "account"} onChange={(e) => form.setValue({ ...form.value, own: e.target.value === "own" })} className="max-w-[14rem]">
             <option value="account">the account&apos;s</option>
-            <option value="own">this workspace&apos;s own</option>
+            <option value="own">{$t("components.defaults-cards.thisWorkspaceSOwn")}</option>
           </Select>
         </Field>
       )}
@@ -465,7 +466,7 @@ export function DeployBlockCard({ endpoint, tenant, initial }: { endpoint: strin
       form={form}
       id="deploy-block"
       title="Refuse a deploy on"
-      description={`${BLOCK_HELP[value] ?? ""} A workspace's own AGENTS.md can say otherwise.`}
+      description={$t("components.defaults-cards.aWorkspaceSOwnAgentsMd", { help: String(BLOCK_HELP[value] ?? "") })}
       hint={<><code className="font-mono text-xs">deploy_block:</code> in AGENTS.md</>}
     >
       <Select aria-label="Refuse a deploy on" value={value} onChange={(e) => form.setValue(e.target.value)} className="max-w-[14rem]">
@@ -555,7 +556,7 @@ export function NotifyCard({
         {v.enabled ? "Notifications set here" : inheritedLine ? <WithEmails text={`Inherit the account's: ${inheritedLine}`} /> : "No notifications"}
       </label>
       {(initial?.hidden || inherited?.hidden) && (
-        <p className="text-xs text-fg-muted">The account&apos;s webhook URL is set; it is shown only to members with every workspace, since a webhook URL is often a credential.</p>
+        <p className="text-xs text-fg-muted">{$t("components.defaults-cards.theAccountSWebhookUrlIs")}</p>
       )}
       {v.enabled && (
         <>

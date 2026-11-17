@@ -4,6 +4,7 @@
 // a connect link sent to someone else cannot land their account's grant in
 // yours, nor yours in theirs.
 
+import { $t } from "@/i18n";
 import { cookies } from "next/headers";
 import { peekHandoff } from "@/platform/oauth-connect";
 import { verifySession, SESSION_COOKIE } from "@/server/users";
@@ -29,7 +30,7 @@ export default async function ConnectHandoffPage({ params }: { params: Promise<{
             <dt className="text-fg-muted">Secret</dt>
             <dd className="break-all font-mono text-fg">{h.name}</dd>
             <dt className="text-fg-muted">Stored in</dt>
-            <dd className="text-fg">{h.workspace ? `workspace ${h.workspace}` : "the account"}</dd>
+            <dd className="text-fg">{h.workspace ? $t("connect.id-page.workspaceNamed", { name: String(h.workspace) }) : "the account"}</dd>
             <dt className="text-fg-muted">App</dt>
             <dd className="break-all font-mono text-fg">{h.client}</dd>
             <dt className="text-fg-muted">Scopes</dt>

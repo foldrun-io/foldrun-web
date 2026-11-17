@@ -11,6 +11,7 @@
 // workspace cards), each block added on top of the last. mission-control.tsx
 // holds the pieces, which the workspace page shares.
 
+import { $t } from "@/i18n";
 import { viewerScope } from "@/server/users";
 import { scopeAllows } from "@/platform/scope";
 import { listWorkspaces, listAllRuns } from "@/lib/store";
@@ -172,9 +173,9 @@ export default async function Dashboard({
       {/* The create dialog has no button of its own on this page — Create
           new and the workspace switcher open it through ?create=workspace. */}
       <CreateForm
-        noun="workspace"
+        noun={$t("common.workspaceOne")}
         placeholder="marketing"
-        hint="Its own agents, flows, secrets and runs. Starts blank: import agents from another workspace, or create them."
+        hint={$t("dashboard.page.itsOwnAgentsFlowsSecretsAnd")}
         tenant={tenant}
         options={[{ where: "account", label: "Account", target: { endpoint: "/api/workspaces", body: { template: true, ifAbsent: true } } }]}
         trigger={false}
@@ -188,14 +189,14 @@ export default async function Dashboard({
       )}
       {/* Live rows repaint themselves; the timer is for the board around them. */}
       <AutoRefresh active={board.length > 0} />
-      <h1 className="sr-only">Workspaces</h1>
+      <h1 className="sr-only">{$t("dashboard.page.workspace")}</h1>
       <SplitOverview
-        search="Search workspaces…"
-        title="Workspaces"
+        search={$t("dashboard.page.searchWorkspace")}
+        title={$t("dashboard.page.workspace")}
         actions={
           <Link href={`/dashboard?create=workspace${rest}`} className={buttonVariants({ variant: "secondary" })}>
             <Plus aria-hidden />
-            New workspace
+            {$t("dashboard.page.newWorkspace")}
           </Link>
         }
         columns={[
@@ -208,8 +209,8 @@ export default async function Dashboard({
         empty={
           <EmptyState
             icon={<Boxes />}
-            title="No workspaces yet"
-            description="A workspace holds its own agents, flows, secrets and runs. Start with the demo: a four-step pipeline you can run in a minute."
+            title={$t("dashboard.page.noWorkspaceYet")}
+            description={$t("dashboard.page.aWorkspaceHoldsItsOwnAgents")}
             action={
               <>
                 <DemoButton tenant={tenant} exists={false} then={`/dashboard/welcome?step=run${rest}`} label="Try the demo pipeline" variant="primary" />

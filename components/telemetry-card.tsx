@@ -5,6 +5,7 @@
 // rides in); more are written in AGENTS.md. The token itself is a vault
 // secret, named, never typed into this form.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@foldrun/ui/react/input";
@@ -77,7 +78,7 @@ export function TelemetryCard({ tenant, initial, mayEdit }: { tenant: string; in
       title="Send runs to your tracing"
       description={
         <>
-          Each finished run goes to your OpenTelemetry collector as one trace — run, steps, model calls and tool calls, with tokens, cost and each agent&apos;s owner. A workspace&apos;s own{" "}
+          {$t("components.telemetry-card.eachFinishedRunGoesToYour")}{" "}
           <code className="font-mono">telemetry:</code> in its AGENTS.md replaces this one.
         </>
       }
@@ -107,7 +108,7 @@ export function TelemetryCard({ tenant, initial, mayEdit }: { tenant: string; in
         {error && <Callout tone="danger" role="alert">{error}</Callout>}
         {/* A member limited to some workspaces is told it is set, not where
             runs go or with which header (GET /api/account, 30 Oct 2026). */}
-        {initial?.hidden && <p className="text-sm text-fg-muted">Runs are sent to a collector. Where, and with which header, is shown only to members with every workspace.</p>}
+        {initial?.hidden && <p className="text-sm text-fg-muted">{$t("components.telemetry-card.runsAreSentToACollector")}</p>}
         {!initial?.hidden && (
           <>
             <Field label="Collector URL (OTLP/HTTP traces)">

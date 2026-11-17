@@ -2,6 +2,7 @@
 // scanning the Overview list, which put them below memory files in the
 // navigation. A workspace is made of agents; they get their own page.
 
+import { $t } from "@/i18n";
 import fs from "node:fs";
 import { notFound } from "next/navigation";
 import { workspaceDir, listFlows, agentAssets } from "@/lib/store";
@@ -115,8 +116,8 @@ export default async function AgentsPage({
         empty={
           <EmptyState
             icon={<Bot />}
-            title="No agents in this workspace yet"
-            description="An agent is a folder under agents/ with an agent.md inside. Bring in one you already have from another workspace, create a new one, or push it with the CLI."
+            title={$t("workspace.agents-page.noAgentsInThisWorkspaceYet")}
+            description={$t("workspace.agents-page.anAgentIsAFolderUnder")}
             action={
               <>
                 {/* Only Import here: the header's New agent is always on the page,

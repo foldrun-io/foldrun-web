@@ -9,6 +9,7 @@
 // The same choices an unsubscribe link in a mail makes, and the ones
 // `foldrun notifications set` makes.
 
+import { $t } from "@/i18n";
 import { useEffect, useState } from "react";
 import { Card, Tag } from "@foldrun/ui/react/page";
 import { Disclosure } from "@foldrun/ui/react/disclosure";
@@ -78,7 +79,7 @@ export function NotificationPreferences({ workspaces }: { workspaces: string[] }
             <Switch aria-label={c.label} checked={c.required || c.enabled} disabled={c.required || busy} onCheckedChange={(v) => void set(c.category, v)} />
           </div>
           {c.perWorkspace && !c.required && workspaces.length > 0 && (
-            <Disclosure className="mt-2" summaryClassName="text-xs text-fg-muted hover:text-fg" summary={<>Per workspace{Object.keys(c.workspaces).length ? ` · ${Object.keys(c.workspaces).length} set` : ""}</>}>
+            <Disclosure className="mt-2" summaryClassName="text-xs text-fg-muted hover:text-fg" summary={<>{$t("profile.notifications.perWorkspace")}{Object.keys(c.workspaces).length ? ` · ${Object.keys(c.workspaces).length} set` : ""}</>}>
               <ul className="mt-2 space-y-1.5">
                 {workspaces.map((w) => {
                   const on = c.workspaces[w] ?? c.enabled;

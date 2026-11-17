@@ -2,6 +2,7 @@
 // window the spend is, and where the warnings sit — editable in place. A
 // cap is over a day, a week or a month; unset is no limit.
 
+import { $t } from "@/i18n";
 import fs from "node:fs";
 import Link from "@foldrun/ui/react/link";
 import { accountDir, listWorkspaces } from "@/lib/store";
@@ -69,7 +70,7 @@ export default async function LimitsPage({ searchParams }: { searchParams: Promi
       <PageHeader title={platform.edition() === "hosted" ? "Billing" : "Usage"} description="How much may be spent in a day, a week or a month before runs stop starting — and where the warnings sit. Unset is no limit." />
       <BillingTabs current="limits" tenant={tenant} hosted={platform.edition() === "hosted"} />
       <div className="space-y-8">
-        <Panel title="Whole account" description="Across every workspace. At the cap, everything stops starting until the window turns." flush>
+        <Panel title="Whole account" description={$t("limits.page.acrossEveryWorkspaceAtTheCap")} flush>
           <CapRow title="Account cap" standing={account} endpoint="/api/account" tenant={tenant} />
           {!accountNotify && (
             <p className="border-t border-line bg-warning-soft px-5 py-3 text-sm text-warning">
@@ -81,9 +82,9 @@ export default async function LimitsPage({ searchParams }: { searchParams: Promi
             </p>
           )}
         </Panel>
-        <Panel title="Per workspace" flush>
+        <Panel title={$t("limits.page.perWorkspace")} flush>
           {workspaces.length === 0 ? (
-            <EmptyState bare compact icon={<Wallet />} title="No workspaces yet" />
+            <EmptyState bare compact icon={<Wallet />} title={$t("limits.page.noWorkspaceYet")} />
           ) : (
             <div className="divide-y divide-line">
               {workspaces
@@ -95,7 +96,7 @@ export default async function LimitsPage({ searchParams }: { searchParams: Promi
           )}
         </Panel>
         <p className="max-w-3xl px-1 text-sm text-fg-muted">
-          Every cap here is the <code className="font-mono">budget:</code> line in that workspace&apos;s <code className="font-mono">AGENTS.md</code>, editable in either place. A flow can also carry its own per-run{" "}
+          Every cap here is the <code className="font-mono">budget:</code> {$t("limits.page.lineInThatWorkspaceS")}{" "}<code className="font-mono">AGENTS.md</code>, editable in either place. A flow can also carry its own per-run{" "}
           <code className="font-mono">budget:</code>, and so can an agent — the most it may spend in one run. Both are hard caps that stop a step mid-turn, and both live in their own files.
         </p>
       </div>

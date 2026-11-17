@@ -1,5 +1,6 @@
 "use client";
 
+import { $t } from "@/i18n";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -89,7 +90,7 @@ export function McpAuthorize() {
       <p className="mb-5 text-sm text-fg-muted">
         It asks to use foldrun account <span className="font-mono">{ask.account}</span> as{" "}
         <span className="font-medium"><Email value={ask.person.email} /></span> ({ask.person.role}): your inbox, runs, flows and files
-        {canWrite ? ", and — if you allow it — to start and stop runs, approve gates, answer agents, and create workspaces and change their files" : ""}.
+        {canWrite ? $t("auth.mcp-authorize-authorize.andIfYouAllowItTo") : ""}.
       </p>
 
       <div className="mb-4 rounded-md border border-line bg-sunken p-3 text-sm">
@@ -111,13 +112,13 @@ export function McpAuthorize() {
           <RadioGroupItem value="read" /> Read only — inbox, runs, flows, files
         </label>
         <label className={`flex items-center gap-2 text-sm ${canWrite ? "" : "opacity-50"}`}>
-          <RadioGroupItem value="write" disabled={!canWrite} /> Read and act — also start, stop, approve, answer, message, and edit workspaces
+          <RadioGroupItem value="write" disabled={!canWrite} /> {$t("auth.mcp-authorize-authorize.readAndActAlsoStartStop")}
         </label>
         </RadioGroup>
       </fieldset>
 
       <fieldset className="mb-6">
-        <legend className="mb-1 text-sm font-medium text-fg-secondary">Which workspaces</legend>
+        <legend className="mb-1 text-sm font-medium text-fg-secondary">{$t("auth.mcp-authorize-authorize.whichWorkspace")}</legend>
         <RadioGroup value={scope} onValueChange={(v) => setScope(v as typeof scope)} className="gap-1">
         <label className="flex items-center gap-2 text-sm">
           <RadioGroupItem value="all" /> {ask.allWorkspaces ? "All of them, and new ones" : "All you may open"}

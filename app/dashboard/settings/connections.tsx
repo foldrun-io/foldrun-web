@@ -6,6 +6,7 @@
 // secret under the hood; the type only decides which fields to ask for and
 // how the value is used at run time.
 
+import { $t } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { buttonVariants, Button } from "@foldrun/ui/react/button";
@@ -257,7 +258,7 @@ function SecretWorkspaces({ row, tenant, choices }: { row: ConnectionRow; tenant
               {limited.map((w) => <code key={w} className="font-mono text-fg">{w}</code>)}
             </>
           ) : (
-            <span className="text-fg">none — no workspace can use it</span>
+            <span className="text-fg">{$t("settings.connections.noneNoWorkspaceCanUseIt")}</span>
           )}
           {choices && (
             <button type="button" onClick={() => {
@@ -274,14 +275,14 @@ function SecretWorkspaces({ row, tenant, choices }: { row: ConnectionRow; tenant
         </p>
       ) : (
         <form onSubmit={(e) => { e.preventDefault(); void save(); }} className="flex flex-col gap-2">
-          <RadioGroup className="flex flex-wrap items-center gap-3" aria-label={`Workspaces that may use ${row.name}`} value={mode} onValueChange={(v) => setMode(v as typeof mode)}>
+          <RadioGroup className="flex flex-wrap items-center gap-3" aria-label={$t("settings.connections.workspaceThatMayUse", { name: String(row.name) })} value={mode} onValueChange={(v) => setMode(v as typeof mode)}>
             <label className="flex items-center gap-1.5">
               <RadioGroupItem value="all" />
-              All workspaces
+              {$t("settings.connections.allWorkspace")}
             </label>
             <label className="flex items-center gap-1.5">
               <RadioGroupItem value="selected" />
-              Selected workspaces
+              {$t("settings.connections.selectedWorkspace")}
             </label>
           </RadioGroup>
           {mode === "selected" && (
@@ -296,7 +297,7 @@ function SecretWorkspaces({ row, tenant, choices }: { row: ConnectionRow; tenant
             </div>
           )}
           <p className="text-fg-muted">
-            &quot;All&quot; includes workspaces made later. A change applies to runs that start after it — stop a running one to cut it off now.
+            {$t("settings.connections.allIncludesWorkspaceMadeLaterA")}
           </p>
           <div className="flex items-center gap-2">
             <button type="submit" disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })}>Save</button>
@@ -631,7 +632,7 @@ export function Connections({
   }
 
   async function remove(row: ConnectionRow) {
-    const where = row.scope === "account" ? "every workspace in this account" : workspace;
+    const where = row.scope === "account" ? $t("settings.connections.everyWorkspaceInThisAccount") : workspace;
     if (
       !(await confirm({
         title: `Delete ${row.name}?`,
@@ -716,17 +717,17 @@ export function Connections({
           </div>
 
           {!workspace && limitTo && !oauthBrowser && (
-            <div className="space-y-1.5 text-sm text-fg-secondary" role="radiogroup" aria-label="Workspaces that may use it">
+            <div className="space-y-1.5 text-sm text-fg-secondary" role="radiogroup" aria-label={$t("settings.connections.workspaceThatMayUseIt")}>
               <div className="flex flex-wrap items-center gap-3">
-                <span className="text-sm font-medium text-fg">Workspaces</span>
-                <RadioGroup className="flex flex-wrap items-center gap-3" aria-label="Workspaces that may use it" value={newLimit === null ? "all" : "selected"} onValueChange={(v) => setNewLimit(v === "all" ? null : [])}>
+                <span className="text-sm font-medium text-fg">{$t("settings.connections.workspace")}</span>
+                <RadioGroup className="flex flex-wrap items-center gap-3" aria-label={$t("settings.connections.workspaceThatMayUseIt")} value={newLimit === null ? "all" : "selected"} onValueChange={(v) => setNewLimit(v === "all" ? null : [])}>
                   <label className="flex items-center gap-1.5">
                     <RadioGroupItem value="all" />
-                    All workspaces
+                    {$t("settings.connections.allWorkspace")}
                   </label>
                   <label className="flex items-center gap-1.5">
                     <RadioGroupItem value="selected" />
-                    Selected workspaces
+                    {$t("settings.connections.selectedWorkspace")}
                   </label>
                 </RadioGroup>
               </div>

@@ -5,6 +5,7 @@
 // optionally stopping the runs already going, and resume. server/pause.ts
 // is the route side.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@foldrun/ui/react/input";
@@ -48,13 +49,13 @@ export function PauseCard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
-  const what = scope === "account" ? "every workspace in this account" : "this workspace";
+  const what = scope === "account" ? $t("components.pause-card.everyWorkspaceInThisAccount") : $t("components.pause-card.thisWorkspace");
 
   const send = async (method: "POST" | "DELETE") => {
     if (
       method === "POST" &&
       !(await confirm({
-        title: scope === "account" ? "Pause the account?" : "Pause this workspace?",
+        title: scope === "account" ? "Pause the account?" : $t("components.pause-card.pauseThisWorkspace"),
         body: `No new run starts in ${what} until someone resumes it.${stop ? " Every run going now is stopped, and a stopped run cannot be picked up again." : " Runs already under way finish; queued ones wait for the resume."}`,
         confirmLabel: stop ? "Pause and stop runs" : "Pause",
       }))
@@ -182,7 +183,7 @@ export function PauseCard({
         footer={
           mayManage && (
             <Button variant="danger" disabled={busy} onClick={() => send("POST")}>
-              {busy ? "Pausing…" : scope === "account" ? "Pause the account" : "Pause this workspace"}
+              {busy ? "Pausing…" : scope === "account" ? "Pause the account" : $t("components.pause-card.pauseThisWorkspace2")}
             </Button>
           )
         }

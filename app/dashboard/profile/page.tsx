@@ -2,6 +2,7 @@
 // where you are signed in, what mail you get — and the team you share the account with. On the
 // settings shell like every other settings page.
 
+import { $t } from "@/i18n";
 import { cookies } from "next/headers";
 import Link from "@foldrun/ui/react/link";
 import { notFound } from "next/navigation";
@@ -96,7 +97,7 @@ export default async function ProfilePage({
                   <Email value={session.email} />
                 </p>
                 <p className="mt-0.5 text-sm text-fg-muted">
-                  {me?.owner ? "Owner" : (me?.role ?? "member")} of <span className="font-mono text-fg-secondary">{session.tenant}</span> · {me?.owner ? "all workspaces" : describeScope(me?.workspaces ?? null)} · joined{" "}
+                  {me?.owner ? "Owner" : (me?.role ?? "member")} of <span className="font-mono text-fg-secondary">{session.tenant}</span> · {me?.owner ? $t("profile.page.allWorkspace") : describeScope(me?.workspaces ?? null)} · joined{" "}
                   <LocalTime iso={session.createdAt} />
                 </p>
               </div>
@@ -135,14 +136,14 @@ export default async function ProfilePage({
         <SettingsSection
           id="notifications"
           title="Notifications"
-          description="What mail you get. Run alerts and approval requests can be set per workspace; security, invites, billing failures and account notices are always sent."
+          description={$t("profile.page.whatMailYouGetRunAlerts")}
         >
           <NotificationPreferences workspaces={workspaces} />
         </SettingsSection>
       )}
 
       {tab === "team" && (
-        <SettingsSection id="team" title="Team" description="Who shares this account, what each may do, and which workspaces each may open. Everyone shares one wallet and one shelf of shared tools.">
+        <SettingsSection id="team" title="Team" description={$t("profile.page.whoSharesThisAccountWhatEach")}>
           <TeamManager members={members} self={session.email} workspaces={workspaces} />
         </SettingsSection>
       )}

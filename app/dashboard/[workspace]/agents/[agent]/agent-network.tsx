@@ -6,6 +6,7 @@
 // setNetworkSetting, so the file stays the program: the CLI's
 // `foldrun agent network` writes the same line.
 
+import { $t } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -149,7 +150,7 @@ export function AgentNetwork(p: AgentNetworkProps) {
           <label className="block">
             <span className={labelClass}>Level</span>
             <Select value={level} onChange={(e) => setLevel(e.target.value as NetworkLevel | "")} >
-              <option value="">Inherit ({r.from === "agent" ? "workspace or default" : r.level})</option>
+              <option value="">Inherit ({r.from === "agent" ? $t("workspace.agents-agent-agent-network.workspaceOrDefault") : r.level})</option>
               <option value="trusted">trusted</option>
               <option value="open">open</option>
               <option value="none">none</option>

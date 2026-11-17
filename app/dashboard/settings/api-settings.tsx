@@ -1,5 +1,6 @@
 "use client";
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -40,7 +41,7 @@ const day = (iso: string) => new Date(iso).toISOString().slice(0, 10);
 /** Which versions answered this account lately, and any route on its way out
  *  it still calls — with who calls it, so the right script gets moved. */
 function ApiUsage({ usage, hidden }: { usage: ApiFacts["usage"]; hidden?: boolean }) {
-  if (hidden) return <p className="text-sm text-fg-muted">The account&apos;s API use is shown to members with every workspace.</p>;
+  if (hidden) return <p className="text-sm text-fg-muted">{$t("settings.api-settings.theAccountSApiUseIs")}</p>;
   if (!usage) return <p className="text-sm text-fg-muted">Usage could not be read just now.</p>;
   const total = usage.versions.reduce((s, v) => s + v.requests, 0);
   return (

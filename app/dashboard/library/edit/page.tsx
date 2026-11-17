@@ -3,6 +3,7 @@
 // and agents use it and which secrets it names. The library keeps history
 // too, but has no route for it yet, so the Changes section waits.
 
+import { $t } from "@/i18n";
 import { notFound } from "next/navigation";
 import matter from "@/lib/matter";
 import { LIBRARY_KINDS, listLibrary, readLibraryFile, libraryUsage, type LibraryKind } from "@/lib/library";
@@ -65,7 +66,7 @@ export default async function LibraryEditPage({
           meta: u.relation === "shadowed" ? "overridden" : undefined,
           tone: u.relation === "shadowed" ? ("warn" as const) : undefined,
         })),
-        empty: kind === "tools" ? `No agent grants ${entry.name} yet.` : "Every workspace can read it; none overrides it.",
+        empty: kind === "tools" ? `No agent grants ${entry.name} yet.` : $t("library.edit-page.everyWorkspaceCanReadItNone"),
       });
     }
     const refs = secretRefs(content);
@@ -110,7 +111,7 @@ export default async function LibraryEditPage({
         <>
           <PageHeader
             title="Library"
-            description="Shared with every workspace in this account. Agents reach these files at ../../../../library/."
+            description={$t("library.edit-page.sharedWithEveryWorkspaceInThis")}
             back={{ href: `/dashboard/library?kind=${kind}${rest}`, label: "Back to the shelf" }}
             className="mb-6"
           />

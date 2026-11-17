@@ -3,6 +3,7 @@
 // Three tabs that never mix: assigned to you, runs you started, and the rest
 // of what waits in your workspaces; a fourth for what you set aside.
 
+import { $t } from "@/i18n";
 import { Inbox as InboxIcon, LogIn } from "lucide-react";
 import { Page, PageHeader, EmptyState } from "@foldrun/ui/react/page";
 import { PageTabs } from "@foldrun/ui/react/page-tabs";
@@ -16,7 +17,7 @@ export const dynamic = "force-dynamic";
 const TABS = [
   { key: "mine", label: "For me", hint: "You are named as an approver, you own the flow or agent, or you asked for it." },
   { key: "started", label: "Started by me", hint: "Runs you started: a failure or BLOCKED this week, a gate or a question on one." },
-  { key: "team", label: "Team", hint: "Everything else waiting in your workspaces, for whoever picks it up." },
+  { key: "team", label: "Team", hint: $t("inbox.page.everythingElseWaitingInYourWorkspace") },
   { key: "dismissed", label: "Set aside", hint: "What you hid from your view. Each one is still waiting where it lives." },
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
@@ -38,7 +39,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
   if (!person) {
     return (
       <Page>
-        <PageHeader title="Inbox" description="What is waiting on you, across your workspaces." />
+        <PageHeader title="Inbox" description={$t("inbox.page.whatIsWaitingOnYouAcross")} />
         <EmptyState icon={<LogIn />} title="Sign in to see your inbox" description="An inbox is a person's: what you approve, what you own, what you started. Nobody is signed in here." />
       </Page>
     );
@@ -60,7 +61,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
 
   return (
     <Page>
-      <PageHeader title="Inbox" description="What is waiting on you, across your workspaces. An item leaves on its own once it is done where it lives." />
+      <PageHeader title="Inbox" description={$t("inbox.page.whatIsWaitingOnYouAcross2")} />
       <PageTabs tabs={TABS.map((t) => ({ label: t.label, href: href(t.key, kind), badge: count(t.key), active: t.key === tab }))} className="mb-4" />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <Segmented

@@ -10,6 +10,7 @@
 // workspace's; the balance is shared — the wording keeps them straight,
 // and the whole line is a door to the wallet.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { Tooltip } from "@foldrun/ui/react/tooltip";
 import { billing } from "@/platform/billing";
@@ -41,8 +42,8 @@ export async function WorkspaceHeader({ workspace, qs }: { workspace: string; qs
       <Tooltip
         label={
           hosted
-            ? `This workspace's spend ${window} (against its budget: cap when one is set) · the account's remaining credits. Open the wallet.`
-            : `This workspace's spend ${window} (against its budget: cap when one is set). Open usage.`
+            ? $t("components.workspace-header.thisWorkspaceSSpendAgainstIts", { window: String(window) })
+            : $t("components.workspace-header.thisWorkspaceSSpendAgainstIts2", { window: String(window) })
         }
       >
         <Link

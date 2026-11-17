@@ -7,6 +7,7 @@
 // characters. Choosing foldrun's models leaves a stored key where it is, so
 // switching back is one click.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -103,7 +104,7 @@ export function ModelKey({
       id="model-key"
       title="Model key"
       description="What every step on this account runs on."
-      hint={error ? <span role="alert" className="text-danger">{error}</span> : <>An agent, workspace or AGENTS.md may name its own <code className="font-mono text-xs">provider:</code>.</>}
+      hint={error ? <span role="alert" className="text-danger">{error}</span> : <>{$t("settings.model-key.anAgentWorkspaceOrAgentsMd")}{" "}<code className="font-mono text-xs">provider:</code>.</>}
     >
       <div className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-sunken px-3 py-2">
         <Chip tone={status.variant}>{status.label}</Chip>
@@ -147,7 +148,7 @@ export function ModelKey({
       ) : (
         <>
           <p className="mt-4 text-sm text-fg-muted">
-            Every step runs on this key unless an agent, workspace or the account&apos;s AGENTS.md names its own <code className="font-mono text-xs">provider:</code>.
+            {$t("settings.model-key.everyStepRunsOnThisKey")}{" "}<code className="font-mono text-xs">provider:</code>.
             Use an <strong>API key</strong> from your provider; Claude login tokens are not accepted.
           </p>
         {mayEdit && (

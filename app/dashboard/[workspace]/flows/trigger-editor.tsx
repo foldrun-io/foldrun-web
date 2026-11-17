@@ -5,6 +5,7 @@
 // open format has no private schedule syntax), but nobody has to speak it.
 // Custom cron remains one preset away for the shapes the presets can't say.
 
+import { $t } from "@/i18n";
 import { useEffect, useState } from "react";
 import { useResolvedTimeZone } from "@/components/viewer-time";
 import { useRouter } from "next/navigation";
@@ -219,7 +220,7 @@ export function TriggerEditor({
           </>
         )}
         {kind === "webhook" && (
-          <span className="pb-2 text-xs text-fg-muted">{"The URL appears under this workspace's Settings → Triggers."}</span>
+          <span className="pb-2 text-xs text-fg-muted">{$t("workspace.flows-trigger-editor.theUrlAppearsUnderThisWorkspace")}</span>
         )}
 
         <button onClick={save} disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })}>

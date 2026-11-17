@@ -14,6 +14,7 @@
 // Opened by the button at the bottom right, or by any control that
 // dispatches `foldrun:assistant` with an optional `{ prompt }` to start from.
 
+import { $t } from "@/i18n";
 import { Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -149,10 +150,10 @@ export function AssistantDock({ tenant }: { tenant: string }) {
       .then(async (res) => {
         const body = (await res.json().catch(() => ({}))) as { workspaces?: { name: string }[]; error?: string };
         if (!live) return;
-        if (!res.ok) setListError(body.error ?? `could not list workspaces (${res.status})`);
+        if (!res.ok) setListError(body.error ?? $t("components.assistant.couldNotListWorkspace", { status: String(res.status) }));
         else setWorkspaces((body.workspaces ?? []).map((w) => w.name));
       })
-      .catch(() => live && setListError("could not list workspaces"));
+      .catch(() => live && setListError($t("components.assistant.couldNotListWorkspace2")));
     return () => {
       live = false;
     };
@@ -243,7 +244,7 @@ export function AssistantDock({ tenant }: { tenant: string }) {
             </header>
             {workspaces && !listError ? (
               <div className="space-y-2 px-4 py-3 text-sm text-fg-secondary">
-                <p>The assistant works inside a workspace, and this account has none yet. Name the first one:</p>
+                <p>{$t("components.assistant.theAssistantWorksInsideAWorkspace")}</p>
                 <CreateWorkspace tenant={tenant} onCreated={created} />
               </div>
             ) : (
@@ -437,7 +438,7 @@ function AssistantPanel({
     try {
       if (sessionStorage.getItem(continueKey(tenant)) === workspace) {
         sessionStorage.removeItem(continueKey(tenant));
-        next = `The workspace "${workspace}" now exists and you are working in it. Carry on with what I asked for: write its agents, flows, tools and skills.`;
+        next = $t("components.assistant.theWorkspaceNowExistsAndYou", { workspace: String(workspace) });
       }
     } catch {
       // no storage: the person asks again
@@ -453,7 +454,7 @@ function AssistantPanel({
     try {
       sessionStorage.setItem(
         storageKey(tenant, ws.name),
-        JSON.stringify({ messages: [...messages.slice(-38), { role: "assistant", content: `Created the workspace \`${ws.name}\`.` }], files: [], issues: [] }),
+        JSON.stringify({ messages: [...messages.slice(-38), { role: "assistant", content: $t("components.assistant.createdTheWorkspace", { name: String(ws.name) }) }], files: [], issues: [] }),
       );
       sessionStorage.setItem(continueKey(tenant), ws.name);
     } catch {
@@ -564,7 +565,7 @@ function AssistantPanel({
             {workspaces.length > 1 ? (
               <Select
                 size="sm"
-                aria-label="Assistant's workspace"
+                aria-label={$t("components.assistant.assistantSWorkspace")}
                 value={workspace}
                 disabled={busy}
                 onChange={(e) => onPick(e.target.value)}
@@ -790,8 +791,7 @@ function Welcome({ onPick }: { onPick: (text: string) => void }) {
   return (
     <div className="space-y-2 text-sm text-fg-secondary">
       <p>
-        Ask how foldrun works, or describe what you want built. I read the docs and this workspace&apos;s files, propose agents, flows, tools and
-        skills as diffs, and check them before you save.
+        {$t("components.assistant.askHowFoldrunWorksOrDescribe")}
       </p>
       <ul className="space-y-1">
         {EXAMPLES.map((e) => (
@@ -884,7 +884,7 @@ function WorkspaceCard({
   return (
     <section className="rounded-lg border border-line bg-sunken px-3 py-2 text-xs">
       <div className="flex items-center gap-2">
-        <span className="font-medium text-fg">New workspace</span>
+        <span className="font-medium text-fg">{$t("components.assistant.newWorkspace")}</span>
         <span className="font-mono text-fg">{proposal.name}</span>
         {exists ? (
           <span className="ml-auto text-fg-muted">exists</span>
@@ -904,7 +904,7 @@ function WorkspaceCard({
                 }}
                 className={buttonVariants({ variant: "primary", size: "xs" })}
               >
-                {state === "creating" ? "Creating…" : "Create workspace"}
+                {state === "creating" ? "Creating…" : $t("components.assistant.createWorkspace")}
               </button>
             </span>
           </Tooltip>
@@ -937,7 +937,7 @@ function CreateWorkspace({ tenant, onCreated }: { tenant: string; onCreated: (ws
     >
       <div className="flex gap-2">
         <Input
-          aria-label="Workspace name"
+          aria-label={$t("components.assistant.workspaceName")}
           value={name}
           onChange={(e) => setName(e.target.value.toLowerCase())}
           placeholder="e.g. ads-desk"
@@ -997,7 +997,7 @@ function ProposedFile({
       )}
       {open && (
         <div className="max-h-72 overflow-auto">
-          <DiffView rows={foldDiff(lineDiff(file.before ?? "", file.content), 4)} empty="Same as the file in the workspace." />
+          <DiffView rows={foldDiff(lineDiff(file.before ?? "", file.content), 4)} empty={$t("components.assistant.sameAsTheFileInThe")} />
         </div>
       )}
     </section>

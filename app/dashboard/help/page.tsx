@@ -3,6 +3,7 @@
 // on this page, either the feature or this page is wrong; the consistency
 // suite can't check that, so keep the two in the same commit.
 
+import { $t } from "@/i18n";
 import fs from "node:fs";
 import path from "node:path";
 import Link from "@foldrun/ui/react/link";
@@ -62,7 +63,7 @@ export default function HelpPage() {
         description="Folders are agents, a flow is a numbered list of links, and every capability is a file the agent names in its frontmatter. This page is the whole grammar."
       />
 
-      <Panel title="The workspace, on disk">
+      <Panel title={$t("help.page.theWorkspaceOnDisk")}>
         <pre className="overflow-x-auto rounded-md border border-line bg-sunken p-3 font-mono text-xs leading-relaxed text-fg-secondary">{`my-workspace/
   AGENTS.md              workspace-wide rules · notify: · budget:
   agents/<name>/agent.md one folder per agent — the folder IS the agent
@@ -124,9 +125,7 @@ budget: 5                  # the most one run may spend, USD — checked between
         <p className="mt-3 text-sm text-fg-tertiary">
           Where accumulated data lives follows the same discipline: a value{" "}
           <em>regenerated</em> each run (a cache, a fetched list) is a run artifact —{" "}
-          <Code>storage/</Code>. A value <em>accumulated</em> across runs (a ledger of dead ends,
-          filed briefs) is workspace memory — <Code>state/</Code> — because it must travel when the
-          workspace does.
+          <Code>storage/</Code>. A value <em>accumulated</em> {$t("help.page.acrossRunsALedgerOfDead")}{" "}<Code>state/</Code> {$t("help.page.becauseItMustTravelWhenThe")}
         </p>
         <p className="mt-3 text-sm text-fg-tertiary">
           The convention that keeps links honest: <strong>link what you read, spell out what you
@@ -147,7 +146,7 @@ budget: 5                  # the most one run may spend, USD — checked between
             ["once + at:", "one ISO instant passes — fires once, never again"],
             ["webhook", "a POST hits the flow's hook URL; add signature: github | stripe | slack | hmac and signing_secret: ${NAME} to have the sender's HMAC checked"],
             ["email", "a message reaches the flow's inbox URL from Resend, Postmark, Mailgun, SendGrid or an email worker — from, subject and text become the task"],
-            ["flow + after: + on:", "another flow of this workspace finishes (completed by default, or failed / any) — its conclusion becomes the task"],
+            ["flow + after: + on:", $t("help.page.anotherFlowFinishes")],
             ["storage + path:", "a file lands under that storage/ prefix — an upload, an API write, another flow's output"],
             ["watch + url: + every:", "the page at the URL changes, polled every 15m by default — the new content becomes the task"],
           ]}
@@ -204,10 +203,7 @@ budget: 5                  # the most one run may spend, USD — checked between
 
       <Panel title="When a run waits for you">
         <p className="mt-2 text-sm text-fg-tertiary">
-          A step with <Code>ask:</Code> (or a <Code>2!</Code> marker) parks the run until a person
-          answers. Parking is durable — the run survives restarts and waits days if it has to — and
-          the platform tells you three ways: the amber banner across every dashboard page, the
-          run&rsquo;s row on the Runs page, and an email if the workspace&rsquo;s{" "}
+          A step with <Code>ask:</Code> (or a <Code>2!</Code> {$t("help.page.markerParksTheRunUntilA")}{" "}
           <Code>notify:</Code> includes <Code>awaiting-approval</Code>.
         </p>
         <p className="mt-2 text-sm text-fg-tertiary">
@@ -248,14 +244,11 @@ You build lead lists. Read [[sources-of-leads]] first,
 and skip what we already have…          ← the prompt; the link
                                           becomes the real path`}</pre>
         <p className="mt-3 text-sm text-fg-tertiary">
-          A name in <Code>tools:</Code> that is not a built-in resolves against the workspace&rsquo;s{" "}
-          <Code>tools/</Code> first, then the account Library — one copy of a shared tool, every
-          workspace&rsquo;s agents can ask for it.
-          Secrets are substituted server-side; the model never sees the values.
+          A name in <Code>tools:</Code> {$t("help.page.thatIsNotABuiltIn")}{" "}
+          <Code>tools/</Code> {$t("help.page.firstThenTheAccountLibraryOne")}
         </p>
         <p className="mt-3 text-sm text-fg-tertiary">
-          <strong>Bring your own model key.</strong> A <Code>provider:</Code> block in AGENTS.md (the whole
-          workspace) or in one agent names the endpoint and the secret:{" "}
+          <strong>Bring your own model key.</strong> A <Code>provider:</Code> {$t("help.page.blockInAgentsMdTheWhole")}{" "}
           <Code>{"provider: { name: groq, token: ${GROQ_API_KEY} }"}</Code>. Anthropic-shaped providers —
           Anthropic, OpenRouter, DeepSeek, Kimi, z.ai, Qwen, Vercel&rsquo;s gateway, your own LiteLLM — are
           spoken to directly. OpenAI, Gemini, xAI, Groq, Mistral, Together, Hugging Face and Cloudflare speak
@@ -277,9 +270,7 @@ and skip what we already have…          ← the prompt; the link
           Two groups are the platform&rsquo;s own: <Code>tools: [search]</Code> gives{" "}
           <Code>search_files(query)</Code>, ranked full-text search over the agent&rsquo;s knowledge,
           memory, state and storage at every scope (lexical, on the box — nothing leaves it), and{" "}
-          <Code>tools: [history]</Code> gives <Code>recall_runs()</Code> and <Code>read_run(id)</Code>,
-          the workspace&rsquo;s last thirty finished runs and what they concluded, so a scheduled flow
-          continues where yesterday&rsquo;s left off instead of redoing it. <Code>tools: [peers]</Code> gives{" "}
+          <Code>tools: [history]</Code> gives <Code>recall_runs()</Code> and <Code>read_run(id)</Code>{$t("help.page.theWorkspaceSLastThirtyFinished")}{" "}<Code>tools: [peers]</Code> gives{" "}
           <Code>peers_list()</Code> and <Code>peers_message(to, text)</Code>: the other steps running beside
           it in its parallel group, and a message to one of them, which reaches that agent after its next
           tool call — a step asks a colleague for what it has instead of guessing or failing.
@@ -330,18 +321,17 @@ Prose for the agent, then the implementation:
         />
       </Panel>
 
-      <Panel title="Workspace frontmatter (AGENTS.md)">
+      <Panel title={$t("help.page.workspaceFrontmatterAgentsMd")}>
         <Table
           head={["key", "what it does"]}
           rows={[
             ["notify: you@co.com", "email (or webhook URL) for run events; `events: [failed, completed, awaiting-approval]` narrows it"],
             ["budget: 50", "spend cap in USD per month — or `50/day`, `50/week`; unset is no limit. At the cap, new runs are refused until the window turns (running ones finish)"],
-            ["provider:", "route this workspace's model calls through your own gateway or key"],
+            ["provider:", $t("help.page.routeModelCalls")],
           ]}
         />
         <p className="mt-3 text-sm text-fg-tertiary">
-          Everything on this page is plain markdown in your workspace — editable here in the
-          dashboard, or in any editor, and every change is an ordinary git diff.
+          {$t("help.page.everythingOnThisPageIsPlain")}
         </p>
       </Panel>
 

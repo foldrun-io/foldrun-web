@@ -7,6 +7,7 @@
 // Every row since history moved off git (17 Oct 2026) holds the whole tree,
 // so any of them can be rolled back to.
 
+import { $t } from "@/i18n";
 import fs from "node:fs";
 import { Pager } from "@foldrun/ui/react/pager";
 import { paginate, pageFrom, PAGE_SIZE } from "@foldrun/ui/react/paging";
@@ -42,7 +43,7 @@ export default async function HistoryPage({
 
   return (
     <Page>
-      <PageHeader title="History" description="Every change to this workspace — saves, deploys, deletions — newest first. Open one to see its diff; roll back to any of them." />
+      <PageHeader title="History" description={$t("workspace.history-page.everyChangeToThisWorkspaceSaves")} />
       {revisions.length === 0 ? (
         <EmptyState
           icon={<HistoryIcon />}

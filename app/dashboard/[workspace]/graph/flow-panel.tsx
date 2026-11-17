@@ -4,6 +4,7 @@
 // minimal. Reorder steps by dragging, toggle ∥ (parallel with the step
 // above) and ? (optional), then save — the flow's markdown is regenerated.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { GripVertical, Plus, X } from "lucide-react";
 import { Button } from "@foldrun/ui/react/button";
@@ -66,7 +67,7 @@ export function FlowPanel({
   const [status, setStatus] = useState<string | null>(null);
 
   if (!flow) {
-    return <p className="text-sm text-fg-muted">No flows in this workspace yet.</p>;
+    return <p className="text-sm text-fg-muted">{$t("workspace.graph-flow-panel.noFlowsInThisWorkspaceYet")}</p>;
   }
 
   const switchFlow = (name: string) => {

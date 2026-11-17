@@ -6,6 +6,7 @@
 // PUT /api/account/beta. Only an admin of every workspace may change it; the
 // others see where it stands.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { Switch } from "@foldrun/ui/react/choice";
 
@@ -42,7 +43,7 @@ export function BetaFeatures({ initial, flags: initialFlags, canChange }: { init
         </span>
         <Switch checked={beta} disabled={!canChange || busy} onCheckedChange={(v) => void set(v)} aria-label="Beta features" />
       </label>
-      {!canChange && <p className="text-sm text-fg-subtle">Only an admin of every workspace can change this.</p>}
+      {!canChange && <p className="text-sm text-fg-subtle">{$t("settings.beta.onlyAnAdminOfEveryWorkspace")}</p>}
       {error && <p className="text-sm text-danger">{error}</p>}
       {flags.length > 0 && (
         <ul className="divide-y divide-line-faint rounded-md border border-line">

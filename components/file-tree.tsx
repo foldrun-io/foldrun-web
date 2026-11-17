@@ -7,6 +7,7 @@
 // link *template* rather than a function (functions can't cross the server
 // component boundary).
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -106,7 +107,7 @@ const TrashIcon = () => <Trash2 className="size-3.5" aria-hidden />;
 function anchoredWhy(rel: string): string | null {
   const base = rel.split("/").pop()!;
   if (rel === "AGENTS.md" || rel === "project.md") {
-    return `${base} is the workspace's own identity — it cannot move; rename or delete the workspace instead`;
+    return $t("components.file-tree.isTheWorkspaceSOwnIdentity", { base: String(base) });
   }
   if (base === "agent.md") return "agent.md is the agent because of where it sits — to rename the agent, rename its folder";
   if (base === "SKILL.md") return "SKILL.md names its skill — to rename the skill, rename its folder";
@@ -637,20 +638,20 @@ export function FileTree({
           </span>
           {canCreate && (
           <span className="flex items-center gap-0.5">
-            <Tooltip label="New file at workspace root">
+            <Tooltip label={$t("components.file-tree.newFileAtWorkspaceRoot")}>
               <button
                 type="button"
-                aria-label="New file at workspace root"
+                aria-label={$t("components.file-tree.newFileAtWorkspaceRoot")}
                 onClick={() => setDraft({ parent: "", kind: "file" })}
                 className="rounded p-0.5 text-fg-subtle hover:bg-muted hover:text-fg"
               >
                 <NewFileIcon />
               </button>
             </Tooltip>
-            <Tooltip label="New folder at workspace root">
+            <Tooltip label={$t("components.file-tree.newFolderAtWorkspaceRoot")}>
               <button
                 type="button"
-                aria-label="New folder at workspace root"
+                aria-label={$t("components.file-tree.newFolderAtWorkspaceRoot")}
                 onClick={() => setDraft({ parent: "", kind: "folder" })}
                 className="rounded p-0.5 text-fg-subtle hover:bg-muted hover:text-fg"
               >

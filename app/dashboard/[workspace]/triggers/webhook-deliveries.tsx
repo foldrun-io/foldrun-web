@@ -7,6 +7,7 @@
 // 30m, 2h, 6h); this is for the one that gave up, or for a receiver you just
 // fixed and want to prove.
 
+import { $t } from "@/i18n";
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { buttonVariants } from "@foldrun/ui/react/button";
 import { Chip, EmptyState, Callout } from "@foldrun/ui/react/page";
@@ -95,9 +96,7 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
     <div className="space-y-3">
       {endpoint?.disabledAt && (
         <Callout tone="danger" className="p-4 text-sm" role="alert">
-          This workspace&apos;s webhook is <strong>switched off</strong> since <LocalTime iso={endpoint.disabledAt} />: {endpoint.disabledReason}. New
-          notifications are recorded below but not sent. Fix the receiver, then Redeliver any delivery (or send a test from Workspace settings) — an
-          accepted one switches it back on. Changing the URL in <code>notify:</code> starts it fresh.
+          {$t("workspace.triggers-webhook-deliveries.thisWorkspaceSWebhookIs")}{" "}<strong>switched off</strong> since <LocalTime iso={endpoint.disabledAt} />: {endpoint.disabledReason}{$t("workspace.triggers-webhook-deliveries.newNotificationsAreRecordedBelowBut")}{" "}<code>notify:</code> starts it fresh.
         </Callout>
       )}
       {!endpoint?.disabledAt && endpoint?.failingSince && (
@@ -131,7 +130,7 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
           compact
           icon={<Send />}
           title={filter ? "None match." : "No webhook deliveries yet"}
-          description={filter ? undefined : "A workspace whose notify: is a url records every one here — failures, approval requests, tests."}
+          description={filter ? undefined : $t("workspace.triggers-webhook-deliveries.aWorkspaceWhoseNotifyIsA")}
         />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-line bg-surface">

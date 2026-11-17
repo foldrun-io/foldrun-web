@@ -3,6 +3,7 @@
 // and a preview of the file as itself. The account's Storage page shows
 // the same rows for every desk; both read server/storage-browser.ts.
 
+import { $t } from "@/i18n";
 import fs from "node:fs";
 import { notFound } from "next/navigation";
 import { workspaceDir } from "@/lib/store";
@@ -38,7 +39,7 @@ export default async function WorkspaceFilesPage({
         <EmptyState
           icon={<HardDrive />}
           title="No file store on this instance"
-          description={<>This instance runs a single workspace from a folder on disk, so <code className="font-mono text-xs">storage/</code> is a directory in that folder. Put something in it and the next run will read it.</>}
+          description={<>{$t("workspace.storage-page.thisInstanceRunsASingleWorkspace")}{" "}<code className="font-mono text-xs">storage/</code> is a directory in that folder. Put something in it and the next run will read it.</>}
         />
       </Page>
     );

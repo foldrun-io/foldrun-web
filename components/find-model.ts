@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 // The Find palette's reading of a query: what matches, how well, in what
 // order, under which heading. Pure, shared by the search API (server) and
 // the palette (client) so both rank the same way; tests/find.test.ts pins it.
@@ -31,7 +32,7 @@ export interface FindHit {
 export const KIND_ORDER: FindKind[] = ["workspace", "agent", "flow", "run", "tool", "hook", "skill", "knowledge", "memory", "page"];
 
 export const KIND_LABEL: Record<FindKind, string> = {
-  workspace: "Workspaces",
+  workspace: $t("components.find-model.workspace"),
   agent: "Agents",
   flow: "Flows",
   run: "Runs",
@@ -122,8 +123,8 @@ export function pagesFor(workspace: string | null, qs: string): FindHit[] {
       ]
     : [];
   const account: FindHit[] = [
-    { kind: "page", title: "Account · Overview", subtitle: "every workspace", href: `/dashboard${q(true)}` },
-    { kind: "page", title: "Account · Runs", subtitle: "every run across every workspace", href: `/dashboard/runs${q(true)}` },
+    { kind: "page", title: "Account · Overview", subtitle: $t("components.find-model.everyWorkspace"), href: `/dashboard${q(true)}` },
+    { kind: "page", title: "Account · Runs", subtitle: $t("components.find-model.everyRunAcrossEveryWorkspace"), href: `/dashboard/runs${q(true)}` },
     { kind: "page", title: "Account · Graph", href: `/dashboard/graph${q(true)}` },
     { kind: "page", title: "Account · Storage", href: `/dashboard/storage${q(true)}` },
     { kind: "page", title: "Shared · Tools", href: `/dashboard/library?kind=tools${q(false)}` },

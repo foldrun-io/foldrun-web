@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 import { buildAccountGraph } from "@/server/graph";
 import { viewerScope } from "@/server/users";
 import { GraphClient } from "@/app/dashboard/[workspace]/graph/graph-client";
@@ -31,7 +32,7 @@ export default async function AccountGraphPage({
       graph={graph}
       title="account"
       layout={isLayout(layout) ? layout : "map"}
-      emptyMessage="Create a workspace and add an agent, and it appears here."
+      emptyMessage={$t("graph.page.createAWorkspaceAndAddAn")}
     />
   );
 }

@@ -16,6 +16,7 @@
 // runs on the server: core's parser reads the disk, so a client component
 // cannot import it.
 
+import { $t } from "@/i18n";
 import type { FlowStep } from "@/lib/store";
 import { joinGroup, splitToRail, type Groups } from "@/lib/arrange.ts";
 import { limitsChip } from "./step-limits-model.ts";
@@ -192,12 +193,12 @@ export function teamProblems(agent: AgentTeam, agents: Record<string, AgentTeam>
   const out: { name: string; kind: "sub" | "consult"; message: string }[] = [];
   for (const sub of agent.subagents) {
     const a = agents[sub];
-    if (!a) out.push({ name: sub, kind: "sub", message: `subagents: "${sub}" is not an agent in this workspace` });
+    if (!a) out.push({ name: sub, kind: "sub", message: $t("components.flow-canvas-model.subagentsIsNotAnAgentIn", { sub: String(sub) }) });
     else if (sub === agent.name) out.push({ name: sub, kind: "sub", message: `subagents: "${sub}" is this agent itself` });
     else if (!String(a.description ?? "").trim()) out.push({ name: sub, kind: "sub", message: `subagents: "${sub}" has no description — the model picks a sub-agent by it` });
   }
   for (const c of agent.consults) {
-    if (!agents[c]) out.push({ name: c, kind: "consult", message: `agents: "${c}" is not an agent in this workspace` });
+    if (!agents[c]) out.push({ name: c, kind: "consult", message: $t("components.flow-canvas-model.agentsIsNotAnAgentIn", { c: String(c) }) });
   }
   return out;
 }
@@ -297,7 +298,7 @@ export function buildCanvas(input: CanvasInput): CanvasLayout {
       const agent = s.subflow ? null : (agents[s.agent] ?? null);
       const missing = s.subflow ? !flowSet.has(s.subflow) : !agent;
       const problems: StepNodeData["problems"] = [];
-      if (s.subflow && missing) problems.push({ message: `[[flow:${s.subflow}]] is not a flow in this workspace`, level: "error" });
+      if (s.subflow && missing) problems.push({ message: $t("components.flow-canvas-model.flowIsNotAFlowIn", { subflow: String(s.subflow) }), level: "error" });
       for (const w of input.warnings ?? []) {
         if (w.step === i) problems.push({ message: w.message, level: w.level === "error" || /is not an agent|as a sentence/.test(w.message) ? "error" : "warn" });
       }

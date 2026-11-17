@@ -51,7 +51,7 @@ test("rank drops misses, orders best first, and caps each heading", () => {
 test("groups follow the heading order and skip empty headings", () => {
   const groups = groupHits([hit("run", "r"), hit("workspace", "w"), hit("page", "p")]);
   assert.deepEqual(groups.map((g) => g.kind), ["workspace", "run", "page"]);
-  assert.equal(groups[0].label, "Workspaces");
+  assert.equal(groups[0].label, "Projects");
 });
 
 test("pages carry the tenant query on every link, and a workspace's pages come first", () => {

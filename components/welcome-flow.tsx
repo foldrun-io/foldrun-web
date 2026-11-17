@@ -8,6 +8,7 @@
 // store. The one thing kept is that this person has seen it, so the home
 // page stops sending them here.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -146,7 +147,7 @@ export function WelcomeFlow(p: WelcomeProps) {
             ) : (
               <EmptyState
                 icon={<Boxes />}
-                title="No workspace yet"
+                title={$t("components.welcome-flow.noWorkspaceYet")}
                 description="Start with the demo pipeline: four agents and a flow you can run in a minute."
                 action={
                   <Link href={stepHref("start")} className={buttonVariants({ variant: "primary", size: "md" })}>
@@ -195,15 +196,15 @@ function StartStep(p: WelcomeProps & { kicker: string; done: boolean; next: () =
         </>
       }
     >
-      {p.done && <Done>You have a workspace{p.workspaces[0] ? ` — ${p.workspaces[0]}` : ""}. Continue to run it.</Done>}
+      {p.done && <Done>{$t("components.welcome-flow.youHaveAWorkspace")}{p.workspaces[0] ? ` — ${p.workspaces[0]}` : ""}. Continue to run it.</Done>}
       <ChoiceCards
         label="What do you want to start with?"
         value={pick}
         onChange={(v) => setPick(v as Start)}
         options={[
           { value: "demo", title: "Demo pipeline", description: "Four agents and an approval gate. Runs in a minute.", icon: <Sparkles />, badge: p.demoExists ? "Ready" : "Recommended" },
-          { value: "blank", title: "Blank workspace", description: "Write your own agents and flows from scratch.", icon: <Boxes /> },
-          { value: "import", title: "Import", description: "A workspace, flow or agent exported as a .zip.", icon: <FileArchive /> },
+          { value: "blank", title: $t("components.welcome-flow.blankWorkspace"), description: "Write your own agents and flows from scratch.", icon: <Boxes /> },
+          { value: "import", title: "Import", description: $t("components.welcome-flow.aWorkspaceFlowOrAgentExported"), icon: <FileArchive /> },
           { value: "cli", title: "Use the CLI", description: "Agents as files in your editor; deploy from the terminal.", icon: <Terminal /> },
           { value: "mcp", title: "Connect your AI app", description: "Claude, Cursor or Codex drive this account as tools.", icon: <PlugZap /> },
         ]}
@@ -228,14 +229,14 @@ function StartStep(p: WelcomeProps & { kicker: string; done: boolean; next: () =
         )}
         {pick === "blank" && (
           <Choice
-            text="A workspace holds one desk's agents, flows, secrets and runs. You name it; it starts empty."
+            text={$t("components.welcome-flow.aWorkspaceHoldsOneDeskS")}
             action={
               p.canCreate ? (
                 <CreateForm
-                  noun="workspace"
-                  label="Create a workspace"
+                  noun={$t("common.workspaceOne")}
+                  label={$t("components.welcome-flow.createAWorkspace")}
                   placeholder="marketing"
-                  hint="Its own agents, flows, secrets and runs. Starts blank: import agents from another workspace, or create them."
+                  hint={$t("components.welcome-flow.itsOwnAgentsFlowsSecretsAnd")}
                   tenant={p.tenant}
                   options={[{ where: "account", label: "Account", target: { endpoint: "/api/workspaces", body: { template: true, ifAbsent: true } } }]}
                   then={runIn("{name}")}
@@ -250,11 +251,11 @@ function StartStep(p: WelcomeProps & { kicker: string; done: boolean; next: () =
           <Choice
             text={
               <>
-                A .zip exported from foldrun — a whole workspace, one flow or one agent. You see what it would add before anything is written.
+                {$t("components.welcome-flow.aZipExportedFromFoldrunA")}
                 {p.workspaces[0] && (
                   <>
                     {" "}
-                    To copy an agent from a workspace you already have, use{" "}
+                    {$t("components.welcome-flow.toCopyAnAgentFromA")}{" "}
                     <Link href={`/dashboard/${encodeURIComponent(p.workspaces[0])}/agents${p.qs}`} className="text-link hover:underline">
                       Agents → Import
                     </Link>
@@ -321,7 +322,7 @@ function Choice({ text, action }: { text: ReactNode; action: ReactNode }) {
 }
 
 function NoRights() {
-  return <p className="text-sm text-fg-muted">Ask an admin — your role cannot create workspaces.</p>;
+  return <p className="text-sm text-fg-muted">{$t("components.welcome-flow.askAnAdminYourRoleCannot")}</p>;
 }
 
 // ---- Next ----

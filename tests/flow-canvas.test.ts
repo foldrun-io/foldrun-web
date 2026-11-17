@@ -135,9 +135,9 @@ test("model: validation — missing agent, sub-agent without description or not 
     teamProblems(agents.lead, agents).map((p) => p.message),
     [
       'subagents: "quiet" has no description — the model picks a sub-agent by it',
-      'subagents: "nobody" is not an agent in this workspace',
+      'subagents: "nobody" is not an agent in this project',
       'subagents: "lead" is this agent itself',
-      'agents: "gone" is not an agent in this workspace',
+      'agents: "gone" is not an agent in this project',
     ],
   );
   const f = parse(raw);
@@ -147,7 +147,7 @@ test("model: validation — missing agent, sub-agent without description or not 
     agents,
     flows: [],
     warnings: [
-      { step: 0, message: "[[ghost]] is not an agent in this workspace" },
+      { step: 0, message: "[[ghost]] is not an agent in this project" },
       { step: 1, message: "verify: reads as a sentence, so it will be run as a shell command" },
     ],
   });

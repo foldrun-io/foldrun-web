@@ -1,0 +1,10 @@
+{
+  "page": {
+    "byWorkspace": "By {@workspace.one}",
+    "eachWorkspaceWithItsFlowsAnd": "Each {@workspace.one}, with its flows and agents broken out.",
+    "wholeWorkspace": "whole {@workspace.one}"
+  },
+  "tabs": {
+    "notShownToAMemberLimited": "not shown to a member limited to some {@workspace.other}"
+  }
+}

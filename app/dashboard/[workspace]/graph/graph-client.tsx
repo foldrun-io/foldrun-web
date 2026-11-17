@@ -10,6 +10,7 @@
 // in the side panel; double-click to open it. The highlight is plain CSS
 // keyed on node ids, so hovering a map of hundreds re-renders nothing.
 
+import { $t } from "@/i18n";
 import "@xyflow/react/dist/style.css";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "@foldrun/ui/react/link";
@@ -89,7 +90,7 @@ const KIND_WORD: Record<Kind, string> = {
   skill: "Skill",
   knowledge: "Knowledge",
   memory: "Memory",
-  scope: "Workspace",
+  scope: $t("workspace.graph-graph-client.workspace"),
 };
 
 /** A kind's lucide icon — the only thing on a card that says what it is. */
@@ -115,7 +116,7 @@ function KindIcon({ kind, scope, className }: { kind: Kind; scope?: Scope; class
 
 type FilterKey = "scope" | "flow" | "agent" | "tool" | "skill" | "knowledge" | "memory";
 const FILTERS: { key: FilterKey; label: string; icon: LucideIcon }[] = [
-  { key: "scope", label: "Account and workspaces", icon: Boxes },
+  { key: "scope", label: $t("workspace.graph-graph-client.accountAndWorkspace"), icon: Boxes },
   { key: "flow", label: "Flows", icon: Workflow },
   { key: "agent", label: "Agents", icon: Bot },
   { key: "tool", label: "Tools", icon: Wrench },
@@ -335,7 +336,7 @@ function GraphView({
       const plural = (k: number, one: string, many = `${one}s`) => `${k} ${k === 1 ? one : many}`;
       const owner = () => {
         if (n.scope === "account") return "library";
-        if (n.scope === "workspace") return workspace ? "workspace" : (workspaceOf(n) ?? "workspace");
+        if (n.scope === "workspace") return workspace ? $t("common.workspaceOne") : (workspaceOf(n) ?? $t("common.workspaceOne"));
         return n.id.split(":")[2] ?? "agent";
       };
       const stats = n.stats;
@@ -345,7 +346,7 @@ function GraphView({
       switch (n.kind) {
         case "scope":
           return n.scope === "account"
-            ? { meta: `${plural(count("Contains", "scope"), "workspace")} · ${count("Contains") - count("Contains", "scope")} shared` }
+            ? { meta: `${plural(count("Contains", "scope"), $t("common.workspaceOne"), $t("common.workspaceOther"))} · ${count("Contains") - count("Contains", "scope")} shared` }
             : { meta: `${plural(count("Contains", "agent"), "agent")} · ${plural(count("Contains", "flow"), "flow")}` };
         case "flow":
           return { meta: runLine ?? `${plural(count("Steps"), "step")} · never ran`, title };
@@ -554,8 +555,8 @@ function GraphView({
         title={heading}
         description={
           workspace
-            ? "How this workspace's flows, agents, tools and files connect."
-            : "Every workspace, agent, flow and file, and what is shared across them."
+            ? $t("workspace.graph-graph-client.howThisWorkspaceSFlowsAgents")
+            : $t("workspace.graph-graph-client.everyWorkspaceAgentFlowAndFile")
         }
         className="mb-5"
         actions={
@@ -643,7 +644,7 @@ function GraphView({
               className="h-full"
               icon={<Network />}
               title="Nothing to graph yet"
-              description={emptyMessage ?? "Add an agent to this workspace and it appears here."}
+              description={emptyMessage ?? $t("workspace.graph-graph-client.addAnAgentToThisWorkspace")}
             />
           ) : (
             <ReactFlow<CardNode, WireEdge>
@@ -871,7 +872,7 @@ function linksFor(n: GNode, tenant: string): { label: string; href: string }[] {
   switch (n.kind) {
     case "scope":
       if (n.scope === "account") out.push({ label: "Open library", href: `/dashboard/library${q}` });
-      else if (n.href) out.push({ label: "Open workspace", href: n.href });
+      else if (n.href) out.push({ label: $t("workspace.graph-graph-client.openWorkspace"), href: n.href });
       break;
     case "agent":
       if (ws) out.push({ label: "Open agent", href: `/dashboard/${ws}/agents/${encodeURIComponent(n.label)}${q}` });
@@ -892,7 +893,7 @@ function linksFor(n: GNode, tenant: string): { label: string; href: string }[] {
   return out;
 }
 
-const SCOPE_WORD: Record<Scope, string> = { account: "Account library", workspace: "Workspace", agent: "Agent's own" };
+const SCOPE_WORD: Record<Scope, string> = { account: "Account library", workspace: $t("workspace.graph-graph-client.workspace"), agent: "Agent's own" };
 
 function Details({
   node,
@@ -916,7 +917,7 @@ function Details({
   const stats = node.stats;
   const outcome = stats ? outcomeOfStatus(stats.last) : null;
   const ws = workspaceOf(node);
-  const kindWord = node.kind === "scope" ? (node.scope === "account" ? "Account" : "Workspace") : KIND_WORD[node.kind];
+  const kindWord = node.kind === "scope" ? (node.scope === "account" ? "Account" : $t("workspace.graph-graph-client.workspace")) : KIND_WORD[node.kind];
   const asset = !isMajor(node.kind);
   const sub = [kindWord, asset && node.scope ? SCOPE_WORD[node.scope] : null, node.kind !== "scope" && ws ? ws : null].filter(Boolean).join(" · ");
   const links = linksFor(node, tenant);
@@ -983,7 +984,7 @@ function Details({
                       >
                         <KindIcon kind={n.kind} scope={n.scope} className="size-4 shrink-0 text-fg-muted" />
                         <span className="min-w-0 flex-1 truncate text-fg">{n.label}</span>
-                        <span className="shrink-0 text-xs text-fg-subtle">{n.kind === "scope" ? (n.scope === "account" ? "account" : "workspace") : n.kind}</span>
+                        <span className="shrink-0 text-xs text-fg-subtle">{n.kind === "scope" ? (n.scope === "account" ? "account" : $t("common.workspaceOne")) : n.kind}</span>
                         {o && <StatusDot outcome={o} />}
                       </button>
                     </li>

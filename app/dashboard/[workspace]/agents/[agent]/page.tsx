@@ -6,6 +6,7 @@
 // is only findable by knowing the `adhoc:` prefix. This is the other axis:
 // what it is allowed to do at the top, what it has produced underneath.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
 import { Pager } from "@foldrun/ui/react/pager";
@@ -246,13 +247,13 @@ export default async function AgentPage({
           />
           <SettingsCard
             title="Export"
-            description="The agent's folder as a .zip — its agent.md, own skills, memory and tools — to import into another workspace or account."
+            description={$t("workspace.agents-agent-page.theAgentSFolderAsA")}
             footer={<ExportLink workspace={workspace} kind="agent" name={agent} className={buttonVariants({ variant: "secondary" })} />}
           />
           <SettingsCard
             danger
             title="Delete agent"
-            description={callers.length ? `Deleting it breaks ${callers.length === 1 ? "the flow" : "the flows"} that step through it: ${callers.join(", ")}.` : "Its folder is removed from the workspace. Runs it took part in stay on record."}
+            description={callers.length ? `Deleting it breaks ${callers.length === 1 ? "the flow" : "the flows"} that step through it: ${callers.join(", ")}.` : $t("workspace.agents-agent-page.itsFolderIsRemovedFromThe")}
             footer={
               <DeleteButton
                 variant="button"

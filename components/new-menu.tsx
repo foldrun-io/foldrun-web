@@ -6,6 +6,7 @@
 // Each item opens the existing create dialog on its own page (?create=<kind>),
 // so there is one create flow per noun, not two. Hidden for viewers.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Bot, Boxes, FlaskConical, Plus, Webhook, Workflow, Wrench, BookOpen } from "lucide-react";
@@ -33,7 +34,7 @@ export function NewMenu() {
         { name: "Hook", hint: "Your code at every tool call", href: `${base}/assets?kind=hooks&create=hooks${t}`, icon: Webhook },
       ]
     : [
-        { name: "Shared tool", hint: "For every workspace", href: `/dashboard/library?kind=tools&create=tools${t}`, icon: Wrench },
+        { name: "Shared tool", hint: $t("components.new-menu.forEveryWorkspace"), href: `/dashboard/library?kind=tools&create=tools${t}`, icon: Wrench },
         { name: "Shared skill", hint: "A procedure any agent can follow", href: `/dashboard/library?kind=skills&create=skills${t}`, icon: BookOpen },
       ];
 
@@ -63,7 +64,7 @@ export function NewMenu() {
           <Link href={`/dashboard?create=workspace${t}`} className="items-start!">
             <Boxes className="mt-0.5" />
             <span className="flex flex-col">
-              <span className="text-fg">Workspace</span>
+              <span className="text-fg">{$t("components.new-menu.workspace")}</span>
               <span className="text-xs text-fg-muted">Its own agents, flows, secrets and runs</span>
             </span>
           </Link>

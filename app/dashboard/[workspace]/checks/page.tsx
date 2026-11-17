@@ -6,6 +6,7 @@
 // The page frames it; the panel asks GET …/check, the same answer a CI job
 // gets, so the dashboard and the API cannot disagree about a finding.
 
+import { $t } from "@/i18n";
 import fs from "node:fs";
 import Link from "@foldrun/ui/react/link";
 import { notFound } from "next/navigation";
@@ -38,7 +39,7 @@ export default async function ChecksPage({
     <Page>
       <PageHeader
         title="Checks"
-        description="What foldrun check says about this workspace as deployed: what a deploy refuses, what it warns about, and the security rules. Offline; no model is called."
+        description={$t("workspace.checks-page.whatFoldrunCheckSaysAboutThis")}
         actions={
           <Link href="https://docs.foldrun.io/checks" className={buttonVariants({ variant: "secondary", size: "md" })}>
             <BookOpen aria-hidden />

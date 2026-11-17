@@ -15,6 +15,7 @@
 //          holds. A node's first `owns` edge is its parent; a built-in tool,
 //          owned by nothing, hangs off the agent that uses it.
 
+import { $t } from "@/i18n";
 import type { GLink, GNode, Kind } from "@/server/graph";
 
 export type LayoutName = "map" | "tree";
@@ -94,7 +95,7 @@ function columnLabel(key: (typeof LAYER_KEYS)[number], nodes: GNode[]): string {
   switch (key) {
     case "scopes": {
       const ws = nodes.filter((x) => x.scope !== "account").length;
-      return ws === 0 ? "Account" : ws === 1 ? "Workspace" : "Workspaces";
+      return ws === 0 ? "Account" : ws === 1 ? $t("components.graph-layout-model.workspace") : $t("components.graph-layout-model.workspace2");
     }
     case "flows":
       return n === 1 ? "Flow" : "Flows";

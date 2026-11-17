@@ -7,6 +7,7 @@
 // written. Both must be readable on the run page without opening the trace.
 // Pure, so tests/step-image.test.ts pins the wording.
 
+import { $t } from "@/i18n";
 import type { StepRecord } from "@/lib/store";
 import { browserPodLine, podTriesLine } from "@/lib/browser-pod";
 import { startupBreakdown } from "@/lib/startup";
@@ -158,7 +159,7 @@ export function stepRefused(step: Pick<StepRecord, "refused">): RefusedView | nu
   const what = [config ? "configuration" : null, code ? "code" : null].filter(Boolean).join(" and ");
   return {
     line:
-      `This step changed the workspace's ${what}; ${r.length === 1 ? "that change was" : "those changes were"} not kept. ` +
+      $t("components.step-image-model.thisStepChangedTheWorkspaceS", { what: String(what), changes: String(r.length === 1 ? "that change was" : "those changes were") }) +
       `A run doesn't change its own setup — propose it as a fix, and a person applies it.`,
     paths: r.map((x) => x.path),
   };

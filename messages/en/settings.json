@@ -1,0 +1,83 @@
+{
+  "api-settings": {
+    "theAccountSApiUseIs": "The account's API use is shown to members with every {@workspace.one}."
+  },
+  "audit-page": {
+    "everyWorkspace": "every {@workspace.one}",
+    "noWorkspace": "no {@workspace.one}",
+    "theAuditLogIsForThe": "The audit log is for the account's owner and admins who can open every {@workspace.one}. Ask the owner if you need it.",
+    "workspace": "{@workspace.One}"
+  },
+  "backups-controls": {
+    "aDateMeansTheLastCommit": ". A date means the last commit at or before it; see every commit on the {@workspace.one}'s History page.",
+    "allWorkspace": "all {@workspace.other}",
+    "askingForARestoreNeedsThe": "Asking for a restore needs the admin role and access to every {@workspace.one}.",
+    "noWorkspaceHasAnyHistoryTo": "No {@workspace.one} has any history to restore from yet.",
+    "restoringAWorkspaceNeedsTheEditor": "Restoring a {@workspace.one} needs the editor role or above.",
+    "workspace": "{@workspace.One}"
+  },
+  "backups-page": {
+    "everyChangeToAWorkspaceS": "Every change to a {@workspace.one}'s files is also a commit in its own history — that is what you can restore yourself.",
+    "putAWorkspaceSAgentsFlows": "Put a {@workspace.one}'s agents, flows, knowledge and tools back as they were at a point in its history. Runs, state, storage and secrets are not touched, and the restore is itself one more change you can undo.",
+    "restoreAWorkspace": "Restore a {@workspace.one}"
+  },
+  "beta": {
+    "onlyAnAdminOfEveryWorkspace": "Only an admin of every {@workspace.one} can change this."
+  },
+  "close-account": {
+    "workspaceMembersAnIndexOfEvery": "{@workspace.Other}, members, an index of every run, and the whole billing ledger, as one JSON file."
+  },
+  "connections": {
+    "allIncludesWorkspaceMadeLaterA": "\"All\" includes {@workspace.other} made later. A change applies to runs that start after it — stop a running one to cut it off now.",
+    "allWorkspace": "All {@workspace.other}",
+    "everyWorkspaceInThisAccount": "every {@workspace.one} in this account",
+    "noneNoWorkspaceCanUseIt": "none — no {@workspace.one} can use it",
+    "selectedWorkspace": "Selected {@workspace.other}",
+    "workspace": "{@workspace.Other}",
+    "workspaceThatMayUse": "{@workspace.Other} that may use {name}",
+    "workspaceThatMayUseIt": "{@workspace.Other} that may use it"
+  },
+  "customers": {
+    "anAdminWithEveryWorkspaceChanges": "An admin with every {@workspace.one} changes these."
+  },
+  "keys": {
+    "aKeyIsYouOnA": "A key is you, on a machine: the CLI and the HTTP API. It carries a role no higher than yours and opens no {@workspace.one} you cannot.",
+    "aNewKeyWithThisLabel": "A new key with this label, role and {@workspace.other} —",
+    "allWorkspace": "all {@workspace.other}",
+    "anA2aKeyLetsAnOutside": "An A2A key lets an outside agent call published flows of one {@workspace.one} over A2A — nothing else: every /api route refuses it, and it can never approve a gate or answer a question.",
+    "everyWorkspaceInTheAccount": "Every {@workspace.one} in the account",
+    "keyOpensAll": "The key will open every {@workspace.one}, at the role you pick — never above your own.",
+    "keyOpensScoped": "The key will open the {n, plural, one {# {@workspace.one}} other {# {@workspace.other}}} you can open, at the role you pick — never above your own.",
+    "limitToSomeWorkspace": "Limit to some {@workspace.other}",
+    "noFlowsInThisWorkspace": "No flows in this {@workspace.one}.",
+    "noWorkspace": "no {@workspace.other}",
+    "noWorkspaceYet": "No {@workspace.other} yet.",
+    "theWorkspaceThisKeyOpensIts": "The {@workspace.other} this key opens — its minter's at the time, or fewer",
+    "theWorkspaceWhoseFlowsTheA2a": "The {@workspace.one} whose flows the A2A key may call",
+    "workspace": "{@workspace.One}"
+  },
+  "mcp-connections": {
+    "aProgramThatSignsInTo": "A program that signs in to /api/mcp with client credentials — no person approves each token. It acts within your role and {@workspace.other}.",
+    "allWorkspace": "all {@workspace.other}",
+    "workspace": "{@workspace.Other}"
+  },
+  "model-key": {
+    "anAgentWorkspaceOrAgentsMd": "An agent, {@workspace.one} or AGENTS.md may name its own",
+    "everyStepRunsOnThisKey": "Every step runs on this key unless an agent, {@workspace.one} or the account's AGENTS.md names its own"
+  },
+  "page": {
+    "everyCronInEveryWorkspaceWith": "Every cron in every {@workspace.one}, with its next two fires. The scheduler checks every 30 seconds.",
+    "everyWorkspaceInheritsThisUntilIt": "Every {@workspace.one} inherits this until it sets its own notify:, which replaces it whole.",
+    "howTheAgentsWorkIsJudged": "How the agents' work is judged. In AGENTS.md: evaluation:. Each {@workspace.one}'s evals are on its Evals page.",
+    "itIsEveryWorkspaceSOnly": "It is every {@workspace.one}'s: only a member with access to all of them sees it.",
+    "proseEveryAgentReadsAboveIts": "Prose every agent reads, above its {@workspace.one}'s and its own.",
+    "theAccountSOwnAgentsMd": "The account's own AGENTS.md: what every agent in every {@workspace.one} reads first, and the defaults above as frontmatter. A {@workspace.one}'s AGENTS.md adds to it. Checked as a deploy checks it before it is saved."
+  },
+  "team": {
+    "allWorkspace": "All {@workspace.other}",
+    "allWorkspace2": "all {@workspace.other}",
+    "noWorkspaceYet": "No {@workspace.other} yet.",
+    "plusWorkspaceSecretsKeysAndThe": "plus {@workspace.other}, secrets, keys and the team",
+    "workspace": "{@workspace.Other}"
+  }
+}

@@ -7,6 +7,7 @@
 // of another's uploads — so uploading happens on a desk's own page, a link
 // away on each card. Genuinely shared assets belong in the account library.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { listWorkspaces } from "@/lib/store";
 import { scopeAllows } from "@/platform/scope";
@@ -32,7 +33,7 @@ export default async function AccountStoragePage({ searchParams }: { searchParam
         <EmptyState
           icon={<HardDrive />}
           title="No file store on this instance"
-          description={<>This instance runs a single workspace from a folder on disk, so <code className="font-mono text-xs">storage/</code> is a directory in that folder.</>}
+          description={<>{$t("storage.page.thisInstanceRunsASingleWorkspace")}{" "}<code className="font-mono text-xs">storage/</code> is a directory in that folder.</>}
         />
       </Page>
     );

@@ -1,0 +1,131 @@
+{
+  "agents-agent-agent-network": {
+    "workspaceOrDefault": "{@workspace.one} or default"
+  },
+  "agents-agent-page": {
+    "itsFolderIsRemovedFromThe": "Its folder is removed from the {@workspace.one}. Runs it took part in stay on record.",
+    "theAgentSFolderAsA": "The agent's folder as a .zip — its agent.md, own skills, memory and tools — to import into another {@workspace.one} or account."
+  },
+  "agents-import-agent": {
+    "copyAnAgentFromAnotherWorkspace": "Copy an agent from another {@workspace.one} into",
+    "noOtherWorkspaceInThisAccount": "No other {@workspace.one} in this account has an agent yet."
+  },
+  "agents-page": {
+    "anAgentIsAFolderUnder": "An agent is a folder under agents/ with an agent.md inside. Bring in one you already have from another {@workspace.one}, create a new one, or push it with the CLI.",
+    "noAgentsInThisWorkspaceYet": "No agents in this {@workspace.one} yet"
+  },
+  "assets-asset-row": {
+    "everyWorkspaceInThisAccountWill": "Every {@workspace.one} in this account will be able to use it.",
+    "fromEveryWorkspaceInThisAccount": "from every {@workspace.one} in this account",
+    "moveToTheSharedLibraryUsable": "Move to the shared library, usable by every {@workspace.one}"
+  },
+  "assets-page": {
+    "capabilitiesEveryAgentInThisWorkspace": "Capabilities every agent in this {@workspace.one} can load, in the open Agent Skills format.",
+    "everyAgentInEveryWorkspaceOf": "Every agent in every {@workspace.one} of this account.",
+    "everyAgentInThisWorkspace": "Every agent in this {@workspace.one}.",
+    "inThisWorkspace": "in this {@workspace.one}",
+    "noInThisWorkspaceYet": "No {kind} in this {@workspace.one} yet",
+    "sharedFromTheAccountLibraryEditing": "Shared from the account library — editing it changes every {@workspace.one}.",
+    "thisWorkspaceS": "this {@workspace.one}'s",
+    "whatAgentsInThisWorkspaceHave": "What agents in this {@workspace.one} have learned. One fact per file; the index is generated and loaded into every run.",
+    "whatAgentsInThisWorkspaceHave2": "What agents in this {@workspace.one} have learned, one fact per file.",
+    "workspace": "{@workspace.One}"
+  },
+  "checks-page": {
+    "whatFoldrunCheckSaysAboutThis": "What foldrun check says about this {@workspace.one} as deployed: what a deploy refuses, what it warns about, and the security rules. Offline; no model is called."
+  },
+  "edit-page": {
+    "everythingThisWorkspaceIsMadeOf": "Everything this {@workspace.one} is made of, as files. Runs, storage and secrets live elsewhere.",
+    "everythingUnderInThisWorkspace": "Everything under {raw}/ in this {@workspace.one}.",
+    "noHooksInThisWorkspaceYet": "No hooks in this {@workspace.one} yet — foldrun hook add '<'name'>' --on tool.call makes one.",
+    "noSkillsInThisWorkspaceYet": "No skills in this {@workspace.one} yet.",
+    "whatPastRunsWorkedOutWritten": "What past runs worked out, written by the agents themselves — the {@workspace.one}'s and each agent's own.",
+    "whatThisWorkspaceCarriesBetweenRuns": "What this {@workspace.one} carries between runs — a cursor, a count, where you got to. Agents read these at the start of a run and update them before they finish."
+  },
+  "evals-eval-card": {
+    "notFoundInThisWorkspace": "\" not found in this {@workspace.one}."
+  },
+  "evals-grader-card": {
+    "notFoundInThisWorkspace": "\" not found in this {@workspace.one}."
+  },
+  "evals-page": {
+    "noEvalsInThisWorkspaceYet": "No evals in this {@workspace.one} yet"
+  },
+  "evals-proposals": {
+    "sameAsTheFileInThe": "Same as the file in the {@workspace.one}."
+  },
+  "flows-flow-board": {
+    "thisWorkspace": "— this {@workspace.one}"
+  },
+  "flows-flow-canvas": {
+    "createsAgentsNameAgentMdIn": "Creates agents/'<'name'>'/agent.md in this {@workspace.one}, from the template.",
+    "flowXAnotherFlowOfThis": "[[flow:x]] — another flow of this {@workspace.one}, as one step",
+    "isNotAnAgentInThis": "{owner} is not an agent in this {@workspace.one}",
+    "isNotAnAgentInThis2": "{name} is not an agent in this {@workspace.one}",
+    "isNotAnAgentInThis3": "{agent} is not an agent in this {@workspace.one}",
+    "thereIsNoOtherFlowIn": "there is no other flow in this {@workspace.one} to run",
+    "thisWorkspace": "— this {@workspace.one}"
+  },
+  "flows-page": {
+    "itsFileIsRemovedFromThe": "Its file is removed from the {@workspace.one}. Its runs stay on record.",
+    "noFlowsInThisWorkspaceYet": "No flows in this {@workspace.one} yet",
+    "theFlowAsAZipThe": "The flow as a .zip — the flow file and the agents, tools and skills it needs — to import into another {@workspace.one} or account."
+  },
+  "flows-trigger-editor": {
+    "theUrlAppearsUnderThisWorkspace": "The URL appears under this {@workspace.one}'s Settings → Triggers."
+  },
+  "graph-flow-panel": {
+    "noFlowsInThisWorkspaceYet": "No flows in this {@workspace.one} yet."
+  },
+  "graph-graph-client": {
+    "accountAndWorkspace": "Account and {@workspace.other}",
+    "addAnAgentToThisWorkspace": "Add an agent to this {@workspace.one} and it appears here.",
+    "everyWorkspaceAgentFlowAndFile": "Every {@workspace.one}, agent, flow and file, and what is shared across them.",
+    "howThisWorkspaceSFlowsAgents": "How this {@workspace.one}'s flows, agents, tools and files connect.",
+    "openWorkspace": "Open {@workspace.one}",
+    "workspace": "{@workspace.One}"
+  },
+  "history-history-list": {
+    "theWorkspaceBecomesWhatItWas": "The {@workspace.one} becomes what it was at \"{message}\". Everything after it is kept in history, and runs, state and storage are not touched."
+  },
+  "history-page": {
+    "everyChangeToThisWorkspaceSaves": "Every change to this {@workspace.one} — saves, deploys, deletions — newest first. Open one to see its diff; roll back to any of them."
+  },
+  "page": {
+    "workspaceSettings": "{@workspace.One} settings"
+  },
+  "runs-page": {
+    "allWorkspace": "All {@workspace.other}"
+  },
+  "settings-page": {
+    "aWorkspaceSNotifyReplacesThe": "A {@workspace.one}'s notify: replaces the account's — a URL is a destination, and merging two sends half your alerts to a channel you stopped reading.",
+    "credentialsThisWorkspaceSAgentsRead": "Credentials this {@workspace.one}'s agents read as $'{'NAME'}'. Account secrets are inherited and marked; one set here overrides it.",
+    "deleteThisWorkspace": "Delete this {@workspace.one}",
+    "deleteWorkspaceAndEverythingInIt": "Delete {@workspace.one} {workspace} and everything in it?",
+    "exportWorkspace": "Export {@workspace.one}",
+    "howThisWorkspaceSWorkIs": "How this {@workspace.one}'s work is judged.",
+    "shownOnTheWorkspaceSCard": "Shown on the {@workspace.one}'s card, in the switcher and in Find.",
+    "thisWorkspaceAsAZipAgents": "This {@workspace.one} as a .zip — agents, flows, tools, skills, scripts, evals and knowledge. Never memory, state, storage, runs or a secret's value; the names of the secrets it uses travel so the importer can set them.",
+    "thisWorkspaceSAgentsMd": "this {@workspace.one}'s AGENTS.md",
+    "whatThisWorkspaceSAgentsMay": "What this {@workspace.one}'s agents may reach and call. Each agent's own limits, network and hooks are on its page.",
+    "whereThisWorkspaceSModelCalls": "Where this {@workspace.one}'s model calls go, unless an agent pins its own. To point it elsewhere, add a",
+    "whoAnswersForThisWorkspaceS": "Who answers for this {@workspace.one}'s agents, and what it may spend. In its AGENTS.md: governance:; unset, the account's.",
+    "whoIsToldAboutThisWorkspace": "Who is told about this {@workspace.one}'s runs, and when. Set here, notify: and alerts: replace the account's whole."
+  },
+  "storage-page": {
+    "thisInstanceRunsASingleWorkspace": "This instance runs a single {@workspace.one} from a folder on disk, so"
+  },
+  "triggers-a2a-panel": {
+    "a2aKeysForThisWorkspace": "A2A keys for this {@workspace.one}"
+  },
+  "triggers-page": {
+    "everyNotificationThisWorkspaceS": "Every notification this {@workspace.one}'s",
+    "notInTheWorkspaceAnyMore": "Not in the {@workspace.one} any more",
+    "scheduledWebhookEmailStorageWatchAnd": "Scheduled, webhook, email, storage, watch and chained flows are listed here with what they fired and what became a run. A {@workspace.one} of manual flows stays empty, which is correct."
+  },
+  "triggers-webhook-deliveries": {
+    "aWorkspaceWhoseNotifyIsA": "A {@workspace.one} whose notify: is a url records every one here — failures, approval requests, tests.",
+    "newNotificationsAreRecordedBelowBut": ". New notifications are recorded below but not sent. Fix the receiver, then Redeliver any delivery (or send a test from {@workspace.One} settings) — an accepted one switches it back on. Changing the URL in",
+    "thisWorkspaceSWebhookIs": "This {@workspace.one}'s webhook is"
+  }
+}

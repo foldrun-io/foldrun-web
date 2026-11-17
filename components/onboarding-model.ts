@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 // Getting started: the steps a new account goes through, each derived from
 // what is really there — a workspace on disk, a run on record, a secret in
 // the vault — never from a checklist someone ticks. So a step is done the
@@ -93,8 +94,8 @@ export function onboardingSteps(f: OnboardingFacts, hidden: readonly string[] = 
       : []),
     {
       id: "workspace",
-      title: "Create a workspace",
-      why: "A workspace holds one desk's agents, flows, secrets and runs.",
+      title: $t("components.onboarding-model.createAWorkspace"),
+      why: $t("components.onboarding-model.aWorkspaceHoldsOneDeskS"),
       href: "/dashboard/welcome?step=start",
       cli: "foldrun init && foldrun deploy",
       done: f.workspaces.length > 0,

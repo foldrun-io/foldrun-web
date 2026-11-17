@@ -1,5 +1,6 @@
 "use client";
 
+import { $t } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
 import { WithEmails } from "@/components/email";
@@ -299,7 +300,7 @@ export function KeyManager({
           <SettingsCard
             id="create-key"
             title="Create a key"
-            description="A key is you, on a machine: the CLI and the HTTP API. It carries a role no higher than yours and opens no workspace you cannot."
+            description={$t("settings.keys.aKeyIsYouOnA")}
             hint={
               kind === "a2a"
                 ? "Opens /a2a only — every /api route refuses it."
@@ -356,17 +357,17 @@ export function KeyManager({
                       for the flows named here (each published with a2a: — a flow
                       not published cannot be chosen, FOL-112), and
                       no /api route — not runs, approvals, source or keys. */}
-                  <p>An A2A key lets an outside agent call published flows of one workspace over A2A — nothing else: every /api route refuses it, and it can never approve a gate or answer a question.</p>
+                  <p>{$t("settings.keys.anA2aKeyLetsAnOutside")}</p>
                   <div className="flex flex-wrap items-center gap-4">
                     <label className="inline-flex items-center gap-2 text-fg">
-                      Workspace
+                      {$t("settings.keys.workspace")}
                       <Select
                         value={a2aWs}
                         onChange={(e) => {
                           setA2aWs(e.target.value);
                           setA2aChosen([]);
                         }}
-                                                aria-label="The workspace whose flows the A2A key may call"
+                                                aria-label={$t("settings.keys.theWorkspaceWhoseFlowsTheA2a")}
                       >
                         {workspaces.map((w) => (
                           <option key={w} value={w}>
@@ -399,7 +400,7 @@ export function KeyManager({
                         </label>
                       </Tooltip>
                     ))}
-                    {(a2aFlows[a2aWs] ?? []).length === 0 && <span>No flows in this workspace.</span>}
+                    {(a2aFlows[a2aWs] ?? []).length === 0 && <span>{$t("settings.keys.noFlowsInThisWorkspace")}</span>}
                   </div>
                 </div>
               )}
@@ -467,11 +468,11 @@ export function KeyManager({
                       and only workspaces you can open. */}
                   <label className="inline-flex items-center gap-2 text-fg">
                     <Checkbox checked={narrow} onCheckedChange={(checked: boolean) => setNarrow(checked)} />
-                    Limit to some workspaces
+                    {$t("settings.keys.limitToSomeWorkspace")}
                   </label>
                   {!narrow && (
                     <p className="mt-1">
-                      The key will open {scoped ? `the ${workspaces.length} workspace${workspaces.length === 1 ? "" : "s"} you can open` : "every workspace"}, at the role you pick — never above your own.
+                      {scoped ? $t("settings.keys.keyOpensScoped", { n: workspaces.length }) : $t("settings.keys.keyOpensAll")}
                     </p>
                   )}
                   {narrow && (
@@ -482,7 +483,7 @@ export function KeyManager({
                           {w}
                         </label>
                       ))}
-                      {workspaces.length === 0 && <span>No workspaces yet.</span>}
+                      {workspaces.length === 0 && <span>{$t("settings.keys.noWorkspaceYet")}</span>}
                     </div>
                   )}
                 </div>
@@ -620,8 +621,8 @@ export function KeyManager({
                           </Tooltip>
                         )}
                         {!k.scope && k.purpose !== "a2a" && k.purpose !== "gateway" && (
-                          <Tooltip label={k.workspaces ? "The workspaces this key opens — its minter's at the time, or fewer" : "Every workspace in the account"}>
-                            <span>{k.workspaces ? (k.workspaces.length === 0 ? "no workspaces" : k.workspaces.join(", ")) : "all workspaces"}</span>
+                          <Tooltip label={k.workspaces ? $t("settings.keys.theWorkspaceThisKeyOpensIts") : $t("settings.keys.everyWorkspaceInTheAccount")}>
+                            <span>{k.workspaces ? (k.workspaces.length === 0 ? $t("settings.keys.noWorkspace") : k.workspaces.join(", ")) : $t("settings.keys.allWorkspace")}</span>
                           </Tooltip>
                         )}
                         {k.origin === "cli-login" && !k.revokedAt && (
@@ -713,7 +714,7 @@ export function KeyManager({
                       )}
                       {rotating === k.id && (
                         <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-line bg-sunken p-3 text-sm">
-                          <span className="text-fg-muted">{k.purpose === "gateway" ? "A new key with this label and limits (its spend starts afresh) —" : "A new key with this label, role and workspaces —"}</span>
+                          <span className="text-fg-muted">{k.purpose === "gateway" ? "A new key with this label and limits (its spend starts afresh) —" : $t("settings.keys.aNewKeyWithThisLabel")}</span>
                           <Select value={grace} onChange={(e) => setGrace(e.target.value)} size="sm" aria-label="What happens to the old key">
                             {GRACE.map((g) => (
                               <option key={g.v} value={g.v}>

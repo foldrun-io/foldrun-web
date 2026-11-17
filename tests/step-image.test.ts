@@ -127,7 +127,7 @@ test("refused paths: named on the run page, quiet when there were none (FOL-96)"
   assert.equal(stepRefused({ refused: [] }), null);
   const one = stepRefused({ refused: [{ path: "AGENTS.md", kind: "config" }] });
   assert.deepEqual(one?.paths, ["AGENTS.md"]);
-  assert.match(one!.line, /changed the workspace's configuration; that change was not kept/);
+  assert.match(one!.line, /changed the project's configuration; that change was not kept/);
   const both = stepRefused({ refused: [{ path: "flows/x.md", kind: "config" }, { path: "scripts/r.py", kind: "code" }] });
   assert.match(both!.line, /configuration and code; those changes were not kept/);
   assert.deepEqual(both?.paths, ["flows/x.md", "scripts/r.py"]);

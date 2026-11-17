@@ -3,6 +3,7 @@
 // is running and what fires next, then the flows with their last runs as a
 // strip, and the agents. Files live on Edit; runs on Runs.
 
+import { $t } from "@/i18n";
 import { viewerScope, verifySession, SESSION_COOKIE } from "@/server/users";
 import { cookies } from "next/headers";
 import { onboardingPrefs, workspaceChecklistFor } from "@/server/onboarding";
@@ -169,7 +170,7 @@ export default async function ProjectPage({
               <FolderTree aria-hidden />
               Files
             </Link>
-            <Link href={`/dashboard/${workspace}/settings${qs}`} className={buttonVariants({ variant: "secondary", size: "icon-sm" })} aria-label="Workspace settings">
+            <Link href={`/dashboard/${workspace}/settings${qs}`} className={buttonVariants({ variant: "secondary", size: "icon-sm" })} aria-label={$t("workspace.page.workspaceSettings")}>
               <Settings aria-hidden />
             </Link>
           </>

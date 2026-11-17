@@ -2,6 +2,7 @@
 // (FOL-125). Server components over what GET /api/usage and GET /api/usage/rates
 // answer: the page and the API read the same function, so they cannot differ.
 
+import { $t } from "@/i18n";
 import { Calculator, Coins } from "lucide-react";
 import { Callout, Chip, EmptyState, SectionTitle, Stat, StatGrid } from "@foldrun/ui/react/page";
 import { DataTable } from "@foldrun/ui/react/table";
@@ -167,7 +168,7 @@ export function ComputeTab({ u }: { u: UsageBreakdowns }) {
       )}
       <p className="mt-3 max-w-3xl px-1 text-sm leading-relaxed text-fg-muted">
         Compute is priced on what a step reserves, per second, not on what it touched. Quantities are at today&apos;s rates; the ledger&apos;s
-        total for the period is {u.billed ? <strong className="font-medium text-fg">{fmtCredits(u.billed.totalCredits)} credits</strong> : "not shown to a member limited to some workspaces"}.
+        total for the period is {u.billed ? <strong className="font-medium text-fg">{fmtCredits(u.billed.totalCredits)} credits</strong> : $t("usage.tabs.notShownToAMemberLimited")}.
       </p>
     </>
   );

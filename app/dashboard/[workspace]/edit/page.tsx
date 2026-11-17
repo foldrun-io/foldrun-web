@@ -4,6 +4,7 @@
 // changes, a test box for a tool. One directory can be scoped in (state/,
 // from the sidebar), which narrows the tree and titles the page.
 
+import { $t } from "@/i18n";
 import fs from "node:fs";
 import path from "node:path";
 import Link from "@foldrun/ui/react/link";
@@ -33,7 +34,7 @@ export const dynamic = "force-dynamic";
 const SCOPES: Record<string, { title: string; blurb: string; empty?: string; list?: string }> = {
   state: {
     title: "State",
-    blurb: "What this workspace carries between runs — a cursor, a count, where you got to. Agents read these at the start of a run and update them before they finish.",
+    blurb: $t("workspace.edit-page.whatThisWorkspaceCarriesBetweenRuns"),
   },
   // The markdown an account is made of opens as files, the way State does:
   // a tree to walk and the file beside it. The cards stay one link away.
@@ -45,19 +46,19 @@ const SCOPES: Record<string, { title: string; blurb: string; empty?: string; lis
   },
   memory: {
     title: "Memory",
-    blurb: "What past runs worked out, written by the agents themselves — the workspace's and each agent's own.",
+    blurb: $t("workspace.edit-page.whatPastRunsWorkedOutWritten"),
     empty: "Agents write here as they learn — nothing yet.",
     list: "memory",
   },
   hooks: {
     title: "Hooks",
     blurb: "Your own code at the points every step passes through — one folder each, hook.md beside run.mjs. What they did lately is on the Hooks page.",
-    empty: "No hooks in this workspace yet — foldrun hook add <name> --on tool.call makes one.",
+    empty: $t("workspace.edit-page.noHooksInThisWorkspaceYet"),
   },
   skills: {
     title: "Skills",
     blurb: "Procedures an agent follows, one folder each with its SKILL.md.",
-    empty: "No skills in this workspace yet.",
+    empty: $t("workspace.edit-page.noSkillsInThisWorkspaceYet"),
     list: "skills",
   },
 };
@@ -67,7 +68,7 @@ const AGENT_SCOPED = new Set(Object.keys(SCOPES).filter((k) => SCOPES[k].list));
 
 function scopeOf(raw: string | undefined) {
   if (!raw || !(WORKSPACE_DIRS as readonly string[]).includes(raw)) return null;
-  return { dir: raw, ...(SCOPES[raw] ?? { title: raw.charAt(0).toUpperCase() + raw.slice(1), blurb: `Everything under ${raw}/ in this workspace.` }) };
+  return { dir: raw, ...(SCOPES[raw] ?? { title: raw.charAt(0).toUpperCase() + raw.slice(1), blurb: $t("workspace.edit-page.everythingUnderInThisWorkspace", { raw: String(raw) }) }) };
 }
 
 const KIND_LABEL: Record<FileKind, string> = {
@@ -266,7 +267,7 @@ export default async function EditPage({
         <>
           <PageHeader
             title={scope ? scope.title : "Files"}
-            description={scope ? scope.blurb : "Everything this workspace is made of, as files. Runs, storage and secrets live elsewhere."}
+            description={scope ? scope.blurb : $t("workspace.edit-page.everythingThisWorkspaceIsMadeOf")}
             actions={
               scope?.list ? (
                 <Link href={`/dashboard/${workspace}/assets?kind=${scope.list}${rest}`} className={buttonVariants({ variant: "secondary", size: "md" })}>

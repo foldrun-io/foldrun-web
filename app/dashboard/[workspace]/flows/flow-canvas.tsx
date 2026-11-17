@@ -21,6 +21,7 @@
 // Every one of those either writes the markdown or is a view choice that is
 // never saved; none keeps positions or a side file.
 
+import { $t } from "@/i18n";
 import "@xyflow/react/dist/style.css";
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -1033,7 +1034,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
   const addToTeam = async (index: number, dock: "sub" | "consult", worker?: string) => {
     const owner = steps[index]?.agent;
     const team = teams[owner];
-    if (!team) return refuse(`${owner} is not an agent in this workspace`);
+    if (!team) return refuse($t("workspace.flows-flow-canvas.isNotAnAgentInThis", { owner: String(owner) }));
     let name = worker;
     if (!name) {
       const v = await pickAgent(dock === "sub" ? `A sub-agent for ${owner}` : `A colleague ${owner} consults`);
@@ -1044,7 +1045,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
     const list = dock === "sub" ? team.subagents : team.consults;
     if (list.includes(name)) return refuse(`${name} is already ${dock === "sub" ? "a sub-agent" : "consulted"} here`);
     const w = teams[name];
-    if (!w) return refuse(`${name} is not an agent in this workspace`);
+    if (!w) return refuse($t("workspace.flows-flow-canvas.isNotAnAgentInThis2", { name: String(name) }));
     // The model picks a sub-agent by its description, and the runner skips
     // one without — so ask for it now rather than let check find it.
     if (dock === "sub" && !w.description.trim()) {
@@ -1240,7 +1241,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
     const s = steps[index];
     if (!s) return "no such step";
     if (s.subflow) return "A [[flow:x]] step is a whole flow — run that flow instead";
-    if (!teams[s.agent]) return `${s.agent} is not an agent in this workspace`;
+    if (!teams[s.agent]) return $t("workspace.flows-flow-canvas.isNotAnAgentInThis3", { agent: String(s.agent) });
     return false;
   };
 
@@ -1263,7 +1264,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
         return flowEdit({ op: "insert", target: v.agent, instruction: v.instruction, at: where });
       }
       case "subflow": {
-        if (!otherFlows.length) return refuse("there is no other flow in this workspace to run");
+        if (!otherFlows.length) return refuse($t("workspace.flows-flow-canvas.thereIsNoOtherFlowIn"));
         const v = await prompt({
           title: "Run another flow as a step",
           body: describeDrop(t, layout.columns.length),
@@ -1638,7 +1639,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
                 onClick={async () => {
                   const v = await prompt({
                     title: "New agent",
-                    body: "Creates agents/<name>/agent.md in this workspace, from the template.",
+                    body: $t("workspace.flows-flow-canvas.createsAgentsNameAgentMdIn"),
                     submit: "Create",
                     fields: [
                       { name: "name", label: "Name — lower case, digits, dashes", type: "text", required: true, placeholder: "researcher" },
@@ -1660,7 +1661,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
           </div>
           <div>
             <p className="text-[13px] font-medium text-fg-muted">Flows</p>
-            <Tooltip label="[[flow:x]] — another flow of this workspace, as one step">
+            <Tooltip label={$t("workspace.flows-flow-canvas.flowXAnotherFlowOfThis")}>
               <div
                 draggable
                 onDragStart={(e) => beginDrag(e, { kind: "pattern", pattern: "subflow" })}
@@ -1944,7 +1945,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
                           {others.length === 1 ? "that flow" : "those flows"} too.
                         </>
                       ) : (
-                        <> — this workspace{"'"}s agent; it can also be run on its own.</>
+                        <> {$t("workspace.flows-flow-canvas.thisWorkspace")}{"'"}s agent; it can also be run on its own.</>
                       );
                     })()}
                   </p>

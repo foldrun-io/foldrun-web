@@ -8,6 +8,7 @@
 // live run is, or what it concluded), then the outcome, when, how long and
 // what it cost.
 
+import { $t } from "@/i18n";
 import { creditsShort } from "@/components/money";
 import Link from "@foldrun/ui/react/link";
 import { paginate, PAGE_SIZE } from "@foldrun/ui/react/paging";
@@ -111,7 +112,7 @@ export function RunsTable({
               <SelectAllCheckbox label="Select every run on this page" />
             </th>
             <th className={TH}>Run</th>
-            {showWorkspace && <th className={cn(TH, "max-lg:hidden")}>Workspace</th>}
+            {showWorkspace && <th className={cn(TH, "max-lg:hidden")}>{$t("components.runs-table.workspace")}</th>}
             <th className={TH}>Status</th>
             <th className={cn(TH, "max-sm:hidden")}>Started</th>
             <th className={cn(TH, "max-md:hidden")}>Duration</th>
@@ -351,7 +352,7 @@ export function RunFilters({
 }) {
   const dimensions: FilterDimension[] = [
     ...(workspaces
-      ? [{ key: "workspace", label: "Workspace", kind: "select" as const, allLabel: "All workspaces", options: workspaces.map((value) => ({ value })), resets: ["flow"] }]
+      ? [{ key: "workspace", label: $t("components.runs-table.workspace"), kind: "select" as const, allLabel: $t("components.runs-table.allWorkspace"), options: workspaces.map((value) => ({ value })), resets: ["flow"] }]
       : []),
     { key: "flow", label: "What ran", kind: "select" as const, allLabel: "Everything that ran", options: flows.map((value) => ({ value })) },
     { key: "status", label: "Status", kind: "chips" as const, allLabel: "Any status", options: RUN_STATUSES.map((value) => ({ value, label: STATUS_LABEL[value] })) },

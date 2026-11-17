@@ -26,6 +26,7 @@
 // above it. It uses CreateForm directly. That is the split doing its job:
 // sharing the interaction without claiming a workspace is a kind of document.
 
+import { $t } from "@/i18n";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -87,7 +88,7 @@ export interface VariantChoice {
 }
 
 function scopeLabel(where: Where) {
-  if (where === "workspace") return "Whole workspace";
+  if (where === "workspace") return $t("components.create.wholeWorkspace");
   if (where === "account") return "Whole account";
   return `Only ${where.slice("agent:".length)}`;
 }

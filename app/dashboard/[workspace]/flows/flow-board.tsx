@@ -10,6 +10,7 @@
 // which is exactly what the PATCH endpoint takes. The server renumbers the
 // markdown and touches nothing else, so a rearrangement is a small git diff.
 
+import { $t } from "@/i18n";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input, inputBase } from "@foldrun/ui/react/input";
@@ -460,7 +461,7 @@ export function FlowBoard({
                                   . Changes here reach {others.length === 1 ? "that flow" : "those flows"} too.
                                 </>
                               ) : (
-                                <> — this workspace{"'"}s agent; it can also be run on its own.</>
+                                <> {$t("workspace.flows-flow-board.thisWorkspace")}{"'"}s agent; it can also be run on its own.</>
                               );
                             })()}
                           </p>

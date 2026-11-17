@@ -1,0 +1,13 @@
+{
+  "layout": {
+    "nothingNewStartsInAnyWorkspace": "Nothing new starts in any {@workspace.one}."
+  },
+  "page": {
+    "aWorkspaceHoldsItsOwnAgents": "A {@workspace.one} holds its own agents, flows, secrets and runs. Start with the demo: a four-step pipeline you can run in a minute.",
+    "itsOwnAgentsFlowsSecretsAnd": "Its own agents, flows, secrets and runs. Starts blank: import agents from another {@workspace.one}, or create them.",
+    "newWorkspace": "New {@workspace.one}",
+    "noWorkspaceYet": "No {@workspace.other} yet",
+    "searchWorkspace": "Search {@workspace.other}…",
+    "workspace": "{@workspace.Other}"
+  }
+}

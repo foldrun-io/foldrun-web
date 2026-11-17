@@ -4,6 +4,7 @@
 // file by file, with the diff), then the workspace's name typed back to do
 // it. Request: what, where, when — recorded and mailed to the operator.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -72,8 +73,8 @@ export function RestoreWorkspace({
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
 
-  if (!canWrite) return <Card className="p-5 text-sm text-fg-muted sm:p-6">Restoring a workspace needs the editor role or above.</Card>;
-  if (!workspaces.some((w) => w.history)) return <Card className="p-5 text-sm text-fg-muted sm:p-6">No workspace has any history to restore from yet.</Card>;
+  if (!canWrite) return <Card className="p-5 text-sm text-fg-muted sm:p-6">{$t("settings.backups-controls.restoringAWorkspaceNeedsTheEditor")}</Card>;
+  if (!workspaces.some((w) => w.history)) return <Card className="p-5 text-sm text-fg-muted sm:p-6">{$t("settings.backups-controls.noWorkspaceHasAnyHistoryTo")}</Card>;
 
   const preview = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,7 +109,7 @@ export function RestoreWorkspace({
       {done && <Callout tone="success" role="status" className="mb-4">{done}</Callout>}
       {error && <Callout tone="danger" role="alert" className="mb-4">{error}</Callout>}
       <form onSubmit={preview} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto] sm:items-end">
-        <Field label="Workspace">
+        <Field label={$t("settings.backups-controls.workspace")}>
           <Select className="w-full" value={ws} onChange={(e) => { setWs(e.target.value); setPlan(null); }}>
             {workspaces.map((w) => (
               <option key={w.name} value={w.name} disabled={!w.history}>
@@ -126,7 +127,7 @@ export function RestoreWorkspace({
       </form>
       {current?.lastChange && (
         <p className="text-xs text-fg-muted">
-          Last change to {ws}: <LocalTime iso={current.lastChange.at} /> — {current.lastChange.message}. A date means the last commit at or before it; see every commit on the workspace&apos;s History page.
+          Last change to {ws}: <LocalTime iso={current.lastChange.at} /> — {current.lastChange.message}{$t("settings.backups-controls.aDateMeansTheLastCommit")}
         </p>
       )}
       {plan && (
@@ -237,7 +238,7 @@ export function RequestRestore({
               <option value="everything">Everything</option>
             </Select>
           </Field>
-          <Field label="Workspace">
+          <Field label={$t("settings.backups-controls.workspace")}>
             <Select className="w-full" value={workspace} onChange={(e) => setWorkspace(e.target.value)}>
               <option value="">All of them</option>
               {workspaces.map((w) => <option key={w} value={w}>{w}</option>)}
@@ -260,7 +261,7 @@ export function RequestRestore({
           </div>
         </form>
       ) : (
-        <p className="text-sm text-fg-tertiary">Asking for a restore needs the admin role and access to every workspace.</p>
+        <p className="text-sm text-fg-tertiary">{$t("settings.backups-controls.askingForARestoreNeedsThe")}</p>
       )}
       {requests.length > 0 && (
         <div className="border-t border-line pt-3">
@@ -270,7 +271,7 @@ export function RequestRestore({
               <li key={r.id} className="flex flex-wrap gap-x-2">
                 <LocalTime iso={r.at} />
                 <span>{r.what}</span>
-                <span>{r.workspace ?? "all workspaces"}</span>
+                <span>{r.workspace ?? $t("settings.backups-controls.allWorkspace")}</span>
                 <span>to {r.target}</span>
                 <span className="text-fg-subtle">by {r.by}</span>
                 <Chip>{r.status}</Chip>

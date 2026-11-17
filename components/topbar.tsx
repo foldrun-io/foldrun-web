@@ -16,6 +16,7 @@
 // page's is (on the box it came back empty), and a list fetched the way the
 // pages read their data is the one that agrees with them.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
@@ -241,8 +242,8 @@ export function WorkspaceSwitcher() {
   const current = workspaces.find((w) => w.name === workspace);
   return (
     <Switcher
-      label="workspace"
-      placeholder="Find workspace…"
+      label={$t("common.workspaceOne")}
+      placeholder={$t("components.topbar.findWorkspace")}
       triggerClassName="h-8 max-w-[18rem] px-2"
       trigger={
         workspace ? (
@@ -251,11 +252,11 @@ export function WorkspaceSwitcher() {
             <span className="truncate">{workspace}</span>
           </>
         ) : (
-          <span className="truncate">All workspaces</span>
+          <span className="truncate">{$t("components.topbar.allWorkspace")}</span>
         )
       }
       items={[
-        { name: "All workspaces", href: `/dashboard${first}`, current: workspace === null },
+        { name: $t("components.topbar.allWorkspace"), href: `/dashboard${first}`, current: workspace === null },
         ...workspaces.map((w) => ({
           name: w.name,
           href: `/dashboard/${w.name}${first}`,
@@ -265,8 +266,8 @@ export function WorkspaceSwitcher() {
           square: true,
         })),
       ]}
-      footer={{ title: "Create workspace", href: `/dashboard?create=workspace${rest}` }}
-      empty="No workspaces yet."
+      footer={{ title: $t("components.topbar.createWorkspace"), href: `/dashboard?create=workspace${rest}` }}
+      empty={$t("components.topbar.noWorkspaceYet")}
     />
   );
 }

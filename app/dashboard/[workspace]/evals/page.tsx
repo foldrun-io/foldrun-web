@@ -4,6 +4,7 @@
 // tells you whether it was any good. The list is every eval that runs cases,
 // then the graders that read real runs; `?eval=<name>` opens one on its own.
 
+import { $t } from "@/i18n";
 import fs from "node:fs";
 import { notFound } from "next/navigation";
 import { FlaskConical, Gauge } from "lucide-react";
@@ -224,7 +225,7 @@ export default async function EvalsPage({
       {all.length === 0 ? (
         <EmptyState
           icon={<FlaskConical />}
-          title="No evals in this workspace yet"
+          title={$t("workspace.evals-page.noEvalsInThisWorkspaceYet")}
           description="Add evals/<name>.md naming an agent or flow, with one ## section per case. Without one, there's no way to tell whether a prompt edit made things better or worse."
           action={create}
         />

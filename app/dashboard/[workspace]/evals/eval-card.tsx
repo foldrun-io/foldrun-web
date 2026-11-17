@@ -4,6 +4,7 @@
 // Compare models, its proposed fixes and its file. Running waits for every
 // case — a partial verdict is worse than waiting.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import type React from "react";
 import Link from "@foldrun/ui/react/link";
@@ -123,7 +124,7 @@ export function EvalDetail({
       <div className="space-y-8 pb-12">
         {(error || (result?.error && !busy) || (!busy && runningSince) || busy || missingTarget) && (
           <div className="space-y-1.5 rounded-lg border border-line bg-surface px-4 py-3 text-sm">
-            {missingTarget && <p className="text-danger">{kind} &quot;{target}&quot; not found in this workspace.</p>}
+            {missingTarget && <p className="text-danger">{kind} &quot;{target}{$t("workspace.evals-eval-card.notFoundInThisWorkspace")}</p>}
             {error && <p className="text-danger">{error}</p>}
             {result?.error && !busy && (
               // The eval never got to its cases. Say why, or 0/n looks like n

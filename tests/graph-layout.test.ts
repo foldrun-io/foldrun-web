@@ -65,7 +65,7 @@ test("the map: columns left to right by kind, nothing overlaps, every node place
   assert.equal(x("skill:demo:a0:s"), x("knowledge:demo:doc 0: with colons"), "skills and files share a column");
   // The account heads its column.
   assert.ok(l.pos.get("scope:account")!.y < l.pos.get("scope:demo")!.y);
-  assert.deepEqual(l.columns.map((c) => c.label), ["Workspace", "Flows", "Agents", "Tools", "Skills and files"]);
+  assert.deepEqual(l.columns.map((c) => c.label), ["Project", "Flows", "Agents", "Tools", "Skills and files"]);
 });
 
 test("the same graph draws the same picture, whatever order it arrives in", () => {

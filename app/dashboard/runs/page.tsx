@@ -1,6 +1,7 @@
 // Account-wide runs — every workspace your API key can see. The per-workspace
 // view lives at /dashboard/<workspace>/runs and keeps the workspace nav.
 
+import { $t } from "@/i18n";
 import { RunSearch, RunQuery } from "@/components/run-search";
 import { parseRunFilter, matchesRunFilter, isEmptyFilter } from "@/lib/runs-filter";
 import { SEARCH_KEYS } from "@/components/run-views-model";
@@ -69,7 +70,7 @@ export default async function RunsPage({
   if (!all.length) {
     return (
       <Page width="wide">
-        <PageHeader title="All runs" description="Every run across every workspace in this account." />
+        <PageHeader title="All runs" description={$t("runs.page.everyRunAcrossEveryWorkspaceIn")} />
         <EmptyState
           icon={<Play />}
           title="No runs yet"
@@ -118,13 +119,13 @@ export default async function RunsPage({
   return (
     <Page width="wide">
       <AutoRefresh active={runs.some((r) => r.status === "running" || r.status === "queued")} />
-      <PageHeader title="All runs" description="Every run across every workspace in this account." />
+      <PageHeader title="All runs" description={$t("runs.page.everyRunAcrossEveryWorkspaceIn")} />
 
       <RunStats runs={runs} chargedUsd={runs.reduce((n, r) => n + runCharge(r, charges), 0)} />
 
       <div className="mb-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <RunQuery value={q} placeholder="Search runs — id, flow, workspace, headline, error…" className="min-w-48 flex-1" />
+          <RunQuery value={q} placeholder={$t("runs.page.searchRunsIdFlowWorkspaceHeadline")} className="min-w-48 flex-1" />
           {/* Keyed by the search, so a saved view, back and forward reset its
               fields to what the URL says (Codex review). */}
           <RunSearch key={JSON.stringify(searchKept)} tenant={tenant} />
@@ -149,7 +150,7 @@ export default async function RunsPage({
           a2aLabels={a2aLabels}
           tenant={tenant}
           tenantParam={tenantParam}
-          emptyDescription="Nothing matches these filters. Clear one, or start a run from a workspace page."
+          emptyDescription={$t("runs.page.nothingMatchesTheseFiltersClearOne")}
         />
       </RunsSelection>
       <Pager

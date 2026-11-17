@@ -5,6 +5,7 @@
 // held to, and the block list. Reading is everyone's; changing is an admin's
 // over every workspace (the routes refuse anyone else).
 
+import { $t } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@foldrun/ui/react/button";
@@ -212,7 +213,7 @@ export function CustomersCard({ tenant, limits, defaults, blocked, spend, canMan
             </Button>
           </div>
         )}
-        {!canManage && <p className="mt-2 text-[11px] text-fg-subtle">An admin with every workspace changes these.</p>}
+        {!canManage && <p className="mt-2 text-[11px] text-fg-subtle">{$t("settings.customers.anAdminWithEveryWorkspaceChanges")}</p>}
       </div>
       {said && <p className="mt-2 text-xs text-success">{said}</p>}
       {error && (

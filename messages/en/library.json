@@ -1,0 +1,16 @@
+{
+  "edit-page": {
+    "everyWorkspaceCanReadItNone": "Every {@workspace.one} can read it; none overrides it.",
+    "sharedWithEveryWorkspaceInThis": "Shared with every {@workspace.one} in this account. Agents reach these files at ../../../../library/."
+  },
+  "files-page": {
+    "createAWorkspaceOrAddA": "Create a {@workspace.one}, or add a shared tool or skill that every {@workspace.one} can use.",
+    "orInAWorkspace": "or in a {@workspace.one}."
+  },
+  "page": {
+    "capabilitiesInTheOpenAgentSkills": "Capabilities in the open Agent Skills format, available to every {@workspace.one} in this account.",
+    "everyAgentInEveryWorkspaceOf": "Every agent in every {@workspace.one} of this account — the nearest file of the same name wins.",
+    "everyWorkspace": "Every {@workspace.one}",
+    "whatAgentsHaveLearnedSharedAcross": "What agents have learned, shared across {@workspace.other}. One fact per file; the index is generated."
+  }
+}

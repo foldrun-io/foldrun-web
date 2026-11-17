@@ -4,6 +4,7 @@
 // /api/mcp over OAuth (server/mcp-oauth.ts), with Revoke — which ends every
 // token the connection issued at once.
 
+import { $t } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Cpu, Plug } from "lucide-react";
@@ -74,7 +75,7 @@ export function McpConnections({ connections, everyone }: { connections: Connect
             <Field label="Name"><Input value={m.name} onChange={(e) => setM({ ...m, name: e.target.value })} placeholder="Nightly report bot" /></Field>
             <Field label="Role"><Select value={m.role} onChange={(e) => setM({ ...m, role: e.target.value })} className="w-full">{["viewer", "editor", "admin"].map((r) => <option key={r} value={r}>{r}</option>)}</Select></Field>
             <Field label="Access"><Select value={m.access} onChange={(e) => setM({ ...m, access: e.target.value as "read" | "write" })} className="w-full"><option value="read">read only</option><option value="write">read and act</option></Select></Field>
-            <Field label={<>Workspaces <span className="font-normal text-fg-muted">— comma-separated; empty for all you can open</span></>} className="sm:col-span-3"><Input value={m.workspaces} onChange={(e) => setM({ ...m, workspaces: e.target.value })} /></Field>
+            <Field label={<>{$t("settings.mcp-connections.workspace")}{" "}<span className="font-normal text-fg-muted">— comma-separated; empty for all you can open</span></>} className="sm:col-span-3"><Input value={m.workspaces} onChange={(e) => setM({ ...m, workspaces: e.target.value })} /></Field>
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setAdding(false)}>Cancel</Button>
@@ -83,7 +84,7 @@ export function McpConnections({ connections, everyone }: { connections: Connect
         </div>
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="min-w-0 flex-1 text-fg-muted">A program that signs in to /api/mcp with client credentials — no person approves each token. It acts within your role and workspaces.</p>
+          <p className="min-w-0 flex-1 text-fg-muted">{$t("settings.mcp-connections.aProgramThatSignsInTo")}</p>
           <Button variant="secondary" onClick={() => setAdding(true)}>Add a machine client</Button>
         </div>
       )}
@@ -122,7 +123,7 @@ export function McpConnections({ connections, everyone }: { connections: Connect
                   {c.client} <span className="font-normal text-fg-muted">· {c.machine ? "machine client" : c.redirectHost}</span>
                 </p>
                 <p className="text-xs text-fg-muted">
-                  {c.access === "read" ? "read only" : "read and act"} · {c.workspaces ? c.workspaces.join(", ") : "all workspaces"}
+                  {c.access === "read" ? "read only" : "read and act"} · {c.workspaces ? c.workspaces.join(", ") : $t("settings.mcp-connections.allWorkspace")}
                   {everyone ? <> · <Email value={c.person} /></> : null} · connected <LocalTime iso={c.createdAt} />
                   {c.lastUsedAt ? <> · last used <LocalTime iso={c.lastUsedAt} /></> : null}
                 </p>

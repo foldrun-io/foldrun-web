@@ -7,6 +7,7 @@
 // item hides from its "…" menu, the whole card from the card's — a person's
 // own choice, kept in their prefs (PATCH /api/me/onboarding { checklist }).
 
+import { $t } from "@/i18n";
 import type { ReactNode } from "react";
 import { Bell, CalendarClock, FlaskConical, Play, UserRound, X } from "lucide-react";
 import type { ChecklistItemId, WorkspaceChecklist as Checklist } from "./workspace-checklist-model";
@@ -28,7 +29,7 @@ export function WorkspaceChecklist({ data, qs, canHide }: { data: Checklist; qs:
   const patch = (checklist: Record<string, unknown>) => send({ checklist: { workspace: data.workspace, ...checklist } });
   return (
     <ChecklistCard
-      title="Workspace checklist"
+      title={$t("components.workspace-checklist.workspaceChecklist")}
       progress={{ done: data.done, total: data.total, style: "count" }}
       busy={busy}
       hideLabel="Hide this item"

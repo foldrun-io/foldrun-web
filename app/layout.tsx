@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { requestTheme } from "@/server/theme";
+import { DIR, LOCALE } from "@/i18n";
 
 const sans = Geist({
   variable: "--font-sans-ui",
@@ -30,7 +31,8 @@ export default async function RootLayout({
   const theme = await requestTheme();
   return (
     <html
-      lang="en"
+      lang={LOCALE}
+      dir={DIR}
       data-theme={theme}
       className={`${sans.variable} ${mono.variable} h-full antialiased`}
     >

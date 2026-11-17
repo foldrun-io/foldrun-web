@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 import { Suspense } from "react";
 import Link from "@foldrun/ui/react/link";
 import { findUser, hasUsers, peekInvite, setupTokenRequired } from "@/server/users";
@@ -94,7 +95,7 @@ export default async function SignupPage({
         }
         hint={
           <>
-            You were invited as {invited.role}, with access to {invited.workspaces === null ? "every workspace" : invited.workspaces.length ? invited.workspaces.join(", ") : "no workspaces yet"}.
+            You were invited as {invited.role}, with access to {invited.workspaces === null ? $t("auth.signup-page.everyWorkspace") : invited.workspaces.length ? invited.workspaces.join(", ") : $t("auth.signup-page.noWorkspaceYet")}.
             {invited.email ? (
               <>
                 {" "}

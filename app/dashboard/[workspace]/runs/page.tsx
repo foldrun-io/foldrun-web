@@ -3,6 +3,7 @@
 // the sidebar fell back to account-level nav and the switcher read "none
 // selected". Scoped data deserves scoped chrome.
 
+import { $t } from "@/i18n";
 import { RunSearch, RunQuery } from "@/components/run-search";
 import { parseRunFilter, matchesRunFilter, isEmptyFilter } from "@/lib/runs-filter";
 import { SEARCH_KEYS } from "@/components/run-views-model";
@@ -97,7 +98,7 @@ export default async function WorkspaceRunsPage({
         }
         actions={
           <Link href={`/dashboard/runs${wider}`} className={buttonVariants({ variant: "secondary" })}>
-            All workspaces
+            {$t("workspace.runs-page.allWorkspace")}
           </Link>
         }
       />

@@ -8,6 +8,7 @@
 // workspace markdown file opens in the editor; a record opens pretty; the
 // vault and the ledger say why they will not open.
 
+import { $t } from "@/i18n";
 import { scopeAllows } from "@/platform/scope";
 import { viewerScope } from "@/server/users";
 import Link from "@foldrun/ui/react/link";
@@ -74,7 +75,7 @@ export default async function AccountFilesPage({
       sections.push({
         title: "Where",
         items: [
-          { label: owner, href: `/dashboard/${owner}${qs}`, meta: "workspace" },
+          { label: owner, href: `/dashboard/${owner}${qs}`, meta: $t("common.workspaceOne") },
           { label: "Open in its editor", href: `/dashboard/${owner}/edit?path=${encodeURIComponent(relative)}${rest}` },
         ],
       });
@@ -139,7 +140,7 @@ export default async function AccountFilesPage({
             description={
               <>
                 The whole account as one tree: {files.length} files as they sit on disk, minus the platform&apos;s own bookkeeping. Add or remove under{" "}
-                <Link href={`/dashboard/library${qs}`} className="text-link hover:underline">each shelf</Link> or in a workspace.
+                <Link href={`/dashboard/library${qs}`} className="text-link hover:underline">each shelf</Link> {$t("library.files-page.orInAWorkspace")}
               </>
             }
             className="mb-6"
@@ -147,7 +148,7 @@ export default async function AccountFilesPage({
           <PageTabs tabs={libraryTabs(tenant)} />
         </>
       }
-      emptyEditor={<EmptyState bare icon={<FileText />} title="Nothing here yet" description="Create a workspace, or add a shared tool or skill that every workspace can use." />}
+      emptyEditor={<EmptyState bare icon={<FileText />} title="Nothing here yet" description={$t("library.files-page.createAWorkspaceOrAddA")} />}
     />
   );
 }

@@ -3,6 +3,7 @@
 // the hooks stopped or changed lately, read off the runs' own trails, where
 // every line a hook wrote carries a `hook` record (core store.ts RunEvent.hook).
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { listRuns } from "@/lib/store";
 import { listWorkspaceHooks, HOOK_SAMPLE } from "@/server/hooks";
@@ -71,7 +72,7 @@ export function HooksPanel({ tenant, workspace }: { tenant: string; workspace: s
                     <TD className="align-top text-fg-muted">
                       {h.scope === "workspace" ? workspace : "shared"}
                       {h.shadowed && (
-                        <Tooltip label="a workspace hook of the same name is the one that runs">
+                        <Tooltip label={$t("components.hooks-panel.aWorkspaceHookOfTheSame")}>
                           <span className="ml-1 text-xs text-fg-subtle">(shadowed)</span>
                         </Tooltip>
                       )}

@@ -5,6 +5,7 @@
 // drawer and a floating bar at the bottom. Geist for everything, Geist Mono
 // for code (both from the root layout).
 
+import { $t } from "@/i18n";
 import { Suspense } from "react";
 import Link from "@foldrun/ui/react/link";
 import { cookies } from "next/headers";
@@ -116,7 +117,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         )}
         {accountPaused && (
           <Banner tone="danger" title="Runs are paused" action={<Link href="/dashboard/settings#governance">Resume</Link>}>
-            Nothing new starts in any workspace. <WithEmails text={`Paused by ${accountPaused.by}${accountPaused.reason ? `: ${accountPaused.reason}` : ""}.`} />
+            {$t("dashboard.layout.nothingNewStartsInAnyWorkspace")}{" "}<WithEmails text={`Paused by ${accountPaused.by}${accountPaused.reason ? `: ${accountPaused.reason}` : ""}.`} />
           </Banner>
         )}
         {/* An incident or maintenance the operator posted: on every page

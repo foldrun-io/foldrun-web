@@ -1,6 +1,7 @@
 // Issues (FOL-54 step 3): what went wrong, grouped, and kept open until a
 // person resolves it. Same list as GET /api/issues and `foldrun issues`.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { AlertTriangle, Ban, CalendarX2, CheckCircle2, ServerCrash, XCircle, X } from "lucide-react";
 import { Page, PageHeader, Chip, Tag, EmptyState, type Tone } from "@foldrun/ui/react/page";
@@ -61,13 +62,13 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Segmented label="Status" value={status} items={TABS.map((t) => ({ key: t.key, label: t.label, href: q(t.key), count: count(t.key) }))} />
         {workspace && (
-          <Tooltip label="Show every workspace">
+          <Tooltip label={$t("issues.page.showEveryWorkspace")}>
             <Link
               href={`/dashboard/issues${tenant !== "default" ? `?tenant=${tenant}` : ""}`}
               className="inline-flex h-9 items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-[13px] text-fg-secondary transition-colors hover:border-line-strong hover:text-fg"
             >
               Only <span className="font-medium text-fg">{workspace}</span>
-              <X className="size-3.5 text-fg-muted" aria-label="Every workspace" />
+              <X className="size-3.5 text-fg-muted" aria-label={$t("issues.page.everyWorkspace")} />
             </Link>
           </Tooltip>
         )}

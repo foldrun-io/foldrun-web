@@ -8,6 +8,7 @@
 // place; the owner is never scoped and is the only one who can hand the
 // account on.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
@@ -51,7 +52,7 @@ interface PendingInvite {
 const DESCRIBE: Record<Role, string> = {
   viewer: "reads everything, changes nothing",
   editor: "edits, deploys, runs and approves",
-  admin: "plus workspaces, secrets, keys and the team",
+  admin: $t("settings.team.plusWorkspaceSecretsKeysAndThe"),
   owner: "plus billing and the admins",
 };
 
@@ -60,10 +61,10 @@ function ScopePicker({ all, value, onChange, disabled = false }: { all: string[]
   const some = value !== null;
   return (
     <div className="space-y-1.5">
-      <RadioGroup className="flex flex-wrap gap-3 text-sm" aria-label="Workspaces" value={some ? "some" : "all"} disabled={disabled} onValueChange={(v) => onChange(v === "all" ? null : [])}>
+      <RadioGroup className="flex flex-wrap gap-3 text-sm" aria-label={$t("settings.team.workspace")} value={some ? "some" : "all"} disabled={disabled} onValueChange={(v) => onChange(v === "all" ? null : [])}>
         <label className="flex items-center gap-1.5">
           <RadioGroupItem value="all" />
-          All workspaces
+          {$t("settings.team.allWorkspace")}
         </label>
         <label className="flex items-center gap-1.5">
           <RadioGroupItem value="some" disabled={disabled || all.length === 0} />
@@ -82,7 +83,7 @@ function ScopePicker({ all, value, onChange, disabled = false }: { all: string[]
               {w}
             </label>
           ))}
-          {all.length === 0 && <span className="text-sm text-fg-muted">No workspaces yet.</span>}
+          {all.length === 0 && <span className="text-sm text-fg-muted">{$t("settings.team.noWorkspaceYet")}</span>}
         </div>
       )}
     </div>
@@ -295,7 +296,7 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
                     {m.email === self && <span className="ml-2 text-xs text-fg-muted">you</span>}
                   </p>
                   <p className="text-xs text-fg-muted">
-                    since <LocalTime iso={m.createdAt} options={{ dateStyle: "medium" }} /> · {m.owner ? "all workspaces" : describeScope(m.workspaces)}
+                    since <LocalTime iso={m.createdAt} options={{ dateStyle: "medium" }} /> · {m.owner ? $t("settings.team.allWorkspace2") : describeScope(m.workspaces)}
                     {mayTouch(m) && (
                       <button
                         type="button"

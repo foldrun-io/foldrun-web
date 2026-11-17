@@ -8,6 +8,7 @@
 // happens in the detail drawer — components/asset-drawer.tsx — and the row is
 // one link.)
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -42,7 +43,7 @@ export function useAssetActions(item: Pick<AssetItem, "path" | "name" | "kind" |
   const promote = async (): Promise<boolean> => {
     if (!(await confirm({
       title: `Move ${name} to shared?`,
-      body: "Every workspace in this account will be able to use it.",
+      body: $t("workspace.assets-asset-row.everyWorkspaceInThisAccountWill"),
       confirmLabel: "Move",
       destructive: false,
     }))) return false;
@@ -69,7 +70,7 @@ export function useAssetActions(item: Pick<AssetItem, "path" | "name" | "kind" |
   };
 
   const remove = async (): Promise<boolean> => {
-    const where = account ? " from every workspace in this account" : "";
+    const where = account ? $t("workspace.assets-asset-row.fromEveryWorkspaceInThisAccount") : "";
     if (!(await confirm({ title: `Delete ${name}${where}?`, confirmLabel: "Delete" }))) return false;
     // A folder is the unit — a skill's, and a folder tool's. Sending tool.md
     // alone was refused by the store ("delete the whole folder instead").
@@ -113,7 +114,7 @@ export function AssetMenuItems({
         </Link>
       </MenuItem>
       {canPromote && (
-        <Tooltip label={mayWrite ? "Move to the shared library, usable by every workspace" : needs("workspace:write")} side="left">
+        <Tooltip label={mayWrite ? $t("workspace.assets-asset-row.moveToTheSharedLibraryUsable") : needs("workspace:write")} side="left">
           <span className="block">
             <MenuItem
               onSelect={() => void promote().then((ok) => ok && onDone?.())}

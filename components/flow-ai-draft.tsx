@@ -10,6 +10,7 @@
 // PUT only when the person presses Save and confirms — so a draft is a
 // revision like any edit, attributed and restorable from History.
 
+import { $t } from "@/i18n";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Textarea } from "@foldrun/ui/react/input";
@@ -257,7 +258,7 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
                       <Chip tone={f.before === null ? "good" : "warn"}>{f.before === null ? "new" : "changed"}</Chip>
                     </header>
                     <div className="max-h-80 overflow-auto">
-                      <DiffView rows={foldDiff(lineDiff(f.before ?? "", f.content), 4)} empty="Same as the file in the workspace." />
+                      <DiffView rows={foldDiff(lineDiff(f.before ?? "", f.content), 4)} empty={$t("components.flow-ai-draft.sameAsTheFileInThe")} />
                     </div>
                   </section>
                 ))}

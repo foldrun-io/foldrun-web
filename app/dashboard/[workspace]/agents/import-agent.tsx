@@ -4,6 +4,7 @@
 // this account into this one — its agent.md and own skills/scripts, never
 // its memory. POST /api/workspaces/<ws>/agents/import (core agent-import.ts).
 
+import { $t } from "@/i18n";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -92,7 +93,7 @@ export function ImportAgentButton({
               <header className="border-b border-line-faint px-5 py-4">
                 <DialogTitle className="font-cal text-base font-semibold text-fg">Import agent</DialogTitle>
                 <p className="mt-0.5 text-xs text-fg-muted">
-                  Copy an agent from another workspace into {workspace}: its agent.md and its own skills and scripts.
+                  {$t("workspace.agents-import-agent.copyAnAgentFromAnotherWorkspace")}{" "}{workspace}: its agent.md and its own skills and scripts.
                   Its memory stays where it was learned.
                 </p>
               </header>
@@ -113,7 +114,7 @@ export function ImportAgentButton({
                     {sources === null && !error ? (
                       <p className="text-xs text-fg-muted">Loading the account&apos;s agents…</p>
                     ) : sources && sources.length === 0 ? (
-                      <p className="text-xs text-fg-muted">No other workspace in this account has an agent yet.</p>
+                      <p className="text-xs text-fg-muted">{$t("workspace.agents-import-agent.noOtherWorkspaceInThisAccount")}</p>
                     ) : (
                       <Select
                         value={pick}

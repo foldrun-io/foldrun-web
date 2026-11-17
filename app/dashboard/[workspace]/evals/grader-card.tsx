@@ -5,6 +5,7 @@
 // that failed and why, and a box to grade one run now (POST …/evals/<e>/grade).
 // Nothing here starts a run; a grader only reads the ones that happened.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -130,7 +131,7 @@ export function GraderDetail({
       <div className="space-y-8 pb-12">
         {(info.problems.length > 0 || missingTarget) && (
           <Callout tone="danger" className="px-4 py-3 text-sm" bodyClassName="space-y-1">
-            {missingTarget && <p>{kind} &quot;{target}&quot; not found in this workspace.</p>}
+            {missingTarget && <p>{kind} &quot;{target}{$t("workspace.evals-grader-card.notFoundInThisWorkspace")}</p>}
             {info.problems.map((p) => (
               <p key={p}>
                 <WithEmails text={p} />

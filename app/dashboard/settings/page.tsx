@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 import { scopeAllows } from "@/platform/scope";
 import { platform } from "@/lib/platform";
 import Link from "@foldrun/ui/react/link";
@@ -364,20 +365,20 @@ async function PoliciesTab({
       </SettingsSection>
 
       <SettingsSection id="observability" title="Observability" description="What runs record, and who is told when something crosses a line. In AGENTS.md: observability:.">
-        <NotifyCard key={JSON.stringify(defaults.notify ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.notify} scopeNote="Every workspace inherits this until it sets its own notify:, which replaces it whole." />
+        <NotifyCard key={JSON.stringify(defaults.notify ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.notify} scopeNote={$t("settings.page.everyWorkspaceInheritsThisUntilIt")} />
         <AlertsCard key={JSON.stringify(defaults.alerts ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.alerts} />
         <TelemetryCard key={JSON.stringify(defaults.telemetry ?? null)} tenant={tenant} initial={defaults.telemetry} mayEdit={managesWorkspaces && scope === null} />
       </SettingsSection>
 
-      <SettingsSection id="evaluation" title="Evaluation" description="How the agents' work is judged. In AGENTS.md: evaluation:. Each workspace's evals are on its Evals page.">
+      <SettingsSection id="evaluation" title="Evaluation" description={$t("settings.page.howTheAgentsWorkIsJudged")}>
         <JudgeCard key={JSON.stringify(defaults.judge ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.judge} />
       </SettingsSection>
 
-      <SettingsSection id="agents-md" title="AGENTS.md" description="The account's own AGENTS.md: what every agent in every workspace reads first, and the defaults above as frontmatter. A workspace's AGENTS.md adds to it. Checked as a deploy checks it before it is saved.">
+      <SettingsSection id="agents-md" title="AGENTS.md" description={$t("settings.page.theAccountSOwnAgentsMd")}>
         {scope !== null ? (
-          <p className="px-1 text-sm text-fg-muted">It is every workspace&apos;s: only a member with access to all of them sees it.</p>
+          <p className="px-1 text-sm text-fg-muted">{$t("settings.page.itIsEveryWorkspaceSOnly")}</p>
         ) : (
-          <SettingsCard title="The account's AGENTS.md" description="Prose every agent reads, above its workspace's and its own.">
+          <SettingsCard title="The account's AGENTS.md" description={$t("settings.page.proseEveryAgentReadsAboveIts")}>
             <InlineEditor accountFile accountFileSha={accountMdSha(tenant)} tenant={tenant} path="AGENTS.md" initialContent={accountAgentsMd(tenant)} rows={18} hideSibling bare />
             {!managesWorkspaces && <p className="mt-2 text-xs text-fg-muted">An admin saves changes; yours would be refused.</p>}
           </SettingsCard>
@@ -669,7 +670,7 @@ function SchedulesTab({ tenant, qs, amp, workspaces }: { tenant: string; qs: str
       }),
   );
   return (
-    <SettingsSection id="schedules" title="Scheduled flows" description="Every cron in every workspace, with its next two fires. The scheduler checks every 30 seconds." action={<TickButton />}>
+    <SettingsSection id="schedules" title="Scheduled flows" description={$t("settings.page.everyCronInEveryWorkspaceWith")} action={<TickButton />}>
       {scheduled.length === 0 ? (
         <EmptyState
           icon={<CalendarClock />}

@@ -3,6 +3,7 @@
 // its own history (self-serve, here), or ask the operator to restore runs,
 // state, storage or the database from a nightly archive.
 
+import { $t } from "@/i18n";
 import { backupPolicy, listBackups, listRestoreRequests } from "@/platform/backups";
 import { databaseEnabled } from "@/platform/db";
 import { listWorkspaces } from "@/lib/store";
@@ -49,7 +50,7 @@ export default async function BackupsPage({ searchParams }: { searchParams: Prom
         <SettingsCard
           title="What is backed up"
           description="The platform backs up every account together, on a schedule. You do not need to switch anything on."
-          hint="Every change to a workspace's files is also a commit in its own history — that is what you can restore yourself."
+          hint={$t("settings.backups-page.everyChangeToAWorkspaceS")}
         >
           <div className="space-y-5 text-sm text-fg-secondary">
             <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2">
@@ -128,8 +129,8 @@ export default async function BackupsPage({ searchParams }: { searchParams: Prom
 
       <SettingsSection
         id="restore"
-        title="Restore a workspace"
-        description="Put a workspace's agents, flows, knowledge and tools back as they were at a point in its history. Runs, state, storage and secrets are not touched, and the restore is itself one more change you can undo."
+        title={$t("settings.backups-page.restoreAWorkspace")}
+        description={$t("settings.backups-page.putAWorkspaceSAgentsFlows")}
       >
         <RestoreWorkspace workspaces={workspaces} canWrite={canWrite} />
       </SettingsSection>

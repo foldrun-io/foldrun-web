@@ -17,6 +17,7 @@
 // the notify: webhooks this workspace sent; and the flows outside agents
 // call over A2A.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
 import { notFound } from "next/navigation";
@@ -126,7 +127,7 @@ export default async function TriggersPage({
   const known = new Set(flows.map((f) => f.name));
   const listed = [
     ...flows.filter((f) => (f.trigger && f.trigger !== "manual") || byFlow.has(f.name)).map((f) => ({ name: f.name, trigger: f.trigger || "manual", line: triggerLine(f), info: f as FlowInfo | null })),
-    ...summary.filter((s) => !known.has(s.flow)).map((s) => ({ name: s.flow, trigger: s.trigger, line: "Not in the workspace any more", info: null })),
+    ...summary.filter((s) => !known.has(s.flow)).map((s) => ({ name: s.flow, trigger: s.trigger, line: $t("workspace.triggers-page.notInTheWorkspaceAnyMore"), info: null })),
   ];
   const nextOf = (f: FlowInfo | null) => {
     if (!f || f.trigger !== "schedule" || !f.schedule) return null;
@@ -257,7 +258,7 @@ export default async function TriggersPage({
               <EmptyState
                 icon={<Zap />}
                 title="No flow here starts on its own"
-                description="Scheduled, webhook, email, storage, watch and chained flows are listed here with what they fired and what became a run. A workspace of manual flows stays empty, which is correct."
+                description={$t("workspace.triggers-page.scheduledWebhookEmailStorageWatchAnd")}
                 action={
                   <Link href={`/dashboard/${workspace}/flows${qs}`} className={buttonVariants({ variant: "secondary" })}>
                     Flows
@@ -405,7 +406,7 @@ export default async function TriggersPage({
           title="Outbound webhook deliveries"
           description={
             <>
-              Every notification this workspace&apos;s <code className="font-mono text-[13px]">notify:</code> url was sent. A failed one is retried at 1m, 5m, 30m, 2h and 6h, then given up.
+              {$t("workspace.triggers-page.everyNotificationThisWorkspaceS")}{" "}<code className="font-mono text-[13px]">notify:</code> url was sent. A failed one is retried at 1m, 5m, 30m, 2h and 6h, then given up.
             </>
           }
           bodyClassName="p-0 border-0 bg-transparent overflow-visible"

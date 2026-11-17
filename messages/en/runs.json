@@ -1,0 +1,7 @@
+{
+  "page": {
+    "everyRunAcrossEveryWorkspaceIn": "Every run across every {@workspace.one} in this account.",
+    "nothingMatchesTheseFiltersClearOne": "Nothing matches these filters. Clear one, or start a run from a {@workspace.one} page.",
+    "searchRunsIdFlowWorkspaceHeadline": "Search runs — id, flow, {@workspace.one}, headline, error…"
+  }
+}

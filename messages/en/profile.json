@@ -1,0 +1,10 @@
+{
+  "notifications": {
+    "perWorkspace": "Per {@workspace.one}"
+  },
+  "page": {
+    "allWorkspace": "all {@workspace.other}",
+    "whatMailYouGetRunAlerts": "What mail you get. Run alerts and approval requests can be set per {@workspace.one}; security, invites, billing failures and account notices are always sent.",
+    "whoSharesThisAccountWhatEach": "Who shares this account, what each may do, and which {@workspace.other} each may open. Everyone shares one wallet and one shelf of shared tools."
+  }
+}

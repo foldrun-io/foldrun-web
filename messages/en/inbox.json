@@ -1,0 +1,7 @@
+{
+  "page": {
+    "everythingElseWaitingInYourWorkspace": "Everything else waiting in your {@workspace.other}, for whoever picks it up.",
+    "whatIsWaitingOnYouAcross": "What is waiting on you, across your {@workspace.other}.",
+    "whatIsWaitingOnYouAcross2": "What is waiting on you, across your {@workspace.other}. An item leaves on its own once it is done where it lives."
+  }
+}

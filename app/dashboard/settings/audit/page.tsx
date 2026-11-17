@@ -5,6 +5,7 @@
 // The same reader as GET /api/audit, with the same gate: the owner and
 // admins who can see the whole account.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { Input } from "@foldrun/ui/react/input";
 import { Select } from "@foldrun/ui/react/select";
@@ -67,14 +68,14 @@ function describe(e: AuditEntry): string {
     }
     case "secret.workspaces": {
       const list = Array.isArray(d.workspaces) ? (d.workspaces as string[]) : null;
-      return `${s("name")} (account) · ${list === null ? "every workspace" : list.length ? `only ${list.join(", ")}` : "no workspace"}`;
+      return `${s("name")} (account) · ${list === null ? $t("settings.audit-page.everyWorkspace") : list.length ? `only ${list.join(", ")}` : $t("settings.audit-page.noWorkspace")}`;
     }
     case "workspace.deployed":
       return `${s("workspace")}${s("commit") ? ` @ ${s("commit").slice(0, 8)}` : ""} · +${d.added ?? 0} ~${d.updated ?? 0} −${d.removed ?? 0}`;
     case "workspace.exported":
       return `${s("kind") === "workspace" ? s("workspace") : `${s("kind")} ${s("name")} from ${s("workspace")}`} · ${d.files ?? 0} files`;
     case "workspace.imported":
-      return `${s("kind") === "workspace" ? "workspace" : `${s("kind")} ${s("name")}`}${s("from") ? ` from ${s("from")}` : ""} into ${s("workspace")}${d.created ? " (new)" : ""} · ${d.written ?? 0} files${d.overwritten ? `, ${d.overwritten} overwritten` : ""}`;
+      return `${s("kind") === "workspace" ? $t("common.workspaceOne") : `${s("kind")} ${s("name")}`}${s("from") ? ` from ${s("from")}` : ""} into ${s("workspace")}${d.created ? " (new)" : ""} · ${d.written ?? 0} files${d.overwritten ? `, ${d.overwritten} overwritten` : ""}`;
     default: {
       const parts = Object.entries(d)
         .filter(([, v]) => v !== null && v !== undefined && typeof v !== "object")
@@ -112,7 +113,7 @@ export default async function AuditLogPage({
   if (!allowed) {
     return (
       <SettingsShell title="Settings" subtitle={subtitle} tabs={tabs}>
-        <EmptyState icon={<ScrollText />} title="Owner and admins only" description="The audit log is for the account's owner and admins who can open every workspace. Ask the owner if you need it." />
+        <EmptyState icon={<ScrollText />} title="Owner and admins only" description={$t("settings.audit-page.theAuditLogIsForThe")} />
       </SettingsShell>
     );
   }
@@ -180,7 +181,7 @@ export default async function AuditLogPage({
               <Input name="actor" defaultValue={sp.actor ?? ""} placeholder="email, key:label, support:…" className="font-normal" />
             </label>
             <label className={field}>
-              Workspace
+              {$t("settings.audit-page.workspace")}
               <Select name="workspace" defaultValue={sp.workspace ?? ""} className="w-full font-normal">
                 <option value="">Any</option>
                 {workspaces.map((w) => (

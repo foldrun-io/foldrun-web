@@ -8,6 +8,7 @@
 // re-render afterwards so derived views (badges, step lists, the graph) catch
 // up with what you just wrote.
 
+import { $t } from "@/i18n";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -474,7 +475,7 @@ export function InlineEditor({
         {isCodePath(path)
           ? "⌘S saves · Tab indents · Test runs what is saved"
           : "⌘S saves · suggestions appear as you type · frontmatter is validated on save"}
-        {libraryKind && " · shared with every workspace"}
+        {libraryKind && $t("components.inline-editor.sharedWithEveryWorkspace")}
       </p>
       )}
     </div>

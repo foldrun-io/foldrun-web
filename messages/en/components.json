@@ -1,0 +1,139 @@
+{
+  "asset-drawer": {
+    "aWorkspaceHookWithTheSame": "A {@workspace.one} hook with the same name runs instead of this one. Test that one.",
+    "changesHereReachEveryWorkspace": "Changes here reach every {@workspace.one}.",
+    "sharedWithEveryWorkspace": "· shared with every {@workspace.one}",
+    "testItFromAWorkspaceThat": "Test it from a {@workspace.one} that grants it — a run stands in that {@workspace.one}, not here.",
+    "testItFromAWorkspaceThat2": "Test it from a {@workspace.one} that turns it on — a hook runs inside a {@workspace.one}'s steps.",
+    "thisWorkspaceHasItsOwn": "This {@workspace.one} has its own",
+    "workspace": "{@workspace.One}"
+  },
+  "assistant": {
+    "askHowFoldrunWorksOrDescribe": "Ask how foldrun works, or describe what you want built. I read the docs and this {@workspace.one}'s files, propose agents, flows, tools and skills as diffs, and check them before you save.",
+    "assistantSWorkspace": "Assistant's {@workspace.one}",
+    "couldNotListWorkspace": "could not list {@workspace.other} ({status})",
+    "couldNotListWorkspace2": "could not list {@workspace.other}",
+    "createWorkspace": "Create {@workspace.one}",
+    "createdTheWorkspace": "Created the {@workspace.one} `{name}`.",
+    "newWorkspace": "New {@workspace.one}",
+    "sameAsTheFileInThe": "Same as the file in the {@workspace.one}.",
+    "theAssistantWorksInsideAWorkspace": "The assistant works inside a {@workspace.one}, and this account has none yet. Name the first one:",
+    "theWorkspaceNowExistsAndYou": "The {@workspace.one} \"{workspace}\" now exists and you are working in it. Carry on with what I asked for: write its agents, flows, tools and skills.",
+    "workspaceName": "{@workspace.One} name"
+  },
+  "create": {
+    "wholeWorkspace": "Whole {@workspace.one}"
+  },
+  "defaults-cards": {
+    "aWorkspaceSOwnAgentsMd": "{help} A {@workspace.one}'s own AGENTS.md can say otherwise.",
+    "coresGibAndDiskOneRun": "Cores, GiB and disk one run of this flow may hold at once across its parallel steps. It only narrows the {@workspace.one}'s and the account's. A step that would pass it waits for one of its run's steps to finish; one bigger than it fails with a message. Empty is no cap of its own.",
+    "coresGibAndDiskTheSteps": "Cores, GiB and disk the steps running in this {@workspace.one} may hold together. It only narrows the account's: every step must fit both. A step that would pass it waits, in turn; one bigger than it fails with a message. Empty is no cap of its own.",
+    "setHereTheseReplaceTheAccount": "Set here, these replace the account's thresholds whole — an empty set means no alerts for this {@workspace.one}.",
+    "theAccountSWebhookUrlIs": "The account's webhook URL is set; it is shown only to members with every {@workspace.one}, since a webhook URL is often a credential.",
+    "thisWorkspaceSCap": "This {@workspace.one}'s cap",
+    "thisWorkspaceSOwn": "this {@workspace.one}'s own"
+  },
+  "file-tree": {
+    "isTheWorkspaceSOwnIdentity": "{base} is the {@workspace.one}'s own identity — it cannot move; rename or delete the {@workspace.one} instead",
+    "newFileAtWorkspaceRoot": "New file at {@workspace.one} root",
+    "newFolderAtWorkspaceRoot": "New folder at {@workspace.one} root"
+  },
+  "find": {
+    "findAWorkspaceAgentFlowRun": "Find a {@workspace.one}, agent, flow, run, tool, page…"
+  },
+  "find-model": {
+    "everyRunAcrossEveryWorkspace": "every run across every {@workspace.one}",
+    "everyWorkspace": "every {@workspace.one}",
+    "workspace": "{@workspace.Other}"
+  },
+  "flow-ai-draft": {
+    "sameAsTheFileInThe": "Same as the file in the {@workspace.one}."
+  },
+  "flow-canvas-model": {
+    "agentsIsNotAnAgentIn": "agents: \"{c}\" is not an agent in this {@workspace.one}",
+    "flowIsNotAFlowIn": "[[flow:{subflow}]] is not a flow in this {@workspace.one}",
+    "subagentsIsNotAnAgentIn": "subagents: \"{sub}\" is not an agent in this {@workspace.one}"
+  },
+  "graph-layout-model": {
+    "workspace": "{@workspace.One}",
+    "workspace2": "{@workspace.Other}"
+  },
+  "hooks-panel": {
+    "aWorkspaceHookOfTheSame": "a {@workspace.one} hook of the same name is the one that runs"
+  },
+  "inline-editor": {
+    "sharedWithEveryWorkspace": "· shared with every {@workspace.one}"
+  },
+  "issue-actions": {
+    "aPlatformIssueIsTheAccount": "A platform issue is the account's — acting on it needs access to every {@workspace.one}"
+  },
+  "nav-model": {
+    "allWorkspace": "All {@workspace.other}",
+    "workspace": "{@workspace.Other}"
+  },
+  "new-menu": {
+    "forEveryWorkspace": "For every {@workspace.one}",
+    "workspace": "{@workspace.One}"
+  },
+  "onboarding-model": {
+    "aWorkspaceHoldsOneDeskS": "A {@workspace.one} holds one desk's agents, flows, secrets and runs.",
+    "createAWorkspace": "Create a {@workspace.one}"
+  },
+  "package-buttons": {
+    "aNewNameMakesANew": "A new name makes a new {@workspace.one}; an existing one imports into it.",
+    "aNewWorkspace": "(a new {@workspace.one})",
+    "aZipFromExportAWorkspace": "A .zip from Export — a {@workspace.one}, a flow or an agent, from this account or another. You see what it adds and needs before anything is written. Nothing is deleted.",
+    "downloadThisWorkspaceSAgentsFlows": "Download this {@workspace.one}'s agents, flows, tools and knowledge as a .zip — never memory, state or secret values",
+    "importAWorkspace": "Import a {@workspace.one}",
+    "importWorkspace": "Import {@workspace.one}",
+    "toolsNotInThisWorkspaceOr": "Tools not in this {@workspace.one} or the library",
+    "workspaceName": "{@workspace.One} name"
+  },
+  "pause-card": {
+    "everyWorkspaceInThisAccount": "every {@workspace.one} in this account",
+    "pauseThisWorkspace": "Pause this {@workspace.one}?",
+    "pauseThisWorkspace2": "Pause this {@workspace.one}",
+    "thisWorkspace": "this {@workspace.one}"
+  },
+  "runs-table": {
+    "allWorkspace": "All {@workspace.other}",
+    "workspace": "{@workspace.One}"
+  },
+  "step-image-model": {
+    "thisStepChangedTheWorkspaceS": "This step changed the {@workspace.one}'s {what}; {changes} not kept. "
+  },
+  "telemetry-card": {
+    "eachFinishedRunGoesToYour": "Each finished run goes to your OpenTelemetry collector as one trace — run, steps, model calls and tool calls, with tokens, cost and each agent's owner. A {@workspace.one}'s own",
+    "runsAreSentToACollector": "Runs are sent to a collector. Where, and with which header, is shown only to members with every {@workspace.one}."
+  },
+  "topbar": {
+    "allWorkspace": "All {@workspace.other}",
+    "createWorkspace": "Create {@workspace.one}",
+    "findWorkspace": "Find {@workspace.one}…",
+    "noWorkspaceYet": "No {@workspace.other} yet."
+  },
+  "welcome-flow": {
+    "aWorkspaceFlowOrAgentExported": "A {@workspace.one}, flow or agent exported as a .zip.",
+    "aWorkspaceHoldsOneDeskS": "A {@workspace.one} holds one desk's agents, flows, secrets and runs. You name it; it starts empty.",
+    "aZipExportedFromFoldrunA": "A .zip exported from foldrun — a whole {@workspace.one}, one flow or one agent. You see what it would add before anything is written.",
+    "askAnAdminYourRoleCannot": "Ask an admin — your role cannot create {@workspace.other}.",
+    "blankWorkspace": "Blank {@workspace.one}",
+    "createAWorkspace": "Create a {@workspace.one}",
+    "itsOwnAgentsFlowsSecretsAnd": "Its own agents, flows, secrets and runs. Starts blank: import agents from another {@workspace.one}, or create them.",
+    "noWorkspaceYet": "No {@workspace.one} yet",
+    "toCopyAnAgentFromA": "To copy an agent from a {@workspace.one} you already have, use",
+    "youHaveAWorkspace": "You have a {@workspace.one}"
+  },
+  "workspace-checklist": {
+    "workspaceChecklist": "{@workspace.One} checklist"
+  },
+  "workspace-header": {
+    "thisWorkspaceSSpendAgainstIts": "This {@workspace.one}'s spend {window} (against its budget: cap when one is set) · the account's remaining credits. Open the wallet.",
+    "thisWorkspaceSSpendAgainstIts2": "This {@workspace.one}'s spend {window} (against its budget: cap when one is set). Open usage."
+  },
+  "workspace-identity": {
+    "shownOnTheWorkspaceCardAnd": "Shown on the {@workspace.one} card and in Find.",
+    "whatThisWorkspaceIsCalledAnd": "What this {@workspace.one} is called, and the line shown on its card and in Find.",
+    "whatThisWorkspaceIsFor": "What this {@workspace.one} is for."
+  }
+}

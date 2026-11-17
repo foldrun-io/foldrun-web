@@ -7,6 +7,7 @@
 // with the key that asked and the run that served each. One read: GET
 // /api/workspaces/<ws>/a2a. Publishing is on each flow's card (Flows page).
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useEffect, useState } from "react";
 import { Chip, EmptyState, Panel } from "@foldrun/ui/react/page";
@@ -106,7 +107,7 @@ export function A2aPanel({ workspace, tenant }: { workspace: string; tenant: str
       </Panel>
 
       {view.keys !== null && (
-        <Panel title="A2A keys for this workspace" flush>
+        <Panel title={$t("workspace.triggers-a2a-panel.a2aKeysForThisWorkspace")} flush>
           {view.keys.length === 0 ? (
             <EmptyState bare compact title="No A2A keys" description="Make one under Settings → API keys (A2A key)." />
           ) : (

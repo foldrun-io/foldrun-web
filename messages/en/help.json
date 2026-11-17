@@ -1,0 +1,16 @@
+{
+  "page": {
+    "acrossRunsALedgerOfDead": "across runs (a ledger of dead ends, filed briefs) is {@workspace.one} memory —",
+    "anotherFlowFinishes": "another flow of this {@workspace.one} finishes (completed by default, or failed / any) — its conclusion becomes the task",
+    "becauseItMustTravelWhenThe": "— because it must travel when the {@workspace.one} does.",
+    "blockInAgentsMdTheWhole": "block in AGENTS.md (the whole {@workspace.one}) or in one agent names the endpoint and the secret:",
+    "everythingOnThisPageIsPlain": "Everything on this page is plain markdown in your {@workspace.one} — editable here in the dashboard, or in any editor, and every change is an ordinary git diff.",
+    "firstThenTheAccountLibraryOne": "first, then the account Library — one copy of a shared tool, every {@workspace.one}’s agents can ask for it. Secrets are substituted server-side; the model never sees the values.",
+    "markerParksTheRunUntilA": "marker) parks the run until a person answers. Parking is durable — the run survives restarts and waits days if it has to — and the platform tells you three ways: the amber banner across every dashboard page, the run’s row on the Runs page, and an email if the {@workspace.one}’s",
+    "routeModelCalls": "route this {@workspace.one}'s model calls through your own gateway or key",
+    "thatIsNotABuiltIn": "that is not a built-in resolves against the {@workspace.one}’s",
+    "theWorkspaceOnDisk": "The {@workspace.one}, on disk",
+    "theWorkspaceSLastThirtyFinished": ", the {@workspace.one}’s last thirty finished runs and what they concluded, so a scheduled flow continues where yesterday’s left off instead of redoing it.",
+    "workspaceFrontmatterAgentsMd": "{@workspace.One} frontmatter (AGENTS.md)"
+  }
+}

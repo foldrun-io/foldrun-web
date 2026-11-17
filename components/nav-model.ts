@@ -10,6 +10,7 @@
 // knowledge/memory/skills/state scopes; Tools & hooks) carry tabs that link
 // to the same URLs as before.
 
+import { $t } from "@/i18n";
 import { kindsAt } from "@/lib/kinds";
 
 /** Path segments directly under /dashboard that are account-level, not a workspace. */
@@ -61,7 +62,7 @@ export function workspaceNav(workspace: string, pathname: string, params: URLSea
   const filesOn = pathname === `${base}/edit` || (at("/assets") && (kind === "knowledge" || kind === "memory" || kind === "skills"));
   const toolsOn = at("/assets") && (kind === "tools" || kind === "hooks" || !kind);
   return withCurrent({
-    back: { label: "All workspaces", href: `/dashboard${first}` },
+    back: { label: $t("components.nav-model.allWorkspace"), href: `/dashboard${first}` },
     sections: [
       {
         items: [
@@ -105,7 +106,7 @@ export function accountNav(pathname: string, tenant: string, hosted: boolean, co
     sections: [
       {
         items: [
-          { name: "Workspaces", href: `/dashboard${first}`, icon: "workspaces", on: pathname === "/dashboard" },
+          { name: $t("components.nav-model.workspace"), href: `/dashboard${first}`, icon: "workspaces", on: pathname === "/dashboard" },
           { name: "Runs", href: `/dashboard/runs${first}`, icon: "runs", on: at("/runs") },
           { name: "Inbox", href: `/dashboard/inbox${first}`, icon: "inbox", on: at("/inbox"), badge: counts.inbox || undefined },
           { name: "Issues", href: `/dashboard/issues${first}`, icon: "issues", on: at("/issues") },

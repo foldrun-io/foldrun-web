@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
 import path from "node:path";
@@ -47,7 +48,7 @@ function UsedByLine({ uses, kind }: { uses: LibraryUse[]; kind: LibraryKind }) {
   const shadowed = uses.filter((u) => u.relation === "shadowed");
   // Only tools have an opt-in, so only tools can be unused. For every other
   // kind, in-scope means available — saying "used by nobody" would be false.
-  const head = used.length ? used.map(where).join(", ") : kind === "tools" ? <span className="text-fg-subtle">No agent yet</span> : "Every workspace";
+  const head = used.length ? used.map(where).join(", ") : kind === "tools" ? <span className="text-fg-subtle">No agent yet</span> : $t("library.page.everyWorkspace");
   return (
     <span className="inline-flex items-center gap-2">
       <span className="truncate">{head}</span>
@@ -67,7 +68,7 @@ function UsedByPanel({ uses, kind, tenant }: { uses: LibraryUse[]; kind: Library
       <section className="space-y-2">
         <h3 className="font-medium text-fg">{kind === "tools" ? "Granted to" : "Available to"}</h3>
         {kind !== "tools" ? (
-          <p className="text-fg-muted">Every agent in every workspace of this account — the nearest file of the same name wins.</p>
+          <p className="text-fg-muted">{$t("library.page.everyAgentInEveryWorkspaceOf")}</p>
         ) : used.length === 0 ? (
           <p className="text-fg-muted">No agent has granted it with <span className="font-mono">tools:</span> yet.</p>
         ) : (
@@ -109,9 +110,9 @@ function UsedByPanel({ uses, kind, tenant }: { uses: LibraryUse[]; kind: Library
 // a capability on its own. Saying that on both pages is cheaper than
 // letting people discover it by granting a script that never runs.
 const BLURB: Record<LibraryKind, string> = {
-  skills: "Capabilities in the open Agent Skills format, available to every workspace in this account.",
+  skills: $t("library.page.capabilitiesInTheOpenAgentSkills"),
   scripts: "Code that script tools run, mounted as library/<file>. A file here is not a capability until a tool points at it.",
-  memory: "What agents have learned, shared across workspaces. One fact per file; the index is generated.",
+  memory: $t("library.page.whatAgentsHaveLearnedSharedAcross"),
   knowledge: "Reference material you give agents — specs, price lists, brand guidelines. Read, never rewritten.",
   tools: "What an agent can do — an API, a script, or an MCP server. One definition, granted by name with `tools: [name]`.",
   hooks: "Your own code at every tool call, step start or step end, on every model — one folder each, hook.md beside run.mjs. Turned on by name with `hooks: [name]`, or for every agent from an AGENTS.md.",

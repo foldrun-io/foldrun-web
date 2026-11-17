@@ -3,6 +3,7 @@
 // it. cloudhost's settings: a narrow column of cards, tabs by ?tab=, the
 // Danger zone last.
 
+import { $t } from "@/i18n";
 import { HashTab } from "../../settings/anchor";
 import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
@@ -93,7 +94,7 @@ export default async function WorkspaceSettingsPage({
   const wsProvider = parseProvider(frontOf(workspaceDir(tenant, workspace)).provider);
   const acctProvider = wsProvider?.baseUrl ? null : parseProvider(frontOf(accountDir(tenant)).provider);
   const effective = wsProvider?.baseUrl
-    ? { label: wsProvider.baseUrl, source: "this workspace's AGENTS.md", models: wsProvider.models }
+    ? { label: wsProvider.baseUrl, source: $t("workspace.settings-page.thisWorkspaceSAgentsMd"), models: wsProvider.models }
     : acctProvider?.baseUrl
       ? { label: acctProvider.baseUrl, source: "the account's AGENTS.md", models: acctProvider.models }
       : { label: "The account's model provider", source: "Settings → Models", models: {} as Record<string, string> };
@@ -148,7 +149,7 @@ export default async function WorkspaceSettingsPage({
               description={listWorkspaces(tenant).find((w) => w.name === workspace)?.description ?? ""}
               webhookFlows={hooks.map((f) => f.name)}
             />
-            <SettingsCard title="Picture" description="Shown on the workspace's card, in the switcher and in Find.">
+            <SettingsCard title="Picture" description={$t("workspace.settings-page.shownOnTheWorkspaceSCard")}>
               <AvatarEditor kind="workspace" id={workspace} name={workspace} src={avatarUrl(tenant, "workspace", workspace)} tenant={tenant} square />
             </SettingsCard>
             <TimezoneCard endpoint={endpoint} tenant={tenant} initial={own.timezone} inherited={inherited.timezone} />
@@ -159,7 +160,7 @@ export default async function WorkspaceSettingsPage({
               title="Model provider"
               description={
                 <>
-                  Where this workspace&apos;s model calls go, unless an agent pins its own. To point it elsewhere, add a <code className="font-mono text-xs">provider:</code> block to its AGENTS.md.
+                  {$t("workspace.settings-page.whereThisWorkspaceSModelCalls")}{" "}<code className="font-mono text-xs">provider:</code> block to its AGENTS.md.
                 </>
               }
               hint={
@@ -186,12 +187,12 @@ export default async function WorkspaceSettingsPage({
           <SettingsSection id="export">
             <SettingsCard
               title="Export and import"
-              description="This workspace as a .zip — agents, flows, tools, skills, scripts, evals and knowledge. Never memory, state, storage, runs or a secret's value; the names of the secrets it uses travel so the importer can set them."
+              description={$t("workspace.settings-page.thisWorkspaceAsAZipAgents")}
               hint="Import previews what it adds and replaces first."
               footer={
                 <>
                   <ImportPackageButton tenant={tenant} workspace={workspace} />
-                  <ExportLink workspace={workspace} label="Export workspace" />
+                  <ExportLink workspace={workspace} label={$t("workspace.settings-page.exportWorkspace")} />
                 </>
               }
             />
@@ -200,10 +201,10 @@ export default async function WorkspaceSettingsPage({
           <SettingsSection id="danger">
             <SettingsCard
               danger
-              title="Delete this workspace"
+              title={$t("workspace.settings-page.deleteThisWorkspace")}
               description="Its agents, flows, runs, secrets and previews go with it. There is no undo."
               hint="The ledger keeps what its runs cost; everything else is removed."
-              footer={<DeleteButton variant="button" endpoint={`/api/workspaces/${workspace}`} tenant={tenant} confirmText={`Delete workspace ${workspace} and everything in it?`} redirectTo={`/dashboard${qs}`} />}
+              footer={<DeleteButton variant="button" endpoint={`/api/workspaces/${workspace}`} tenant={tenant} confirmText={$t("workspace.settings-page.deleteWorkspaceAndEverythingInIt", { workspace: String(workspace) })} redirectTo={`/dashboard${qs}`} />}
             />
           </SettingsSection>
         </div>
@@ -211,7 +212,7 @@ export default async function WorkspaceSettingsPage({
 
       {tab === "policies" && (
         <div>
-          <SettingsSection id="governance" title="Governance" description="Who answers for this workspace's agents, and what it may spend. In its AGENTS.md: governance:; unset, the account's.">
+          <SettingsSection id="governance" title="Governance" description={$t("workspace.settings-page.whoAnswersForThisWorkspaceS")}>
             {halt.workspace || halt.account ? <PauseCard workspace={workspace} tenant={tenant} scope="workspace" own={halt.workspace ?? null} heldByAccount={halt.account} mayManage={managesWorkspace} /> : null}
             <OwnerCard endpoint={endpoint} tenant={tenant} initial={own.owner} inherited={inherited.owner} />
             <BudgetCard endpoint={endpoint} tenant={tenant} initial={budget} spent={spent} />
@@ -228,23 +229,23 @@ export default async function WorkspaceSettingsPage({
             />
           </SettingsSection>
 
-          <SettingsSection id="guardrail" title="Guardrail" description="What this workspace's agents may reach and call. Each agent's own limits, network and hooks are on its page.">
+          <SettingsSection id="guardrail" title="Guardrail" description={$t("workspace.settings-page.whatThisWorkspaceSAgentsMay")}>
             <NetworkEnforceCard endpoint={endpoint} tenant={tenant} initial={own.networkEnforce || inherited.networkEnforce} inherited={inherited.networkEnforce} />
           </SettingsSection>
 
-          <SettingsSection id="observability" title="Observability" description="Who is told about this workspace's runs, and when. Set here, notify: and alerts: replace the account's whole.">
+          <SettingsSection id="observability" title="Observability" description={$t("workspace.settings-page.whoIsToldAboutThisWorkspace")}>
             <NotifyCard
               endpoint={endpoint}
               tenant={tenant}
               testWorkspace={workspace}
               initial={own.notify}
               inherited={inherited.notify}
-              scopeNote="A workspace's notify: replaces the account's — a URL is a destination, and merging two sends half your alerts to a channel you stopped reading."
+              scopeNote={$t("workspace.settings-page.aWorkspaceSNotifyReplacesThe")}
             />
             <AlertsCard endpoint={endpoint} tenant={tenant} initial={own.alerts} inherited={inherited.alerts} />
           </SettingsSection>
 
-          <SettingsSection id="evaluation" title="Evaluation" description="How this workspace's work is judged.">
+          <SettingsSection id="evaluation" title="Evaluation" description={$t("workspace.settings-page.howThisWorkspaceSWorkIs")}>
             <JudgeCard endpoint={endpoint} tenant={tenant} initial={own.judge} inherited={inherited.judge} />
             <p className="px-1 text-sm text-fg-muted">
               Its evals and their last results are on the{" "}
@@ -264,7 +265,7 @@ export default async function WorkspaceSettingsPage({
       )}
 
       {tab === "secrets" && (
-        <SettingsSection id="secrets" title="Secrets" description="Credentials this workspace's agents read as ${NAME}. Account secrets are inherited and marked; one set here overrides it.">
+        <SettingsSection id="secrets" title="Secrets" description={$t("workspace.settings-page.credentialsThisWorkspaceSAgentsRead")}>
           <Connections
             tenant={tenant}
             secrets={secrets}

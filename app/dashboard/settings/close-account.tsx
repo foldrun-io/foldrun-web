@@ -9,6 +9,7 @@
 // typed back is the confirmation — a dialog's "OK" is too easy to press
 // on the way somewhere else.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@foldrun/ui/react/input";
@@ -67,7 +68,7 @@ export function AccountData({ account, owner, hosted, closeRequestedAt }: { acco
       <SettingsCard
         id="data"
         title="Take a copy"
-        description="Workspaces, members, an index of every run, and the whole billing ledger, as one JSON file."
+        description={$t("settings.close-account.workspaceMembersAnIndexOfEvery")}
         hint="Owner only."
         footer={
           <a href="/api/account/export" download className={buttonVariants({ variant: "secondary" })}>

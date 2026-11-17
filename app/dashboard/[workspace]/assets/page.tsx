@@ -1,3 +1,4 @@
+import { $t } from "@/i18n";
 import fs from "node:fs";
 import path from "node:path";
 import { notFound } from "next/navigation";
@@ -31,8 +32,8 @@ type Kind = (typeof KINDS)[number];
 // See the note on the account library's BLURB: a tool is the capability, a
 // script is material one kind of tool points at.
 const BLURB: Record<Kind, string> = {
-  skills: "Capabilities every agent in this workspace can load, in the open Agent Skills format.",
-  memory: "What agents in this workspace have learned. One fact per file; the index is generated and loaded into every run.",
+  skills: $t("workspace.assets-page.capabilitiesEveryAgentInThisWorkspace"),
+  memory: $t("workspace.assets-page.whatAgentsInThisWorkspaceHave"),
   knowledge: "Reference material you give agents — specs, price lists, guidelines. Loaded like memory, but agents never rewrite it.",
   tools: "What an agent here can do — an API, a script, or an MCP server. Granted by name with `tools: [name]`; credentials resolve server-side.",
   hooks: "Your own code at every tool call, step start or step end, on every model — one folder each, hook.md beside run.mjs. Turned on with `hooks: [name]` in an agent, or for every agent from an AGENTS.md.",
@@ -47,7 +48,7 @@ const LINE: Partial<Record<Kind, string>> = {
   tools: "What an agent here can do — an API, a script or an MCP server, granted with tools: [name].",
   hooks: "Your own code at every tool call, step start or step end, turned on with hooks: [name].",
   knowledge: "Reference material you give agents. They read it and never rewrite it.",
-  memory: "What agents in this workspace have learned, one fact per file.",
+  memory: $t("workspace.assets-page.whatAgentsInThisWorkspaceHave2"),
   skills: "Procedures every agent here can load, in the open Agent Skills format.",
 };
 
@@ -311,7 +312,7 @@ function ReachLine({ r, kind }: { r: Reach; kind: Kind }) {
 
 function ReachPanel({ r, e, kind, workspace, qs }: { r: Reach; e: Entry; kind: Kind; workspace: string; qs: string }) {
   const agentHref = (a: string) => `/dashboard/${workspace}/agents/${a}${qs}`;
-  const scopeOf = (x: Entry) => (x.account ? "shared" : x.owner ? `${x.owner}'s own` : "this workspace's");
+  const scopeOf = (x: Entry) => (x.account ? "shared" : x.owner ? `${x.owner}'s own` : $t("workspace.assets-page.thisWorkspaceS"));
   const verb = kind === "tools" ? "Granted to" : kind === "hooks" ? "Turned on for" : kind === "scripts" ? "Run by" : "Read by";
   return (
     <div className="space-y-6 text-sm">
@@ -319,13 +320,13 @@ function ReachPanel({ r, e, kind, workspace, qs }: { r: Reach; e: Entry; kind: K
         <h3 className="font-medium text-fg">{verb}</h3>
         {r.levels.length > 0 && (
           <p className="text-fg-muted">
-            Every agent {r.levels.includes("account") ? "in the account" : "in this workspace"}, from {r.levels.includes("account") ? "the account's" : "this workspace's"} AGENTS.md
+            Every agent {r.levels.includes("account") ? "in the account" : $t("workspace.assets-page.inThisWorkspace")}, from {r.levels.includes("account") ? "the account's" : $t("workspace.assets-page.thisWorkspaceS")} AGENTS.md
             <span className="font-mono"> hooks:</span>.
           </p>
         )}
         {r.agents === null ? (
           <p className="text-fg-muted">
-            {e.account ? "Every agent in every workspace of this account." : "Every agent in this workspace."}
+            {e.account ? $t("workspace.assets-page.everyAgentInEveryWorkspaceOf") : $t("workspace.assets-page.everyAgentInThisWorkspace")}
             {kind === "skills" && " None of them narrows its skills: list."}
           </p>
         ) : r.agents.length === 0 && r.levels.length === 0 ? (
@@ -373,7 +374,7 @@ function ReachPanel({ r, e, kind, workspace, qs }: { r: Reach; e: Entry; kind: K
       )}
       {e.account && (
         <p className="text-xs text-fg-muted">
-          Shared from the account library — editing it changes every workspace.{" "}
+          {$t("workspace.assets-page.sharedFromTheAccountLibraryEditing")}{" "}
           <Link href={`/dashboard/library?kind=${kind}${qs.replace("?", "&")}`} className="text-link hover:underline">
             Open the library
           </Link>
@@ -416,7 +417,7 @@ export default async function ProjectAssetsPage({
   const title = kind === "tools" || kind === "hooks" ? "Tools & hooks" : PAGE_TITLE[kind] ?? kind[0].toUpperCase() + kind.slice(1);
 
   const reach = new Map(all.map((e) => [e.path, reachOf(e, kind, agentInfo, all, hookOn)]));
-  const scopeLabel = (e: Entry) => (e.account ? "Shared" : e.owner ? e.owner : "Workspace");
+  const scopeLabel = (e: Entry) => (e.account ? "Shared" : e.owner ? e.owner : $t("workspace.assets-page.workspace"));
   const badgesOf = (e: Entry) => okfBadges(dir, e.path, kind, e.account) ?? (e.transport ? <Tag>{e.transport === "http" ? "API" : e.transport}</Tag> : null);
 
   const items: AssetItem[] = all.map((e) => {
@@ -490,7 +491,7 @@ export default async function ProjectAssetsPage({
             { key: "used", header: kind === "tools" ? "Used by" : kind === "hooks" ? "Turned on for" : "Reaches", hide: "md" },
           ]}
           rows={rows}
-          empty={<EmptyState icon={<Icon />} title={`No ${kind} in this workspace yet`} description={BLURB[kind]} />}
+          empty={<EmptyState icon={<Icon />} title={$t("workspace.assets-page.noInThisWorkspaceYet", { kind: String(kind) })} description={BLURB[kind]} />}
         />
       </AssetBrowser>
       {kind === "hooks" && <HooksPanel tenant={tenant} workspace={workspace} />}

@@ -447,7 +447,11 @@ test("the tree's refusals are the server's refusals, word for word", () => {
   // The tree cannot import store.ts (it reads disk), so it mirrors these
   // sentences. A mirror that drifts is worse than no mirror: the gesture
   // would be refused by one and allowed by the other.
-  const tree = read("components/file-tree.tsx");
+  // Its sentences now live in messages/en (17 Nov 2026); the server still
+  // says "workspace" where the dashboard names the term, so the catalog is
+  // read with each {@workspace.form} as the API's own word.
+  const catalog = JSON.stringify(JSON.parse(read("messages/en/components.json"))["file-tree"]).replace(/\{@workspace\.[a-zA-Z]+\}/g, "workspace");
+  const tree = read("components/file-tree.tsx") + catalog;
   for (const phrase of [
     "is the workspace's own identity",
     "because of where it sits",

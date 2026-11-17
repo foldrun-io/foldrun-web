@@ -4,6 +4,7 @@
 // records and file stores at render time; there is no second counter to
 // drift from the facts.
 
+import { $t } from "@/i18n";
 import { Page, PageHeader, SectionTitle, StatGrid, Stat, Callout } from "@foldrun/ui/react/page";
 import { PageTabs } from "@foldrun/ui/react/page-tabs";
 import { Segmented } from "@foldrun/ui/react/segmented";
@@ -275,7 +276,7 @@ export default async function UsagePage({
       )}
 
       {u.workspaces.length > 1 && (
-        <SectionTitle title="By workspace" description="Each workspace, with its flows and agents broken out." actions={<CollapseAll scope="usage" />} />
+        <SectionTitle title={$t("usage.page.byWorkspace")} description={$t("usage.page.eachWorkspaceWithItsFlowsAnd")} actions={<CollapseAll scope="usage" />} />
       )}
       <div className="mb-8 space-y-3">
       {u.workspaces.map((ws) => (
@@ -299,7 +300,7 @@ export default async function UsagePage({
           <DataTable
             columns={BUCKET_COLUMNS}
             rows={[
-              { key: "whole", cells: [<span key="w" className="font-medium">whole workspace</span>, ...bucketCells(ws)] },
+              { key: "whole", cells: [<span key="w" className="font-medium">{$t("usage.page.wholeWorkspace")}</span>, ...bucketCells(ws)] },
               ...Object.entries(ws.byFlow).map(([flow, b]) => ({
                 key: `f-${flow}`,
                 cells: [

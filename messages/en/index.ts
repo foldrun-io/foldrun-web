@@ -1,0 +1,21 @@
+// Every English language file, by area. Written by scripts/i18n-extract.mjs
+// when it adds an area; edit the JSON files, not this list.
+import auth from "./auth.json" with { type: "json" };
+import common from "./common.json" with { type: "json" };
+import components from "./components.json" with { type: "json" };
+import connect from "./connect.json" with { type: "json" };
+import dashboard from "./dashboard.json" with { type: "json" };
+import graph from "./graph.json" with { type: "json" };
+import help from "./help.json" with { type: "json" };
+import inbox from "./inbox.json" with { type: "json" };
+import issues from "./issues.json" with { type: "json" };
+import library from "./library.json" with { type: "json" };
+import limits from "./limits.json" with { type: "json" };
+import profile from "./profile.json" with { type: "json" };
+import runs from "./runs.json" with { type: "json" };
+import settings from "./settings.json" with { type: "json" };
+import storage from "./storage.json" with { type: "json" };
+import usage from "./usage.json" with { type: "json" };
+import workspace from "./workspace.json" with { type: "json" };
+
+export const CATALOG = { auth, common, components, connect, dashboard, graph, help, inbox, issues, library, limits, profile, runs, settings, storage, usage, workspace };

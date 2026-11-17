@@ -5,6 +5,7 @@
 // Apply writes those files (each a revision by you), Dismiss sets it aside.
 // Nothing is written before Apply. "Propose a fix" asks for one now.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "@foldrun/ui/react/link";
@@ -156,7 +157,7 @@ export function Proposals({
             {p.files.map((f) => (
               <div key={f.path} className="mt-2">
                 <p className="mb-1 font-mono text-xs text-fg">{f.path}{f.before === null ? " (new)" : ""}</p>
-                <DiffView rows={foldDiff(lineDiff(f.before ?? "", f.content), 4)} empty="Same as the file in the workspace." />
+                <DiffView rows={foldDiff(lineDiff(f.before ?? "", f.content), 4)} empty={$t("workspace.evals-proposals.sameAsTheFileInThe")} />
               </div>
             ))}
             {p.issues.length > 0 && (

@@ -1,0 +1,5 @@
+{
+  "page": {
+    "thisInstanceRunsASingleWorkspace": "This instance runs a single {@workspace.one} from a folder on disk, so"
+  }
+}

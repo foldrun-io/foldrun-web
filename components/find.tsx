@@ -11,6 +11,7 @@
 // by name. Results come from /api/search, ranked by find-model.ts; the
 // page list is ranked here with the same rules, so the two never disagree.
 
+import { $t } from "@/i18n";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { rank, groupHits, pagesFor, type FindHit, type FindKind } from "./find-model";
@@ -208,7 +209,7 @@ export function Find() {
                 go(flat[active]);
               }
             }}
-            placeholder={workspace ? `Find in ${workspace} or anywhere…` : "Find a workspace, agent, flow, run, tool, page…"}
+            placeholder={workspace ? `Find in ${workspace} or anywhere…` : $t("components.find.findAWorkspaceAgentFlowRun")}
             aria-label="Find"
             className="h-12 flex-1 bg-transparent text-sm text-fg placeholder:text-fg-subtle focus:outline-none"
           />

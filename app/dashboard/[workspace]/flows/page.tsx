@@ -7,6 +7,7 @@
 // flow — its steps on the canvas, its runs and its settings, in tabs
 // (`&tab=runs|settings`). `?create=flows` opens the New flow dialog.
 
+import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
 import path from "node:path";
@@ -406,14 +407,14 @@ export default async function FlowsPage({
               />
               <SettingsCard
                 title="Export"
-                description="The flow as a .zip — the flow file and the agents, tools and skills it needs — to import into another workspace or account."
+                description={$t("workspace.flows-page.theFlowAsAZipThe")}
                 footer={<ExportLink workspace={workspace} kind="flow" name={f.name} label="Export .zip" className={buttonVariants({ variant: "secondary" })} />}
               />
               <SettingsCard
                 id="delete"
                 danger
                 title="Delete flow"
-                description={callers.length ? `Deleting it breaks ${callers.length === 1 ? "the flow" : "the flows"} that run it as a step: ${callers.join(", ")}.` : "Its file is removed from the workspace. Its runs stay on record."}
+                description={callers.length ? `Deleting it breaks ${callers.length === 1 ? "the flow" : "the flows"} that run it as a step: ${callers.join(", ")}.` : $t("workspace.flows-page.itsFileIsRemovedFromThe")}
                 footer={
                   <DeleteButton
                 variant="button"
@@ -525,7 +526,7 @@ export default async function FlowsPage({
         empty={
           <EmptyState
             icon={<Workflow />}
-            title="No flows in this workspace yet"
+            title={$t("workspace.flows-page.noFlowsInThisWorkspaceYet")}
             description="A flow is a numbered list of [[agent]] links under flows/. One agent per line; repeat a number to run those agents in parallel."
             action={
               <Link href={`${base}?create=flows${tenantParam}`} className={buttonVariants({ variant: "primary" })}>

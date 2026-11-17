@@ -7,6 +7,7 @@
 // listed with content because a workspace's history is every save ever made
 // and the page should open in the time it takes to read one line per row.
 
+import { $t } from "@/i18n";
 import { useState } from "react";
 import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
@@ -74,7 +75,7 @@ export function HistoryList({
   // new revision — so the rollback is in the log, attributed, and itself
   // undoable. The same POST /restore the Backups page and the CLI use.
   const rollback = async (r: Summary) => {
-    if (!(await confirm({ title: `Roll back to ${shortId(r)}?`, body: `The workspace becomes what it was at "${r.message}". Everything after it is kept in history, and runs, state and storage are not touched.`, confirmLabel: "Roll back", destructive: false }))) return;
+    if (!(await confirm({ title: `Roll back to ${shortId(r)}?`, body: $t("workspace.history-history-list.theWorkspaceBecomesWhatItWas", { message: String(r.message) }), confirmLabel: "Roll back", destructive: false }))) return;
     setRolling(r.id);
     setNote(null);
     try {
