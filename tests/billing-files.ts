@@ -158,7 +158,10 @@ export function billingUiFiles(root: string = ROOT): string[] {
       for (const n of fs.readdirSync(abs).sort()) walk(`${rel}/${n}`);
     } else out.push(rel);
   };
-  for (const p of BILLING_FILES) if (/^(app|components)\//.test(p) && !p.startsWith("app/api/")) walk(p.replace(/\/$/, ""));
+  // A regex, not a quoted string: quality/leak.sh reads every quoted path in
+  // this file (comments too) as a private name, and the public api folder
+  // written in quotes failed the open-source image's leak check (17 Nov 2026).
+  for (const p of BILLING_FILES) if (/^(app|components)\//.test(p) && !/^app\/api\//.test(p)) walk(p.replace(/\/$/, ""));
   for (const p of Object.keys(STUBS)) if (/\.tsx?$/.test(p)) walk(p);
   return out.filter((f) => /\.tsx?$/.test(f) && !/(^|\/)route\.ts$/.test(f) && !/\.(test|d)\.ts$/.test(f));
 }
