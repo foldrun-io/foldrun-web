@@ -6,7 +6,8 @@
 // one does). The gateway reads the change within its key cache (10 s).
 
 import { NextRequest, NextResponse } from "next/server";
-import { listApiKeys, setRequireCustomer } from "@/server/auth";
+import { listApiKeys, setRequireCustomer, deleteApiKey } from "@/server/auth";
+import { keyWithin } from "@/server/key-scope";
 import { errorResponse, requirePermission, ApiError, refuse } from "@/server/api";
 import { audit } from "@/server/audit";
 import { idempotent } from "@/server/idempotency";
@@ -67,4 +68,24 @@ async function patchOnce(req: NextRequest, ctx: { params: Promise<{ id: string }
 /** At most once per Idempotency-Key — server/idempotency.ts. */
 export async function PATCH(...args: Parameters<typeof patchOnce>) {
   return idempotent(args[0], () => patchOnce(...args));
+}
+
+// DELETE /api/keys/<id> — delete a key (17 Nov 2026: a tester found no way
+// to remove one, only to revoke it and see it listed forever). A live key is
+// revoked in the same moment, so anything still using it stops at once; a
+// revoked or expired one just leaves the list. keys:manage, and only a key
+// within the caller's own scope — the rule revoking reads (a key outside it
+// is not found rather than refused). Audited as apikey.deleted.
+export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await ctx.params;
+    const { tenant, actor } = await requirePermission(req, "keys:manage");
+    const target = (await listApiKeys(tenant)).find((k) => k.id === id);
+    if (!target || !keyWithin(actor, target)) return refuse("key not found", 404);
+    if (!(await deleteApiKey(tenant, id))) return refuse("key not found", 404);
+    await audit("apikey.deleted", { actor: actor.name, tenant, subject: target.id, detail: { label: target.label, prefix: target.prefix, wasLive: !target.revokedAt } });
+    return NextResponse.json({ ok: true, id, revoked: !target.revokedAt });
+  } catch (err) {
+    return errorResponse(err);
+  }
 }

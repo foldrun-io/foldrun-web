@@ -58,6 +58,7 @@ export type AuditAction =
   | "timezone.changed"
   | "apikey.created"
   | "apikey.revoked"
+  | "apikey.deleted"
   | "member.invited"
   // An invite taken back before it was used: by a person, by a newer
   // invite to the same address, or because its maker or addressee left

@@ -26,6 +26,7 @@ import {
   findApiKeyByHashDb,
   listApiKeysDb,
   revokeApiKeyDb,
+  deleteApiKeyDb,
   hasActiveKeysDb,
   importApiKeysDb,
   touchApiKeyDb,
@@ -294,6 +295,19 @@ export async function revokeApiKey(tenant: string, id: string): Promise<boolean>
   return true;
 }
 
+/** Delete a key (17 Nov 2026): revoked at once if it was not already, and
+ *  shown in no list again. The database keeps the row (the audit trail and
+ *  spend lines name it); keys.json drops the record. False when it is not
+ *  this account's or not there. */
+export async function deleteApiKey(tenant: string, id: string): Promise<boolean> {
+  if (databaseEnabled()) return deleteApiKeyDb(tenant, id);
+  const keys = readKeys();
+  const kept = keys.filter((k) => !(k.id === id && k.tenant === tenant));
+  if (kept.length === keys.length) return false;
+  writeKeys(kept);
+  return true;
+}
+
 /** A member's address changed: their keys move with them, so a later
  *  removal or downgrade still finds every one (FOL-97). */
 export async function moveKeysToEmail(tenant: string, from: string, to: string): Promise<number> {
@@ -364,8 +378,9 @@ async function markReplaced(tenant: string, id: string, by: string): Promise<boo
 /** The 409 for rotating a key a rotation already replaced. Whoever lost the
  *  new key's secret wants to rotate the NEW key: that mints another and ends
  *  the lost one, where rotating the old key again would leave it live. */
-function alreadyRotated(next: Pick<ApiKeyRecord, "prefix" | "label" | "revokedAt"> | undefined, nextId: string) {
-  const which = next ? `${next.prefix}… ("${next.label}")` : nextId;
+function alreadyRotated(next: Pick<ApiKeyRecord, "prefix" | "label" | "revokedAt"> | undefined) {
+  // A replacement since deleted is listed nowhere, so it is not named either.
+  const which = next ? `${next.prefix}… ("${next.label}")` : "a key since deleted";
   const tail = next && !next.revokedAt
     ? `; rotate that one — if you lost its secret, rotating ${next.prefix}… mints another and ends it`
     : "; that key is gone too — mint a new one";
@@ -398,7 +413,7 @@ export async function rotateApiKey(
   // A rotated key names its replacement first: with no grace it is revoked,
   // and after the grace it has expired, but the answer is still "rotate the
   // new one", not "not found" or "mint a new one".
-  if (old.replacedBy) throw alreadyRotated(all.find((k) => k.id === old.replacedBy), old.replacedBy);
+  if (old.replacedBy) throw alreadyRotated(all.find((k) => k.id === old.replacedBy));
   if (old.revokedAt) throw Object.assign(new Error("key not found"), { status: 404 });
   if (keyExpired(old)) throw Object.assign(new Error("that key has already expired — mint a new one instead"), { status: 409 });
   const lifetime = old.expiresAt ? Date.parse(old.expiresAt) - Date.parse(old.createdAt) : null;
@@ -426,7 +441,7 @@ export async function rotateApiKey(
     await revokeApiKey(tenant, made.record.id);
     const after = await keysOf(tenant);
     const winner = after.find((k) => k.id === id)?.replacedBy;
-    if (winner) throw alreadyRotated(after.find((k) => k.id === winner), winner);
+    if (winner) throw alreadyRotated(after.find((k) => k.id === winner));
     throw Object.assign(new Error("key not found"), { status: 404 });
   }
   const endsAt = new Date(Date.now() + graceMs);

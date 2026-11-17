@@ -212,6 +212,24 @@ export function KeyManager({
     router.refresh();
   };
 
+  // Delete (17 Nov 2026): a live key is revoked in the same moment; a revoked
+  // or expired one just leaves the list. The audit log keeps the record.
+  const remove = async (id: string, live: boolean) => {
+    if (!(await confirm({
+      title: $t("settings.keys.deleteThisKey"),
+      body: live ? $t("settings.keys.deleteLiveKeyBody") : $t("settings.keys.deleteRevokedKeyBody"),
+      confirmLabel: $t("settings.keys.delete"),
+    }))) return;
+    setRowError(null);
+    const res = await fetch(`/api/keys/${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      setRowError({ id, message: body.error ?? $t("settings.keys.couldNotDeleteKey") });
+      return;
+    }
+    router.refresh();
+  };
+
   // A gateway key's model map (Part A5): which model each Claude Code tier
   // runs on for that key.
   const [editingModels, setEditingModels] = useState<string | null>(null);
@@ -627,7 +645,7 @@ export function KeyManager({
                         )}
                         {k.replacedBy && (
                           <Tooltip label={$t("settings.keys.rotatedThisKeyIsNotRotated")}>
-                            <span>{$t("settings.keys.rotated")}{" "}{next ? `${next.label} · ${next.prefix}…` : k.replacedBy}</span>
+                            <span>{$t("settings.keys.rotated")}{" "}{next ? `${next.label} · ${next.prefix}…` : $t("settings.keys.aDeletedKey")}</span>
                           </Tooltip>
                         )}
                       </p>
@@ -732,15 +750,15 @@ export function KeyManager({
                           </Button>
                         </div>
                       )}
-                      {rowError?.id === k.id && (editingModels === k.id || rotating === k.id) && (
+                      {rowError?.id === k.id && (
                         <p role="alert" className="mt-2 text-sm text-danger">
                           {rowError.message}
                         </p>
                       )}
                     </div>
-                    {!k.revokedAt && manages && (
+                    {manages && (
                       <div className="flex shrink-0 items-center gap-1 max-sm:-ml-2.5">
-                        {k.purpose === "gateway" && !expired && !k.replacedBy && (
+                        {!k.revokedAt && k.purpose === "gateway" && !expired && !k.replacedBy && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -753,13 +771,18 @@ export function KeyManager({
                             {$t("settings.keys.models")}
                           </Button>
                         )}
-                        {!expired && !k.replacedBy && (
+                        {!k.revokedAt && !expired && !k.replacedBy && (
                           <Button variant="ghost" size="sm" onClick={() => setRotating(rotating === k.id ? null : k.id)}>
                             {$t("settings.keys.rotate")}
                           </Button>
                         )}
-                        <Button variant="ghost" size="sm" className="hover:text-danger" onClick={() => revoke(k.id)}>
-                          {$t("settings.keys.revoke")}
+                        {!k.revokedAt && (
+                          <Button variant="ghost" size="sm" className="hover:text-danger" onClick={() => revoke(k.id)}>
+                            {$t("settings.keys.revoke")}
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="sm" className="hover:text-danger" onClick={() => remove(k.id, !k.revokedAt && !expired)}>
+                          {$t("settings.keys.delete")}
                         </Button>
                       </div>
                     )}

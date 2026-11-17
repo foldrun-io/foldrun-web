@@ -537,7 +537,13 @@
     "whenTheKeyExpires": "When the key expires",
     "whichModelClaudeCodeSTiers": "Which model Claude Code's tiers run on with this key. Leave one empty to run it as Claude Code names it. A model is written as <span>openai/gpt-6</span>, <span>deepseek/deepseek-v4</span>, <span>zai/glm-5.3</span>, <span>qwen/qwen3.8-max</span> or <span>gemini/…</span> (also <span>kimi/</span>, <span>minimax/</span>, <span>mimo/</span>)",
     "withoutTheFoldrunCliUseThis": "Without the foldrun CLI, use this command instead:",
-    "workspace": "{@workspace.One}"
+    "workspace": "{@workspace.One}",
+    "delete": "Delete",
+    "deleteThisKey": "Delete this key?",
+    "deleteLiveKeyBody": "It is revoked first, so anything using it stops working immediately, and it leaves this list. The audit log keeps a record.",
+    "deleteRevokedKeyBody": "It leaves this list. The audit log keeps a record.",
+    "couldNotDeleteKey": "Could not delete the key.",
+    "aDeletedKey": "a key since deleted"
   },
   "mcp-connections": {
     "aProgramThatSignsInTo": "A program that signs in to /api/mcp with client credentials — no person approves each token. It acts within your role and {@workspace.other}.",

@@ -39,3 +39,23 @@ test("rotating a key already replaced is a 409 naming its replacement; two at on
   const live = (await listApiKeys(tenant)).filter((k) => !k.revokedAt && !k.replacedBy);
   assert.equal(live.length, 1, "one live, unreplaced key at the end");
 });
+
+test("deleting a key with the database: revoked if live, listed nowhere, its hash refused", opts, async () => {
+  const { migrate } = await import("@/platform/db.ts");
+  await migrate();
+  const { createApiKey, deleteApiKey, listApiKeys, revokeApiKey } = await import("../server/auth.ts");
+  const { findApiKeyByHashDb } = await import("@/platform/api-keys-db.ts");
+  const tenant = `deldb${Date.now()}`;
+  const live = await createApiKey(tenant, "ci", undefined, undefined, "editor");
+  const old = await createApiKey(tenant, "old", undefined, undefined, "editor");
+  await revokeApiKey(tenant, old.record.id);
+  assert.equal(await deleteApiKey(tenant, live.record.id), true);
+  assert.equal(await deleteApiKey(tenant, old.record.id), true);
+  assert.equal(await deleteApiKey(tenant, live.record.id), false, "already deleted");
+  assert.equal(await deleteApiKey("someone-else", old.record.id), false);
+  assert.deepEqual(await listApiKeys(tenant), []);
+  const row = await findApiKeyByHashDb(live.record.hash);
+  assert.ok(row?.revokedAt && row.deletedAt, "the row stays, revoked and deleted");
+  const oldRow = await findApiKeyByHashDb(old.record.hash);
+  assert.ok(oldRow?.revokedAt && oldRow.deletedAt && Date.parse(oldRow.revokedAt) <= Date.parse(oldRow.deletedAt), "an earlier revocation keeps its own time");
+});

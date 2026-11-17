@@ -53,6 +53,7 @@ function describe(e: AuditEntry): string {
     case "apikey.rotated":
       return $t("settings.audit-page.newReplacesWhichEndsUtc", { v0: String(s("label")), v1: String(s("prefix")), v2: String(s("replacesPrefix")), v3: String(s("oldEndsAt").slice(0, 16).replace("T", " ")) });
     case "apikey.revoked":
+    case "apikey.deleted":
       return `${s("label")} (${s("prefix")}…)`;
     case "apikey.models": {
       const m = (d.models && typeof d.models === "object" ? d.models : {}) as Record<string, string>;
