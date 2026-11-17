@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { flushRevisions, readWorkspaceFileVia } from "@/lib/workspace-revisions";
 import { requireTenant, errorResponse, actorOf, requirePermission, refuse } from "@/server/api";
+import { requireWorkspace } from "@/lib/storage";
 import { jsonObject } from "@/server/body";
 import { createHash } from "node:crypto";
 import { readWorkspaceFile, writeWorkspaceFile, deleteWorkspacePath, listWorkspaceFiles, renameWorkspaceFile, assertEditablePath } from "@/lib/store";
@@ -20,6 +21,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
   try {
     const { workspace } = await ctx.params;
     const tenant = await tenantOf(req);
+    // A name with no workspace is a 404 as on its siblings (vocabulary, runtimes,
+    // proposals, storage), not an empty list that reads as "nothing here".
+    requireWorkspace(tenant, workspace);
     const rel = req.nextUrl.searchParams.get("path");
     if (!rel) return NextResponse.json({ files: listWorkspaceFiles(tenant, workspace) });
     // The head's bytes when `revisions.read` is on and it has the file; the

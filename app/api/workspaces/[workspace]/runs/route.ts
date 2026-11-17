@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, errorResponse, ApiError } from "@/server/api";
+import { requireWorkspace } from "@/lib/storage";
 import { parseRunFilter, matchesRunFilter, isEmptyFilter } from "@/lib/runs-filter";
 import { listRunSummariesAsync, runTokens, runDisplayStatus, runVerdict, runFailure, runFromSummary } from "@/lib/store";
 import { outcomeOf } from "@/lib/outcome";
@@ -14,6 +15,9 @@ export async function GET(
   try {
     const { workspace } = await ctx.params;
     const tenant = await requireTenant(req);
+    // A name with no workspace is a 404 as on its siblings (vocabulary, runtimes,
+    // proposals, storage), not an empty list that reads as "nothing here".
+    requireWorkspace(tenant, workspace);
     // 1..500, 50 unasked: `abc` used to return nothing and `-5` the oldest five.
     const limit = intParam(req.nextUrl.searchParams.get("limit"), 50, 1, 500);
     // FOL-72 step 9: tool, tool_error, agent, model, min_tokens, min_secs —

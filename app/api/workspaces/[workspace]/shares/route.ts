@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { actorOf, errorResponse, requirePermission, refuse } from "@/server/api";
 import { jsonObject } from "@/server/body";
+import { requireWorkspace } from "@/lib/storage";
 import { createShare, listShares, maskToken, readerSeesToken, revokeShare, shareId, shareUrl, tokenForShareId } from "@/platform/shares.ts";
 import { can } from "@/platform/permissions";
 import { idempotent } from "@/server/idempotency";
@@ -61,6 +62,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
   try {
     const { workspace } = await ctx.params;
     const { tenant, actor } = await requirePermission(req, "workspace:read");
+    // A name with no workspace is a 404 as on its siblings, not an empty list.
+    requireWorkspace(tenant, workspace);
     // A token is the link itself, and a link outlives the access of whoever
     // copies it (30 Oct 2026): a viewer who listed every token kept working
     // public links after their key was revoked. Admins and a link's own maker
