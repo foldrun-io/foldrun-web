@@ -14,6 +14,7 @@ import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { looksLikeClasses, looksLikeCode } from "./i18n-shared.mjs";
+import { billingUiFiles } from "../tests/billing-files.ts";
 
 export const WEB = path.resolve(import.meta.dirname, "..");
 const ts = createRequire(import.meta.url)(path.join(WEB, "node_modules/typescript"));
@@ -21,12 +22,35 @@ const ts = createRequire(import.meta.url)(path.join(WEB, "node_modules/typescrip
 const VISIBLE_ATTRS = new Set(["title", "label", "placeholder", "aria-label", "alt", "description", "hint", "help", "empty", "emptyText", "confirmLabel", "cancelLabel", "noun", "meta", "subtitle", "heading", "message", "text", "tooltip", "summary", "allLabel", "caption", "legend"]);
 const VISIBLE_KEYS = /^(title|label|placeholder|description|hint|help|empty|message|text|tooltip|summary|meta|subtitle|heading|allLabel|blurb|body|lead|detail|note|why|cta|caption)$/;
 
+/** The files under app/ and components/ in this checkout: what git tracks,
+ *  or — in a copy with no .git, such as foldrun-admin's hosted check, which
+ *  unpacks `git archive` — what is on disk. */
+function sourceFiles() {
+  let tracked = [];
+  try {
+    tracked = execFileSync("git", ["ls-files", "app", "components"], { cwd: WEB, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).split("\n").filter(Boolean);
+  } catch {
+    // not a git checkout: read the disk below
+  }
+  if (tracked.length) return tracked;
+  const out = [];
+  const walk = (rel) => {
+    for (const e of fs.readdirSync(path.join(WEB, rel), { withFileTypes: true })) {
+      if (e.isDirectory()) walk(`${rel}/${e.name}`);
+      else out.push(`${rel}/${e.name}`);
+    }
+  };
+  for (const d of ["app", "components"]) if (fs.existsSync(path.join(WEB, d))) walk(d);
+  return out;
+}
+
 /** The files the dashboard draws from: tracked pages and components, not
- *  the API's own messages (a later step: they are the API's contract). */
+ *  the API's own messages (a later step: they are the API's contract) —
+ *  and, on a hosted checkout, billing's (foldrun-admin's, laid over this
+ *  one and ignored by git; tests/billing-files.ts billingUiFiles). */
 export function dashboardFiles() {
-  return execFileSync("git", ["ls-files", "app", "components"], { cwd: WEB, encoding: "utf8" })
-    .split("\n")
-    .filter((f) => /\.(tsx|ts)$/.test(f) && !f.startsWith("app/api/") && !f.startsWith("app/.well-known/") && !/(^|\/)route\.ts$/.test(f) && !/\.(test|d)\.ts$/.test(f));
+  const keep = (f) => /\.(tsx|ts)$/.test(f) && !f.startsWith("app/api/") && !f.startsWith("app/.well-known/") && !/(^|\/)route\.ts$/.test(f) && !/\.(test|d)\.ts$/.test(f);
+  return [...new Set([...sourceFiles().filter(keep), ...billingUiFiles(WEB).filter((f) => keep(f) || f.startsWith("server/"))])].sort();
 }
 
 export function fingerprint(text) {
@@ -65,6 +89,9 @@ export function hardcoded(rel) {
 export function census() {
   const out = {};
   for (const f of dashboardFiles()) {
+    // A server module is read for the keys it names; its other strings are
+    // the API's words (server/billing-notices.ts billingNotices), not a page's.
+    if (f.startsWith("server/")) continue;
     const counts = {};
     for (const { text } of hardcoded(f)) {
       const fp = fingerprint(text);

@@ -18,9 +18,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { looksLikeClasses, looksLikeCode } from "./i18n-shared.mjs";
+import { dashboardFiles } from "./i18n-scan.mjs";
+import { BILLING_FILES, STUBS } from "../tests/billing-files.ts";
 
 const WEB = path.resolve(import.meta.dirname, "..");
 const ts = createRequire(import.meta.url)(path.join(WEB, "node_modules/typescript"));
@@ -138,10 +139,18 @@ function jsxRendered(raw) {
 
 // ---- keys and files ---------------------------------------------------------
 
+// Billing's words go to billing's own catalog, messages/en/billing.json,
+// which is foldrun-admin's (laid over the public, empty one) — never into a
+// public area. One namespace per file: the path under the billing section,
+// else under app/ or components/ (wallet-page, support-enter-page,
+// balance-pill).
+const isBillingFile = (rel) => BILLING_FILES.some((p) => (p.endsWith("/") ? rel.startsWith(p) : rel === p)) || rel in STUBS;
+
 function areaOf(rel) {
   const parts = rel.replace(/\.(tsx|ts)$/, "").split("/");
   let area, rest;
-  if (parts[0] === "components") [area, rest] = ["components", parts.slice(1)];
+  if (isBillingFile(rel)) [area, rest] = ["billing", rel.startsWith("app/dashboard/billing/") ? parts.slice(3) : parts.slice(parts[0] === "app" && parts[1] === "dashboard" ? 2 : 1)];
+  else if (parts[0] === "components") [area, rest] = ["components", parts.slice(1)];
   else if (parts[1] === "(auth)") [area, rest] = ["auth", parts.slice(2)];
   else if (parts[1] === "dashboard" && parts[2] === "[workspace]") [area, rest] = ["workspace", parts.slice(3)];
   else if (parts[1] === "dashboard" && parts.length > 3) [area, rest] = [parts[2], parts.slice(3)];
@@ -188,11 +197,14 @@ function toMessage(text) {
 
 // ---- the run ----------------------------------------------------------------
 
-const tracked = execFileSync("git", ["ls-files", "app", "components"], { cwd: WEB, encoding: "utf8" }).split("\n")
-  // Route handlers (app/api, app/.well-known, any route.ts) answer machines,
-  // not people: their text is a protocol, never translated.
-  .filter((f) => /\.(tsx|ts)$/.test(f) && !f.startsWith("app/api/") && !f.startsWith("app/.well-known/") && !/(^|\/)route\.ts$/.test(f) && !/\.(test|d)\.ts$/.test(f));
-const files = ONLY ? tracked.filter((f) => ONLY.includes(f)) : tracked;
+// The census's list (scripts/i18n-scan.mjs dashboardFiles): tracked pages
+// and components, and on a hosted checkout billing's, which git ignores —
+// so the prune below never drops a billing key a billing page still names.
+// Route handlers (app/api, app/.well-known, any route.ts) answer machines,
+// not people: their text is a protocol, never translated. A server module
+// is only read for the keys it names; it is moved by hand, never here.
+const tracked = dashboardFiles();
+const files = (ONLY ? tracked.filter((f) => ONLY.includes(f)) : tracked).filter((f) => !f.startsWith("server/"));
 const report = { moved: 0, review: [], files: 0 };
 
 // The type checker says whether {expr} inside a sentence is text (a string or

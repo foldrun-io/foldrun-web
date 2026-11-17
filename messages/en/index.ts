@@ -2,6 +2,7 @@
 // when it adds an area; edit the JSON files, not this list.
 import app from "./app.json" with { type: "json" };
 import auth from "./auth.json" with { type: "json" };
+import billing from "./billing.json" with { type: "json" };
 import common from "./common.json" with { type: "json" };
 import components from "./components.json" with { type: "json" };
 import connect from "./connect.json" with { type: "json" };
@@ -24,4 +25,4 @@ import welcome from "./welcome.json" with { type: "json" };
 import whatsNew from "./whats-new.json" with { type: "json" };
 import workspace from "./workspace.json" with { type: "json" };
 
-export const CATALOG = { app, auth, common, components, connect, dashboard, docs, graph, help, inbox, issues, library, limits, observe, profile, runs, settings, storage, usage, values, welcome, "whats-new": whatsNew, workspace };
+export const CATALOG = { app, auth, billing, common, components, connect, dashboard, docs, graph, help, inbox, issues, library, limits, observe, profile, runs, settings, storage, usage, values, welcome, "whats-new": whatsNew, workspace };

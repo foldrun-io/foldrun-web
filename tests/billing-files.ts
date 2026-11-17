@@ -126,6 +126,12 @@ export function supportExempt(_method: string, _pathname: string): boolean {
 }
 `;
 
+/** messages/en/billing.json as the public repository has it: no words
+ *  (17 Nov 2026). The billing pages' sentences are foldrun-admin's
+ *  (web/messages/en/billing.json, laid over this one); the empty catalog
+ *  keeps messages/en/index.ts importing the same file in both editions. */
+export const BILLING_MESSAGES_STUB = "{}\n";
+
 /** Every public file foldrun-admin replaces, with what it must be when
  *  committed here (billing-guard.mjs refuses anything else). */
 export const STUBS: Record<string, string> = {
@@ -133,7 +139,29 @@ export const STUBS: Record<string, string> = {
   "server/billing-notices.ts": NOTICES_STUB,
   "server/hosted-services.ts": HOSTED_SERVICES_STUB,
   "server/view-as.ts": VIEW_AS_STUB,
+  "messages/en/billing.json": BILLING_MESSAGES_STUB,
 };
+
+/** The billing files that draw words a person reads, as this checkout has
+ *  them on disk: billing's pages and components (BILLING_FILES, without its
+ *  routes and server code) and the stand-ins that draw or say something
+ *  (STUBS). On the public checkout that is the stubs alone, which hold no
+ *  words; on a hosted one, foldrun-admin's real files. They are ignored by
+ *  git, so scripts/i18n-scan.mjs adds them to what `git ls-files` lists —
+ *  every key they name must be in the catalog, and every billing key used. */
+export function billingUiFiles(root: string = ROOT): string[] {
+  const out: string[] = [];
+  const walk = (rel: string) => {
+    const abs = path.join(root, rel);
+    if (!fs.existsSync(abs)) return;
+    if (fs.statSync(abs).isDirectory()) {
+      for (const n of fs.readdirSync(abs).sort()) walk(`${rel}/${n}`);
+    } else out.push(rel);
+  };
+  for (const p of BILLING_FILES) if (/^(app|components)\//.test(p) && !p.startsWith("app/api/")) walk(p.replace(/\/$/, ""));
+  for (const p of Object.keys(STUBS)) if (/\.tsx?$/.test(p)) walk(p);
+  return out.filter((f) => /\.tsx?$/.test(f) && !/(^|\/)route\.ts$/.test(f) && !/\.(test|d)\.ts$/.test(f));
+}
 
 /** Billing's tests in tests/ (foldrun-admin's web/tests), and their
  *  helpers. */
@@ -158,6 +186,7 @@ export const BILLING_TESTS = [
   "admin-op.ts",
   "admin-run-health.test.ts",
   "admin-ops-logs.test.ts",
+  "billing-labels.test.ts",
 ];
 
 const ROOT = path.join(import.meta.dirname, "..");

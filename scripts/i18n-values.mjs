@@ -6,7 +6,7 @@
 //   node scripts/i18n-values.mjs        list them
 
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { dashboardFiles } from "./i18n-scan.mjs";
 import { createRequire } from "node:module";
 
 const WEB = path.resolve(import.meta.dirname, "..");
@@ -21,8 +21,9 @@ const CODE_LIKE = /^\s*--|\/|^[A-Z][A-Z0-9_]*$/;
 
 export function rawValues() {
   const found = [];
-  const files = execFileSync("git", ["ls-files", "app", "components"], { cwd: WEB, encoding: "utf8" }).split("\n")
-    .filter((f) => /\.tsx$/.test(f) && !f.startsWith("app/api/") && !/(^|\/)route\.ts$/.test(f));
+  // The census's list: tracked pages and components, and billing's on a
+  // hosted checkout (scripts/i18n-scan.mjs dashboardFiles).
+  const files = dashboardFiles().filter((f) => /\.tsx$/.test(f));
   const cfg = ts.parseJsonConfigFileContent(ts.readConfigFile(path.join(WEB, "tsconfig.json"), ts.sys.readFile).config, ts.sys, WEB);
   const program = ts.createProgram({ rootNames: files.map((f) => path.join(WEB, f)), options: { ...cfg.options, noEmit: true } });
   const tc = program.getTypeChecker();

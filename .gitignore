@@ -78,6 +78,7 @@ next-env.d.ts
 /tests/partner-topups-routes.test.ts
 /tests/partner-signups-route.test.ts
 /tests/coding-plan-routes.test.ts
+/tests/billing-labels.test.ts
 /tests/billing-invoices.test.ts
 /tests/flags-routes.test.ts
 /tests/status-routes.test.ts
