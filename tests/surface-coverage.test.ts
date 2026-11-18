@@ -73,7 +73,6 @@ const NOT_IN_CLI: Record<string, string> = {
   "GET /s/[token]": CALLBACK + "a share link, opened by whoever has it",
   "HEAD /s/[token]": CALLBACK + "a share link, opened by whoever has it",
   // Reached, by a path the scanner cannot evaluate.
-  "GET /api/workspaces/[workspace]/agents": "`foldrun agent ls --to`: remoteListCmd, `/api/workspaces/${ws}/${kind}`",
   "GET /api/workspaces/[workspace]/flows": "`foldrun flow ls --to`: remoteListCmd, `/api/workspaces/${ws}/${kind}`",
   "POST /api/workspaces/[workspace]/agents": "`foldrun agent new --platform`: platformScaffold, `/api/workspaces/${ws}/${kind}`",
   "POST /api/workspaces/[workspace]/flows": "`foldrun flow new --platform`: platformScaffold, `/api/workspaces/${ws}/${kind}`",
