@@ -239,6 +239,22 @@ export default async function RunPage({
                   </span>
                 </Tooltip>
               )}
+              {run.sessionMessages && run.sessionMessages.length > 0 && (
+                <Tooltip
+                  label={
+                    <WithEmails
+                      text={$t("workspace.runs-runId-page.sessionMessagesNote", {
+                        list: run.sessionMessages.map((m) => `${m.from}: ${m.text.length > 120 ? `${m.text.slice(0, 119)}…` : m.text}`).join(" · "),
+                      })}
+                    />
+                  }
+                >
+                  {/* Focusable: the messages are only in the tooltip, so a keyboard must reach it. */}
+                  <span tabIndex={0} className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+                    <Fact label={$t("workspace.runs-runId-page.sessionMessages")}>{run.sessionMessages.length}</Fact>
+                  </span>
+                </Tooltip>
+              )}
               {run.customer && (
                 <Tooltip label={$t("workspace.runs-runId-page.whichOfYourOwnUsersThis")}>
                   <span>

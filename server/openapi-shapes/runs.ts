@@ -3,6 +3,20 @@
 
 import { type Shape, obj, str, bool, int, arr } from "./kit.ts";
 
+/** A session message (platform/session-messages.ts). */
+const SessionMessageShape = obj({
+  id: str(),
+  workspace: str(),
+  context: str("the conversation it was sent to"),
+  from: str("who sent it, as the platform names them"),
+  sender: str("<kind>:<id> of the credential that sent it"),
+  fromContext: str("the sender's own conversation, when given"),
+  text: str(),
+  at: str(),
+  run: str("the run that included it; absent while it waits"),
+  usedAt: str("when that run took it"),
+});
+
 export const SHAPES: Record<string, Shape> = {
   "DELETE /api/workspaces/{workspace}/runs/{runId}": {
     noBody: "the run is in the path; one still going is stopped first",
@@ -80,6 +94,26 @@ export const SHAPES: Record<string, Shape> = {
     response: obj({
       agents: { type: "object", additionalProperties: { type: "string" }, description: "agent → when its last frame arrived" },
     }),
+  },
+  "GET /api/workspaces/{workspace}/sessions/{context}/messages": {
+    query: [
+      { name: "waiting", description: "1 or true: only those no turn has included yet" },
+      { name: "limit", description: "the newest this many, at most 200 (default 100), shown oldest first" },
+    ],
+    response: obj({
+      context: str(),
+      messages: arr(SessionMessageShape),
+    }),
+  },
+  "POST /api/workspaces/{workspace}/sessions/{context}/messages": {
+    body: obj(
+      {
+        text: str("the message, at most 4000 characters, trimmed"),
+        from: str("the sender's own conversation, when sent from one (a context id)"),
+      },
+      ["text"],
+    ),
+    response: obj({ ok: bool, message: SessionMessageShape }),
   },
   "POST /api/workspaces/{workspace}/runs/{runId}/message": {
     body: obj(

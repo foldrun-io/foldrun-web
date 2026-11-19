@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, requirePermission, ApiError, refuse } from "@/server/api";
 import fs from "node:fs";
 import path from "node:path";
-import { workspaceDir, isOneSegment } from "@/lib/store";
+import { workspaceDir, isOneSegment, readRun } from "@/lib/store";
 import { enqueueFlowRun } from "@/platform/queue";
 import { wantsWait, waitAndRespond } from "@/server/wait";
 import { idempotent } from "@/server/idempotency";
 import { getSnapshot, SnapshotRefused } from "@/platform/snapshots";
-import { contextIdProblem, runContext } from "@/lib/conversation";
+import { contextIdProblem, messagesBlock, runContext, SESSION_MESSAGE_LIMITS, type SessionMessage } from "@/lib/conversation";
+import { asRunMessage, claimedRunOf, claimSessionMessages, freeSessionMessages, SessionMessagesUnavailable } from "@/platform/session-messages";
+import crypto from "node:crypto";
 import { inputsFromBody, missingText } from "@/server/run-inputs";
 import { customerProblem } from "@/lib/customer";
 import { assertCustomerNamed } from "@/server/customer-required";
@@ -36,6 +38,9 @@ async function postOnce(
     let rawInputs: unknown;
     // FOL-168: which of the partner's own users this run is for.
     let customer: string | undefined;
+    // Session messages (19 Nov 2026): waiting messages of this conversation
+    // the caller chose to include in this turn.
+    let messageIds: string[] | undefined;
     try {
       const body = await req.json();
       if (typeof body?.task === "string") task = body.task;
@@ -50,6 +55,13 @@ async function postOnce(
         context = body.context as string;
       }
       rawInputs = body?.inputs;
+      if (body?.messages !== undefined && body?.messages !== null) {
+        if (!Array.isArray(body.messages) || body.messages.some((m: unknown) => typeof m !== "string" || !/^sm-[A-Za-z0-9_-]{1,40}$/.test(m))) {
+          throw new ApiError("messages: the ids of waiting session messages to include (GET …/sessions/<context>/messages?waiting=1)", 400);
+        }
+        if (body.messages.length > SESSION_MESSAGE_LIMITS.perTurn) throw new ApiError(`messages: at most ${SESSION_MESSAGE_LIMITS.perTurn} in one turn`, 400);
+        messageIds = body.messages as string[];
+      }
       if (body?.customer !== undefined && body?.customer !== null) {
         const problem = customerProblem(body.customer);
         if (problem) throw new ApiError(problem, 400);
@@ -68,7 +80,32 @@ async function postOnce(
     }
     assertCustomerNamed(actor, customer);
     const inputs = inputsFromBody(tenant, workspace, rawInputs);
-    const run = await enqueueFlowRun(
+    if (messageIds?.length && !context) return refuse("messages: only a turn of a conversation includes them — give its `context`", 400);
+    // Claimed for this turn before it is made, under a token: a message is
+    // taken by one turn only. All or nothing — a turn never runs with fewer
+    // than the person chose without saying so.
+    let claim: { token: string; messages: SessionMessage[] } | undefined;
+    let left: string[] = [];
+    if (messageIds?.length && context) {
+      const token = `claim-${crypto.randomUUID()}`;
+      const { taken, refused } = await claimSessionMessages(tenant, workspace, context, messageIds, token);
+      if (refused.length) {
+        await freeSessionMessages(tenant, token);
+        return NextResponse.json({ error: `${refused.length === 1 ? "a message is" : `${refused.length} messages are`} no longer waiting for ${context} — read them again (GET …/sessions/${context}/messages?waiting=1); nothing was started`, refused }, { status: 409 });
+      }
+      // What fits in the turn's block goes in; the rest waits again and the
+      // answer says so (`left`) — none is marked used that the agent did not
+      // read (Codex, 19 Nov 2026).
+      const all = taken.map(asRunMessage);
+      const fit = messagesBlock(all)?.given ?? 0;
+      left = all.slice(fit).map((m) => m.id);
+      if (left.length) await freeSessionMessages(tenant, token, { ids: left });
+      if (!fit) return NextResponse.json({ error: "messages: none of them fits in one turn — nothing was started", left }, { status: 413 });
+      claim = { token, messages: all.slice(0, fit) };
+    }
+    let run;
+    try {
+      run = await enqueueFlowRun(
       tenant,
       workspace,
       [{ agent, instruction: task, group: 1, optional: false }],
@@ -76,11 +113,26 @@ async function postOnce(
       undefined,
       [],
       null,
-      { test, ...(snapshot ? { snapshot } : {}), ...(context ? { conversation: { context: runContext(context), input: { text: task } } } : {}), ...(inputs ? { inputs } : {}), ...(customer ? { customer } : {}) },
-    );
-    if (wantsWait(req)) return waitAndRespond(req, tenant, workspace, run);
-    return NextResponse.json({ ok: true, runId: run.id, test: run.test === true, ...(run.snapshot ? { snapshot: run.snapshot.id } : {}), ...(run.context ? { context: run.context.id } : {}), ...(run.inputs?.length ? { inputs: run.inputs.map((f) => f.path) } : {}), ...(run.customer ? { customer: run.customer } : {}) });
+      { test, ...(snapshot ? { snapshot } : {}), ...(context ? { conversation: { context: runContext(context), input: { text: task } } } : {}), ...(inputs ? { inputs } : {}), ...(customer ? { customer } : {}), ...(claim ? { sessionMessages: { claim: claim.token, messages: claim.messages } } : {}) },
+      );
+    } catch (err) {
+      // Bound inside the queue before the run is queued. Freed again only
+      // when no run holds them — never when it was queued and something
+      // after failed, so a retry cannot hand them to a second turn.
+      if (claim) {
+        const token = claim.token;
+        await (async () => {
+          const bound = await claimedRunOf(tenant, token);
+          if (bound && readRun(tenant, workspace, bound)) return;
+          await freeSessionMessages(tenant, token, { bound: true });
+        })().catch(() => {});
+      }
+      throw err;
+    }
+    if (wantsWait(req)) return waitAndRespond(req, tenant, workspace, run, { ...(run.sessionMessages?.length ? { messages: run.sessionMessages.map((m) => m.id) } : {}), ...(left.length ? { left } : {}) });
+    return NextResponse.json({ ok: true, runId: run.id, test: run.test === true, ...(run.snapshot ? { snapshot: run.snapshot.id } : {}), ...(run.context ? { context: run.context.id } : {}), ...(run.inputs?.length ? { inputs: run.inputs.map((f) => f.path) } : {}), ...(run.customer ? { customer: run.customer } : {}), ...(run.sessionMessages?.length ? { messages: run.sessionMessages.map((m) => m.id) } : {}), ...(left.length ? { left } : {}) });
   } catch (err) {
+    if (err instanceof SessionMessagesUnavailable) return refuse(err.message, 503);
     // The folder went between the check and the pin: the run was undone.
     if (err instanceof SnapshotRefused) return refuse(err.message, 404);
     // An input deleted between the check and the hold: the run was undone.

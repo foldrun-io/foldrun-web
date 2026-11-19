@@ -19,6 +19,7 @@ import { configMatter } from "@/lib/matter";
 import { adminState, workspacePause } from "@/platform/admin";
 import { requireWorkspace, purgeWorkspaceStorage, moveWorkspaceStorage } from "@/lib/storage";
 import { revokeWorkspaceShares, moveWorkspaceShares } from "@/platform/shares";
+import { deleteWorkspaceSessionMessages, renameWorkspaceSessionMessages } from "@/platform/session-messages";
 import { retargetSecretWorkspaces } from "@/lib/secrets";
 import { jsonObject, optionalString } from "@/server/body";
 
@@ -84,7 +85,10 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ workspac
     await purgeWorkspaceStorage(tenant, workspace);
     // Its history goes with it (8 Nov 2026): a new workspace of this name
     // starts empty. A store that cannot be reached stops the delete here.
-    await deleteWorkspaceAsync(tenant, workspace);
+    // The messages its conversations were sent go in the same step, under
+    // the lock every send to it takes (19 Nov 2026): no send lands after,
+    // and either both go or neither.
+    await deleteWorkspaceSessionMessages(tenant, workspace, () => deleteWorkspaceAsync(tenant, workspace));
     // And again: a limit saved while the folder still existed (the secrets
     // route checks the name under the vault lock) is taken off now.
     secretsLetGo(tenant, workspace, null, `${workspace} was deleted`);
@@ -167,19 +171,26 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ workspace
       // rename. Until the folder moves, runs starting under the old name
       // find those secrets not set: closed, never open.
       secretsLetGo(tenant, workspace, body.name, "Nothing was renamed");
+      const to = body.name;
       try {
+        // Its conversations' messages move in the same step as the folder,
+        // under the lock every send to it takes (19 Nov 2026): the folder
+        // failing to move rolls them back, and no other project sees them
+        // before it has moved.
+        await renameWorkspaceSessionMessages(tenant, workspace, to, async () => {
         // The history follows the name (8 Nov 2026), or the rename is refused.
-        await renameWorkspaceAsync(tenant, workspace, body.name);
+        await renameWorkspaceAsync(tenant, workspace, to);
         // Its stored files and public links follow it (30 Oct 2026); they are
         // kept by name, and used to stay behind for whoever took the old one.
         // A store that cannot be moved puts the folder back, so the workspace
         // and its files never end up under two names.
         try {
-          await moveWorkspaceStorage(tenant, workspace, body.name);
+          await moveWorkspaceStorage(tenant, workspace, to);
         } catch (err) {
-          await renameWorkspaceAsync(tenant, body.name, workspace);
+          await renameWorkspaceAsync(tenant, to, workspace);
           throw err;
         }
+        });
       } catch (err) {
         // The folder kept its name: so do its grants. Best effort — the
         // rename's own error is the one reported; if the vault refuses this

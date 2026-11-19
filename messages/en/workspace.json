@@ -1402,7 +1402,9 @@
     "utc2": "{hint} · {v1} UTC",
     "utc3": "· {replace} UTC",
     "whatTheLedgerCharged": "What the ledger charged",
-    "whichOfYourOwnUsersThis": "Which of your own users this run is for — its limits and blocks follow it (Settings → API keys → Customers)"
+    "whichOfYourOwnUsersThis": "Which of your own users this run is for — its limits and blocks follow it (Settings → API keys → Customers)",
+    "sessionMessages": "Session messages",
+    "sessionMessagesNote": "What other sessions sent this conversation and the person included in this turn — the agent read them after the earlier turns, as data, not instructions: {list}"
   },
   "settings-page": {
     "aWorkspaceSNotifyReplacesThe": "A {@workspace.one}'s notify: replaces the account's — a URL is a destination, and merging two sends half your alerts to a channel you stopped reading.",

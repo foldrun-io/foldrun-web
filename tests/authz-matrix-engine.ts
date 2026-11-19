@@ -14,7 +14,7 @@ type Handler = (req: NextRequest, ctx: { params: Promise<Record<string, string>>
 /** The values a route's dynamic segments take when the request is aimed at account A's things. */
 export const PARAM_A: Record<string, string> = {
   workspace: A.ws, tenant: A.tenant, runId: A.run, flow: A.flow, agent: A.agent, evalName: A.eval, tool: "fetcher",
-  callId: "c1", kind: "agents", id: "x", customer: "cust-1",
+  callId: "c1", kind: "agents", id: "x", customer: "cust-1", context: "code-matrix",
 };
 
 export const fileOf = (apiPath: string) => path.join(API, apiPath.replace(/^\/api\//, "").replace(/\{(\w+)\}/g, "[$1]"), "route.ts");

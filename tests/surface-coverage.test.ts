@@ -86,6 +86,11 @@ const SEEN = (where: string) => `reached by a call the scanner cannot evaluate: 
 
 /** Operations the dashboard does not call through /api, and why. */
 const NOT_IN_DASHBOARD: Record<string, string> = {
+  // Session messages (19 Nov 2026): sent and read where the conversation is
+  // held — foldrun code, scripts; a run's page lists the ones its turn
+  // included, from the run record (no call to these routes).
+  "GET /api/workspaces/[workspace]/sessions/[context]/messages": "read where the conversation is held (foldrun code); the run page shows a turn's included messages from its record",
+  "POST /api/workspaces/[workspace]/sessions/[context]/messages": "sent from foldrun code (/send) or a script (foldrun sessions send); the dashboard has no conversation to send from",
   "POST /api/billing/partner/plans/offer": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",
   "POST /api/billing/partner/signups": CALLBACK + "foldrun.ir's signed storefront calls (a sign-up link for a customer with no account); the person opens the account on /signup",
   "POST /api/billing/partner/plans": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",

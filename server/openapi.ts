@@ -710,7 +710,7 @@ const EXTRA_STATUSES: Record<string, string[]> = {
   // new run is admitted against the balance and the `budget:` files
   // (platform queue.ts admitNow → reservations.ts), and refused past them.
   "POST /api/workspaces/{workspace}/flows/{flow}/run": ["402", "409"],
-  "POST /api/workspaces/{workspace}/agents/{agent}/run": ["402", "409"],
+  "POST /api/workspaces/{workspace}/agents/{agent}/run": ["402", "409", "413", "503"],
   "POST /api/workspaces/{workspace}/runs/{runId}/rerun": ["402", "409"],
   // The same waiting-cap refusal to a delivery is a 503 with Retry-After,
   // which a sender retries; out of funds or budget stays a 402.
@@ -773,6 +773,7 @@ const EXTRA_STATUSES: Record<string, string[]> = {
   "* /api/workspaces/{workspace}/runs/{runId}/answer": ["409", "413"],
   "* /api/workspaces/{workspace}/runs/{runId}/archive": ["206", "416"],
   "* /api/workspaces/{workspace}/runs/{runId}/message": ["409", "413"],
+  "* /api/workspaces/{workspace}/sessions/{context}/messages": ["201", "409", "503"],
   "* /api/workspaces/{workspace}/shares": ["409"],
   "* /api/workspaces/{workspace}/snapshots": ["411", "413"],
   "* /api/workspaces/{workspace}/source": ["422"],

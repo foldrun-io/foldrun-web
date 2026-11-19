@@ -42,6 +42,8 @@ export async function waitAndRespond(
   tenant: string,
   workspace: string,
   started: RunRecord,
+  /** Fields the route's own answer carries that a waited one must too. */
+  extra: Record<string, unknown> = {},
 ) {
   const { run, timedOut } = await waitForRun(tenant, workspace, started.id, timeoutMs(req));
   if (!run) {
@@ -49,6 +51,7 @@ export async function waitAndRespond(
   }
 
   const body = {
+    ...extra,
     ok: run.status === "completed",
     runId: run.id,
     status: run.status,
