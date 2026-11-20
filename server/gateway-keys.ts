@@ -4,7 +4,7 @@
 // open estimates included) — the same sums the gateway door's limits read.
 
 import { databaseEnabled } from "@/platform/db";
-import { dayOf, spentByJob } from "@/platform/model-usage";
+import { dayOf, spentByJob, walletSpentByJob } from "@/platform/model-usage";
 import { chargeMargin } from "@/platform/model-gateway";
 import { loginAllowedFor, providerOfModel } from "@/platform/gateway-door";
 import { billing } from "@/platform/billing";
@@ -59,10 +59,12 @@ export interface GatewaySpend {
   dailyUsd: number | null;
   spentUsd: number;
   todayUsd: number;
+  /** An account key: what bought credits paid for its calls (FOL-208). */
+  walletSpentUsd?: number;
 }
 
 /** Each gateway key with what it has spent in all and today (UTC). */
-export async function withGatewaySpend<K extends { id: string; tenant: string; purpose?: string; gateway?: { capUsd: number | null; dailyUsd: number | null; credential?: "login"; models?: GatewayModels } }>(keys: K[], now = new Date()): Promise<(K | (K & { gateway: GatewaySpend }))[]> {
+export async function withGatewaySpend<K extends { id: string; tenant: string; purpose?: string; gateway?: { capUsd: number | null; dailyUsd: number | null; credential?: "login" | "account"; walletUsd?: number; models?: GatewayModels } }>(keys: K[], now = new Date()): Promise<(K | (K & { gateway: GatewaySpend }))[]> {
   const day = dayOf(now);
   return Promise.all(
     keys.map(async (k) => {
@@ -72,9 +74,18 @@ export async function withGatewaySpend<K extends { id: string; tenant: string; p
       // As charged — each call at the margin it was held at — the unit the
       // limits are in (and the gateway door's own check).
       const m = chargeMargin();
-      const [spentUsd, todayUsd] = await Promise.all([spentByJob(k.tenant, job, undefined, m), spentByJob(k.tenant, job, day, m)]);
+      const account = k.gateway.credential === "account";
+      const [spentUsd, todayUsd, walletSpentUsd] = await Promise.all([spentByJob(k.tenant, job, undefined, m), spentByJob(k.tenant, job, day, m), account ? walletSpentByJob(k.tenant, job, m) : Promise.resolve(0)]);
       // The whole grant (its model map included), plus what it has spent.
-      return { ...k, gateway: { ...k.gateway, capUsd: k.gateway.capUsd ?? null, dailyUsd: k.gateway.dailyUsd ?? null, spentUsd, todayUsd } };
+      return { ...k, gateway: { ...k.gateway, capUsd: k.gateway.capUsd ?? null, dailyUsd: k.gateway.dailyUsd ?? null, spentUsd, todayUsd, ...(account ? { walletSpentUsd } : {}) } };
     }),
   );
+}
+
+/** An account key's wallet budget as sent: a JSON number from 0 to
+ *  100000, checked before it is rounded to cents (Codex: -0.001 is refused,
+ *  never 0); null for anything else. Create and PATCH read it alike. */
+export function walletAmount(v: unknown): number | null {
+  if (typeof v !== "number" || !Number.isFinite(v) || v < 0 || v > 100_000) return null;
+  return Math.round(v * 100) / 100;
 }

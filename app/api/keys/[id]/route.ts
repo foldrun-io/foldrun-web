@@ -12,7 +12,8 @@ import { errorResponse, requirePermission, ApiError, refuse } from "@/server/api
 import { audit } from "@/server/audit";
 import { idempotent } from "@/server/idempotency";
 import { checkModels, gatewayOffered } from "@/server/gateway-keys";
-import { setGatewayGrantDb } from "@/platform/api-keys-db";
+import { patchGatewayGrantDb } from "@/platform/api-keys-db";
+import { walletAmount } from "@/server/gateway-keys";
 import { jsonObject } from "@/server/body";
 
 async function patchOnce(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -27,11 +28,21 @@ async function patchOnce(req: NextRequest, ctx: { params: Promise<{ id: string }
     } catch {
       throw new ApiError("expected a JSON body { models }", 400);
     }
-    const unknown = Object.keys(body).filter((k) => k !== "models" && k !== "requireCustomer");
-    if (unknown.length) return refuse(`only models and requireCustomer may be changed here — not ${unknown.join(", ")}`, 400);
-    if (!("models" in body) && !("requireCustomer" in body)) return refuse("expected { models: { opus?, sonnet?, haiku? } | null } or { requireCustomer: true | false }", 400);
+    const unknown = Object.keys(body).filter((k) => k !== "models" && k !== "requireCustomer" && k !== "walletUsd");
+    if (unknown.length) return refuse(`only models, requireCustomer and walletUsd may be changed here — not ${unknown.join(", ")}`, 400);
+    if (!("models" in body) && !("requireCustomer" in body) && !("walletUsd" in body)) return refuse("expected { models: { opus?, sonnet?, haiku? } | null }, { requireCustomer: true | false } or { walletUsd }", 400);
     const key = (await listApiKeys(tenant)).find((k) => k.id === id);
     if (!key || key.revokedAt) return refuse("key not found", 404);
+    // An account key's wallet budget (FOL-208), alone in its request.
+    if ("walletUsd" in body) {
+      if (Object.keys(body).length > 1) return refuse("change walletUsd on its own", 400);
+      if (key.purpose !== "gateway" || key.gateway?.credential !== "account") return refuse("only an account key (credential: account) has a wallet budget", 400);
+      const n = walletAmount(body.walletUsd);
+      if (n === null) return refuse("walletUsd must be a number of dollars from 0 (the plan only) to 100000", 400);
+      if (!(await patchGatewayGrantDb(tenant, id, "walletUsd", n, "account"))) return refuse("key not found", 404);
+      await audit("apikey.wallet_budget", { actor: actor.name, tenant, subject: id, detail: { label: key.label, prefix: key.prefix, walletUsd: n } });
+      return NextResponse.json({ ok: true, id, walletUsd: n });
+    }
     // Everything asked for is checked before anything is written, so a
     // refusal never leaves half the change applied (Codex review).
     if ("requireCustomer" in body) {
@@ -54,10 +65,8 @@ async function patchOnce(req: NextRequest, ctx: { params: Promise<{ id: string }
     if (key.purpose !== "gateway" || !key.gateway) return refuse("only a gateway key has a model map", 400);
     const checked = checkModels(body.models, key.gateway.credential === "login");
     if ("error" in checked) return refuse(checked.error, 400);
-    const { models: _old, ...rest } = key.gateway;
-    void _old;
-    const next = { ...rest, ...(checked.models ? { models: checked.models } : {}) };
-    if (!(await setGatewayGrantDb(tenant, id, next))) return refuse("key not found", 404);
+    // The model map alone, against the grant as it is now (Codex review).
+    if (!(await patchGatewayGrantDb(tenant, id, "models", checked.models ?? null))) return refuse("key not found", 404);
     await audit("apikey.models", { actor: actor.name, tenant, subject: id, detail: { label: key.label, prefix: key.prefix, models: checked.models } });
     return NextResponse.json({ ok: true, id, models: checked.models });
   } catch (err) {

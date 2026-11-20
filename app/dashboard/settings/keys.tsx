@@ -45,7 +45,7 @@ interface KeyRow {
   purpose?: "a2a" | "gateway";
   /** "gateway": a coding agent's key — its own spending limits, and what it
    *  has spent in all and today (UTC), USD. */
-  gateway?: { capUsd: number | null; dailyUsd: number | null; spentUsd?: number; todayUsd?: number; credential?: "login"; plan?: "pro" | "max"; models?: { opus?: string; sonnet?: string; haiku?: string } };
+  gateway?: { capUsd: number | null; dailyUsd: number | null; spentUsd?: number; todayUsd?: number; credential?: "login" | "account"; walletUsd?: number; walletSpentUsd?: number; plan?: "pro" | "max"; models?: { opus?: string; sonnet?: string; haiku?: string } };
   a2a?: { workspace: string; flows: string[]; principal?: string; maxTasks: number };
 }
 
@@ -79,6 +79,8 @@ function gatewaySpend(g: NonNullable<KeyRow["gateway"]>): string {
   if (g.capUsd !== null) parts.push($t("settings.keys.spentOfCap", { spent: usd(g.spentUsd), cap: usd(g.capUsd) }));
   else parts.push($t("settings.keys.spent", { spent: usd(g.spentUsd) }));
   if (g.dailyUsd !== null) parts.push($t("settings.keys.ofToday", { v0: String(usd(g.todayUsd)), v1: String(usd(g.dailyUsd)) }));
+  // An account key: the plan first, and what bought credits paid of its budget.
+  if (g.credential === "account") parts.push(g.walletUsd ? $t("settings.keys.walletSpentOfBudget", { spent: usd(g.walletSpentUsd), cap: usd(g.walletUsd) }) : $t("settings.keys.planOnly"));
   return parts.join(" · ");
 }
 
@@ -150,7 +152,8 @@ export function KeyManager({
   const [dailyUsd, setDailyUsd] = useState("");
   // Where a gateway key's calls run: foldrun's models (billed, with limits)
   // or, for the operator's own accounts, the operator's Claude login.
-  const [runsOn, setRunsOn] = useState<"models" | "login">("models");
+  const [runsOn, setRunsOn] = useState<"models" | "login" | "account">("models");
+  const [walletUsd, setWalletUsd] = useState("0");
   const [plan, setPlan] = useState<"pro" | "max">("pro");
   const onLogin = kind === "gateway" && runsOn === "login" && gateway?.login === true;
   const [a2aWs, setA2aWs] = useState<string>(workspaces[0] ?? "");
@@ -175,7 +178,7 @@ export function KeyManager({
             : kind === "gateway"
               ? onLogin
                 ? { tenant, label, expires, purpose: "gateway", credential: "login", plan, ...(requireCust ? { requireCustomer: true } : {}) }
-                : { tenant, label, expires, purpose: "gateway", ...(capUsd.trim() ? { capUsd: Number(capUsd) } : {}), ...(dailyUsd.trim() ? { dailyUsd: Number(dailyUsd) } : {}), ...(requireCust ? { requireCustomer: true } : {}) }
+                : { tenant, label, expires, purpose: "gateway", ...(runsOn === "account" ? { credential: "account", walletUsd: Number(walletUsd.trim() || "0") } : {}), ...(capUsd.trim() ? { capUsd: Number(capUsd) } : {}), ...(dailyUsd.trim() ? { dailyUsd: Number(dailyUsd) } : {}), ...(requireCust ? { requireCustomer: true } : {}) }
               : { tenant, label, role, expires, ...(narrow ? { workspaces: chosen } : {}), ...(requireCust ? { requireCustomer: true } : {}) },
         ),
       });
@@ -255,6 +258,29 @@ export function KeyManager({
       } else setRowError({ id, message: data.error ?? $t("settings.keys.failedToSaveTheModels") });
     } catch (err) {
       setRowError({ id, message: err instanceof Error ? err.message : $t("settings.keys.failedToSaveTheModels") });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // An account key's wallet budget, changed in place (PATCH walletUsd).
+  const [walletEdit, setWalletEdit] = useState<{ id: string; value: string } | null>(null);
+  const saveWallet = async () => {
+    if (busy || !walletEdit) return;
+    const amount = walletEdit.value.trim() === "" ? NaN : Number(walletEdit.value);
+    setBusy(true);
+    setRowError(null);
+    try {
+      const res = await fetch(`/api/keys/${encodeURIComponent(walletEdit.id)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ walletUsd: amount }) });
+      const data = await res.json();
+      // Saved when the platform answers with the budget it kept (rounded
+      // to cents, so 1.234 is 1.23) — never compared with the draft (Codex).
+      if (res.ok && typeof data.walletUsd === "number") {
+        setWalletEdit(null);
+        router.refresh();
+      } else setRowError({ id: walletEdit.id, message: data.error ?? $t("settings.keys.failedToChangeIt") });
+    } catch (err) {
+      setRowError({ id: walletEdit.id, message: err instanceof Error ? err.message : $t("settings.keys.failedToChangeIt") });
     } finally {
       setBusy(false);
     }
@@ -428,14 +454,13 @@ export function KeyManager({
                       an Anthropic base URL and key) spends the account's
                       credits on foldrun's models through the
                       gateway, up to the limits set here. No /api route. */}
-                  {gateway.login && (
-                    <Field label={$t("settings.keys.runsOn")}>
-                      <Select value={runsOn} onChange={(e) => setRunsOn(e.target.value as "models" | "login")} className="w-full max-w-md" aria-label={$t("settings.keys.whatTheKeySCallsRun")}>
-                        <option value="models">{$t("settings.keys.foldrunSModelsBilledWithLimits")}</option>
-                        <option value="login">{$t("settings.keys.thisAccountSPlanNotBilled")}</option>
-                      </Select>
-                    </Field>
-                  )}
+                  <Field label={$t("settings.keys.runsOn")}>
+                    <Select value={runsOn} onChange={(e) => setRunsOn(e.target.value as "models" | "login" | "account")} className="w-full max-w-md" aria-label={$t("settings.keys.whatTheKeySCallsRun")}>
+                      <option value="models">{$t("settings.keys.foldrunSModelsBilledWithLimits")}</option>
+                      <option value="account">{$t("settings.keys.thePlanFirstThenBoughtCredits")}</option>
+                      {gateway.login && <option value="login">{$t("settings.keys.thisAccountSPlanNotBilled")}</option>}
+                    </Select>
+                  </Field>
                   {onLogin && (
                     <Field label={$t("settings.keys.size")}>
                       <Select value={plan} onChange={(e) => setPlan(e.target.value as "pro" | "max")} className="w-full max-w-md" aria-label={$t("settings.keys.theKeySSize")}>
@@ -459,6 +484,12 @@ export function KeyManager({
                     </Field>
                   </div>
                   )}
+                  {!onLogin && runsOn === "account" && (
+                    <Field label={$t("settings.keys.walletBudgetUsd")}>
+                      <Input type="number" min={0} step={0.01} value={walletUsd} onChange={(e) => setWalletUsd(e.target.value)} className="w-full max-w-xs" aria-label={$t("settings.keys.theMostBoughtCreditsMayPay")} />
+                    </Field>
+                  )}
+                  {!onLogin && runsOn === "account" && <p>{$t("settings.keys.accountKeyHelp")}</p>}
                   {!onLogin && <p>{$t("settings.keys.setAtLeastOneEachCall")}</p>}
                 </div>
               )}
@@ -676,6 +707,29 @@ export function KeyManager({
                             )}
                           </dd>
                         </div>
+                        {k.gateway?.credential === "account" && !k.revokedAt && (
+                          <div>
+                            <dt className="inline text-fg-subtle">{$t("settings.keys.walletBudget")}{" "}</dt>
+                            <dd className="inline">
+                              {walletEdit?.id === k.id ? (
+                                <span className="inline-flex flex-wrap items-center gap-2">
+                                  <Input type="number" min={0} step={0.01} value={walletEdit.value} onChange={(e) => setWalletEdit({ id: k.id, value: e.target.value })} className="w-32" aria-label={$t("settings.keys.theMostBoughtCreditsMayPay")} />
+                                  <Button size="sm" disabled={busy} onClick={() => void saveWallet()}>{$t("settings.keys.save")}</Button>
+                                  <Button size="sm" variant="ghost" disabled={busy} onClick={() => setWalletEdit(null)}>{$t("settings.keys.cancel")}</Button>
+                                </span>
+                              ) : (
+                                <>
+                                  {k.gateway.walletUsd ? usd(k.gateway.walletUsd) : $t("settings.keys.walletBudgetPlanOnly", { amount: usd(0) })}
+                                  {!scoped && (
+                                    <button type="button" disabled={busy} onClick={() => setWalletEdit({ id: k.id, value: String(k.gateway?.walletUsd ?? 0) })} className="ml-2 text-fg-secondary underline decoration-line underline-offset-2 hover:text-fg">
+                                      {$t("settings.keys.changeWalletBudget")}
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </dd>
+                          </div>
+                        )}
                         {k.purpose !== "a2a" && !k.revokedAt && (
                           <div>
                             <dt className="inline text-fg-subtle">{$t("settings.keys.customer")}{" "}</dt>

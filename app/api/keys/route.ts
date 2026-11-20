@@ -1,3 +1,4 @@
+import { walletAmount } from "@/server/gateway-keys";
 import { NextRequest, NextResponse } from "next/server";
 import { createApiKey, listApiKeys, revokeApiKey, resolveTenant, parseKeyExpiry, type Actor } from "@/server/auth";
 import { audit } from "@/server/audit";
@@ -230,6 +231,17 @@ const GATEWAY_MAX_USD = 100_000;
 /** A limit from the body, in cents: at least $0.01 once rounded (Codex
  *  review: $0.001 rounded to a $0 limit, a key refused on its first call),
  *  or null when unsaid. */
+/** An account key's wallet budget: 0 (the plan alone) up to the gateway's
+ *  most; absent is 0 — bought credits are never spent by a key that was
+ *  not told it may. */
+function walletBudget(v: unknown): number {
+  // Unsaid is 0; a null (a form's NaN, as JSON) is refused, never read as 0.
+  if (v === undefined) return 0;
+  const n = walletAmount(v);
+  if (n === null) throw new ApiError(`walletUsd must be a number of dollars from 0 (the plan only) to ${GATEWAY_MAX_USD}`, 400);
+  return n;
+}
+
 function usdLimit(v: unknown, name: string): number | null {
   if (v === undefined || v === null) return null;
   const n = typeof v === "boolean" || typeof v === "object" ? NaN : Math.round(Number(v) * 100) / 100;
@@ -252,7 +264,7 @@ async function mintGatewayKey(
   minter: Pick<Actor, "role" | "workspaces">,
   who: string | undefined,
   by: string,
-  body: { label?: string; capUsd?: unknown; dailyUsd?: unknown; credential?: unknown; plan?: unknown; models?: unknown; expires?: string | number | null; role?: unknown; workspaces?: unknown; workspace?: unknown; flows?: unknown; requireCustomer?: unknown },
+  body: { label?: string; capUsd?: unknown; dailyUsd?: unknown; walletUsd?: unknown; credential?: unknown; plan?: unknown; models?: unknown; expires?: string | number | null; role?: unknown; workspaces?: unknown; workspace?: unknown; flows?: unknown; requireCustomer?: unknown },
 ) {
   // FOL-168: its calls must carry x-foldrun-customer.
   const requireCustomer = body.requireCustomer === true ? { requireCustomer: true } : {};
@@ -261,7 +273,8 @@ async function mintGatewayKey(
   }
   if (minter.workspaces !== null) return refuse("a gateway key spends the whole account's balance — only an admin of every workspace may mint one", 403);
   if (!gatewayOffered()) return refuse("gateway keys are for the hosted platform — the gateway reads its keys from the database", 400);
-  if (body.credential !== undefined && body.credential !== "login") return refuse(`credential must be "login" (this account's plan) or left out (foldrun's models) — got ${JSON.stringify(body.credential)}`, 400);
+  if (body.credential !== undefined && body.credential !== "login" && body.credential !== "account") return refuse(`credential must be "account" (the plan first, then bought credits only up to its own walletUsd), "login" (the operator's Claude login) or left out (the plan first, then bought credits up to the key's capUsd and dailyUsd alone) — got ${JSON.stringify(body.credential)}`, 400);
+  if (body.walletUsd !== undefined && body.credential !== "account") return refuse("walletUsd is for an account key (credential: account)", 400);
   if (body.credential === "login") {
     // The operator's own Claude login (owner, 10 Nov 2026): only for an
     // account the operator allows its credential — the one its desks run
@@ -287,20 +300,25 @@ async function mintGatewayKey(
   const capUsd = usdLimit(body.capUsd, "capUsd");
   const dailyUsd = usdLimit(body.dailyUsd, "dailyUsd");
   if (capUsd === null && dailyUsd === null) return refuse("a gateway key needs a limit of its own: { capUsd } in all, or { dailyUsd } per UTC day (or both)", 400);
+  // An account key (FOL-208): the plan pays while it has room, then bought
+  // credits up to its own wallet budget — 0, the plan alone.
+  const account = body.credential === "account";
+  const walletUsd = account ? walletBudget(body.walletUsd) : undefined;
   const m = body.models === undefined ? { models: null } : checkModels(body.models, false);
   if ("error" in m) return refuse(m.error, 400);
   const expiresAt = parseKeyExpiry(body.expires);
   // Its role is the lowest, as an A2A key's: only what keeps it in scope
   // checks (who may see and end it).
-  const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, "viewer", null, { expiresAt, ...requireCustomer, gateway: { capUsd, dailyUsd, ...(m.models ? { models: m.models } : {}) } });
+  const kind = account ? { credential: "account" as const, walletUsd: walletUsd! } : {};
+  const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, "viewer", null, { expiresAt, ...requireCustomer, gateway: { capUsd, dailyUsd, ...kind, ...(m.models ? { models: m.models } : {}) } });
   await audit("apikey.created", {
     actor: by,
     tenant,
     subject: record.id,
-    detail: { label: record.label, prefix: record.prefix, purpose: "gateway", capUsd, dailyUsd, expiresAt: record.expiresAt ?? null },
+    detail: { label: record.label, prefix: record.prefix, purpose: "gateway", capUsd, dailyUsd, ...kind, expiresAt: record.expiresAt ?? null },
   });
-  if (who) sendSecurityNotice(tenant, who, "a new gateway key was created", clientIp(req));
-  return NextResponse.json({ ok: true, key, id: record.id, prefix: record.prefix, purpose: "gateway", capUsd, dailyUsd, expiresAt: record.expiresAt ?? null, gatewayUrl: gatewayUrl() });
+  if (who) sendSecurityNotice(tenant, who, account ? "a new gateway key on this account's plan and credits was created" : "a new gateway key was created", clientIp(req));
+  return NextResponse.json({ ok: true, key, id: record.id, prefix: record.prefix, purpose: "gateway", capUsd, dailyUsd, ...kind, expiresAt: record.expiresAt ?? null, gatewayUrl: gatewayUrl() });
 }
 
 export async function DELETE(req: NextRequest) {

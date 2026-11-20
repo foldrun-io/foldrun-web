@@ -71,6 +71,7 @@ export type AuditAction =
   // A gateway key's model map changed (which model each Claude Code tier
   // runs on): the new map in detail.
   | "apikey.models"
+  | "apikey.wallet_budget"
   // The vault, by NAME only — a value never reaches this table.
   | "secret.set"
   | "secret.deleted"

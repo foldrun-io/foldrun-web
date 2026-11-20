@@ -449,7 +449,7 @@
     "failedToRotateTheKey": "failed to rotate the key",
     "failedToSaveTheModels": "failed to save the models",
     "fired": "fired: {list}",
-    "foldrunSModelsBilledWithLimits": "foldrun's models — billed, with limits",
+    "foldrunSModelsBilledWithLimits": "foldrun's models — the plan first, then bought credits up to the key's limits",
     "gateway": "gateway",
     "gatewayKeyClaudeCode": "Gateway key — Claude Code",
     "giveItToTheOutsideAgent": "Give it to the outside agent; it sends it as Authorization: Bearer to /a2a only.",
@@ -543,7 +543,16 @@
     "deleteLiveKeyBody": "It is revoked first, so anything using it stops working immediately, and it leaves this list. The audit log keeps a record.",
     "deleteRevokedKeyBody": "It leaves this list. The audit log keeps a record.",
     "couldNotDeleteKey": "Could not delete the key.",
-    "aDeletedKey": "a key since deleted"
+    "aDeletedKey": "a key since deleted",
+    "thePlanFirstThenBoughtCredits": "foldrun's models — the plan first, then bought credits only up to a wallet budget of its own",
+    "walletBudgetUsd": "Wallet budget (USD)",
+    "theMostBoughtCreditsMayPay": "The most bought credits may pay for this key's calls, USD",
+    "accountKeyHelp": "Your plan pays for this key's calls while it has room. Bought credits pay for the rest, up to this budget: a model the plan does not cover, any call when there is no plan, and, past the allowance, only with extra usage on (Billing). 0 means the plan alone.",
+    "walletSpentOfBudget": "credits {spent} of {cap}",
+    "planOnly": "plan only",
+    "walletBudget": "Wallet budget",
+    "changeWalletBudget": "change",
+    "walletBudgetPlanOnly": "{amount} (the plan alone pays)"
   },
   "mcp-connections": {
     "aProgramThatSignsInTo": "A program that signs in to /api/mcp with client credentials — no person approves each token. It acts within your role and {@workspace.other}.",
