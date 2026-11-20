@@ -247,6 +247,37 @@ SUDO=
 ROOTFUL_SOCK=
 dk() { if [ -n "$SUDO" ]; then sudo docker -H "unix://$ROOTFUL_SOCK" "$@"; else docker "$@"; fi; }
 
+# Once this version answers, the images of the releases before it go (owner,
+# 21 Nov 2026: "delete stale container images so servers don't grow"): every
+# update left the previous platform and runner behind, a few GB each.
+#   - only after a move forward (old → newer): a re-run on the same version,
+#     a pin or a move back removes nothing;
+#   - only foldrun's own two repositories, only release tags (vYYYY.MM.DD.N)
+#     older than this one — never a newer one pulled ahead, `stable`,
+#     `latest` or an architecture tag;
+#   - nothing by id: `<repo> <none>` is also how Docker lists an image pulled
+#     by digest, a newer one too (Codex). The copy a moved `stable` leaves is
+#     the same image as the old release's tag, and goes with it;
+#   - `docker rmi` without -f: an image a container (running or stopped)
+#     uses stays, and a tag on an image that has another only goes itself.
+# Never fails the install: disk is tidied, not required.
+release_key() { printf '%s' "${1#v}" | awk -F. '{ printf "%04d%02d%02d%06d", $1, $2, $3, $4 }'; }
+prune_old_images() {
+  case $old in v[0-9]*) ;; *) return 0 ;; esac
+  valid_version "$old" && [ "$old" != "$version" ] || return 0
+  now=$(release_key "$version")
+  [ "$(release_key "$old")" -lt "$now" ] || return 0
+  repo=$(printf '%s' "$IMAGES" | sed 's/\./\\./g')
+  gone=0
+  for ref in $(dk images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null \
+      | grep -E "^$repo/(platform|runner):v[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]+\$"); do
+    [ "$(release_key "${ref##*:}")" -lt "$now" ] || continue
+    dk rmi "$ref" >/dev/null 2>&1 && gone=$((gone + 1))
+  done
+  [ "$gone" = 0 ] || say "foldrun: removed $gone image(s) of earlier releases"
+  return 0
+}
+
 os_name() { if have uname; then uname -s; else echo unknown; fi; }
 
 # A question with a yes/no answer from the person at the terminal.
@@ -646,6 +677,7 @@ main() {
   [ "$here" = "$there" ] \
     || { dc stop platform >/dev/null 2>&1 || true; die "the platform reaches a different Docker through ${sock:-/var/run/docker.sock} from the one foldrun was installed into, so it was stopped — set FOLDRUN_DOCKER_SOCK in $dir/.env to this Docker's own socket, and run this again"; }
 
+  prune_old_images
   say ""
   say "foldrun $version is running."
   say ""

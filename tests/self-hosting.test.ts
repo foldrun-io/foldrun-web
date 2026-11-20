@@ -64,6 +64,8 @@ case "$1" in
   info) case "$*" in *SecurityOptions*) echo '["name=seccomp"]' ;; *ID*) echo daemon-1 ;; esac; exit 0 ;;
   context) case "$*" in *remote*) echo ssh://build-server ;; *) echo unix:///var/run/docker.sock ;; esac; exit 0 ;;
   pull) exit 0 ;;
+  images) cat "${root}/images" 2>/dev/null; exit 0 ;;
+  rmi) case "$2" in *in-use*) exit 1 ;; esac; exit 0 ;;
   image) cat "${stable}"; exit 0 ;;
 esac
 exit 0
@@ -158,6 +160,56 @@ test("a re-run keeps the secret, moves to the new stable and says from what to w
   assert.equal(b.env().FOLDRUN_BIND, "127.0.0.1", "what the re-run did not mention stays");
   assert.match(r.out, /v2026\.10\.25\.16 → v2026\.10\.27\.3/);
   assert.ok(!b.calls().some((c) => c.startsWith("LEAK")), "the caller's FOLDRUN_PUBLIC_URL never reaches Compose: .env does");
+});
+
+test("an update removes older foldrun releases' images, and nothing else", () => {
+  const b = box(); // installs v2026.10.25.16
+  assert.equal(b.run().status, 0);
+  const images = [
+    "ghcr.io/foldrun-io/platform:v2026.10.25.16",
+    "ghcr.io/foldrun-io/runner:v2026.10.25.16",
+    "ghcr.io/foldrun-io/runner:v2026.9.01.1", // not a release name: kept
+    "ghcr.io/foldrun-io/platform:v2026.11.20.9",
+    "ghcr.io/foldrun-io/runner:v2026.11.20.9",
+    "ghcr.io/foldrun-io/runner:v2026.12.01.1", // newer, pulled ahead: kept
+    "ghcr.io/foldrun-io/runner:v2026.10.25.16-arm64", // an architecture tag: kept
+    "ghcr.io/foldrun-io/platform:stable",
+    "ghcr.io/foldrun-io/platform:latest",
+    "ghcr.io/foldrun-io/runner:<none>",
+    "ghcr.io/someone-else/runner:v2026.10.25.16",
+    "postgres:17",
+  ];
+  fs.writeFileSync(path.join(b.root, "images"), images.join("\n") + "\n");
+  const rmis = () => b.calls().filter((c) => c.startsWith("rmi ")).sort();
+
+  // The same version again: nothing goes.
+  let r = b.run();
+  assert.equal(r.status, 0, r.out);
+  assert.deepEqual(rmis(), [], "a re-run on the same version removes nothing");
+
+  // Forward to v2026.11.20.9: only older release tags of the two repositories; nothing by id.
+  b.setStable("v2026.11.20.9");
+  r = b.run();
+  assert.equal(r.status, 0, r.out);
+  assert.deepEqual(rmis(), [
+    "rmi ghcr.io/foldrun-io/platform:v2026.10.25.16",
+    "rmi ghcr.io/foldrun-io/runner:v2026.10.25.16",
+  ]);
+  assert.ok(!b.calls().some((c) => c.startsWith("rmi -f") || c.startsWith("image prune") || c.startsWith("system prune")), "never forced, never daemon-wide");
+  assert.match(r.out, /removed 2 image\(s\) of earlier releases/);
+  assert.match(r.out, /v2026\.11\.20\.9 is running/);
+});
+
+test("a pin, or a move back, removes no image", () => {
+  const b = box();
+  assert.equal(b.run().status, 0);
+  b.setStable("v2026.11.20.9");
+  assert.equal(b.run().status, 0);
+  fs.writeFileSync(path.join(b.root, "images"), "ghcr.io/foldrun-io/runner:v2026.10.25.16\nghcr.io/foldrun-io/runner:v2026.11.20.9\n");
+  const before = b.calls().length;
+  const r = b.run({ FOLDRUN_VERSION: "v2026.10.25.16" });
+  assert.equal(r.status, 0, r.out);
+  assert.deepEqual(b.calls().slice(before).filter((c) => c.startsWith("rmi ")), [], "back to an older pinned release: nothing goes");
 });
 
 test("a pinned version stays pinned until FOLDRUN_VERSION=stable unpins it", () => {
