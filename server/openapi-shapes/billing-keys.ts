@@ -192,6 +192,7 @@ const PlanOffer = obj({
   plan: nullable(CodingPlan),
   balanceUsd: num,
   allowance: nullable(PlanAllowance),
+  codeTiers: obj({ fast: obj({ covered: bool }), default: obj({ covered: bool }), max: obj({ covered: bool }) }),
 });
 const CODING_PLANS: Record<string, Shape> = {
   "GET /api/billing/coding-plan": { response: PlanOffer },

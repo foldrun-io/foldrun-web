@@ -23,7 +23,6 @@ const NOT_IN_CLI: Record<string, string> = {
   "POST /api/billing/partner/plans/offer": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",
   "POST /api/billing/partner/signups": CALLBACK + "foldrun.ir's signed storefront calls (a sign-up link for a customer with no account); the person opens the account on /signup",
   "POST /api/billing/partner/plans": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",
-  "GET /api/billing/coding-plan": "sold at foldrun.ir only (owner, 13 Nov 2026): no CLI verb or public docs; the storefront and the Billing page",
   "POST /api/billing/coding-plan": "sold at foldrun.ir only (owner, 13 Nov 2026): no CLI verb or public docs; the storefront and the Billing page",
   "PATCH /api/billing/coding-plan": "sold at foldrun.ir only (owner, 13 Nov 2026): no CLI verb or public docs; the storefront and the Billing page",
   "DELETE /api/billing/coding-plan": "sold at foldrun.ir only (owner, 13 Nov 2026): no CLI verb or public docs; the storefront and the Billing page",
