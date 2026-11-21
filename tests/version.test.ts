@@ -225,3 +225,33 @@ test("healthz reports the same version as /api/version: the file's, when the rol
     delete process.env.FOLDRUN_VERSION;
   }
 });
+
+test("urls: the install's API and dashboard addresses, open to anyone, null where unset", async () => {
+  const keep = { api: process.env.FOLDRUN_PUBLIC_API_URL, app: process.env.FOLDRUN_PUBLIC_URL };
+  try {
+    delete process.env.FOLDRUN_PUBLIC_API_URL;
+    delete process.env.FOLDRUN_PUBLIC_URL;
+    const none = await (await versionGET(new NextRequest("http://localhost/api/version"))).json();
+    assert.deepEqual(none.urls, { api: null, app: null }, "one address for everything: the CLI stays where it signed in");
+
+    process.env.FOLDRUN_PUBLIC_API_URL = "https://api.foldrun.dev/";
+    process.env.FOLDRUN_PUBLIC_URL = "https://dev.foldrun.io";
+    const open = await (await versionGET(new NextRequest("http://localhost/api/version"))).json();
+    assert.deepEqual(Object.keys(open).sort(), ["api", "urls", "version"], "a stranger still gets only the name, plus the addresses");
+    assert.deepEqual(open.urls, { api: "https://api.foldrun.dev", app: "https://dev.foldrun.io" });
+    const full = await (await versionGET(authed())).json();
+    assert.deepEqual(full.urls, open.urls);
+
+    for (const bad of ["not a url", "javascript:alert(1)", "file:///etc/passwd"]) {
+      process.env.FOLDRUN_PUBLIC_API_URL = bad;
+      const b = await (await versionGET(new NextRequest("http://localhost/api/version"))).json();
+      assert.equal(b.urls.api, null, `${bad} is no address to send a CLI's key to`);
+    }
+    process.env.FOLDRUN_PUBLIC_API_URL = "https://api.foldrun.dev/some/path?x=1";
+    const p = await (await versionGET(new NextRequest("http://localhost/api/version"))).json();
+    assert.equal(p.urls.api, "https://api.foldrun.dev", "only the origin");
+  } finally {
+    if (keep.api === undefined) delete process.env.FOLDRUN_PUBLIC_API_URL; else process.env.FOLDRUN_PUBLIC_API_URL = keep.api;
+    if (keep.app === undefined) delete process.env.FOLDRUN_PUBLIC_URL; else process.env.FOLDRUN_PUBLIC_URL = keep.app;
+  }
+});

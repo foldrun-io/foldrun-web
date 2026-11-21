@@ -234,13 +234,17 @@ export const SHAPES: Record<string, Shape> = {
     }),
   },
   "GET /api/version": {
-    // Without a credential only `version` and `api` are sent; the rest needs a key, a session or the scraper's token.
+    // Without a credential only `version`, `api` and `urls` are sent; the rest needs a key, a session or the scraper's token.
     response: obj({
       version: str("vYYYY.MM.DD.N, or dev"), released_at: nstr(), build: nstr(), api: str("the current API version, YYYY-MM-DD"),
       components: Components,
       packages: obj({ core: nstr(), cli: nstr() }),
       browsers: { type: ["array", "null"], items: str(), description: "the browser engines the runner image has; null when the deploy did not say" },
       browser_versions: { type: ["object", "null"], additionalProperties: { type: "string" }, description: "engine → version where known" },
+      urls: obj({
+        api: { ...nstr(), description: "where programs call — keys, the CLI, Claude Code, for the platform and models (FOLDRUN_PUBLIC_API_URL); null: the address this was asked at answers them" },
+        app: { ...nstr(), description: "the dashboard's address, where people sign in (FOLDRUN_PUBLIC_URL); null when unset" },
+      }),
     }),
   },
   "POST /api/mcp": {

@@ -31,6 +31,8 @@ export interface ApiFacts {
       callers: { credential: string; requests: number; lastSeen: string }[];
     }[];
   } | null;
+  /** Where programs call and where people sign in (null: not set here). */
+  urls?: { api: string | null; app: string | null };
   /** True for a member limited to some workspaces: the account's use names
    *  every workspace's callers, so it is not shown to them. */
   usageHidden?: true;
@@ -150,6 +152,14 @@ export function ApiSettings({ facts, qs }: { facts: ApiFacts; qs: string }) {
             </option>
           ))}
         </Select>
+      </SettingsCard>
+
+      <SettingsCard
+        id="api-address"
+        title={$t("settings.api-settings.apiAddress")}
+        description={$t("settings.api-settings.apiAddressHelp")}
+      >
+        <p className="font-mono text-sm text-fg">{facts.urls?.api ?? facts.urls?.app ?? $t("settings.api-settings.apiAddressThisSite")}</p>
       </SettingsCard>
 
       <SettingsCard

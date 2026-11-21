@@ -35,7 +35,10 @@
     "version": "Version",
     "whatReplacesIt": "what replaces it",
     "writes": "Writes",
-    "yourUseLast30Days": "Your use, last 30 days"
+    "yourUseLast30Days": "Your use, last 30 days",
+    "apiAddress": "API address",
+    "apiAddressHelp": "Where programs call foldrun: API keys, the CLI and Claude Code, for the platform and for models alike. Sign-in, invitations and approvals stay on the dashboard.",
+    "apiAddressThisSite": "This site's own address"
   },
   "audit-page": {
     "account": "{v0} (account) · {v1}",

@@ -15,6 +15,19 @@ export function installOrigin(): string | null {
   return process.env.FOLDRUN_PUBLIC_URL?.trim().replace(/\/+$/, "") || null;
 }
 
+/** The install's API address (FOLDRUN_PUBLIC_API_URL), else null: an install that
+ *  serves everything at one address — self-hosted, a laptop — sets none. */
+export function apiOrigin(): string | null {
+  const v = process.env.FOLDRUN_PUBLIC_API_URL?.trim().replace(/\/+$/, "");
+  if (!v) return null;
+  try {
+    const u = new URL(v);
+    return u.protocol === "https:" || u.protocol === "http:" ? u.origin : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Where links and redirects point. The install's own address; else, only
  *  behind a proxy the operator trusts (FOLDRUN_TRUST_PROXY=1, as clientIp
  *  reads it), the host that proxy saw; else the request's own origin (a LAN

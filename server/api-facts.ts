@@ -8,6 +8,7 @@ import { opsError } from "@/lib/ops-log.ts";
 import { adminState } from "@/platform/admin";
 import { apiUsageFor } from "@/platform/api-usage";
 import { accountProfile, limitsFor } from "./api-limits.ts";
+import { apiOrigin, installOrigin } from "./auth-flows.ts";
 import { CURRENT_API_VERSION, DEPRECATIONS, VERSION_SUPPORT_MONTHS, releasedVersions, type Deprecation } from "./api-version.ts";
 
 /** The last 30 days, with each deprecated route's dates beside its use. */
@@ -49,6 +50,10 @@ export async function apiFactsFor(tenant: string, scope: readonly string[] | nul
       supportMonths: VERSION_SUPPORT_MONTHS,
     },
     limits: limitsFor(profile.tier),
+    // Where programs call (the one API: keys, the CLI, Claude Code) and
+    // where people sign in; null where the install has no address of its
+    // own for it (21 Nov 2026). /api/version answers the same pair, open.
+    urls: { api: apiOrigin(), app: installOrigin() },
     ...(scope === null ? { usage: await apiUsageFacts(tenant) } : { usage: null, usageHidden: true as const }),
   };
 }

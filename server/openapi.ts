@@ -58,6 +58,7 @@ export const isOpen = (p: string, method?: string) => OPEN.some((r) => r.test(p)
 const AccountApi = obj({
   version: obj({ current: str(), pinned: { type: ["string", "null"] }, effective: str(), supported: { type: "array", items: str() }, supportMonths: int }),
   limits: obj({ plan: str(), windowSeconds: int, perCredential: obj({ read: int, write: int }), perAccount: obj({ read: int, write: int }) }),
+  urls: obj({ api: { type: ["string", "null"], description: "where programs call: keys, the CLI, Claude Code (FOLDRUN_PUBLIC_API_URL); null: the dashboard's address answers them" }, app: { type: ["string", "null"], description: "the dashboard's address (FOLDRUN_PUBLIC_URL)" } }),
   usage: {
     ...obj({
       days: int,

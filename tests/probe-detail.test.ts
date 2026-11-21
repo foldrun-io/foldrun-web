@@ -71,7 +71,9 @@ test("healthz: the scraper's token sees them too; an A2A key does not", async ()
 
 test("version: a stranger gets the name and the API date — no shas, no release time, no packages, no engines", async () => {
   const body = (await (await version(ask("version"))).json()) as Record<string, unknown>;
-  assert.deepEqual(Object.keys(body).sort(), ["api", "version"]);
+  // `urls` (21 Nov 2026): the install's public addresses, open on purpose —
+  // a CLI asks them before it has a key (tests/version.test.ts).
+  assert.deepEqual(Object.keys(body).sort(), ["api", "urls", "version"]);
   assert.equal(body.version, "v2026.11.01.3");
   const text = JSON.stringify(body);
   for (const leak of ["aaaaaaa", "2026-11-01T05", "released_at", "build", "components", "packages", "browsers"]) assert.ok(!text.includes(leak), leak);

@@ -6,15 +6,23 @@
 // release time, the packages and the runner's engines go to a caller with a
 // key, a session or the scraper's token (server/probe-access.ts). Nothing
 // here is about any account.
+//
+// `urls` (21 Nov 2026, one API): where this install answers programs and
+// where people sign in — { api, app }. A CLI that signed in at the
+// dashboard's address moves its calls to `api` and keeps `app` for the
+// pages it opens and the few routes the API host leaves to the dashboard
+// (server/api-host.ts). Both are public addresses, open like the name.
 
 import { NextRequest, NextResponse } from "next/server";
 import { mayReadProbeDetail } from "@/server/probe-access";
 import { versionInfo } from "@/server/release";
+import { apiOrigin, installOrigin } from "@/server/auth-flows";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const info = versionInfo();
-  const body = (await mayReadProbeDetail(req)) ? info : { version: info.version, api: info.api };
+  const urls = { api: apiOrigin(), app: installOrigin() };
+  const body = (await mayReadProbeDetail(req)) ? { ...info, urls } : { version: info.version, api: info.api, urls };
   return NextResponse.json(body, { headers: { "cache-control": "no-store" } });
 }
