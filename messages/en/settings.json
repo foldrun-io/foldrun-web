@@ -484,7 +484,6 @@
     "nothingDueRightNow": "nothing due right now",
     "ofToday": "{v0} of {v1} today",
     "open": "{workspace}: {join} · {maxTasks} open",
-    "openaiFormatTools": "Tools that speak OpenAI's format (the OpenAI SDK, Cursor, aider) use the same key on /v1/chat/completions:",
     "openTasksAtMost": "Open tasks at most<input></input>",
     "opensA2aOnlyEveryApiRoute": "Opens /a2a only — every /api route refuses it.",
     "opensTheGatewayOnlyEveryApi": "Opens the gateway only — every /api route refuses it.",

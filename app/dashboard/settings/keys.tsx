@@ -147,8 +147,6 @@ export function KeyManager({
   // tasks it may have open — instead of a role and workspaces.
   const [kind, setKind] = useState<Kind>("api");
   const [createdKind, setCreatedKind] = useState<Kind>("api");
-  // A plan key answers Claude Code alone, so it is offered no OpenAI-format setup.
-  const [createdOnLogin, setCreatedOnLogin] = useState(false);
   // A gateway key (10 Nov 2026): what it may spend, in all and per day.
   const [capUsd, setCapUsd] = useState("20");
   const [dailyUsd, setDailyUsd] = useState("");
@@ -188,7 +186,6 @@ export function KeyManager({
       if (res.ok) {
         setCreated(data.key);
         setCreatedKind(kind);
-        setCreatedOnLogin(onLogin);
         setA2aChosen([]);
         setLabel("");
         setNarrow(false);
@@ -582,14 +579,6 @@ export function KeyManager({
             </p>
           )}
           {createdKind === "gateway" && <p className="mt-1 text-xs text-fg-secondary">{$t("settings.keys.setBothThenRunClaudeIt")}</p>}
-          {createdKind === "gateway" && !createdOnLogin && gateway?.url && (
-            <>
-              <p className="mt-3 text-xs text-fg-secondary">{$t("settings.keys.openaiFormatTools")}</p>
-              <pre className="mt-1 overflow-x-auto font-mono text-xs leading-relaxed text-fg-secondary">
-                {`export OPENAI_BASE_URL=${gateway.url}/v1\nexport OPENAI_API_KEY=${created.slice(0, 12)}…`}
-              </pre>
-            </>
-          )}
           {createdKind === "gateway" && (
             <>
               <p className="mt-3 text-xs text-fg-secondary">{$t("settings.keys.toSeeTheKeySInput")}</p>
