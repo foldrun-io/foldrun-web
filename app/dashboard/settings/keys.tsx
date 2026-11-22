@@ -178,6 +178,11 @@ export function KeyManager({
   const [a2aWs, setA2aWs] = useState<string>(workspaces[0] ?? "");
   const [a2aChosen, setA2aChosen] = useState<string[]>([]);
   const [maxTasks, setMaxTasks] = useState("10");
+  // One key (22 Nov 2026): an API key that may also call foldrun's models —
+  // offered where gateway keys are (an admin of every workspace, hosted).
+  const [apiModels, setApiModels] = useState(false);
+  const [apiDaily, setApiDaily] = useState("100");
+  const [apiWallet, setApiWallet] = useState("0");
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -198,7 +203,7 @@ export function KeyManager({
               ? onLogin
                 ? { tenant, label, expires, purpose: "gateway", credential: "login", plan, ...(requireCust ? { requireCustomer: true } : {}) }
                 : { tenant, label, expires, purpose: "gateway", ...(runsOn === "account" ? { credential: "account", walletUsd: Number(walletUsd.trim() || "0") } : {}), ...(capUsd.trim() ? { capUsd: Number(capUsd) } : {}), ...(dailyUsd.trim() ? { dailyUsd: Number(dailyUsd) } : {}), ...(requireCust ? { requireCustomer: true } : {}) }
-              : { tenant, label, role, expires, ...(narrow ? { workspaces: chosen } : {}), ...(requireCust ? { requireCustomer: true } : {}) },
+              : { tenant, label, role, expires, ...(narrow ? { workspaces: chosen } : {}), ...(requireCust ? { requireCustomer: true } : {}), ...(gateway && apiModels ? { modelAccess: { dailyUsd: Number(apiDaily), walletUsd: Number(apiWallet.trim() || "0") } } : {}) },
         ),
       });
       const data = await res.json();
@@ -347,7 +352,7 @@ export function KeyManager({
   };
 
   const createDisabled =
-    busy || (kind === "api" ? narrow && chosen.length === 0 : kind === "gateway" ? !onLogin && !capUsd.trim() && !dailyUsd.trim() : !a2aWs || a2aChosen.length === 0);
+    busy || (kind === "api" ? (narrow && chosen.length === 0) || (apiModels && !apiDaily.trim()) : kind === "gateway" ? !onLogin && !capUsd.trim() && !dailyUsd.trim() : !a2aWs || a2aChosen.length === 0);
   return (
     <div>
       {confirmDialog}
@@ -551,6 +556,27 @@ export function KeyManager({
                       {workspaces.length === 0 && <span>{$t("settings.keys.noWorkspaceYet")}</span>}
                     </div>
                   )}
+                  {gateway && (
+                    <div className="mt-3">
+                      <label className="inline-flex items-center gap-2 text-fg">
+                        <Checkbox checked={apiModels} onCheckedChange={(checked: boolean) => setApiModels(checked)} />
+                        {$t("settings.keys.apiKeyModelAccess")}
+                      </label>
+                      {apiModels && (
+                        <div className="mt-2 space-y-2">
+                          <p>{$t("settings.keys.apiKeyModelAccessHelp")}</p>
+                          <div className="flex flex-wrap items-center gap-4">
+                            <label className="inline-flex items-center gap-2">
+                              {$rich("settings.keys.apiKeyModelDaily", { input: $el(<Input type="number" min={0.01} step="0.01" value={apiDaily} onChange={(e) => setApiDaily(e.target.value)} className="w-24" />) })}
+                            </label>
+                            <label className="inline-flex items-center gap-2">
+                              {$rich("settings.keys.apiKeyModelWallet", { input: $el(<Input type="number" min={0} step="0.01" value={apiWallet} onChange={(e) => setApiWallet(e.target.value)} className="w-24" />) })}
+                            </label>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
               {error && (
@@ -683,6 +709,11 @@ export function KeyManager({
                         {k.purpose === "gateway" && k.gateway && k.gateway.credential !== "login" && (
                           <Tooltip label={$t("settings.keys.whatItHasSpentAgainstIts")}>
                             <span>{gatewaySpend(k.gateway)}</span>
+                          </Tooltip>
+                        )}
+                        {!k.purpose && !k.scope && k.gateway && (
+                          <Tooltip label={$t("settings.keys.apiKeyModelAccessRow")}>
+                            <span>{$t("settings.keys.modelsColon", { spend: gatewaySpend(k.gateway) })}</span>
                           </Tooltip>
                         )}
                         {!k.scope && k.purpose !== "a2a" && k.purpose !== "gateway" && (

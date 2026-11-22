@@ -555,7 +555,13 @@
     "planOnly": "plan only",
     "walletBudget": "Wallet budget",
     "changeWalletBudget": "change",
-    "walletBudgetPlanOnly": "{amount} (the plan alone pays)"
+    "walletBudgetPlanOnly": "{amount} (the plan alone pays)",
+    "apiKeyModelAccess": "Also let it call foldrun's models",
+    "apiKeyModelAccessHelp": "The same key then works at the API's /v1/messages and for foldrun code on a machine: the plan pays first, then bought credits up to the budget below, never more than the daily limit in all. Its role and {@workspace.other} still decide what it reaches on the platform.",
+    "apiKeyModelDaily": "At most $ <input></input> a day",
+    "apiKeyModelWallet": "Bought credits it may spend, in all: $ <input></input>",
+    "apiKeyModelAccessRow": "This API key may also call foldrun's models, within these limits",
+    "modelsColon": "models: {spend}"
   },
   "mcp-connections": {
     "aProgramThatSignsInTo": "A program that signs in to /api/mcp with client credentials — no person approves each token. It acts within your role and {@workspace.other}.",

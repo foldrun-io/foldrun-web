@@ -14,7 +14,7 @@ import type { NextRequest } from "next/server";
 import { dataRoot } from "@/lib/paths.ts";
 import { assertSafeName } from "@/lib/store.ts";
 import { verifySession, SESSION_COOKIE, roleOfUser , allowedWorkspaces } from "./users.ts";
-import { isRole, outranks, type Role } from "@/platform/permissions.ts";
+import { isRole, outranks, can, type Role } from "@/platform/permissions.ts";
 import { supportViewRefusal } from "./view-as.ts";
 import { ACCESS_PREFIX, resolveAccessToken, resourceMatches, lowerRole, intersectWorkspaces } from "./mcp-oauth.ts";
 import { isMcpInnerCall } from "./mcp-inner.ts";
@@ -35,6 +35,8 @@ import {
   expiringApiKeysDb,
   markExpiryWarnedDb,
   markApiKeyReplacedDb,
+  modelGrantOf,
+  patchGatewayGrantDb,
   type ApiKeyRow,
   type A2aGrant,
   type GatewayGrant,
@@ -120,12 +122,35 @@ export interface ApiKeyRecord {
    * workspace or mint a key. Its grant is its own spending limits, on top of
    * the account's balance. Minted by an admin with POST /api/keys
    * { purpose: "gateway", capUsd?, dailyUsd? }.
+   *
+   * On an API key (no purpose; one key, 22 Nov 2026) it is the key's model
+   * grant: always `credential: "account"` with its own limits and a
+   * `principal`, given when the key was made — by the person at
+   * `foldrun login`, or by an admin of every workspace with POST /api/keys
+   * { models } — so the same key opens the platform API (its role and
+   * workspaces, as ever) and the model routes (this grant). Read through
+   * modelGrantOf; an API key without one opens no model route.
    */
   gateway?: GatewayGrant;
   /** FOL-168: every run this key starts, and every gateway call it makes,
    *  must name an end customer. */
   requireCustomer?: boolean;
 }
+
+/** A model grant as it is asked for: its own limits (a total, a UTC day,
+ *  and what bought credits may pay over its life), and optionally Claude
+ *  Code's tier map. The plan pays first. */
+export interface ModelGrantInput {
+  capUsd: number | null;
+  dailyUsd: number | null;
+  walletUsd: number;
+  models?: GatewayGrant["models"];
+}
+
+/** What `foldrun login` asks for when the person agrees to model access
+ *  (the limits the CLI's own machine key had: $100 a day in all, at most
+ *  $20 of bought credits, the plan first). */
+export const CLI_MODEL_GRANT: ModelGrantInput = { capUsd: null, dailyUsd: 100, walletUsd: 20 };
 
 /** How long a `foldrun login` key lives; the CLI renews it with under
  *  CLI_RENEW_DAYS left, so a machine in use never sees it end. */
@@ -211,7 +236,16 @@ export async function createApiKey(
   scope?: ApiKeyRecord["scope"],
   role: Role = "editor",
   workspaces: string[] | null = null,
-  opts: { expiresAt?: Date | null; origin?: ApiKeyRecord["origin"]; a2a?: Omit<A2aGrant, "principal"> & { principal?: string }; gateway?: GatewayGrant; requireCustomer?: boolean } = {},
+  opts: {
+    expiresAt?: Date | null;
+    origin?: ApiKeyRecord["origin"];
+    a2a?: Omit<A2aGrant, "principal"> & { principal?: string };
+    gateway?: GatewayGrant;
+    /** One key (22 Nov 2026): a model grant on this API key — its limits, and
+     *  the chain it continues (a rotation hands its predecessor's on). */
+    models?: ModelGrantInput & { principal?: string };
+    requireCustomer?: boolean;
+  } = {},
 ): Promise<{ record: ApiKeyRecord; key: string }> {
   assertSafeName(tenant, "tenant");
   if (scope) throw new Error("deploy keys went with the platform's own git (17 Oct 2026)");
@@ -251,6 +285,21 @@ export async function createApiKey(
     // The principal owns the tasks: this key's own id, unless it continues
     // a chain (a rotation hands its predecessor's on).
     record.a2a = { workspace: opts.a2a.workspace, flows: [...new Set(opts.a2a.flows)], principal: opts.a2a.principal ?? record.id, maxTasks: opts.a2a.maxTasks };
+  }
+  if (opts.models) {
+    if (opts.gateway || opts.a2a) throw new Error("a model grant goes on an API key, not on a gateway or A2A key");
+    if (!databaseEnabled()) throw new Error("model access needs the platform's database");
+    // Purpose stays unset: it is an API key, and the grant is plan-first
+    // (credential "account") with the limits it was given — the gateway
+    // honours nothing else on an API key (modelGrantOf).
+    record.gateway = {
+      capUsd: opts.models.capUsd ?? null,
+      dailyUsd: opts.models.dailyUsd ?? null,
+      credential: "account",
+      walletUsd: Math.max(0, opts.models.walletUsd ?? 0),
+      principal: opts.models.principal || record.id,
+      ...(opts.models.models ? { models: opts.models.models } : {}),
+    };
   }
   if (opts.gateway) {
     // The gateway door is the hosted platform's: it reads keys from the
@@ -341,6 +390,11 @@ export async function revokeKeysBeyond(
   const mine = (await listApiKeys(tenant)).filter((k) => !k.revokedAt && (k.createdBy ?? "").toLowerCase() === email.toLowerCase());
   const beyond = mine.filter((k) => {
     if (!now) return true;
+    // A key that may call models (a gateway key, or an API key with model
+    // access) was given account-wide spending by an admin of every
+    // workspace: it goes when its maker is no longer one, whatever its own
+    // role and workspaces (Codex review, 22 Nov 2026).
+    if (modelGrantOf(k) && !(can(now.role, "keys:manage") && now.workspaces === null)) return true;
     const role = (k.role ?? "admin") as Role;
     if (outranks(role, now.role)) return true;
     if (now.workspaces === null) return false;
@@ -435,6 +489,9 @@ export async function rotateApiKey(
     // A gateway key stays one, with the same limits. (What it has spent is
     // booked against the key's id, so the new key starts its cap afresh.)
     ...(old.purpose === "gateway" && old.gateway ? { gateway: old.gateway } : {}),
+    // An API key's model grant goes on whole — limits, wallet budget, model
+    // map and its chain, so what it has spent still counts (one key).
+    ...(old.purpose === undefined && modelGrantOf(old) ? { models: rotatedModels(old.id, modelGrantOf(old)!) } : {}),
   });
   // Claim the old key before ending it. Two rotations at once both pass the
   // check above; only one claim lands, and the loser's key is revoked unseen.
@@ -444,6 +501,16 @@ export async function rotateApiKey(
     const winner = after.find((k) => k.id === id)?.replacedBy;
     if (winner) throw alreadyRotated(after.find((k) => k.id === winner));
     throw Object.assign(new Error("key not found"), { status: 404 });
+  }
+  // A model grant's wallet budget and model map are read from the old key
+  // again now that the new one exists: a PATCH that lowered them between our
+  // read and the insert listed the chain before the new key was in it, so
+  // the new key would keep the old allowance (Codex review, 22 Nov 2026).
+  // Either order then ends with the lowered value on every key of the chain.
+  if (old.purpose === undefined && made.record.gateway) {
+    const now = modelGrantOf((await keysOf(tenant)).find((k) => k.id === id) ?? {});
+    if (now && (now.walletUsd ?? 0) !== (made.record.gateway.walletUsd ?? 0)) await patchGatewayGrantDb(tenant, made.record.id, "walletUsd", now.walletUsd ?? 0, "account");
+    if (now && JSON.stringify(now.models ?? null) !== JSON.stringify(made.record.gateway.models ?? null)) await patchGatewayGrantDb(tenant, made.record.id, "models", now.models ?? null, "account");
   }
   const endsAt = new Date(Date.now() + graceMs);
   if (graceMs <= 0) await revokeApiKey(tenant, id);
@@ -455,6 +522,12 @@ export async function rotateApiKey(
   }
   const { hash: _h, ...rest } = old;
   return { ...made, old: rest, oldEndsAt: endsAt.toISOString() };
+}
+
+/** An API key's model grant as its rotation carries it on: the same limits,
+ *  wallet budget and model map, and the chain's first id. */
+function rotatedModels(id: string, g: GatewayGrant): ModelGrantInput & { principal: string } {
+  return { capUsd: g.capUsd ?? null, dailyUsd: g.dailyUsd ?? null, walletUsd: g.walletUsd ?? 0, ...(g.models ? { models: g.models } : {}), principal: g.principal || id };
 }
 
 // When each key last wrote its last-used time, in this process. Once a

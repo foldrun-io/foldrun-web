@@ -18,6 +18,7 @@
 // key, in either store.
 
 import { audit } from "./audit.ts";
+import { ApiError } from "./api.ts";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -33,7 +34,9 @@ import {
   unclaimCliLoginDb,
   pollCliLoginDb,
 } from "@/platform/short-lived-db.ts";
-import { createApiKey, revokeApiKey, coarseIp, CLI_KEY_DAYS } from "./auth.ts";
+import { createApiKey, revokeApiKey, coarseIp, CLI_KEY_DAYS, CLI_MODEL_GRANT } from "./auth.ts";
+import { gatewayOffered } from "./gateway-keys.ts";
+import { can } from "@/platform/permissions.ts";
 import { clientIp } from "./limits.ts";
 
 /** A `foldrun login` key ends after CLI_KEY_DAYS unless the CLI renews it
@@ -209,6 +212,20 @@ export async function describeCliLogin(
   return { code: row.code, hostname, expiresAt, status, createdAt, requestedFrom: row.requestedFrom ?? null, requestedCountry: row.requestedCountry ?? null, approveBy: approveBy(createdAt) };
 }
 
+/**
+ * Whether a person may give their sign-in model access (one key, 22 Nov
+ * 2026): the rule a gateway key is minted under — the hosted platform, and
+ * an admin of every workspace, since model calls spend the whole account's
+ * balance. Anyone else's sign-in is a platform key, as before.
+ */
+export function mayGrantModels(person: { role: Role; workspaces?: string[] | null }): boolean {
+  return gatewayOffered() && can(person.role, "keys:manage") && (person.workspaces ?? null) === null;
+}
+
+/** The model grant a sign-in gets: CLI_MODEL_GRANT, only when the person
+ *  said yes on the approval page and may give it. */
+const loginModels = (person: { role: Role; workspaces?: string[] | null }, models: boolean | undefined) => (models === true && mayGrantModels(person) ? { models: CLI_MODEL_GRANT } : {});
+
 /** Too old to approve: past APPROVE_WINDOW_MS since the CLI asked. */
 const tooOldToApprove = (createdAt: string | Date, now = Date.now()) => now - new Date(createdAt).getTime() > APPROVE_WINDOW_MS;
 
@@ -221,6 +238,10 @@ export async function decideCliLogin(
   code: string,
   decision: "approve" | "deny",
   person: { tenant: string; email: string; role: Role; workspaces?: string[] | null },
+  /** The person's yes to model access on the approval page (one key): the
+   *  sign-in may also call foldrun's models, within CLI_MODEL_GRANT. Absent
+   *  or false: a platform key, as every sign-in was before. */
+  opts: { models?: boolean; recheck?: () => Promise<{ role: Role; workspaces: string[] | null }> } = {},
 ): Promise<"approved" | "denied" | "not-found" | "too-old"> {
   if (databaseEnabled()) {
     const c = normaliseCode(code);
@@ -234,13 +255,25 @@ export async function decideCliLogin(
     const role: Role = person.role === "owner" ? "admin" : person.role;
     let minted: Awaited<ReturnType<typeof createApiKey>>;
     try {
-      minted = await createApiKey(person.tenant, `cli · ${row.hostname}`, person.email, undefined, role, person.workspaces ?? null, cliKeyLife());
+      minted = await createApiKey(person.tenant, `cli · ${row.hostname}`, person.email, undefined, role, person.workspaces ?? null, { ...cliKeyLife(), ...loginModels(person, opts.models) });
     } catch (err) {
       await unclaimCliLoginDb(c).catch(() => {});
       throw err;
     }
     const { key, record } = minted;
-    await audit("apikey.created", { actor: person.email, tenant: person.tenant, subject: record.id, detail: { label: record.label, prefix: record.prefix, role, via: "foldrun login" } });
+    // Read again once the key exists: a demotion that swept this person's
+    // keys between the first read and the insert would otherwise miss it,
+    // and its model grant — account-wide spending — would outlive the
+    // standing that gave it (Codex review, 22 Nov 2026).
+    if (record.gateway && opts.recheck) {
+      const now = await opts.recheck().catch(() => null);
+      if (!now || !mayGrantModels(now)) {
+        await revokeApiKey(person.tenant, record.id).catch(() => {});
+        await unclaimCliLoginDb(c).catch(() => {});
+        throw new ApiError("your role or projects changed while this sign-in was approved — approve it again", 409);
+      }
+    }
+    await audit("apikey.created", { actor: person.email, tenant: person.tenant, subject: record.id, detail: { label: record.label, prefix: record.prefix, role, via: "foldrun login", ...(record.gateway ? { modelAccess: { capUsd: record.gateway.capUsd, dailyUsd: record.gateway.dailyUsd, walletUsd: record.gateway.walletUsd ?? 0 } } : {}) } });
     const grant = seal({ key, tenant: person.tenant, email: person.email, role });
     if (await decideCliLoginDb(c, "approved", grant as unknown as Record<string, unknown>)) return "approved";
     // It expired between the claim and now: the key would reach no one.
@@ -264,13 +297,13 @@ export async function decideCliLogin(
   // gets a CLI that opens those two.
   let minted: Awaited<ReturnType<typeof createApiKey>>;
   try {
-    minted = await createApiKey(person.tenant, `cli · ${row.hostname}`, person.email, undefined, role, person.workspaces ?? null, cliKeyLife());
+    minted = await createApiKey(person.tenant, `cli · ${row.hostname}`, person.email, undefined, role, person.workspaces ?? null, { ...cliKeyLife(), ...loginModels(person, opts.models) });
   } catch (err) {
     updateRow(row.id, (r) => void (r.status = "pending"));
     throw err;
   }
   const { key, record } = minted;
-  await audit("apikey.created", { actor: person.email, tenant: person.tenant, subject: record.id, detail: { label: record.label, prefix: record.prefix, role, via: "foldrun login" } });
+  await audit("apikey.created", { actor: person.email, tenant: person.tenant, subject: record.id, detail: { label: record.label, prefix: record.prefix, role, via: "foldrun login", ...(record.gateway ? { modelAccess: { capUsd: record.gateway.capUsd, dailyUsd: record.gateway.dailyUsd, walletUsd: record.gateway.walletUsd ?? 0 } } : {}) } });
   const grant = seal({ key, tenant: person.tenant, email: person.email, role });
   updateRow(row.id, (r) => {
     r.status = "approved";

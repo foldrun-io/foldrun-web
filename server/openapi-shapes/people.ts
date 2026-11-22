@@ -288,6 +288,12 @@ export const SHAPES: Record<string, Shape> = {
       requestedCountry: nstr("two-letter country of that request, when the install sits behind Cloudflare; null otherwise"),
       sameNetwork: { type: ["boolean", "null"], description: "the browser looking is on the network that asked; null when either side is not known" },
       approveBy: str("the request can be approved until then — five minutes after it was made"),
+      modelAccess: obj({
+        offered: { ...bool, description: "the signed-in person looking may let this sign-in also call foldrun's models (an admin of every workspace, on the hosted platform); false when no one is signed in" },
+        capUsd: { type: ["number", "null"] },
+        dailyUsd: { type: ["number", "null"], description: "the most its model calls may spend per UTC day, USD" },
+        walletUsd: { type: "number", description: "the most bought credits may pay for them over the key's life, USD; the plan pays first" },
+      }),
     }, ["code", "hostname", "expiresAt", "status", "createdAt", "requestedFrom", "requestedCountry", "sameNetwork", "approveBy"]),
   },
   "POST /api/cli/authorize": {
@@ -295,6 +301,7 @@ export const SHAPES: Record<string, Shape> = {
       {
         code: str("the XXXX-XXXX code `foldrun login` printed"),
         decision: str("approve | deny; omitted, approve. Approving a request more than five minutes old is refused with 410"),
+        models: { ...bool, description: "with approve: the person's yes to model access (the limits GET shows) — the same key may also call foldrun's models; omitted or false, a platform key only. Ignored for a person who may not give it" },
       },
       ["code"],
     ),
@@ -338,7 +345,13 @@ export const SHAPES: Record<string, Shape> = {
         createdAt: nstr("kind key"),
         expiresAt: nstr("kind key: when it stops working; null for never"),
         origin: nstr("kind key: cli-login for a key `foldrun login` minted, else null"),
+        modelAccess: {
+          ...obj({ capUsd: { type: ["number", "null"] }, dailyUsd: { type: ["number", "null"] }, walletUsd: { type: "number" } }),
+          type: ["object", "null"],
+          description: "kind key: the limits within which this same key may call foldrun's models; null when it opens the platform API alone",
+        },
       }, ["kind"]),
+      modelsUrl: nstr("where model calls go (the gateway's base, for ANTHROPIC_BASE_URL); null where this install has none"),
       person: {
         ...obj({
           email: str(),

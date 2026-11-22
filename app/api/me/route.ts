@@ -6,6 +6,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCaller, errorResponse, cliLoginPerson } from "@/server/api";
 import { listApiKeys } from "@/server/auth";
+import { modelGrantOf } from "@/platform/api-keys-db";
+import { gatewayUrl } from "@/server/gateway-keys";
 import { ownerOf, findUserById } from "@/server/users";
 
 export async function GET(req: NextRequest) {
@@ -37,9 +39,22 @@ export async function GET(req: NextRequest) {
               // reads both to rotate a `foldrun login` key before it ends.
               expiresAt: key?.expiresAt ?? null,
               origin: key?.origin ?? null,
+              // One key (22 Nov 2026): whether this same key may call
+              // foldrun's models, within which limits — null for a key that
+              // opens the platform API alone. `foldrun code` reads it to use
+              // the sign-in for its model calls instead of making a second key.
+              modelAccess: key ? modelAccessView(key) : null,
             },
+      // Where model calls go (the gateway's base, for ANTHROPIC_BASE_URL);
+      // null where this install has none.
+      modelsUrl: gatewayUrl(),
     });
   } catch (err) {
     return errorResponse(err);
   }
+}
+
+function modelAccessView(key: Parameters<typeof modelGrantOf>[0]): { capUsd: number | null; dailyUsd: number | null; walletUsd: number } | null {
+  const g = key.purpose === undefined ? modelGrantOf(key) : null;
+  return g ? { capUsd: g.capUsd ?? null, dailyUsd: g.dailyUsd ?? null, walletUsd: g.walletUsd ?? 0 } : null;
 }

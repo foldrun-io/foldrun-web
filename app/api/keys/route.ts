@@ -1,6 +1,6 @@
 import { walletAmount } from "@/server/gateway-keys";
 import { NextRequest, NextResponse } from "next/server";
-import { createApiKey, listApiKeys, revokeApiKey, resolveTenant, parseKeyExpiry, type Actor } from "@/server/auth";
+import { createApiKey, listApiKeys, revokeApiKey, resolveTenant, parseKeyExpiry, type Actor, type ModelGrantInput } from "@/server/auth";
 import { audit } from "@/server/audit";
 import { verifySession, SESSION_COOKIE, hasUsers, setupTokenRequired, setupTokenMatches } from "@/server/users";
 import { sendSecurityNotice } from "@/server/email";
@@ -106,10 +106,17 @@ async function postOnce(req: NextRequest) {
       /** FOL-168: every run (an API key) or gateway call (a gateway key)
        *  must name an end customer. */
       requireCustomer?: unknown;
+      /** One key (22 Nov 2026): an API key that may also call foldrun's
+       *  models — { dailyUsd?, capUsd?, walletUsd? }, at least one of the
+       *  first two; the plan pays first, then bought credits up to walletUsd
+       *  (0, the plan alone, when unsaid). Only an admin of every workspace
+       *  may give it, as for a gateway key. */
+      modelAccess?: unknown;
     };
     if (body.requireCustomer !== undefined && typeof body.requireCustomer !== "boolean") return refuse("requireCustomer is true or false", 400);
     if (body.requireCustomer === true && body.purpose === "a2a") return refuse("an A2A key's caller is one outside agent — requireCustomer is for API and gateway keys", 400);
     const requireCustomer = body.requireCustomer === true ? { requireCustomer: true } : {};
+    if (body.modelAccess !== undefined && body.purpose !== undefined) return refuse("modelAccess goes on an API key (no purpose) — a gateway key has its limits as capUsd and dailyUsd", 400);
     if (body.purpose !== undefined) {
       if (body.purpose === "gateway") return await mintGatewayKey(req, tenant, minter, who, by, body);
       if (body.purpose !== "a2a") return refuse(`purpose must be "a2a" or "gateway" (or left out, for an API key) — got ${JSON.stringify(body.purpose)}`, 400);
@@ -134,15 +141,29 @@ async function postOnce(req: NextRequest) {
     // a workspace-scoped admin used to be able to mint an unscoped key
     // and open the rest of the account with it.
     const grant = withinMinter(minter, { role, workspaces: asked });
-    const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, grant.role, grant.workspaces, { expiresAt, ...requireCustomer });
+    // Checked before anything is made: a refusal mints nothing.
+    const modelAccess = body.modelAccess === undefined ? null : modelAccessOf(body.modelAccess, minter);
+    const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, grant.role, grant.workspaces, { expiresAt, ...requireCustomer, ...(modelAccess ? { models: modelAccess } : {}) });
+    // Read the caller again once the key exists: a demotion whose sweep ran
+    // between the first read and the insert would miss this key, and the
+    // secret below would outlive the standing that gave it (Codex review,
+    // 22 Nov 2026) — as at `foldrun login`.
+    if (modelAccess && by !== "setup") {
+      const again = await resolveTenant(req).catch(() => null);
+      if (!again || again.tenant !== tenant || !can(again.actor.role, "keys:manage") || again.actor.workspaces !== null) {
+        await revokeApiKey(tenant, record.id).catch(() => {});
+        throw new ApiError("your role or projects changed while this key was made — it was revoked before it was shown; make it again if you still may", 409);
+      }
+    }
+    const access = modelAccess ? { modelAccess: { capUsd: modelAccess.capUsd, dailyUsd: modelAccess.dailyUsd, walletUsd: modelAccess.walletUsd } } : {};
     await audit("apikey.created", {
       actor: by,
       tenant,
       subject: record.id,
-      detail: { label: record.label, prefix: record.prefix, role: record.role, workspaces: record.workspaces ?? null, expiresAt: record.expiresAt ?? null },
+      detail: { label: record.label, prefix: record.prefix, role: record.role, workspaces: record.workspaces ?? null, expiresAt: record.expiresAt ?? null, ...access },
     });
-    if (who) sendSecurityNotice(tenant, who, "a new API key was created", clientIp(req));
-    return NextResponse.json({ ok: true, key, id: record.id, prefix: record.prefix, role: record.role, workspaces: record.workspaces ?? null, expiresAt: record.expiresAt ?? null });
+    if (who) sendSecurityNotice(tenant, who, modelAccess ? "a new API key that may also call foldrun's models was created" : "a new API key was created", clientIp(req));
+    return NextResponse.json({ ok: true, key, id: record.id, prefix: record.prefix, role: record.role, workspaces: record.workspaces ?? null, expiresAt: record.expiresAt ?? null, ...access, ...(modelAccess ? { gatewayUrl: gatewayUrl() } : {}) });
   } catch (err) {
     return errorResponse(err);
   }
@@ -240,6 +261,26 @@ function walletBudget(v: unknown): number {
   const n = walletAmount(v);
   if (n === null) throw new ApiError(`walletUsd must be a number of dollars from 0 (the plan only) to ${GATEWAY_MAX_USD}`, 400);
   return n;
+}
+
+/**
+ * An API key's model access as asked (one key, 22 Nov 2026), checked by the
+ * rules a gateway key is minted under: the hosted platform only, an admin
+ * of every workspace (it spends the account's balance, whatever workspaces
+ * the key itself opens), a limit of its own, and a wallet budget that is 0
+ * unless said. Throws the 400 or 403 the caller answers.
+ */
+function modelAccessOf(v: unknown, minter: Pick<Actor, "workspaces">): ModelGrantInput {
+  if (!v || typeof v !== "object" || Array.isArray(v)) throw new ApiError("modelAccess must be an object: { dailyUsd?, capUsd?, walletUsd? }", 400);
+  const o = v as Record<string, unknown>;
+  const extra = Object.keys(o).filter((k) => !["dailyUsd", "capUsd", "walletUsd"].includes(k));
+  if (extra.length) throw new ApiError(`modelAccess takes dailyUsd, capUsd and walletUsd — not ${extra.join(", ")}`, 400);
+  if (!gatewayOffered()) throw new ApiError("model access is for the hosted platform — the gateway reads its keys from the database", 400);
+  if (minter.workspaces !== null) throw new ApiError("model access spends the whole account's balance — only an admin of every workspace may give it", 403);
+  const capUsd = usdLimit(o.capUsd, "modelAccess.capUsd");
+  const dailyUsd = usdLimit(o.dailyUsd, "modelAccess.dailyUsd");
+  if (capUsd === null && dailyUsd === null) throw new ApiError("model access needs a limit of its own: { dailyUsd } per UTC day, or { capUsd } in all (or both)", 400);
+  return { capUsd, dailyUsd, walletUsd: walletBudget(o.walletUsd) };
 }
 
 function usdLimit(v: unknown, name: string): number | null {

@@ -7,6 +7,7 @@ import { buttonVariants } from "@foldrun/ui/react/button";
 import { Input } from "@foldrun/ui/react/input";
 import { LocalTime } from "@/components/local-time";
 import { Field, Callout } from "@foldrun/ui/react/page";
+import { Checkbox } from "@foldrun/ui/react/choice";
 
 type Request = {
   code: string;
@@ -21,6 +22,9 @@ type Request = {
   requestedCountry?: string | null;
   sameNetwork?: boolean | null;
   approveBy?: string;
+  /** One key (22 Nov 2026): whether this person may let the sign-in also
+   *  call foldrun's models, and within which limits. */
+  modelAccess?: { offered: boolean; dailyUsd: number | null; walletUsd: number };
 };
 
 const CLOCK: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit" };
@@ -49,6 +53,9 @@ export function CliAuthorize() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<"approved" | "denied" | null>(null);
   const [busy, setBusy] = useState(false);
+  // Model access: on unless the person unticks it — the terms are shown
+  // beside it, and the server gives it only to whom it may.
+  const [models, setModels] = useState(true);
 
   // Signed in? Otherwise the login page, and back here with the code kept.
   // The login page is one of the app's own, so the router takes us there.
@@ -78,7 +85,7 @@ export function CliAuthorize() {
       const res = await fetch("/api/cli/authorize", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ code, decision }),
+        body: JSON.stringify({ code, decision, ...(decision === "approve" && request?.modelAccess?.offered ? { models } : {}) }),
       });
       const body = (await res.json().catch(() => ({}))) as { error?: string; status?: string };
       if (!res.ok) setError(body.error ?? $t("auth.cli-authorize-authorize.somethingWentWrong"));
@@ -157,6 +164,17 @@ export function CliAuthorize() {
               {$rich("auth.cli-authorize-authorize.thisRequestCameFromADifferent", { span: (chunks) => <span className="font-mono">{chunks}</span> })}
             </Callout>
           )}
+          {request.modelAccess?.offered ? (
+            <div className="mt-3 rounded-md border border-line p-3 text-xs">
+              <label className="inline-flex items-center gap-2 font-medium text-fg">
+                <Checkbox checked={models} onCheckedChange={(checked: boolean) => setModels(checked)} />
+                {$t("auth.cli-authorize-authorize.modelAccessLabel")}
+              </label>
+              <p className="mt-1.5 text-fg-muted">{$t("auth.cli-authorize-authorize.modelAccessTerms", { walletUsd: request.modelAccess.walletUsd, dailyUsd: request.modelAccess.dailyUsd ?? 0 })}</p>
+            </div>
+          ) : request.modelAccess ? (
+            <p className="mt-3 text-xs text-fg-muted">{$t("auth.cli-authorize-authorize.modelAccessNotOffered")}</p>
+          ) : null}
           <p className="mt-3 text-xs text-fg-muted">
             {$rich("auth.cli-authorize-authorize.approvingCreatesAnApiKeyFor", { span: (chunks) => <span className="font-mono">{chunks}</span> })}
           </p>

@@ -8,7 +8,7 @@ import { dayOf, spentByJob, walletSpentByJob } from "@/platform/model-usage";
 import { chargeMargin } from "@/platform/model-gateway";
 import { loginAllowedFor, providerOfModel } from "@/platform/gateway-door";
 import { billing } from "@/platform/billing";
-import type { GatewayModels } from "@/platform/api-keys-db";
+import { meterJobOf, modelGrantOf, type GatewayModels } from "@/platform/api-keys-db";
 
 /** The gateway's address, for ANTHROPIC_BASE_URL: FOLDRUN_GATEWAY_URL, or
  *  null where this install has none (infra routes a host to the door). */
@@ -64,13 +64,15 @@ export interface GatewaySpend {
 }
 
 /** Each gateway key with what it has spent in all and today (UTC). */
-export async function withGatewaySpend<K extends { id: string; tenant: string; purpose?: string; gateway?: { capUsd: number | null; dailyUsd: number | null; credential?: "login" | "account"; walletUsd?: number; models?: GatewayModels } }>(keys: K[], now = new Date()): Promise<(K | (K & { gateway: GatewaySpend }))[]> {
+export async function withGatewaySpend<K extends { id: string; tenant: string; purpose?: string; scope?: unknown; gateway?: { capUsd: number | null; dailyUsd: number | null; credential?: "login" | "account"; walletUsd?: number; models?: GatewayModels; principal?: string } }>(keys: K[], now = new Date()): Promise<(K | (K & { gateway: GatewaySpend }))[]> {
   const day = dayOf(now);
   return Promise.all(
     keys.map(async (k) => {
-      // A login key is not metered: there is no spend to show.
-      if (k.purpose !== "gateway" || !k.gateway || k.gateway.credential === "login") return k;
-      const job = `gateway:${k.id}`;
+      // A login key is not metered: there is no spend to show. An API key
+      // with a model grant (one key) shows its spend like a gateway key.
+      const grant = modelGrantOf(k as Parameters<typeof modelGrantOf>[0]);
+      if (!grant || !k.gateway || k.gateway.credential === "login") return k;
+      const job = meterJobOf(k.id, k.gateway);
       // As charged — each call at the margin it was held at — the unit the
       // limits are in (and the gateway door's own check).
       const m = chargeMargin();

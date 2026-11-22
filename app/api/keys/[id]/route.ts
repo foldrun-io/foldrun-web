@@ -12,7 +12,7 @@ import { errorResponse, requirePermission, ApiError, refuse } from "@/server/api
 import { audit } from "@/server/audit";
 import { idempotent } from "@/server/idempotency";
 import { checkModels, gatewayOffered } from "@/server/gateway-keys";
-import { patchGatewayGrantDb } from "@/platform/api-keys-db";
+import { modelGrantOf, patchGatewayGrantDb } from "@/platform/api-keys-db";
 import { walletAmount } from "@/server/gateway-keys";
 import { jsonObject } from "@/server/body";
 
@@ -36,10 +36,15 @@ async function patchOnce(req: NextRequest, ctx: { params: Promise<{ id: string }
     // An account key's wallet budget (FOL-208), alone in its request.
     if ("walletUsd" in body) {
       if (Object.keys(body).length > 1) return refuse("change walletUsd on its own", 400);
-      if (key.purpose !== "gateway" || key.gateway?.credential !== "account") return refuse("only an account key (credential: account) has a wallet budget", 400);
+      // A gateway account key, or an API key with model access (one key).
+      if (!modelGrantOf(key) || key.gateway?.credential !== "account") return refuse("only an account key (credential: account) or an API key with model access has a wallet budget", 400);
       const n = walletAmount(body.walletUsd);
       if (n === null) return refuse("walletUsd must be a number of dollars from 0 (the plan only) to 100000", 400);
       if (!(await patchGatewayGrantDb(tenant, id, "walletUsd", n, "account"))) return refuse("key not found", 404);
+      // An API key's chain shares one spend (its principal): a key still in
+      // its rotation grace gets the same budget, never the old one (Codex review).
+      const chain = key.purpose === undefined ? key.gateway?.principal : undefined;
+      if (chain) for (const k of await listApiKeys(tenant)) if (k.id !== id && !k.revokedAt && k.purpose === undefined && k.gateway?.principal === chain) await patchGatewayGrantDb(tenant, k.id, "walletUsd", n, "account");
       await audit("apikey.wallet_budget", { actor: actor.name, tenant, subject: id, detail: { label: key.label, prefix: key.prefix, walletUsd: n } });
       return NextResponse.json({ ok: true, id, walletUsd: n });
     }
@@ -51,8 +56,8 @@ async function patchOnce(req: NextRequest, ctx: { params: Promise<{ id: string }
     }
     const wantsModels = "models" in body;
     const checkedModels = wantsModels
-      ? key.purpose !== "gateway" || !key.gateway
-        ? ({ error: "only a gateway key has a model map" } as const)
+      ? !modelGrantOf(key) || !key.gateway
+        ? ({ error: "only a gateway key, or an API key with model access, has a model map" } as const)
         : checkModels(body.models, key.gateway.credential === "login")
       : null;
     if (checkedModels && "error" in checkedModels) return refuse(checkedModels.error, 400);
@@ -62,7 +67,7 @@ async function patchOnce(req: NextRequest, ctx: { params: Promise<{ id: string }
       await audit("apikey.require_customer", { actor: actor.name, tenant, subject: id, detail: { label: key.label, prefix: key.prefix, requireCustomer: body.requireCustomer } });
       if (!wantsModels) return NextResponse.json({ ok: true, id, requireCustomer: body.requireCustomer });
     }
-    if (key.purpose !== "gateway" || !key.gateway) return refuse("only a gateway key has a model map", 400);
+    if (!modelGrantOf(key) || !key.gateway) return refuse("only a gateway key, or an API key with model access, has a model map", 400);
     const checked = checkModels(body.models, key.gateway.credential === "login");
     if ("error" in checked) return refuse(checked.error, 400);
     // The model map alone, against the grant as it is now (Codex review).

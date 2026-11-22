@@ -19,6 +19,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listApiKeys, rotateApiKey, parseGrace, resolveTenant } from "@/server/auth";
 import { keyWithin } from "@/server/key-scope";
+import { modelGrantOf } from "@/platform/api-keys-db";
 import { errorResponse, requirePermission, ApiError } from "@/server/api";
 import { audit } from "@/server/audit";
 import { idempotent } from "@/server/idempotency";
@@ -71,6 +72,10 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ id: string }>
     // A key revoked by a no-grace rotation is still answered by
     // rotateApiKey's 409 naming its replacement; one revoked outright is gone.
     if (!target || (target.revokedAt && !target.replacedBy) || !keyWithin({ role: actor.role, workspaces: actor.workspaces }, target)) throw new ApiError("key not found", 404);
+    // A key that may call models spends the whole account's balance, whatever
+    // workspaces it opens: its new secret goes only to whom could have given
+    // that grant — an admin of every workspace, the mint rule (Codex review).
+    if (modelGrantOf(target) && actor.workspaces !== null) throw new ApiError("this key may call foldrun's models, which spends the whole account's balance — only an admin of every workspace may rotate it", 403);
     // The new key acts as whoever rotated it — never as the old key's
     // minter on the word of a caller who is no person (rotateApiKey).
     const who = actor.kind === "user" || !actor.name.startsWith("key:") ? actor.name : null;

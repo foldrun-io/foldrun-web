@@ -18,7 +18,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { roleOfUser, allowedWorkspaces } from "@/server/users";
-import { describeCliLogin, decideCliLogin, requestOrigin } from "@/server/cli-login";
+import { describeCliLogin, decideCliLogin, requestOrigin, mayGrantModels } from "@/server/cli-login";
+import { CLI_MODEL_GRANT } from "@/server/auth";
 import { errorResponse, sessionUser, refuse } from "@/server/api";
 import { jsonObject } from "@/server/body";
 
@@ -30,7 +31,13 @@ export async function GET(req: NextRequest) {
     // Whether the browser looking is on the network that asked: null when
     // either side is not known.
     const here = requestOrigin(req).network;
-    return NextResponse.json({ ...row, sameNetwork: here && row.requestedFrom ? here === row.requestedFrom : null });
+    // Model access (one key): what the sign-in could also spend, and
+    // whether the person looking may give it — false when no one is signed
+    // in here, or their role or workspaces do not reach the whole account.
+    const user = await sessionUser(req).catch(() => null);
+    const person = user && !(user instanceof Response) ? { role: (await roleOfUser(user.tenant, user.id)) ?? "viewer", workspaces: await allowedWorkspaces(user.tenant, user.id) } : null;
+    const modelAccess = { offered: person ? mayGrantModels(person) : false, ...CLI_MODEL_GRANT };
+    return NextResponse.json({ ...row, sameNetwork: here && row.requestedFrom ? here === row.requestedFrom : null, modelAccess });
   } catch (err) {
     return errorResponse(err);
   }
@@ -52,9 +59,15 @@ export async function POST(req: NextRequest) {
     if (decision !== "approve" && decision !== "deny") {
       return refuse("expected { decision: \"approve\" | \"deny\" } (or none, to approve)", 400);
     }
+    // The person's yes to model access, shown its limits on the page. Absent
+    // is no: a sign-in approved without the page's word is a platform key.
+    if (body.models !== undefined && typeof body.models !== "boolean") return refuse("models is true or false", 400);
     const role = (await roleOfUser(user.tenant, user.id)) ?? "viewer";
     const workspaces = await allowedWorkspaces(user.tenant, user.id);
-    const outcome = await decideCliLogin(body.code, decision, { tenant: user.tenant, email: user.email, role, workspaces });
+    const outcome = await decideCliLogin(body.code, decision, { tenant: user.tenant, email: user.email, role, workspaces }, {
+      models: body.models === true,
+      recheck: async () => ({ role: (await roleOfUser(user.tenant, user.id)) ?? "viewer", workspaces: await allowedWorkspaces(user.tenant, user.id) }),
+    });
     if (outcome === "too-old") {
       return refuse("this sign-in request is more than five minutes old, so it can no longer be approved — approve only a code you started yourself just now; run `foldrun login` again", 410);
     }

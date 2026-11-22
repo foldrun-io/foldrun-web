@@ -402,7 +402,8 @@ const LEGACY_SHAPES: Record<string, Shape> = {
           replacedBy: { type: ["string", "null"], description: "the key that replaced it in a rotation" },
           origin: str("cli-login when `foldrun login` minted it; absent otherwise"),
           purpose: str("a2a for an outside agent's key (it opens /a2a only); gateway for a coding agent's key (it opens the gateway only); absent for an API key"),
-          gateway: obj({
+          gateway: {
+            ...obj({
             capUsd: { type: ["number", "null"], description: "the most it may spend in all, USD; null none" },
             dailyUsd: { type: ["number", "null"], description: "the most it may spend per UTC day, USD; null none" },
             spentUsd: { type: "number", description: "what it has spent in all, USD (open calls at their estimate)" },
@@ -411,7 +412,10 @@ const LEGACY_SHAPES: Record<string, Shape> = {
             walletUsd: { type: "number", description: "an account key: the most bought credits may pay for its calls, USD; 0 the plan only" },
             walletSpentUsd: { type: "number", description: "an account key: what bought credits have paid for its calls, USD" },
             models: obj({ opus: str(), sonnet: str(), haiku: str() }),
+            principal: str("an API key with model access: the first key of its rotation chain — its spend is counted there, so a rotation keeps it"),
           }),
+            description: "a gateway key's grant; on an API key (no purpose), its model access — the same key also calls foldrun's models within these limits",
+          },
           a2a: obj({ workspace: str(), flows: arr(str()), principal: str("the first key of its rotation chain — the owner of its tasks"), maxTasks: int }),
         }),
       },
@@ -432,6 +436,14 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       models: { ...obj({ opus: str(), sonnet: str(), haiku: str() }), description: "purpose: gateway — which model each Claude Code tier runs on with this key, e.g. { sonnet: openai/gpt-6 }" },
       flows: arr(str(), "purpose: a2a — the flows it may call (each must also be published with a2a:)"),
       maxTasks: { ...int, description: "purpose: a2a — its tasks open at once, 1–100 (default 10)" },
+      modelAccess: {
+        ...obj({
+          dailyUsd: { type: "number", description: "the most its model calls may spend per UTC day, USD" },
+          capUsd: { type: "number", description: "the most its model calls may spend in all, USD" },
+          walletUsd: { type: "number", description: "the most bought credits may pay for its model calls, USD; 0 (the plan only; the default) to 100000" },
+        }),
+        description: "an API key (no purpose) that may also call foldrun's models with the same secret — dailyUsd or capUsd required; the plan pays first, then bought credits up to walletUsd. Only an admin of every workspace, on the hosted platform",
+      },
     }),
     response: obj({
       ok: bool, key: str("shown once"), id: str(), prefix: str(), role: str(), workspaces: { type: ["array", "null"], items: str() }, expiresAt: { type: ["string", "null"] },
@@ -440,6 +452,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       gatewayUrl: { type: ["string", "null"], description: "a gateway key: its ANTHROPIC_BASE_URL" },
       credential: str("a login gateway key: login; an account key: account"),
       walletUsd: { type: "number", description: "an account key's wallet budget, USD" },
+      modelAccess: { ...obj({ capUsd: { type: ["number", "null"] }, dailyUsd: { type: ["number", "null"] }, walletUsd: { type: "number" } }), description: "an API key made with modelAccess: its limits" },
     }),
   },
   "DELETE /api/keys": { body: obj({ id: str("a key may always revoke itself") }, ["id"]), response: obj({ ok: bool }) },
