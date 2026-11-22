@@ -9,6 +9,7 @@
 import type { NextResponse } from "next/server";
 import { paidByPlatform } from "@/platform/assistant/engine";
 import { billing } from "@/platform/billing";
+import { requireSubscription } from "@/platform/entitlement";
 import { refuseWhenLimited } from "@/server/limits";
 
 /** Replies per person (or key) per hour — each is a model call with tools. */
@@ -36,6 +37,10 @@ export async function refuseAssistantJob(
   if (limited) return limited;
   // Money is checked where work is added, as a run's start checks it: an
   // empty wallet is a 402 now, not an error a worker writes later.
-  if (platformPays) await billing().assertFunds(tenant);
+  // A subscription first (23 Nov 2026): a balance alone does not pay.
+  if (platformPays) {
+    await requireSubscription(tenant);
+    await billing().assertFunds(tenant);
+  }
   return null;
 }

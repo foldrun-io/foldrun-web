@@ -29,6 +29,7 @@ import { sdkEnv } from "@/lib/step-exec";
 import { withModelEnv } from "@/lib/model-env";
 import { recordRunCost } from "@/platform/ledger";
 import { billing } from "@/platform/billing";
+import { requireSubscription } from "@/platform/entitlement";
 import { draftModelEnv, mergedIssues, FLOW_PATH, AGENT_PATH, type DraftFile, type DraftIssue } from "@/platform/assistant/shared";
 
 export { draftModelEnv, mergedIssues, type DraftFile, type DraftIssue };
@@ -422,7 +423,11 @@ export async function draftFlow(
   // balance is asked first, as a run's start asks. A provider of the
   // account's own is its own bill.
   const supplyIsPlatform = !override && complete === modelCompleter && draftModelEnv(tenant, workspace).supply === "platform";
-  if (supplyIsPlatform) await billing().assertFunds(tenant);
+  // A subscription first (23 Nov 2026): a balance alone does not pay.
+  if (supplyIsPlatform) {
+    await requireSubscription(tenant);
+    await billing().assertFunds(tenant);
+  }
 
   let cost = 0;
   let supply: DraftResult["supply"] = "platform";
