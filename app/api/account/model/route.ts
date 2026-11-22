@@ -33,7 +33,7 @@ import { ACCOUNT_MODEL_SECRETS, isClaudeLoginToken } from "@/lib/model-credentia
 import { providerPreset } from "@/lib/providers";
 import { platform, guardsUntrustedUrls } from "@/lib/platform";
 import { refuseInternalUrl } from "@/platform/ssrf";
-import { ChoiceConflict, choiceRefused, foldrunModelsView, setModelChoice } from "@/platform/model-choice";
+import { ChoiceConflict, choiceRefused, foldrunModelsView, ownModelKeysOn, setModelChoice } from "@/platform/model-choice";
 import { jsonObject } from "@/server/body";
 
 export const dynamic = "force-dynamic";
@@ -43,8 +43,13 @@ const FORMATS = ["anthropic", "openai"] as const;
 /** Everything GET answers: the key, the choice, and foldrun's models. */
 async function view(tenant: string) {
   // The plan read now: a plan bought a moment ago shows at once.
-  return { ...(await describeAccountModelNow(tenant)), foldrunModels: await foldrunModelsView(tenant) };
+  // ownKeys: whether this platform lets an account bring a key of its own
+  // at all (models.byok, a platform admin's switch; off by default).
+  return { ...(await describeAccountModelNow(tenant)), foldrunModels: await foldrunModelsView(tenant), ownKeys: ownModelKeysOn() };
 }
+
+/** Why an own key cannot be stored or chosen here, or null when it can. */
+const OWN_KEYS_OFF = "own model keys are off on this platform: every model call goes through foldrun's models — a platform admin can turn own keys on (setting models.byok)";
 
 export async function GET(req: NextRequest) {
   try {
@@ -66,6 +71,9 @@ async function putOnce(req: NextRequest) {
     const bad = (error: string) => refuse(error, 400);
     const source = body.source;
     if (source !== undefined && source !== "own" && source !== "foldrun") return bad(`source is "own" (the account's own key) or "foldrun" (foldrun's models)`);
+    // Own keys off (models.byok): storing one, or going back to one, is
+    // refused before anything is written. Choosing foldrun's models stays.
+    if (!ownModelKeysOn() && (apiKey || source === "own")) return refuse(OWN_KEYS_OFF, 403);
     if (!apiKey && source === undefined) return bad("expected { provider, apiKey } — apiKey is the key from your provider — or { source: \"foldrun\", supply } to run on foldrun's models");
     const ifVersion = body.ifVersion;
     if (ifVersion !== undefined && !(typeof ifVersion === "number" && Number.isInteger(ifVersion) && ifVersion >= 0)) return bad("ifVersion is the choiceVersion you read (0: never chosen)");

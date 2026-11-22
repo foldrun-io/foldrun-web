@@ -25,8 +25,8 @@
 #                        sign up at once then: the first account is the owner)
 #   FOLDRUN_VERSION      pin a version, vYYYY.MM.DD.N  (default: stable, which
 #                        a re-run moves forward); FOLDRUN_VERSION=stable unpins
-#   ANTHROPIC_API_KEY    the model key steps run on    (or each account's own,
-#                        in Settings → Model)
+#   ANTHROPIC_API_KEY    the model key steps run on    (each account's own, in
+#                        Settings → Models, only with FOLDRUN_BYOK=1 in .env)
 #   FOLDRUN_EGRESS_BIND  where the egress proxy (8090) listens (default 0.0.0.0;
 #                        on a server facing a network, the Docker bridge, 172.17.0.1)
 #   FOLDRUN_DATA_DIR     a host folder for the data      (default: a Docker volume)

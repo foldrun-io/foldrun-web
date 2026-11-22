@@ -7,6 +7,7 @@ import { audit } from "@/server/audit";
 import { idempotent } from "@/server/idempotency";
 import { accountDir } from "@/lib/store";
 import { checkFiles } from "@/lib/deploy";
+import { ownModelKeysOn } from "@/platform/model-choice";
 import { noteAccountFilesChanged } from "@/lib/workspace-revisions";
 import { jsonObject } from "@/server/body";
 
@@ -55,7 +56,9 @@ async function putOnce(req: NextRequest) {
     if (Buffer.byteLength(body.content) > MAX) return refuse(`the file is larger than ${MAX / 1024} KB`, 413);
     if (body.ifMatch !== undefined && body.ifMatch !== null && typeof body.ifMatch !== "string") return refuse("ifMatch: the sha256 GET answered, or null", 400);
 
-    const issues = checkFiles([{ path: "AGENTS.md", content: body.content }]);
+    // Own keys off on this platform (models.byok): a provider: here is
+    // refused as a deploy refuses one (config/own-model-key).
+    const issues = checkFiles([{ path: "AGENTS.md", content: body.content }], ownModelKeysOn() ? {} : { ownModelKeys: false });
     const errors = issues.filter((i) => i.level === "error");
     if (errors.length) {
       // The reasons in the message itself: the dashboard's editor shows the

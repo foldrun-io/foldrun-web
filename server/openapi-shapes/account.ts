@@ -126,7 +126,14 @@ const FoldrunModels = obj({
   dailyCapUsd: { ...nullable(num), description: "the day's cap (UTC) in what the account pays; null: none" },
   spentTodayUsd: { ...num, description: "spent today (UTC) on foldrun's models, in what the account pays" },
 });
-const AccountModelView = { ...AccountModel, properties: { ...(AccountModel.properties as Record<string, Schema>), foldrunModels: FoldrunModels } };
+const AccountModelView = {
+  ...AccountModel,
+  properties: {
+    ...(AccountModel.properties as Record<string, Schema>),
+    foldrunModels: FoldrunModels,
+    ownKeys: { type: "boolean", description: "whether an account may bring its own model key on this platform at all (setting models.byok, a platform admin's; off by default). False: storing a key or source own is refused (403), and a deploy naming a provider: is refused (config/own-model-key)" },
+  },
+};
 
 const ProviderCheck = obj({
   provider: str("its preset name, or its host"), model: str("the model id a run would send"),

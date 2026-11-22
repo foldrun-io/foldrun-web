@@ -7,7 +7,7 @@ import { providerPreset, PROVIDERS } from "@/lib/providers";
 import { platform } from "@/lib/platform";
 import { accountDir, parseProvider } from "@/lib/store";
 import { readAgentsMdKeys } from "@/lib/agents-md";
-import { modelChoiceOf, onSubscription, onSubscriptionNow } from "@/platform/model-choice";
+import { modelChoiceOf, onSubscription, onSubscriptionNow, ownModelKeysOn } from "@/platform/model-choice";
 
 export interface AccountModel {
   set: boolean;
@@ -39,17 +39,23 @@ export function describeAccountModel(tenant: string): AccountModel {
   const format = read(ACCOUNT_MODEL_SECRETS.format);
   const platformKey = platform.platformKeyAllowed(tenant);
   const choice = modelChoiceOf(tenant);
-  const foldrun = choice.source === "foldrun" && choice.provider !== null;
+  const chose = choice.source === "foldrun" && choice.provider !== null;
+  // Own keys off (models.byok): what the runner does, which never reads the
+  // stored key — the chosen provider or the default one (core modelSupply).
+  const ownOn = ownModelKeysOn();
+  const forced = !ownOn && !chose && !platformKey ? platform.modelSupply?.(tenant) : undefined;
+  const forcedProvider = forced?.kind === "foldrun" && forced.via !== "login" ? forced.provider : null;
+  const foldrun = chose || forcedProvider !== null;
   return {
     set: Boolean(key),
     provider: key ? provider ?? (baseUrl ? "custom" : null) : null,
     baseUrl: key ? baseUrl ?? providerPreset(provider)?.baseUrl ?? null : null,
     format: key ? format ?? providerPreset(provider)?.format ?? "anthropic" : null,
     keyHint: key ? `…${key.slice(-4)}` : null,
-    runsOn: foldrun ? "foldrun" : key ? "account" : onSubscription(tenant) ? "subscription" : platformKey ? "platform" : "none",
+    runsOn: onSubscription(tenant) && !chose ? "subscription" : foldrun ? "foldrun" : key && ownOn ? "account" : onSubscription(tenant) ? "subscription" : platformKey ? "platform" : "none",
     platformKeyAllowed: platformKey,
     source: foldrun ? "foldrun" : "own",
-    supply: foldrun ? choice.provider : null,
+    supply: chose ? choice.provider : forcedProvider,
     choiceVersion: choice.version,
   };
 }
@@ -73,6 +79,13 @@ export async function describeAccountModelNow(tenant: string): Promise<AccountMo
 export function accountModelSupply(tenant: string): "account" | "provider" | "platform" | "foldrun" | "subscription" | "none" {
   const choice = modelChoiceOf(tenant);
   if (choice.source === "foldrun" && choice.provider) return "foldrun";
+  // Own keys off (models.byok): neither a stored key nor a provider: block
+  // is used; the runner's answer decides.
+  if (!ownModelKeysOn()) {
+    if (onSubscription(tenant)) return "subscription";
+    if (platform.platformKeyAllowed(tenant)) return "platform";
+    return platform.modelSupply?.(tenant)?.kind === "foldrun" ? "foldrun" : "none";
+  }
   if (getSecret(tenant, ACCOUNT_MODEL_SECRETS.key)?.value) return "account";
   if (parseProvider(readAgentsMdKeys(accountDir(tenant)).provider)?.baseUrl) return "provider";
   // A live Claude Code plan: its runs go on Claude, on the plan (16 Nov 2026).

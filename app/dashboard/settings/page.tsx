@@ -80,7 +80,7 @@ import { effectiveFlags, betaProgram } from "@/platform/flags";
 import { providerFactsFor } from "@/server/provider-facts";
 import { ModelKey } from "./model-key";
 import { describeAccountModelNow, modelPresetChoices } from "@/server/account-model";
-import { foldrunModelsView } from "@/platform/model-choice";
+import { foldrunModelsView, ownModelKeysOn } from "@/platform/model-choice";
 import { ProviderCheck } from "./provider-check";
 import { Email } from "@/components/email";
 import { nowMs } from "@/components/overview-model";
@@ -418,7 +418,7 @@ async function ModelsTab({
   const { configured: providerConfigured, lastCheck: providerLast } = await providerFactsFor(tenant, scope);
   return (
     <SettingsSection id="provider">
-      <ModelKey tenant={tenant} initial={{ ...(await describeAccountModelNow(tenant)), foldrunModels: await foldrunModelsView(tenant) }} presets={modelPresetChoices()} mayEdit={role === null || can(role, "secrets:write")} />
+      <ModelKey tenant={tenant} initial={{ ...(await describeAccountModelNow(tenant)), foldrunModels: await foldrunModelsView(tenant), ownKeys: ownModelKeysOn() }} presets={modelPresetChoices()} mayEdit={role === null || can(role, "secrets:write")} />
       <SettingsCard
         id="gateway"
         title={$t("settings.page.yourOwnGateway")}

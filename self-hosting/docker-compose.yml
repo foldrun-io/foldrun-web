@@ -96,6 +96,9 @@ services:
       # FOLDRUN_RUNNER_RUNTIME: runsc
       # Let strangers sign up? Off by default, on purpose.
       FOLDRUN_OPEN_SIGNUP: ${FOLDRUN_OPEN_SIGNUP:-}
+      # Let each account bring its own model key or provider:? Off by
+      # default: every step runs on ANTHROPIC_API_KEY below. 1 turns it on.
+      FOLDRUN_BYOK: ${FOLDRUN_BYOK:-}
       # The first account needs this (the installer writes it and prints the
       # signup link with it); unset, the first signup is free.
       FOLDRUN_SETUP_TOKEN: ${FOLDRUN_SETUP_TOKEN:-}

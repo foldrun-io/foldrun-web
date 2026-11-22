@@ -649,7 +649,9 @@
     "whatThisAccountRunsOn": "What this account runs on",
     "youPayYourProviderDirectlyAny": "You pay your provider directly. Any provider, any model.",
     "yourOwnApiKey": "Your own API key",
-    "yourOwnKey": "Your own key"
+    "yourOwnKey": "Your own key",
+    "ownKeysOff": "Bringing your own model key is turned off on this platform: every model call runs on the platform's models.",
+    "removeUnusedKey": "Remove the stored key {v0} (it is not used)"
   },
   "page": {
     "about": "About",

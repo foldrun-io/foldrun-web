@@ -18,7 +18,9 @@ import { Tooltip } from "@foldrun/ui/react/tooltip";
 import type { AccountModel } from "@/server/account-model";
 import type { FoldrunModelsView } from "@/platform/model-choice";
 
-export type AccountModelView = AccountModel & { foldrunModels: FoldrunModelsView };
+/** ownKeys: may an account bring its own key on this platform at all
+ *  (models.byok, a platform admin's switch). False: no own-key form. */
+export type AccountModelView = AccountModel & { foldrunModels: FoldrunModelsView; ownKeys?: boolean };
 
 const usd = (n: number) => `$${n === 0 || n >= 0.01 ? n.toFixed(2) : n.toFixed(4)}`;
 
@@ -36,6 +38,7 @@ export function ModelKey({
   const router = useRouter();
   const [model, setModel] = useState<AccountModelView>(initial);
   const fm = model.foldrunModels;
+  const ownKeys = model.ownKeys !== false;
   const ready = fm.providers.filter((p) => p.available);
   // Which panel is open: what the account runs on now, until the person
   // picks the other one (nothing changes until they save).
@@ -110,7 +113,8 @@ export function ModelKey({
         <Chip tone={status.variant}>{status.label}</Chip>
         <span className="min-w-0 break-all font-mono text-xs text-fg-muted">{status.text}</span>
       </div>
-      {fm.offered && (
+      {!ownKeys && <p className="mt-3 text-sm text-fg-muted">{$t("settings.model-key.ownKeysOff")}</p>}
+      {ownKeys && fm.offered && (
         <div className="mt-3 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label={$t("settings.model-key.whatThisAccountRunsOn")}>
           {(
             [
@@ -135,7 +139,7 @@ export function ModelKey({
           ))}
         </div>
       )}
-      {mode === "foldrun" && fm.offered ? (
+      {(mode === "foldrun" || !ownKeys) && fm.offered ? (
         <FoldrunPanel
           fm={fm}
           supply={supply}
@@ -145,6 +149,10 @@ export function ModelKey({
           busy={busy}
           onUse={() => void send("PUT", { source: "foldrun", supply })}
         />
+      ) : !ownKeys ? (
+        model.set && mayEdit ? (
+          <button type="button" disabled={busy} onClick={() => void send("DELETE")} className={`mt-3 ${buttonVariants({ variant: "secondary" })}`}>{$t("settings.model-key.removeUnusedKey", { v0: String(model.keyHint ?? "") })}</button>
+        ) : null
       ) : (
         <>
           <p className="mt-4 text-sm text-fg-muted">

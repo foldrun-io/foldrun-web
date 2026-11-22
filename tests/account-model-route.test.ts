@@ -10,6 +10,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+// Own model keys are what these tests are about: allowed here (models.byok,
+// off by default since 22 Nov 2026; tests/byok-off.test.ts has it off).
+process.env.FOLDRUN_BYOK = "1";
 
 process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-model-route-"));
 delete process.env.FOLDRUN_DEV_NO_AUTH;
