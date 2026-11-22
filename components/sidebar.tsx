@@ -17,7 +17,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { FindTrigger } from "./find";
-import { useHosted } from "./edition";
 import { accountNav, workspaceNav, workspaceOf, pageTitle, type Nav, type NavIcon } from "./nav-model";
 import { AccountSwitcher } from "./topbar";
 import { UserMenu } from "./user-menu";
@@ -87,11 +86,10 @@ export { FoldrunMark } from "@foldrun/ui/react/mark";
 export function useNav(): Nav & { workspace: string | null; tenant: string; title: string | null } {
   const pathname = usePathname();
   const params = useSearchParams();
-  const hosted = useHosted();
   const unread = useInboxUnread();
   const tenant = params.get("tenant") ?? "default";
   const workspace = workspaceOf(pathname);
-  const nav = workspace ? workspaceNav(workspace, pathname, params, tenant) : accountNav(pathname, tenant, hosted, { inbox: unread ?? undefined });
+  const nav = workspace ? workspaceNav(workspace, pathname, params, tenant) : accountNav(pathname, tenant, { inbox: unread ?? undefined });
   return { ...nav, workspace, tenant, title: pageTitle(pathname) ?? nav.current?.name ?? null };
 }
 

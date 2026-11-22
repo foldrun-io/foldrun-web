@@ -48,11 +48,13 @@ export function SessionList() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
 
-  const load = async () => {
-    const res = await fetch("/api/auth/sessions");
-    if (!res.ok) return setError($t("profile.sessions.couldNotLoadYourSessions"));
-    setState(await res.json());
-  };
+  // The answer is set when it arrives, never in the same tick as the call,
+  // so the effect below only starts the request.
+  const load = () =>
+    fetch("/api/auth/sessions").then(async (res) => {
+      if (!res.ok) return setError($t("profile.sessions.couldNotLoadYourSessions"));
+      setState(await res.json());
+    });
   useEffect(() => {
     void load();
   }, []);

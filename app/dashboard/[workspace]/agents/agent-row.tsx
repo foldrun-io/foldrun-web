@@ -23,7 +23,6 @@ export function AgentRow({
   description,
   badges,
   footer,
-  usedBy = [],
 }: {
   /** What the list's search box matches this row on. */
   search?: string;
@@ -35,9 +34,6 @@ export function AgentRow({
   badges: React.ReactNode;
   /** own skills / own memory / used by. */
   footer: React.ReactNode;
-  /** Flows that call this agent — named in the confirmation, because
-   *  deleting an agent silently breaks every flow that steps through it. */
-  usedBy?: string[];
 }) {
   const [open, setOpen] = useState(false);
   const path = `agents/${name}/agent.md`;

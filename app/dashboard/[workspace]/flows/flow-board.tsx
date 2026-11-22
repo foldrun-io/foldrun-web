@@ -40,6 +40,76 @@ function same(a: Groups, b: Groups) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
+// A drop rail. It was 8px tall with negative margins pulling it under its
+// neighbours, so there was almost nothing to hit — the group underneath took
+// every pointer event. While a drag is active it becomes a real target and
+// says what dropping there will do. At module scope, so a render of the board
+// updates the rail instead of making a new kind of element each time.
+function Rail({
+  at,
+  count,
+  active,
+  armed,
+  draggingRef,
+  onOver,
+  onLeave,
+  onDropAt,
+}: {
+  at: number;
+  /** How many groups the board has. */
+  count: number;
+  active: boolean;
+  armed: boolean;
+  draggingRef: { readonly current: number | null };
+  onOver: (at: number) => void;
+  onLeave: (at: number) => void;
+  onDropAt: (at: number, step: number | null) => void;
+}) {
+  // Every rail used to say the same thing, so with a group between them
+  // there was no way to tell which order a drop would produce. Say the
+  // outcome, not the mechanic.
+  const label =
+    at === 0
+      ? $t("workspace.flows-flow-board.runsFirstBeforeEverythingElse")
+      : at >= count
+        ? $t("workspace.flows-flow-board.runsLastAfterEverythingElse")
+        : $t("workspace.flows-flow-board.runsBetweenStepAndStep", { at: String(at), v1: String(at + 1) });
+  return (
+    <div
+      onDragOver={(e) => {
+        if (draggingRef.current === null) return;
+        e.preventDefault();
+        e.stopPropagation();
+        onOver(at);
+      }}
+      onDragEnter={(e) => e.preventDefault()}
+      onDragLeave={() => onLeave(at)}
+      onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onDropAt(at, draggingRef.current);
+      }}
+      // transition-colors, not -all: the target opens at full height at once
+      // (it used to be remounted, which skipped any height animation).
+      className={`flex items-center justify-center overflow-hidden rounded-md transition-colors ${
+        armed ? "my-1 h-9 border border-dashed" : "h-1"
+      } ${
+        active
+          ? "border-fg bg-muted text-fg"
+          : armed
+            ? "border-line-strong text-fg-subtle"
+            : "border-transparent"
+      }`}
+    >
+      {armed && (
+        <span className="text-xs font-medium">
+          {active ? $t("workspace.flows-flow-board.release", { label: String(label) }) : label}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function FlowBoard({
   name,
   workspace,
@@ -188,57 +258,20 @@ export function FlowBoard({
     }
   };
 
-  // A drop rail. It was 8px tall with negative margins pulling it under its
-  // neighbours, so there was almost nothing to hit — the group underneath took
-  // every pointer event. While a drag is active it becomes a real target and
-  // says what dropping there will do.
-  const Rail = ({ at }: { at: number }) => {
-    const active = overRail === at;
-    const armed = dragging !== null;
-    // Every rail used to say the same thing, so with a group between them
-    // there was no way to tell which order a drop would produce. Say the
-    // outcome, not the mechanic.
-    const label =
-      at === 0
-        ? $t("workspace.flows-flow-board.runsFirstBeforeEverythingElse")
-        : at >= groups.length
-          ? $t("workspace.flows-flow-board.runsLastAfterEverythingElse")
-          : $t("workspace.flows-flow-board.runsBetweenStepAndStep", { at: String(at), v1: String(at + 1) });
-    return (
-      <div
-        onDragOver={(e) => {
-          if (draggingRef.current === null) return;
-          e.preventDefault();
-          e.stopPropagation();
-          setOverRail(at);
-          setOverGroup(null);
-        }}
-        onDragEnter={(e) => e.preventDefault()}
-        onDragLeave={() => setOverRail((r) => (r === at ? null : r))}
-        onDrop={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const step = draggingRef.current;
-          if (step !== null) apply(splitToRail(groups, step, at));
-          clearDrag();
-        }}
-        className={`flex items-center justify-center overflow-hidden rounded-md transition-all ${
-          armed ? "my-1 h-9 border border-dashed" : "h-1"
-        } ${
-          active
-            ? "border-fg bg-muted text-fg"
-            : armed
-              ? "border-line-strong text-fg-subtle"
-              : "border-transparent"
-        }`}
-      >
-        {armed && (
-          <span className="text-xs font-medium">
-            {active ? $t("workspace.flows-flow-board.release", { label: String(label) }) : label}
-          </span>
-        )}
-      </div>
-    );
+  // What every drop rail (Rail, above) needs from the board.
+  const rail = {
+    count: groups.length,
+    armed: dragging !== null,
+    draggingRef,
+    onOver: (at: number) => {
+      setOverRail(at);
+      setOverGroup(null);
+    },
+    onLeave: (at: number) => setOverRail((r) => (r === at ? null : r)),
+    onDropAt: (at: number, step: number | null) => {
+      if (step !== null) apply(splitToRail(groups, step, at));
+      clearDrag();
+    },
   };
 
   return (
@@ -271,7 +304,7 @@ export function FlowBoard({
       </div>
 
       <ol className="space-y-1 rounded-lg border border-line bg-surface p-2 sm:p-3">
-        <Rail at={0} />
+        <Rail at={0} active={overRail === 0} {...rail} />
         {groups.map((group, g) => (
           <li key={group.join("-")}>
             <div
@@ -486,7 +519,7 @@ export function FlowBoard({
                 })}
               </div>
             </div>
-            <Rail at={g + 1} />
+            <Rail at={g + 1} active={overRail === g + 1} {...rail} />
           </li>
         ))}
       </ol>

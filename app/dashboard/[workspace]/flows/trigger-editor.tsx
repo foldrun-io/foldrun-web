@@ -6,7 +6,7 @@
 // Custom cron remains one preset away for the shapes the presets can't say.
 
 import { $t } from "@/i18n";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useResolvedTimeZone } from "@/components/viewer-time";
 import { useRouter } from "next/navigation";
 
@@ -101,11 +101,17 @@ export function TriggerEditor({
   // AUDIENCE's zone rather than the author's.
   const myZone = useResolvedTimeZone();
   const allZones = ianaZones();
-  const [tz, setTz] = useState(timezone ?? "");
+  // Until the person types in it, a file with no zone shows theirs.
+  const [typed, setTz] = useState(timezone ?? "");
   const [touched, setTouched] = useState(false);
-  useEffect(() => {
-    if (!touched && !timezone && myZone) setTz(myZone);
-  }, [myZone, timezone, touched]);
+  // The file's zone changed under the editor (saved as Manual, then back):
+  // an untouched field follows it, as the effect this replaced did (Codex).
+  const [fileZone, setFileZone] = useState(timezone);
+  if (fileZone !== timezone) {
+    setFileZone(timezone);
+    if (!touched) setTz(timezone ?? "");
+  }
+  const tz = touched ? typed : typed || myZone;
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 

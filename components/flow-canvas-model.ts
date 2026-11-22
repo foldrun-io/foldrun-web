@@ -827,7 +827,7 @@ export function runStepsToNodes(flowSteps: FlowStep[], runSteps: StepRecordish[]
     if (t >= 0) templateOf.set(j, t);
   });
 
-  return flowSteps.map((f, fi) => {
+  return flowSteps.map((_, fi) => {
     const ri = own.get(fi);
     const extraIdx = extras.get(fi) ?? [];
     if (ri === undefined && !extraIdx.length) return null;

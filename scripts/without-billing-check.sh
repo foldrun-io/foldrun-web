@@ -8,6 +8,9 @@
 # foldrun-web, and fails if the built server code still names a billing
 # module or function — an alarm on top of the build itself.
 set -euo pipefail
+# Every test file but the end-to-end ones, as words: no ls | grep, so a
+# name with a space or a dash in it stays one argument.
+unit_tests() { T=(); local f; for f in tests/*.test.ts; do [[ $f == *e2e* ]] || T+=("$f"); done; }
 
 here="$(cd "$(dirname "$0")/.." && pwd)"
 out="${1:-$(mktemp -d "${TMPDIR:-/tmp}/foldrun-without-billing-XXXXXX")}"
@@ -30,12 +33,12 @@ fi
 echo "== foldrun-platform: typecheck"
 (cd "$out/foldrun-platform" && npx tsc --noEmit -p .)
 echo "== foldrun-platform: tests"
-(cd "$out/foldrun-platform" && FOLDRUN_DATA="$(mktemp -d)" node --test --test-timeout=180000 $(ls tests/*.test.ts | grep -v e2e))
+(cd "$out/foldrun-platform" && unit_tests && FOLDRUN_DATA="$(mktemp -d)" node --test --test-timeout=180000 "${T[@]}")
 
 echo "== $web: typecheck"
 (cd "$out/$web" && npm run --silent typecheck)
 echo "== $web: tests"
-(cd "$out/$web" && FOLDRUN_DATA="$(mktemp -d)" node --import ./tests/register.mjs --test $(ls tests/*.test.ts | grep -v e2e))
+(cd "$out/$web" && unit_tests && FOLDRUN_DATA="$(mktemp -d)" node --import ./tests/register.mjs --test "${T[@]}")
 echo "== $web: next build"
 (cd "$out/$web" && npx next build >/dev/null)
 

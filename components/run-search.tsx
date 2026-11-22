@@ -56,7 +56,11 @@ export function RunSearch({ tenant }: { tenant: string }) {
   };
   const apply = () => {
     const next = new URLSearchParams(params.toString());
-    for (const f of FIELDS) (draft[f.key]?.trim() ? next.set(f.key, draft[f.key]!.trim()) : next.delete(f.key));
+    for (const f of FIELDS) {
+      const v = draft[f.key]?.trim();
+      if (v) next.set(f.key, v);
+      else next.delete(f.key);
+    }
     if (errors) next.set("tool_error", "1");
     else next.delete("tool_error");
     go(next);

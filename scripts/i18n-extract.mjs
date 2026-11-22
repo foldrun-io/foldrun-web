@@ -53,7 +53,6 @@ const SUBS = Object.keys(TERMS).map((t) => ({
   form: { [t]: "one", [`${t}s`]: "other", [cap(t)]: "One", [`${cap(t)}s`]: "Other" },
   term: t,
 }));
-const FORM = TERM ? { [TERM]: "one", [`${TERM}s`]: "other", [TERM[0].toUpperCase() + TERM.slice(1)]: "One", [`${TERM[0].toUpperCase() + TERM.slice(1)}s`]: "Other" } : {};
 
 function calleeName(call) {
   const e = call.expression;

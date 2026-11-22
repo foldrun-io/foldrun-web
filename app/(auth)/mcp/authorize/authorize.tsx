@@ -2,7 +2,7 @@
 
 import { $el, $rich, $t } from "@/i18n";
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { buttonVariants } from "@foldrun/ui/react/button";
 import { Email } from "@/components/email";
 import { Checkbox, RadioGroup, RadioGroupItem } from "@foldrun/ui/react/choice";
@@ -19,6 +19,7 @@ type Ask = {
 };
 
 export function McpAuthorize() {
+  const router = useRouter();
   const params = useSearchParams();
   const request = params.toString();
   const [ask, setAsk] = useState<Ask | null>(null);
@@ -32,8 +33,10 @@ export function McpAuthorize() {
     fetch("/api/auth/session")
       .then((r) => r.json() as Promise<{ user: unknown }>)
       .then(async (s) => {
+        // The login page is the app's own: the router. The OAuth redirects
+        // below leave for the app that asked, so they stay full loads.
         if (!s.user) {
-          window.location.assign(`/login?next=${encodeURIComponent(`/mcp/authorize?${request}`)}`);
+          router.push(`/login?next=${encodeURIComponent(`/mcp/authorize?${request}`)}`);
           return;
         }
         const res = await fetch(`/api/mcp/oauth/authorize?request=${encodeURIComponent(request)}`);
@@ -50,7 +53,7 @@ export function McpAuthorize() {
         if (!body.scopes.includes("mcp:write")) setAccess("read");
       })
       .catch(() => setError($t("auth.mcp-authorize-authorize.couldNotReachTheServer")));
-  }, [request]);
+  }, [request, router]);
 
   async function decide(decision: "approve" | "deny") {
     setBusy(true);

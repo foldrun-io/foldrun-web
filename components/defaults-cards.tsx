@@ -8,6 +8,7 @@
 import { $rich, $t } from "@/i18n";
 import { useEffect, useState } from "react";
 import { SettingsForm, useSettingsForm } from "./settings-form";
+import { useHydrated } from "./browser-value";
 import { Field } from "@foldrun/ui/react/page";
 import { Input } from "@foldrun/ui/react/input";
 import { Select } from "@foldrun/ui/react/select";
@@ -210,11 +211,11 @@ export function ComputeCard({
   const str = (n: number | null | undefined) => (n === null || n === undefined ? "" : String(n));
   // The pool and what is held, as the server last said: refetched after a
   // save, so a lowered cap shows as the figure now enforced.
-  const [live, setLive] = useState({ pool, inUse, waiting, runsWaiting });
-  // "waiting 3 min" is read off the browser's clock after hydration, never
-  // rendered on the server — the two would disagree (Codex review).
-  const [now, setNow] = useState<number | null>(null);
-  useEffect(() => setNow(Date.now()), [live.waiting]);
+  // `at`: the browser's clock when they were read, for "waiting 3 min".
+  const [live, setLive] = useState(() => ({ pool, inUse, waiting, runsWaiting, at: Date.now() }));
+  // That figure is shown only after hydration, never rendered on the server
+  // — the two clocks would disagree (Codex review).
+  const now = useHydrated() ? live.at : null;
   const form = useSettingsForm({ vcpu: str(initial?.vcpu), memGiB: str(initial?.memGiB), diskGiB: str(initial?.diskGiB) }, async (v) => {
     const blank = v.vcpu.trim() === "" && v.memGiB.trim() === "" && v.diskGiB.trim() === "";
     const res0 = await fetch(endpoint, {
@@ -227,7 +228,7 @@ export function ComputeCard({
     if (level === "account") {
       const res = await fetch("/api/usage/compute", { headers: { "x-foldrun-tenant": tenant } }).catch(() => null);
       const fresh = res && res.ok ? ((await res.json().catch(() => null)) as { compute?: PoolRow; inUse?: HeldRow; waiting?: RoomWaitRow[]; runsWaiting?: RunsWaitingRow } | null) : null;
-      if (fresh?.compute && fresh.inUse) setLive({ pool: fresh.compute, inUse: fresh.inUse, waiting: fresh.waiting ?? [], runsWaiting: fresh.runsWaiting ?? runsWaiting });
+      if (fresh?.compute && fresh.inUse) setLive({ pool: fresh.compute, inUse: fresh.inUse, waiting: fresh.waiting ?? [], runsWaiting: fresh.runsWaiting ?? runsWaiting, at: Date.now() });
     }
     // The flow route answers the flow; the settings routes, the defaults.
     const c = (d.defaults?.compute ?? d.flow?.compute ?? null) as Defaults["compute"] | null;

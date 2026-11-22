@@ -9,6 +9,7 @@
 import { $el, $rich, $t } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useBrowserValue } from "@/components/browser-value";
 import { buttonVariants, Button } from "@foldrun/ui/react/button";
 import { Input, Textarea } from "@foldrun/ui/react/input";
 import { Select } from "@foldrun/ui/react/select";
@@ -355,10 +356,8 @@ export function Connections({
   const [copied, setCopied] = useState(false);
   // Resolved after mount: the server does not know which address the browser
   // used, and the consent flow builds the redirect from exactly that.
-  const [redirect, setRedirect] = useState<string>(callbackUrl ?? "");
-  useEffect(() => {
-    if (!callbackUrl) setRedirect(`${window.location.origin}/api/oauth/callback`);
-  }, [callbackUrl]);
+  const origin = useBrowserValue(() => window.location.origin, "");
+  const redirect = callbackUrl || (origin ? `${origin}/api/oauth/callback` : "");
   // Any edit clears the last error: it was about what the form held then.
   const set = (k: string) => (e: { target: { value: string } }) => {
     setError(null);
@@ -412,8 +411,7 @@ export function Connections({
   };
 
   // Opened from a "needs reconnecting" email: that row is marked.
-  const [wanted, setWanted] = useState<string | null>(null);
-  useEffect(() => { setWanted(new URLSearchParams(window.location.search).get("reconnect")); }, []);
+  const wanted = useBrowserValue(() => new URLSearchParams(window.location.search).get("reconnect"), null);
   const grantOf = (row: ConnectionRow) =>
     connections.find((c) => c.name === row.name && (row.scope === "workspace" ? c.workspace === workspace : !c.workspace));
 

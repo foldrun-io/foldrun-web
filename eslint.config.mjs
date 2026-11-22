@@ -29,6 +29,20 @@ const eslintConfig = defineConfig([
       // admin and billing table, and on nothing else. Off, not warn: a
       // rule that only ever cries wolf teaches people to ignore the column.
       "react/jsx-key": "off",
+      // A leading `_` says "unused on purpose": a field dropped with
+      // `const { _cost, ...rest } = x`, a parameter a stub must take to keep
+      // the hosted edition's signature (billing-slots, view-as). The usual
+      // convention, so the rule only reports names nobody meant to leave.
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
       // The React Compiler's advisories, which arrived with
       // eslint-config-next 16 against code written before them: setState
       // inside an effect, a ref read during render, a component defined

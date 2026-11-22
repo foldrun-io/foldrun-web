@@ -1,8 +1,8 @@
 "use client";
 
 import { $rich, $t, $el } from "@/i18n";
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { buttonVariants } from "@foldrun/ui/react/button";
 import { Input } from "@foldrun/ui/react/input";
 import { LocalTime } from "@/components/local-time";
@@ -27,39 +27,49 @@ const CLOCK: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit" }
 type Me = { user: { email: string; tenant: string; role: string } | null };
 
 export function CliAuthorize() {
+  const router = useRouter();
   const fromUrl = useSearchParams().get("code") ?? "";
   // Never filled in from the link: typing the code the terminal shows is the
   // proof that the terminal is yours. A link with the code in it can be sent
   // by anyone who ran `foldrun login` themselves (device-code phishing).
   const [code, setCode] = useState("");
   const [me, setMe] = useState<Me["user"] | undefined>(undefined);
-  const [request, setRequest] = useState<Request | null | undefined>(undefined);
+  // The last answer, with the code it answers. What is shown is derived from
+  // it: nothing for a code that is not whole, or not yet (or not) answered.
+  // The code being typed now, for a late answer to tell it is stale (an
+  // answer for an older code never replaces this one's).
+  const keyNow = useRef("");
+  const [found, setFound] = useState<{ code: string; request: Request | null } | null>(null);
+  // The code as the server reads it: a hyphen or a space makes no other code.
+  const key = code.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  const whole = key.length === 8;
+  // undefined while the lookup for this code is on its way: no "no such
+  // request" before the answer.
+  const request = !whole ? null : found?.code === key ? found.request : undefined;
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<"approved" | "denied" | null>(null);
   const [busy, setBusy] = useState(false);
 
   // Signed in? Otherwise the login page, and back here with the code kept.
+  // The login page is one of the app's own, so the router takes us there.
   useEffect(() => {
     fetch("/api/auth/session")
       .then((r) => r.json() as Promise<Me>)
       .then((s) => {
         if (s.user) setMe(s.user);
-        else window.location.assign(`/login?next=${encodeURIComponent(`/cli/authorize?code=${fromUrl}`)}`);
+        else router.push(`/login?next=${encodeURIComponent(`/cli/authorize?code=${fromUrl}`)}`);
       })
       .catch(() => setError($t("auth.cli-authorize-authorize.couldNotReachTheServer")));
-  }, [fromUrl]);
+  }, [fromUrl, router]);
 
   // What is asking, once there is a code to look up.
   useEffect(() => {
-    if (!code || code.replace(/[^A-Za-z0-9]/g, "").length !== 8) {
-      setRequest(null);
-      return;
-    }
+    if (!whole) return;
     fetch(`/api/cli/authorize?code=${encodeURIComponent(code)}`)
       .then(async (r) => (r.ok ? ((await r.json()) as Request) : null))
-      .then(setRequest)
-      .catch(() => setRequest(null));
-  }, [code]);
+      .then((request) => setFound((prev) => (keyNow.current === key ? { code: key, request } : prev)))
+      .catch(() => setFound((prev) => (keyNow.current === key ? { code: key, request: null } : prev)));
+  }, [code, key, whole]);
 
   async function decide(decision: "approve" | "deny") {
     setBusy(true);
@@ -113,14 +123,22 @@ export function CliAuthorize() {
       <Field label={$t("auth.cli-authorize-authorize.codeShownInTheTerminal")}>
         <Input
           value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          onChange={(e) => {
+            const next = e.target.value.toUpperCase();
+            const nextKey = next.replace(/[^A-Za-z0-9]/g, "");
+            keyNow.current = nextKey;
+            // Edited away from a whole code: its answer goes, and is asked
+            // for again when it is whole (it may have expired meanwhile).
+            if (nextKey.length !== 8) setFound(null);
+            setCode(next);
+          }}
           placeholder="ABCD-1234"
           autoFocus
           className="font-mono tracking-widest"
         />
       </Field>
 
-      {request === null && code.replace(/[^A-Za-z0-9]/g, "").length === 8 && (
+      {request === null && whole && (
         <p className="mt-3 text-sm text-danger">{$rich("auth.cli-authorize-authorize.noSignInRequestHasThat", { span: (chunks) => <span className="font-mono">{chunks}</span> })}</p>
       )}
 

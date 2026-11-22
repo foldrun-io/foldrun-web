@@ -98,7 +98,7 @@ export function workspaceNav(workspace: string, pathname: string, params: URLSea
   });
 }
 
-export function accountNav(pathname: string, tenant: string, hosted: boolean, counts: { inbox?: number } = {}): Nav {
+export function accountNav(pathname: string, tenant: string, counts: { inbox?: number } = {}): Nav {
   const first = tenant !== "default" ? `?tenant=${tenant}` : "";
   const amp = tenant !== "default" ? `&tenant=${tenant}` : "";
   const at = (p: string) => pathname === `/dashboard${p}` || pathname.startsWith(`/dashboard${p}/`);

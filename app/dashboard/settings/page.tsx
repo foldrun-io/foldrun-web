@@ -83,6 +83,7 @@ import { describeAccountModelNow, modelPresetChoices } from "@/server/account-mo
 import { foldrunModelsView } from "@/platform/model-choice";
 import { ProviderCheck } from "./provider-check";
 import { Email } from "@/components/email";
+import { nowMs } from "@/components/overview-model";
 import { installOrigin } from "@/server/auth-flows";
 import { settingText } from "@/platform/settings";
 
@@ -479,6 +480,7 @@ async function ApiTab({
         <KeyManager
           tenant={tenant}
           keys={keys}
+          now={nowMs()}
           workspaces={workspaces}
           scoped={scope !== null}
           // A gateway key (Claude Code): offered where the door can read it,

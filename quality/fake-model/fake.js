@@ -4,7 +4,7 @@ function json(r, code, o) { r.headersOut["Content-Type"] = "application/json"; r
 function ev(type, data) { data.type = type; return "event: " + type + "\ndata: " + JSON.stringify(data) + "\n\n"; }
 function answer(r) {
   var body = {};
-  try { body = JSON.parse(r.requestText || "{}"); } catch (e) { return json(r, 400, { type: "error", error: { type: "invalid_request_error", message: "body is not JSON" } }); }
+  try { body = JSON.parse(r.requestText || "{}"); } catch (_e) { return json(r, 400, { type: "error", error: { type: "invalid_request_error", message: "body is not JSON" } }); }
   var model = body.model || "fake";
   var id = "msg_fake_" + Date.now();
   if (body.stream === true) {
@@ -27,4 +27,5 @@ function slow(r) {
 }
 function count(r) { json(r, 200, { input_tokens: 1 }); }
 function models(r) { json(r, 200, { data: [], has_more: false, first_id: null, last_id: null }); }
-export default { messages: messages, slow: slow, count: count, models: models };
+var handlers = { messages: messages, slow: slow, count: count, models: models };
+export default handlers;

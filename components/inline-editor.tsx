@@ -20,6 +20,17 @@ import { SmartTextarea } from "@/components/smart-textarea";
 import { CodeEditor, isCodePath } from "@/components/code-editor";
 import { HistoryPanel } from "@/components/history-panel";
 import { Markdown, Frontmatter } from "@/components/markdown";
+import { useHydrated } from "@/components/browser-value";
+
+/** Whether the last view chosen in this browser was Read. */
+function rememberedRead(): boolean {
+  try {
+    return window.localStorage.getItem("foldrun.editor.view") === "read";
+  } catch {
+    // a browser with site data blocked still gets the toggle, just not the memory
+    return false;
+  }
+}
 
 // A YAML parse error names where it failed — "bad indentation of a sequence
 // entry at line 12, column 14". Pulling the number out is what connects the
@@ -134,7 +145,6 @@ export function InlineEditor({
   // most wary of was also the one that didn't behave like a document. A tool
   // is markdown; it opens as markdown, edits as markdown, and its Read view
   // renders the frontmatter and the code block like any other file's.
-  const [showAlt, setShowAlt] = useState(false);
 
   // Which view you last chose, remembered across files and visits.
   //
@@ -144,20 +154,30 @@ export function InlineEditor({
   // control at the top, and the choice sticks: someone who works in Read
   // should not have to rediscover it on every file they open.
   const isTool = /(^|\/)tools\//.test(path) || libraryKind === "tools";
-  useEffect(() => {
-    // The remembered Read preference is for prose someone chose to *read*.
-    // A tool is opened to be worked on: restoring "read" onto it made the
-    // kind people edit most open in the one mode where nothing can change.
-    if (isTool) return;
-    try {
-      setShowAlt(window.localStorage.getItem("foldrun.editor.view") === "read");
-    } catch {
-      // a browser with site data blocked still gets the toggle, just not the memory
-    }
-  }, [isTool]);
+  // Read once, after hydration (false on the server, so the two agree) —
+  // not on every render, where another tab's choice would switch this
+  // editor while someone types in it (Codex).
+  const hydrated = useHydrated();
+  const [stored, setStored] = useState<boolean | null>(null);
+  if (hydrated && stored === null) setStored(rememberedRead());
+  const remembered = stored ?? false;
+  // A choice made here, over what was remembered; null until one is.
+  const [chosen, setChosen] = useState<boolean | null>(null);
+  // The remembered Read preference is for prose someone chose to *read*.
+  // A tool is opened to be worked on: restoring "read" onto it made the
+  // kind people edit most open in the one mode where nothing can change.
+  const viewFor = (tool: boolean) => chosen ?? (!tool && remembered);
+  // Moving between a tool and prose: prose takes the remembered view again,
+  // a tool keeps the one on screen.
+  const [wasTool, setWasTool] = useState(isTool);
+  if (wasTool !== isTool) {
+    setWasTool(isTool);
+    setChosen(isTool ? viewFor(wasTool) : null);
+  }
+  const showAlt = viewFor(isTool);
 
   const chooseView = (next: boolean) => {
-    setShowAlt(next);
+    setChosen(next);
     // A tool's toggle is per-visit: choosing Read on one tool must not flip
     // every document on the account into Read.
     if (isTool) return;

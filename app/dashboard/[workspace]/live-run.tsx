@@ -27,6 +27,7 @@ const runDisplayStatus = (r: Pick<RunRecord, "status" | "stopRequested">) =>
 import { Markdown } from "@/components/markdown";
 import { useConfirm } from "@foldrun/ui/react/confirm";
 import { useCan } from "@/components/role";
+import { useHydrated } from "@/components/browser-value";
 import { SmartTextarea } from "@/components/smart-textarea";
 import { RunTimeline, traceEvents, stepSpan, fmtDur } from "@/components/run-timeline";
 import { stepInputs, stepOutputs, fmtTokens, fmtBytes, fmtCached, fmtTokenDetail, fmtTokenLine, promptCacheNote, type StepRef, deniedPaths } from "@/components/step-io-model";
@@ -137,8 +138,7 @@ export function LiveRun({
   // A live figure read off the clock is shown once hydrated: the server's
   // clock and the browser's differ by the time the page took, and the text
   // must match (a run waiting for room is live for a long time — 27 Oct 2026).
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => setHydrated(true), []);
+  const hydrated = useHydrated();
   // Until then, every figure drawn from the clock (the timeline, the trace
   // tree, a live step's span) is drawn at a time the run itself fixes — its
   // last event — so the server and the browser draw the same thing.

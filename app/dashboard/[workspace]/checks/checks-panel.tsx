@@ -71,15 +71,18 @@ export function ChecksPanel({ workspace, tenantQuery, canOnline = true }: { work
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async () => {
+  // The answer is set when it arrives, never in the same tick as the call,
+  // so the effect below only starts the request.
+  const load = useCallback(() => {
     const q = [security ? "security=1" : "", online ? "online=1" : ""].filter(Boolean).join("&");
-    const res = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/check${q ? `?${q}` : ""}`);
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) setError(body.error ?? `HTTP ${res.status}`);
-    else {
-      setError(null);
-      setData(body);
-    }
+    return fetch(`/api/workspaces/${encodeURIComponent(workspace)}/check${q ? `?${q}` : ""}`).then(async (res) => {
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? `HTTP ${res.status}`);
+      else {
+        setError(null);
+        setData(body);
+      }
+    });
   }, [workspace, security, online]);
 
   useEffect(() => {

@@ -5,7 +5,7 @@ import { $el, $rich, $t } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
 import { WithEmails } from "@/components/email";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@foldrun/ui/react/input";
 import { Select } from "@foldrun/ui/react/select";
 import { Check, Copy, KeyRound, Play } from "lucide-react";
@@ -95,7 +95,7 @@ function modelsLine(m: NonNullable<KeyRow["gateway"]>["models"]): string | null 
 }
 
 /** "3 days ago", "in 5 days" — coarse on purpose. */
-function relative(iso: string, now = Date.now()): string {
+function relative(iso: string, now: number): string {
   const d = Date.parse(iso) - now;
   const abs = Math.abs(d);
   const [n, unit] = abs < 3_600_000 ? [Math.max(1, Math.round(abs / 60_000)), "minute"] : abs < 86_400_000 ? [Math.round(abs / 3_600_000), "hour"] : [Math.round(abs / 86_400_000), "day"];
@@ -109,9 +109,14 @@ export function KeyManager({
   scoped,
   a2aFlows = {},
   gateway = null,
+  now,
 }: {
   tenant: string;
   keys: KeyRow[];
+  /** The page's clock, read on the server (nowMs) with the keys: what has
+   *  expired, what expires soon and how long ago a key was used are told
+   *  against it, so the server's HTML and the browser's render agree. */
+  now: number;
   /** Each workspace's flows and whether each is published over A2A — what
    *  an A2A key may be made for. */
   a2aFlows?: Record<string, { name: string; published: boolean }[]>;
@@ -124,6 +129,20 @@ export function KeyManager({
    *  none is set yet. */
   gateway?: { url: string | null; login?: boolean } | null;
 }) {
+  // Expired, expiring soon, last used: told against the page's clock at
+  // first (the server's HTML and the hydrating render agree), then the
+  // browser's, every 30 s — a key that expires while the page is open shows
+  // as expired, as it did when the render read the clock itself (Codex).
+  const [clock, setClock] = useState(now);
+  useEffect(() => {
+    const tick = () => setClock(Date.now());
+    const t = setInterval(tick, 30_000);
+    const first = setTimeout(tick, 0);
+    return () => {
+      clearInterval(t);
+      clearTimeout(first);
+    };
+  }, []);
   const router = useRouter();
   const [confirm, confirmDialog] = useConfirm();
   const [label, setLabel] = useState("");
@@ -602,7 +621,7 @@ export function KeyManager({
           ) : (
             <ul className="divide-y divide-line">
               {keys.map((k) => {
-                const expired = !!k.expiresAt && Date.parse(k.expiresAt) <= Date.now();
+                const expired = !!k.expiresAt && Date.parse(k.expiresAt) <= clock;
                 const next = k.replacedBy ? keys.find((n) => n.id === k.replacedBy) : undefined;
                 return (
                   <li key={k.id} className={cn("flex min-w-0 flex-col gap-2 px-4 py-3.5 sm:flex-row sm:items-start sm:gap-3 sm:px-5", (k.revokedAt || expired) && "opacity-70")}>
@@ -634,8 +653,8 @@ export function KeyManager({
                         )}
                         {k.revokedAt && <Chip tone="bad">{$t("settings.keys.revoked")}</Chip>}
                         {!k.revokedAt && expired && <Chip tone="bad">{$t("settings.keys.expired")}</Chip>}
-                        {!k.revokedAt && k.origin !== "cli-login" && k.expiresAt && !expired && Date.parse(k.expiresAt) - Date.now() < 7 * 86_400_000 && (
-                          <Chip tone="warn">{$t("settings.keys.expires2", { relative: relative(k.expiresAt) })}</Chip>
+                        {!k.revokedAt && k.origin !== "cli-login" && k.expiresAt && !expired && Date.parse(k.expiresAt) - clock < 7 * 86_400_000 && (
+                          <Chip tone="warn">{$t("settings.keys.expires2", { relative: relative(k.expiresAt, clock) })}</Chip>
                         )}
                       </p>
                       <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-fg-muted">
@@ -699,7 +718,7 @@ export function KeyManager({
                           <dd className="inline">
                             {k.lastUsedAt ? (
                               <>
-                                {relative(k.lastUsedAt)}
+                                {relative(k.lastUsedAt, clock)}
                                 {k.lastIp ? <span className="font-mono text-fg-subtle"> · {k.lastIp}</span> : null}
                               </>
                             ) : (

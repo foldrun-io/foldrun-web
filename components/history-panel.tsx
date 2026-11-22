@@ -68,11 +68,10 @@ export function HistoryPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspace, tenant, path]);
 
+  // A revision's text, fetched when one is opened. Closing it clears it
+  // (in the click, below), so a closed list holds nothing stale.
   useEffect(() => {
-    if (!open) {
-      setDetail(null);
-      return;
-    }
+    if (!open) return;
     let live = true;
     fetch(`/api/workspaces/${workspace}/history?id=${encodeURIComponent(open)}&path=${encodeURIComponent(path)}`, { headers })
       .then((r) => r.json())
@@ -105,7 +104,10 @@ export function HistoryPanel({
             <li key={r.id}>
               <button
                 type="button"
-                onClick={() => setOpen(on ? null : r.id)}
+                onClick={() => {
+                  setOpen(on ? null : r.id);
+                  if (on) setDetail(null);
+                }}
                 className={`flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left text-xs transition-colors hover:bg-sunken ${on ? "bg-sunken" : ""}`}
               >
                 <span className="min-w-0 truncate text-fg">

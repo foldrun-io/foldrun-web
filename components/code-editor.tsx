@@ -14,7 +14,7 @@
 // every page that never opens a program.
 
 import { $t } from "@/i18n";
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 import { EditorView, basicSetup } from "codemirror";
 import { EditorState, Compartment } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
@@ -114,10 +114,11 @@ export function CodeEditor({
 }) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
-  // Latest callbacks, read by extensions that were built once. Rebuilding
-  // the editor on every render would lose the cursor and the undo history.
-  const latest = useRef({ onChange, onSave });
-  latest.current = { onChange, onSave };
+  // The latest callbacks, called by extensions that were built once.
+  // Rebuilding the editor on every render would lose the cursor and the undo
+  // history; an effect event always sees this render's props.
+  const changed = useEffectEvent((next: string) => onChange(next));
+  const save = useEffectEvent(() => onSave?.());
   const language = useRef(new Compartment());
 
   useEffect(() => {
@@ -131,7 +132,7 @@ export function CodeEditor({
           {
             key: "Mod-s",
             run: () => {
-              latest.current.onSave?.();
+              save();
               return true;
             },
           },
@@ -140,7 +141,7 @@ export function CodeEditor({
         theme,
         syntaxHighlighting(highlight),
         EditorView.updateListener.of((u) => {
-          if (u.docChanged) latest.current.onChange(u.state.doc.toString());
+          if (u.docChanged) changed(u.state.doc.toString());
         }),
       ],
     });

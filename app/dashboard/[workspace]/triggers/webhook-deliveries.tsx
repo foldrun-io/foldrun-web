@@ -59,16 +59,19 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
   const [note, setNote] = useState<string | null>(null);
   const runs = useCan("run:start");
 
-  const load = useCallback(async () => {
+  // The answer is set when it arrives, never in the same tick as the call,
+  // so the effect below only starts the request.
+  const load = useCallback(() => {
     const q = new URLSearchParams({ limit: String(PAGE), offset: String(offset) });
     if (filter) q.set("status", filter);
-    const res = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/notify/deliveries?${q}`);
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) setError(body.error ?? `HTTP ${res.status}`);
-    else {
-      setError(null);
-      setData(body);
-    }
+    return fetch(`/api/workspaces/${encodeURIComponent(workspace)}/notify/deliveries?${q}`).then(async (res) => {
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? `HTTP ${res.status}`);
+      else {
+        setError(null);
+        setData(body);
+      }
+    });
   }, [workspace, filter, offset]);
 
   useEffect(() => {

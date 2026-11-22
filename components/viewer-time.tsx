@@ -16,7 +16,8 @@
 // HAPPEN and belongs to the schedule; this says how a person reads a moment
 // that already passed.
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
+import { useBrowserValue, useHydrated } from "./browser-value";
 
 const ViewerTimeZone = createContext<string | null>(null);
 
@@ -55,11 +56,11 @@ export function useResolvedTimeZone(): string {
 
 /** What the browser reports, for showing a person what automatic resolves to. */
 export function useDetectedTimeZone(): string {
-  const [tz, setTz] = useState("");
-  useEffect(() => {
-    setTz(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
-  }, []);
-  return tz;
+  return useBrowserValue(detectedTimeZone, "");
+}
+
+function detectedTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 }
 
 /**
@@ -69,15 +70,10 @@ export function useDetectedTimeZone(): string {
  */
 export function useViewerTime(iso: string, opts?: Intl.DateTimeFormatOptions): string {
   const timeZone = useViewerTimeZone();
-  const [text, setText] = useState("");
-  useEffect(() => {
-    try {
-      setText(new Date(iso).toLocaleString(undefined, { ...opts, timeZone }));
-    } catch {
-      setText(new Date(iso).toLocaleString());
-    }
-    // opts is a fresh object each render; its identity must not drive this.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [iso, timeZone]);
-  return text;
+  if (!useHydrated()) return "";
+  try {
+    return new Date(iso).toLocaleString(undefined, { ...opts, timeZone });
+  } catch {
+    return new Date(iso).toLocaleString();
+  }
 }
