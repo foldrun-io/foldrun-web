@@ -14,7 +14,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { flushRevisions } from "@/lib/workspace-revisions";
-import { requirePermission, actorOf, errorResponse, ApiError } from "@/server/api";
+import { requirePermission, actorOf, errorResponse, ApiError, refuseWith } from "@/server/api";
 import { applyRestore, planRestore } from "@/server/restore";
 import { auditPolicyEvents } from "@/server/workspace-policy";
 import { audit } from "@/server/audit";
@@ -56,10 +56,7 @@ async function restorePost(req: NextRequest, ctx: Ctx) {
         : plan.blockedBy.length
           ? `runs are in flight (${plan.blockedBy.join(", ")}) — try again when they finish`
           : "the restored files do not pass the deploy checks";
-      return NextResponse.json(
-        { ok: false, applied: false, error: `not restored: ${why}`, blockedBy: plan.blockedBy, unexpectedRemovals: result.unexpectedRemovals, issues: result.issues },
-        { status: 409 },
-      );
+      return refuseWith(`not restored: ${why}`, 409, { ok: false, applied: false, blockedBy: plan.blockedBy, unexpectedRemovals: result.unexpectedRemovals, issues: result.issues });
     }
     await auditPolicyEvents(result.policyEvents ?? [], by, tenant);
     await audit("workspace.restored", {

@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { flushRevisions } from "@/lib/workspace-revisions";
 import { evaluateDeployed } from "@/lib/evals";
-import { errorResponse, requirePermission, refuse } from "@/server/api";
+import { errorResponse, requirePermission, refuse, refuseWith } from "@/server/api";
 import { audit } from "@/server/audit";
 import { deployPathProblems, deployWorkspace, planDeploy } from "@/lib/deploy";
 import { workspaceDir, type DeployFile } from "@/lib/store";
@@ -69,10 +69,7 @@ async function postOnce(
     // (FOL-199, hosted fuzz). Core's one check, which deployIssues runs too.
     const unwritable = deployPathProblems(files).issues;
     if (unwritable.length) {
-      return NextResponse.json(
-        { ok: false, error: `${unwritable.length} path(s) name no file: ${unwritable.map((i) => JSON.stringify(i.where)).join(", ")}`, issues: unwritable },
-        { status: 400 },
-      );
+      return refuseWith(`${unwritable.length} path(s) name no file: ${unwritable.map((i) => JSON.stringify(i.where)).join(", ")}`, 400, { ok: false, issues: unwritable });
     }
 
     const commit = typeof body.commit === "string" ? body.commit : null;
@@ -150,23 +147,25 @@ async function postOnce(
     }
 
     if (!result.applied && result.unexpectedRemovals?.length) {
-      return NextResponse.json(
-        {
-          ok: false,
-          reason: "removals changed",
-          error: `this deploy would now also remove ${result.unexpectedRemovals.length} file(s) that were not confirmed`,
-          removed: result.removed,
-          unexpectedRemovals: result.unexpectedRemovals,
-        },
-        { status: 409 },
-      );
+      return refuseWith(`this deploy would now also remove ${result.unexpectedRemovals.length} file(s) that were not confirmed`, 409, {
+        ok: false,
+        reason: "removals changed",
+        removed: result.removed,
+        unexpectedRemovals: result.unexpectedRemovals,
+      });
     }
 
     if (!result.applied) {
       // 422: understood and refused, which is different from malformed. The
       // body says which, because the caller is a script that has to decide
       // between "fix your markdown" and "try again in a minute".
-      return NextResponse.json(
+      // A sentence too (one API, 22 Nov 2026): Anthropic's body has one,
+      // and in the old body it is a field added beside `reason`.
+      return refuseWith(
+        result.issues.length
+          ? `${result.issues.length} problem${result.issues.length === 1 ? "" : "s"} did not check out — nothing was deployed`
+          : `runs are in flight (${result.blockedBy.join(", ")}) — nothing was deployed; try again when they finish`,
+        422,
         {
           ok: false,
           reason: result.issues.length ? "did not check out" : "runs in flight",
@@ -174,7 +173,6 @@ async function postOnce(
           warnings: result.warnings,
           blockedBy: result.blockedBy,
         },
-        { status: 422 },
       );
     }
 

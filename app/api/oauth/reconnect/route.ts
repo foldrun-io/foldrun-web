@@ -6,7 +6,7 @@
 // secret was connected with (its record), else the client's default.
 
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, requirePermission, refuse } from "@/server/api";
+import { errorResponse, requirePermission, refuse, refuseWith } from "@/server/api";
 import { assertMayWriteSecret } from "@/server/secret-writes";
 
 import { getOAuthClient } from "@/platform/oauth-clients";
@@ -30,10 +30,7 @@ async function postOnce(req: NextRequest) {
     const client = await clientForSecret(tenant, body.secret, body.workspace || undefined, body.provider);
     const config = client ? await getOAuthClient(tenant, client) : null;
     if (!client || !config) {
-      return NextResponse.json(
-        { error: `no saved OAuth client for ${body.secret} — connect it once with its client id and secret`, needsClient: true },
-        { status: 404 },
-      );
+      return refuseWith(`no saved OAuth client for ${body.secret} — connect it once with its client id and secret`, 404, { needsClient: true });
     }
     const scopes = asked ?? (await scopesForSecret(tenant, body.secret, body.workspace || undefined));
     const extra = { client, redirectUri: callbackUri(req), ...(scopes !== null ? { scopes } : {}) };

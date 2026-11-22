@@ -6,6 +6,7 @@
 // text. Absent and null stay what each route already makes of them.
 
 import { NextResponse } from "next/server";
+import { refuseWith } from "./api.ts";
 
 /** A 400 naming the first field that is present but not a string; else null. */
 export function refuseNonText(body: unknown, ...names: string[]): NextResponse | null {
@@ -13,7 +14,7 @@ export function refuseNonText(body: unknown, ...names: string[]): NextResponse |
   for (const name of names) {
     const v = b[name];
     if (v !== undefined && v !== null && typeof v !== "string") {
-      return NextResponse.json({ error: `${name} must be text` }, { status: 400 });
+      return refuseWith(`${name} must be text`, 400);
     }
   }
   return null;

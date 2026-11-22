@@ -24,9 +24,11 @@ const put = (bytes: number) =>
 test("a body over the limit is a 413 that says where large files go", async () => {
   const res = await proxy(put(30 * 1024 * 1024));
   assert.equal(res.status, 413);
-  const body = await res.json();
-  assert.match(body.error, /30\.0 MB/);
-  assert.match(body.error, /upload-url/);
+  // A program on the current version: Anthropic's error body (API 2026-11-22).
+  const { error } = (await res.json()) as { error: { type: string; message: string } };
+  assert.equal(error.type, "request_too_large");
+  assert.match(error.message, /30\.0 MB/);
+  assert.match(error.message, /upload-url/);
 });
 
 test("a body at the limit, or with no length, passes to the route", async () => {

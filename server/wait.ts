@@ -6,6 +6,7 @@
 // disagree about what a waited run returns.
 
 import { NextResponse, type NextRequest } from "next/server";
+import { errorBody } from "./error-shape.ts";
 import { waitForRun, runResult } from "@/lib/runner";
 import { runCost, runFailure, type RunRecord } from "@/lib/store";
 
@@ -47,7 +48,7 @@ export async function waitAndRespond(
 ) {
   const { run, timedOut } = await waitForRun(tenant, workspace, started.id, timeoutMs(req));
   if (!run) {
-    return NextResponse.json({ ok: false, runId: started.id, error: "run vanished" }, { status: 500 });
+    return NextResponse.json(errorBody("run vanished", 500, { ok: false, runId: started.id }), { status: 500 });
   }
 
   const body = {

@@ -41,11 +41,12 @@ test("unsafeApiPath: encoded separators, NUL and dot segments are refused; names
   ]) assert.equal(unsafeApiPath(ok), null, ok);
 });
 
-test("the proxy answers such a path 400 with { error }, hardened and stamped, before any route", async () => {
+test("the proxy answers such a path 400 with Anthropic's error body, hardened and stamped, before any route", async () => {
   const r = await proxy(new NextRequest("https://app.example.test/api/workspaces/desk/agents/..%2F..%2Fother%2Fagents%2Fspy/run", { method: "POST" }));
   assert.equal(r.status, 400);
-  const body = (await r.json()) as { error?: string };
-  assert.match(body.error ?? "", /encoded/);
+  const body = (await r.json()) as { type?: string; error?: { message?: string } };
+  assert.equal(body.type, "error");
+  assert.match(body.error?.message ?? "", /encoded/);
   assert.equal(r.headers.get("x-frame-options"), "DENY", "hardened like the other refusals");
   assert.ok(r.headers.get("x-foldrun-version") !== null, "stamped with the version");
   assert.notEqual(r.headers.get("x-middleware-next"), "1", "never passed on");

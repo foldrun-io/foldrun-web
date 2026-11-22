@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { flushRevisions, readWorkspaceFileVia } from "@/lib/workspace-revisions";
-import { requireTenant, errorResponse, actorOf, requirePermission, refuse } from "@/server/api";
+import { requireTenant, errorResponse, actorOf, requirePermission, refuse, refuseWith } from "@/server/api";
 import { requireWorkspace } from "@/lib/storage";
 import { jsonObject } from "@/server/body";
 import { createHash } from "node:crypto";
@@ -69,10 +69,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ workspace: 
       }
       const now = current === null ? null : sha256(current);
       if (body.ifMatch === null ? now !== null : typeof body.ifMatch !== "string" || now !== body.ifMatch) {
-        return NextResponse.json(
-          { error: `${body.path} changed since it was loaded — reload to see the change, then try again`, sha256: now },
-          { status: 409 },
-        );
+        return refuseWith(`${body.path} changed since it was loaded — reload to see the change, then try again`, 409, { sha256: now });
       }
     }
     // FOL-57: the deploy's checks on the workspace as it would be with this
@@ -84,13 +81,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ workspace: 
     const issues = saveCheck(tenant, workspace, body.path, body.content);
     const errors = issues.filter((i) => i.level === "error");
     if (errors.length && body.check === true) {
-      return NextResponse.json(
-        {
-          error: `${body.path} did not check out — ${errors[0].message}${errors.length > 1 ? ` (and ${errors.length - 1} more)` : ""}. Nothing was saved; fix it, or save it anyway`,
-          issues,
-        },
-        { status: 422 },
-      );
+      return refuseWith(`${body.path} did not check out — ${errors[0].message}${errors.length > 1 ? ` (and ${errors.length - 1} more)` : ""}. Nothing was saved; fix it, or save it anyway`, 422, { issues });
     }
     // `message` rides the revision — what the CLI's --message and a
     // commit message are for: the why, beside the who.

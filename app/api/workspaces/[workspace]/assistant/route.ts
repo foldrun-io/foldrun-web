@@ -30,6 +30,7 @@ import { workspaceDir } from "@/lib/store";
 import { refuseAssistantJob } from "@/server/assistant-limits";
 import { idempotent } from "@/server/idempotency";
 import { sseFrame } from "@/components/live-run-model";
+import { currentErrorShape, errorBody } from "@/server/error-shape";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +92,9 @@ async function postOnce(req: NextRequest, ctx: Ctx) {
     }
 
     const encoder = new TextEncoder();
+    // The error body for this caller, taken now: the stream's callbacks run
+    // outside the request (one API, server/error-shape.ts).
+    const shape = currentErrorShape();
     const stream = new ReadableStream({
       start(controller) {
         let open = true;
@@ -133,11 +137,11 @@ async function postOnce(req: NextRequest, ctx: Ctx) {
             else if (e.type === "started") send("status", { text: "Thinking" });
             else if (e.type === "status" || e.type === "text") send(e.type, { text: e.text });
             else if (e.type === "done") send("done", doneBody(e));
-            else if (e.type === "error") send("error", { error: e.error, status: e.status });
+            else if (e.type === "error") send("error", errorBody(e.error, e.status, { status: e.status }, shape));
           },
           { signal: stop.signal },
         )
-          .catch((err: unknown) => send("error", { error: err instanceof Error ? err.message : String(err), status: 500 }))
+          .catch((err: unknown) => send("error", errorBody(err instanceof Error ? err.message : String(err), 500, { status: 500 }, shape)))
           .finally(() => {
             req.signal.removeEventListener("abort", end);
             end();

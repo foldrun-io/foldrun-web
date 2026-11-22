@@ -18,7 +18,7 @@ import { verifyTotp, hashBackup } from "@/server/totp";
 import { rateLimit, rateLimitReset, cache } from "@/platform/cache";
 import { audit } from "@/server/audit";
 import { listWorkspaces } from "@/lib/store";
-import { errorResponse, refuse } from "@/server/api";
+import { errorResponse, refuse, refuseWith } from "@/server/api";
 import { clientIp } from "@/server/limits";
 import { sendSecurityNotice } from "@/server/email";
 import { jsonObject } from "@/server/body";
@@ -38,10 +38,7 @@ export async function POST(req: NextRequest) {
 
     const limit = await rateLimit(`mfa:${user.id}`, PER_USER.limit, PER_USER.windowSec);
     if (!limit.allowed) {
-      return NextResponse.json(
-        { error: "too many codes — sign in again in a few minutes", retry_after: limit.retryAfter },
-        { status: 429, headers: { "retry-after": String(limit.retryAfter) } },
-      );
+      return refuseWith("too many codes — sign in again in a few minutes", 429, { retry_after: limit.retryAfter }, { headers: { "retry-after": String(limit.retryAfter) } });
     }
 
     const code = String(body.code ?? "").trim();
@@ -54,10 +51,7 @@ export async function POST(req: NextRequest) {
       // starts at the first, so a pause lasts until a day after the streak began.
       const streak = await rateLimit(`mfa:totp:${user.id}`, MFA_PAUSE.after, MFA_PAUSE.windowSec);
       if (!streak.allowed) {
-        return NextResponse.json(
-          { error: "too many wrong codes in a row — codes from the app are paused for this account for up to a day. Sign in with a backup code, or wait", retry_after: streak.retryAfter },
-          { status: 429, headers: { "retry-after": String(streak.retryAfter) } },
-        );
+        return refuseWith("too many wrong codes in a row — codes from the app are paused for this account for up to a day. Sign in with a backup code, or wait", 429, { retry_after: streak.retryAfter }, { headers: { "retry-after": String(streak.retryAfter) } });
       }
       if (verifyTotp(openString(user.mfaSecret, mfaBinding(user.id)), code) && (await firstUse(user.id, code))) how = "totp";
       else if (streak.remaining === 0) {

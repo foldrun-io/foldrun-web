@@ -51,8 +51,10 @@ test("every authenticated answer carries X-RateLimit-*; the write bucket refuses
   const over = await apiGate(req("POST", "/api/workspaces/w/flows/f/run", key));
   assert.ok(over.refuse);
   assert.equal(over.refuse!.status, 429);
-  const body = (await over.refuse!.json()) as { error: string; retry_after: number };
-  assert.match(body.error, /rate limit/);
+  // A key on the current version: Anthropic's error body (API 2026-11-22).
+  const { error: body } = (await over.refuse!.json()) as { error: { type: string; message: string; retry_after: number } };
+  assert.equal(body.type, "rate_limit_error");
+  assert.match(body.message, /rate limit/);
   assert.ok(body.retry_after > 0 && body.retry_after <= 60);
   assert.equal(over.headers["retry-after"], String(body.retry_after));
 
@@ -199,15 +201,15 @@ test("Foldrun-Version: echoed, unknown is a 400, malformed is a 400", async () =
 
   const unknown = await apiGate(req("GET", "/api/workspaces", key, { "foldrun-version": "2001-01-01" }));
   assert.equal(unknown.refuse?.status, 400);
-  const refused = (await unknown.refuse!.json()) as { error: string; code: string; known: string[] };
-  assert.match(refused.error, /unknown API version 2001-01-01/);
+  const { error: refused } = (await unknown.refuse!.json()) as { error: { message: string; code: string; known: string[] } };
+  assert.match(refused.message, /unknown API version 2001-01-01/);
   // What the CLI reads to say "update me" or "this server is older", not the English.
   assert.equal(refused.code, "unknown_api_version");
   assert.deepEqual(refused.known, V.releasedVersions());
 
   const bad = await apiGate(req("GET", "/api/workspaces", key, { "foldrun-version": "latest" }));
   assert.equal(bad.refuse?.status, 400);
-  assert.equal(((await bad.refuse!.json()) as { code: string }).code, "bad_api_version");
+  assert.equal(((await bad.refuse!.json()) as { error: { code: string } }).error.code, "bad_api_version");
   // Open routes too: the header is checked before anything else.
   assert.equal((await apiGate(req("GET", "/api/healthz", undefined, { "foldrun-version": "nope" }))).refuse?.status, 400);
 });
@@ -299,10 +301,11 @@ test("the API changelog: every pinnable version newest first, what each broke, w
   assert.deepEqual(log.deprecations, [{ route: "DELETE /api/old", deprecatedAt: "2026-11-01", sunsetAt: "2027-05-01", link: null }]);
   // Today's list: the usage-ledger change on 2026-10-26, then the first
   // version, which stays pinnable (every CLI so far sends it).
-  assert.deepEqual(V.apiChangelog().versions.map((v) => v.version), [V.CURRENT_API_VERSION, V.FIRST_API_VERSION]);
+  assert.deepEqual(V.apiChangelog().versions.map((v) => v.version), [V.CURRENT_API_VERSION, "2026-10-26", V.FIRST_API_VERSION]);
   assert.equal(V.apiChangelog().versions[0].changes.length, 1);
-  assert.match(V.apiChangelog().versions[0].changes[0], /ledger\.providerCostUsd/);
-  assert.deepEqual(V.apiChangelog().versions[1], { version: "2026-10-01", changes: [] });
+  assert.match(V.apiChangelog().versions[0].changes[0], /Anthropic's error body/);
+  assert.match(V.apiChangelog().versions[1].changes[0], /ledger\.providerCostUsd/);
+  assert.deepEqual(V.apiChangelog().versions[2], { version: "2026-10-01", changes: [] });
 });
 
 // ---------------------------------------------------------------- openapi

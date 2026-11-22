@@ -9,6 +9,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { rateLimit, rateLimitReset } from "@/platform/cache";
+import { refuseWith } from "./api.ts";
 
 /** Refuse when a key has been hit too often in a window; else null. */
 export async function refuseWhenLimited(key: string, limit: number, windowSec: number): Promise<NextResponse | null> {
@@ -22,10 +23,7 @@ export async function refuseWhenLimited(key: string, limit: number, windowSec: n
  *  body lacked retry_after until FOL-199 (16 Nov 2026: the hosted fuzz run
  *  found two 429 shapes for one documented response). */
 export function tooManyAttempts(retryAfter: number): NextResponse {
-  return NextResponse.json(
-    { error: "too many attempts — wait a few minutes and try again", retry_after: retryAfter },
-    { status: 429, headers: { "retry-after": String(retryAfter) } },
-  );
+  return refuseWith("too many attempts — wait a few minutes and try again", 429, { retry_after: retryAfter }, { headers: { "retry-after": String(retryAfter) } });
 }
 
 /** A right answer clears the counter, so one's own typos never throttle

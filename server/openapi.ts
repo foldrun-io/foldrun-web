@@ -924,7 +924,7 @@ export function openapiDocument(origin?: string): Schema {
       parameters: {
         FoldrunVersion: {
           name: "Foldrun-Version", in: "header", required: false,
-          description: `The API version to answer under (YYYY-MM-DD). Omitted: the account's pin for an API key, else ${CURRENT_API_VERSION}; a signed-in dashboard always gets ${CURRENT_API_VERSION}. Unknown → 400 with \`code\` and \`known\`.`,
+          description: `The API version to answer under (YYYY-MM-DD). Omitted: the account's pin for an API key, else ${CURRENT_API_VERSION}; a signed-in dashboard always gets ${CURRENT_API_VERSION}. Unknown → 400 with \`code\` and \`known\`. From 2026-11-22 a refusal is Anthropic's error body; the key may be sent as \`x-api-key\` too.`,
           schema: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
         },
         IdempotencyKey: {
@@ -940,7 +940,25 @@ export function openapiDocument(origin?: string): Schema {
         "Foldrun-Version": { description: "The API version this response was answered under", schema: { type: "string" } },
       },
       schemas: {
-        Error: obj(
+        // API 2026-11-22 (one API, as Anthropic's): a program gets the body
+        // /v1 answers with; an older pin and a browser, { error }.
+        Error: { oneOf: [{ $ref: "#/components/schemas/AnthropicError" }, { $ref: "#/components/schemas/LegacyError" }] },
+        AnthropicError: obj(
+          {
+            type: str('"error"'),
+            error: obj(
+              {
+                type: str("Anthropic's error type, by status: invalid_request_error, authentication_error, billing_error, permission_error, not_found_error, request_too_large, rate_limit_error, api_error, overloaded_error"),
+                message: str("The sentence saying why"),
+                code: str("Where a caller can act on it — as `code` below"),
+                retry_after: int,
+              },
+              ["type", "message"],
+            ),
+          },
+          ["type", "error"],
+        ),
+        LegacyError: obj(
           {
             error: str(),
             code: str("Where a caller can act on it: `unknown_api_version` (this server does not answer that Foldrun-Version), `bad_api_version` (not a YYYY-MM-DD date), or `waiting_cap` (409: the account already has its most runs waiting for their turn — nothing was started)"),
@@ -950,7 +968,7 @@ export function openapiDocument(origin?: string): Schema {
           },
           ["error"],
         ),
-        RateLimited: obj({ error: str(), retry_after: int }, ["error", "retry_after"]),
+        RateLimited: { oneOf: [{ $ref: "#/components/schemas/AnthropicError" }, obj({ error: str(), retry_after: int }, ["error", "retry_after"])] },
       },
       responses: {
         Error: { description: "A refusal, with a sentence saying why", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },

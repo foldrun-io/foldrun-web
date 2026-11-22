@@ -36,6 +36,24 @@ export const FIRST_API_VERSION = "2026-10-01";
  *  request — a caller cannot set it. */
 export const RESOLVED_VERSION_HEADER = "x-foldrun-resolved-version";
 
+/** From this version an /api refusal is Anthropic's error body,
+ *  `{ type: "error", error: { type, message } }`, as /v1 answers
+ *  (server/error-shape.ts). */
+export const ERROR_SHAPE_VERSION = "2026-11-22";
+
+/** The request header the proxy writes with the error body a refusal is
+ *  answered in. Overwritten on every request — a caller cannot set it. */
+export const ERROR_SHAPE_HEADER = "x-foldrun-error-shape";
+
+export type ErrorShape = "anthropic" | "legacy";
+
+/** The error body for a resolved version and caller: Anthropic's from
+ *  ERROR_SHAPE_VERSION on — except for a browser (the dashboard and the
+ *  sign-in pages still read the old body; they move with their own change). */
+export function errorShapeFor(version: string, browser: boolean): ErrorShape {
+  return version >= ERROR_SHAPE_VERSION && !browser ? "anthropic" : "legacy";
+}
+
 /** How long a superseded version keeps working, at least. */
 export const VERSION_SUPPORT_MONTHS = 12;
 
@@ -56,6 +74,21 @@ export interface VersionChange {
  * CURRENT_API_VERSION too.
  */
 export const VERSION_CHANGES: VersionChange[] = [
+  {
+    // One API, Anthropic's shape (owner, 22 Nov 2026): every /api refusal
+    // is the body /v1 answers with. Applied where every refusal is built
+    // (api.ts errorResponse, by ERROR_SHAPE_HEADER), not route by route, so
+    // it names no route here; the downgrade is the same conversion.
+    version: ERROR_SHAPE_VERSION,
+    summary: "every /api refusal is Anthropic's error body — `{ type: \"error\", error: { type, message } }`, a `code` and figures inside `error` — as /v1 answers; callers pinned earlier, and a signed-in browser, keep `{ error: \"…\" }`",
+    routes: [],
+    downgrade(body) {
+      const b = body as { type?: unknown; error?: unknown } | null;
+      if (!b || b.type !== "error" || !b.error || typeof b.error !== "object") return body;
+      const { type: _type, message, ...rest } = b.error as Record<string, unknown>;
+      return { error: message, ...rest };
+    },
+  },
   {
     // The usage ledger carried the operator's own accounting of the
     // account's lines — what they cost at list price beside what was

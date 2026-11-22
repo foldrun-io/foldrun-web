@@ -32,7 +32,8 @@ import { apiKeyFor } from "./auth.ts";
 import { ACCESS_PREFIX as MCP_ACCESS_PREFIX, resolveAccessToken } from "./mcp-oauth.ts";
 import { verifySession, SESSION_COOKIE } from "./users.ts";
 import { supportExempt } from "./view-as.ts";
-import { resolveVersion, deprecationFor, deprecationHeaders, RESOLVED_VERSION_HEADER } from "./api-version.ts";
+import { resolveVersion, deprecationFor, deprecationHeaders, errorShapeFor, RESOLVED_VERSION_HEADER, ERROR_SHAPE_HEADER, CURRENT_API_VERSION, type ErrorShape } from "./api-version.ts";
+import { errorBody } from "./error-shape.ts";
 
 export const WINDOW_SEC = 60;
 
@@ -193,6 +194,34 @@ export interface Gate {
   requestHeaders: Record<string, string>;
 }
 
+/** A browser's request, signed in or not: it holds the session cookie, or
+ *  its fetch says where it came from (Sec-Fetch-Site, Origin — every browser
+ *  sends one; a program, the CLI or an SDK sends neither). The sign-in pages
+ *  call /api/auth/* before there is any cookie, and read `{ error }`. */
+export function fromBrowser(req: NextRequest): boolean {
+  if (/^bearer\s/i.test(req.headers.get("authorization") ?? "")) return false;
+  return req.cookies.has(SESSION_COOKIE) || req.headers.has("sec-fetch-site") || req.headers.has("origin");
+}
+
+/** The error body a refusal made before the gate (the proxy's own: a bad
+ *  path, a cross-site write, a body too large) is answered in — the same
+ *  answer the gate gives, the account's pin included, without counting the
+ *  request against any limit (Codex review, 22 Nov 2026). */
+export async function errorShapeOf(req: NextRequest): Promise<ErrorShape> {
+  const bearer = /^bearer\s+/i.test(req.headers.get("authorization") ?? "");
+  // No credential to look up when the request already says (Codex review:
+  // an early refusal is not a door to key lookups): a browser is legacy, a
+  // version asked for decides; only a key with no version needs its pin.
+  if (!bearer) return errorShapeFor(CURRENT_API_VERSION, fromBrowser(req));
+  const asked = resolveVersion(req.headers.get("foldrun-version"), null);
+  if (req.headers.get("foldrun-version")) return errorShapeFor("version" in asked ? asked.version : CURRENT_API_VERSION, false);
+  const caller = await callerOf(req).catch(() => null);
+  const profile = caller?.credential.startsWith("key:") ? await accountProfile(caller.tenant).catch(() => null) : null;
+  const version = resolveVersion(req.headers.get("foldrun-version"), profile?.pin);
+  const browser = Boolean(caller && !caller.credential.startsWith("key:")) || (!caller && fromBrowser(req));
+  return errorShapeFor("version" in version ? version.version : CURRENT_API_VERSION, browser);
+}
+
 /**
  * Everything the proxy asks of an /api request before the route runs: which
  * API version answers it, whether it is over its rate limit, and whether the
@@ -208,9 +237,14 @@ export async function apiGate(req: NextRequest): Promise<Gate> {
   // the current shapes; a pin must never feed it bodies it predates.
   const pin = caller?.credential.startsWith("key:") ? profile?.pin : null;
   const version = resolveVersion(req.headers.get("foldrun-version"), pin);
+  // A signed-in browser (the dashboard) keeps the old error body; a program
+  // on 2026-11-22 or later gets Anthropic's (server/error-shape.ts).
+  const browser = Boolean(caller && !caller.credential.startsWith("key:")) || (!caller && fromBrowser(req));
   if ("error" in version) {
-    return { refuse: NextResponse.json({ error: version.error, code: version.code, known: version.known }, { status: 400 }), headers, requestHeaders: {} };
+    const shape = errorShapeFor(CURRENT_API_VERSION, browser);
+    return { refuse: NextResponse.json(errorBody(version.error, 400, { code: version.code, known: version.known }, shape), { status: 400 }), headers, requestHeaders: {} };
   }
+  const shape = errorShapeFor(version.version, browser);
   headers["foldrun-version"] = version.version;
   const dep = deprecationFor(req.method, req.nextUrl.pathname);
   if (dep) Object.assign(headers, deprecationHeaders(dep));
@@ -222,12 +256,12 @@ export async function apiGate(req: NextRequest): Promise<Gate> {
   const limited = await overLimit(req, caller, profile, headers);
   if (limited) {
     return {
-      refuse: NextResponse.json({ error: limited.message, retry_after: limited.retryAfter }, { status: 429 }),
+      refuse: NextResponse.json(errorBody(limited.message, 429, { retry_after: limited.retryAfter }, shape), { status: 429 }),
       headers,
       requestHeaders: {},
     };
   }
-  return { headers, requestHeaders: { [RESOLVED_VERSION_HEADER]: version.version } };
+  return { headers, requestHeaders: { [RESOLVED_VERSION_HEADER]: version.version, [ERROR_SHAPE_HEADER]: shape } };
 }
 
 /**

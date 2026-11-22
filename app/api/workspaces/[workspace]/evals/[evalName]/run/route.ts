@@ -14,7 +14,7 @@
 
 import { opsError } from "@/lib/ops-log.ts";
 import { NextRequest, NextResponse, after } from "next/server";
-import { requireTenant, errorResponse, requirePermission, refuse } from "@/server/api";
+import { requireTenant, errorResponse, requirePermission, refuse, refuseWith } from "@/server/api";
 import { listEvals, runEval, writeEvalResult, readEvalResult } from "@/lib/evals";
 import { claimEvalRun, readEvalRun, currentEvalRun } from "@/server/eval-runs";
 import { idempotent } from "@/server/idempotency";
@@ -47,10 +47,7 @@ async function postOnce(
     const claim = await claimEvalRun(tenant, workspace, evalName);
     if (!claim) {
       const holder = await currentEvalRun(tenant, workspace, evalName);
-      return NextResponse.json(
-        { error: `${evalName} is already running${holder ? ` (run ${holder.runId}, since ${holder.startedAt})` : ""} — poll GET …/evals/${evalName}/run${holder ? `?run=${holder.runId}` : ""}`, ...(holder ?? {}) },
-        { status: 409 },
-      );
+      return refuseWith(`${evalName} is already running${holder ? ` (run ${holder.runId}, since ${holder.startedAt})` : ""} — poll GET …/evals/${evalName}/run${holder ? `?run=${holder.runId}` : ""}`, 409, { ...(holder ?? {}) });
     }
     const run = async () => {
       try {

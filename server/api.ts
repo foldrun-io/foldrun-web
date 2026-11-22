@@ -3,6 +3,7 @@
 
 import { freshen } from "@/server/fresh";
 import { opsLog, opsError, errorFields } from "@/lib/ops-log.ts";
+import { errorBody } from "./error-shape.ts";
 import { platform } from "@/lib/platform";
 import { NextResponse, type NextRequest } from "next/server";
 import { resolveTenant, listApiKeys, type Actor } from "./auth.ts";
@@ -251,7 +252,7 @@ export async function requireSession(req: NextRequest): Promise<UserRecord> {
 export async function sessionUser(req: NextRequest): Promise<UserRecord | null | NextResponse> {
   const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
   const refused = session?.viewAs ? supportViewRefusal(req.method, req.nextUrl.pathname) : null;
-  if (refused) return NextResponse.json({ error: refused }, { status: 403 });
+  if (refused) return refuseWith(refused, 403);
   return session;
 }
 
@@ -380,12 +381,21 @@ export function refuse(message: string, status: number) {
   return errorResponse(new ApiError(message, status));
 }
 
+/** A refusal with more beside its sentence (a run id, the issues found,
+ *  a retry hint), in the caller's error shape: `extra` sits beside `error`
+ *  in the old body, inside `error` in Anthropic's (server/error-shape.ts). */
+export function refuseWith(message: string, status: number, extra: Record<string, unknown> = {}, init: ResponseInit = {}) {
+  return NextResponse.json(errorBody(message, status, extra), { ...init, status });
+}
+
 export function errorResponse(err: unknown) {
   const { status, message, internal } = reportError(err);
   // A refusal that knows when to come back (an end customer past its rate,
   // FOL-168) says so the way every 429 here does.
   const retry = !internal && err instanceof Error && typeof (err as { retryAfter?: unknown }).retryAfter === "number" ? String((err as unknown as { retryAfter: number }).retryAfter) : null;
-  return NextResponse.json({ error: message, ...(internal ? {} : refusalFields(err)) }, { status, ...(retry ? { headers: { "retry-after": retry } } : {}) });
+  // In the caller's shape: Anthropic's from API 2026-11-22, else { error }
+  // (server/error-shape.ts).
+  return NextResponse.json(errorBody(message, status, internal ? {} : refusalFields(err)), { status, ...(retry ? { headers: { "retry-after": retry } } : {}) });
 }
 
 /** A delivery (a webhook, an inbound email) refused because the account
@@ -395,7 +405,7 @@ export function errorResponse(err: unknown) {
  *  retry is a fresh event. Null for any other error. */
 export function busyDelivery(err: unknown) {
   if ((err as { code?: unknown } | null)?.code !== "waiting_cap" || !(err instanceof Error)) return null;
-  return NextResponse.json({ error: err.message, ...refusalFields(err) }, { status: 503, headers: { "retry-after": "60" } });
+  return NextResponse.json(errorBody(err.message, 503, refusalFields(err)), { status: 503, headers: { "retry-after": "60" } });
 }
 
 /** What a refusal from the engine says beside its sentence (5 Nov 2026):

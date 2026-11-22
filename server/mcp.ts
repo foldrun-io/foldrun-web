@@ -24,6 +24,7 @@ import { RESOLVED_VERSION_HEADER } from "./api-version.ts";
 import { versionInfo } from "./release.ts";
 import { publicOrigin } from "./auth-flows.ts";
 import { MCP_INNER_HEADER, mcpInnerSecret } from "./mcp-inner.ts";
+import { legacyErrorBody } from "./error-shape.ts";
 
 /** Protocol revisions this server speaks, newest first. */
 export const MCP_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"] as const;
@@ -478,6 +479,10 @@ export async function callTool(req: NextRequest, name: string, args: Args, readO
     // not JSON: returned as the text it is
   }
   if (!res.ok) {
+    // Either error body (one API, 22 Nov 2026): the route answers in the
+    // MCP caller's shape — Anthropic's for a current key — so its sentence
+    // and findings are read from where each body keeps them.
+    if (typeof body === "object" && body !== null) body = legacyErrorBody(body);
     const why = typeof body === "object" && body !== null && typeof (body as Json).error === "string" ? (body as Json).error : raw.slice(0, 500);
     // A refusal's own findings go with it: write_file's 422 names every
     // issue (rule, file:line, message) — the file was not saved, so

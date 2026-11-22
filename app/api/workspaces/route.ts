@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireCaller, errorResponse, requirePermission, refuse } from "@/server/api";
+import { requireCaller, errorResponse, requirePermission, refuse, refuseWith } from "@/server/api";
 import { scopeAllows } from "@/platform/scope";
 import fs from "node:fs";
 import path from "node:path";
@@ -94,18 +94,12 @@ async function postOnce(req: NextRequest) {
       // saveWorkspace straight from here skipped all three.
       const result = deployWorkspace(tenant, body.name, body.files);
       if (!result.applied) {
-        return NextResponse.json(
-          {
-            ok: false,
-            reason: result.issues.length ? "did not check out" : "runs in flight",
-            error: result.issues.length
-              ? `${body.name} exists, and these files did not check out — nothing was changed`
-              : `${body.name} exists and a run is reading its files — nothing was changed; try again when it ends`,
-            issues: result.issues,
-            warnings: result.warnings,
-            blockedBy: result.blockedBy,
-          },
-          { status: 422 },
+        return refuseWith(
+          result.issues.length
+            ? `${body.name} exists, and these files did not check out — nothing was changed`
+            : `${body.name} exists and a run is reading its files — nothing was changed; try again when it ends`,
+          422,
+          { ok: false, reason: result.issues.length ? "did not check out" : "runs in flight", issues: result.issues, warnings: result.warnings, blockedBy: result.blockedBy },
         );
       }
       await audit("workspace.deployed", {

@@ -21,7 +21,7 @@
 // the password re-pointed resets at any inbox, and the move's 409 for a
 // taken address was the enumeration oracle the mailed path closed.
 
-import { errorResponse, sessionUser, refuse } from "@/server/api";
+import { errorResponse, sessionUser, refuse, refuseWith } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
 import { passwordMatches, findUser, findUserById, loginAddress } from "@/server/users";
 import { refuseWhenLimited, clearLimit } from "@/server/limits";
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
 
     if (!platformMail(user.tenant)) {
       // No sender, so no inbox can be proven: nothing moves.
-      return NextResponse.json({ error: NO_MAIL, code: "mail_not_configured" }, { status: 409 });
+      return refuseWith(NO_MAIL, 409, { code: "mail_not_configured" });
     }
 
     const daily = await refuseWhenLimited(`email-change:day:${user.id}`, EMAIL_CHANGES_PER_DAY, 24 * 60 * 60);

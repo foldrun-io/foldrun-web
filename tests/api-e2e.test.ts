@@ -94,6 +94,13 @@ function writeKey(dataDir: string, tenant = "default"): string {
   return key;
 }
 
+/** A refusal's sentence in either body: Anthropic's (API 2026-11-22, a
+ *  program) or `{ error }` (an older pin, a browser). */
+const errorText = (b: unknown): string => {
+  const e = (b as { error?: unknown } | null)?.error;
+  return typeof e === "string" ? e : String((e as { message?: unknown } | undefined)?.message ?? "");
+};
+
 const api = (p: string, init: RequestInit = {}) =>
   fetch(`${base}${p}`, {
     ...init,
@@ -207,12 +214,33 @@ test("a wrong key is refused, and says why", opts, async () => {
     headers: { authorization: "Bearer mda_definitely-not-a-key" },
   });
   assert.equal(res.status, 401);
+  // API 2026-11-22: Anthropic's error body, as /v1 answers (one API).
+  const body = await res.json();
+  assert.equal(body.type, "error");
+  assert.equal(body.error.type, "authentication_error");
+  assert.match(body.error.message, /invalid API key/);
+});
+
+test("a caller pinned before 2026-11-22 keeps the old error body — read from Next's request store, in a real server", opts, async () => {
+  const res = await fetch(`${base}/api/workspaces`, {
+    headers: { authorization: "Bearer mda_definitely-not-a-key", "foldrun-version": "2026-10-26" },
+  });
+  assert.equal(res.status, 401);
   assert.match((await res.json()).error, /invalid API key/);
 });
 
 test("a real key is accepted", opts, async () => {
   const res = await api("/api/workspaces");
   assert.equal(res.status, 200, "the key this test wrote was not understood by the server");
+});
+
+test("the same key as x-api-key, as Anthropic's API takes it (one API)", opts, async () => {
+  const res = await fetch(`${base}/api/workspaces`, { headers: { "x-api-key": token } });
+  assert.equal(res.status, 200);
+  const missing = await fetch(`${base}/api/workspaces/no-such-workspace-here/runs/no-such-run`, { headers: { "x-api-key": token } });
+  const body = await missing.json();
+  assert.equal(body.type, "error", JSON.stringify(body));
+  assert.equal(typeof body.error.message, "string");
 });
 
 // ── deploying ────────────────────────────────────────────────────────────────
@@ -233,12 +261,29 @@ test("a flow naming an agent the deploy does not ship is refused", opts, async (
   });
 
   assert.equal(res.status, 422, "a refusal is not a malformed request");
-  const body = await res.json();
+  // The current version: Anthropic's error body, the findings inside `error`.
+  const { type, error: body } = await res.json();
+  assert.equal(type, "error");
+  assert.equal(body.type, "invalid_request_error");
+  assert.match(body.message, /did not check out/);
   assert.equal(body.ok, false);
   assert.equal(body.reason, "did not check out");
   const issue = body.issues.find((i: { message: string }) => /ghost/.test(i.message));
   assert.ok(issue, `no issue named the missing agent: ${JSON.stringify(body.issues)}`);
   assert.match(issue.where, /^flows\/publish\.md:\d+$/, "an issue should carry its line");
+
+  // What the CLI reads (it pins 2026-10-01): the same fields at the top.
+  const pinned = await api("/api/workspaces/hello/deploy", {
+    method: "POST",
+    headers: { "foldrun-version": "2026-10-01" },
+    body: JSON.stringify({ files: [{ path: "flows/publish.md", content: "---\nname: publish\n---\n\n1. [[ghost]] — vanish\n" }] }),
+  });
+  assert.equal(pinned.status, 422);
+  const old = await pinned.json();
+  assert.equal(old.ok, false);
+  assert.equal(old.reason, "did not check out");
+  assert.equal(typeof old.error, "string");
+  assert.ok(Array.isArray(old.issues) && old.issues.length > 0);
 });
 
 test("a good deploy lands, and the workspace is really there", opts, async () => {
@@ -415,7 +460,7 @@ test("the first signup needs the install's setup token, and signs you in", opts,
       body: JSON.stringify({ email: "intruder@example.test", password: "correct horse battery", account: "intruder-e2e", ...(setup ? { setup } : {}) }),
     });
     assert.equal(refused.status, 403, "another local user cannot claim the install first");
-    assert.match(((await refused.json()) as { error: string }).error, /setup link/);
+    assert.match(errorText(await refused.json()), /setup link/);
   }
   const page = await (await fetch(`${base}/signup`)).text();
   assert.match(page, /Open your setup link/);
@@ -437,7 +482,7 @@ test("the second signup needs the install to opt in", opts, async () => {
     body: JSON.stringify({ email: "second@example.test", password: "hunter2hunter2", account: "second-e2e" }),
   });
   assert.equal(res.status, 400);
-  assert.match(((await res.json()) as { error: string }).error, /closed/);
+  assert.match(errorText(await res.json()), /closed/);
 });
 
 test("a wrong password is one generic refusal", opts, async () => {

@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { ApiError, errorResponse, requirePermission, actorOf, refuse } from "@/server/api";
+import { ApiError, errorResponse, requirePermission, actorOf, refuse, refuseWith } from "@/server/api";
 import { cronCanFire, parseCron } from "@/platform/scheduler";
 import {
   workspaceDir,
@@ -143,7 +143,7 @@ export async function PATCH(
     // someone else edited, would otherwise hit whichever step has that index
     // now; refused with 409 and the current text instead.
     if (typeof body.expect === "string" && !readsAs(before, body.expect)) {
-      return NextResponse.json({ error: `${flow} changed since it was loaded — reload to see the change, then try again`, text: before }, { status: 409 });
+      return refuseWith(`${flow} changed since it was loaded — reload to see the change, then try again`, 409, { text: before });
     }
 
     if (typeof body.restore === "string") {

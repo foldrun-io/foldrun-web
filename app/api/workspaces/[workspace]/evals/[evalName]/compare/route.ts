@@ -14,7 +14,7 @@
 
 import { opsError } from "@/lib/ops-log.ts";
 import { NextRequest, NextResponse, after } from "next/server";
-import { requireTenant, errorResponse, requirePermission, ApiError, refuse } from "@/server/api";
+import { requireTenant, errorResponse, requirePermission, ApiError, refuse, refuseWith } from "@/server/api";
 import { adminState, pauseOf } from "@/platform/admin";
 import { idempotent } from "@/server/idempotency";
 import { listEvals } from "@/lib/evals";
@@ -38,10 +38,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     const claim = await claimEvalCompare(tenant, workspace, evalName);
     if (!claim) {
       const holder = await currentEvalCompare(tenant, workspace, evalName);
-      return NextResponse.json(
-        { error: `a comparison of ${evalName} is already running${holder ? ` (${holder.runId}, since ${holder.startedAt})` : ""} — poll GET …/evals/${evalName}/compare${holder ? `?run=${holder.runId}` : ""}`, ...(holder ?? {}) },
-        { status: 409 },
-      );
+      return refuseWith(`a comparison of ${evalName} is already running${holder ? ` (${holder.runId}, since ${holder.startedAt})` : ""} — poll GET …/evals/${evalName}/compare${holder ? `?run=${holder.runId}` : ""}`, 409, { ...(holder ?? {}) });
     }
     // after(): tracked by the server, so a graceful shutdown lets it finish.
     after(async () => {

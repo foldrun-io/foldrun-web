@@ -7,7 +7,7 @@
 // refused (409): an answer there would reach no one.
 
 import { NextRequest, NextResponse } from "next/server";
-import { actorOf, errorResponse, requirePermission, refuse } from "@/server/api";
+import { actorOf, errorResponse, requirePermission, refuse, refuseWith } from "@/server/api";
 import { readRun } from "@/lib/store";
 import { ANSWER_MAX, answerQuestion, getQuestion } from "@/platform/operator-store";
 import { idempotent } from "@/server/idempotency";
@@ -44,10 +44,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     if (!res) return refuse("no such question on this run — it may have expired", 404);
     if (res.closed) return refuse("the agent is no longer waiting on this question — it stopped waiting (closed)", 409);
     if (res.already) {
-      return NextResponse.json(
-        { error: "already answered", answer: res.question.answer, by: res.question.by ?? null, answeredAt: res.question.answeredAt },
-        { status: 409 },
-      );
+      return refuseWith("already answered", 409, { answer: res.question.answer, by: res.question.by ?? null, answeredAt: res.question.answeredAt });
     }
     return NextResponse.json({ ok: true, question: id, answer: res.question.answer, by });
   } catch (err) {

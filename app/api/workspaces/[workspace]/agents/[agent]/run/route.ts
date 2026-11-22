@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, requirePermission, ApiError, refuse } from "@/server/api";
+import { errorResponse, requirePermission, ApiError, refuse, refuseWith } from "@/server/api";
 import fs from "node:fs";
 import path from "node:path";
 import { workspaceDir, isOneSegment, readRun } from "@/lib/store";
@@ -91,7 +91,7 @@ async function postOnce(
       const { taken, refused } = await claimSessionMessages(tenant, workspace, context, messageIds, token);
       if (refused.length) {
         await freeSessionMessages(tenant, token);
-        return NextResponse.json({ error: `${refused.length === 1 ? "a message is" : `${refused.length} messages are`} no longer waiting for ${context} — read them again (GET …/sessions/${context}/messages?waiting=1); nothing was started`, refused }, { status: 409 });
+        return refuseWith(`${refused.length === 1 ? "a message is" : `${refused.length} messages are`} no longer waiting for ${context} — read them again (GET …/sessions/${context}/messages?waiting=1); nothing was started`, 409, { refused });
       }
       // What fits in the turn's block goes in; the rest waits again and the
       // answer says so (`left`) — none is marked used that the agent did not
@@ -100,7 +100,7 @@ async function postOnce(
       const fit = messagesBlock(all)?.given ?? 0;
       left = all.slice(fit).map((m) => m.id);
       if (left.length) await freeSessionMessages(tenant, token, { ids: left });
-      if (!fit) return NextResponse.json({ error: "messages: none of them fits in one turn — nothing was started", left }, { status: 413 });
+      if (!fit) return refuseWith("messages: none of them fits in one turn — nothing was started", 413, { left });
       claim = { token, messages: all.slice(0, fit) };
     }
     let run;

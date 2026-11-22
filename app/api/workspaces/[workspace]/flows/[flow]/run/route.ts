@@ -4,7 +4,7 @@ import { customerProblem } from "@/lib/customer";
 import { assertCustomerNamed } from "@/server/customer-required";
 import { MissingInput } from "@/lib/storage";
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, requirePermission, refuse } from "@/server/api";
+import { errorResponse, requirePermission, refuse, refuseWith } from "@/server/api";
 import { loadFlow } from "@/lib/runner";
 import { admitFlowRun, AdmissionRefused } from "@/platform/flow-admission";
 import { claimRequestKey, noteRequestRun, releaseRequestKey } from "@/platform/trigger-gate";
@@ -13,7 +13,7 @@ import { idempotent } from "@/server/idempotency";
 
 /** overlap: skip's answer, as it always was: 409 with the live run's id. */
 function overlapRefusal(err: AdmissionRefused) {
-  return NextResponse.json({ error: err.message, runId: err.runId }, { status: 409 });
+  return refuseWith(err.message, 409, { runId: err.runId });
 }
 
 async function postOnce(

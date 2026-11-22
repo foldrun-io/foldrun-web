@@ -10,13 +10,14 @@
 // same session cookie); the one thing they get here is the cross-site
 // check, because it has to sit in front of every write route at once.
 
-import { NextResponse, type NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { verifySession, SESSION_COOKIE, hasUsers } from "@/server/users";
 import { crossSiteWrite, jsonOnly } from "@/server/csrf";
 import { bodyTooLarge } from "@/server/body-limit";
-import { apiGate, a2aGate } from "@/server/api-limits";
+import { apiGate, a2aGate, errorShapeOf } from "@/server/api-limits";
 import { A2A_BODY_BYTES, A2aError, RPC, rpcErrorBody } from "@/server/a2a-protocol";
-import { RESOLVED_VERSION_HEADER } from "@/server/api-version";
+import { ERROR_SHAPE_HEADER, RESOLVED_VERSION_HEADER } from "@/server/api-version";
+import { errorBody } from "@/server/error-shape";
 import { versionHeaders } from "@/server/release";
 import { storeOrigin } from "@/lib/storage";
 import { unsafeApiPath } from "@/server/raw-path";
@@ -156,7 +157,37 @@ async function a2aIngress(req: NextRequest): Promise<NextResponse> {
   return res;
 }
 
-export async function proxy(req: NextRequest) {
+/**
+ * One API, one key, sent either way (owner, 22 Nov 2026: "one api works
+ * with both platform and the llm proxy like how anthropic does itself"):
+ * `x-api-key: <key>` as Anthropic's API takes it, or `Authorization: Bearer
+ * <key>`. An x-api-key becomes the Bearer here, before anything reads the
+ * request, so every check behind it (auth, the rate gate, the cross-site
+ * rule, which passes a Bearer) sees one. Both, and different: refused.
+ */
+function apiKeyAsBearer(req: NextRequest): NextRequest | string {
+  const x = req.headers.get("x-api-key")?.trim();
+  if (!x) return req;
+  const authz = req.headers.get("authorization");
+  if (authz && !(/^bearer\s+/i.test(authz) && authz.replace(/^bearer\s+/i, "").trim() === x)) return "send the key once — x-api-key or Authorization: Bearer, not two different ones";
+  // One credential header goes on, the Bearer — never both (Codex review).
+  const headers = new Headers(req.headers);
+  headers.delete("x-api-key");
+  headers.set("authorization", `Bearer ${x}`);
+  return new NextRequest(req, { headers });
+}
+
+/** A refusal the proxy makes itself, before the gate: in the body the gate
+ *  would choose — the version asked, else the account's pin, else current;
+ *  the old body for a browser (api-limits.ts errorShapeOf). */
+async function proxyRefusal(req: NextRequest, message: string, status: number): Promise<NextResponse> {
+  // The key as the gate will read it, x-api-key included (Codex review).
+  const keyed = apiKeyAsBearer(req);
+  return NextResponse.json(errorBody(message, status, {}, await errorShapeOf(typeof keyed === "string" ? req : keyed)), { status });
+}
+
+export async function proxy(incoming: NextRequest) {
+  let req = incoming;
   const nonce = makeNonce();
   if (/^\/a2a(\/|$)/.test(req.nextUrl.pathname)) return harden(stamped(await a2aIngress(req)), req, nonce);
   if (!req.nextUrl.pathname.startsWith("/api/") && !/^\/dashboard(\/|$)/.test(req.nextUrl.pathname)) {
@@ -171,24 +202,28 @@ export async function proxy(req: NextRequest) {
     // takes one, and a decoded %2F turns a name into a path (30 Oct 2026,
     // server/raw-path.ts). Refused before anything else reads the request.
     const badPath = unsafeApiPath(new URL(req.url).pathname);
-    if (badPath) return harden(stamped(NextResponse.json({ error: badPath }, { status: 400 })), req, nonce);
+    if (badPath) return harden(stamped(await proxyRefusal(req, badPath, 400)), req, nonce);
+    const keyed = apiKeyAsBearer(req);
+    if (typeof keyed === "string") return harden(stamped(await proxyRefusal(req, keyed, 400)), req, nonce);
+    req = keyed;
     // A cookie-carrying write from an origin that is not ours — or a write
     // to a sign-in route, cookie or not. SameSite=Lax is the first layer;
     // this is the second, and it refuses before any handler runs. Bearer
     // requests and non-browser requests (no Origin, no Sec-Fetch-Site) pass.
     const why = crossSiteWrite(req);
-    if (why) return harden(stamped(NextResponse.json({ error: why }, { status: 403 })), req, nonce);
+    if (why) return harden(stamped(await proxyRefusal(req, why, 403)), req, nonce);
     // Those sign-in routes take JSON only, which no HTML form can send.
     const notJson = jsonOnly(req);
-    if (notJson) return harden(stamped(NextResponse.json({ error: notJson }, { status: 415 })), req, nonce);
+    if (notJson) return harden(stamped(await proxyRefusal(req, notJson, 415)), req, nonce);
     // Over the limit Next would hand the route a truncated body, silently
     // (server/body-limit.ts). Refuse it whole instead.
     const tooBig = bodyTooLarge(req.headers.get("content-length"));
-    if (tooBig) return harden(stamped(NextResponse.json({ error: tooBig }, { status: 413 })), req, nonce);
+    if (tooBig) return harden(stamped(await proxyRefusal(req, tooBig, 413)), req, nonce);
     // API version, rate limit, deprecation — server/api-limits.ts.
     const gate = await apiGate(req);
     const forwarded = new Headers(req.headers);
     forwarded.delete(RESOLVED_VERSION_HEADER);
+    forwarded.delete(ERROR_SHAPE_HEADER);
     for (const [k, v] of Object.entries(gate.requestHeaders)) forwarded.set(k, v);
     const res = gate.refuse ?? NextResponse.next({ request: { headers: forwarded } });
     for (const [k, v] of Object.entries(gate.headers)) res.headers.set(k, v);

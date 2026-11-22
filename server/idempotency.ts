@@ -37,6 +37,36 @@ import { cacheClient } from "@/platform/cache";
 import { opsLog } from "@/lib/ops-log.ts";
 import { resolveTenant } from "./auth.ts";
 import { installKey } from "@/lib/webhook.ts";
+import { refuseWith } from "./api.ts";
+import { currentErrorShape, errorBody, legacyErrorBody } from "./error-shape.ts";
+
+/** A stored refusal in the shape THIS request is answered in: the first
+ *  answer may have been made under another version or as a browser (one
+ *  claim spans them, so a write never runs twice). Anything that is not a
+ *  JSON refusal is replayed byte for byte (Codex review, 22 Nov 2026). */
+export function replayedBody(body: string, status: number, type: string | undefined): string {
+  if (status < 400 || !(type ?? "application/json").includes("json")) return body;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return body;
+  }
+  const o = parsed as { type?: unknown; error?: unknown } | null;
+  if (!o || typeof o !== "object") return body;
+  const anthropic = o.type === "error" && Boolean(o.error) && typeof o.error === "object";
+  // A deploy's 422 stored before 22 Nov had no sentence, only `reason`.
+  const reasonOnly = o.error === undefined && (o as { ok?: unknown }).ok === false && typeof (o as { reason?: unknown }).reason === "string";
+  if (reasonOnly && currentErrorShape() === "anthropic") return JSON.stringify(errorBody(String((o as { reason: string }).reason), status, o as Record<string, unknown>, "anthropic"));
+  const legacy = typeof o.error === "string";
+  const want = currentErrorShape();
+  if (anthropic && want === "legacy") return JSON.stringify(legacyErrorBody(o));
+  if (legacy && want === "anthropic") {
+    const { error, ...rest } = o as Record<string, unknown>;
+    return JSON.stringify(errorBody(String(error), status, rest, "anthropic"));
+  }
+  return body;
+}
 
 export const IDEMPOTENCY_TTL_SEC = 24 * 3600;
 /** Set by a handler whose answer must not be replayed; never sent out. */
@@ -188,7 +218,7 @@ export async function idempotent(req: NextRequest, handler: () => Promise<Respon
   const key = req.headers.get("idempotency-key")?.trim();
   if (!key) return handler();
   if (key.length > KEY_MAX) {
-    return NextResponse.json({ error: `Idempotency-Key is at most ${KEY_MAX} characters` }, { status: 400 });
+    return refuseWith(`Idempotency-Key is at most ${KEY_MAX} characters`, 400);
   }
   // Unauthenticated: let the route say so; nothing to remember against.
   const auth = await resolveTenant(req);
@@ -204,25 +234,16 @@ export async function idempotent(req: NextRequest, handler: () => Promise<Respon
   const prior = await claim(id, { fp, state: "pending" });
   if (prior === "unavailable") {
     // The caller asked for at most once, and this pod cannot promise it.
-    return NextResponse.json(
-      { error: "this request carries an Idempotency-Key, and the store that keeps it is not answering — retry in a moment", retry_after: 2 },
-      { status: 503, headers: { "retry-after": "2" } },
-    );
+    return refuseWith("this request carries an Idempotency-Key, and the store that keeps it is not answering — retry in a moment", 503, { retry_after: 2 }, { headers: { "retry-after": "2" } });
   }
   if (prior) {
     if (prior.fp !== fp) {
-      return NextResponse.json(
-        { error: "this Idempotency-Key was already used with a different request body — use a new key for a new request" },
-        { status: 422 },
-      );
+      return refuseWith("this Idempotency-Key was already used with a different request body — use a new key for a new request", 422);
     }
     if (prior.state === "pending") {
-      return NextResponse.json(
-        { error: "a request with this Idempotency-Key is still being answered — retry in a moment", retry_after: 1 },
-        { status: 409, headers: { "retry-after": "1" } },
-      );
+      return refuseWith("a request with this Idempotency-Key is still being answered — retry in a moment", 409, { retry_after: 1 }, { headers: { "retry-after": "1" } });
     }
-    return new NextResponse(prior.body ?? "", {
+    return new NextResponse(replayedBody(prior.body ?? "", prior.status ?? 200, prior.type), {
       status: prior.status ?? 200,
       headers: { "content-type": prior.type ?? "application/json", "idempotent-replayed": "true" },
     });

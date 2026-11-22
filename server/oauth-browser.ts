@@ -11,6 +11,7 @@ import { sessionCookieOptions } from "@/server/users";
 import { publicOrigin, browserHost } from "@/server/auth-flows";
 import type { Actor } from "@/server/auth";
 import { NO_REPLAY_HEADER } from "@/server/idempotency";
+import { refuseWith } from "./api.ts";
 
 const TTL_MS = 10 * 60 * 1000;
 
@@ -41,7 +42,7 @@ export async function startBound(
   // undo what binding is for — so the person is sent to that address.
   const callback = new URL(callbackUri(req));
   if (callback.host !== browserHost(req)) {
-    return NextResponse.json({ error: `open the dashboard at ${callback.origin} to connect — the consent must come back to the browser that starts it` }, { status: 409 });
+    return refuseWith(`open the dashboard at ${callback.origin} to connect — the consent must come back to the browser that starts it`, 409);
   }
   const binding = newBinding();
   const { url, nonce } = await startOAuthConnect(tenant, secret, config, callback.href, workspace, binding.hash, handoffId);

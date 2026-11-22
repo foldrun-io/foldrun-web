@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAccountWide, errorResponse, refuse } from "@/server/api";
+import { requireAccountWide, errorResponse, refuse, refuseWith } from "@/server/api";
 import { audit } from "@/server/audit";
 import { idempotent } from "@/server/idempotency";
 import { accountDir } from "@/lib/store";
@@ -64,7 +64,7 @@ async function putOnce(req: NextRequest) {
       // The reasons in the message itself: the dashboard's editor shows the
       // error line, and a person has to know what to change (Codex review).
       const what = errors.slice(0, 3).map((i) => `${i.line ? `line ${i.line}: ` : ""}${i.message}`).join("; ");
-      return NextResponse.json({ error: `AGENTS.md has ${errors.length} problem${errors.length === 1 ? "" : "s"} a deploy would refuse, so nothing was written — ${what}${errors.length > 3 ? "; …" : ""}`, issues }, { status: 422 });
+      return refuseWith(`AGENTS.md has ${errors.length} problem${errors.length === 1 ? "" : "s"} a deploy would refuse, so nothing was written — ${what}${errors.length > 3 ? "; …" : ""}`, 422, { issues });
     }
 
     const file = fileOf(tenant);

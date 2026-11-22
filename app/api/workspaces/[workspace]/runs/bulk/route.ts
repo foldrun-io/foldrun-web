@@ -34,7 +34,7 @@
 // than treated as "everything".
 
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, reportError, requirePermission, refuse } from "@/server/api";
+import { errorResponse, reportError, requirePermission, refuse, refuseWith } from "@/server/api";
 import { rerunFrom, stopRun } from "@/platform/queue";
 import { deleteRun, listRunSummaries, readRun, runDisplayStatus } from "@/lib/store";
 import { eraseRun } from "@/server/run-erase";
@@ -99,13 +99,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     const idsOnly = (body.runIds?.length ?? 0) > 0 && !(body.status?.length) && !body.flow && !body.since && !body.until;
     if (body.action === "delete" && !idsOnly) return deleteMatched(tenant, workspace, matched, body.dryRun === true);
     if (matched.length > MAX) {
-      return NextResponse.json(
-        {
-          error: `${matched.length} runs match, which is more than the ${MAX} one call will touch — narrow the filter (a tighter since/until is usually what is meant)`,
-          matched: matched.length,
-        },
-        { status: 422 },
-      );
+      return refuseWith(`${matched.length} runs match, which is more than the ${MAX} one call will touch — narrow the filter (a tighter since/until is usually what is meant)`, 422, { matched: matched.length });
     }
     if (body.dryRun) {
       return NextResponse.json({ ok: true, dryRun: true, matched: matched.map((r) => r.id) });

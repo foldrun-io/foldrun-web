@@ -8,7 +8,7 @@
 // them — a message meant for one must not be read by its sibling.
 
 import { NextRequest, NextResponse } from "next/server";
-import { actorOf, errorResponse, requirePermission, refuse } from "@/server/api";
+import { actorOf, errorResponse, requirePermission, refuse, refuseWith } from "@/server/api";
 import { readRun } from "@/lib/store";
 import { MESSAGE_MAX, postMessage } from "@/platform/operator-store";
 import { idempotent } from "@/server/idempotency";
@@ -32,21 +32,18 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: st
     if (body.step !== undefined && body.step !== null) {
       const n = typeof body.step === "number" ? body.step : typeof body.step === "string" && /^\d+$/.test(body.step) ? Number(body.step) : NaN;
       if (!Number.isInteger(n) || n < 0 || n >= run.steps.length) {
-        return NextResponse.json({ error: `no step ${String(body.step)} in this run`, running }, { status: 400 });
+        return refuseWith(`no step ${String(body.step)} in this run`, 400, { running });
       }
       if (run.steps[n].status !== "running") {
-        return NextResponse.json({ error: `step ${n} (${run.steps[n].agent}) is ${run.steps[n].status} — only a running step can be written to`, running }, { status: 409 });
+        return refuseWith(`step ${n} (${run.steps[n].agent}) is ${run.steps[n].status} — only a running step can be written to`, 409, { running });
       }
       step = n;
     } else if (running.length === 1) {
       step = running[0].step;
     } else if (running.length === 0) {
-      return NextResponse.json({ error: "no step is running right now — try again once one starts", running }, { status: 409 });
+      return refuseWith("no step is running right now — try again once one starts", 409, { running });
     } else {
-      return NextResponse.json(
-        { error: `${running.length} steps are running — say which with { step }: ${running.map((r) => `${r.step} (${r.agent})`).join(", ")}`, running },
-        { status: 400 },
-      );
+      return refuseWith(`${running.length} steps are running — say which with { step }: ${running.map((r) => `${r.step} (${r.agent})`).join(", ")}`, 400, { running });
     }
     // One step running: the run-level inbox, which that step reads whatever
     // its lease carries. Several: the step's own inbox, which only a lease
