@@ -10,7 +10,7 @@
 import { $rich, $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import Link from "@foldrun/ui/react/link";
 import { buttonVariants } from "@foldrun/ui/react/button";
 import { Chip, Field, SettingsCard } from "@foldrun/ui/react/page";
 import { Input } from "@foldrun/ui/react/input";
