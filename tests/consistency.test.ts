@@ -1099,7 +1099,7 @@ test("every API route is in docs/api.md", () => {
   // that exists only for it is listed here with why, instead of in api.md.
   const ONLY_ON_FOLDRUN_IR: Record<string, string> = {
     "/v1/keys/[id]": "PATCH a gateway key's model map — Claude Code's tiers on other models",
-    "/v1/billing/coding-plan": "a plan for login gateway keys — sold at foldrun.ir; in foldrun-admin/docs/console.md",
+    "/v1/billing/coding-plan": "the foldrun subscription (23 Nov 2026) — its api.md row ships with the docs when the subscription reaches production; dev first (owner rule), so docs.foldrun.io does not announce it before then",
     "/v1/billing/partner/plans": "foldrun.ir's storefront turns a coding plan on; in foldrun-admin/docs/console.md",
     "/v1/billing/partner/plans/offer": "foldrun.ir's storefront reads what an account can buy; in foldrun-admin/docs/console.md",
   };

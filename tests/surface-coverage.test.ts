@@ -23,10 +23,9 @@ const NOT_IN_CLI: Record<string, string> = {
   "POST /v1/billing/partner/plans/offer": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",
   "POST /v1/billing/partner/signups": CALLBACK + "foldrun.ir's signed storefront calls (a sign-up link for a customer with no account); the person opens the account on /signup",
   "POST /v1/billing/partner/plans": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",
-  "POST /v1/billing/coding-plan": "sold at foldrun.ir only (owner, 13 Nov 2026): no CLI verb or public docs; the storefront and the Billing page",
-  "PATCH /v1/billing/coding-plan": "sold at foldrun.ir only (owner, 13 Nov 2026): no CLI verb or public docs; the storefront and the Billing page",
-  "DELETE /v1/billing/coding-plan": "sold at foldrun.ir only (owner, 13 Nov 2026): no CLI verb or public docs; the storefront and the Billing page",
   "POST /v1/account/close": "closing an account is the owner's, in person, in Settings",
+  "GET /v1/billing/plans": "the platform plans' catalogue, no longer sold since 23 Nov 2026 (owner): `foldrun billing plans` reads /v1/billing/coding-plan, whose entitlement shows a legacy plan honoured to its paid-through date",
+  "POST /v1/billing/subscribe": "buying a platform plan, no longer sold since 23 Nov 2026 (owner): `foldrun billing plan pro|max` buys the foldrun subscription (/v1/billing/coding-plan); a legacy plan is still cancelled with DELETE",
   "POST /v1/oauth/handoff/[id]": "accepting a terminal-started connection is a signed-in person's, in the browser; the CLI opens the page (/v1/oauth/start answers its URL)",
   ...Object.fromEntries(
     [

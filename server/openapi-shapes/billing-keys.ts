@@ -160,8 +160,9 @@ const PARTNER_TOPUPS: Record<string, Shape> = {
   },
 };
 
-// Coding plans (14 Nov 2026, FOL-173): Pro or Max for an account's login
-// gateway keys, paid from the wallet for thirty days and renewed from it.
+// The foldrun subscription (14 Nov 2026, FOL-173; one for every hosted
+// account since 23 Nov 2026): Pro or Max, paid from the wallet for thirty
+// days and renewed from it.
 const PLAN_NAME = { type: "string", enum: ["pro", "max"] } as Schema;
 const CodingPlan = obj(
   {
@@ -174,18 +175,38 @@ const CodingPlan = obj(
     periodEnd: str("ISO time; renewed from the wallet then, unless cancelled"),
     priceUsd: num,
     renew: bool,
-    extraUsage: { type: "boolean", description: "past the plan's allowance, continue on the wallet (off: wait for the reset)" } as Schema,
+    extraUsage: { type: "boolean", description: "past the plan's allowance, continue on the wallet — pay as you go (off: wait for the reset)" } as Schema,
+    extraUsageCapUsd: { ...nullable(num), description: "the most pay as you go may spend in a period, in USD; null: no limit beyond the balance" } as Schema,
   },
   ["plan", "status", "periodStart", "periodEnd", "priceUsd", "renew"],
 );
-// The plan's one allowance (15 Nov 2026): the coding agent and the account's
-// automations add to the same five-hour and seven-day totals.
+// The plan's one allowance (15 Nov 2026; a month and a week since 21 Nov):
+// the coding agent and the account's automations add to the same totals.
 const PlanAllowance = obj({
-  windows: { type: "array", items: obj({ name: { type: "string", enum: ["window", "week"] } as Schema, usedPct: nullable(num), resetsAt: str("ISO time") }) } as Schema,
+  windows: { type: "array", items: obj({ name: { type: "string", enum: ["month", "week"] } as Schema, usedPct: nullable(num), resetsAt: str("ISO time") }) } as Schema,
   extraUsage: bool,
   room: { type: "boolean", description: "whether a new automation would run inside the plan now" } as Schema,
   freeAt: nullable(str("ISO time: when there is room again")),
 });
+// The one decision every door asks (23 Nov 2026, platform entitlement.ts).
+const Entitlement = {
+  type: "object",
+  description: "kind active (plan, source subscription | legacy, paidThrough, renews), exempt (reason self-hosted | platform | operator), none, or unreadable",
+  properties: {
+    kind: { type: "string", enum: ["active", "exempt", "none", "unreadable"] },
+    plan: str("active: the plan held — pro or max, or a legacy platform plan's id"),
+    source: { type: "string", enum: ["subscription", "legacy"] },
+    paidThrough: nullable(str("ISO time")),
+    renews: bool,
+    reason: { type: "string", enum: ["self-hosted", "platform", "operator"] },
+  },
+  required: ["kind"],
+} as Schema;
+// Pay as you go this period: the switch, its limit, and what it spent.
+const ExtraUsage = obj(
+  { on: bool, capUsd: nullable(num), spentUsd: { ...nullable(num), description: "spent this period; null to a member or key scoped to some projects" } as Schema, heldUsd: { ...nullable(num), description: "held by calls in flight; null as spentUsd" } as Schema, periodStart: str("ISO time"), periodEnd: str("ISO time") },
+  ["on", "capUsd", "spentUsd", "heldUsd", "periodStart", "periodEnd"],
+);
 const PlanOffer = obj({
   prices: obj({ pro: nullable(num), max: nullable(num) }),
   available: obj({ pro: bool, max: bool }),
@@ -193,16 +214,27 @@ const PlanOffer = obj({
   balanceUsd: num,
   allowance: nullable(PlanAllowance),
   codeTiers: obj({ fast: obj({ covered: bool }), default: obj({ covered: bool }), max: obj({ covered: bool }) }),
+  entitlement: Entitlement,
+  extraUsage: nullable(ExtraUsage),
 });
 const CODING_PLANS: Record<string, Shape> = {
   "GET /v1/billing/coding-plan": { response: PlanOffer },
   "POST /v1/billing/coding-plan": {
-    body: obj({ plan: PLAN_NAME }, ["plan"]),
+    body: obj(
+      {
+        plan: PLAN_NAME,
+        resume: { type: "boolean", description: "only the live plan renews again (a stop or a change down taken off); never a purchase — 409 ended: true when there is none" } as Schema,
+        period: str("the live plan's periodEnd as shown; 409 changed: true when it is no longer the live plan"),
+        maxUsd: { type: "number", description: "the price confirmed; 402 { needUsd, maxUsd } when the plan now costs more" } as Schema,
+      },
+      ["plan"],
+    ),
     response: obj({ plan: CodingPlan, chargedUsd: num }),
   },
   "PATCH /v1/billing/coding-plan": {
-    body: obj({ extraUsage: bool }, ["extraUsage"]),
-    response: obj({ plan: CodingPlan, allowance: nullable(PlanAllowance) }),
+    // At least one of the two (400 otherwise); a limit alone leaves the switch as it is.
+    body: { ...obj({ extraUsage: bool, extraUsageCapUsd: { ...nullable(num), description: "USD a period, 0.01–100000; null: no limit" } as Schema }), anyOf: [{ required: ["extraUsage"] }, { required: ["extraUsageCapUsd"] }] } as Schema,
+    response: obj({ plan: CodingPlan, allowance: nullable(PlanAllowance), extraUsage: nullable(ExtraUsage) }),
   },
   "DELETE /v1/billing/coding-plan": { noBody: "stops the renewal; the plan runs to the end of its period", response: obj({ plan: nullable(CodingPlan) }) },
   "POST /v1/billing/partner/plans": {
