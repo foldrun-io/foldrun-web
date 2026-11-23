@@ -6,8 +6,6 @@
   },
   "layout": {
     "addAKey": "Add a key",
-    "free": "Free",
-    "metered": "Metered",
     "noModelKey": "No model key",
     "nothingNewStartsInAnyTerm": "Nothing new starts in any {@workspace.one}. <withEmails></withEmails>",
     "onlyAnAdminCanAddIt": "Only an admin can add it — ask one.",
