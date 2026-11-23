@@ -19,6 +19,7 @@ import { opsError } from "@/lib/ops-log.ts";
 import { CHALLENGE, CHALLENGE_COOKIE, CODE_MS, codeSignInAvailable, newChallenge, requestCode } from "@/server/login-codes";
 import { sessionCookieOptions } from "@/server/users";
 import { jsonObject } from "@/server/body";
+import { codeGateBlocked, codeGateKey } from "@/server/code-gate";
 
 const EMAIL = /^[^@\s:,]+@[^@\s:,]+\.[^@\s:,]+$/;
 /** Codes mailed per address, per caller, and in all, an hour. Over any of them
@@ -56,7 +57,10 @@ export async function POST(req: NextRequest) {
     const held = req.cookies.get(CHALLENGE_COOKIE)?.value ?? "";
     const challenge = CHALLENGE.test(held) ? held : newChallenge();
     const ip = clientIp(req);
+    const gate = codeGateKey(req);
     later(async () => {
+      // A client the code gate has blocked is mailed nothing; the answer above is the same.
+      if (gate && (await codeGateBlocked(gate))) return;
       if (ip && !(await rateLimit(`login-code:ip:${ip}`, PER_IP.limit, PER_IP.windowSec)).allowed) return;
       const byAddress = ip ? `login-code:addr-ip:${email}:${ip}` : `login-code:addr:${email}`;
       if (!(await rateLimit(byAddress, PER_ADDRESS.limit, PER_ADDRESS.windowSec)).allowed) return;
