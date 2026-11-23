@@ -651,7 +651,14 @@
     "yourOwnApiKey": "Your own API key",
     "yourOwnKey": "Your own key",
     "ownKeysOff": "Bringing your own model key is turned off on this platform: every model call runs on the platform's models.",
-    "removeUnusedKey": "Remove the stored key {v0} (it is not used)"
+    "removeUnusedKey": "Remove the stored key {v0} (it is not used)",
+    "proxyModels": "Models behind foldrun's proxy",
+    "proxyModelsHelp": "Any of these runs an agent: put its name in <code>model:</code>, or pick it with <code>/model</code> in foldrun code. Locally and in the cloud alike.",
+    "provider2": "Provider",
+    "coveredByPlan": "In your plan",
+    "payAsYouGo": "Pay as you go",
+    "tierRunsOn": "<code>{tier}</code> runs <code>{id}</code>",
+    "notAvailableNow": "not available now"
   },
   "page": {
     "about": "About",

@@ -15,6 +15,7 @@ import { Chip, Field, SettingsCard } from "@foldrun/ui/react/page";
 import { Input } from "@foldrun/ui/react/input";
 import { Select } from "@foldrun/ui/react/select";
 import { Tooltip } from "@foldrun/ui/react/tooltip";
+import { CopyButton } from "@foldrun/ui/react/copy-block";
 import type { AccountModel } from "@/server/account-model";
 import type { FoldrunModelsView } from "@/platform/model-choice";
 
@@ -205,7 +206,66 @@ export function ModelKey({
           )}
         </>
       )}
+      {(fm.catalog ?? []).some((m) => m.available) && <ProxyModels fm={fm} />}
     </SettingsCard>
+  );
+}
+
+/** Every model behind foldrun's proxy (23 Nov 2026): what a `model:` line or
+ *  `/model` may name, what each costs, and whether the plan pays for it. */
+function ProxyModels({ fm }: { fm: FoldrunModelsView }) {
+  const code = (chunks: React.ReactNode) => <code className="font-mono">{chunks}</code>;
+  const tiers = Object.entries(fm.codeTiers ?? {});
+  return (
+    <div className="mt-6 grid min-w-0 gap-2 border-t border-line-faint pt-4">
+      <h3 className="text-sm font-medium text-fg">{$t("settings.model-key.proxyModels")}</h3>
+      <p className="text-xs text-fg-muted">{$rich("settings.model-key.proxyModelsHelp", { code })}</p>
+      {tiers.length > 0 && (
+        <p className="text-xs text-fg-muted">
+          {tiers.map(([tier, t], i) => (
+            <span key={tier}>
+              {i > 0 && <span className="mx-1.5 text-fg-subtle">·</span>}
+              {$rich("settings.model-key.tierRunsOn", { tier, id: t?.id ?? "", code })}
+            </span>
+          ))}
+        </p>
+      )}
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-xs">
+          <thead className="text-fg-subtle">
+            <tr>
+              <th className="py-1 pr-3 font-medium">{$t("settings.model-key.model")}</th>
+              <th className="py-1 pr-3 font-medium">{$t("settings.model-key.provider2")}</th>
+              <th className="py-1 pr-3 font-medium">{$t("settings.model-key.in")}</th>
+              <th className="py-1 pr-3 font-medium">{$t("settings.model-key.out")}</th>
+              <th className="py-1 font-medium" />
+            </tr>
+          </thead>
+          <tbody className="text-fg-secondary">
+            {fm.catalog.map((m) => (
+              <tr key={m.id} className={`border-t border-line-faint ${m.available ? "" : "opacity-60"}`}>
+                <td className="py-1 pr-3">
+                  <span className="flex items-center gap-2">
+                    <code className="font-mono text-fg">{m.id}</code>
+                    <CopyButton value={m.id} label={m.id} />
+                  </span>
+                </td>
+                <td className="py-1 pr-3">
+                  {m.providerTitle}
+                  {!m.available && <span className="ml-1 text-fg-subtle">({$t("settings.model-key.notAvailableNow")})</span>}
+                </td>
+                <td className="py-1 pr-3 font-mono">{usd(m.inputPerMTok)}</td>
+                <td className="py-1 pr-3 font-mono">{usd(m.outputPerMTok)}</td>
+                <td className="py-1">
+                  <Chip tone={m.covered ? "good" : "default"}>{m.covered ? $t("settings.model-key.coveredByPlan") : $t("settings.model-key.payAsYouGo")}</Chip>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="mt-1 text-xs text-fg-subtle">{$t("settings.model-key.usdPerMillionTokensOfInput")}</p>
+      </div>
+    </div>
   );
 }
 
