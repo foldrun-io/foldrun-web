@@ -1505,8 +1505,8 @@ test("every deploy sets the runner image in the same rollout as the platform ima
 });
 
 test("links and redirects use the environment's own address, never a hard-coded or internal one", () => {
-  // Each environment has its own URL (FOLDRUN_PUBLIC_URL): dev.foldrun.io,
-  // stage.foldrun.io, a customer's host. Behind the proxy req.nextUrl.origin
+  // Each environment has its own URL (FOLDRUN_PUBLIC_URL): dash.foldrun.dev,
+  // dash.foldrun.io, a customer's host. Behind the proxy req.nextUrl.origin
   // is the server's internal address — the confirm-email redirect sent
   // people to localhost:3900 (18 Oct 2026). One helper decides:
   // publicOrigin(req) / installOrigin() in server/auth-flows.ts.

@@ -235,10 +235,10 @@ test("urls: the install's API and dashboard addresses, open to anyone, null wher
     assert.deepEqual(none.urls, { api: null, app: null }, "one address for everything: the CLI stays where it signed in");
 
     process.env.FOLDRUN_PUBLIC_API_URL = "https://api.foldrun.dev/";
-    process.env.FOLDRUN_PUBLIC_URL = "https://dev.foldrun.io";
+    process.env.FOLDRUN_PUBLIC_URL = "https://dash.foldrun.dev";
     const open = await (await versionGET(new NextRequest("http://localhost/v1/version"))).json();
     assert.deepEqual(Object.keys(open).sort(), ["api", "urls", "version"], "a stranger still gets only the name, plus the addresses");
-    assert.deepEqual(open.urls, { api: "https://api.foldrun.dev", app: "https://dev.foldrun.io" });
+    assert.deepEqual(open.urls, { api: "https://api.foldrun.dev", app: "https://dash.foldrun.dev" });
     const full = await (await versionGET(authed())).json();
     assert.deepEqual(full.urls, open.urls);
 
@@ -254,12 +254,4 @@ test("urls: the install's API and dashboard addresses, open to anyone, null wher
     if (keep.api === undefined) delete process.env.FOLDRUN_PUBLIC_API_URL; else process.env.FOLDRUN_PUBLIC_API_URL = keep.api;
     if (keep.app === undefined) delete process.env.FOLDRUN_PUBLIC_URL; else process.env.FOLDRUN_PUBLIC_URL = keep.app;
   }
-});
-
-test("API 2026-11-23: a caller pinned earlier gets paths back, saying every route is /v1", async () => {
-  const { downgradeBody } = await import("../server/api-version.ts");
-  const now = { version: "v", api: "2026-11-23", urls: { api: "https://api.example", app: "https://dash.example" } };
-  const old = downgradeBody(now, "2026-11-22", { method: "GET", path: "/v1/version", status: 200 }) as Record<string, unknown>;
-  assert.deepEqual(old.paths, { platform: "/v1", models: "/v1", renames: { "/api/usage": "/v1/account/usage" } });
-  assert.equal("paths" in (downgradeBody(now, "2026-11-23", { method: "GET", path: "/v1/version", status: 200 }) as object), false);
 });

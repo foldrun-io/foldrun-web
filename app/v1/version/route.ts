@@ -13,8 +13,7 @@
 // pages it opens and the few routes the API host leaves to the dashboard
 // (server/api-host.ts). Both are public addresses, open like the name.
 
-import { NextRequest } from "next/server";
-import { versionedJson } from "@/server/api-version";
+import { NextRequest, NextResponse } from "next/server";
 import { mayReadProbeDetail } from "@/server/probe-access";
 import { versionInfo } from "@/server/release";
 import { apiOrigin, installOrigin } from "@/server/auth-flows";
@@ -27,6 +26,5 @@ export async function GET(req: NextRequest) {
   // Every route is under /v1, at urls.api for programs (23 Nov 2026,
   // server/v1-path.ts): nothing to discover but the addresses.
   const body = (await mayReadProbeDetail(req)) ? { ...info, urls } : { version: info.version, api: info.api, urls };
-  // `paths` went with API 2026-11-23; an older pin gets it back (api-version.ts).
-  return versionedJson(req, body, { headers: { "cache-control": "no-store" } });
+  return NextResponse.json(body, { headers: { "cache-control": "no-store" } });
 }

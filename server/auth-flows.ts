@@ -8,7 +8,7 @@ import { mintToken, hashFingerprint, RESET_TTL_MS, VERIFY_TTL_MS } from "@/serve
 import { emailMovesOf, type UserRecord } from "@/server/users";
 
 /** This install's own address, as the outside world reaches it — each
- *  environment sets FOLDRUN_PUBLIC_URL (dev.foldrun.io, stage.foldrun.io, a
+ *  environment sets FOLDRUN_PUBLIC_URL (dash.foldrun.dev, dash.foldrun.io, a
  *  customer's own host). Null when unset. Never a hard-coded host: a link
  *  built from one sent a staging customer to production. */
 export function installOrigin(): string | null {

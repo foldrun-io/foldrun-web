@@ -299,15 +299,14 @@ test("the API changelog: every pinnable version newest first, what each broke, w
   assert.deepEqual(log.versions[0], { version: "2027-01-15", changes: ["runs: finishedAt is endedAt"] });
   assert.ok(log.versions.some((v) => v.version === V.CURRENT_API_VERSION));
   assert.deepEqual(log.deprecations, [{ route: "DELETE /v1/old", deprecatedAt: "2026-11-01", sunsetAt: "2027-05-01", link: null }]);
-  // Today's list: one URL format (2026-11-23), Anthropic's error body
-  // (2026-11-22), the usage-ledger change on 2026-10-26, then the first
-  // version, which stays pinnable (every CLI so far sends it).
-  assert.deepEqual(V.apiChangelog().versions.map((v) => v.version), [V.CURRENT_API_VERSION, V.ERROR_SHAPE_VERSION, "2026-10-26", V.FIRST_API_VERSION]);
+  // Today's list: Anthropic's error body (2026-11-22), the usage-ledger
+  // change on 2026-10-26, then the first version, which stays pinnable
+  // (every CLI so far sends it).
+  assert.deepEqual(V.apiChangelog().versions.map((v) => v.version), [V.CURRENT_API_VERSION, "2026-10-26", V.FIRST_API_VERSION]);
   assert.equal(V.apiChangelog().versions[0].changes.length, 1);
-  assert.match(V.apiChangelog().versions[0].changes[0], /`paths` is withdrawn/);
-  assert.match(V.apiChangelog().versions[1].changes[0], /Anthropic's error body/);
-  assert.match(V.apiChangelog().versions[2].changes[0], /ledger\.providerCostUsd/);
-  assert.deepEqual(V.apiChangelog().versions[3], { version: "2026-10-01", changes: [] });
+  assert.match(V.apiChangelog().versions[0].changes[0], /Anthropic's error body/);
+  assert.match(V.apiChangelog().versions[1].changes[0], /ledger\.providerCostUsd/);
+  assert.deepEqual(V.apiChangelog().versions[2], { version: "2026-10-01", changes: [] });
 });
 
 // ---------------------------------------------------------------- openapi

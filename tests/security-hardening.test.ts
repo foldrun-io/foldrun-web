@@ -20,9 +20,9 @@ test("dev-auth guard refuses production with the bypass on", () => {
 });
 
 test("dev-auth guard refuses a non-loopback public URL with the bypass on", () => {
-  const err = devAuthStartupError({ FOLDRUN_DEV_NO_AUTH: "1", FOLDRUN_PUBLIC_URL: "https://dev.foldrun.io" });
+  const err = devAuthStartupError({ FOLDRUN_DEV_NO_AUTH: "1", FOLDRUN_PUBLIC_URL: "https://dash.foldrun.dev" });
   assert.ok(err, "a public URL on the internet with the bypass must be refused");
-  assert.match(err!, /dev\.foldrun\.io/);
+  assert.match(err!, /dash\.foldrun\.dev/);
 });
 
 test("dev-auth guard refuses an unparseable public URL with the bypass on", () => {
@@ -40,7 +40,7 @@ test("dev-auth guard allows a loopback laptop with the bypass on", () => {
 
 test("dev-auth guard does nothing when the bypass is off, even in production", () => {
   assert.equal(devAuthEnabled({ FOLDRUN_DEV_NO_AUTH: "0" }), false);
-  assert.equal(devAuthStartupError({ FOLDRUN_DEV_NO_AUTH: "0", NODE_ENV: "production", FOLDRUN_PUBLIC_URL: "https://dev.foldrun.io" }), null);
+  assert.equal(devAuthStartupError({ FOLDRUN_DEV_NO_AUTH: "0", NODE_ENV: "production", FOLDRUN_PUBLIC_URL: "https://dash.foldrun.dev" }), null);
   assert.equal(devAuthStartupError({ NODE_ENV: "production" }), null);
 });
 

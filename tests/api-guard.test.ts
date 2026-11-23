@@ -6,7 +6,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { apiBreaks, judge, movedToV1 } from "../scripts/api-guard.mjs";
+import { apiBreaks, judge } from "../scripts/api-guard.mjs";
 
 const op = (response?: object, body?: object, query: object[] = []) => ({
   parameters: query,
@@ -99,16 +99,4 @@ test("documenting an undescribed operation for the first time is not a break; a 
     "/v1/y": { post: op(obj({ ok: { type: "boolean" } }), obj({ name: str }, ["name"])) },
   });
   assert.deepEqual(apiBreaks(a, b).map((x: { path: string; what: string }) => `${x.path}: ${x.what}`), ["/v1/y: a request body is now required"]);
-});
-
-test("a base from before the /v1 move is compared under its /v1 names: a rename is no break, a field gone still is", () => {
-  const op = (props: Record<string, unknown>) => ({ get: { responses: { "200": { content: { "application/json": { schema: { type: "object", properties: props } } } } } } });
-  const base = { paths: { "/api/keys": op({ id: { type: "string" }, label: { type: "string" } }), "/api/usage": op({ usd: { type: "number" } }) } };
-  const head = { paths: { "/v1/keys": op({ id: { type: "string" } }), "/v1/account/usage": op({ usd: { type: "number" } }) } };
-  const moved = movedToV1(base);
-  assert.deepEqual(Object.keys(moved.paths).sort(), ["/v1/account/usage", "/v1/keys"]);
-  const breaks = apiBreaks(moved, head);
-  assert.equal(breaks.filter((b: { what: string }) => b.what === "the operation is gone").length, 0);
-  assert.ok(breaks.some((b: { path: string; what: string }) => b.path === "/v1/keys" && /label/.test(b.what)), JSON.stringify(breaks));
-  assert.equal(movedToV1(head), head, "a base already on /v1 is left alone");
 });

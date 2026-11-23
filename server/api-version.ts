@@ -75,19 +75,6 @@ export interface VersionChange {
  */
 export const VERSION_CHANGES: VersionChange[] = [
   {
-    // One URL format (owner, 23 Nov 2026): every route is /v1/<route>, so
-    // GET /v1/version has no path plan to give and drops `paths`. A caller
-    // pinned earlier gets it back, saying what is now true — the platform
-    // and the models under /v1, the account's usage at /v1/account/usage.
-    version: "2026-11-23",
-    summary: "GET /v1/version: `paths` is withdrawn — every route is `/v1/<route>`; callers pinned earlier get `paths` saying so (`platform: \"/v1\"`, `models: \"/v1\"`, the usage rename)",
-    routes: [{ method: "GET", path: /^\/v1\/version$/, file: "app/v1/version/route.ts" }],
-    downgrade(body) {
-      if (!body || typeof body !== "object" || "paths" in body) return body;
-      return { ...body, paths: { platform: "/v1", models: "/v1", renames: { "/api/usage": "/v1/account/usage" } } };
-    },
-  },
-  {
     // One API, Anthropic's shape (owner, 22 Nov 2026): every /v1 refusal
     // is the body /v1 answers with. Applied where every refusal is built
     // (api.ts errorResponse, by ERROR_SHAPE_HEADER), not route by route, so

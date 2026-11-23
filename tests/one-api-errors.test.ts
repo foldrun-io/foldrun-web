@@ -38,7 +38,7 @@ test("the two bodies, and the downgrade between them", () => {
   assert.deepEqual(S.legacyErrorBody(now), { error: "busy", runId: "r1" });
   const change = V.VERSION_CHANGES.find((c) => c.version === V.ERROR_SHAPE_VERSION)!;
   assert.deepEqual(change.downgrade(now, { method: "GET", path: "/v1/x", status: 409 }), { error: "busy", runId: "r1" });
-  assert.ok(V.CURRENT_API_VERSION >= V.ERROR_SHAPE_VERSION, "the current version answers Anthropic's body");
+  assert.equal(V.CURRENT_API_VERSION, V.ERROR_SHAPE_VERSION, "the change is the current version");
 });
 
 test("refuse, refuseWith and errorResponse answer in the request's shape; nothing said is the old body", async () => {

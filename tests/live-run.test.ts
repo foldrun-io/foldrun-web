@@ -169,7 +169,7 @@ test("a one-line payload is one data line", () => {
 test("eventRelease: the URL a wait: event step printed when it parked", () => {
   const parked = (text: string, event = true) =>
     ({ ...step("awaiting-approval"), ...(event ? { waitFor: "event" } : {}), events: [{ t: "", type: "info", text }] }) as StepRecord;
-  const abs = "https://dev.foldrun.io/v1/events/acme/desk/run-1?token=abc";
+  const abs = "https://dash.foldrun.dev/v1/events/acme/desk/run-1?token=abc";
   assert.deepEqual(eventRelease(parked(`waiting for an external event — release it with POST ${abs}`)), {
     url: abs,
     path: "/v1/events/acme/desk/run-1?token=abc",

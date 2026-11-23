@@ -22,8 +22,8 @@ test("the install's own origin passes: the request host, or FOLDRUN_PUBLIC_URL",
   assert.equal(crossSiteWrite(req("POST", { ...withCookie, origin: "https://APP.foldrun.io" }), undefined), null, "hosts compare case-blind");
   // Behind a proxy the request host is internal; x-forwarded-host is what the browser saw.
   assert.equal(crossSiteWrite(req("PATCH", { cookie: withCookie.cookie, host: "10.42.0.7:3000", "x-forwarded-host": "app.foldrun.io", origin: "https://app.foldrun.io" }), undefined), null);
-  assert.equal(crossSiteWrite(req("PUT", { cookie: withCookie.cookie, host: "10.42.0.7:3000", origin: "https://dev.foldrun.io" }), "https://dev.foldrun.io/"), null);
-  assert.ok(crossSiteWrite(req("PUT", { cookie: withCookie.cookie, host: "10.42.0.7:3000", origin: "https://dev.foldrun.io" }), "https://app.foldrun.io"));
+  assert.equal(crossSiteWrite(req("PUT", { cookie: withCookie.cookie, host: "10.42.0.7:3000", origin: "https://dash.foldrun.dev" }), "https://dash.foldrun.dev/"), null);
+  assert.ok(crossSiteWrite(req("PUT", { cookie: withCookie.cookie, host: "10.42.0.7:3000", origin: "https://dash.foldrun.dev" }), "https://app.foldrun.io"));
 });
 
 test("what it leaves alone: reads, Bearer requests, requests with no Origin, requests with no cookie", () => {
