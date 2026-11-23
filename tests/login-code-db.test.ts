@@ -5,7 +5,7 @@
 //     node --import ./tests/register.mjs --test tests/login-code-db.test.ts
 //
 // What it holds: the same answer for every address, a code that works once and
-// only from the browser that asked, five wrong guesses and the lock, expiry,
+// only from the browser that asked, three wrong guesses and the lock, expiry,
 // the 30 s throttle, the per-address mail cap, a second factor still asked,
 // and the method on the audit line and the session.
 
@@ -109,7 +109,7 @@ test("every address gets the same answer; only a verified one is mailed, and the
   assert.equal(sent[0].to, known.email);
   assert.match(sent[0].text, /\b\d{6}\b/);
   assert.doesNotMatch(sent[0].subject, /\d{6}/);
-  assert.match(sent[0].text, /10 minutes/);
+  assert.match(sent[0].text, /5 minutes/);
   assert.ok(!(await w.users.findUser(unverified.email))?.emailVerifiedAt);
 });
 
@@ -146,7 +146,7 @@ test("a password sign-in records its method too", opts, async () => {
   assert.deepEqual(entry?.detail, { method: "password" });
 });
 
-test("five wrong guesses spend the code; the right one then fails; every failure is one answer", opts, async () => {
+test("three wrong guesses spend the code; the right one then fails; every failure is one answer", opts, async () => {
   const w = await world();
   const p = await w.person("d");
   const b = w.browser();
@@ -154,11 +154,12 @@ test("five wrong guesses spend the code; the right one then fails; every failure
   const code = w.codeFrom(p.email)!;
   const wrong = code === "000000" ? "111111" : "000000";
   const failures = [];
-  for (let i = 0; i < 5; i++) {
+  assert.equal(w.codes.MAX_WRONG, 3);
+  for (let i = 0; i < w.codes.MAX_WRONG; i++) {
     const r = await w.answer(p.email, wrong, b);
     failures.push([r.status, await r.json()]);
   }
-  assert.equal((await w.row(p.user.id)).run, 5);
+  assert.equal((await w.row(p.user.id)).run, 3);
   const afterSpent = await w.answer(p.email, code, b);
   failures.push([afterSpent.status, await afterSpent.json()]);
   // Unknown address, unverified address, no cookie: the same words.
@@ -201,13 +202,17 @@ test("every refusal takes at least the floor: an unknown address, a wrong guess 
   }
 });
 
-test("a code expires after ten minutes, and a new one waits 30 seconds", opts, async () => {
+test("a code expires after five minutes, and a new one waits 30 seconds", opts, async () => {
   const w = await world();
   const p = await w.person("f");
   const b = w.browser();
   const t0 = Date.now();
+  assert.equal(w.codes.CODE_MS, 5 * 60_000);
   assert.equal(await w.codes.requestCode(p.email, b.challenge, t0), "sent");
   const code = w.codeFrom(p.email)!;
+  // Still good a moment before five minutes (the code is kept, so the check is a dry one: a wrong guess).
+  const wrongOf = code === "000000" ? "111111" : "000000";
+  assert.deepEqual(await w.codes.verifyCode(p.email, wrongOf, b.challenge, t0 + w.codes.CODE_MS - 1), { ok: false, reason: "wrong" });
   assert.equal(await w.codes.requestCode(p.email, b.challenge, t0 + 10_000), "not sent", "inside 30 s: no second code");
   assert.deepEqual(await w.codes.verifyCode(p.email, code, b.challenge, t0 + w.codes.CODE_MS + 1), { ok: false, reason: "expired" });
   assert.equal(await w.codes.requestCode(p.email, b.challenge, t0 + 31_000), "sent", "after 30 s: a new code");
@@ -345,4 +350,108 @@ test("the install-wide mail budget is spent by real accounts only: an unknown or
   // With budget the next request (after the 30 s throttle) is mailed and works.
   assert.equal(await w.codes.requestCode(p.email, b.challenge, t0 + 31_000, budget(true)), "sent");
   assert.deepEqual(await w.codes.verifyCode(p.email, w.codeFrom(p.email)!, b.challenge, t0 + 40_000), { ok: true, userId: p.user.id });
+});
+
+// ---- the per-client gate (server/code-gate.ts), through the real routes ----
+
+const SECRET = "edge-secret-for-the-test";
+/** A request through our edge: stamped, with the client's address. */
+const viaEdge = (ip: string, b: { cookie: string }, body: unknown, stamped = true) => ({
+  method: "POST",
+  headers: {
+    "content-type": "application/json",
+    cookie: b.cookie,
+    "cf-connecting-ip": ip,
+    ...(stamped ? { "x-foldrun-edge": SECRET } : {}),
+  },
+  body: JSON.stringify(body),
+});
+async function gateWorld() {
+  const w = await world();
+  const gate = await import("../server/code-gate.ts");
+  gate.resetCodeGate();
+  const from = (ip: string, email: string, code: string, b: { cookie: string }, stamped = true) =>
+    w.verify.POST(new w.NextRequest("http://x/v1/auth/login/code/verify", viaEdge(ip, b, { email, code }, stamped)));
+  return { w, gate, from };
+}
+const edgeEnv = <T>(f: () => Promise<T>) => {
+  const old = [process.env.FOLDRUN_TRUST_PROXY, process.env.FOLDRUN_EDGE_SECRET];
+  process.env.FOLDRUN_TRUST_PROXY = "cloudflare";
+  process.env.FOLDRUN_EDGE_SECRET = SECRET;
+  return f().finally(() => {
+    for (const [k, v] of [["FOLDRUN_TRUST_PROXY", old[0]], ["FOLDRUN_EDGE_SECRET", old[1]]] as const) v === undefined ? delete process.env[k] : (process.env[k] = v);
+  });
+};
+
+test("four failures from one client, across different addresses, block it: even the right code is then refused in the same words", opts, async () => {
+  await edgeEnv(async () => {
+    const { w, gate, from } = await gateWorld();
+    const p = await w.person("ip1");
+    const b = w.browser();
+    await w.ask(p.email, b);
+    const code = w.codeFrom(p.email)!;
+    const ip = "203.0.113.50";
+    for (const email of ["a@nowhere.test", "b@nowhere.test", "c@nowhere.test", "d@nowhere.test"]) {
+      const r = await from(ip, email, "000000", b);
+      assert.deepEqual([r.status, await r.json()], [401, { error: w.codes.CODE_FAILED }]);
+    }
+    assert.equal(await gate.codeGateBlocked(ip), true);
+    const refused = await from(ip, p.email, code, b);
+    assert.deepEqual([refused.status, await refused.json()], [401, { error: w.codes.CODE_FAILED }], "the right code, from the blocked client");
+    // Another client, the same code: it signs in (the block was the client's, not the code's).
+    const other = await from("203.0.113.51", p.email, code, b);
+    assert.equal(other.status, 200);
+  });
+});
+
+test("a blocked client is mailed nothing either, and gets the same 200", opts, async () => {
+  await edgeEnv(async () => {
+    const { w, gate, from } = await gateWorld();
+    const p = await w.person("ip2");
+    const b = w.browser();
+    const ip = "203.0.113.52";
+    for (let i = 0; i < gate.FAILURES; i++) await from(ip, `x${i}@nowhere.test`, "000000", b);
+    const before = mails.length;
+    const res = await w.request.POST(new w.NextRequest("http://x/v1/auth/login/code", viaEdge(ip, b, { email: p.email })));
+    await Promise.all([...w.request.inflight]);
+    assert.deepEqual([res.status, await res.json()], [200, { ok: true }]);
+    assert.equal(mails.length, before, "no mail for a blocked client");
+  });
+});
+
+test("IPv6 failures are counted by the /64: four different addresses inside one block it", opts, async () => {
+  await edgeEnv(async () => {
+    const { w, gate, from } = await gateWorld();
+    const b = w.browser();
+    const inside = ["2001:db8:aa:bb::1", "2001:db8:aa:bb:1:2:3:4", "2001:db8:aa:bb:ffff::9", "2001:db8:aa:bb::beef"];
+    for (const ip of inside) await from(ip, "nobody@nowhere.test", "000000", b);
+    assert.equal(await gate.codeGateBlocked(gate.gateKey("2001:db8:aa:bb::7")!), true, "any address in the /64 is blocked");
+    assert.equal(await gate.codeGateBlocked(gate.gateKey("2001:db8:aa:bc::7")!), false, "the next /64 is not");
+  });
+});
+
+test("a header the edge did not stamp is ignored: no stamp, no block, however many failures and whatever it claims", opts, async () => {
+  await edgeEnv(async () => {
+    const { w, gate, from } = await gateWorld();
+    const p = await w.person("ip3");
+    const b = w.browser();
+    await w.ask(p.email, b);
+    const code = w.codeFrom(p.email)!;
+    const claimed = "203.0.113.53";
+    for (let i = 0; i < 6; i++) await from(claimed, `y${i}@nowhere.test`, "000000", b, false);
+    assert.equal(await gate.codeGateBlocked(claimed), false, "nothing was counted under the claimed address");
+    const ok = await from(claimed, p.email, code, b, false);
+    assert.equal(ok.status, 200, "the right code still signs in");
+  });
+});
+
+test("no trustworthy address at all: the gate is off and the per-address limits stand alone, never one shared bucket", opts, async () => {
+  const { w, gate } = await gateWorld();
+  const p = await w.person("ip4");
+  const b = w.browser();
+  await w.ask(p.email, b);
+  const code = w.codeFrom(p.email)!;
+  for (let i = 0; i < 6; i++) await w.answer(`z${i}@nowhere.test`, "000000", b);
+  assert.equal(await gate.codeGateBlocked("unknown"), false);
+  assert.equal((await w.answer(p.email, code, b)).status, 200, "six strangers' failures do not block the next person");
 });

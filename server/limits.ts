@@ -7,6 +7,7 @@
 // 429, same header.
 
 import { timingSafeEqual } from "node:crypto";
+import net from "node:net";
 import { NextResponse, type NextRequest } from "next/server";
 import { rateLimit, rateLimitReset } from "@/platform/cache";
 import { refuseWith } from "./api.ts";
@@ -68,6 +69,21 @@ export function clientIp(req: Pick<NextRequest, "headers">): string | null {
     if (real) return real;
   }
   return null;
+}
+
+/**
+ * The caller's address, ONLY when the request provably came through our own
+ * Cloudflare zone: FOLDRUN_TRUST_PROXY=cloudflare, the x-foldrun-edge stamp
+ * equal to FOLDRUN_EDGE_SECRET, and a cf-connecting-ip that is an address.
+ * Unlike clientIp this never reads x-forwarded-for or x-real-ip (anything a
+ * client can send), so a caller that blocks on it cannot be made to block a
+ * stranger, nor escape by naming one (server/code-gate.ts).
+ */
+export function edgeClientIp(req: Pick<NextRequest, "headers">): string | null {
+  if (process.env.FOLDRUN_TRUST_PROXY !== "cloudflare") return null;
+  if (!sameSecret(req.headers.get("x-foldrun-edge"), process.env.FOLDRUN_EDGE_SECRET ?? "")) return null;
+  const ip = req.headers.get("cf-connecting-ip")?.trim() ?? "";
+  return net.isIP(ip) ? ip : null;
 }
 
 /** The edge stamp against the secret, in constant time for equal lengths. */

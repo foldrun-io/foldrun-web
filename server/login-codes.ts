@@ -11,15 +11,18 @@
 //   - six digits from crypto.randomInt, kept only as an HMAC under the install
 //     key over the person, the browser's challenge and the code (login_codes
 //     holds nothing a search over a million codes could open)
-//   - ten minutes, used once, one per 30 s per browser, at most eight live per
+//   - five minutes, used once, one per 30 s per browser, at most eight live per
 //     person; usable only once the mail was accepted
 //   - bound to a challenge cookie in the browser that asked: a guess from
 //     another browser is not a guess at this code, so it neither counts nor
 //     can succeed
-//   - five wrong guesses spend that code; 100 wrong in a row, across codes,
+//   - three wrong guesses spend that code; 100 wrong in a row, across codes,
 //     lock code sign-in for fifteen minutes (users.code_failed_run /
 //     code_locked_until, written under a lock on the user's row, so the count
 //     holds whichever pod the guesses hit). The password path never reads it.
+//   - beside both, one client (server/code-gate.ts): four failed attempts in
+//     fifteen minutes, across every code and address, block it from code
+//     sign-in for five. Only a client the edge vouches for is counted.
 //   - one answer, in words and in time, whether or not the address has an
 //     account, a verified address, a code, or a lock
 //
@@ -35,11 +38,11 @@ import { installKey } from "../../foldrun-core/src/webhook.ts";
 import { platformSend } from "@/server/email";
 
 /** How long an emailed code works. */
-export const CODE_MS = 10 * 60_000;
+export const CODE_MS = 5 * 60_000;
 /** One code per browser per this long. */
 export const RESEND_MS = 30_000;
-/** Wrong guesses one code survives; the fifth spends it. */
-export const MAX_WRONG = 5;
+/** Wrong guesses one code survives; the third spends it. */
+export const MAX_WRONG = 3;
 /** Wrong guesses in a row, across codes, that lock code sign-in (NIST 800-63B's ceiling). */
 export const LOCK_AFTER = 100;
 export const LOCK_MS = 15 * 60_000;
@@ -129,7 +132,7 @@ async function mailCode(tenant: string, to: string, code: string): Promise<boole
     to,
     "Your foldrun sign-in code",
     `Your foldrun sign-in code is ${code}\n\n` +
-      `It works for 10 minutes, once, in the browser where you asked for it.\n` +
+      `It works for 5 minutes, once, in the browser where you asked for it.\n` +
       `If you did not ask for it, ignore this email: nobody can sign in with it without being in that browser.\n`,
   );
   if (!res.ok) opsError("auth.login_code_not_sent", new Error(res.error));
@@ -168,11 +171,16 @@ export type Verdict =
 export async function verifyCode(email: string, code: string, challenge: string, now = Date.now()): Promise<Verdict> {
   const started = performance.now();
   const v = await checkCode(email, code, challenge, now);
-  if (!v.ok) {
-    const wait = failFloorMs() - (performance.now() - started);
-    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-  }
+  if (!v.ok) await holdFloor(started);
   return v;
+}
+
+/** Wait out the rest of the refusal floor, measured from `started`
+ *  (performance.now()). The route uses it for a client the gate has blocked,
+ *  which is refused before any lookup and must still not answer faster. */
+export async function holdFloor(started: number): Promise<void> {
+  const wait = failFloorMs() - (performance.now() - started);
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
 }
 
 /** Every refusal takes at least this long (ms), whatever it cost to reach:
