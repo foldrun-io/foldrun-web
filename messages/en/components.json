@@ -786,7 +786,9 @@
     "thisAccountHasNoModelKey": "This account has no model key yet, so the run will stop at its first step — nothing is charged.",
     "waitingForYou": "waiting for you",
     "whatNext": "What next",
-    "yourFirstRunFinished": "Your first run finished"
+    "yourFirstRunFinished": "Your first run finished",
+    "thisAccountHasNoPlan": "This account has no plan yet, so the run will stop at its first step — nothing is charged.",
+    "getAPlan": "Get a plan"
   },
   "flow-ai-draft": {
     "aProposalOnlyNothingIsWritten": "A proposal only — nothing is written until you save it.",
@@ -1285,7 +1287,9 @@
     "someoneElseWhoCanReadThe": "Someone else who can read the runs and approve the steps that wait for a person.",
     "startWith": "Start with",
     "writeOrDeployAnAgent": "Write or deploy an agent",
-    "yourModel": "Your model"
+    "yourModel": "Your model",
+    "getAPlan": "Get a plan",
+    "thisPlatformRunsEveryModelCall": "This platform runs every model call on its own models, so this account needs a plan to run."
   },
   "operator-panel": {
     "answer": "Answer",
@@ -1967,5 +1971,11 @@
     "runtimes": "Runtimes",
     "theLastBuildFailedARun": "the last build failed — a run using it will fail the same way",
     "waitingForTheWorkerToBuild": "waiting for the worker to build it"
+  },
+  "model-key-status": {
+    "noKey": "No key",
+    "runsOnThisAccountAreRefused": "Runs on this account are refused until you add an API key.",
+    "noPlan": "No plan",
+    "thisAccountNeedsAPlanRuns": "This account needs a plan: runs are refused until it has one."
   }
 }

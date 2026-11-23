@@ -83,3 +83,44 @@ test("off: a deploy whose agent names its own provider: is refused, with the fil
   const body = await res.json();
   assert.ok(body.issues.some((i: { where: string; message: string }) => /^agents\/w\/agent\.md:4$/.test(i.where) && /config\/own-model-key/.test(i.message)), JSON.stringify(body.issues));
 });
+
+// An account with no plan and no way to bring a key (the t-nosub account on dev): every place that told it
+// to add an API key says it needs a plan instead, and links to Billing → Plans.
+test("off, no plan: the dashboard says the account needs a plan, never to add an API key", async () => {
+  const { noSupplyStatus } = await import("../components/model-key-status.ts");
+  const off = noSupplyStatus(false);
+  assert.equal(off.label, "No plan");
+  assert.match(off.text, /needs a plan/);
+  assert.doesNotMatch(`${off.label} ${off.text}`, /API key|No key/);
+  const on = noSupplyStatus(true);
+  assert.equal(on.label, "No key");
+  assert.match(on.text, /add an API key/);
+  // The card links to Billing → Plans (a link inside a message).
+  const settings = JSON.parse(fs.readFileSync(new URL("../messages/en/settings.json", import.meta.url), "utf8"));
+  assert.match(settings["model-key"].pickAPlan, /<link>Billing → Plans<\/link>/);
+  const src = fs.readFileSync(new URL("../app/dashboard/settings/model-key.tsx", import.meta.url), "utf8");
+  assert.match(src, /!ownKeys && model\.runsOn === "none"[\s\S]*?href="\/dashboard\/billing\/plans"/);
+  // And the banner on every page.
+  const layout = fs.readFileSync(new URL("../app/dashboard/layout.tsx", import.meta.url), "utf8");
+  assert.match(layout, /needsPlan = noModelKey && !ownModelKeysOn\(\)/);
+  assert.match(layout, /\{needsPlan && \([\s\S]*?href="\/dashboard\/billing\/plans"|\{needsPlan && \([\s\S]*?\/dashboard\/billing\/plans/);
+});
+
+test("off, no plan: the getting-started step is Get a plan, linking to Billing → Plans", async () => {
+  const { onboardingFacts } = await import("../server/onboarding.ts");
+  const { onboardingSteps } = await import("../components/onboarding-model.ts");
+  const facts = await onboardingFacts("acme");
+  assert.deepEqual(facts.model, { done: false, needsPlan: true });
+  const step = onboardingSteps(facts).steps.find((s) => s.id === "model")!;
+  assert.equal(step.href, "/dashboard/billing/plans");
+  assert.doesNotMatch(`${step.title} ${step.why}`, /key/i);
+  assert.equal(step.cli, undefined, "no CLI command to add a key");
+  // Own keys on: the old step.
+  process.env.FOLDRUN_BYOK = "1";
+  try {
+    const on = onboardingSteps(await onboardingFacts("acme")).steps.find((s) => s.id === "model")!;
+    assert.match(on.title, /model key/i);
+  } finally {
+    delete process.env.FOLDRUN_BYOK;
+  }
+});

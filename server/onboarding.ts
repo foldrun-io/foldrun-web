@@ -12,6 +12,7 @@ import { listSecrets } from "@/lib/secrets";
 import { listRevisions } from "@/lib/history";
 import { deployedCommit } from "@/lib/deploy";
 import { platform } from "@/lib/platform";
+import { ownModelKeysOn } from "@/platform/model-choice";
 import { paymentStep } from "@/server/billing-notices";
 import { onboardingSteps, type Onboarding, type OnboardingFacts } from "@/components/onboarding-model";
 import { listApiKeys } from "./auth.ts";
@@ -60,7 +61,7 @@ export async function onboardingFacts(tenant: string, scope: string[] | null = n
   return {
     // An account that has never had to bring a key (the operator's, on the
     // platform's credential) is not asked for one.
-    model: supply === "platform" ? null : { done: supply !== "none" },
+    model: supply === "platform" ? null : { done: supply !== "none", ...(supply === "none" && !ownModelKeysOn() ? { needsPlan: true } : {}) },
     workspaces,
     agentAuthored: authored,
     runs,

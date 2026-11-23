@@ -55,6 +55,8 @@ export function WelcomeFlow(p: WelcomeProps) {
   const router = useRouter();
   const t = p.tenant !== "default" ? `tenant=${encodeURIComponent(p.tenant)}` : "";
   const qs = t ? `?${t}` : "";
+  // The model step wants a plan, not a key, where own keys are off (onboarding-model.ts).
+  const needsPlanStep = p.onboarding.steps.some((s) => s.id === "model" && !s.done && s.href.startsWith("/dashboard/billing"));
   const stepHref = (s: WelcomeStepId) => `/dashboard/welcome?step=${s}${t ? `&${t}` : ""}`;
   const go = (s: WelcomeStepId | null) => router.push(s ? stepHref(s) : `/dashboard${qs}`, { scroll: true });
   const cur = p.flow.current;
@@ -130,7 +132,8 @@ export function WelcomeFlow(p: WelcomeProps) {
                 tenant={p.tenant}
                 target={p.firstRun}
                 noModel={p.onboarding.steps.some((s) => s.id === "model" && !s.done)}
-                modelHref={p.flow.steps.some((s) => s.id === "model") ? stepHref("model") : null}
+                needsPlan={needsPlanStep}
+                modelHref={needsPlanStep ? "/dashboard/billing/plans" : p.flow.steps.some((s) => s.id === "model") ? stepHref("model") : null}
                 onContinue={next}
               />
             ) : p.emptyWorkspace ? (

@@ -14,7 +14,10 @@
     "runsArePaused": "Runs are paused",
     "runsOnThisAccountAreRefused": "Runs on this account are refused until you add an API key from your model provider.",
     "runsWillNotStartUntilIt": "{reason}. Runs will not start until it is restored; everything here stays readable. Reply to the email you received, or write to hello@foldrun.io.",
-    "thisAccountIsSuspended": "This account is suspended"
+    "thisAccountIsSuspended": "This account is suspended",
+    "noPlan": "No plan",
+    "runsOnThisAccountAreRefusedNoPlan": "Runs on this account are refused until it has a plan. Bringing your own model key is turned off on this platform.",
+    "seePlans": "See plans"
   },
   "manage": {
     "delete": "Delete"

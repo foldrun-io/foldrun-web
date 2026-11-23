@@ -34,7 +34,7 @@ import { StatusBanner } from "@/components/status-banner";
 import { statusPageUrl } from "@/server/status";
 import { AssistantDock } from "@/components/assistant";
 import { accountModelSupply } from "@/server/account-model";
-import { onSubscriptionNow } from "@/platform/model-choice";
+import { onSubscriptionNow, ownModelKeysOn } from "@/platform/model-choice";
 import { can } from "@/platform/permissions";
 
 
@@ -72,6 +72,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // every page until it has one, and not dismissable: nothing else works.
   // A plan bought a moment ago is read now, not at the next poll.
   const noModelKey = accountModelSupply(tenant) === "none" && !(await onSubscriptionNow(tenant));
+  // With own keys off there is no key to add: the account needs a plan.
+  const needsPlan = noModelKey && !ownModelKeysOn();
 
   // The version this page was rendered with: the sidebar shows it, and the
   // update notice compares /v1/version against it.
@@ -124,7 +126,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
         {/* An incident or maintenance the operator posted: on every page
             while it is live, gone when it is resolved. */}
         <StatusBanner statusPage={statusPageUrl()} />
-        {noModelKey && (
+        {needsPlan && (
+          <Banner tone="warning" title={$t("dashboard.layout.noPlan")} action={<Link href="/dashboard/billing/plans">{$t("dashboard.layout.seePlans")}</Link>}>
+            {$t("dashboard.layout.runsOnThisAccountAreRefusedNoPlan")}
+          </Banner>
+        )}
+        {noModelKey && !needsPlan && (
           <Banner tone="warning" title={$t("dashboard.layout.noModelKey")} action={can(role, "secrets:write") ? <Link href="/dashboard/settings#provider">{$t("dashboard.layout.addAKey")}</Link> : undefined}>
             {$t("dashboard.layout.runsOnThisAccountAreRefused")}
             {!can(role, "secrets:write") && <span className="ml-1 opacity-80">{$t("dashboard.layout.onlyAnAdminCanAddIt")}</span>}

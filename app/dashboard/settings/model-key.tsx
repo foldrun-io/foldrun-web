@@ -10,6 +10,7 @@
 import { $rich, $t } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { buttonVariants } from "@foldrun/ui/react/button";
 import { Chip, Field, SettingsCard } from "@foldrun/ui/react/page";
 import { Input } from "@foldrun/ui/react/input";
@@ -17,6 +18,7 @@ import { Select } from "@foldrun/ui/react/select";
 import { Tooltip } from "@foldrun/ui/react/tooltip";
 import { CopyButton } from "@foldrun/ui/react/copy-block";
 import type { AccountModel } from "@/server/account-model";
+import { noSupplyStatus } from "@/components/model-key-status";
 import type { FoldrunModelsView } from "@/platform/model-choice";
 
 /** ownKeys: may an account bring its own key on this platform at all
@@ -101,7 +103,7 @@ export function ModelKey({
       ? { label: $t("settings.model-key.yourOwnKey"), variant: "good" as const, text: `${model.provider ?? "custom"} ${model.keyHint ?? ""} · ${model.baseUrl ?? ""}` }
       : model.runsOn === "platform"
         ? { label: $t("settings.model-key.platformKey"), variant: "warn" as const, text: $t("settings.model-key.thisAccountRunsOnThePlatform") }
-        : { label: $t("settings.model-key.noKey"), variant: "bad" as const, text: $t("settings.model-key.runsOnThisAccountAreRefused") };
+        : { ...noSupplyStatus(ownKeys), variant: "bad" as const };
 
   return (
     <SettingsCard
@@ -115,6 +117,9 @@ export function ModelKey({
         <span className="min-w-0 break-all font-mono text-xs text-fg-muted">{status.text}</span>
       </div>
       {!ownKeys && <p className="mt-3 text-sm text-fg-muted">{$t("settings.model-key.ownKeysOff")}</p>}
+      {!ownKeys && model.runsOn === "none" && (
+        <p className="mt-2 text-sm text-fg-muted">{$rich("settings.model-key.pickAPlan", { link: (chunks) => <Link href="/dashboard/billing/plans" className="underline underline-offset-2">{chunks}</Link> })}</p>
+      )}
       {ownKeys && fm.offered && (
         <div className="mt-3 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label={$t("settings.model-key.whatThisAccountRunsOn")}>
           {(
