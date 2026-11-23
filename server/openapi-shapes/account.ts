@@ -125,6 +125,26 @@ const FoldrunModels = obj({
   prices: arr(obj({ provider: str(), model: str(), inputPerMTok: num, outputPerMTok: num, cacheReadPerMTok: nullable(num), cacheWritePerMTok: nullable(num) }), "USD per million tokens, as the account pays"),
   dailyCapUsd: { ...nullable(num), description: "the day's cap (UTC) in what the account pays; null: none" },
   spentTodayUsd: { ...num, description: "spent today (UTC) on foldrun's models, in what the account pays" },
+  catalog: arr(
+    obj({
+      id: str("provider/model — what a model: line, /model or a gateway call names to run on it"),
+      provider: str(), providerTitle: str(), model: str("the id the provider knows"),
+      inputPerMTok: num, outputPerMTok: num, cacheReadPerMTok: nullable(num), cacheWritePerMTok: nullable(num),
+      available: { ...bool, description: "its provider can be had on this platform now" },
+      covered: { ...bool, description: "this account's subscription pays for it now on its cloud steps: a live plan, its provider in plans.auto_providers (or Claude on the subscription's logins), and not a model the plan leaves out (Fable on Pro); the gateway still decides each call" },
+      api: {
+        type: "object",
+        description: "the same through foldrun's API with an account key (foldrun code on a computer, your own programs): the provider's key, and plan cover by plans.auto_providers",
+        properties: { available: bool, covered: bool },
+      },
+    }),
+    "every model behind foldrun's proxy (23 Nov 2026), from the price list; USD per million tokens, as the account pays",
+  ),
+  codeTiers: {
+    type: "object",
+    additionalProperties: obj({ id: str(), provider: str(), model: str() }),
+    description: "fast | default | max → the catalogue model foldrun code's tier word runs on (models.code.tiers); a tier left unset is absent",
+  },
 });
 const AccountModelView = {
   ...AccountModel,

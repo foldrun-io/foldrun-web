@@ -43,7 +43,9 @@ export function describeAccountModel(tenant: string): AccountModel {
   // Own keys off (models.byok): what the runner does, which never reads the
   // stored key — the chosen provider or the default one (core modelSupply).
   const ownOn = ownModelKeysOn();
-  const forced = !ownOn && !chose && !platformKey ? platform.modelSupply?.(tenant) : undefined;
+  // Own keys on but none stored: the runner falls to the same default
+  // provider (Codex review, 23 Nov 2026).
+  const forced = (!ownOn || !key) && !chose && !platformKey ? platform.modelSupply?.(tenant) : undefined;
   const forcedProvider = forced?.kind === "foldrun" && forced.via !== "login" ? forced.provider : null;
   const foldrun = chose || forcedProvider !== null;
   return {
