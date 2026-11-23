@@ -25,7 +25,7 @@ import { TooltipProvider } from "@foldrun/ui/react/tooltip";
 import { platform } from "@/lib/platform";
 import { EditionProvider } from "@/components/edition";
 import { adminState } from "@/platform/admin";
-import { billing } from "@/platform/billing";
+import { planBadge } from "@/server/billing-notices";
 import { VerifyBanner } from "@/components/verify-banner";
 import { avatarUrl } from "@/platform/avatars";
 import { VersionProvider, UpdateToast } from "@/components/version";
@@ -64,9 +64,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // Every edition — pausing is not a hosted feature.
   const accountPause = (await adminState(tenant)).paused?.account;
   const accountPaused = accountPause && !accountPause.resumedAt ? accountPause : null;
-  // "Metered" only when billing is enforced: a hosted install with billing
-  // off (dev, staging) meters nothing, and the badge said otherwise (FOL-28).
-  const plan = edition === "hosted" ? (billing().enabled() ? $t("dashboard.layout.metered") : $t("dashboard.layout.free")) : null;
+  // The account's plan, or "Choose a plan" while it has none (the hosted
+  // build says it; this one has no plans). Never "Metered": that named a
+  // gate, not what the account bought.
+  const plan = edition === "hosted" ? await planBadge(tenant) : null;
   // An account with no model key has every run refused (FOL-15). Said on
   // every page until it has one, and not dismissable: nothing else works.
   // A plan bought a moment ago is read now, not at the next poll.

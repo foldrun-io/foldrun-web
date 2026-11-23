@@ -14,3 +14,9 @@ export async function walletNotice(_tenant: string, _qs: string): Promise<{ bala
 export async function paymentStep(_tenant: string): Promise<{ done: boolean } | null> {
   return null;
 }
+
+/** The plan badge beside the account's name: its plan, or an invitation to
+ *  choose one; null when there is nothing to say. */
+export async function planBadge(_tenant: string): Promise<string | null> {
+  return null;
+}
