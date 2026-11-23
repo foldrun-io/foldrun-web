@@ -234,7 +234,7 @@ export const SHAPES: Record<string, Shape> = {
     }),
   },
   "GET /api/version": {
-    // Without a credential only `version`, `api` and `urls` are sent; the rest needs a key, a session or the scraper's token.
+    // Without a credential only `version`, `api`, `urls` and `paths` are sent; the rest needs a key, a session or the scraper's token.
     response: obj({
       version: str("vYYYY.MM.DD.N, or dev"), released_at: nstr(), build: nstr(), api: str("the current API version, YYYY-MM-DD"),
       components: Components,
@@ -244,6 +244,11 @@ export const SHAPES: Record<string, Shape> = {
       urls: obj({
         api: { ...nstr(), description: "where programs call — keys, the CLI, Claude Code, for the platform and models (FOLDRUN_PUBLIC_API_URL); null: the address this was asked at answers them" },
         app: { ...nstr(), description: "the dashboard's address, where people sign in (FOLDRUN_PUBLIC_URL); null when unset" },
+      }),
+      paths: obj({
+        platform: str('"/v1" where the API host maps the platform under /v1 (FOLDRUN_API_V1), else "/api"'),
+        models: { ...nstr(), description: '"/v1" on the API host (messages, count_tokens, models, usage); null when this install has no API host' },
+        renames: { type: "object", additionalProperties: { type: "string" }, description: "the /api paths whose /v1 name differs, /api prefix → /v1 prefix (e.g. /api/usage → /v1/account/usage); empty while platform is /api" },
       }),
     }),
   },

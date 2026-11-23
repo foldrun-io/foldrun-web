@@ -21,6 +21,7 @@ import { errorBody } from "@/server/error-shape";
 import { versionHeaders } from "@/server/release";
 import { storeOrigin } from "@/lib/storage";
 import { unsafeApiPath } from "@/server/raw-path";
+import { V1_DIRECT_REFUSAL } from "@/server/v1-path";
 
 /** X-Foldrun-Version (and X-Foldrun-Api, X-Foldrun-Cli) on a response, so any
  *  client — the CLI's update notice, a script, a support ticket's curl -i —
@@ -190,6 +191,11 @@ export async function proxy(incoming: NextRequest) {
   let req = incoming;
   const nonce = makeNonce();
   if (/^\/a2a(\/|$)/.test(req.nextUrl.pathname)) return harden(stamped(await a2aIngress(req)), req, nonce);
+  // The platform under /v1 is the API host's: its nginx maps /v1/<route> to
+  // /api/<route> before this app sees it (server/v1-path.ts), so every check
+  // and handler reads one spelling. A /v1 path that reaches the app as it is
+  // came some other way — the dashboard's address, or no nginx at all.
+  if (/^\/v1(\/|$)/.test(req.nextUrl.pathname)) return harden(stamped(await proxyRefusal(req, V1_DIRECT_REFUSAL, 404)), req, nonce);
   if (!req.nextUrl.pathname.startsWith("/api/") && !/^\/dashboard(\/|$)/.test(req.nextUrl.pathname)) {
     // Every other page (sign-in, signup, reset, the home page): no session
     // logic, but the same security headers as the dashboard. Until 27 Oct

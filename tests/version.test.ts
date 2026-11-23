@@ -233,12 +233,27 @@ test("urls: the install's API and dashboard addresses, open to anyone, null wher
     delete process.env.FOLDRUN_PUBLIC_URL;
     const none = await (await versionGET(new NextRequest("http://localhost/api/version"))).json();
     assert.deepEqual(none.urls, { api: null, app: null }, "one address for everything: the CLI stays where it signed in");
+    process.env.FOLDRUN_API_V1 = "1";
+    try {
+      const alone = await (await versionGET(new NextRequest("http://localhost/api/version"))).json();
+      assert.deepEqual(alone.paths, { platform: "/api", models: null, renames: {} }, "no API host: no /v1 to map, no models here, whatever the flag says");
+    } finally {
+      delete process.env.FOLDRUN_API_V1;
+    }
 
     process.env.FOLDRUN_PUBLIC_API_URL = "https://api.foldrun.dev/";
     process.env.FOLDRUN_PUBLIC_URL = "https://dev.foldrun.io";
     const open = await (await versionGET(new NextRequest("http://localhost/api/version"))).json();
-    assert.deepEqual(Object.keys(open).sort(), ["api", "urls", "version"], "a stranger still gets only the name, plus the addresses");
+    assert.deepEqual(Object.keys(open).sort(), ["api", "paths", "urls", "version"], "a stranger still gets only the name, plus the addresses");
     assert.deepEqual(open.urls, { api: "https://api.foldrun.dev", app: "https://dev.foldrun.io" });
+    assert.deepEqual(open.paths, { platform: "/api", models: "/v1", renames: {} }, "an API host whose nginx does not say it maps /v1: the platform stays at /api");
+    process.env.FOLDRUN_API_V1 = "1";
+    try {
+      const v1 = await (await versionGET(new NextRequest("http://localhost/api/version"))).json();
+      assert.deepEqual(v1.paths, { platform: "/v1", models: "/v1", renames: { "/api/usage": "/v1/account/usage" } }, "the platform under /v1 beside the models (23 Nov 2026)");
+    } finally {
+      delete process.env.FOLDRUN_API_V1;
+    }
     const full = await (await versionGET(authed())).json();
     assert.deepEqual(full.urls, open.urls);
 
