@@ -1,7 +1,7 @@
 // Gates and questions waiting on a person, across the workspaces a caller
-// may see — what GET /api/approvals answers and what the inbox lists. One
+// may see — what GET /v1/approvals answers and what the inbox lists. One
 // function each, so the banner, the approvals list and the inbox never
-// disagree about what is waiting (see app/api/approvals/route.ts for why the
+// disagree about what is waiting (see app/v1/approvals/route.ts for why the
 // unit is the waiting step, not the run).
 
 import { listAllRunSummaries } from "@/lib/store";

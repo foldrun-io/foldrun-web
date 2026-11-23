@@ -1,7 +1,7 @@
 // The account Observe page's analysis, for one caller: the window and the one
 // before it, why runs went wrong, which desk is worst, each day, and the
 // agents and tools to watch. One function for the page
-// (app/dashboard/observe/page.tsx) and GET /api/observe (`foldrun observe`),
+// (app/dashboard/observe/page.tsx) and GET /v1/observe (`foldrun observe`),
 // so the dashboard and the CLI cannot disagree about what a window held.
 //
 // The shaping rules are components/account-observe-model.ts; this only
@@ -95,7 +95,7 @@ export const runRef = (r: RunLite) => ({
   failure: r.failure,
 });
 
-/** GET /api/observe's answer: the analysis, each run it names cut to a
+/** GET /v1/observe's answer: the analysis, each run it names cut to a
  *  runRef and each agent to the fields the page reads. */
 export function observationJson(a: AccountObservation) {
   return {

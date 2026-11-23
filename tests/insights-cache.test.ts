@@ -1,4 +1,4 @@
-// GET /api/insights and the Observe page read whole run records — up to 300
+// GET /v1/insights and the Observe page read whole run records — up to 300
 // a workspace — so the answer is remembered for 30 s per account, scope,
 // window and workspace (server/insights.ts). 30 Oct 2026.
 //
@@ -33,7 +33,7 @@ test("account, scope, window and workspace each have their own entry — never a
 });
 
 test("the route and the Observe page both read through the cache", () => {
-  for (const f of ["../app/api/insights/route.ts", "../app/dashboard/observe/page.tsx"]) {
+  for (const f of ["../app/v1/insights/route.ts", "../app/dashboard/observe/page.tsx"]) {
     const src = fs.readFileSync(new URL(f, import.meta.url), "utf8");
     assert.match(src, /cachedAccountInsights\(/, f);
     assert.doesNotMatch(src, /\baccountInsights\(/, `${f} reads uncached`);

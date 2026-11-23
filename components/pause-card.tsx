@@ -79,19 +79,19 @@ export function PauseCard({
       const res =
         method === "POST"
           ? scope === "account"
-            ? await fetch("/api/account/pause", {
+            ? await fetch("/v1/account/pause", {
                 method: "POST",
                 headers,
                 body,
               })
-            : await fetch(`/api/workspaces/${ws}/pause`, {
+            : await fetch(`/v1/workspaces/${ws}/pause`, {
                 method: "POST",
                 headers,
                 body,
               })
           : scope === "account"
-            ? await fetch("/api/account/pause", { method: "DELETE", headers })
-            : await fetch(`/api/workspaces/${ws}/pause`, {
+            ? await fetch("/v1/account/pause", { method: "DELETE", headers })
+            : await fetch(`/v1/workspaces/${ws}/pause`, {
                 method: "DELETE",
                 headers,
               });

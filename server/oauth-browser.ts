@@ -20,7 +20,7 @@ const TTL_MS = 10 * 60 * 1000;
 export const bindingCookie = (state: string) => `foldrun_oauth_${state.slice(0, 16)}`;
 
 /** The redirect URI every consent uses (FOLDRUN_OAUTH_CALLBACK_URL pins it). */
-export const callbackUri = (req: NextRequest) => process.env.FOLDRUN_OAUTH_CALLBACK_URL || `${publicOrigin(req)}/api/oauth/callback`;
+export const callbackUri = (req: NextRequest) => process.env.FOLDRUN_OAUTH_CALLBACK_URL || `${publicOrigin(req)}/v1/oauth/callback`;
 
 /** A person in a browser, who can be bound — or a key, who gets a hand-off.
  *  Dev mode (FOLDRUN_DEV_NO_AUTH) is the person at the keyboard. */
@@ -51,7 +51,7 @@ export async function startBound(
   const res = NextResponse.json({ ok: true, url, ...extra }, { headers: { [NO_REPLAY_HEADER]: "1" } });
   res.cookies.set(bindingCookie(nonce), binding.cookie, {
     ...sessionCookieOptions(req, new Date(Date.now() + TTL_MS)),
-    path: "/api/oauth/callback",
+    path: "/v1/oauth/callback",
   });
   return res;
 }

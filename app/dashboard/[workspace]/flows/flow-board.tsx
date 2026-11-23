@@ -167,7 +167,7 @@ export function FlowBoard({
     seen.current = raw;
   }, [raw]);
   const write = async (method: "PATCH" | "DELETE", body: Record<string, unknown>) => {
-    const r = await flowWrite({ url: `/api/workspaces/${workspace}/flows/${flow}`, method, tenant, body, expect: seen.current });
+    const r = await flowWrite({ url: `/v1/workspaces/${workspace}/flows/${flow}`, method, tenant, body, expect: seen.current });
     if (!r.ok) throw new Error(r.error);
     if (r.text !== undefined) seen.current = r.text;
   };
@@ -212,7 +212,7 @@ export function FlowBoard({
       return;
     setStatus($t("workspace.flows-flow-board.starting"));
     try {
-      const res = await fetch(`/api/workspaces/${workspace}/flows/${flow}/run`, {
+      const res = await fetch(`/v1/workspaces/${workspace}/flows/${flow}/run`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
         body: JSON.stringify({ from: stepNo }),

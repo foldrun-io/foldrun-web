@@ -12,9 +12,9 @@ process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-operat
 delete process.env.FOLDRUN_DEV_NO_AUTH;
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
-const answerRoute = await import("../app/api/workspaces/[workspace]/runs/[runId]/answer/route.ts");
-const messageRoute = await import("../app/api/workspaces/[workspace]/runs/[runId]/message/route.ts");
-const approvalsRoute = await import("../app/api/approvals/route.ts");
+const answerRoute = await import("../app/v1/workspaces/[workspace]/runs/[runId]/answer/route.ts");
+const messageRoute = await import("../app/v1/workspaces/[workspace]/runs/[runId]/message/route.ts");
+const approvalsRoute = await import("../app/v1/approvals/route.ts");
 const { writeRun } = await import("../../foldrun-core/src/store.ts");
 const { closeQuestion, postQuestion, pendingMessages, resetOperatorMemory } = await import("../../foldrun-platform/src/operator-store.ts");
 
@@ -46,15 +46,15 @@ test("answer: an editor answers once; a second answer is 409 with the one that s
   resetOperatorMemory();
   run("run-q", "running");
   const q = await postQuestion("acme", "run-q", { question: "9 or 10?", options: ["9", "10"] });
-  const denied = await answerRoute.POST(req("/api/workspaces/desk/runs/run-q/answer", viewer, { question: q.id, answer: "9" }), ctx("run-q"));
+  const denied = await answerRoute.POST(req("/v1/workspaces/desk/runs/run-q/answer", viewer, { question: q.id, answer: "9" }), ctx("run-q"));
   assert.equal(denied.status, 403);
-  const ok = await answerRoute.POST(req("/api/workspaces/desk/runs/run-q/answer", editor, { question: q.id, answer: "10" }), ctx("run-q"));
+  const ok = await answerRoute.POST(req("/v1/workspaces/desk/runs/run-q/answer", editor, { question: q.id, answer: "10" }), ctx("run-q"));
   assert.equal(ok.status, 200);
   const body = await ok.json();
   assert.equal(body.ok, true);
   assert.equal(body.answer, "10");
   assert.match(String(body.by), /key|ed@acme/, "attributed to the caller");
-  const again = await answerRoute.POST(req("/api/workspaces/desk/runs/run-q/answer", editor, { question: q.id, answer: "9" }), ctx("run-q"));
+  const again = await answerRoute.POST(req("/v1/workspaces/desk/runs/run-q/answer", editor, { question: q.id, answer: "9" }), ctx("run-q"));
   assert.equal(again.status, 409);
   assert.equal((await again.json()).answer, "10");
 });
@@ -64,11 +64,11 @@ test("answer: a question of another run, or none, is 404; a bad body is 400", as
   run("run-a", "running");
   run("run-b", "running");
   const q = await postQuestion("acme", "run-a", { question: "which?" });
-  const wrongRun = await answerRoute.POST(req("/api/workspaces/desk/runs/run-b/answer", editor, { question: q.id, answer: "x" }), ctx("run-b"));
+  const wrongRun = await answerRoute.POST(req("/v1/workspaces/desk/runs/run-b/answer", editor, { question: q.id, answer: "x" }), ctx("run-b"));
   assert.equal(wrongRun.status, 404);
-  const empty = await answerRoute.POST(req("/api/workspaces/desk/runs/run-a/answer", editor, { question: q.id }), ctx("run-a"));
+  const empty = await answerRoute.POST(req("/v1/workspaces/desk/runs/run-a/answer", editor, { question: q.id }), ctx("run-a"));
   assert.equal(empty.status, 400);
-  const noRun = await answerRoute.POST(req("/api/workspaces/desk/runs/nope/answer", editor, { question: q.id, answer: "x" }), ctx("nope"));
+  const noRun = await answerRoute.POST(req("/v1/workspaces/desk/runs/nope/answer", editor, { question: q.id, answer: "x" }), ctx("nope"));
   assert.equal(noRun.status, 404);
 });
 
@@ -76,14 +76,14 @@ test("message: a running run takes it into its inbox; a finished one is 409; too
   resetOperatorMemory();
   run("run-live", "running");
   run("run-done", "completed");
-  const ok = await messageRoute.POST(req("/api/workspaces/desk/runs/run-live/message", editor, { text: "use 2025 figures" }), ctx("run-live"));
+  const ok = await messageRoute.POST(req("/v1/workspaces/desk/runs/run-live/message", editor, { text: "use 2025 figures" }), ctx("run-live"));
   assert.equal(ok.status, 200);
   assert.equal((await pendingMessages("acme", "run-live"))[0].text, "use 2025 figures");
-  const done = await messageRoute.POST(req("/api/workspaces/desk/runs/run-done/message", editor, { text: "hi" }), ctx("run-done"));
+  const done = await messageRoute.POST(req("/v1/workspaces/desk/runs/run-done/message", editor, { text: "hi" }), ctx("run-done"));
   assert.equal(done.status, 409);
-  const long = await messageRoute.POST(req("/api/workspaces/desk/runs/run-live/message", editor, { text: "x".repeat(5000) }), ctx("run-live"));
+  const long = await messageRoute.POST(req("/v1/workspaces/desk/runs/run-live/message", editor, { text: "x".repeat(5000) }), ctx("run-live"));
   assert.equal(long.status, 413);
-  const denied = await messageRoute.POST(req("/api/workspaces/desk/runs/run-live/message", viewer, { text: "hi" }), ctx("run-live"));
+  const denied = await messageRoute.POST(req("/v1/workspaces/desk/runs/run-live/message", viewer, { text: "hi" }), ctx("run-live"));
   assert.equal(denied.status, 403);
 });
 
@@ -93,7 +93,7 @@ test("approvals lists the open questions of running runs, not of finished ones",
   run("run-over", "completed");
   await postQuestion("acme", "run-open", { question: "go?", options: ["yes", "no"] });
   await postQuestion("acme", "run-over", { question: "stale?" });
-  const res = await approvalsRoute.GET(new NextRequest("http://x/api/approvals", { headers: { authorization: `Bearer ${editor}` } }));
+  const res = await approvalsRoute.GET(new NextRequest("http://x/v1/approvals", { headers: { authorization: `Bearer ${editor}` } }));
   assert.equal(res.status, 200);
   const body = await res.json();
   assert.equal(body.questions.length, 1);
@@ -112,20 +112,20 @@ const runWith = (id: string, steps: ReturnType<typeof step>[]) =>
 test("message: names its step; with one running step that one; with two and none named, 400 listing them", async () => {
   resetOperatorMemory();
   runWith("run-par", [step("writer", "running"), step("checker", "running"), step("done", "completed")]);
-  const none = await messageRoute.POST(req("/api/workspaces/desk/runs/run-par/message", editor, { text: "hi" }), ctx("run-par"));
+  const none = await messageRoute.POST(req("/v1/workspaces/desk/runs/run-par/message", editor, { text: "hi" }), ctx("run-par"));
   assert.equal(none.status, 400);
   const body = await none.json();
   assert.deepEqual(body.running.map((r: { step: number }) => r.step), [0, 1]);
-  const ok = await messageRoute.POST(req("/api/workspaces/desk/runs/run-par/message", editor, { text: "for the checker", step: 1 }), ctx("run-par"));
+  const ok = await messageRoute.POST(req("/v1/workspaces/desk/runs/run-par/message", editor, { text: "for the checker", step: 1 }), ctx("run-par"));
   assert.equal(ok.status, 200);
   assert.equal((await pendingMessages("acme", "run-par", 1))[0].text, "for the checker");
   assert.deepEqual(await pendingMessages("acme", "run-par", 0), [], "the other step's inbox is untouched");
-  const ended = await messageRoute.POST(req("/api/workspaces/desk/runs/run-par/message", editor, { text: "x", step: 2 }), ctx("run-par"));
+  const ended = await messageRoute.POST(req("/v1/workspaces/desk/runs/run-par/message", editor, { text: "x", step: 2 }), ctx("run-par"));
   assert.equal(ended.status, 409, "a step that is not running cannot be written to");
-  const bad = await messageRoute.POST(req("/api/workspaces/desk/runs/run-par/message", editor, { text: "x", step: 9 }), ctx("run-par"));
+  const bad = await messageRoute.POST(req("/v1/workspaces/desk/runs/run-par/message", editor, { text: "x", step: 9 }), ctx("run-par"));
   assert.equal(bad.status, 400);
   runWith("run-one", [step("done", "completed"), step("writer", "running")]);
-  const only = await messageRoute.POST(req("/api/workspaces/desk/runs/run-one/message", editor, { text: "only you" }), ctx("run-one"));
+  const only = await messageRoute.POST(req("/v1/workspaces/desk/runs/run-one/message", editor, { text: "only you" }), ctx("run-one"));
   assert.equal(only.status, 200);
   // One running step: the run-level inbox, which that step reads whether or
   // not its lease names its step.
@@ -137,18 +137,18 @@ test("answer: refused (409) when the question was closed, marked unanswered, or 
   runWith("run-cl", [step("writer", "running")]);
   const closed = await postQuestion("acme", "run-cl", { question: "a?", step: 0 });
   await closeQuestion("acme", "run-cl", closed.id);
-  const r1 = await answerRoute.POST(req("/api/workspaces/desk/runs/run-cl/answer", editor, { question: closed.id, answer: "x" }), ctx("run-cl"));
+  const r1 = await answerRoute.POST(req("/v1/workspaces/desk/runs/run-cl/answer", editor, { question: closed.id, answer: "x" }), ctx("run-cl"));
   assert.equal(r1.status, 409);
   assert.match((await r1.json()).error, /no longer waiting|closed/);
 
   const q2 = await postQuestion("acme", "run-un", { question: "b?" });
   runWith("run-un", [step("writer", "running", { questions: [{ id: q2.id, question: "b?", askedAt: new Date().toISOString(), unanswered: true }] })]);
-  const r2 = await answerRoute.POST(req("/api/workspaces/desk/runs/run-un/answer", editor, { question: q2.id, answer: "x" }), ctx("run-un"));
+  const r2 = await answerRoute.POST(req("/v1/workspaces/desk/runs/run-un/answer", editor, { question: q2.id, answer: "x" }), ctx("run-un"));
   assert.equal(r2.status, 409);
 
   const q3 = await postQuestion("acme", "run-end", { question: "c?", step: 0 });
   runWith("run-end", [step("writer", "completed"), step("next", "running")]);
-  const r3 = await answerRoute.POST(req("/api/workspaces/desk/runs/run-end/answer", editor, { question: q3.id, answer: "x" }), ctx("run-end"));
+  const r3 = await answerRoute.POST(req("/v1/workspaces/desk/runs/run-end/answer", editor, { question: q3.id, answer: "x" }), ctx("run-end"));
   assert.equal(r3.status, 409);
 });
 
@@ -158,7 +158,7 @@ test("approvals: a closed question is not listed; a question names the step that
   const gone = await postQuestion("acme", "run-ap", { question: "old?", step: 0 });
   await closeQuestion("acme", "run-ap", gone.id);
   await postQuestion("acme", "run-ap", { question: "new?", step: 1 });
-  const res = await approvalsRoute.GET(new NextRequest("http://x/api/approvals", { headers: { authorization: `Bearer ${editor}` } }));
+  const res = await approvalsRoute.GET(new NextRequest("http://x/v1/approvals", { headers: { authorization: `Bearer ${editor}` } }));
   const body = await res.json();
   assert.deepEqual(body.questions.map((q: { question: string }) => q.question), ["new?"]);
   assert.equal(body.questions[0].agent, "checker");

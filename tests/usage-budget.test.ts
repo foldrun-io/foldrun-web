@@ -1,4 +1,4 @@
-// GET /api/usage/budget: spend against the caps the Spend limits page shows
+// GET /v1/account/usage/budget: spend against the caps the Spend limits page shows
 // — the account's budget: and each workspace's, each measured in its own
 // window — through the route handler. A caller scoped to some workspaces
 // sees those, and not the account's figure (spend over every workspace).
@@ -19,7 +19,7 @@ const { createApiKey } = await import("../server/auth.ts");
 const { createUser } = await import("../server/users.ts");
 const { append } = await import("@/platform/ledger");
 const { accountDir, workspaceDir } = await import("@/lib/store");
-const route = await import("../app/api/usage/budget/route.ts");
+const route = await import("../app/v1/account/usage/budget/route.ts");
 
 const tenant = "budget-co";
 const owner = await createUser("owner@budget.test", "a long and unusual passphrase 42!", tenant, { request: "free" });
@@ -40,7 +40,7 @@ await append(tenant, { t: now, kind: "run", usd: -3, workspace: "other", flow: "
 await append(tenant, { t: now, kind: "topup", usd: 100, note: "credit" });
 
 const key = async (role: "viewer" | "admin", workspaces: string[] | null = null) => (await createApiKey(tenant, "k", owner.email, undefined, role, workspaces)).key;
-const get = (k: string | null) => route.GET(new NextRequest("http://localhost/api/usage/budget", { headers: k ? { authorization: `Bearer ${k}` } : {} }));
+const get = (k: string | null) => route.GET(new NextRequest("http://localhost/v1/account/usage/budget", { headers: k ? { authorization: `Bearer ${k}` } : {} }));
 
 type Standing = { budget: { usd: number; period: string } | null; label: string | null; spentUsd: number; window: string };
 type Body = { account: Standing | null; accountHidden?: boolean; workspaces: (Standing & { workspace: string })[] };

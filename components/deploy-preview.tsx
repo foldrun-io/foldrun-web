@@ -64,7 +64,7 @@ export function DeployPreview({ workspace, tenant, to }: { workspace: string; te
 
   useEffect(() => {
     let live = true;
-    fetch(`/api/workspaces/${encodeURIComponent(workspace)}/restore`, {
+    fetch(`/v1/workspaces/${encodeURIComponent(workspace)}/restore`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
       body: JSON.stringify({ to, dryRun: true }),

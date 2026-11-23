@@ -177,7 +177,7 @@ export default async function Dashboard({
         placeholder="marketing"
         hint={$t("dashboard.page.itsOwnAgentsFlowsSecretsAnd")}
         tenant={tenant}
-        options={[{ where: "account", label: $t("dashboard.page.account"), target: { endpoint: "/api/workspaces", body: { template: true, ifAbsent: true } } }]}
+        options={[{ where: "account", label: $t("dashboard.page.account"), target: { endpoint: "/v1/workspaces", body: { template: true, ifAbsent: true } } }]}
         trigger={false}
         autoOpen={create === "workspace"}
       />

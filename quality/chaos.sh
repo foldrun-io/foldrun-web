@@ -9,13 +9,13 @@ QUALITY_DIR=$(cd "$(dirname "$0")" && pwd)
 # shellcheck disable=SC1091
 . "$QUALITY_DIR/.state/env"
 WS=${QUALITY_WS:-quality-load}
-api() { local p=$1; shift; curl -sS -H "authorization: Bearer $QUALITY_TOKEN" -H "content-type: application/json" "$QUALITY_URL/api/$p" "$@"; }
+api() { local p=$1; shift; curl -sS -H "authorization: Bearer $QUALITY_TOKEN" -H "content-type: application/json" "$QUALITY_URL/v1/$p" "$@"; }
 # The fake model answers at once, so a run could end before the restart and
 # the test would prove nothing (Codex review): the platform is recreated on
 # the slow model — 20 s a call — for this suite, and put back after.
 # Recreated, then ready: the platform has no Compose healthcheck, so --wait
 # only means "running" — the API is polled before anything is sent (Codex).
-healthy() { for _ in $(seq 1 90); do curl -fsS "$QUALITY_URL/api/healthz" >/dev/null 2>&1 && return 0; sleep 2; done; return 1; }
+healthy() { for _ in $(seq 1 90); do curl -fsS "$QUALITY_URL/v1/healthz" >/dev/null 2>&1 && return 0; sleep 2; done; return 1; }
 slow() { QUALITY_MODEL_URL="$1" bash "$QUALITY_DIR/stack.sh" compose up -d --wait platform >/dev/null 2>&1; healthy; }
 trap 'slow http://fake-model:8080/model' EXIT
 slow http://fake-model:8080/slow-model/20000
@@ -39,8 +39,8 @@ done
 [ "$busy" = 3 ] || { echo "FAIL the runs were not all running before the restart ($busy of 3)"; exit 1; }
 echo "chaos: restarting the platform with ${#runs[@]} runs in flight"
 bash "$QUALITY_DIR/stack.sh" compose restart platform >/dev/null
-for _ in $(seq 1 90); do curl -fsS "$QUALITY_URL/api/healthz" >/dev/null 2>&1 && break; sleep 2; done
-curl -fsS "$QUALITY_URL/api/healthz" >/dev/null || { echo "FAIL the platform did not come back"; exit 1; }
+for _ in $(seq 1 90); do curl -fsS "$QUALITY_URL/v1/healthz" >/dev/null 2>&1 && break; sleep 2; done
+curl -fsS "$QUALITY_URL/v1/healthz" >/dev/null || { echo "FAIL the platform did not come back"; exit 1; }
 deadline=$((SECONDS + 600)); left=("${runs[@]}")
 while [ "${#left[@]}" -gt 0 ] && [ "$SECONDS" -lt "$deadline" ]; do
   still=()

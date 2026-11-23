@@ -64,10 +64,10 @@ ENV
   chmod 600 "$STATE/compose.env"
   compose up -d --build --wait --wait-timeout 900
   for _ in $(seq 1 180); do
-    curl -fsS "$URL/api/healthz" >/dev/null 2>&1 && break
+    curl -fsS "$URL/v1/healthz" >/dev/null 2>&1 && break
     sleep 2
   done
-  curl -fsS "$URL/api/healthz" >/dev/null || { echo "quality: the platform never became healthy" >&2; compose logs --tail 80 platform >&2; exit 1; }
+  curl -fsS "$URL/v1/healthz" >/dev/null || { echo "quality: the platform never became healthy" >&2; compose logs --tail 80 platform >&2; exit 1; }
 
   # The first account, the way the installer's setup link makes it.
   local email="owner@quality.example.test" password account="quality"
@@ -76,11 +76,11 @@ ENV
   rm -f "$jar"
   curl -fsS -c "$jar" -H "content-type: application/json" -H "origin: $URL" \
     -d "{\"email\":\"$email\",\"password\":\"$password\",\"account\":\"$account\",\"setup\":\"$setup\"}" \
-    "$URL/api/auth/signup" >/dev/null
+    "$URL/v1/auth/signup" >/dev/null
   # An admin key for the scenarios.
   local token
   token=$(curl -fsS -b "$jar" -H "content-type: application/json" -H "origin: $URL" \
-    -d '{"label":"quality","role":"admin"}' "$URL/api/keys" \
+    -d '{"label":"quality","role":"admin"}' "$URL/v1/keys" \
     | python3 -c 'import sys,json; print(json.load(sys.stdin)["key"])')
   cat > "$STATE/env" <<ENV
 QUALITY_URL=$URL
@@ -111,10 +111,10 @@ down() {
     set +e +o pipefail
     # shellcheck disable=SC1091
     . "$STATE/env"
-    curl -fsS -H "authorization: Bearer $QUALITY_TOKEN" "$QUALITY_URL/api/workspaces" 2>/dev/null \
+    curl -fsS -H "authorization: Bearer $QUALITY_TOKEN" "$QUALITY_URL/v1/workspaces" 2>/dev/null \
       | python3 -c 'import sys,json; d=json.load(sys.stdin); print("\n".join(w["name"] for w in (d.get("workspaces", d) if isinstance(d, dict) else d)))' 2>/dev/null \
       | while read -r ws; do
-          curl -fsS -H "authorization: Bearer $QUALITY_TOKEN" "$QUALITY_URL/api/workspaces/$ws/runs?limit=1000" 2>/dev/null \
+          curl -fsS -H "authorization: Bearer $QUALITY_TOKEN" "$QUALITY_URL/v1/workspaces/$ws/runs?limit=1000" 2>/dev/null \
             | python3 -c 'import sys,json; d=json.load(sys.stdin); print("\n".join(r["id"] for r in (d.get("runs", d) if isinstance(d, dict) else d)))' 2>/dev/null
         done | while read -r run; do
           docker ps -aq --filter "label=foldrun-run-id=$run" | xargs -r docker rm -f >/dev/null 2>&1 || true

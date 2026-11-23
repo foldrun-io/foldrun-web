@@ -12,13 +12,13 @@ process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-unsubs
 process.env.FOLDRUN_SECRET_KEY ??= "unsubscribe-route-key";
 delete process.env.FOLDRUN_DATABASE_URL;
 const { NextRequest } = await import("next/server");
-const { POST } = await import("../app/api/unsubscribe/route.ts");
+const { POST } = await import("../app/v1/unsubscribe/route.ts");
 const { unsubscribeToken } = await import("../../foldrun-core/src/mail.ts");
 const { mailAllowed } = await import("../../foldrun-platform/src/email-preferences.ts");
 
 const post = (token: string | null, init: { form?: Record<string, string> } = {}) =>
   POST(
-    new NextRequest(`http://x/api/unsubscribe${token !== null && !init.form ? `?token=${encodeURIComponent(token)}` : ""}`, {
+    new NextRequest(`http://x/v1/unsubscribe${token !== null && !init.form ? `?token=${encodeURIComponent(token)}` : ""}`, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: init.form ? new URLSearchParams(init.form).toString() : "List-Unsubscribe=One-Click",

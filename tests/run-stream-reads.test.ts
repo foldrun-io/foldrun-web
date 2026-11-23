@@ -19,7 +19,7 @@ process.env.FOLDRUN_DISABLE_WORKER = "1";
 process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 
 const { NextRequest } = await import("next/server");
-const route = await import("../app/api/workspaces/[workspace]/runs/[runId]/stream/route.ts");
+const route = await import("../app/v1/workspaces/[workspace]/runs/[runId]/stream/route.ts");
 
 const TENANT = "acme";
 const WS = "desk";
@@ -45,7 +45,7 @@ test("an idle run is not re-read on every tick; a change is sent; a finished run
   const abort = new AbortController();
   try {
     const res = await route.GET(
-      new NextRequest(`http://x/api/workspaces/${WS}/runs/${RUN}/stream`, { headers: { "x-foldrun-tenant": TENANT }, signal: abort.signal }),
+      new NextRequest(`http://x/v1/workspaces/${WS}/runs/${RUN}/stream`, { headers: { "x-foldrun-tenant": TENANT }, signal: abort.signal }),
       { params: Promise.resolve({ workspace: WS, runId: RUN }) },
     );
     assert.equal(res.status, 200);
@@ -88,7 +88,7 @@ test("an idle run is not re-read on every tick; a change is sent; a finished run
 // OpenAPI document says — it was plain text. Only a 200 is a stream.
 test("a stream that cannot start answers { error } JSON, not plain text", async () => {
   const res = await route.GET(
-    new NextRequest(`http://x/api/workspaces/${WS}/runs/no-such-run/stream`, { headers: { "x-foldrun-tenant": TENANT } }),
+    new NextRequest(`http://x/v1/workspaces/${WS}/runs/no-such-run/stream`, { headers: { "x-foldrun-tenant": TENANT } }),
     { params: Promise.resolve({ workspace: WS, runId: "no-such-run" }) },
   );
   assert.equal(res.status, 404);
@@ -105,7 +105,7 @@ test("?delta=1: the whole record first with a cursor, then only what changed; a 
   const open = async (lastEventId?: string) => {
     const abort = new AbortController();
     const res = await route.GET(
-      new NextRequest(`http://x/api/workspaces/${WS}/runs/${D}/stream?delta=1`, { headers: { "x-foldrun-tenant": TENANT, ...(lastEventId ? { "last-event-id": lastEventId } : {}) }, signal: abort.signal }),
+      new NextRequest(`http://x/v1/workspaces/${WS}/runs/${D}/stream?delta=1`, { headers: { "x-foldrun-tenant": TENANT, ...(lastEventId ? { "last-event-id": lastEventId } : {}) }, signal: abort.signal }),
       { params: Promise.resolve({ workspace: WS, runId: D }) },
     );
     const reader = res.body!.getReader();

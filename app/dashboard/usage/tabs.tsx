@@ -1,5 +1,5 @@
 // The Usage page's Tokens, Compute and Rates tabs and the credits block
-// (FOL-125). Server components over what GET /api/usage and GET /api/usage/rates
+// (FOL-125). Server components over what GET /v1/account/usage and GET /v1/account/usage/rates
 // answer: the page and the API read the same function, so they cannot differ.
 
 import { $el, $rich, $t } from "@/i18n";

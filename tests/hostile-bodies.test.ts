@@ -1,6 +1,6 @@
 // Bodies of the wrong shape through the real routes (FOL-199, 16 Nov 2026):
 // the hosted fuzz run (Schemathesis) found PATCH …/source, POST …/shares and
-// POST /api/mcp/oauth/token answering 500 for JSON that parses but is not
+// POST /v1/mcp/oauth/token answering 500 for JSON that parses but is not
 // what the route reads — `null`, an array, a number where a path goes, a
 // ttlDays no date can hold — and malformed JSON logged as an internal error.
 // Each is the caller's mistake: a 4xx that says so, never a 500.
@@ -26,18 +26,18 @@ const { errorStatus } = await import("../server/api.ts");
 type Ctx = { params: Promise<Record<string, string>> };
 type H = (req: InstanceType<typeof NextRequest>, ctx: Ctx) => Promise<Response>;
 const mod = async (p: string) => (await import(p)) as Record<string, H>;
-const source = await mod("../app/api/workspaces/[workspace]/source/route.ts");
-const shares = await mod("../app/api/workspaces/[workspace]/shares/route.ts");
-const token = await mod("../app/api/mcp/oauth/token/route.ts");
-const revoke = await mod("../app/api/mcp/oauth/revoke/route.ts");
-const cliLogin = await mod("../app/api/cli/login/route.ts");
-const oauthClients = await mod("../app/api/oauth/clients/route.ts");
+const source = await mod("../app/v1/workspaces/[workspace]/source/route.ts");
+const shares = await mod("../app/v1/workspaces/[workspace]/shares/route.ts");
+const token = await mod("../app/v1/mcp/oauth/token/route.ts");
+const revoke = await mod("../app/v1/mcp/oauth/revoke/route.ts");
+const cliLogin = await mod("../app/v1/cli/login/route.ts");
+const oauthClients = await mod("../app/v1/oauth/clients/route.ts");
 const { tooManyAttempts } = await import("../server/limits.ts");
 const { openapiDocument } = await import("../server/openapi.ts");
-const prefs = await mod("../app/api/me/preferences/route.ts");
-const agentsMd = await mod("../app/api/account/agents-md/route.ts");
+const prefs = await mod("../app/v1/me/preferences/route.ts");
+const agentsMd = await mod("../app/v1/account/agents-md/route.ts");
 const { createUser } = await import("../server/users.ts");
-const deployRoute = await mod("../app/api/workspaces/[workspace]/deploy/route.ts");
+const deployRoute = await mod("../app/v1/workspaces/[workspace]/deploy/route.ts");
 const { jsonObject } = await import("../server/body.ts");
 
 const TENANT = "acme";
@@ -76,7 +76,7 @@ async function never500(label: string, res: Promise<Response>) {
 
 test("source PUT, PATCH and DELETE refuse a body of the wrong shape with a 400, never a 500", async () => {
   const at = params({ workspace: WS });
-  const url = `/api/workspaces/${WS}/source`;
+  const url = `/v1/workspaces/${WS}/source`;
   for (const b of SHAPES) {
     await never500(`PUT ${b}`, source.PUT(send("PUT", url, b), at));
     await never500(`PATCH ${b}`, source.PATCH(send("PATCH", url, b), at));
@@ -97,7 +97,7 @@ test("source PUT, PATCH and DELETE refuse a body of the wrong shape with a 400, 
 });
 
 test("shares POST refuses a body of the wrong shape, a non-string path and a ttlDays no date holds", async () => {
-  const url = `/api/workspaces/${WS}/shares`;
+  const url = `/v1/workspaces/${WS}/shares`;
   for (const at of [params({ workspace: WS }), params({ workspace: "0" })]) {
     for (const b of SHAPES) await never500(`POST ${b}`, shares.POST(send("POST", url, b), at));
     await never500("path:7", shares.POST(send("POST", url, JSON.stringify({ path: 7 })), at));
@@ -113,7 +113,7 @@ test("shares POST refuses a body of the wrong shape, a non-string path and a ttl
 test("the MCP OAuth token and revocation endpoints answer invalid_request for JSON that is not an object", async () => {
   for (const [name, route] of [["token", token], ["revoke", revoke]] as const) {
     for (const b of SHAPES) {
-      const r = await route.POST(send("POST", `/api/mcp/oauth/${name}`, b, false), params({}));
+      const r = await route.POST(send("POST", `/v1/mcp/oauth/${name}`, b, false), params({}));
       assert.ok(r.status >= 400 && r.status < 500, `${name} ${b}: ${r.status}`);
       const j = (await r.json()) as { error: string };
       assert.ok(typeof j.error === "string" && j.error !== "server_error", `${name} ${b}: ${JSON.stringify(j)}`);
@@ -127,14 +127,14 @@ test("malformed JSON is the caller's 400, not an internal error", () => {
 });
 
 // The second hosted fuzz run (43825686618) found these.
-test("POST /api/cli/login and /api/oauth/clients refuse a body of the wrong shape, never a 500", async () => {
-  for (const b of SHAPES) await never500(`cli/login ${b}`, cliLogin.POST(send("POST", "/api/cli/login", b, false), params({})));
-  for (const b of SHAPES) await never500(`oauth/clients ${b}`, oauthClients.POST(send("POST", "/api/oauth/clients", b), params({})));
+test("POST /v1/cli/login and /v1/oauth/clients refuse a body of the wrong shape, never a 500", async () => {
+  for (const b of SHAPES) await never500(`cli/login ${b}`, cliLogin.POST(send("POST", "/v1/cli/login", b, false), params({})));
+  for (const b of SHAPES) await never500(`oauth/clients ${b}`, oauthClients.POST(send("POST", "/v1/oauth/clients", b), params({})));
   const config = { authorize_url: "https://p.test/a", token_url: "https://p.test/t", client_id: "cid", client_secret: "s", scopes: "" };
   for (const [field, value] of [["authorize_url", ["https://p.test/a"]], ["client_id", 7], ["token_url", {}], ["authorize_extra", [1]], ["pkce", "no"]] as const) {
-    await never500(`oauth/clients ${field}`, oauthClients.POST(send("POST", "/api/oauth/clients", JSON.stringify({ name: "app", config: { ...config, [field]: value } })), params({})));
+    await never500(`oauth/clients ${field}`, oauthClients.POST(send("POST", "/v1/oauth/clients", JSON.stringify({ name: "app", config: { ...config, [field]: value } })), params({})));
   }
-  await never500("oauth/clients config:7", oauthClients.POST(send("POST", "/api/oauth/clients", JSON.stringify({ name: "app", config: 7 })), params({})));
+  await never500("oauth/clients config:7", oauthClients.POST(send("POST", "/v1/oauth/clients", JSON.stringify({ name: "app", config: 7 })), params({})));
 });
 
 test("every 429 a limiter here sends carries retry_after, as the document's RateLimited requires", async () => {
@@ -146,39 +146,39 @@ test("every 429 a limiter here sends carries retry_after, as the document's Rate
   assert.equal(j.retry_after, 42);
 });
 
-test("the document lists the statuses the fuzz found, and /api/mcp refuses in JSON-RPC's shape", () => {
+test("the document lists the statuses the fuzz found, and /v1/mcp refuses in JSON-RPC's shape", () => {
   const doc = openapiDocument() as { paths: Record<string, Record<string, { responses: Record<string, { $ref?: string }> }>>; components: { responses: Record<string, unknown> } };
   const has = (method: string, p: string, status: string) => {
     const op = doc.paths[p]?.[method];
     if (!op) return; // a route this edition does not serve
     assert.ok(op.responses[status], `${method.toUpperCase()} ${p} documents ${status}`);
   };
-  has("post", "/api/library/{kind}", "409");
-  has("post", "/api/oauth/reconnect", "404");
-  has("post", "/api/workspaces", "402");
-  has("post", "/api/workspaces/{workspace}/deploy", "402");
-  has("post", "/api/workspaces/{workspace}/flows/{flow}/run", "402");
-  const mcp = doc.paths["/api/mcp"].post.responses;
+  has("post", "/v1/library/{kind}", "409");
+  has("post", "/v1/oauth/reconnect", "404");
+  has("post", "/v1/workspaces", "402");
+  has("post", "/v1/workspaces/{workspace}/deploy", "402");
+  has("post", "/v1/workspaces/{workspace}/flows/{flow}/run", "402");
+  const mcp = doc.paths["/v1/mcp"].post.responses;
   assert.equal(mcp["400"].$ref, "#/components/responses/RpcError");
   assert.ok(doc.components.responses.RpcError);
   // Every other route keeps the API's own { error }.
-  assert.equal(doc.paths["/api/workspaces"].post.responses["400"].$ref, "#/components/responses/Error");
+  assert.equal(doc.paths["/v1/workspaces"].post.responses["400"].$ref, "#/components/responses/Error");
 });
 
-// The third hosted fuzz run (43840533439): PATCH /api/me/preferences with a
+// The third hosted fuzz run (43840533439): PATCH /v1/me/preferences with a
 // bare -481 (`in` on a number); the same review found PUT
-// /api/account/agents-md reading body.content of `null`.
-test("PATCH /api/me/preferences and PUT /api/account/agents-md refuse a body that is not a JSON object", async () => {
+// /v1/account/agents-md reading body.content of `null`.
+test("PATCH /v1/me/preferences and PUT /v1/account/agents-md refuse a body that is not a JSON object", async () => {
   // A person (preferences are a person's), with a key of their own.
   await createUser("owner@prefs.test", "Qz8-vmT2-plx9-Wr4k-hst", "prefs-co", { request: "free" });
   const own = (await createApiKey("prefs-co", "test", "owner@prefs.test", undefined, "admin")).key;
   const as = (method: string, url: string, body: string) =>
     new NextRequest(`http://localhost${url}`, { method, body, headers: { "content-type": "application/json", authorization: `Bearer ${own}`, "x-forwarded-for": `198.51.100.${(ip++ % 250) + 1}` } });
   for (const b of [...SHAPES, "-481"]) {
-    await never500(`preferences ${b}`, prefs.PATCH(as("PATCH", "/api/me/preferences", b), params({})));
-    await never500(`agents-md ${b}`, agentsMd.PUT(as("PUT", "/api/account/agents-md", b), params({})));
+    await never500(`preferences ${b}`, prefs.PATCH(as("PATCH", "/v1/me/preferences", b), params({})));
+    await never500(`agents-md ${b}`, agentsMd.PUT(as("PUT", "/v1/account/agents-md", b), params({})));
   }
-  const ok = await prefs.PATCH(as("PATCH", "/api/me/preferences", JSON.stringify({ theme: "dark" })), params({}));
+  const ok = await prefs.PATCH(as("PATCH", "/v1/me/preferences", JSON.stringify({ theme: "dark" })), params({}));
   const text = await ok.text();
   assert.equal(ok.status, 200, text);
   assert.equal((JSON.parse(text) as { theme: string }).theme, "dark");
@@ -187,7 +187,7 @@ test("PATCH /api/me/preferences and PUT /api/account/agents-md refuse a body tha
 // The fourth hosted fuzz run (43860037381): POST …/deploy with a file path
 // that names a folder ("", ".", "knowledge/") reached open() — EISDIR, a 500.
 test("POST …/deploy answers 400 for a path that names no file or is also a folder, never a 500", async () => {
-  const url = `/api/workspaces/${WS}/deploy`;
+  const url = `/v1/workspaces/${WS}/deploy`;
   const good = [{ path: "AGENTS.md", content: `---\nname: ${WS}\n---\n` }, { path: "knowledge/a.md", content: "# a\n" }];
   for (const bad of ["", ".", "./", "knowledge/", "knowledge", "x/", "a/../knowledge"]) {
     for (const dryRun of [false, true]) {
@@ -202,13 +202,13 @@ test("POST …/deploy answers 400 for a path that names no file or is also a fol
 
 test("the document lists 202 (async) and 409 (already running) for an eval run", () => {
   const doc = openapiDocument() as { paths: Record<string, Record<string, { responses: Record<string, { $ref?: string; content?: unknown }> }>> };
-  const op = doc.paths["/api/workspaces/{workspace}/evals/{evalName}/run"].post.responses;
+  const op = doc.paths["/v1/workspaces/{workspace}/evals/{evalName}/run"].post.responses;
   assert.ok(op["200"] && op["202"] && op["409"]);
   assert.equal(op["202"].$ref, undefined, "202 is a success with its own body, not a refusal");
   assert.ok(op["202"].content);
 });
 
-// The fifth hosted fuzz run (43900332176): POST /api/mcp/clients with a NUL
+// The fifth hosted fuzz run (43900332176): POST /v1/mcp/clients with a NUL
 // in the name was a 500 on the hosted stack — Postgres cannot hold \u0000 in
 // jsonb. Every route reading its body through jsonObject refuses one now.
 test("a NUL in any string or key of a body is a 400, never reaching storage", async () => {
@@ -221,7 +221,7 @@ test("a NUL in any string or key of a body is a 400, never reaching storage", as
 
 test("the document lists 409 (that name exists) for creating a flow", () => {
   const doc = openapiDocument() as { paths: Record<string, Record<string, { responses: Record<string, unknown> }>> };
-  assert.ok(doc.paths["/api/workspaces/{workspace}/flows"].post.responses["409"]);
+  assert.ok(doc.paths["/v1/workspaces/{workspace}/flows"].post.responses["409"]);
   // A mail that cannot be turned off (the sixth hosted fuzz run, 43911475419).
-  assert.ok(doc.paths["/api/me/notifications"].patch.responses["409"]);
+  assert.ok(doc.paths["/v1/me/notifications"].patch.responses["409"]);
 });

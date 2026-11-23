@@ -8,7 +8,7 @@
 // The dashboard had a workspace switcher and nothing else: reaching an
 // agent meant knowing its workspace, then its shelf, then scrolling. The
 // palette is what turns a folder of markdown into something you can ask for
-// by name. Results come from /api/search, ranked by find-model.ts; the
+// by name. Results come from /v1/search, ranked by find-model.ts; the
 // page list is ranked here with the same rules, so the two never disagree.
 
 import { $rich, $t } from "@/i18n";
@@ -156,7 +156,7 @@ export function Find() {
     const ctrl = new AbortController();
     const asked = q;
     const t = setTimeout(() => {
-      fetch(`/api/search?q=${encodeURIComponent(asked)}`, { headers: { "x-foldrun-tenant": tenant }, signal: ctrl.signal })
+      fetch(`/v1/search?q=${encodeURIComponent(asked)}`, { headers: { "x-foldrun-tenant": tenant }, signal: ctrl.signal })
         .then((r) => (r.ok ? r.json() : { hits: [] }))
         .then((d: { hits?: FindHit[] }) => {
           setRemote(d.hits ?? []);

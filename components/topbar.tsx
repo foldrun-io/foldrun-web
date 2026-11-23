@@ -46,11 +46,11 @@ export function ShellDataProvider({ account: accountProp, plan, accountAvatar = 
   useEffect(() => {
     let alive = true;
     const t = urlTenant !== "default" ? urlTenant : accountProp;
-    fetch("/api/auth/session")
+    fetch("/v1/auth/session")
       .then((r) => (r.ok ? r.json() : {}))
       .then((d: { user?: { tenant?: string; accountAvatar?: string | null } }) => {
         const tenant = d.user?.tenant ?? t;
-        return fetch("/api/workspaces", { headers: { "x-foldrun-tenant": tenant } })
+        return fetch("/v1/workspaces", { headers: { "x-foldrun-tenant": tenant } })
           .then((r) => (r.ok ? r.json() : { workspaces: [] }))
           .then((w: { workspaces?: WorkspaceRow[] }) => {
             if (alive) setLive({ account: tenant, workspaces: w.workspaces ?? [], avatar: d.user?.accountAvatar ?? null });

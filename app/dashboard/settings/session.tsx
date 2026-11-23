@@ -12,7 +12,7 @@ export function SignOutButton() {
   return (
     <button
       onClick={async () => {
-        await fetch("/api/auth/logout", { method: "POST" });
+        await fetch("/v1/auth/logout", { method: "POST" });
         router.push("/login");
         router.refresh();
       }}

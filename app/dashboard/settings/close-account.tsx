@@ -41,7 +41,7 @@ export function AccountData({ account, owner, hosted, closeRequestedAt }: { acco
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/account/close", {
+      const res = await fetch("/v1/account/close", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ confirm: typed, reason }),
@@ -71,7 +71,7 @@ export function AccountData({ account, owner, hosted, closeRequestedAt }: { acco
         description={$t("settings.close-account.workspaceMembersAnIndexOfEvery")}
         hint={$t("settings.close-account.ownerOnly")}
         footer={
-          <a href="/api/account/export" download className={buttonVariants({ variant: "secondary" })}>
+          <a href="/v1/account/export" download className={buttonVariants({ variant: "secondary" })}>
             <Download aria-hidden />
             {$t("settings.close-account.downloadExport")}
           </a>

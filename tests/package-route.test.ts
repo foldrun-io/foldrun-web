@@ -17,8 +17,8 @@ process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 type Handler = (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string }> }) => Promise<Response>;
-const exp = (await import("../app/api/workspaces/[workspace]/export/route.ts")) as unknown as { GET: Handler };
-const imp = (await import("../app/api/workspaces/[workspace]/import/route.ts")) as unknown as { POST: Handler };
+const exp = (await import("../app/v1/workspaces/[workspace]/export/route.ts")) as unknown as { GET: Handler };
+const imp = (await import("../app/v1/workspaces/[workspace]/import/route.ts")) as unknown as { POST: Handler };
 
 const TENANT = "acme";
 const write = (ws: string, rel: string, text: string) => {
@@ -48,34 +48,34 @@ async function exportOf(url: string, ws: string, key = admin) {
 }
 
 test("export a flow: a zip named for it, with its agent and no memory", async () => {
-  const { r, bytes } = await exportOf("/api/workspaces/blog/export?kind=flow&name=publish", "blog");
+  const { r, bytes } = await exportOf("/v1/workspaces/blog/export?kind=flow&name=publish", "blog");
   assert.equal(r.headers.get("content-type"), "application/zip");
   assert.match(r.headers.get("content-disposition") ?? "", /blog-flow-publish\.zip/);
   const { unzip } = await import("@/lib/zip");
   const names = unzip(Buffer.from(bytes)).map((e) => e.path).sort();
   assert.deepEqual(names, ["agents/writer/agent.md", "flows/publish.md", "foldrun-package.json"]);
-  const missing = await exp.GET(get("/api/workspaces/blog/export?kind=flow&name=nosuch", admin), ctx("blog"));
+  const missing = await exp.GET(get("/v1/workspaces/blog/export?kind=flow&name=nosuch", admin), ctx("blog"));
   assert.equal(missing.status, 404);
-  const bad = await exp.GET(get("/api/workspaces/blog/export?kind=secrets", admin), ctx("blog"));
+  const bad = await exp.GET(get("/v1/workspaces/blog/export?kind=secrets", admin), ctx("blog"));
   assert.equal(bad.status, 400);
 });
 
 test("a viewer may export; may not import", async () => {
-  const { bytes } = await exportOf("/api/workspaces/blog/export?kind=agent&name=writer", "blog", viewer);
-  const r = await imp.POST(post("/api/workspaces/fresh/import", viewer, bytes), ctx("fresh"));
+  const { bytes } = await exportOf("/v1/workspaces/blog/export?kind=agent&name=writer", "blog", viewer);
+  const r = await imp.POST(post("/v1/workspaces/fresh/import", viewer, bytes), ctx("fresh"));
   assert.equal(r.status, 403);
 });
 
 test("dry run previews and writes nothing; apply writes; overwrite is asked for", async () => {
-  const { bytes } = await exportOf("/api/workspaces/blog/export?kind=flow&name=publish", "blog");
-  const dry = await imp.POST(post("/api/workspaces/fresh/import?dryRun=1", admin, bytes), ctx("fresh"));
+  const { bytes } = await exportOf("/v1/workspaces/blog/export?kind=flow&name=publish", "blog");
+  const dry = await imp.POST(post("/v1/workspaces/fresh/import?dryRun=1", admin, bytes), ctx("fresh"));
   assert.equal(dry.status, 200, await dry.clone().text());
   const plan = await dry.json();
   assert.deepEqual(plan.added, ["agents/writer/agent.md", "flows/publish.md"]);
   assert.deepEqual(plan.needs.secrets, ["CMS_TOKEN"]);
   assert.equal(fs.existsSync(path.join(DATA, TENANT, "workspaces", "fresh", "flows/publish.md")), false);
 
-  const ok = await imp.POST(post("/api/workspaces/fresh/import", admin, bytes), ctx("fresh"));
+  const ok = await imp.POST(post("/v1/workspaces/fresh/import", admin, bytes), ctx("fresh"));
   assert.equal(ok.status, 200, await ok.clone().text());
   const done = (await ok.json()) as { written: string[]; revision: string | null };
   assert.equal(done.written.length, 2);
@@ -84,37 +84,37 @@ test("dry run previews and writes nothing; apply writes; overwrite is asked for"
   assert.ok(done.revision && (await readRevision(TENANT, "fresh", done.revision)), `revision ${done.revision} resolves`);
 
   write("fresh", "agents/writer/agent.md", "---\nname: writer\ndescription: Changed here.\n---\n\nMine.\n");
-  const clash = await imp.POST(post("/api/workspaces/fresh/import", admin, bytes), ctx("fresh"));
+  const clash = await imp.POST(post("/v1/workspaces/fresh/import", admin, bytes), ctx("fresh"));
   assert.equal(clash.status, 409);
   assert.match(fs.readFileSync(path.join(DATA, TENANT, "workspaces", "fresh", "agents/writer/agent.md"), "utf8"), /Mine/);
-  const over = await imp.POST(post("/api/workspaces/fresh/import?overwrite=1", admin, bytes), ctx("fresh"));
+  const over = await imp.POST(post("/v1/workspaces/fresh/import?overwrite=1", admin, bytes), ctx("fresh"));
   assert.equal(over.status, 200);
   assert.doesNotMatch(fs.readFileSync(path.join(DATA, TENANT, "workspaces", "fresh", "agents/writer/agent.md"), "utf8"), /Mine/);
 });
 
 test("a workspace package makes a new workspace; garbage is a 400", async () => {
-  const { bytes } = await exportOf("/api/workspaces/blog/export", "blog");
-  const r = await imp.POST(post("/api/workspaces/blog-copy/import", admin, bytes), ctx("blog-copy"));
+  const { bytes } = await exportOf("/v1/workspaces/blog/export", "blog");
+  const r = await imp.POST(post("/v1/workspaces/blog-copy/import", admin, bytes), ctx("blog-copy"));
   assert.equal(r.status, 200, await r.clone().text());
   assert.equal((await r.json()).creates, true);
   assert.ok(fs.existsSync(path.join(DATA, TENANT, "workspaces", "blog-copy", "agents/loner/agent.md")));
   assert.equal(fs.existsSync(path.join(DATA, TENANT, "workspaces", "blog-copy", "agents/writer/memory")), false);
 
-  const bad = await imp.POST(post("/api/workspaces/fresh/import", admin, new TextEncoder().encode("not a zip")), ctx("fresh"));
+  const bad = await imp.POST(post("/v1/workspaces/fresh/import", admin, new TextEncoder().encode("not a zip")), ctx("fresh"));
   assert.equal(bad.status, 400);
 });
 
 test("a key scoped to some workspaces cannot export another", async () => {
   const { key } = await createApiKey(TENANT, "scoped", "owner@acme.test", undefined, "editor", ["fresh"]);
-  const r = await exp.GET(get("/api/workspaces/secret-desk/export", key), ctx("secret-desk"));
+  const r = await exp.GET(get("/v1/workspaces/secret-desk/export", key), ctx("secret-desk"));
   assert.equal(r.status, 403);
 });
 
 test("no Content-Length is a 411, too large a one a 413 — before the body is read", async () => {
   const body = new TextEncoder().encode("PK");
-  const none = new NextRequest("http://localhost/api/workspaces/fresh/import", { method: "POST", headers: { authorization: `Bearer ${admin}` }, body });
+  const none = new NextRequest("http://localhost/v1/workspaces/fresh/import", { method: "POST", headers: { authorization: `Bearer ${admin}` }, body });
   assert.equal((await imp.POST(none, ctx("fresh"))).status, 411);
-  const big = new NextRequest("http://localhost/api/workspaces/fresh/import", { method: "POST", headers: { authorization: `Bearer ${admin}`, "content-length": String(30 * 1024 * 1024) }, body });
+  const big = new NextRequest("http://localhost/v1/workspaces/fresh/import", { method: "POST", headers: { authorization: `Bearer ${admin}`, "content-length": String(30 * 1024 * 1024) }, body });
   assert.equal((await imp.POST(big, ctx("fresh"))).status, 413);
 });
 
@@ -128,7 +128,7 @@ test("the dialog's suggested workspace name is always a valid one", async () => 
 
 test("a write that fails mid-import is a 500 that names no server path, and keeps nothing (30 Oct 2026)", async () => {
   write("walled", "AGENTS.md", "---\nname: walled\n---\n");
-  const { bytes } = await exportOf("/api/workspaces/blog/export?kind=flow&name=publish", "blog");
+  const { bytes } = await exportOf("/v1/workspaces/blog/export?kind=flow&name=publish", "blog");
   const real = fs.writeFileSync;
   // An EACCES as Node raises it: its message carries the absolute path.
   (fs as { writeFileSync: typeof fs.writeFileSync }).writeFileSync = ((file: fs.PathOrFileDescriptor, ...rest: unknown[]) => {
@@ -139,7 +139,7 @@ test("a write that fails mid-import is a 500 that names no server path, and keep
   }) as typeof fs.writeFileSync;
   let r: Response;
   try {
-    r = await imp.POST(post("/api/workspaces/walled/import", admin, bytes), ctx("walled"));
+    r = await imp.POST(post("/v1/workspaces/walled/import", admin, bytes), ctx("walled"));
   } finally {
     (fs as { writeFileSync: typeof fs.writeFileSync }).writeFileSync = real;
   }

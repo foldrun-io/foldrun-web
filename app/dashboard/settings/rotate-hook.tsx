@@ -25,7 +25,7 @@ export function RotateHookButton({ workspace, flow }: { workspace: string; flow:
             confirmLabel: $t("settings.rotate-hook.rotate"),
           }))) return;
           setBusy(true);
-          await fetch(`/api/workspaces/${workspace}/hooks/${flow}/rotate`, { method: "POST" });
+          await fetch(`/v1/workspaces/${workspace}/hooks/${flow}/rotate`, { method: "POST" });
           router.refresh();
           setBusy(false);
         }}

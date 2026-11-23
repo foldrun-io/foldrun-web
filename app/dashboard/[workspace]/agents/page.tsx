@@ -68,7 +68,7 @@ export default async function AgentsPage({
         flows: callers.length ? callers.join(", ") : <span className="text-fg-subtle">{$t("workspace.agents-page.noFlow")}</span>,
         last: a.stale ? <Chip tone="warn">{$t("workspace.agents-page.notRunInDays", { staleDays: String(staleDays ?? "") })}</Chip> : <Tooltip label={a.lastRunAt}><span>{ran}</span></Tooltip>,
       },
-      action: <RunButton endpoint={`/api/workspaces/${workspace}/agents/${a.name}/run`} tenant={tenant} label={$t("workspace.agents-page.run")} dialog />,
+      action: <RunButton endpoint={`/v1/workspaces/${workspace}/agents/${a.name}/run`} tenant={tenant} label={$t("workspace.agents-page.run")} dialog />,
       card: (
         <ResourceCard
           href={href}

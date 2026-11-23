@@ -34,8 +34,8 @@ test("every write has a request schema, or a reason it takes no body", () => {
 test("no shape documents an operation the server does not serve", () => {
   const served = new Set(documentedOperations());
   // Billing's routes are absent from a build without billing, not gone.
-  const stray = Object.keys(SHAPES).filter((op) => !served.has(op) && !/ \/api\/billing(\/|$)/.test(op));
-  assert.deepEqual(stray, [], "a shape for a route that does not exist — fix its key (METHOD /api/path/{param})");
+  const stray = Object.keys(SHAPES).filter((op) => !served.has(op) && !/ \/v1\/billing(\/|$)/.test(op));
+  assert.deepEqual(stray, [], "a shape for a route that does not exist — fix its key (METHOD /v1/path/{param})");
 });
 
 test("the document still builds, with a success response on every operation", () => {

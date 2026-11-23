@@ -141,7 +141,7 @@ export default async function AccountObservePage({ searchParams }: { searchParam
   const now = nowMs();
 
   // A member scoped to some workspaces sees only those, here as everywhere.
-  // The same analysis GET /api/observe answers (`foldrun observe`).
+  // The same analysis GET /v1/observe answers (`foldrun observe`).
   const scope = await viewerScope();
   const { timezone: tz, kpis: k, previous, daily, causes: why, desks, agents, tools } = await accountObservation(tenant, scope, days, now);
   // Recurring problems with their evidence and cost (FOL-72 step 8).

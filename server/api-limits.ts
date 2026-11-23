@@ -1,5 +1,5 @@
 // Rate limits for the authenticated API, and the per-request gate the proxy
-// runs in front of every /api route.
+// runs in front of every /v1 route.
 //
 // Two buckets per request, both must have room:
 //   · the CREDENTIAL — one API key, or one signed-in person — so one runaway
@@ -59,7 +59,7 @@ export function tierOf(planId: string | null | undefined): TierName {
   return planId && planId in TIERS ? (planId as TierName) : "free";
 }
 
-/** What Settings → API keys → API and GET /api/account/api show. */
+/** What Settings → API keys → API and GET /v1/account/api show. */
 export function limitsFor(tier: TierName) {
   const t = TIERS[tier];
   return {
@@ -171,16 +171,16 @@ export function forgetAccountProfile(tenant: string): void {
  * Routes that are neither counted nor refused. A spent bucket must not stop
  * a person signing out (or support ending a view), nor a monitor reading
  * health, status or the version, nor the public site asking whether sign-up
- * is open — none of them costs anything to answer (/api/signup and
- * /api/pricing read the settings snapshot and the catalogue in memory, no
+ * is open — none of them costs anything to answer (/v1/signup and
+ * /v1/pricing read the settings snapshot and the catalogue in memory, no
  * user rows).
  */
 export function unmetered(method: string, pathname: string): boolean {
   const p = pathname.replace(/\/+$/, "");
   if (method === "GET" || method === "HEAD") {
-    if (p === "/api/healthz" || p === "/api/version" || p === "/api/status" || p.startsWith("/api/status/") || p === "/api/signup" || p === "/api/pricing") return true;
+    if (p === "/v1/healthz" || p === "/v1/version" || p === "/v1/status" || p.startsWith("/v1/status/") || p === "/v1/signup" || p === "/v1/pricing") return true;
   }
-  if (method === "POST" && p === "/api/auth/logout") return true;
+  if (method === "POST" && p === "/v1/auth/logout") return true;
   if (supportExempt(method, p)) return true;
   return false;
 }
@@ -197,7 +197,7 @@ export interface Gate {
 /** A browser's request, signed in or not: it holds the session cookie, or
  *  its fetch says where it came from (Sec-Fetch-Site, Origin — every browser
  *  sends one; a program, the CLI or an SDK sends neither). The sign-in pages
- *  call /api/auth/* before there is any cookie, and read `{ error }`. */
+ *  call /v1/auth/* before there is any cookie, and read `{ error }`. */
 export function fromBrowser(req: NextRequest): boolean {
   if (/^bearer\s/i.test(req.headers.get("authorization") ?? "")) return false;
   return req.cookies.has(SESSION_COOKIE) || req.headers.has("sec-fetch-site") || req.headers.has("origin");
@@ -223,7 +223,7 @@ export async function errorShapeOf(req: NextRequest): Promise<ErrorShape> {
 }
 
 /**
- * Everything the proxy asks of an /api request before the route runs: which
+ * Everything the proxy asks of an /v1 request before the route runs: which
  * API version answers it, whether it is over its rate limit, and whether the
  * route is deprecated. Never throws.
  */

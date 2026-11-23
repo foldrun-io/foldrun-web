@@ -1,4 +1,4 @@
-// OpenAPI request/response schemas: /api/workspaces/{workspace}/runs*.
+// OpenAPI request/response schemas: /v1/workspaces/{workspace}/runs*.
 // Written from what each handler validates and answers (30 Oct 2026).
 
 import { type Shape, obj, str, bool, int, arr } from "./kit.ts";
@@ -18,11 +18,11 @@ const SessionMessageShape = obj({
 });
 
 export const SHAPES: Record<string, Shape> = {
-  "DELETE /api/workspaces/{workspace}/runs/{runId}": {
+  "DELETE /v1/workspaces/{workspace}/runs/{runId}": {
     noBody: "the run is in the path; one still going is stopped first",
     response: obj({ ok: bool, deleted: str("the run's id") }),
   },
-  "POST /api/workspaces/{workspace}/runs/{runId}/answer": {
+  "POST /v1/workspaces/{workspace}/runs/{runId}/answer": {
     body: obj(
       {
         question: str("the question's id"),
@@ -32,7 +32,7 @@ export const SHAPES: Record<string, Shape> = {
     ),
     response: obj({ ok: bool, question: str(), answer: str(), by: str("who answered") }),
   },
-  "POST /api/workspaces/{workspace}/runs/{runId}/approve": {
+  "POST /v1/workspaces/{workspace}/runs/{runId}/approve": {
     body: obj({
       decision: str('approve | reject — required, except that a payload alone means approve'),
       reason: str("why, on a reject"),
@@ -46,7 +46,7 @@ export const SHAPES: Record<string, Shape> = {
       steps: arr(int, "the indexes of the steps decided or released"),
     }),
   },
-  "GET /api/workspaces/{workspace}/runs/{runId}/archive": {
+  "GET /v1/workspaces/{workspace}/runs/{runId}/archive": {
     query: [
       { name: "agent", description: "the agent whose outputs/ the file is in" },
       { name: "path", description: "the file, relative to that agent's archived outputs/" },
@@ -57,7 +57,7 @@ export const SHAPES: Record<string, Shape> = {
         "One file a run archived, served inline as what it is and never as a page: text, code, HTML and SVG as text/plain; JSON, CSV, PDF, images, webm/mp4 by type; anything else application/octet-stream. Range requests answer 206 (416 for a bad range).",
     },
   },
-  "GET /api/workspaces/{workspace}/runs/{runId}/files": {
+  "GET /v1/workspaces/{workspace}/runs/{runId}/files": {
     response: obj({
       runId: str(),
       files: arr(
@@ -83,7 +83,7 @@ export const SHAPES: Record<string, Shape> = {
       refusedCount: int,
     }),
   },
-  "GET /api/workspaces/{workspace}/runs/{runId}/live": {
+  "GET /v1/workspaces/{workspace}/runs/{runId}/live": {
     query: [
       {
         name: "agent",
@@ -95,7 +95,7 @@ export const SHAPES: Record<string, Shape> = {
       agents: { type: "object", additionalProperties: { type: "string" }, description: "agent → when its last frame arrived" },
     }),
   },
-  "GET /api/workspaces/{workspace}/sessions/{context}/messages": {
+  "GET /v1/workspaces/{workspace}/sessions/{context}/messages": {
     query: [
       { name: "waiting", description: "1 or true: only those no turn has included yet" },
       { name: "limit", description: "the newest this many, at most 200 (default 100), shown oldest first" },
@@ -105,7 +105,7 @@ export const SHAPES: Record<string, Shape> = {
       messages: arr(SessionMessageShape),
     }),
   },
-  "POST /api/workspaces/{workspace}/sessions/{context}/messages": {
+  "POST /v1/workspaces/{workspace}/sessions/{context}/messages": {
     body: obj(
       {
         text: str("the message, at most 4000 characters, trimmed"),
@@ -115,7 +115,7 @@ export const SHAPES: Record<string, Shape> = {
     ),
     response: obj({ ok: bool, message: SessionMessageShape }),
   },
-  "POST /api/workspaces/{workspace}/runs/{runId}/message": {
+  "POST /v1/workspaces/{workspace}/runs/{runId}/message": {
     body: obj(
       {
         text: str("at most 4000 characters, trimmed"),
@@ -129,7 +129,7 @@ export const SHAPES: Record<string, Shape> = {
       message: obj({ text: str(), by: { type: ["string", "null"] }, at: str() }),
     }),
   },
-  "POST /api/workspaces/{workspace}/runs/{runId}/promote": {
+  "POST /v1/workspaces/{workspace}/runs/{runId}/promote": {
     body: obj({
       evalName: str("the eval file to write; default <target>-regressions"),
       caseName: str(),
@@ -143,11 +143,11 @@ export const SHAPES: Record<string, Shape> = {
       caseName: str(),
     }),
   },
-  "POST /api/workspaces/{workspace}/runs/{runId}/stop": {
+  "POST /v1/workspaces/{workspace}/runs/{runId}/stop": {
     noBody: "the run is in the path; stopping it destroys its sandbox",
     response: obj({ ok: bool, runId: str(), status: str("the run's status after the stop") }),
   },
-  "GET /api/workspaces/{workspace}/runs/{runId}/stream": {
+  "GET /v1/workspaces/{workspace}/runs/{runId}/stream": {
     query: [{ name: "delta", description: "1: after the first whole record, `delta` events carry only what changed; a reconnect with Last-Event-ID resumes from that cursor (FOL-158)" }],
     media: {
       type: "text/event-stream",
@@ -155,7 +155,7 @@ export const SHAPES: Record<string, Shape> = {
         "Server-sent events, each with an `id:` (the cursor: each step's event count): `run` carries the whole run record (JSON) each time it changes, first at once — or, with ?delta=1, after the first one `delta` carries what changed (the run's fields; steps by index with their new events and `from`); `done` carries { status, chargedUsd, estimatedUsd, settled } when the run is over (usually not settled yet — GET …/runs/{runId} has the charge once it is), and the stream ends. A `: keepalive` comment every 15 s; after 30 minutes the stream closes without `done` and a client reconnects.",
     },
   },
-  "POST /api/workspaces/{workspace}/runs/bulk": {
+  "POST /v1/workspaces/{workspace}/runs/bulk": {
     body: obj(
       {
         action: str("stop | rerun | delete — delete needs workspace:manage (dry runs too): runIds alone erase those runs as DELETE …/runs/{runId} does (a live run stopped first); a filter (until, since, status, flow) erases finished runs only, 100 a call"),

@@ -8,7 +8,7 @@ import { NextRequest } from "next/server";
 import { proxy } from "../proxy.ts";
 import { A, DATA, DB, IDS, reSignIn, type Who } from "./authz-matrix-fixture.ts";
 
-export const API = path.join(import.meta.dirname, "..", "app", "api");
+export const API = path.join(import.meta.dirname, "..", "app", "v1");
 type Handler = (req: NextRequest, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
 
 /** The values a route's dynamic segments take when the request is aimed at account A's things. */
@@ -17,7 +17,7 @@ export const PARAM_A: Record<string, string> = {
   callId: "c1", kind: "agents", id: "x", customer: "cust-1", context: "code-matrix",
 };
 
-export const fileOf = (apiPath: string) => path.join(API, apiPath.replace(/^\/api\//, "").replace(/\{(\w+)\}/g, "[$1]"), "route.ts");
+export const fileOf = (apiPath: string) => path.join(API, apiPath.replace(/^\/v1\//, "").replace(/\{(\w+)\}/g, "[$1]"), "route.ts");
 
 export function fill(apiPath: string, params: Record<string, string>): string {
   return apiPath.replace(/\{(\w+)\}/g, (_, k: string) => encodeURIComponent(params[k] ?? `none-${k}`));
@@ -46,7 +46,7 @@ export interface Result { status: number; body: string; headers: Record<string, 
 
 export interface CallSpec {
   method: string;
-  path: string; // /api/… with {params}
+  path: string; // /v1/… with {params}
   params: Record<string, string>;
   who: Who;
   query?: string;

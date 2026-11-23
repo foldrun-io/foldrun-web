@@ -730,7 +730,7 @@ export async function mintInvite(
     let gone: InviteRow[] = [];
     if (email) {
       // Only the ones this maker could revoke by hand (DELETE
-      // /api/team/invites/<id>): inside their scope, and an admin invite
+      // /v1/team/invites/<id>): inside their scope, and an admin invite
       // only by the owner. Anything else stays pending beside the new one.
       const makerRole = opts.by.role ?? roleOfMembers(users, tenant, opts.by.id);
       const maker = users.find((u) => u.tenant === tenant && u.id === opts.by.id);
@@ -840,7 +840,7 @@ export async function acceptInvite(
   return { user, invite };
 }
 
-/** An invite as the team page and GET /api/team/invites show it — never
+/** An invite as the team page and GET /v1/team/invites show it — never
  *  the link, which exists only in the answer that minted it. */
 export interface InviteView {
   id: string;

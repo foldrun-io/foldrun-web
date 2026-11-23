@@ -1,4 +1,4 @@
-// GET /api/account/export is the customer's copy of their data, so a ledger
+// GET /v1/account/export is the customer's copy of their data, so a ledger
 // line in it carries the charge and what it was for — not the platform's
 // internals. `cost` and `agents` were always left out; since 30 Oct 2026
 // so are `key` (the ledger's once-only dedup handle) and `pricingVersion`
@@ -23,7 +23,7 @@ process.env.FOLDRUN_OPEN_SIGNUP = "1";
 const { NextRequest } = await import("next/server");
 const { createUser, mintSession, SESSION_COOKIE } = await import("../server/users.ts");
 const { append } = await import("@/platform/ledger");
-const exportRoute = await import("../app/api/account/export/route.ts");
+const exportRoute = await import("../app/v1/account/export/route.ts");
 
 test("a ledger line in the export has no cost, agents, key or pricingVersion — and keeps the charge", async () => {
   const owner = await createUser("owner@export.test", "a long enough password 1", "export-co", { request: "free" });
@@ -41,7 +41,7 @@ test("a ledger line in the export has no cost, agents, key or pricingVersion —
     flow: "daily",
     reason: "usage",
   });
-  const res = await exportRoute.GET(new NextRequest("http://localhost/api/account/export", { headers: { cookie } }));
+  const res = await exportRoute.GET(new NextRequest("http://localhost/v1/account/export", { headers: { cookie } }));
   assert.equal(res.status, 200, await res.clone().text());
   const body = (await res.json()) as { ledger: Record<string, unknown>[] };
   const line = body.ledger.find((l) => l.runId === "run-123");

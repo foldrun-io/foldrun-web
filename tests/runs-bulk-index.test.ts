@@ -21,7 +21,7 @@ process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
-const route = await import("../app/api/workspaces/[workspace]/runs/bulk/route.ts");
+const route = await import("../app/v1/workspaces/[workspace]/runs/bulk/route.ts");
 
 const TENANT = "acme";
 const WS = "desk";
@@ -37,7 +37,7 @@ put("run-c", "other", "failed", "2026-10-30T01:00:00Z");
 const { key } = await createApiKey(TENANT, "test", "owner@acme.test", undefined, "editor");
 const bulk = (body: unknown) =>
   route.POST(
-    new NextRequest(`http://localhost/api/workspaces/${WS}/runs/bulk`, {
+    new NextRequest(`http://localhost/v1/workspaces/${WS}/runs/bulk`, {
       method: "POST",
       headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
       body: JSON.stringify(body),
@@ -77,7 +77,7 @@ test('status "stopped" matches a run a person stopped (stored as failed), and "f
   at("run-broke", "failed", "2026-10-30T01:00:00Z");
   const call = async (status: string[]) =>
     (await (await route.POST(
-      new NextRequest(`http://localhost/api/workspaces/${ws2}/runs/bulk`, {
+      new NextRequest(`http://localhost/v1/workspaces/${ws2}/runs/bulk`, {
         method: "POST",
         headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
         body: JSON.stringify({ action: "rerun", status, dryRun: true }),
@@ -102,7 +102,7 @@ test("delete: an editor is refused; an admin erases the named runs, and one not 
   const { key: admin } = await createApiKey(TENANT, "admin", "owner@acme.test", undefined, "admin");
   const call = async (k: string, body: unknown) => {
     const res = await route.POST(
-      new NextRequest(`http://localhost/api/workspaces/${ws3}/runs/bulk`, {
+      new NextRequest(`http://localhost/v1/workspaces/${ws3}/runs/bulk`, {
         method: "POST",
         headers: { authorization: `Bearer ${k}`, "content-type": "application/json" },
         body: JSON.stringify(body),

@@ -68,7 +68,7 @@ export function WelcomeFlow(p: WelcomeProps) {
   useEffect(() => {
     if (marked.current) return;
     marked.current = true;
-    void fetch("/api/me/onboarding", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ welcomed: true }) }).catch(() => {});
+    void fetch("/v1/me/onboarding", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ welcomed: true }) }).catch(() => {});
   }, []);
 
   const rail: RailStep[] = p.flow.steps.map((s) => ({ key: s.id, label: s.title, state: s.id === cur ? "current" : s.done ? "done" : "todo", href: stepHref(s.id) }));
@@ -238,7 +238,7 @@ function StartStep(p: WelcomeProps & { kicker: string; done: boolean; next: () =
                   placeholder="marketing"
                   hint={$t("components.welcome-flow.itsOwnAgentsFlowsSecretsAnd")}
                   tenant={p.tenant}
-                  options={[{ where: "account", label: $t("components.welcome-flow.account"), target: { endpoint: "/api/workspaces", body: { template: true, ifAbsent: true } } }]}
+                  options={[{ where: "account", label: $t("components.welcome-flow.account"), target: { endpoint: "/v1/workspaces", body: { template: true, ifAbsent: true } } }]}
                   then={runIn("{name}")}
                 />
               ) : (

@@ -73,7 +73,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const noModelKey = accountModelSupply(tenant) === "none" && !(await onSubscriptionNow(tenant));
 
   // The version this page was rendered with: the sidebar shows it, and the
-  // update notice compares /api/version against it.
+  // update notice compares /v1/version against it.
   const version = versionInfo().version;
 
   return (

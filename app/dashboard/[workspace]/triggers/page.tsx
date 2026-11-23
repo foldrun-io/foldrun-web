@@ -218,7 +218,7 @@ export default async function TriggersPage({
                 </Link>
               ))}
             </div>
-            <Link href={`/api/workspaces/${workspace}/triggers?since=${days}`} className={buttonVariants({ variant: "secondary" })}>
+            <Link href={`/v1/workspaces/${workspace}/triggers?since=${days}`} className={buttonVariants({ variant: "secondary" })}>
               <FileJson aria-hidden />
               {$t("workspace.triggers-page.asJson")}
             </Link>

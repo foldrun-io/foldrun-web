@@ -91,7 +91,7 @@ export function FlowPanel({
 
   const save = async () => {
     setStatus($t("workspace.graph-flow-panel.saving"));
-    const res = await fetch(`/api/workspaces/${workspace}/source`, {
+    const res = await fetch(`/v1/workspaces/${workspace}/source`, {
       method: "PUT",
       headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
       body: JSON.stringify({ path: `flows/${flow.file}`, content: toMarkdown(flow, steps) }),

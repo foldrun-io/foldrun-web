@@ -1,4 +1,4 @@
-// The OpenAPI 3.1 document served at /api/openapi.json.
+// The OpenAPI 3.1 document served at /v1/openapi.json.
 //
 // Paths and methods come from server/openapi-routes.ts, which
 // scripts/gen-openapi.mjs writes from the route files themselves (and the
@@ -17,7 +17,7 @@ import { CURRENT_API_VERSION, deprecationFor } from "./api-version.ts";
 
 import { type Schema, type Shape, obj, str, bool, int, arr, GENERIC, Issue, Run, EffectiveFlag } from "./openapi-shapes/kit.ts";
 
-/** The account's beta and its beta flags (app/api/account/beta). */
+/** The account's beta and its beta flags (app/v1/account/beta). */
 const BetaView = obj({
   beta: { type: "boolean", description: "whether the account is in the beta" },
   flags: arr(obj({ name: str(), description: str(), on: bool, source: str("account | global | beta | rollout | default") }), "the beta flags, as they stand for this account"),
@@ -40,21 +40,21 @@ import { jsonOnly } from "./csrf.ts";
 /** Routes that carry their own proof (a token in the URL, a signature) or
  *  none at all — everything else takes the bearer key or the session. */
 const OPEN = [
-  /^\/api\/healthz$/, /^\/api\/version$/, /^\/api\/openapi\.json$/,
-  /^\/api\/status(\/history)?$/,
-  /^\/api\/signup$/, /^\/api\/pricing$/,
-  /^\/api\/hooks\//, /^\/api\/inbox\//, /^\/api\/events\//, /^\/api\/approve\//, /^\/api\/unsubscribe$/,
-  /^\/api\/billing\/stripe$/, /^\/api\/billing\/confirm$/,
+  /^\/v1\/healthz$/, /^\/v1\/version$/, /^\/v1\/openapi\.json$/,
+  /^\/v1\/status(\/history)?$/,
+  /^\/v1\/signup$/, /^\/v1\/pricing$/,
+  /^\/v1\/hooks\//, /^\/v1\/inbox\//, /^\/v1\/events\//, /^\/v1\/approve\//, /^\/v1\/unsubscribe$/,
+  /^\/v1\/billing\/stripe$/, /^\/v1\/billing\/confirm$/,
   // A storefront's HMAC signature (X-Foldrun-Partner/Timestamp/Signature), never a key.
-  /^\/api\/billing\/partner\//,
-  /^\/api\/auth\/(signup|login|forgot|reset|verify|mfa\/verify|session)$/, /^\/api\/cli\/login(\/\{id\})?$/, /^\/api\/oauth\/callback$/,
+  /^\/v1\/billing\/partner\//,
+  /^\/v1\/auth\/(signup|login|forgot|reset|verify|mfa\/verify|session)$/, /^\/v1\/cli\/login(\/\{id\})?$/, /^\/v1\/oauth\/callback$/,
   /^\/s\//,
 ];
 /** One method open on a path whose others are not. */
-const OPEN_OPS = new Set(["GET /api/cli/authorize"]);
+const OPEN_OPS = new Set(["GET /v1/cli/authorize"]);
 export const isOpen = (p: string, method?: string) => OPEN.some((r) => r.test(p)) || (method !== undefined && OPEN_OPS.has(`${method} ${p}`));
 
-/** GET /api/account/api (server/api-facts.ts apiFactsFor). */
+/** GET /v1/account/api (server/api-facts.ts apiFactsFor). */
 const AccountApi = obj({
   version: obj({ current: str(), pinned: { type: ["string", "null"] }, effective: str(), supported: { type: "array", items: str() }, supportMonths: int }),
   limits: obj({ plan: str(), windowSeconds: int, perCredential: obj({ read: int, write: int }), perAccount: obj({ read: int, write: int }) }),
@@ -119,7 +119,7 @@ const PricingCatalogueSchema: Schema = obj({
 
 /** Written before the per-group files (kept as they were). */
 const LEGACY_SHAPES: Record<string, Shape> = {
-  "GET /api/workspaces/{workspace}/runs": {
+  "GET /v1/workspaces/{workspace}/runs": {
     query: [
       { name: "limit", description: "newest first; default 50, at most 500 — counted after the filters" },
       { name: "tool", description: "a step called a tool whose name contains this" },
@@ -137,7 +137,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       next: { type: ["string", "null"], description: "pass as before= for the page after this one; null when no older run matches" },
     }),
   },
-  "GET /api/workspaces/{workspace}/runs/{runId}": {
+  "GET /v1/workspaces/{workspace}/runs/{runId}": {
     query: [{ name: "wait", description: "true blocks until the run stops or timeout" }, { name: "timeout", description: "seconds, default 300, max 900" }],
     response: {
       ...Run,
@@ -149,12 +149,12 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       },
     },
   },
-  "POST /api/workspaces/{workspace}/flows/{flow}/run": {
+  "POST /v1/workspaces/{workspace}/flows/{flow}/run": {
     body: obj({ task: str("delivered to the first step"), tags: { type: "array", items: str() }, from: int, test: bool, context: str("a conversation this run is a turn of: 1–200 printable ASCII characters; its first step reads the earlier runs of the same context (FOL-162). Not with from"), customer: str("which of your own users this run is for (FOL-168): an opaque id, 1–128 of letters, digits and . _ : @ -; never personal data. Limits and blocks follow it, and the model provider is told a hash of it as its end-user id"), inputs: { type: "array", items: str(), description: "files to hand the run: storage paths, as GET …/storage lists them — at most 20, 100 MiB together; staged at agents/<name>/inputs/ for the first step; not with from, held as they are now (FOL-163). Needs the k8s or container sandbox (409 otherwise); 404 names a path with no stored file" } }),
     response: obj({ ok: bool, runId: str(), steps: int, test: bool, started: bool, reason: str(), context: str("the context, when one was given"), inputs: { type: "array", items: str(), description: "the storage paths it was handed, when any" }, customer: str("the end customer, when one was named") }),
     query: [{ name: "wait", description: "true answers when the run stops" }],
   },
-  "POST /api/workspaces/{workspace}/deploy": {
+  "POST /v1/workspaces/{workspace}/deploy": {
     body: obj(
       {
         // An array of { path, content } — the route refuses anything else. It
@@ -178,7 +178,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       policy: { ...obj({ status: int, code: str("a2a_widening | a2a_secret_code | a2a_accept_risk, when the refusal has one"), error: str() }), description: "dry run: why the real deploy would be refused by the workspace's policy — a policy key or a2a: past an editor, an agent widened behind a published flow, a secret-and-code agent with no accept_risk. Absent when it would not be" },
     }),
   },
-  "GET /api/workspaces/{workspace}/check": {
+  "GET /v1/workspaces/{workspace}/check": {
     query: [
       { name: "security", description: "1 keeps the security categories: secret, security, content, supply-chain" },
       { name: "rule", description: "one rule id or category; repeatable or comma-separated" },
@@ -200,14 +200,14 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       rescan: { ...obj({ checkedAt: str(), findings: int, pending: int, problems: { type: "array", items: str() } }), type: ["object", "null"] },
     }),
   },
-  "GET /api/workspaces/{workspace}/source": {
+  "GET /v1/workspaces/{workspace}/source": {
     query: [{ name: "path", description: "one file; omitted, the tree" }],
     response: obj({
       path: str("with ?path="), content: str("with ?path="), sha256: str("with ?path=: what PUT's ifMatch takes"),
       files: { type: "array", items: str(), description: "without ?path=: every file's workspace-relative path (runs/ and outputs/ left out)" },
     }),
   },
-  "PUT /api/workspaces/{workspace}/source": {
+  "PUT /v1/workspaces/{workspace}/source": {
     body: obj(
       {
         path: str(),
@@ -225,12 +225,12 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       issues: { type: "array", description: "the deploy's checks for this file, as it was saved: errors and warnings", items: obj({ level: str("error | warn"), rule: str(), where: str(), message: str() }) },
     }),
   },
-  "PATCH /api/workspaces/{workspace}/source": {
+  "PATCH /v1/workspaces/{workspace}/source": {
     body: { ...obj({ from: str(), to: str() }, ["from", "to"]), description: "rename a file; both paths pass the same gate as a write" },
     response: obj({ ok: bool, path: str("the new path") }),
   },
-  "DELETE /api/workspaces/{workspace}/source": { body: obj({ path: str("a file or a folder") }, ["path"]), response: obj({ ok: bool }) },
-  "POST /api/workspaces/{workspace}/source/share": {
+  "DELETE /v1/workspaces/{workspace}/source": { body: obj({ path: str("a file or a folder") }, ["path"]), response: obj({ ok: bool }) },
+  "POST /v1/workspaces/{workspace}/source/share": {
     body: obj(
       {
         path: str("a skill, tool, script, knowledge or memory file; skills/x/SKILL.md or tools/x/tool.md (or the folder) moves the whole folder"),
@@ -247,7 +247,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       moved: { ...bool, description: "false for a dry run" },
     }),
   },
-  "PATCH /api/workspaces/{workspace}/agents/{agent}": {
+  "PATCH /v1/workspaces/{workspace}/agents/{agent}": {
     body: obj({
       list: obj({ key: str("subagents | agents | tools"), name: str(), action: str("add | remove") }),
       set: obj({ key: str("description | sandbox"), value: str("for sandbox: own | parent") }),
@@ -258,7 +258,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
     }),
     response: obj({ ok: bool, changed: bool }),
   },
-  "GET /api/secrets": {
+  "GET /v1/secrets": {
     query: [{ name: "workspace", description: "that workspace's own store; omitted, the account's" }],
     response: obj({
       secrets: {
@@ -274,7 +274,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       },
     }),
   },
-  "PUT /api/secrets": {
+  "PUT /v1/secrets": {
     body: obj(
       {
         name: str(), value: str("write-only, never returned"), workspace: str("that workspace's own store; omitted, the account's"),
@@ -299,7 +299,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       public_jwk: { type: "object", additionalProperties: true, description: "an oauth2 recipe with private_key_jwt: the public key to register with the provider" },
     }),
   },
-  "PATCH /api/secrets": {
+  "PATCH /v1/secrets": {
     body: {
       ...obj(
         {
@@ -319,8 +319,8 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       workspaces: { type: ["array", "null"], items: str(), description: "when workspaces was sent: the limit now; null is every workspace" },
     }),
   },
-  "DELETE /api/secrets": { body: obj({ name: str(), workspace: str() }, ["name"]), response: obj({ ok: bool, revoked: OAuthRevoked }) },
-  "POST /api/workspaces/{workspace}/runs/{runId}/rerun": {
+  "DELETE /v1/secrets": { body: obj({ name: str(), workspace: str() }, ["name"]), response: obj({ ok: bool, revoked: OAuthRevoked }) },
+  "POST /v1/workspaces/{workspace}/runs/{runId}/rerun": {
     body: obj({
       step: { ...int, description: "1-based step to start from" },
       agent: str("or: the first step this agent runs"),
@@ -328,20 +328,20 @@ const LEGACY_SHAPES: Record<string, Shape> = {
     }),
     response: obj({ ok: bool, runId: str(), from: str(), steps: int }),
   },
-  "GET /api/workspaces/{workspace}/runs/{runId}/compare": {
+  "GET /v1/workspaces/{workspace}/runs/{runId}/compare": {
     query: [{ name: "with", description: "the run to compare with; unasked, the newest earlier run of the flow that finished well, else the run this one re-ran" }],
     response: obj({
       comparison: { ...GENERIC, description: "{ base, run, revisionChanged, changedFiles (null when unknown), steps: [{ step, agent, base, run, changes }] } — each side { status, instruction, model, secs, tokensIn, tokensOut, modelCalls, tools, toolErrors, errors, said }" },
       chosen: str("named | last good | re-run source"),
     }),
   },
-  "GET /api/workspaces/{workspace}/runs/{runId}/trace": {
+  "GET /v1/workspaces/{workspace}/runs/{runId}/trace": {
     response: obj({
       tree: { ...GENERIC, description: "TraceSpan: { id, kind (run | step | model | tool | error), label, start, end (epoch ms), status (ok | error | running | waiting | skipped | pending), tokens?, costUsd?, model?, stop?, call?, captured?, text?, subagent?, step?, children }" },
       failure: { type: "array", items: str(), description: "span ids from the root to the first thing that went wrong; [] when nothing did" },
     }),
   },
-  "GET /api/workspaces/{workspace}/runs/{runId}/calls/{callId}": {
+  "GET /v1/workspaces/{workspace}/runs/{runId}/calls/{callId}": {
     response: obj({
       call: obj({
         id: str("the tool call's id (the event's `call`)"), tool: str(),
@@ -351,7 +351,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       }),
     }),
   },
-  "GET /api/insights": {
+  "GET /v1/insights": {
     query: [
       { name: "days", description: "the window, 1–30 (default 7)" },
       { name: "workspace", description: "only this workspace" },
@@ -368,15 +368,15 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       },
     }),
   },
-  "GET /api/issues": {
+  "GET /v1/issues": {
     query: [
       { name: "status", description: "active (default: open + acknowledged) | open | acknowledged | snoozed | resolved | all" },
       { name: "workspace", description: "only issues that hit this workspace" },
     ],
     response: obj({ issues: { type: "array", items: Issue } }),
   },
-  "GET /api/issues/{id}": { response: obj({ issue: Issue }) },
-  "POST /api/issues/{id}": {
+  "GET /v1/issues/{id}": { response: obj({ issue: Issue }) },
+  "POST /v1/issues/{id}": {
     body: obj(
       {
         action: str("acknowledge | snooze | resolve | reopen"),
@@ -389,7 +389,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
     ),
     response: obj({ issue: Issue }),
   },
-  "GET /api/keys": {
+  "GET /v1/keys": {
     response: obj({
       keys: {
         type: "array",
@@ -422,12 +422,12 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       gatewayUrl: { type: ["string", "null"], description: "where a coding agent points ANTHROPIC_BASE_URL with a gateway key; null where this install has no gateway" },
     }),
   },
-  "POST /api/keys": {
+  "POST /v1/keys": {
     body: obj({
       label: str(), role: str("viewer | editor | admin"), workspaces: { type: ["array", "null"], items: str() },
       expires: { type: ["string", "integer", "null"], description: "30d, 90d, 365d, a number of days (1–3650), or never / null" },
       workspace: str("with purpose: a2a, the A2A key's one workspace; otherwise refused: deploy keys went with the platform's own git (17 Oct 2026)"), access: str("refused, as workspace"),
-      purpose: str("a2a: mint a key for an outside agent — it opens /a2a/<account>/<workspace>/… for `flows` and no /api route. gateway: mint a key for a coding agent such as Claude Code (ANTHROPIC_BASE_URL + this key) — it spends the account's balance on the platform's Anthropic models through the gateway and opens no /api route; needs capUsd or dailyUsd, and an admin of every workspace"),
+      purpose: str("a2a: mint a key for an outside agent — it opens /a2a/<account>/<workspace>/… for `flows` and no /v1 route. gateway: mint a key for a coding agent such as Claude Code (ANTHROPIC_BASE_URL + this key) — it spends the account's balance on the platform's Anthropic models through the gateway and opens no /v1 route; needs capUsd or dailyUsd, and an admin of every workspace"),
       capUsd: { type: "number", description: "purpose: gateway — the most the key may spend in all, USD (above 0, at most 100000)" },
       dailyUsd: { type: "number", description: "purpose: gateway — the most the key may spend per UTC day, USD" },
       requireCustomer: bool,
@@ -455,8 +455,8 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       modelAccess: { ...obj({ capUsd: { type: ["number", "null"] }, dailyUsd: { type: ["number", "null"] }, walletUsd: { type: "number" } }), description: "an API key made with modelAccess: its limits" },
     }),
   },
-  "DELETE /api/keys": { body: obj({ id: str("a key may always revoke itself") }, ["id"]), response: obj({ ok: bool }) },
-  "POST /api/team": {
+  "DELETE /v1/keys": { body: obj({ id: str("a key may always revoke itself") }, ["id"]), response: obj({ ok: bool }) },
+  "POST /v1/team": {
     body: obj({
       role: str("viewer | editor | admin, default editor; admin only by the owner"),
       workspaces: { type: ["array", "null"], items: str(), description: "names, or omit / null for all — never wider than your own scope" },
@@ -465,7 +465,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
     }),
     response: obj({
       ok: bool,
-      id: str("the invite's id — GET/DELETE /api/team/invites"),
+      id: str("the invite's id — GET/DELETE /v1/team/invites"),
       role: str(),
       workspaces: { type: ["array", "null"], items: str() },
       email: { type: ["string", "null"] },
@@ -475,7 +475,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       sendError: { type: ["string", "null"] },
     }),
   },
-  "GET /api/team/invites": {
+  "GET /v1/team/invites": {
     query: [{ name: "all", description: "1: accepted, revoked and expired invites too; pending only by default" }],
     response: obj({
       invites: {
@@ -493,10 +493,10 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       },
     }),
   },
-  "DELETE /api/team/invites/{id}": {
+  "DELETE /v1/team/invites/{id}": {
     response: obj({ ok: bool, revoked: { ...bool, description: "false when it was already revoked or expired" }, invite: GENERIC }),
   },
-  "GET /api/usage/compute": {
+  "GET /v1/account/usage/compute": {
     response: obj({
       compute: obj({
         vcpu: { type: ["number", "null"], description: "cores all running steps may hold together; null is no cap" },
@@ -555,7 +555,7 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       },
     }),
   },
-  "GET /api/usage": {
+  "GET /v1/account/usage": {
     query: [
       { name: "from", description: "first UTC day of the period, YYYY-MM-DD; default the first of this month. Bounds tokens, compute and billed, not totals or workspaces" },
       { name: "to", description: "last UTC day of the period, YYYY-MM-DD; default today. At most a year after from" },
@@ -625,17 +625,17 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       },
     }),
   },
-  "GET /api/usage/rates": {
+  "GET /v1/account/usage/rates": {
     response: obj({
       rates: { ...nullable(MeterRatesSchema), description: "what the account is charged now; null where nothing is billed" },
       plan: { ...nullable(obj({ ...PlanTermsProps, status: { type: ["string", "null"] }, resetsAt: nstr() })), description: "the account's plan; null for a caller limited to some workspaces" },
       catalogue: { ...nullable(PricingCatalogueSchema), description: "the public catalogue" },
     }),
   },
-  "GET /api/pricing": {
+  "GET /v1/pricing": {
     response: PricingCatalogueSchema,
   },
-  "GET /api/billing": {
+  "GET /v1/billing": {
     response: obj({
       enabled: { ...bool, description: "billing is on for this install" },
       balanceUsd: { type: "number", description: "the account's credit, in USD (one credit is one cent)" },
@@ -644,9 +644,9 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       entries: { type: "array", items: GENERIC, description: "the newest 100 ledger lines, newest first; a caller limited to some workspaces sees only theirs" },
     }),
   },
-  "POST /api/billing/checkout": { body: obj({ usd: { type: "number" } }, ["usd"]), response: obj({ url: str() }) },
-  "POST /api/billing/portal": { body: obj({ returnTo: str() }), response: obj({ url: str() }) },
-  "POST /api/billing/subscribe": {
+  "POST /v1/billing/checkout": { body: obj({ usd: { type: "number" } }, ["usd"]), response: obj({ url: str() }) },
+  "POST /v1/billing/portal": { body: obj({ returnTo: str() }), response: obj({ url: str() }) },
+  "POST /v1/billing/subscribe": {
     body: obj({ plan: str("starter | pro | scale"), resume: bool }),
     response: obj({
       ok: bool,
@@ -657,14 +657,14 @@ const LEGACY_SHAPES: Record<string, Shape> = {
       plan: str("the plan now in force"),
     }),
   },
-  "GET /api/account/api": { response: AccountApi },
-  "PATCH /api/account/api": {
+  "GET /v1/account/api": { response: AccountApi },
+  "PATCH /v1/account/api": {
     body: obj({ version: { type: ["string", "null"], description: "YYYY-MM-DD, or null for current" } }, ["version"]),
     response: { ...AccountApi, description: "the same as GET, as the whole account sees it (only a caller who holds every workspace may PATCH)" },
   },
-  "GET /api/account/flags": { response: obj({ flags: { type: "array", items: EffectiveFlag } }) },
-  "GET /api/account/beta": { response: BetaView },
-  "PUT /api/account/beta": { body: obj({ beta: { type: "boolean", description: "true joins the beta, false leaves it" } }, ["beta"]), response: { ...BetaView, properties: { ...(BetaView.properties as Record<string, Schema>), changed: bool } } },
+  "GET /v1/account/flags": { response: obj({ flags: { type: "array", items: EffectiveFlag } }) },
+  "GET /v1/account/beta": { response: BetaView },
+  "PUT /v1/account/beta": { body: obj({ beta: { type: "boolean", description: "true joins the beta, false leaves it" } }, ["beta"]), response: { ...BetaView, properties: { ...(BetaView.properties as Record<string, Schema>), changed: bool } } },
 };
 
 /** Every operation's shape: the ones above, then each group's file. A key in
@@ -694,9 +694,9 @@ const RATE_HEADERS = {
 };
 
 /** The routes this build serves: an install without foldrun's billing has
- *  no /api/billing, so its spec does not offer it. The operator console's
+ *  no /v1/billing, so its spec does not offer it. The operator console's
  *  routes are never in it (scripts/gen-openapi.mjs leaves them out). */
-const ROUTES = billing() === freeBilling ? ALL_ROUTES.filter((r) => !/^\/api\/billing(\/|$)/.test(r.path)) : ALL_ROUTES;
+const ROUTES = billing() === freeBilling ? ALL_ROUTES.filter((r) => !/^\/v1\/billing(\/|$)/.test(r.path)) : ALL_ROUTES;
 
 const IDEMPOTENT_ROUTES = new Set(ROUTES.flatMap((r) => (r.idempotent ?? []).map((m) => `${m} ${r.path}`)));
 
@@ -704,116 +704,116 @@ const IDEMPOTENT_ROUTES = new Set(ROUTES.flatMap((r) => (r.idempotent ?? []).map
  *  cover — found by the API fuzz (quality/fuzz.sh, 27 Oct 2026). */
 const EXTRA_STATUSES: Record<string, string[]> = {
   // An unknown or spent sign-in code.
-  "GET /api/cli/authorize": ["404"],
+  "GET /v1/cli/authorize": ["404"],
   // Nothing to fix, a proposal for that eval already open, or paused.
-  "POST /api/workspaces/{workspace}/evals/{evalName}/improve": ["409"],
+  "POST /v1/workspaces/{workspace}/evals/{evalName}/improve": ["409"],
   // The file changed since it was loaded (body.ifMatch is not its sha256).
-  "PUT /api/workspaces/{workspace}/source": ["409"],
+  "PUT /v1/workspaces/{workspace}/source": ["409"],
   // Gone (FOL-75): removing a step is PATCH { edit }.
-  "DELETE /api/workspaces/{workspace}/flows/draft": ["410"],
+  "DELETE /v1/workspaces/{workspace}/flows/draft": ["410"],
   // Not there (404); a file the library cannot hold, or one already there without overwrite (409).
-  "POST /api/workspaces/{workspace}/source/share": ["404", "409"],
+  "POST /v1/workspaces/{workspace}/source/share": ["404", "409"],
   // No secret by that name.
-  "PATCH /api/secrets": ["404", "409"],
+  "PATCH /v1/secrets": ["404", "409"],
   // Renaming onto a taken name, or a secret limited to this workspace that
   // cannot be read (409); the vault could not be updated (503).
-  "PATCH /api/workspaces/{workspace}": ["409", "503"],
-  "DELETE /api/workspaces/{workspace}": ["409", "503"],
+  "PATCH /v1/workspaces/{workspace}": ["409", "503"],
+  "DELETE /v1/workspaces/{workspace}": ["409", "503"],
   // A sign-in code older than five minutes can no longer be approved.
-  "POST /api/cli/authorize": ["410"],
+  "POST /v1/cli/authorize": ["410"],
   // The install sends no mail (code mail_not_configured), or it is already your address.
-  "POST /api/auth/email": ["409"],
+  "POST /v1/auth/email": ["409"],
   // A new run while the account has its most runs waiting (code
   // waiting_cap, FOL-100); a flow start also for overlap: skip. 402: every
   // new run is admitted against the balance and the `budget:` files
   // (platform queue.ts admitNow → reservations.ts), and refused past them.
-  "POST /api/workspaces/{workspace}/flows/{flow}/run": ["402", "409"],
-  "POST /api/workspaces/{workspace}/agents/{agent}/run": ["402", "409", "413", "503"],
-  "POST /api/workspaces/{workspace}/runs/{runId}/rerun": ["402", "409"],
+  "POST /v1/workspaces/{workspace}/flows/{flow}/run": ["402", "409"],
+  "POST /v1/workspaces/{workspace}/agents/{agent}/run": ["402", "409", "413", "503"],
+  "POST /v1/workspaces/{workspace}/runs/{runId}/rerun": ["402", "409"],
   // The same waiting-cap refusal to a delivery is a 503 with Retry-After,
   // which a sender retries; out of funds or budget stays a 402.
-  "POST /api/hooks/{tenant}/{workspace}/{flow}": ["402", "503"],
-  "POST /api/inbox/{tenant}/{workspace}/{flow}": ["402", "503"],
+  "POST /v1/hooks/{tenant}/{workspace}/{flow}": ["402", "503"],
+  "POST /v1/inbox/{tenant}/{workspace}/{flow}": ["402", "503"],
   // A new workspace past the plan's workspace count (server/workspace-cap.ts).
-  "POST /api/workspaces": ["402"],
-  "POST /api/workspaces/{workspace}/deploy": ["402"],
-  "POST /api/workspaces/{workspace}/import": ["402"],
+  "POST /v1/workspaces": ["402"],
+  "POST /v1/workspaces/{workspace}/deploy": ["402"],
+  "POST /v1/workspaces/{workspace}/import": ["402"],
   // Found by the hosted fuzz run (FOL-199, 16 Nov 2026), each by design:
   // no saved OAuth client, gallery tool or workspace by the name in the body.
-  "POST /api/oauth/start": ["404"],
-  "POST /api/oauth/device": ["404"],
-  "POST /api/library/gallery": ["404"],
+  "POST /v1/oauth/start": ["404"],
+  "POST /v1/oauth/device": ["404"],
+  "POST /v1/library/gallery": ["404"],
   // A skill, tool or hook by that name is already in the library.
-  "POST /api/library/{kind}": ["409"],
+  "POST /v1/library/{kind}": ["409"],
   // No saved OAuth client for the secret's provider (needsClient: true).
-  "POST /api/oauth/reconnect": ["404"],
-  "GET /api/me/onboarding": ["404"],
+  "POST /v1/oauth/reconnect": ["404"],
+  "GET /v1/me/onboarding": ["404"],
   // The flow is not a webhook flow (requireWebhookFlow).
-  "GET /api/workspaces/{workspace}/hooks/{flow}": ["409"],
+  "GET /v1/workspaces/{workspace}/hooks/{flow}": ["409"],
   // No frame from the agent's browser yet: nothing to show.
-  "GET /api/workspaces/{workspace}/runs/{runId}/live": ["204"],
+  "GET /v1/workspaces/{workspace}/runs/{runId}/live": ["204"],
   // The run has already ended.
-  "POST /api/workspaces/{workspace}/runs/{runId}/stop": ["409"],
+  "POST /v1/workspaces/{workspace}/runs/{runId}/stop": ["409"],
   // A mail that cannot be unsubscribed from (409); a spent token (410).
-  "POST /api/unsubscribe": ["409", "410"],
+  "POST /v1/unsubscribe": ["409", "410"],
   // { async: true } answers 202 at once (21 Oct 2026); that eval already
   // running is a 409 naming the run to poll (FOL-199, hosted fuzz).
-  "POST /api/workspaces/{workspace}/evals/{evalName}/run": ["202", "409"],
+  "POST /v1/workspaces/{workspace}/evals/{evalName}/run": ["202", "409"],
   // A flow of that name already exists (FOL-199, hosted fuzz).
-  "POST /api/workspaces/{workspace}/flows": ["409"],
+  "POST /v1/workspaces/{workspace}/flows": ["409"],
   // A mail that cannot be turned off, with the reason (FOL-199, hosted fuzz).
-  "PATCH /api/me/notifications": ["409"],
+  "PATCH /v1/me/notifications": ["409"],
   // Every status a route file returns on purpose, from the sweep
   // tests/status-coverage.test.ts runs (FOL-199, 16 Nov 2026): each hosted
   // fuzz run found one more of these until they were listed together. A
   // "* path" entry applies to each method of that path. 5xx are not listed:
   // the fuzz reports a server error whatever the document says.
-  "* /api/billing/partner/plans": ["404"],
-  "* /api/billing/partner/topups/quote": ["404"],
-  "* /api/billing/partner/topups": ["404"],
-  "* /api/billing/stripe": ["404"],
-  "* /api/billing/subscribe": ["402", "404"],
-  "* /api/events/{tenant}/{workspace}/{runId}": ["409"],
-  "* /api/extract": ["411", "413"],
-  "* /api/oauth/clients": ["404"],
-  "* /api/oauth/discover": ["422"],
-  "* /api/pricing": ["204", "304", "404"],
-  "* /api/signup": ["204"],
-  "* /api/workspaces/{workspace}/agents/{agent}": ["409"],
-  "* /api/workspaces/{workspace}/agents": ["409"],
-  "* /api/workspaces/{workspace}/assets": ["409"],
-  "* /api/workspaces/{workspace}/deploy": ["409", "413"],
-  "* /api/workspaces/{workspace}/evals/{evalName}/compare": ["409"],
-  "* /api/workspaces/{workspace}/evals": ["409"],
-  "* /api/workspaces/{workspace}/flows/{flow}": ["409"],
-  "* /api/workspaces/{workspace}/import": ["411", "413"],
-  "* /api/workspaces/{workspace}/restore": ["409"],
-  "* /api/workspaces/{workspace}/runs/{runId}/answer": ["409", "413"],
-  "* /api/workspaces/{workspace}/runs/{runId}/archive": ["206", "416"],
-  "* /api/workspaces/{workspace}/runs/{runId}/message": ["409", "413"],
-  "* /api/workspaces/{workspace}/sessions/{context}/messages": ["201", "409", "503"],
-  "* /api/workspaces/{workspace}/shares": ["409"],
-  "* /api/workspaces/{workspace}/snapshots": ["411", "413"],
-  "* /api/workspaces/{workspace}/source": ["422"],
-  "* /api/workspaces/{workspace}/storage/download": ["206", "416"],
-  "* /api/workspaces": ["409"],
-  "* /api/account/agents-md": ["409", "413"],
-  "* /api/account/model": ["409"],
-  "* /api/auth/login/code": ["404"],
-  "* /api/auth/login/code/verify": ["404"],
-  "* /api/auth/login": ["401"],
-  "* /api/auth/mfa/verify": ["401"],
-  "* /api/auth/sessions": ["409"],
-  "* /api/auth/signup": ["403"],
-  "* /api/avatars/{kind}/{id}": ["413"],
-  "* /api/billing/partner/plans/offer": ["404"],
+  "* /v1/billing/partner/plans": ["404"],
+  "* /v1/billing/partner/topups/quote": ["404"],
+  "* /v1/billing/partner/topups": ["404"],
+  "* /v1/billing/stripe": ["404"],
+  "* /v1/billing/subscribe": ["402", "404"],
+  "* /v1/events/{tenant}/{workspace}/{runId}": ["409"],
+  "* /v1/extract": ["411", "413"],
+  "* /v1/oauth/clients": ["404"],
+  "* /v1/oauth/discover": ["422"],
+  "* /v1/pricing": ["204", "304", "404"],
+  "* /v1/signup": ["204"],
+  "* /v1/workspaces/{workspace}/agents/{agent}": ["409"],
+  "* /v1/workspaces/{workspace}/agents": ["409"],
+  "* /v1/workspaces/{workspace}/assets": ["409"],
+  "* /v1/workspaces/{workspace}/deploy": ["409", "413"],
+  "* /v1/workspaces/{workspace}/evals/{evalName}/compare": ["409"],
+  "* /v1/workspaces/{workspace}/evals": ["409"],
+  "* /v1/workspaces/{workspace}/flows/{flow}": ["409"],
+  "* /v1/workspaces/{workspace}/import": ["411", "413"],
+  "* /v1/workspaces/{workspace}/restore": ["409"],
+  "* /v1/workspaces/{workspace}/runs/{runId}/answer": ["409", "413"],
+  "* /v1/workspaces/{workspace}/runs/{runId}/archive": ["206", "416"],
+  "* /v1/workspaces/{workspace}/runs/{runId}/message": ["409", "413"],
+  "* /v1/workspaces/{workspace}/sessions/{context}/messages": ["201", "409", "503"],
+  "* /v1/workspaces/{workspace}/shares": ["409"],
+  "* /v1/workspaces/{workspace}/snapshots": ["411", "413"],
+  "* /v1/workspaces/{workspace}/source": ["422"],
+  "* /v1/workspaces/{workspace}/storage/download": ["206", "416"],
+  "* /v1/workspaces": ["409"],
+  "* /v1/account/agents-md": ["409", "413"],
+  "* /v1/account/model": ["409"],
+  "* /v1/auth/login/code": ["404"],
+  "* /v1/auth/login/code/verify": ["404"],
+  "* /v1/auth/login": ["401"],
+  "* /v1/auth/mfa/verify": ["401"],
+  "* /v1/auth/sessions": ["409"],
+  "* /v1/auth/signup": ["403"],
+  "* /v1/avatars/{kind}/{id}": ["413"],
+  "* /v1/billing/partner/plans/offer": ["404"],
   // A JSON-RPC notification has no reply: 202, no body (MCP Streamable HTTP).
-  "POST /api/mcp": ["202"],
+  "POST /v1/mcp": ["202"],
 };
 
 /** A success status whose body is not the default one for that code. */
 const EXTRA_SUCCESS_FOR: Record<string, Record<string, Schema>> = {
-  "POST /api/mcp": { "202": { description: "Accepted — a notification, nothing to send" } },
+  "POST /v1/mcp": { "202": { description: "Accepted — a notification, nothing to send" } },
 };
 
 /** The success statuses in EXTRA_STATUSES, which are not refusals. */
@@ -837,17 +837,17 @@ const EXTRA_SUCCESS: Record<string, Schema> = {
 /** Open routes whose credential is a signature or a signed token in the
  *  request (a storefront's HMAC, Stripe's signature, an unsubscribe token):
  *  a missing or forged one is a 401 (FOL-199). */
-const SIGNED_OPEN = [/^\/api\/billing\/partner\//, /^\/api\/billing\/stripe$/, /^\/api\/unsubscribe$/];
+const SIGNED_OPEN = [/^\/v1\/billing\/partner\//, /^\/v1\/billing\/stripe$/, /^\/v1\/unsubscribe$/];
 
 /** Operations whose credential is not the general rule's (a bearer API key
  *  or a session, refused 401/403): the credential it takes, and the
  *  refusals it gives instead (FOL-75, 5 Nov 2026 — the document said
- *  bearer and 401/403 for /api/metrics, which takes neither). */
+ *  bearer and 401/403 for /v1/metrics, which takes neither). */
 const OP_AUTH: Record<string, { security: Schema[]; refusals: string[] }> = {
   // The scraper's token (FOLDRUN_METRICS_TOKEN), never an account's key or a
   // session; no token, a wrong one, or none configured is a 404 — the route
   // does not say it is there — and too many wrong ones a 429.
-  "GET /api/metrics": { security: [{ metricsToken: [] }], refusals: ["404"] },
+  "GET /v1/metrics": { security: [{ metricsToken: [] }], refusals: ["404"] },
 };
 
 export function openapiDocument(origin?: string): Schema {
@@ -909,7 +909,7 @@ export function openapiDocument(origin?: string): Schema {
       title: "foldrun API",
       version: CURRENT_API_VERSION,
       description:
-        "Every route under /api. Authenticate with `Authorization: Bearer <key>` (Settings → API keys). " +
+        "Every route is /v1/<route>, on the API host. Authenticate with `Authorization: Bearer <key>` (Settings → API keys). " +
         "Pin a version with `Foldrun-Version: YYYY-MM-DD`. Writes that start work accept `Idempotency-Key`. " +
         "See docs/api-usage.md for rate limits, errors and pagination.",
     },
@@ -919,7 +919,7 @@ export function openapiDocument(origin?: string): Schema {
     components: {
       securitySchemes: {
         bearer: { type: "http", scheme: "bearer", description: "An API key from Settings → API keys (fr_api_…; fr_gw_… for the gateway, fr_a2a_… for A2A)" },
-        metricsToken: { type: "http", scheme: "bearer", description: "The install's Prometheus scrape token (FOLDRUN_METRICS_TOKEN) — not an API key; only GET /api/metrics takes it" },
+        metricsToken: { type: "http", scheme: "bearer", description: "The install's Prometheus scrape token (FOLDRUN_METRICS_TOKEN) — not an API key; only GET /v1/metrics takes it" },
       },
       parameters: {
         FoldrunVersion: {
@@ -1006,9 +1006,9 @@ function successOf(shape: Shape | undefined): Record<string, Schema> {
 }
 
 function tagOf(p: string): string {
-  const m = p.match(/^\/api\/workspaces\/\{workspace\}\/([a-z-]+)/);
+  const m = p.match(/^\/v1\/workspaces\/\{workspace\}\/([a-z-]+)/);
   if (m) return m[1];
-  if (p === "/api/workspaces" || p === "/api/workspaces/{workspace}") return "workspaces";
+  if (p === "/v1/workspaces" || p === "/v1/workspaces/{workspace}") return "workspaces";
   if (p.startsWith("/s/")) return "shares";
   return p.split("/")[2] ?? "api";
 }

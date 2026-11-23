@@ -27,7 +27,7 @@ export function AppearanceForm({ current }: { current: Theme }) {
     setBusy(true);
     setTheme(next);
     document.documentElement.dataset.theme = next;
-    const res = await fetch("/api/me/preferences", {
+    const res = await fetch("/v1/me/preferences", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ theme: next }),

@@ -60,7 +60,7 @@ export function NewFile({ workspace, tenant, scope }: { workspace: string; tenan
         e.preventDefault();
         setError(null);
         const rel = path.endsWith(".md") ? path : `${path}.md`;
-        const res = await fetch(`/api/workspaces/${workspace}/source`, {
+        const res = await fetch(`/v1/workspaces/${workspace}/source`, {
           method: "PUT",
           headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
           body: JSON.stringify({ path: rel, content: TEMPLATE(rel) }),

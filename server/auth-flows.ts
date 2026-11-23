@@ -73,7 +73,7 @@ export function resetLink(origin: string, user: UserRecord): string {
 
 export function verifyLink(origin: string, user: UserRecord): string {
   const token = mintToken("verify", { u: user.id, e: user.email }, VERIFY_TTL_MS);
-  return `${origin}/api/auth/verify?token=${encodeURIComponent(token)}`;
+  return `${origin}/v1/auth/verify?token=${encodeURIComponent(token)}`;
 }
 
 /**
@@ -88,5 +88,5 @@ export function verifyLink(origin: string, user: UserRecord): string {
  */
 export function emailChangeLink(origin: string, user: UserRecord, to: string): string {
   const token = mintToken("email-change", { u: user.id, e: user.email, h: hashFingerprint(user.hash), n: String(emailMovesOf(user)), to }, VERIFY_TTL_MS);
-  return `${origin}/api/auth/verify?token=${encodeURIComponent(token)}`;
+  return `${origin}/v1/auth/verify?token=${encodeURIComponent(token)}`;
 }

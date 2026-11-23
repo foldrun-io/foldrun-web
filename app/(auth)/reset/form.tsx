@@ -16,7 +16,7 @@ export function ResetForm({ token }: { token: string }) {
         e.preventDefault();
         setBusy(true); setError(null);
         const password = String(new FormData(e.currentTarget).get("password") ?? "");
-        const res = await fetch("/api/auth/reset", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, password }) });
+        const res = await fetch("/v1/auth/reset", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, password }) });
         if (res.ok) {
           // With a second factor the reset signs nobody in: the login asks for the code.
           const j = (await res.json().catch(() => ({}))) as { signIn?: boolean };

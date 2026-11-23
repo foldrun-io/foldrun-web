@@ -26,7 +26,7 @@ const { NextRequest } = await import("next/server");
 const { createApiKey, revokeApiKey, resolveTenant } = await import("../server/auth.ts");
 const { requirePermission } = await import("../server/api.ts");
 const { createUser, findUser } = await import("../server/users.ts");
-const login = await import("../app/api/auth/login/route.ts");
+const login = await import("../app/v1/auth/login/route.ts");
 
 function capture(): { lines: string[]; done: () => void } {
   const lines: string[] = [];
@@ -34,7 +34,7 @@ function capture(): { lines: string[]; done: () => void } {
   console.warn = (...a: unknown[]) => void lines.push(String(a[0]));
   return { lines, done: () => void (console.warn = warn) };
 }
-const req = (key: string) => new NextRequest("https://app.example.test/api/workspaces/desk/runs", { headers: { authorization: `Bearer ${key}` } });
+const req = (key: string) => new NextRequest("https://app.example.test/v1/workspaces/desk/runs", { headers: { authorization: `Bearer ${key}` } });
 
 test("a revoked key is recorded once per request, on its account, by the key's id — never the key", async () => {
   const { key, record } = await createApiKey("acme", "ci", undefined, undefined, "editor");
@@ -79,7 +79,7 @@ test("a refused sign-in is recorded against the member and account, never the ad
   const c = capture();
   try {
     const signIn = (email: string) =>
-      login.POST(new NextRequest("http://x/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, password: "wrong" }) }));
+      login.POST(new NextRequest("http://x/v1/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, password: "wrong" }) }));
     assert.equal((await signIn("ana@refusal.test")).status, 401);
     assert.equal((await signIn("nobody@refusal.test")).status, 401);
     // The note is written off the answer's path (timing): let it land.

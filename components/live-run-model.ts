@@ -140,7 +140,7 @@ export function eventRelease(step: Pick<StepRecord, "waitFor" | "events">): { ur
     const m = /release it with POST (\S+)/.exec(step.events[i]?.text ?? "");
     if (!m) continue;
     const url = m[1];
-    const at = url.indexOf("/api/events/");
+    const at = url.indexOf("/v1/events/");
     if (at < 0) continue;
     return { url, path: url.slice(at) };
   }

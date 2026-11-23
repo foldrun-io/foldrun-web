@@ -1,4 +1,4 @@
-// OpenAPI request/response schemas: /api/workspaces/{workspace} itself and /api/workspaces/{workspace}/<notify|observe|pause|proposals|restore|runtimes|shares|source|storage|tools|triggers|vocabulary|…>.
+// OpenAPI request/response schemas: /v1/workspaces/{workspace} itself and /v1/workspaces/{workspace}/<notify|observe|pause|proposals|restore|runtimes|shares|source|storage|tools|triggers|vocabulary|…>.
 // Written from what each handler validates and answers (30 Oct 2026).
 
 import { type Schema, type Shape, obj, str, bool, int, arr, nullable, OK, Proposal, ExtractResult } from "./kit.ts";
@@ -194,7 +194,7 @@ const Preview = open(
 const TriggerOutcome = "started | duplicate | throttled | debounced | quarantined | paused | halted | overlap-skipped | missed | filtered | queue-full | failed";
 
 export const SHAPES: Record<string, Shape> = {
-  "GET /api/workspaces/{workspace}": {
+  "GET /v1/workspaces/{workspace}": {
     response: obj({
       name: str(),
       agents: arr(AgentInfo),
@@ -202,7 +202,7 @@ export const SHAPES: Record<string, Shape> = {
       files: arr(str(), "the workspace's editable files, workspace-relative; runs/, outputs/ and generated results left out"),
     }),
   },
-  "PATCH /api/workspaces/{workspace}": {
+  "PATCH /v1/workspaces/{workspace}": {
     body: obj({
       name: str("rename it — every webhook URL changes; refused (409) while it is paused"),
       description: str("written as one YAML value, recorded as a revision"),
@@ -223,11 +223,11 @@ export const SHAPES: Record<string, Shape> = {
       brokeWebhooks: arr(str(), "flows whose webhook URL stopped working with the rename — re-copy each"),
     }),
   },
-  "DELETE /api/workspaces/{workspace}": {
+  "DELETE /v1/workspaces/{workspace}": {
     noBody: "The workspace is named in the path; its public links are revoked and its stored files purged with it.",
     response: OK,
   },
-  "GET /api/workspaces/{workspace}/notify/deliveries": {
+  "GET /v1/workspaces/{workspace}/notify/deliveries": {
     query: [
       { name: "status", description: "pending | delivered | failed | skipped" },
       { name: "event", description: "only deliveries of this event (failed, awaiting-approval, completed, test, …)" },
@@ -241,7 +241,7 @@ export const SHAPES: Record<string, Shape> = {
       endpoint: nullable({ ...Endpoint, description: "the webhook's health; null when notify: has no url or nothing was sent yet" }),
     }),
   },
-  "POST /api/workspaces/{workspace}/notify/deliveries/{id}/redeliver": {
+  "POST /v1/workspaces/{workspace}/notify/deliveries/{id}/redeliver": {
     noBody: "The delivery is named in the path; it is sent again with its own id and body.",
     response: obj({
       ok: { ...bool, description: "the receiver took it; 200 either way" },
@@ -249,7 +249,7 @@ export const SHAPES: Record<string, Shape> = {
       delivery: Delivery,
     }),
   },
-  "POST /api/workspaces/{workspace}/notify/test": {
+  "POST /v1/workspaces/{workspace}/notify/test": {
     noBody: "It sends one test message to whatever this workspace's notify: resolves to; there is nothing to choose.",
     response: obj({
       ok: { ...bool, description: "it was accepted; 200 either way" },
@@ -257,7 +257,7 @@ export const SHAPES: Record<string, Shape> = {
       detail: str("what happened — the provider's own words when it failed"),
     }, ["ok", "destination", "detail"]),
   },
-  "GET /api/workspaces/{workspace}/observe": {
+  "GET /v1/workspaces/{workspace}/observe": {
     query: [
       { name: "days", description: "the window in days, 1–365 (default 30)" },
       { name: "since", description: "the older spelling of days" },
@@ -293,10 +293,10 @@ export const SHAPES: Record<string, Shape> = {
       }), "where steps' first seconds went, phase by phase"),
     }),
   },
-  "GET /api/workspaces/{workspace}/pause": {
+  "GET /v1/workspaces/{workspace}/pause": {
     response: obj(PauseView),
   },
-  "POST /api/workspaces/{workspace}/pause": {
+  "POST /v1/workspaces/{workspace}/pause": {
     body: obj({
       reason: str("up to 300 characters"),
       stop: { ...bool, description: "true also stops every running, queued or waiting run here (needs run:start)" },
@@ -307,25 +307,25 @@ export const SHAPES: Record<string, Shape> = {
       failed: arr(obj({ runId: str(), workspace: str(), error: str() }), "runs that could not be stopped"),
     }),
   },
-  "DELETE /api/workspaces/{workspace}/pause": {
+  "DELETE /v1/workspaces/{workspace}/pause": {
     noBody: "Resumes this workspace; the account's own pause, if any, still holds.",
     response: obj({ ok: bool, ...PauseView }),
   },
-  "GET /api/workspaces/{workspace}/proposals": {
+  "GET /v1/workspaces/{workspace}/proposals": {
     query: [
       { name: "status", description: "drafting | ready | failed | applying | applied | partial | dismissed" },
       { name: "eval", description: "only proposals for this eval" },
     ],
     response: obj({ proposals: arr(Proposal, "newest first, each settled as it is read") }),
   },
-  "GET /api/workspaces/{workspace}/proposals/{id}": {
+  "GET /v1/workspaces/{workspace}/proposals/{id}": {
     response: Proposal,
   },
-  "POST /api/workspaces/{workspace}/proposals/{id}": {
+  "POST /v1/workspaces/{workspace}/proposals/{id}": {
     body: obj({ action: str("apply (write its files, each a revision by the caller) | dismiss (set it aside)") }, ["action"]),
     response: Proposal,
   },
-  "POST /api/workspaces/{workspace}/restore": {
+  "POST /v1/workspaces/{workspace}/restore": {
     body: obj({
       to: str("a revision id, a deploy's commit or its prefix, an ISO date/time (the last revision at or before it) or an age: 90m, 12h, 3d, 2w"),
       dryRun: { ...bool, description: "true: what would change, with diffs; nothing written" },
@@ -341,7 +341,7 @@ export const SHAPES: Record<string, Shape> = {
       main: nullable(str("the workspace's head revision now")),
     }),
   },
-  "GET /api/workspaces/{workspace}/runtimes": {
+  "GET /v1/workspaces/{workspace}/runtimes": {
     response: obj({
       workspace: str(),
       runtimes: arr(obj({
@@ -355,17 +355,17 @@ export const SHAPES: Record<string, Shape> = {
       })),
     }),
   },
-  "GET /api/workspaces/{workspace}/shares": {
+  "GET /v1/workspaces/{workspace}/shares": {
     response: obj({ ok: bool, shares: arr(Share) }),
   },
-  "POST /api/workspaces/{workspace}/shares": {
+  "POST /v1/workspaces/{workspace}/shares": {
     body: obj({
       path: str("the file to share: workspace-relative, a stored file or one in the folder"),
       ttlDays: nullable({ ...num, description: "days until it expires; default 7, null never" }),
     }, ["path"]),
     response: obj({ ok: bool, url: str("the public link"), token: str(), id: str("sh_… — the handle a list shows"), path: str(), contentType: str(), expiresAt: nullable(str()) }),
   },
-  "DELETE /api/workspaces/{workspace}/shares": {
+  "DELETE /v1/workspaces/{workspace}/shares": {
     query: [
       { name: "token", description: "the link to revoke; only a link of this workspace" },
       { name: "id", description: "or its sh_… id, as a list gives it (wins over token)" },
@@ -373,7 +373,7 @@ export const SHAPES: Record<string, Shape> = {
     noBody: "The link is named by ?token= or ?id=.",
     response: obj({ ok: bool, revoked: { ...bool, description: "false when it was unknown, another workspace's, or already revoked" } }),
   },
-  "GET /api/workspaces/{workspace}/storage": {
+  "GET /v1/workspaces/{workspace}/storage": {
     response: obj({
       files: arr(FileRecord, "newest first"),
       driver: str("fs | s3"),
@@ -381,7 +381,7 @@ export const SHAPES: Record<string, Shape> = {
       quotaMb: num, maxMb: { ...num, description: "the per-file limit" },
     }),
   },
-  "POST /api/workspaces/{workspace}/storage": {
+  "POST /v1/workspaces/{workspace}/storage": {
     body: obj({
       path: str("where it goes under storage/"),
       sha: str("sha256 of the bytes already PUT to the presigned URL"),
@@ -389,17 +389,17 @@ export const SHAPES: Record<string, Shape> = {
     }, ["path", "sha", "size"]),
     response: obj({ file: FileRecord }),
   },
-  "PUT /api/workspaces/{workspace}/storage": {
+  "PUT /v1/workspaces/{workspace}/storage": {
     query: [{ name: "path", description: "where it goes under storage/ (required)" }],
     noBody: "The request body is the file's raw bytes, not JSON — any content type, not empty, within the per-file limit.",
     response: obj({ file: FileRecord }),
   },
-  "DELETE /api/workspaces/{workspace}/storage": {
+  "DELETE /v1/workspaces/{workspace}/storage": {
     query: [{ name: "path", description: "the file to delete (required)" }],
     noBody: "The file is named by ?path=.",
     response: OK,
   },
-  "GET /api/workspaces/{workspace}/storage/download": {
+  "GET /v1/workspaces/{workspace}/storage/download": {
     query: [
       { name: "path", description: "the stored file (required)" },
       { name: "inline", description: "1: show it rather than save it — images, and md/txt/csv/json as plain text, served from here; video, audio and PDF as themselves (with byte ranges, 206)" },
@@ -409,22 +409,22 @@ export const SHAPES: Record<string, Shape> = {
       description: "The file's bytes as an attachment (Content-Disposition: attachment, sandboxed CSP; never rendered as a page). On an object store it answers 302 to a short-lived signed URL instead. With inline=1: an image or plain text inline, or video/audio/PDF with Accept-Ranges (206 for a Range).",
     },
   },
-  "GET /api/workspaces/{workspace}/storage/preview": {
+  "GET /v1/workspaces/{workspace}/storage/preview": {
     query: [{ name: "path", description: "the stored file (required); 413 over 25 MB" }],
     response: Preview,
   },
-  "POST /api/workspaces/{workspace}/storage/extract": {
+  "POST /v1/workspaces/{workspace}/storage/extract": {
     body: obj({
       path: str("the stored file, under storage/"),
       lang: str("fa | en | auto (default)"),
       ocr: str("auto (default) | always | never"),
       engine: str("docling, or leave it out"),
       write: { ...bool, description: "default true: write the text to <path>.txt beside it once done (workspace:write); false only reads (workspace:read). A .txt is refused with write" },
-      wait: { ...int, description: "seconds to wait, 0–60 (default 50); past it 202 { id, status: running, poll: /api/extract/<id> }" },
+      wait: { ...int, description: "seconds to wait, 0–60 (default 50); past it 202 { id, status: running, poll: /v1/extract/<id> }" },
     }, ["path"]),
     response: { ...obj({ ...(ExtractResult.properties as Record<string, Schema>), wrote: { type: ["string", "null"], description: "the .txt path written; null when write was false" } }), description: "the text, when done within wait; else 202 with a job to poll" },
   },
-  "POST /api/workspaces/{workspace}/storage/upload-url": {
+  "POST /v1/workspaces/{workspace}/storage/upload-url": {
     body: obj({
       path: str("where it goes under storage/"),
       sha: str("sha256 of the file — the object's key"),
@@ -432,14 +432,14 @@ export const SHAPES: Record<string, Shape> = {
     }, ["path", "sha"]),
     response: obj({ url: nullable(str("a presigned PUT, then POST ../storage to register it; null: no object store — PUT the bytes to ../storage?path= instead")) }),
   },
-  "POST /api/workspaces/{workspace}/tools/{tool}/test": {
+  "POST /v1/workspaces/{workspace}/tools/{tool}/test": {
     body: obj({
       path: str("http tool: the path to try, appended to base:"),
       args: { type: "object", additionalProperties: str(), description: "script tool: values for its declared args:" },
     }),
     response: ToolTestResult,
   },
-  "GET /api/workspaces/{workspace}/triggers": {
+  "GET /v1/workspaces/{workspace}/triggers": {
     query: [
       { name: "days", description: "the window in days, 1–365 (default 7)" },
       { name: "since", description: "the older spelling of days" },
@@ -464,7 +464,7 @@ export const SHAPES: Record<string, Shape> = {
       }), "inbound webhook requests, newest first, at most 50 — whether a request reached us and was authentic"),
     }),
   },
-  "GET /api/workspaces/{workspace}/vocabulary": {
+  "GET /v1/workspaces/{workspace}/vocabulary": {
     response: obj({
       agents: arr(str()), flows: arr(str()), skills: arr(str()), tools: arr(str()),
       secrets: arr(str(), "names only, never values"),

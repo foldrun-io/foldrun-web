@@ -1,4 +1,4 @@
-// RFC 9728 at the root: what /api/mcp is and who signs in for it — for an MCP
+// RFC 9728 at the root: what /v1/mcp is and who signs in for it — for an MCP
 // client that looks here before the path-specific document (server/mcp-oauth.ts).
 
 import type { NextRequest } from "next/server";

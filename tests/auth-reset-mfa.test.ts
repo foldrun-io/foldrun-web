@@ -18,10 +18,10 @@ const { NextRequest } = await import("next/server");
 process.env.FOLDRUN_OPEN_SIGNUP = "1";
 const { createUser, setMfa, findUserById, SESSION_COOKIE } = await import("../server/users.ts");
 const { mintToken, hashFingerprint, RESET_TTL_MS } = await import("../server/auth-tokens.ts");
-const reset = await import("../app/api/auth/reset/route.ts");
+const reset = await import("../app/v1/auth/reset/route.ts");
 
 const post = (token: string, password: string) =>
-  reset.POST(new NextRequest("http://x/api/auth/reset", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, password }) }));
+  reset.POST(new NextRequest("http://x/v1/auth/reset", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, password }) }));
 const linkFor = async (id: string) => {
   const u = (await findUserById(id))!;
   return mintToken("reset", { u: u.id, h: hashFingerprint(u.hash), e: u.email }, RESET_TTL_MS);

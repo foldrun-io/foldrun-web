@@ -1,4 +1,4 @@
-// /api/version, /api/changelog, the X-Foldrun-Version header, and where
+// /v1/version, /v1/changelog, the X-Foldrun-Version header, and where
 // the answer comes from: the deploy's release.json, else the environment
 // the rollout set, else "dev".
 //
@@ -22,10 +22,10 @@ process.env.FOLDRUN_METRICS_TOKEN = "version-test-scraper";
 
 const { NextRequest } = await import("next/server");
 const release = await import("../server/release.ts");
-const { GET: versionGET } = await import("../app/api/version/route.ts");
-const { GET: changelogGET } = await import("../app/api/changelog/route.ts");
+const { GET: versionGET } = await import("../app/v1/version/route.ts");
+const { GET: changelogGET } = await import("../app/v1/changelog/route.ts");
 const { proxy } = await import("../proxy.ts");
-const authed = () => new NextRequest("http://localhost/api/version", { headers: { authorization: "Bearer version-test-scraper" } });
+const authed = () => new NextRequest("http://localhost/v1/version", { headers: { authorization: "Bearer version-test-scraper" } });
 
 const record = {
   version: "v2026.10.01.3",
@@ -121,27 +121,27 @@ test("a broken file reads as no file, never a 500", async () => {
   assert.equal((await res.json()).version, "dev");
 });
 
-test("/api/changelog: refused without a key, newest first and capped with one", async () => {
+test("/v1/changelog: refused without a key, newest first and capped with one", async () => {
   write(record);
   const saved = process.env.FOLDRUN_DEV_NO_AUTH;
   delete process.env.FOLDRUN_DEV_NO_AUTH;
   try {
-    const refused = await changelogGET(new NextRequest("http://x/api/changelog"));
+    const refused = await changelogGET(new NextRequest("http://x/v1/changelog"));
     assert.equal(refused.status, 401);
   } finally {
     if (saved !== undefined) process.env.FOLDRUN_DEV_NO_AUTH = saved;
   }
   process.env.FOLDRUN_DEV_NO_AUTH = "1";
   try {
-    const def = await (await changelogGET(new NextRequest("http://x/api/changelog"))).json();
+    const def = await (await changelogGET(new NextRequest("http://x/v1/changelog"))).json();
     assert.equal(def.version, "v2026.10.01.3");
     assert.equal(def.releases.length, 10);
     assert.equal(def.releases[0].version, "v2026.10.01.12");
-    const three = await (await changelogGET(new NextRequest("http://x/api/changelog?limit=3"))).json();
+    const three = await (await changelogGET(new NextRequest("http://x/v1/changelog?limit=3"))).json();
     assert.equal(three.releases.length, 3);
-    const silly = await (await changelogGET(new NextRequest("http://x/api/changelog?limit=nope"))).json();
+    const silly = await (await changelogGET(new NextRequest("http://x/v1/changelog?limit=nope"))).json();
     assert.equal(silly.releases.length, 10);
-    const huge = await (await changelogGET(new NextRequest("http://x/api/changelog?limit=1000"))).json();
+    const huge = await (await changelogGET(new NextRequest("http://x/v1/changelog?limit=1000"))).json();
     assert.equal(huge.releases.length, 12);
   } finally {
     if (saved === undefined) delete process.env.FOLDRUN_DEV_NO_AUTH;
@@ -149,13 +149,13 @@ test("/api/changelog: refused without a key, newest first and capped with one", 
   }
 });
 
-test("every /api response carries X-Foldrun-Version, X-Foldrun-Api and X-Foldrun-Cli — refusals too", async () => {
+test("every /v1 response carries X-Foldrun-Version, X-Foldrun-Api and X-Foldrun-Cli — refusals too", async () => {
   write(record);
-  const ok = await proxy(new NextRequest("http://x/api/workspaces"));
+  const ok = await proxy(new NextRequest("http://x/v1/workspaces"));
   assert.equal(ok.headers.get("x-foldrun-version"), "v2026.10.01.3");
   assert.equal(ok.headers.get("x-foldrun-api"), release.API_VERSION);
   assert.equal(ok.headers.get("x-foldrun-cli"), "0.7.0");
-  const big = await proxy(new NextRequest("http://x/api/workspaces/a/source", { method: "PUT", headers: { "content-length": String(1024 * 1024 * 1024) } }));
+  const big = await proxy(new NextRequest("http://x/v1/workspaces/a/source", { method: "PUT", headers: { "content-length": String(1024 * 1024 * 1024) } }));
   assert.equal(big.status, 413);
   assert.equal(big.headers.get("x-foldrun-version"), "v2026.10.01.3");
 });
@@ -163,7 +163,7 @@ test("every /api response carries X-Foldrun-Version, X-Foldrun-Api and X-Foldrun
 test("no CLI version known: no X-Foldrun-Cli header rather than an empty one", async () => {
   fs.rmSync(file, { force: true });
   release._resetReleaseCache();
-  const res = await proxy(new NextRequest("http://x/api/workspaces"));
+  const res = await proxy(new NextRequest("http://x/v1/workspaces"));
   assert.equal(res.headers.get("x-foldrun-version"), "dev");
   assert.equal(res.headers.get("x-foldrun-cli"), null);
 });
@@ -208,10 +208,10 @@ test("healthz looks at its dependencies once per few seconds, not once per call"
   assert.notEqual(healthDependencies(), first, "a fresh look once the last is gone");
 });
 
-test("healthz reports the same version as /api/version: the file's, when the rollout set none", async () => {
+test("healthz reports the same version as /v1/version: the file's, when the rollout set none", async () => {
   // Staging sets no FOLDRUN_VERSION; healthz said "dev" there while
-  // /api/version said v2026.10.25.21 (26 Oct 2026).
-  const { GET: healthzGET } = await import("../app/api/healthz/route.ts");
+  // /v1/version said v2026.10.25.21 (26 Oct 2026).
+  const { GET: healthzGET } = await import("../app/v1/healthz/route.ts");
   delete process.env.FOLDRUN_VERSION;
   write(record);
   const health = (await (await healthzGET(authed())).json()) as { version: string };
@@ -231,42 +231,35 @@ test("urls: the install's API and dashboard addresses, open to anyone, null wher
   try {
     delete process.env.FOLDRUN_PUBLIC_API_URL;
     delete process.env.FOLDRUN_PUBLIC_URL;
-    const none = await (await versionGET(new NextRequest("http://localhost/api/version"))).json();
+    const none = await (await versionGET(new NextRequest("http://localhost/v1/version"))).json();
     assert.deepEqual(none.urls, { api: null, app: null }, "one address for everything: the CLI stays where it signed in");
-    process.env.FOLDRUN_API_V1 = "1";
-    try {
-      const alone = await (await versionGET(new NextRequest("http://localhost/api/version"))).json();
-      assert.deepEqual(alone.paths, { platform: "/api", models: null, renames: {} }, "no API host: no /v1 to map, no models here, whatever the flag says");
-    } finally {
-      delete process.env.FOLDRUN_API_V1;
-    }
 
     process.env.FOLDRUN_PUBLIC_API_URL = "https://api.foldrun.dev/";
     process.env.FOLDRUN_PUBLIC_URL = "https://dev.foldrun.io";
-    const open = await (await versionGET(new NextRequest("http://localhost/api/version"))).json();
-    assert.deepEqual(Object.keys(open).sort(), ["api", "paths", "urls", "version"], "a stranger still gets only the name, plus the addresses");
+    const open = await (await versionGET(new NextRequest("http://localhost/v1/version"))).json();
+    assert.deepEqual(Object.keys(open).sort(), ["api", "urls", "version"], "a stranger still gets only the name, plus the addresses");
     assert.deepEqual(open.urls, { api: "https://api.foldrun.dev", app: "https://dev.foldrun.io" });
-    assert.deepEqual(open.paths, { platform: "/api", models: "/v1", renames: {} }, "an API host whose nginx does not say it maps /v1: the platform stays at /api");
-    process.env.FOLDRUN_API_V1 = "1";
-    try {
-      const v1 = await (await versionGET(new NextRequest("http://localhost/api/version"))).json();
-      assert.deepEqual(v1.paths, { platform: "/v1", models: "/v1", renames: { "/api/usage": "/v1/account/usage" } }, "the platform under /v1 beside the models (23 Nov 2026)");
-    } finally {
-      delete process.env.FOLDRUN_API_V1;
-    }
     const full = await (await versionGET(authed())).json();
     assert.deepEqual(full.urls, open.urls);
 
     for (const bad of ["not a url", "javascript:alert(1)", "file:///etc/passwd"]) {
       process.env.FOLDRUN_PUBLIC_API_URL = bad;
-      const b = await (await versionGET(new NextRequest("http://localhost/api/version"))).json();
+      const b = await (await versionGET(new NextRequest("http://localhost/v1/version"))).json();
       assert.equal(b.urls.api, null, `${bad} is no address to send a CLI's key to`);
     }
     process.env.FOLDRUN_PUBLIC_API_URL = "https://api.foldrun.dev/some/path?x=1";
-    const p = await (await versionGET(new NextRequest("http://localhost/api/version"))).json();
+    const p = await (await versionGET(new NextRequest("http://localhost/v1/version"))).json();
     assert.equal(p.urls.api, "https://api.foldrun.dev", "only the origin");
   } finally {
     if (keep.api === undefined) delete process.env.FOLDRUN_PUBLIC_API_URL; else process.env.FOLDRUN_PUBLIC_API_URL = keep.api;
     if (keep.app === undefined) delete process.env.FOLDRUN_PUBLIC_URL; else process.env.FOLDRUN_PUBLIC_URL = keep.app;
   }
+});
+
+test("API 2026-11-23: a caller pinned earlier gets paths back, saying every route is /v1", async () => {
+  const { downgradeBody } = await import("../server/api-version.ts");
+  const now = { version: "v", api: "2026-11-23", urls: { api: "https://api.example", app: "https://dash.example" } };
+  const old = downgradeBody(now, "2026-11-22", { method: "GET", path: "/v1/version", status: 200 }) as Record<string, unknown>;
+  assert.deepEqual(old.paths, { platform: "/v1", models: "/v1", renames: { "/api/usage": "/v1/account/usage" } });
+  assert.equal("paths" in (downgradeBody(now, "2026-11-23", { method: "GET", path: "/v1/version", status: 200 }) as object), false);
 });

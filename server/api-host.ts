@@ -1,5 +1,5 @@
 // The route contract of the API host (the one-API plan, 21 Nov 2026):
-// which of the platform's `/api/*` routes the API host serves, and which
+// which of the platform's `/v1/*` routes the API host serves, and which
 // stay on the dashboard host alone.
 //
 // The API host takes a bearer credential only — an API key or an OAuth
@@ -18,28 +18,29 @@
  *  other methods are served (a key may read what only a session may change).
  *  The billing calls the CLI makes with a key (checkout, card, portal,
  *  subscribe) are served: they answer JSON, and the links they hand back
- *  lead to the dashboard. */
+ *  lead to the dashboard. So are the calls no person's browser holds a
+ *  session for (23 Nov 2026, owner: every API call on the API host): the
+ *  open sign-up switches foldrun.io reads, Stripe's webhook and foldrun.ir's
+ *  signed storefront calls. */
 export const DASHBOARD_ONLY: ReadonlyArray<readonly [prefix: string, reason: string, methods?: readonly string[]]> = [
-  ["/api/auth", "a person's own sign-in, password, MFA and sessions: a browser session, a key is refused"],
-  ["/api/signup", "the sign-up page's own call, before there is any credential"],
-  ["/api/unsubscribe", "a link in a mail, opened in a browser"],
-  ["/api/approve", "the approve link in a mail, opened in a browser"],
-  ["/api/avatars", "images for the dashboard's pages"],
-  ["/api/metrics", "Prometheus, scraped inside the cluster"],
-  ["/api/cli/authorize", "the page where a signed-in person approves a CLI login"],
-  ["/api/mcp/oauth/authorize", "the page where a signed-in person approves an app"],
-  ["/api/oauth/start", "starts a provider sign-in in the person's browser"],
-  ["/api/oauth/callback", "where a provider sends the person's browser back"],
-  ["/api/oauth/handoff", "a person's browser picking up a finished provider sign-in"],
-  ["/api/account/close", "closing the account: the owner, signed in, never a key"],
-  ["/api/me/onboarding", "ticking off getting-started is the person's own, in the dashboard; a key may read it", ["PATCH"]],
-  ["/api/team/transfer", "handing the account to someone else: the owner, in a browser"],
-  ["/api/billing/confirm", "Stripe's return to the dashboard after a payment"],
-  ["/api/billing/stripe", "Stripe's own webhook, at the address Stripe was given"],
-  ["/api/billing/partner", "foldrun.ir's signed storefront calls, at the address it was given"],
+  ["/v1/auth", "a person's own sign-in, password, MFA and sessions: a browser session, a key is refused"],
+  ["/v1/unsubscribe", "a link in a mail, opened in a browser"],
+  ["/v1/approve", "the approve link in a mail, opened in a browser"],
+  ["/v1/avatars", "images for the dashboard's pages"],
+  ["/v1/metrics", "Prometheus, scraped inside the cluster"],
+  ["/v1/cli/authorize", "the page where a signed-in person approves a CLI login"],
+  ["/v1/mcp/oauth/authorize", "the page where a signed-in person approves an app"],
+  ["/v1/oauth/start", "starts a provider sign-in in the person's browser"],
+  ["/v1/oauth/callback", "where a provider sends the person's browser back"],
+  ["/v1/oauth/handoff", "a person's browser picking up a finished provider sign-in"],
+  ["/v1/account/close", "closing the account: the owner, signed in, never a key"],
+  ["/v1/me/onboarding", "ticking off getting-started is the person's own, in the dashboard; a key may read it", ["PATCH"]],
+  ["/v1/team/transfer", "handing the account to someone else: the owner, in a browser"],
+  ["/v1/billing/confirm", "Stripe's return to the dashboard after a payment"],
+  ["/v1/support", "an operator's support view (hosted): its one-use ticket turns into a session cookie, which only the dashboard's address can set"],
 ];
 
-/** `/api/x` matches the prefix `/api/x` itself and anything under it — not `/api/xy`. */
+/** `/v1/x` matches the prefix `/v1/x` itself and anything under it — not `/v1/xy`. */
 function under(path: string, prefix: string): boolean {
   return path === prefix || path.startsWith(`${prefix}/`);
 }
@@ -56,7 +57,7 @@ export function dashboardOnly(path: string, method?: string): { prefix: string; 
   return null;
 }
 
-/** Does the API host serve this path (this method of it)? Only `/api/*` is the platform API at all. */
+/** Does the API host serve this path (this method of it)? Only `/v1/*` is the platform API at all. */
 export function apiHostServes(path: string, method?: string): boolean {
-  return under(path, "/api") && path !== "/api" && dashboardOnly(path, method) === null;
+  return under(path, "/v1") && path !== "/v1" && dashboardOnly(path, method) === null;
 }

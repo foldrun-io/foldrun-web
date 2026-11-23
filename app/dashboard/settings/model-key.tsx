@@ -1,6 +1,6 @@
 "use client";
 
-// What the account's steps run on (PUT/DELETE /api/account/model): its own
+// What the account's steps run on (PUT/DELETE /v1/account/model): its own
 // model key, or — where the platform offers them — foldrun's models, the
 // platform's keys for one provider, billed in credits at the price list.
 // The own key is sent once and never shown again — only its last four
@@ -68,7 +68,7 @@ export function ModelKey({
             // A key saved from this panel is one the person means to run on.
             ...(model.source === "foldrun" ? { source: "own", ifVersion: model.choiceVersion } : {}),
           };
-      const res = await fetch("/api/account/model", {
+      const res = await fetch("/v1/account/model", {
         method,
         headers: { "content-type": "application/json", "x-foldrun-tenant": tenant, "idempotency-key": crypto.randomUUID() },
         body: method === "PUT" ? JSON.stringify(body) : undefined,

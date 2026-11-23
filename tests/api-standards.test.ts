@@ -41,14 +41,14 @@ test("every authenticated answer carries X-RateLimit-*; the write bucket refuses
   const limit = TIERS.free.write;
   let last;
   for (let i = 0; i < limit; i++) {
-    last = await apiGate(req("POST", "/api/workspaces/w/flows/f/run", key));
+    last = await apiGate(req("POST", "/v1/workspaces/w/flows/f/run", key));
     assert.equal(last.refuse, undefined, `request ${i + 1} of ${limit} is allowed`);
   }
   assert.equal(last!.headers["x-ratelimit-limit"], String(limit));
   assert.equal(last!.headers["x-ratelimit-remaining"], "0");
   assert.ok(Number(last!.headers["x-ratelimit-reset"]) > Date.now() / 1000);
 
-  const over = await apiGate(req("POST", "/api/workspaces/w/flows/f/run", key));
+  const over = await apiGate(req("POST", "/v1/workspaces/w/flows/f/run", key));
   assert.ok(over.refuse);
   assert.equal(over.refuse!.status, 429);
   // A key on the current version: Anthropic's error body (API 2026-11-22).
@@ -59,7 +59,7 @@ test("every authenticated answer carries X-RateLimit-*; the write bucket refuses
   assert.equal(over.headers["retry-after"], String(body.retry_after));
 
   // Reads are their own bucket: a spent write budget does not stop a GET.
-  const read = await apiGate(req("GET", "/api/workspaces/w/runs", key));
+  const read = await apiGate(req("GET", "/v1/workspaces/w/runs", key));
   assert.equal(read.refuse, undefined);
   assert.equal(read.headers["x-ratelimit-limit"], String(TIERS.free.read));
 });
@@ -70,13 +70,13 @@ test("the account bucket holds across keys: many keys are not many allowances", 
   const perKey = TIERS.free.write;
   let refused = 0;
   for (const { key } of keys) {
-    for (let i = 0; i < perKey; i++) if ((await apiGate(req("POST", "/api/keys", key))).refuse) refused++;
+    for (let i = 0; i < perKey; i++) if ((await apiGate(req("POST", "/v1/keys", key))).refuse) refused++;
   }
   assert.equal(refused, perKey, "the last key finds the account's bucket empty");
 });
 
 test("no credential, no counting — the route answers 401 itself", async () => {
-  const g = await apiGate(req("POST", "/api/workspaces/w/deploy"));
+  const g = await apiGate(req("POST", "/v1/workspaces/w/deploy"));
   assert.equal(g.refuse, undefined);
   assert.equal(g.headers["x-ratelimit-limit"], undefined);
   assert.equal(g.headers["foldrun-version"], V.CURRENT_API_VERSION);
@@ -87,7 +87,7 @@ test("FOLDRUN_API_RATE_LIMIT=off stops counting", async () => {
   process.env.FOLDRUN_API_RATE_LIMIT = "off";
   try {
     const { key } = await createApiKey("unmetered", "ci", undefined, undefined, "editor");
-    for (let i = 0; i < TIERS.free.write + 5; i++) assert.equal((await apiGate(req("POST", "/api/keys", key))).refuse, undefined);
+    for (let i = 0; i < TIERS.free.write + 5; i++) assert.equal((await apiGate(req("POST", "/v1/keys", key))).refuse, undefined);
   } finally {
     delete process.env.FOLDRUN_API_RATE_LIMIT;
   }
@@ -108,7 +108,7 @@ test("Idempotency-Key: the same key and body replays the first answer; a differe
   const { key } = await createApiKey("idem", "ci", undefined, undefined, "editor");
   let runs = 0;
   const handler = async () => NextResponse.json({ runId: `run-${++runs}` }, { status: 201 });
-  const send = (body: string, k = "abc-1") => idempotent(req("POST", "/api/workspaces/w/flows/f/run", key, { "idempotency-key": k, "content-type": "application/json" }, body), handler);
+  const send = (body: string, k = "abc-1") => idempotent(req("POST", "/v1/workspaces/w/flows/f/run", key, { "idempotency-key": k, "content-type": "application/json" }, body), handler);
 
   const first = await send('{"task":"x"}');
   assert.equal(first.status, 201);
@@ -136,8 +136,8 @@ test("Idempotency-Key: absent runs every time; a 5xx is not remembered; keys are
   const b = await createApiKey("idem-b", "ci", undefined, undefined, "editor");
   let n = 0;
   const ok = async () => NextResponse.json({ n: ++n });
-  await idempotent(req("POST", "/api/keys", a.key, {}, "{}"), ok);
-  await idempotent(req("POST", "/api/keys", a.key, {}, "{}"), ok);
+  await idempotent(req("POST", "/v1/keys", a.key, {}, "{}"), ok);
+  await idempotent(req("POST", "/v1/keys", a.key, {}, "{}"), ok);
   assert.equal(n, 2, "no key, no dedupe");
 
   let fails = 0;
@@ -145,45 +145,45 @@ test("Idempotency-Key: absent runs every time; a 5xx is not remembered; keys are
     fails++;
     return NextResponse.json({ error: "x" }, { status: 503 });
   };
-  await idempotent(req("POST", "/api/keys", a.key, { "idempotency-key": "k" }, "{}"), boom);
-  await idempotent(req("POST", "/api/keys", a.key, { "idempotency-key": "k" }, "{}"), boom);
+  await idempotent(req("POST", "/v1/keys", a.key, { "idempotency-key": "k" }, "{}"), boom);
+  await idempotent(req("POST", "/v1/keys", a.key, { "idempotency-key": "k" }, "{}"), boom);
   assert.equal(fails, 2, "a server failure leaves the key free for a real retry");
 
   n = 0;
-  await idempotent(req("POST", "/api/keys", a.key, { "idempotency-key": "shared" }, "{}"), ok);
-  await idempotent(req("POST", "/api/keys", b.key, { "idempotency-key": "shared" }, "{}"), ok);
+  await idempotent(req("POST", "/v1/keys", a.key, { "idempotency-key": "shared" }, "{}"), ok);
+  await idempotent(req("POST", "/v1/keys", b.key, { "idempotency-key": "shared" }, "{}"), ok);
   assert.equal(n, 2, "another account's key of the same name is its own");
 
-  const long = await idempotent(req("POST", "/api/keys", a.key, { "idempotency-key": "x".repeat(300) }, "{}"), ok);
+  const long = await idempotent(req("POST", "/v1/keys", a.key, { "idempotency-key": "x".repeat(300) }, "{}"), ok);
   assert.equal(long.status, 400);
 });
 
 test("every side-effect POST the brief names answers through idempotent()", () => {
   const must = [
-    "POST /api/workspaces/{workspace}/agents/{agent}/run",
-    "POST /api/workspaces/{workspace}/evals/{evalName}/run",
-    "POST /api/workspaces/{workspace}/flows/{flow}/run",
-    "POST /api/workspaces/{workspace}/runs/{runId}/rerun",
-    "POST /api/workspaces/{workspace}/deploy",
-    "POST /api/workspaces/{workspace}/assets",
-    "POST /api/workspaces/{workspace}/flows",
-    "PUT /api/secrets",
-    "POST /api/keys",
-    "POST /api/workspaces/{workspace}/runs/{runId}/approve",
-    "POST /api/workspaces/{workspace}/runs/{runId}/answer",
-    "POST /api/workspaces/{workspace}/runs/{runId}/message",
-    "POST /api/billing/checkout",
-    "POST /api/billing/subscribe",
-    "POST /api/billing/card",
-    "POST /api/billing/portal",
-    "POST /api/workspaces/{workspace}/flows/draft",
-    "POST /api/workspaces/{workspace}/hooks/{flow}/rotate",
-    "POST /api/workspaces/{workspace}/notify/test",
-    "POST /api/workspaces/{workspace}/runs/{runId}/stop",
-    "POST /api/library/gallery",
-    "POST /api/oauth/start",
-    "POST /api/oauth/reconnect",
-    "POST /api/oauth/clients",
+    "POST /v1/workspaces/{workspace}/agents/{agent}/run",
+    "POST /v1/workspaces/{workspace}/evals/{evalName}/run",
+    "POST /v1/workspaces/{workspace}/flows/{flow}/run",
+    "POST /v1/workspaces/{workspace}/runs/{runId}/rerun",
+    "POST /v1/workspaces/{workspace}/deploy",
+    "POST /v1/workspaces/{workspace}/assets",
+    "POST /v1/workspaces/{workspace}/flows",
+    "PUT /v1/secrets",
+    "POST /v1/keys",
+    "POST /v1/workspaces/{workspace}/runs/{runId}/approve",
+    "POST /v1/workspaces/{workspace}/runs/{runId}/answer",
+    "POST /v1/workspaces/{workspace}/runs/{runId}/message",
+    "POST /v1/billing/checkout",
+    "POST /v1/billing/subscribe",
+    "POST /v1/billing/card",
+    "POST /v1/billing/portal",
+    "POST /v1/workspaces/{workspace}/flows/draft",
+    "POST /v1/workspaces/{workspace}/hooks/{flow}/rotate",
+    "POST /v1/workspaces/{workspace}/notify/test",
+    "POST /v1/workspaces/{workspace}/runs/{runId}/stop",
+    "POST /v1/library/gallery",
+    "POST /v1/oauth/start",
+    "POST /v1/oauth/reconnect",
+    "POST /v1/oauth/clients",
   ];
   const have = new Set(ROUTES.flatMap((r) => (r.idempotent ?? []).map((m) => `${m} ${r.path}`)));
   assert.deepEqual(must.filter((m) => !have.has(m)), []);
@@ -194,12 +194,12 @@ test("every side-effect POST the brief names answers through idempotent()", () =
 test("Foldrun-Version: echoed, unknown is a 400, malformed is a 400", async () => {
   resetApiGateCaches();
   const { key } = await createApiKey("versioned", "ci", undefined, undefined, "editor");
-  const ok = await apiGate(req("GET", "/api/workspaces", key, { "foldrun-version": V.CURRENT_API_VERSION }));
+  const ok = await apiGate(req("GET", "/v1/workspaces", key, { "foldrun-version": V.CURRENT_API_VERSION }));
   assert.equal(ok.refuse, undefined);
   assert.equal(ok.headers["foldrun-version"], V.CURRENT_API_VERSION);
   assert.equal(ok.requestHeaders[V.RESOLVED_VERSION_HEADER], V.CURRENT_API_VERSION);
 
-  const unknown = await apiGate(req("GET", "/api/workspaces", key, { "foldrun-version": "2001-01-01" }));
+  const unknown = await apiGate(req("GET", "/v1/workspaces", key, { "foldrun-version": "2001-01-01" }));
   assert.equal(unknown.refuse?.status, 400);
   const { error: refused } = (await unknown.refuse!.json()) as { error: { message: string; code: string; known: string[] } };
   assert.match(refused.message, /unknown API version 2001-01-01/);
@@ -207,11 +207,11 @@ test("Foldrun-Version: echoed, unknown is a 400, malformed is a 400", async () =
   assert.equal(refused.code, "unknown_api_version");
   assert.deepEqual(refused.known, V.releasedVersions());
 
-  const bad = await apiGate(req("GET", "/api/workspaces", key, { "foldrun-version": "latest" }));
+  const bad = await apiGate(req("GET", "/v1/workspaces", key, { "foldrun-version": "latest" }));
   assert.equal(bad.refuse?.status, 400);
   assert.equal(((await bad.refuse!.json()) as { error: { code: string } }).error.code, "bad_api_version");
   // Open routes too: the header is checked before anything else.
-  assert.equal((await apiGate(req("GET", "/api/healthz", undefined, { "foldrun-version": "nope" }))).refuse?.status, 400);
+  assert.equal((await apiGate(req("GET", "/v1/healthz", undefined, { "foldrun-version": "nope" }))).refuse?.status, 400);
 });
 
 test("the account's pin answers requests that send no header", async () => {
@@ -225,7 +225,7 @@ test("the account's pin answers requests that send no header", async () => {
   resetApiGateCaches();
   const { key } = await createApiKey("pinned", "ci", undefined, undefined, "editor");
   await updateAdminState("pinned", { apiVersion: V.CURRENT_API_VERSION }, "test", "api-version");
-  const g = await apiGate(req("GET", "/api/workspaces", key));
+  const g = await apiGate(req("GET", "/v1/workspaces", key));
   assert.equal(g.headers["foldrun-version"], V.CURRENT_API_VERSION);
 });
 
@@ -241,9 +241,9 @@ test("the pin is for keys: the dashboard always gets the current version", async
     const { createUser, mintSession, SESSION_COOKIE } = await import("../server/users.ts");
     const { value } = await mintSession(await createUser("owner@pinned-dash.test", "a long and unusual passphrase 42!", tenant, { request: "free" }));
     await updateAdminState(tenant, { apiVersion: "2099-02-02" }, "test", "api-version");
-    const viaKey = await apiGate(req("GET", "/api/workspaces", key));
+    const viaKey = await apiGate(req("GET", "/v1/workspaces", key));
     assert.equal(viaKey.headers["foldrun-version"], "2099-02-02", "a key gets the account's pin");
-    const viaDashboard = await apiGate(new NextRequest("http://localhost:3900/api/workspaces", { headers: { cookie: `${SESSION_COOKIE}=${value}` } }));
+    const viaDashboard = await apiGate(new NextRequest("http://localhost:3900/v1/workspaces", { headers: { cookie: `${SESSION_COOKIE}=${value}` } }));
     assert.equal(viaDashboard.refuse, undefined);
     assert.equal(viaDashboard.headers["foldrun-version"], V.CURRENT_API_VERSION, "a signed-in person gets the current version");
   } finally {
@@ -255,18 +255,18 @@ test("a registered change downgrades the body for callers pinned before it", asy
   const change: import("../server/api-version.ts").VersionChange = {
     version: "2099-01-01",
     summary: "runs: `cost` became `usd`",
-    routes: [{ method: "GET", path: /^\/api\/workspaces\/[^/]+\/runs$/, file: "app/api/workspaces/[workspace]/runs/route.ts" }],
+    routes: [{ method: "GET", path: /^\/v1\/workspaces\/[^/]+\/runs$/, file: "app/v1/workspaces/[workspace]/runs/route.ts" }],
     downgrade: (b) => {
       const { usd, ...rest } = b as { usd: number };
       return { ...rest, cost: usd };
     },
   };
-  const ctx = { method: "GET", path: "/api/workspaces/w/runs", status: 200 };
+  const ctx = { method: "GET", path: "/v1/workspaces/w/runs", status: 200 };
   assert.deepEqual(V.downgradeBody({ usd: 2 }, "2098-12-31", ctx, [change]), { cost: 2 });
   assert.deepEqual(V.downgradeBody({ usd: 2 }, "2099-01-01", ctx, [change]), { usd: 2 }, "pinned on or after: today's shape");
-  assert.deepEqual(V.downgradeBody({ usd: 2 }, "2098-12-31", { ...ctx, path: "/api/keys" }, [change]), { usd: 2 }, "other routes untouched");
+  assert.deepEqual(V.downgradeBody({ usd: 2 }, "2098-12-31", { ...ctx, path: "/v1/keys" }, [change]), { usd: 2 }, "other routes untouched");
 
-  const r = req("GET", "/api/workspaces/w/runs", undefined, { [V.RESOLVED_VERSION_HEADER]: "2098-12-31" });
+  const r = req("GET", "/v1/workspaces/w/runs", undefined, { [V.RESOLVED_VERSION_HEADER]: "2098-12-31" });
   assert.deepEqual(await V.versionedJson(r, { usd: 3 }, {}, [change]).json(), { cost: 3 });
 });
 
@@ -285,27 +285,29 @@ test("Deprecation and Sunset headers", () => {
   assert.equal(h.deprecation, `@${Date.parse("2026-10-01") / 1000}`);
   assert.equal(h.sunset, "Thu, 01 Apr 2027 00:00:00 GMT");
   assert.match(h.link, /rel="deprecation"/);
-  const list = [{ method: "GET", path: /^\/api\/old$/, route: "GET /api/old", deprecatedAt: "2026-10-01" }];
-  assert.ok(V.deprecationFor("get", "/api/old", list));
-  assert.equal(V.deprecationFor("GET", "/api/new", list), null);
+  const list = [{ method: "GET", path: /^\/v1\/old$/, route: "GET /v1/old", deprecatedAt: "2026-10-01" }];
+  assert.ok(V.deprecationFor("get", "/v1/old", list));
+  assert.equal(V.deprecationFor("GET", "/v1/new", list), null);
 });
 
 test("the API changelog: every pinnable version newest first, what each broke, what is deprecated", () => {
   const change = { version: "2027-01-15", summary: "runs: finishedAt is endedAt", routes: [], downgrade: (b: unknown) => b };
-  const dep = { method: "DELETE", path: /^\/api\/old$/, route: "DELETE /api/old", deprecatedAt: "2026-11-01", sunsetAt: "2027-05-01" };
+  const dep = { method: "DELETE", path: /^\/v1\/old$/, route: "DELETE /v1/old", deprecatedAt: "2026-11-01", sunsetAt: "2027-05-01" };
   const log = V.apiChangelog([change], [dep]);
   assert.equal(log.current, V.CURRENT_API_VERSION);
   assert.equal(log.supportMonths, V.VERSION_SUPPORT_MONTHS);
   assert.deepEqual(log.versions[0], { version: "2027-01-15", changes: ["runs: finishedAt is endedAt"] });
   assert.ok(log.versions.some((v) => v.version === V.CURRENT_API_VERSION));
-  assert.deepEqual(log.deprecations, [{ route: "DELETE /api/old", deprecatedAt: "2026-11-01", sunsetAt: "2027-05-01", link: null }]);
-  // Today's list: the usage-ledger change on 2026-10-26, then the first
+  assert.deepEqual(log.deprecations, [{ route: "DELETE /v1/old", deprecatedAt: "2026-11-01", sunsetAt: "2027-05-01", link: null }]);
+  // Today's list: one URL format (2026-11-23), Anthropic's error body
+  // (2026-11-22), the usage-ledger change on 2026-10-26, then the first
   // version, which stays pinnable (every CLI so far sends it).
-  assert.deepEqual(V.apiChangelog().versions.map((v) => v.version), [V.CURRENT_API_VERSION, "2026-10-26", V.FIRST_API_VERSION]);
+  assert.deepEqual(V.apiChangelog().versions.map((v) => v.version), [V.CURRENT_API_VERSION, V.ERROR_SHAPE_VERSION, "2026-10-26", V.FIRST_API_VERSION]);
   assert.equal(V.apiChangelog().versions[0].changes.length, 1);
-  assert.match(V.apiChangelog().versions[0].changes[0], /Anthropic's error body/);
-  assert.match(V.apiChangelog().versions[1].changes[0], /ledger\.providerCostUsd/);
-  assert.deepEqual(V.apiChangelog().versions[2], { version: "2026-10-01", changes: [] });
+  assert.match(V.apiChangelog().versions[0].changes[0], /`paths` is withdrawn/);
+  assert.match(V.apiChangelog().versions[1].changes[0], /Anthropic's error body/);
+  assert.match(V.apiChangelog().versions[2].changes[0], /ledger\.providerCostUsd/);
+  assert.deepEqual(V.apiChangelog().versions[3], { version: "2026-10-01", changes: [] });
 });
 
 // ---------------------------------------------------------------- openapi
@@ -343,7 +345,7 @@ test("the spec offers exactly the operations this build serves — no billing ro
   assert.deepEqual(offered, served, "the document and the route files disagree");
   const billingOps = offered.filter((o) => isBillingRoute(o));
   if (billingPresent) assert.ok(billingOps.length > 10, "with billing, its routes are offered");
-  else assert.deepEqual(billingOps, [], "without billing, no /api/billing or /api/admin operation is offered");
+  else assert.deepEqual(billingOps, [], "without billing, no /v1/billing or /v1/admin operation is offered");
 });
 
 test("openapi.json is OpenAPI 3.1 with bearer auth, the common headers, and an operation per method", () => {
@@ -370,27 +372,27 @@ test("openapi.json is OpenAPI 3.1 with bearer auth, the common headers, and an o
       assert.equal(idem, (r.idempotent ?? []).includes(m), `${m} ${r.path}: Idempotency-Key documented exactly where honoured`);
     }
   }
-  assert.deepEqual(doc.paths["/api/healthz"].get.security, [], "open routes need no key");
-  assert.ok(doc.paths["/api/workspaces/{workspace}/deploy"].post, "deploy is there");
+  assert.deepEqual(doc.paths["/v1/healthz"].get.security, [], "open routes need no key");
+  assert.ok(doc.paths["/v1/workspaces/{workspace}/deploy"].post, "deploy is there");
 });
 
-// FOL-75: /api/metrics takes the scraper's token, never a key or a session,
+// FOL-75: /v1/metrics takes the scraper's token, never a key or a session,
 // and hides behind a 404 — the document said bearer auth and 401/403.
-test("openapi: /api/metrics says its own credential and its 404, not the bearer key's 401/403", () => {
+test("openapi: /v1/metrics says its own credential and its 404, not the bearer key's 401/403", () => {
   const doc = openapiDocument("https://example.test") as {
     paths: Record<string, Record<string, { security?: unknown[]; responses: Record<string, unknown>; deprecated?: boolean }>>;
     components: { securitySchemes: Record<string, { scheme: string; description?: string }> };
   };
-  const m = doc.paths["/api/metrics"].get;
+  const m = doc.paths["/v1/metrics"].get;
   assert.deepEqual(m.security, [{ metricsToken: [] }]);
   assert.match(doc.components.securitySchemes.metricsToken.description ?? "", /FOLDRUN_METRICS_TOKEN/);
   assert.ok(m.responses["404"]);
   assert.equal(m.responses["401"], undefined);
   assert.equal(m.responses["403"], undefined);
   // The old step POST and DELETE are gone (sunset 5 Nov 2026), not just marked.
-  const flow = doc.paths["/api/workspaces/{workspace}/flows/{flow}"];
+  const flow = doc.paths["/v1/workspaces/{workspace}/flows/{flow}"];
   assert.equal(flow.post, undefined);
   assert.equal(flow.delete, undefined);
   assert.equal(flow.patch.deprecated, undefined, "PATCH { edit } is the one mechanism");
-  assert.equal(doc.paths["/api/workspaces/{workspace}/flows/draft"].post.deprecated, undefined, "drafting a flow is not deprecated");
+  assert.equal(doc.paths["/v1/workspaces/{workspace}/flows/draft"].post.deprecated, undefined, "drafting a flow is not deprecated");
 });

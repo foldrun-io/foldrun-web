@@ -15,7 +15,7 @@ export async function sha256Of(file: Blob): Promise<string> {
  *  platform's own words when it refuses. */
 export async function uploadFile(workspace: string, tenant: string, file: File, rel = file.name): Promise<void> {
   const headers = { "x-foldrun-tenant": tenant };
-  const base = `/api/workspaces/${encodeURIComponent(workspace)}/storage`;
+  const base = `/v1/workspaces/${encodeURIComponent(workspace)}/storage`;
   const said = async (r: Response, fallback: string) => {
     try { return (await r.json()).error ?? fallback; } catch { return fallback; }
   };

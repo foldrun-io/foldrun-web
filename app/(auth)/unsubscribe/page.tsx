@@ -1,7 +1,7 @@
 // Where the "stop these emails" link in an optional mail lands. No login:
 // the token in the link says who and what. Showing the page decides nothing
 // — inbox link-checkers open links — so it asks, and the button posts the
-// token to /api/unsubscribe, which sends the browser back here to say done.
+// token to /v1/unsubscribe, which sends the browser back here to say done.
 // A mail client's own Unsubscribe button skips this page and posts directly
 // (RFC 8058).
 
@@ -51,7 +51,7 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
         <p className="mb-6 text-sm text-fg-muted">
           {$rich("auth.unsubscribe-page.for", { email: claim.email, strong: (chunks) => <strong className="text-fg">{chunks}</strong>, description: cat.description })}
         </p>
-        <form method="post" action="/api/unsubscribe">
+        <form method="post" action="/v1/unsubscribe">
           <input type="hidden" name="token" value={token} />
           <input type="hidden" name="from" value="page" />
           <button type="submit" className={cn(buttonVariants({ variant: "primary", size: "md" }), "w-full")}>{$t("auth.unsubscribe-page.unsubscribe")}</button>

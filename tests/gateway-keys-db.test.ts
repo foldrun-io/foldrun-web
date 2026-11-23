@@ -22,7 +22,7 @@ if (url) {
 // A price list, so a model map has something priced to point at (Part A5).
 process.env.FOLDRUN_MODEL_PRICES = JSON.stringify({ "anthropic/claude-opus-5-5": [5, 25, 0.5, 6.25, 64000] });
 
-test("a gateway key keeps its limits through the table and a rotation, and opens no /api route", opts, async () => {
+test("a gateway key keeps its limits through the table and a rotation, and opens no /v1 route", opts, async () => {
   const { migrate } = await import("@/platform/db.ts");
   await migrate();
   const { NextRequest } = await import("next/server");
@@ -33,15 +33,15 @@ test("a gateway key keeps its limits through the table and a rotation, and opens
   assert.equal(record.purpose, "gateway");
   const row = (await listApiKeys(tenant)).find((k) => k.id === record.id)!;
   assert.deepEqual(row.gateway, { capUsd: 20, dailyUsd: 5 });
-  const res = await resolveTenant(new NextRequest("https://app.example.test/api/workspaces", { headers: { authorization: `Bearer ${key}` } }));
+  const res = await resolveTenant(new NextRequest("https://app.example.test/v1/workspaces", { headers: { authorization: `Bearer ${key}` } }));
   assert.equal(res.tenant, null);
   if (res.tenant === null) assert.ok(res.status === 403 && /gateway key/.test(res.message));
   // The mint route itself, against the table: limits in cents, the URL, the list's spend.
   process.env.FOLDRUN_GATEWAY_URL = "https://gateway.example.test/";
-  const keysRoute = (await import("../app/api/keys/route.ts")) as { POST: (req: InstanceType<typeof NextRequest>) => Promise<Response>; GET: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
+  const keysRoute = (await import("../app/v1/keys/route.ts")) as { POST: (req: InstanceType<typeof NextRequest>) => Promise<Response>; GET: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
   const { key: admin } = await createApiKey(tenant, "admin", undefined, undefined, "admin");
   const post = async (body: object) => {
-    const r = await keysRoute.POST(new NextRequest("https://app.example.test/api/keys", { method: "POST", headers: { authorization: `Bearer ${admin}`, "content-type": "application/json" }, body: JSON.stringify(body) }));
+    const r = await keysRoute.POST(new NextRequest("https://app.example.test/v1/keys", { method: "POST", headers: { authorization: `Bearer ${admin}`, "content-type": "application/json" }, body: JSON.stringify(body) }));
     return { status: r.status, body: (await r.json()) as Record<string, any> }; // eslint-disable-line @typescript-eslint/no-explicit-any
   };
   const ok = await post({ purpose: "gateway", label: "laptop", capUsd: 12.345, dailyUsd: 3 });
@@ -50,7 +50,7 @@ test("a gateway key keeps its limits through the table and a rotation, and opens
   assert.equal(ok.body.gatewayUrl, "https://gateway.example.test");
   assert.equal((await post({ purpose: "gateway", capUsd: 0.001 })).status, 400, "a limit that rounds to $0 is refused (Codex review)");
   assert.equal((await post({ purpose: "gateway" })).status, 400, "a limit of its own is required");
-  const list = (await (await keysRoute.GET(new NextRequest("https://app.example.test/api/keys", { headers: { authorization: `Bearer ${admin}` } }))).json()) as { keys: { id: string; gateway?: { spentUsd: number; todayUsd: number } }[]; gatewayUrl: string };
+  const list = (await (await keysRoute.GET(new NextRequest("https://app.example.test/v1/keys", { headers: { authorization: `Bearer ${admin}` } }))).json()) as { keys: { id: string; gateway?: { spentUsd: number; todayUsd: number } }[]; gatewayUrl: string };
   assert.equal(list.gatewayUrl, "https://gateway.example.test");
   assert.deepEqual(list.keys.find((k) => k.id === ok.body.id)!.gateway, { capUsd: 12.35, dailyUsd: 3, spentUsd: 0, todayUsd: 0 });
 
@@ -72,17 +72,17 @@ test("a gateway key keeps its limits through the table and a rotation, and opens
     assert.equal((await post({ purpose: "gateway", credential: "login", plan: "ultra" })).status, 400, "pro or max");
     const big = await post({ purpose: "gateway", credential: "login", plan: "max", label: "big" });
     assert.equal(big.body.plan, "max");
-    const listed = (await (await keysRoute.GET(new NextRequest("https://app.example.test/api/keys", { headers: { authorization: `Bearer ${admin}` } }))).json()) as { keys: { id: string; gateway?: Record<string, unknown> }[] };
+    const listed = (await (await keysRoute.GET(new NextRequest("https://app.example.test/v1/keys", { headers: { authorization: `Bearer ${admin}` } }))).json()) as { keys: { id: string; gateway?: Record<string, unknown> }[] };
     assert.deepEqual(listed.keys.find((k) => k.id === login.body.id)!.gateway, { capUsd: null, dailyUsd: null, credential: "login" }, "no spend: not metered");
   } finally {
     if (prevAllowed === undefined) delete process.env.FOLDRUN_PLATFORM_KEY_ACCOUNTS;
     else process.env.FOLDRUN_PLATFORM_KEY_ACCOUNTS = prevAllowed;
   }
 
-  // The model map (Part A5): set and cleared through PATCH /api/keys/<id>.
-  const idRoute = (await import("../app/api/keys/[id]/route.ts")) as { PATCH: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ id: string }> }) => Promise<Response> };
+  // The model map (Part A5): set and cleared through PATCH /v1/keys/<id>.
+  const idRoute = (await import("../app/v1/keys/[id]/route.ts")) as { PATCH: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ id: string }> }) => Promise<Response> };
   const patch = async (id: string, body: unknown) => {
-    const r2 = await idRoute.PATCH(new NextRequest(`https://app.example.test/api/keys/${id}`, { method: "PATCH", headers: { authorization: `Bearer ${admin}`, "content-type": "application/json" }, body: JSON.stringify(body) }), { params: Promise.resolve({ id }) });
+    const r2 = await idRoute.PATCH(new NextRequest(`https://app.example.test/v1/keys/${id}`, { method: "PATCH", headers: { authorization: `Bearer ${admin}`, "content-type": "application/json" }, body: JSON.stringify(body) }), { params: Promise.resolve({ id }) });
     return { status: r2.status, body: (await r2.json()) as Record<string, any> }; // eslint-disable-line @typescript-eslint/no-explicit-any
   };
   const mapped = await patch(ok.body.id, { models: { opus: "claude-opus-5-5" } });
@@ -99,7 +99,7 @@ test("a gateway key keeps its limits through the table and a rotation, and opens
     assert.match(String(mapped.body.error), /has no price on foldrun's models/);
   } else {
     assert.equal(mapped.status, 200, JSON.stringify(mapped.body));
-    const afterMap = (await (await keysRoute.GET(new NextRequest("https://app.example.test/api/keys", { headers: { authorization: `Bearer ${admin}` } }))).json()) as { keys: { id: string; gateway?: { models?: Record<string, string>; capUsd: number | null } }[] };
+    const afterMap = (await (await keysRoute.GET(new NextRequest("https://app.example.test/v1/keys", { headers: { authorization: `Bearer ${admin}` } }))).json()) as { keys: { id: string; gateway?: { models?: Record<string, string>; capUsd: number | null } }[] };
     const gk = afterMap.keys.find((k) => k.id === ok.body.id)!;
     assert.deepEqual(gk.gateway?.models, { opus: "claude-opus-5-5" });
     assert.equal(gk.gateway?.capUsd, 12.35, "the limits are kept");

@@ -23,12 +23,12 @@ export class ApiError extends Error {
 
 /**
  * The workspace a request is about, read from its path: every workspace
- * route is /api/workspaces/<name>/… . A caller scoped to some workspaces is
+ * route is /v1/workspaces/<name>/… . A caller scoped to some workspaces is
  * refused the others here, once, rather than in forty handlers.
  */
 function assertScope(req: NextRequest, actor: Actor) {
   if (actor.workspaces === null) return;
-  const m = req.nextUrl.pathname.match(/^\/api\/workspaces\/([^/]+)/);
+  const m = req.nextUrl.pathname.match(/^\/v1\/workspaces\/([^/]+)/);
   if (m && !actor.workspaces.includes(decodeURIComponent(m[1]))) {
     throw new ApiError("this workspace is not one you were given access to", 403);
   }

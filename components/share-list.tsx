@@ -80,7 +80,7 @@ export function ShareList({
     }))) return;
     setBusy(s.id);
     try {
-      const r = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/shares?id=${encodeURIComponent(s.id)}`, {
+      const r = await fetch(`/v1/workspaces/${encodeURIComponent(workspace)}/shares?id=${encodeURIComponent(s.id)}`, {
         method: "DELETE",
         headers: { "x-foldrun-tenant": tenant },
       });

@@ -1,5 +1,5 @@
 // A workspace's policy keys — budget, notify, network_enforce, telemetry and
-// the rest PATCH /api/workspaces/<ws> guards — are an admin's on every way
+// the rest PATCH /v1/workspaces/<ws> guards — are an admin's on every way
 // into its AGENTS.md (server/workspace-policy.ts). Until 30 Oct 2026 an
 // editor changed them through PUT /source, a deploy, an import or a restore,
 // past the workspace:manage the settings PATCH asks for.
@@ -26,10 +26,10 @@ const { workspaceDir } = await import("@/lib/store");
 const { headRevision } = await import("@/lib/history");
 const { packageZip } = await import("@/lib/package");
 type Handler = (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string }> }) => Promise<Response>;
-const source = (await import("../app/api/workspaces/[workspace]/source/route.ts")) as unknown as { PUT: Handler };
-const deployRoute = (await import("../app/api/workspaces/[workspace]/deploy/route.ts")) as unknown as { POST: Handler };
-const importRoute = (await import("../app/api/workspaces/[workspace]/import/route.ts")) as unknown as { POST: Handler };
-const restoreRoute = (await import("../app/api/workspaces/[workspace]/restore/route.ts")) as unknown as { POST: Handler };
+const source = (await import("../app/v1/workspaces/[workspace]/source/route.ts")) as unknown as { PUT: Handler };
+const deployRoute = (await import("../app/v1/workspaces/[workspace]/deploy/route.ts")) as unknown as { POST: Handler };
+const importRoute = (await import("../app/v1/workspaces/[workspace]/import/route.ts")) as unknown as { POST: Handler };
+const restoreRoute = (await import("../app/v1/workspaces/[workspace]/restore/route.ts")) as unknown as { POST: Handler };
 
 const { key: admin } = await createApiKey("acme", "ops", "admin@acme.test", undefined, "admin", null);
 const { key: editor } = await createApiKey("acme", "ed", "ed@acme.test", undefined, "editor", null);
@@ -62,40 +62,40 @@ test("changedPolicyKeys: added, removed and changed keys count; prose, other key
 
 test("PUT /source: an editor may edit AGENTS.md's prose, not its policy keys; an admin may", async () => {
   const lifted = POLICY.replace("budget: 50\n", "budget: 5000\n");
-  const refused = await source.PUT(json("/api/workspaces/desk/source", "PUT", editor, { path: "AGENTS.md", content: lifted }), ctx);
+  const refused = await source.PUT(json("/v1/workspaces/desk/source", "PUT", editor, { path: "AGENTS.md", content: lifted }), ctx);
   assert.equal(refused.status, 403);
   assert.match(((await refused.json()) as { error: string }).error, /budget:.*admin/);
   assert.equal(agentsMd(), POLICY);
 
   const prose = POLICY.replace("A desk.", "A desk that writes.");
-  assert.equal((await source.PUT(json("/api/workspaces/desk/source", "PUT", editor, { path: "AGENTS.md", content: prose }), ctx)).status, 200);
+  assert.equal((await source.PUT(json("/v1/workspaces/desk/source", "PUT", editor, { path: "AGENTS.md", content: prose }), ctx)).status, 200);
   assert.match(agentsMd(), /A desk that writes\./);
 
-  assert.equal((await source.PUT(json("/api/workspaces/desk/source", "PUT", admin, { path: "AGENTS.md", content: lifted }), ctx)).status, 200);
+  assert.equal((await source.PUT(json("/v1/workspaces/desk/source", "PUT", admin, { path: "AGENTS.md", content: lifted }), ctx)).status, 200);
   assert.match(agentsMd(), /budget: 5000/);
   reset();
 });
 
 test("PUT /source: project.md is the config only where there is no AGENTS.md", async () => {
   // With AGENTS.md there, project.md configures nothing: an editor may write it.
-  const shadowed = await source.PUT(json("/api/workspaces/desk/source", "PUT", editor, { path: "project.md", content: "---\nbudget: 9999\n---\n" }), ctx);
+  const shadowed = await source.PUT(json("/v1/workspaces/desk/source", "PUT", editor, { path: "project.md", content: "---\nbudget: 9999\n---\n" }), ctx);
   assert.equal(shadowed.status, 200, await shadowed.clone().text());
   fs.rmSync(path.join(workspaceDir("acme", "desk"), "project.md"));
 });
 
 test("deploy: an editor's deploy that drops network_enforce is refused, nothing changes; one that keeps the keys goes through", async () => {
   const before = (await headRevision("acme", "desk"))?.id;
-  const res = await deployRoute.POST(json("/api/workspaces/desk/deploy", "POST", editor, { files: tree(POLICY.replace("network_enforce: true\n", "")) }), ctx);
+  const res = await deployRoute.POST(json("/v1/workspaces/desk/deploy", "POST", editor, { files: tree(POLICY.replace("network_enforce: true\n", "")) }), ctx);
   assert.equal(res.status, 403);
   assert.match(((await res.json()) as { error: string }).error, /network_enforce:/);
   assert.equal(agentsMd(), POLICY);
   assert.equal((await headRevision("acme", "desk"))?.id, before);
 
   // A deploy that carries no AGENTS.md removes it, and with it the policy.
-  const without = await deployRoute.POST(json("/api/workspaces/desk/deploy", "POST", editor, { files: [AGENT, FLOW] }), ctx);
+  const without = await deployRoute.POST(json("/v1/workspaces/desk/deploy", "POST", editor, { files: [AGENT, FLOW] }), ctx);
   assert.equal(without.status, 403);
 
-  const same = await deployRoute.POST(json("/api/workspaces/desk/deploy", "POST", editor, { files: tree(POLICY.replace("A desk.", "Still a desk.")) }), ctx);
+  const same = await deployRoute.POST(json("/v1/workspaces/desk/deploy", "POST", editor, { files: tree(POLICY.replace("A desk.", "Still a desk.")) }), ctx);
   assert.equal(same.status, 200, await same.clone().text());
   reset();
 });
@@ -108,7 +108,7 @@ test("import with overwrite: an editor's package may not replace the policy keys
   const bytes = new Uint8Array(packageZip(pkg));
   const post = (key: string) =>
     importRoute.POST(
-      new NextRequest("http://x/api/workspaces/desk/import?overwrite=1", { method: "POST", headers: { authorization: `Bearer ${key}`, "content-type": "application/zip", "content-length": String(bytes.length) }, body: bytes }),
+      new NextRequest("http://x/v1/workspaces/desk/import?overwrite=1", { method: "POST", headers: { authorization: `Bearer ${key}`, "content-type": "application/zip", "content-length": String(bytes.length) }, body: bytes }),
       ctx,
     );
   const refused = await post(editor);
@@ -124,12 +124,12 @@ test("restore: an editor may not go back to before the policy was set; an admin 
   const open = (await headRevision("acme", "desk"))!.id;
   reset();
   const body = { to: open, confirm: "desk" };
-  const refused = await restoreRoute.POST(json("/api/workspaces/desk/restore", "POST", editor, body), ctx);
+  const refused = await restoreRoute.POST(json("/v1/workspaces/desk/restore", "POST", editor, body), ctx);
   assert.equal(refused.status, 403);
   assert.equal(agentsMd(), POLICY);
   // The dry run writes nothing and stays open to an editor.
-  assert.equal((await restoreRoute.POST(json("/api/workspaces/desk/restore", "POST", editor, { to: open, dryRun: true }), ctx)).status, 200);
-  const done = await restoreRoute.POST(json("/api/workspaces/desk/restore", "POST", admin, body), ctx);
+  assert.equal((await restoreRoute.POST(json("/v1/workspaces/desk/restore", "POST", editor, { to: open, dryRun: true }), ctx)).status, 200);
+  const done = await restoreRoute.POST(json("/v1/workspaces/desk/restore", "POST", admin, body), ctx);
   assert.equal(done.status, 200, await done.clone().text());
   assert.doesNotMatch(agentsMd(), /budget/);
 });
@@ -142,12 +142,12 @@ test("a2a: on a flow — an editor's deploy may not publish, change or unpublish
   assert.deepEqual(changedFlowPublications("acme", "desk", [published], "merge"), ["flows/publish.md"]);
   assert.deepEqual(changedFlowPublications("acme", "desk", [FLOW], "merge"), [], "the flow as it is");
   assert.deepEqual(changedFlowPublications("acme", "desk", [{ path: "knowledge/a2a.md", content: "---\na2a:\n  publish: true\n---\n" }], "merge"), [], "only a flow file publishes");
-  const refused = await deployRoute.POST(json("/api/workspaces/desk/deploy", "POST", editor, { files: [{ path: "AGENTS.md", content: POLICY }, AGENT, published] }), ctx);
+  const refused = await deployRoute.POST(json("/v1/workspaces/desk/deploy", "POST", editor, { files: [{ path: "AGENTS.md", content: POLICY }, AGENT, published] }), ctx);
   assert.equal(refused.status, 403);
   assert.match(((await refused.json()) as { error: string }).error, /a2a: in flows\/publish\.md/);
-  assert.equal((await deployRoute.POST(json("/api/workspaces/desk/deploy", "POST", admin, { files: [{ path: "AGENTS.md", content: POLICY }, AGENT, published] }), ctx)).status, 200);
+  assert.equal((await deployRoute.POST(json("/v1/workspaces/desk/deploy", "POST", admin, { files: [{ path: "AGENTS.md", content: POLICY }, AGENT, published] }), ctx)).status, 200);
   // Published now: an editor's change to the block, or taking it out, is refused…
-  const unpublished = await deployRoute.POST(json("/api/workspaces/desk/deploy", "POST", editor, { files: [{ path: "AGENTS.md", content: POLICY }, AGENT, FLOW] }), ctx);
+  const unpublished = await deployRoute.POST(json("/v1/workspaces/desk/deploy", "POST", editor, { files: [{ path: "AGENTS.md", content: POLICY }, AGENT, FLOW] }), ctx);
   assert.equal(unpublished.status, 403);
   // …the prose around it is not, and neither is dropping the flow (less open, never more).
   const reworded = { ...published, content: published.content.replace("write it", "write it well") };
@@ -178,25 +178,25 @@ test("remotes: a card at an internal address is refused at save on a guarded ins
   guarded(async () => {
     const callerFile = path.join(workspaceDir("acme", "desk"), "agents/caller/agent.md");
     for (const card of ["https://127.0.0.1:3000/.well-known/agent-card.json", "https://169.254.169.254/latest/", "https://foldrun-web.foldrun.svc.cluster.local/x", "https://localhost/.well-known/agent-card.json"]) {
-      const put = await source.PUT(json("/api/workspaces/desk/source", "PUT", admin, withRemote(card)), ctx);
+      const put = await source.PUT(json("/v1/workspaces/desk/source", "PUT", admin, withRemote(card)), ctx);
       assert.equal(put.status, 400, card);
       assert.match(((await put.json()) as { error: string }).error, /does not call private or internal addresses — remotes: agents\/caller\/agent\.md: checker/, card);
       assert.equal(fs.existsSync(callerFile), false, `${card}: nothing written`);
     }
-    const dep = await deployRoute.POST(json("/api/workspaces/desk/deploy", "POST", admin, { files: [...tree(POLICY), withRemote("https://10.0.0.7/card")] }), ctx);
+    const dep = await deployRoute.POST(json("/v1/workspaces/desk/deploy", "POST", admin, { files: [...tree(POLICY), withRemote("https://10.0.0.7/card")] }), ctx);
     assert.equal(dep.status, 400);
     // A public card saves.
-    assert.equal((await source.PUT(json("/api/workspaces/desk/source", "PUT", editor, withRemote("https://agents.example.com/.well-known/agent-card.json")), ctx)).status, 200);
+    assert.equal((await source.PUT(json("/v1/workspaces/desk/source", "PUT", editor, withRemote("https://agents.example.com/.well-known/agent-card.json")), ctx)).status, 200);
     fs.rmSync(path.dirname(callerFile), { recursive: true, force: true });
   }));
 
 test("remotes: a card the file already had does not block an unrelated edit; a laptop keeps its localhost card", async () => {
   // Written before the check (or on a laptop): the file holds an internal card.
   const legacy = withRemote("https://127.0.0.1:3000/.well-known/agent-card.json");
-  assert.equal((await source.PUT(json("/api/workspaces/desk/source", "PUT", admin, legacy), ctx)).status, 200, "not guarded: allowed");
+  assert.equal((await source.PUT(json("/v1/workspaces/desk/source", "PUT", admin, legacy), ctx)).status, 200, "not guarded: allowed");
   await guarded(async () => {
     const edited = { ...legacy, content: legacy.content.replace("Call it.", "Call it, politely.") };
-    assert.equal((await source.PUT(json("/api/workspaces/desk/source", "PUT", editor, edited), ctx)).status, 200);
+    assert.equal((await source.PUT(json("/v1/workspaces/desk/source", "PUT", editor, edited), ctx)).status, 200);
   });
   fs.rmSync(path.join(workspaceDir("acme", "desk"), "agents/caller"), { recursive: true, force: true });
 });
@@ -207,7 +207,7 @@ test("remotes: a card the file already had does not block an unrelated edit; a l
 // N1: nobody publishes a flow whose agent holds a secret and runs code
 // unless an admin names it in a2a: accept_risk, audited.
 
-const sourceRoutes = (await import("../app/api/workspaces/[workspace]/source/route.ts")) as unknown as { PUT: Handler; DELETE: Handler; PATCH: Handler };
+const sourceRoutes = (await import("../app/v1/workspaces/[workspace]/source/route.ts")) as unknown as { PUT: Handler; DELETE: Handler; PATCH: Handler };
 const auditLines = (): { action: string; actor: string; detail: Record<string, unknown> }[] => {
   const file = path.join(process.env.FOLDRUN_DATA!, "audit", "acme.jsonl");
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)) : [];
@@ -223,7 +223,7 @@ const errorOf = async (res: Response) => (await res.json()) as { error: string; 
 test("N2: an editor's save that widens an agent of a published flow is refused, naming it; an admin's goes through and is audited", async () => {
   resetPublished();
   const wider = writer("tools: [read, write]\n");
-  const refused = await sourceRoutes.PUT(json("/api/workspaces/desk/source", "PUT", editor, wider), ctx);
+  const refused = await sourceRoutes.PUT(json("/v1/workspaces/desk/source", "PUT", editor, wider), ctx);
   assert.equal(refused.status, 403);
   const body = await errorOf(refused);
   assert.equal(body.code, "a2a_widening");
@@ -231,10 +231,10 @@ test("N2: an editor's save that widens an agent of a published flow is refused, 
   assert.match(body.error, /your role is editor/);
   // Prose, and a narrower agent, are an editor's still.
   const reworded = writer("tools: [read]\n");
-  assert.equal((await sourceRoutes.PUT(json("/api/workspaces/desk/source", "PUT", editor, { ...reworded, content: reworded.content.replace("Write.", "Write well.") }), ctx)).status, 200, "prose");
-  assert.equal((await sourceRoutes.PUT(json("/api/workspaces/desk/source", "PUT", editor, writer("")), ctx)).status, 200, "narrower");
+  assert.equal((await sourceRoutes.PUT(json("/v1/workspaces/desk/source", "PUT", editor, { ...reworded, content: reworded.content.replace("Write.", "Write well.") }), ctx)).status, 200, "prose");
+  assert.equal((await sourceRoutes.PUT(json("/v1/workspaces/desk/source", "PUT", editor, writer("")), ctx)).status, 200, "narrower");
   const before = auditLines().length;
-  assert.equal((await sourceRoutes.PUT(json("/api/workspaces/desk/source", "PUT", admin, wider), ctx)).status, 200);
+  assert.equal((await sourceRoutes.PUT(json("/v1/workspaces/desk/source", "PUT", admin, wider), ctx)).status, 200);
   const line = auditLines().slice(before).find((l) => l.action === "a2a.agent_widened");
   assert.ok(line, "audited");
   assert.equal(line!.actor, "admin@acme.test");
@@ -245,7 +245,7 @@ test("N2: an editor's save that widens an agent of a published flow is refused, 
 test("N2: by a deploy too — and a new agent behind the flow, the workspace's network: or a dropped hook all count", async () => {
   resetPublished();
   const deploy = (key: string, files: { path: string; content: string }[], extra: Record<string, unknown> = {}) =>
-    deployRoute.POST(json("/api/workspaces/desk/deploy", "POST", key, { files, ...extra }), ctx);
+    deployRoute.POST(json("/v1/workspaces/desk/deploy", "POST", key, { files, ...extra }), ctx);
   const secret = await deploy(editor, publishedTree(writer("tools: [read]\nsecrets: [CRM_TOKEN]\n")));
   assert.equal(secret.status, 403);
   assert.match((await errorOf(secret)).error, /writer behind publish \(secrets CRM_TOKEN\)/);
@@ -271,7 +271,7 @@ test("N2: by a deploy too — and a new agent behind the flow, the workspace's n
 
 test("N2: removing AGENTS.md (its hooks:) widens; removing the flow does not", async () => {
   resetPublished();
-  const del = (key: string, p: string) => sourceRoutes.DELETE(json("/api/workspaces/desk/source", "DELETE", key, { path: p }), ctx);
+  const del = (key: string, p: string) => sourceRoutes.DELETE(json("/v1/workspaces/desk/source", "DELETE", key, { path: p }), ctx);
   const gone = await del(editor, "AGENTS.md");
   assert.equal(gone.status, 403);
   assert.match((await errorOf(gone)).error, /hooks removed: guard/);
@@ -282,41 +282,41 @@ test("N2: removing AGENTS.md (its hooks:) widens; removing the flow does not", a
 test("N1: publishing a flow whose agent holds a secret and runs code is refused without accept_risk — admin or not; with it, audited", async () => {
   const risky = writer("tools: [read, code]\nsecrets: [CRM_TOKEN]\n");
   assert.ok(deployWorkspace("acme", "desk", [{ path: "AGENTS.md", content: POLICY }, risky, FLOW], { by: "admin@acme.test", message: "reset" }).applied);
-  const refused = await sourceRoutes.PUT(json("/api/workspaces/desk/source", "PUT", admin, PUB_FLOW), ctx);
+  const refused = await sourceRoutes.PUT(json("/v1/workspaces/desk/source", "PUT", admin, PUB_FLOW), ctx);
   assert.equal(refused.status, 400);
   const body = await errorOf(refused);
   assert.equal(body.code, "a2a_secret_code");
   assert.match(body.error, /writer holds CRM_TOKEN and can run code \(Bash\), and publish is published over A2A — its answer goes back to the outside caller/);
   assert.match(body.error, /a2a: accept_risk: \[writer\] in publish/);
-  const stale = await sourceRoutes.PUT(json("/api/workspaces/desk/source", "PUT", admin, { ...PUB_FLOW, content: PUB_FLOW.content.replace("publish: true\n", "publish: true\n  accept_risk: [writer, ghost]\n") }), ctx);
+  const stale = await sourceRoutes.PUT(json("/v1/workspaces/desk/source", "PUT", admin, { ...PUB_FLOW, content: PUB_FLOW.content.replace("publish: true\n", "publish: true\n  accept_risk: [writer, ghost]\n") }), ctx);
   assert.equal(stale.status, 400);
   assert.equal((await errorOf(stale)).code, "a2a_accept_risk");
   const before = auditLines().length;
   const accepted = { ...PUB_FLOW, content: PUB_FLOW.content.replace("publish: true\n", "publish: true\n  accept_risk: [writer]\n") };
-  assert.equal((await sourceRoutes.PUT(json("/api/workspaces/desk/source", "PUT", admin, accepted), ctx)).status, 200);
+  assert.equal((await sourceRoutes.PUT(json("/v1/workspaces/desk/source", "PUT", admin, accepted), ctx)).status, 200);
   const line = auditLines().slice(before).find((l) => l.action === "a2a.risk_accepted");
   assert.deepEqual(line?.detail, { workspace: "desk", flow: "publish", agent: "writer", secrets: ["CRM_TOKEN"], runsCode: true });
   // The admin's ack does not let an editor widen the agent further.
-  assert.equal((await sourceRoutes.PUT(json("/api/workspaces/desk/source", "PUT", editor, writer("tools: [read, code, write]\nsecrets: [CRM_TOKEN]\n")), ctx)).status, 403);
+  assert.equal((await sourceRoutes.PUT(json("/v1/workspaces/desk/source", "PUT", editor, writer("tools: [read, code, write]\nsecrets: [CRM_TOKEN]\n")), ctx)).status, 403);
   reset();
 });
 
 test("DELETE /source of AGENTS.md drops its policy keys: an editor is refused, as team-and-access.md says", async () => {
   reset();
-  const gone = await sourceRoutes.DELETE(json("/api/workspaces/desk/source", "DELETE", editor, { path: "AGENTS.md" }), ctx);
+  const gone = await sourceRoutes.DELETE(json("/v1/workspaces/desk/source", "DELETE", editor, { path: "AGENTS.md" }), ctx);
   assert.equal(gone.status, 403);
   assert.match((await errorOf(gone)).error, /this would change budget:, notify:, network_enforce: in desk's AGENTS\.md/);
   assert.equal(agentsMd(), POLICY, "nothing removed");
-  assert.equal((await sourceRoutes.DELETE(json("/api/workspaces/desk/source", "DELETE", editor, { path: "knowledge/nothing.md" }), ctx)).status !== 403, true, "another file is not policy");
+  assert.equal((await sourceRoutes.DELETE(json("/v1/workspaces/desk/source", "DELETE", editor, { path: "knowledge/nothing.md" }), ctx)).status !== 403, true, "another file is not policy");
   reset();
 });
 
 test("N2: the agent editor's PATCH (a tool, a network, sandbox: own) is a door too", async () => {
   resetPublished();
   type AgentHandler = (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string; agent: string }> }) => Promise<Response>;
-  const agentRoute = (await import("../app/api/workspaces/[workspace]/agents/[agent]/route.ts")) as unknown as { PATCH: AgentHandler };
+  const agentRoute = (await import("../app/v1/workspaces/[workspace]/agents/[agent]/route.ts")) as unknown as { PATCH: AgentHandler };
   const actx = { params: Promise.resolve({ workspace: "desk", agent: "writer" }) };
-  const patch = (key: string, body: unknown) => agentRoute.PATCH(json("/api/workspaces/desk/agents/writer", "PATCH", key, body), actx);
+  const patch = (key: string, body: unknown) => agentRoute.PATCH(json("/v1/workspaces/desk/agents/writer", "PATCH", key, body), actx);
   const tool = await patch(editor, { list: { key: "tools", name: "code", action: "add" } });
   assert.equal(tool.status, 403);
   assert.match((await errorOf(tool)).error, /writer behind publish \(tools Bash\)/);
@@ -333,7 +333,7 @@ test("N1: a secret bound to sites never enters the sandbox — publishing goes t
   setSecretSites("acme", "BOUND_TOKEN", ["api.example.com"]);
   const bound = writer("tools: [read, code]\nsecrets: [BOUND_TOKEN]\n");
   assert.ok(deployWorkspace("acme", "desk", [{ path: "AGENTS.md", content: POLICY }, bound, FLOW], { by: "admin@acme.test", message: "reset" }).applied);
-  assert.equal((await sourceRoutes.PUT(json("/api/workspaces/desk/source", "PUT", admin, PUB_FLOW), ctx)).status, 200, "bound: not in the sandbox");
+  assert.equal((await sourceRoutes.PUT(json("/v1/workspaces/desk/source", "PUT", admin, PUB_FLOW), ctx)).status, 200, "bound: not in the sandbox");
   const { unacceptedExposures } = await import("../server/workspace-policy.ts");
   assert.deepEqual(unacceptedExposures("acme", "desk", "publish"), [], "served");
   setSecretSites("acme", "BOUND_TOKEN", []);
@@ -344,11 +344,11 @@ test("N1: a secret bound to sites never enters the sandbox — publishing goes t
 test("N1: a new workspace's deploy meets the check too — the dry run says so, the deploy refuses", async () => {
   const fresh = { params: Promise.resolve({ workspace: "fresh" }) };
   const files = [{ path: "AGENTS.md", content: "---\nname: fresh\n---\n" }, writer("tools: [read, code]\nsecrets: [CRM_TOKEN]\n"), PUB_FLOW];
-  const dry = await deployRoute.POST(json("/api/workspaces/fresh/deploy", "POST", admin, { files, dryRun: true }), fresh);
+  const dry = await deployRoute.POST(json("/v1/workspaces/fresh/deploy", "POST", admin, { files, dryRun: true }), fresh);
   const plan = (await dry.json()) as { ok: boolean; policy?: { code?: string } };
   assert.equal(plan.ok, false);
   assert.equal(plan.policy?.code, "a2a_secret_code");
-  const real = await deployRoute.POST(json("/api/workspaces/fresh/deploy", "POST", admin, { files }), fresh);
+  const real = await deployRoute.POST(json("/v1/workspaces/fresh/deploy", "POST", admin, { files }), fresh);
   assert.equal(real.status, 400);
   assert.equal(fs.existsSync(workspaceDir("acme", "fresh")), false, "nothing made");
 });

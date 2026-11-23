@@ -60,7 +60,7 @@ export function CliAuthorize() {
   // Signed in? Otherwise the login page, and back here with the code kept.
   // The login page is one of the app's own, so the router takes us there.
   useEffect(() => {
-    fetch("/api/auth/session")
+    fetch("/v1/auth/session")
       .then((r) => r.json() as Promise<Me>)
       .then((s) => {
         if (s.user) setMe(s.user);
@@ -72,7 +72,7 @@ export function CliAuthorize() {
   // What is asking, once there is a code to look up.
   useEffect(() => {
     if (!whole) return;
-    fetch(`/api/cli/authorize?code=${encodeURIComponent(code)}`)
+    fetch(`/v1/cli/authorize?code=${encodeURIComponent(code)}`)
       .then(async (r) => (r.ok ? ((await r.json()) as Request) : null))
       .then((request) => setFound((prev) => (keyNow.current === key ? { code: key, request } : prev)))
       .catch(() => setFound((prev) => (keyNow.current === key ? { code: key, request: null } : prev)));
@@ -82,7 +82,7 @@ export function CliAuthorize() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/cli/authorize", {
+      const res = await fetch("/v1/cli/authorize", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ code, decision, ...(decision === "approve" && request?.modelAccess?.offered ? { models } : {}) }),

@@ -199,7 +199,7 @@ function toMessage(text) {
 // The census's list (scripts/i18n-scan.mjs dashboardFiles): tracked pages
 // and components, and on a hosted checkout billing's, which git ignores —
 // so the prune below never drops a billing key a billing page still names.
-// Route handlers (app/api, app/.well-known, any route.ts) answer machines,
+// Route handlers (app/v1, app/.well-known, any route.ts) answer machines,
 // not people: their text is a protocol, never translated. A server module
 // is only read for the keys it names; it is moved by hand, never here.
 const tracked = dashboardFiles();

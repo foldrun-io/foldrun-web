@@ -25,7 +25,7 @@ const { writeWorkspaceFile } = await import("../../foldrun-core/src/store.ts");
 const { setRevisionBackend, flushRevisions, readAtHead } = await import("../../foldrun-core/src/workspace-revisions.ts");
 const { headsOf } = await import("../../foldrun-core/src/publish.ts");
 type Handler = (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string }> }) => Promise<Response>;
-const route = (await import("../app/api/workspaces/[workspace]/route.ts")) as unknown as { PATCH: Handler; DELETE: Handler };
+const route = (await import("../app/v1/workspaces/[workspace]/route.ts")) as unknown as { PATCH: Handler; DELETE: Handler };
 
 const data = process.env.FOLDRUN_DATA!;
 const deps = { blobs: fsBlobStore(path.join(data, ".objects")), revisions: localRevisionStore(path.join(data, ".revisions")) };
@@ -51,7 +51,7 @@ async function make(ws: string, file: string, body: string) {
 test("DELETE drops the history: a new workspace of the same name starts empty", async () => {
   await make("sales", "memory/private.md", "the old workspace's file\n");
   assert.ok((await headOf("sales")).workspace);
-  const res = await route.DELETE(call("/api/workspaces/sales", "DELETE"), ctx("sales"));
+  const res = await route.DELETE(call("/v1/workspaces/sales", "DELETE"), ctx("sales"));
   assert.equal(res.status, 200, await res.clone().text());
   assert.equal((await headOf("sales")).workspace, null);
   assert.equal(await readAtHead("acme", "sales", "memory/private.md"), null);
@@ -63,7 +63,7 @@ test("DELETE drops the history: a new workspace of the same name starts empty", 
 test("PATCH rename moves the history to the new name and leaves the old name empty", async () => {
   await make("ops", "memory/ops.md", "ops\n");
   const was = (await headOf("ops")).workspace!.id;
-  const res = await route.PATCH(call("/api/workspaces/ops", "PATCH", { name: "platform" }), ctx("ops"));
+  const res = await route.PATCH(call("/v1/workspaces/ops", "PATCH", { name: "platform" }), ctx("ops"));
   assert.equal(res.status, 200, await res.clone().text());
   assert.equal((await headOf("platform")).workspace?.id, was);
   assert.equal((await headOf("ops")).workspace, null);
@@ -76,7 +76,7 @@ test("PATCH rename onto a name that is taken is a 409 and moves nothing", async 
   await make("a1", "memory/a.md", "a\n");
   await make("b1", "memory/b.md", "b\n");
   const idB = (await headOf("b1")).workspace!.id;
-  const res = await route.PATCH(call("/api/workspaces/a1", "PATCH", { name: "b1" }), ctx("a1"));
+  const res = await route.PATCH(call("/v1/workspaces/a1", "PATCH", { name: "b1" }), ctx("a1"));
   assert.equal(res.status, 409);
   assert.equal((await headOf("b1")).workspace?.id, idB);
   assert.ok((await headOf("a1")).workspace);

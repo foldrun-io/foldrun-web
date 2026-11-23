@@ -1,11 +1,11 @@
-// What an /api/ path may never hold, read from the RAW path (still
+// What an /v1/ path may never hold, read from the RAW path (still
 // percent-encoded) before any route sees it.
 //
 // Next decodes each dynamic segment with decodeURIComponent, so `%2F` in a
 // segment reaches a route as `/`, and a name joined to a folder becomes a
 // path: `..%2F..%2F<tenant>%2F…` (30 Oct 2026 review: agents/<agent>/run,
 // hooks/<name>/test). Each route checks its own names too; this is the
-// floor under all of them. No route under app/api has a catch-all segment
+// floor under all of them. No route under app/v1 has a catch-all segment
 // — every dynamic segment is one name ([workspace], [agent], [id], …) and
 // every file path rides in the query string (`?path=`) — so no request a
 // client of ours makes needs any of what this refuses.

@@ -1,5 +1,5 @@
 // The one gate every route that writes a vault secret on a caller's behalf
-// passes before it writes: PUT/PATCH/DELETE /api/secrets, and the OAuth
+// passes before it writes: PUT/PATCH/DELETE /v1/secrets, and the OAuth
 // connect routes (start, reconnect, a hand-off's accept), whose callback
 // stores the secret later with no caller left to ask. A rule added here holds
 // for all of them; a rule kept in one route was walked around through the

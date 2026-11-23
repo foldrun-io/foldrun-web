@@ -1,4 +1,4 @@
-// GET /api/workspaces/<ws>/hooks/<flow>: a webhook's URL can be read without
+// GET /v1/workspaces/<ws>/hooks/<flow>: a webhook's URL can be read without
 // rotating it. Before 11 Oct 2026 rotate was the only route that returned it,
 // so a script that wanted the URL broke the one already in use.
 //
@@ -22,8 +22,8 @@ const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 const { webhookPath, hookGeneration } = await import("@/lib/webhook");
 type Handler = (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
-const read = (await import("../app/api/workspaces/[workspace]/hooks/[flow]/route.ts")) as unknown as { GET: Handler };
-const rotate = (await import("../app/api/workspaces/[workspace]/hooks/[flow]/rotate/route.ts")) as unknown as { POST: Handler };
+const read = (await import("../app/v1/workspaces/[workspace]/hooks/[flow]/route.ts")) as unknown as { GET: Handler };
+const rotate = (await import("../app/v1/workspaces/[workspace]/hooks/[flow]/rotate/route.ts")) as unknown as { POST: Handler };
 
 const TENANT = "acme";
 const dir = path.join(DATA, TENANT, "workspaces", "desk");
@@ -40,7 +40,7 @@ const { key: editor } = await createApiKey(TENANT, "editor", "owner@acme.test", 
 const ctx = (params: Record<string, string>) => ({ params: Promise.resolve(params) });
 const get = (flow: string, key?: string) =>
   read.GET(
-    new NextRequest(`http://localhost/api/workspaces/desk/hooks/${flow}`, { headers: key ? { authorization: `Bearer ${key}` } : {} }),
+    new NextRequest(`http://localhost/v1/workspaces/desk/hooks/${flow}`, { headers: key ? { authorization: `Bearer ${key}` } : {} }),
     ctx({ workspace: "desk", flow }),
   );
 
@@ -50,7 +50,7 @@ test("reads the webhook URL, absolute when FOLDRUN_PUBLIC_URL is set, and does n
   assert.equal(res.status, 200);
   const body = await res.json();
   assert.equal(body.path, webhookPath(TENANT, "desk", "publish"));
-  assert.match(body.path, /^\/api\/hooks\/acme\/desk\/publish\?token=[0-9a-f]{32}$/);
+  assert.match(body.path, /^\/v1\/hooks\/acme\/desk\/publish\?token=[0-9a-f]{32}$/);
   assert.equal(body.url, `https://foldrun.example${body.path}`);
   assert.equal(hookGeneration(TENANT, "desk", "publish"), before, "reading must not rotate");
   const again = await (await get("publish", admin)).json();
@@ -74,7 +74,7 @@ test("the URL is a credential: workspace:manage, as rotate and the settings page
 
 test("rotate refuses what GET refuses: an unknown flow is 404, a non-webhook flow 409, and neither gets a generation (30 Oct 2026)", async () => {
   const post = (flow: string) =>
-    rotate.POST(new NextRequest(`http://localhost/api/workspaces/desk/hooks/${flow}/rotate`, { method: "POST", headers: { authorization: `Bearer ${admin}` } }), ctx({ workspace: "desk", flow }));
+    rotate.POST(new NextRequest(`http://localhost/v1/workspaces/desk/hooks/${flow}/rotate`, { method: "POST", headers: { authorization: `Bearer ${admin}` } }), ctx({ workspace: "desk", flow }));
   assert.equal((await post("nope")).status, 404);
   assert.equal(hookGeneration(TENANT, "desk", "nope"), 0);
   const manual = await post("daily");

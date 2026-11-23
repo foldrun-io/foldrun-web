@@ -1,5 +1,5 @@
-// Files to text, the routes (12 Nov 2026): POST /api/extract, GET
-// /api/extract/<id>, POST …/storage/extract. Who may, the refusals before
+// Files to text, the routes (12 Nov 2026): POST /v1/extract, GET
+// /v1/extract/<id>, POST …/storage/extract. Who may, the refusals before
 // the body is read, wait → 200 or 202 + poll, the .txt written beside a
 // stored file, and who may read a job. The extraction itself (parser,
 // Whisper, artifacts, limits) is tested in foldrun-platform
@@ -30,9 +30,9 @@ const extract = await import("@/platform/extract");
 const storage = await import("@/lib/storage");
 type Req = InstanceType<typeof NextRequest>;
 type Ctx<P> = { params: Promise<P> };
-const post = (await import("../app/api/extract/route.ts")) as unknown as { POST: (req: Req) => Promise<Response> };
-const poll = (await import("../app/api/extract/[id]/route.ts")) as unknown as { GET: (req: Req, ctx: Ctx<{ id: string }>) => Promise<Response> };
-const stored = (await import("../app/api/workspaces/[workspace]/storage/extract/route.ts")) as unknown as { POST: (req: Req, ctx: Ctx<{ workspace: string }>) => Promise<Response> };
+const post = (await import("../app/v1/extract/route.ts")) as unknown as { POST: (req: Req) => Promise<Response> };
+const poll = (await import("../app/v1/extract/[id]/route.ts")) as unknown as { GET: (req: Req, ctx: Ctx<{ id: string }>) => Promise<Response> };
+const stored = (await import("../app/v1/workspaces/[workspace]/storage/extract/route.ts")) as unknown as { POST: (req: Req, ctx: Ctx<{ workspace: string }>) => Promise<Response> };
 
 const TENANT = "acme";
 for (const ws of ["desk", "other"]) {
@@ -61,17 +61,17 @@ extract.setExtractFetchForTests(async (input) => {
 
 const sendFile = (key: string, body: Uint8Array, query = "", headers: Record<string, string> = {}) =>
   post.POST(
-    new NextRequest(`http://localhost/api/extract${query}`, {
+    new NextRequest(`http://localhost/v1/extract${query}`, {
       method: "POST",
       headers: { authorization: `Bearer ${key}`, "content-type": "application/octet-stream", "content-length": String(body.length), ...headers },
       body: body as Uint8Array<ArrayBuffer>,
     }),
   );
 const getJob = (key: string, id: string) =>
-  poll.GET(new NextRequest(`http://localhost/api/extract/${id}`, { headers: { authorization: `Bearer ${key}` } }), { params: Promise.resolve({ id }) });
+  poll.GET(new NextRequest(`http://localhost/v1/extract/${id}`, { headers: { authorization: `Bearer ${key}` } }), { params: Promise.resolve({ id }) });
 const fromStorage = (key: string, ws: string, body: Record<string, unknown>) =>
   stored.POST(
-    new NextRequest(`http://localhost/api/workspaces/${ws}/storage/extract`, {
+    new NextRequest(`http://localhost/v1/workspaces/${ws}/storage/extract`, {
       method: "POST",
       headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
       body: JSON.stringify(body),
@@ -80,7 +80,7 @@ const fromStorage = (key: string, ws: string, body: Record<string, unknown>) =>
   );
 const bytes = (label: string) => new Uint8Array(Buffer.from(`${label}-${crypto.randomBytes(6).toString("hex")}`));
 
-test("POST /api/extract: the text at once; the same file again is cached", async () => {
+test("POST /v1/extract: the text at once; the same file again is cached", async () => {
   const file = bytes("photo");
   const r = await sendFile(editor, file, "?name=photo.png&lang=fa");
   assert.equal(r.status, 200, await r.clone().text());
@@ -95,10 +95,10 @@ test("POST /api/extract: the text at once; the same file again is cached", async
   assert.equal((await again.json()).cached, true);
 });
 
-test("POST /api/extract: who may not, and what is refused before the body is read", async () => {
+test("POST /v1/extract: who may not, and what is refused before the body is read", async () => {
   assert.equal((await sendFile(viewer, bytes("v"))).status, 403, "a viewer cannot start one (run:start)");
   assert.equal((await sendFile("fr_not_a_key", bytes("v"))).status, 401);
-  const noLen = await post.POST(new NextRequest("http://localhost/api/extract", { method: "POST", headers: { authorization: `Bearer ${editor}` }, body: new ReadableStream(), duplex: "half" } as never));
+  const noLen = await post.POST(new NextRequest("http://localhost/v1/extract", { method: "POST", headers: { authorization: `Bearer ${editor}` }, body: new ReadableStream(), duplex: "half" } as never));
   assert.equal(noLen.status, 411);
   assert.equal((await sendFile(editor, bytes("big"), "", { "content-length": String(101 * 1024 * 1024) })).status, 413);
   assert.equal((await sendFile(editor, new Uint8Array(0))).status, 400);
@@ -116,7 +116,7 @@ test("wait=0: 202 with a job to poll; the poll says running, then done with the 
     assert.equal(r.status, 202);
     const started = await r.json();
     assert.equal(started.status, "running");
-    assert.equal(started.poll, `/api/extract/${started.id}`);
+    assert.equal(started.poll, `/v1/extract/${started.id}`);
     const running = await getJob(editor, started.id);
     assert.equal(running.status, 200);
     assert.equal((await running.json()).status, "running");

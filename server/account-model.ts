@@ -1,4 +1,4 @@
-// What the account's own model key is, for the API (/api/account/model) and
+// What the account's own model key is, for the API (/v1/account/model) and
 // the Settings page alike — one summary, never the key itself.
 
 import { getSecret } from "@/lib/secrets";

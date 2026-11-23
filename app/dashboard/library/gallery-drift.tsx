@@ -38,7 +38,7 @@ export function GalleryDrift({ tenant, name, status }: { tenant: string; name: s
           e.preventDefault();
           e.stopPropagation();
           setBusy(true);
-          await fetch("/api/library/gallery", {
+          await fetch("/v1/library/gallery", {
             method: "POST",
             headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
             body: JSON.stringify({ tool: name }),

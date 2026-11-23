@@ -16,7 +16,7 @@ process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-save-c
 delete process.env.FOLDRUN_DEV_NO_AUTH;
 delete process.env.FOLDRUN_DATABASE_URL;
 const { NextRequest } = await import("next/server");
-const { PUT } = await import("../app/api/workspaces/[workspace]/source/route.ts");
+const { PUT } = await import("../app/v1/workspaces/[workspace]/source/route.ts");
 const { createApiKey } = await import("../server/auth.ts");
 const { deployWorkspace } = await import("@/lib/deploy");
 const { workspaceDir } = await import("@/lib/store");
@@ -24,7 +24,7 @@ const { workspaceDir } = await import("@/lib/store");
 const { key } = await createApiKey("acme", "ci", "ci@acme.test", undefined, "admin", null);
 const put = async (body: Record<string, unknown>) => {
   const res = await PUT(
-    new NextRequest("http://x/api/workspaces/desk/source", { method: "PUT", headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify(body) }),
+    new NextRequest("http://x/v1/workspaces/desk/source", { method: "PUT", headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify(body) }),
     { params: Promise.resolve({ workspace: "desk" }) },
   );
   return { status: res.status, body: (await res.json()) as { ok?: boolean; error?: string; issues?: { level: string; rule: string; where: string; message: string }[] } };

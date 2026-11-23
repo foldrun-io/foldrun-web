@@ -13,7 +13,7 @@ import path from "node:path";
 process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-deploy-expect-"));
 delete process.env.FOLDRUN_DEV_NO_AUTH;
 const { NextRequest } = await import("next/server");
-const { POST } = await import("../app/api/workspaces/[workspace]/deploy/route.ts");
+const { POST } = await import("../app/v1/workspaces/[workspace]/deploy/route.ts");
 const { createApiKey } = await import("../server/auth.ts");
 
 const AGENT = "---\nname: writer\ndescription: writes things\n---\n\nWrite.\n";
@@ -25,7 +25,7 @@ const files = (extra: Record<string, string> = {}) =>
 const { key } = await createApiKey("acme", "ci", "ci@acme.test", undefined, "admin", null);
 const deploy = (body: object) =>
   POST(
-    new NextRequest("http://x/api/workspaces/desk/deploy", {
+    new NextRequest("http://x/v1/workspaces/desk/deploy", {
       method: "POST",
       headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
       body: JSON.stringify(body),

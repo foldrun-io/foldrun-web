@@ -1,6 +1,6 @@
 // The sign-up switches as this server runs them (7 Nov 2026): one resolver
-// for the sign-up page, POST /api/auth/signup, /api/auth/session and the
-// open GET /api/signup, so none of them works the doors out differently.
+// for the sign-up page, POST /v1/auth/signup, /v1/auth/session and the
+// open GET /v1/signup, so none of them works the doors out differently.
 //
 // The rules are core's (platform signup.ts): free is signup.open, paid is
 // hosted-only and effective only when billing's signupOffer() finds nothing
@@ -14,7 +14,7 @@ import { billing } from "@/platform/billing";
 import { settingText } from "@/platform/settings";
 import { signupModes, type PublicPlan, type SignupModes, type SignupOffer } from "@/platform/signup";
 
-/** The origins that may read GET /api/signup from a browser: foldrun.io's
+/** The origins that may read GET /v1/signup from a browser: foldrun.io's
  *  sign-up buttons and plan cards, and the docs site's. Exact matches,
  *  comma-separated in FOLDRUN_SIGNUP_ORIGINS to replace the list. */
 export function signupOrigins(): string[] {
@@ -39,7 +39,7 @@ export function signupModesNow(usersExist: boolean): SignupModes {
   return signupModes({ ...inputs(), usersExist });
 }
 
-/** GET /api/signup's answer — exactly these three keys. */
+/** GET /v1/signup's answer — exactly these three keys. */
 export interface PublicSignup {
   free: boolean;
   paid: boolean;

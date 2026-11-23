@@ -8,10 +8,10 @@ export function runBodyOf(task: string, test: boolean): { task?: string; test?: 
 }
 
 /** The page of a run just started, from the endpoint the button posted to
- *  (/api/workspaces/<workspace>/…/run). Null when the endpoint is not that
+ *  (/v1/workspaces/<workspace>/…/run). Null when the endpoint is not that
  *  shape or the answer carried no run id. */
 export function runPageOf(endpoint: string, runId: unknown, tenant: string): string | null {
-  const m = /^\/api\/workspaces\/([^/]+)\//.exec(endpoint);
+  const m = /^\/v1\/workspaces\/([^/]+)\//.exec(endpoint);
   if (!m || typeof runId !== "string" || !runId) return null;
   return `/dashboard/${m[1]}/runs/${encodeURIComponent(runId)}${tenant !== "default" ? `?tenant=${encodeURIComponent(tenant)}` : ""}`;
 }

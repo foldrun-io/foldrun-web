@@ -49,7 +49,7 @@ function sourceFiles() {
  *  and, on a hosted checkout, billing's (foldrun-admin's, laid over this
  *  one and ignored by git; tests/billing-files.ts billingUiFiles). */
 export function dashboardFiles() {
-  const keep = (f) => /\.(tsx|ts)$/.test(f) && !f.startsWith("app/api/") && !f.startsWith("app/.well-known/") && !/(^|\/)route\.ts$/.test(f) && !/\.(test|d)\.ts$/.test(f);
+  const keep = (f) => /\.(tsx|ts)$/.test(f) && !f.startsWith("app/v1/") && !f.startsWith("app/.well-known/") && !/(^|\/)route\.ts$/.test(f) && !/\.(test|d)\.ts$/.test(f);
   return [...new Set([...sourceFiles().filter(keep), ...billingUiFiles(WEB).filter((f) => keep(f) || f.startsWith("server/"))])].sort();
 }
 

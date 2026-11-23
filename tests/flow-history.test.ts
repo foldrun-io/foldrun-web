@@ -22,8 +22,8 @@ const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 const { lineDiff, foldDiff, diffStats, restoreMessage } = await import("../components/flow-history-model.ts");
 type Handler = (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string }> }) => Promise<Response>;
-const source = (await import("../app/api/workspaces/[workspace]/source/route.ts")) as { GET: Handler; PUT: Handler };
-const history = (await import("../app/api/workspaces/[workspace]/history/route.ts")) as { GET: Handler };
+const source = (await import("../app/v1/workspaces/[workspace]/source/route.ts")) as { GET: Handler; PUT: Handler };
+const history = (await import("../app/v1/workspaces/[workspace]/history/route.ts")) as { GET: Handler };
 
 // ---------------------------------------------------------------- model
 
@@ -78,7 +78,7 @@ fs.writeFileSync(path.join(ws, "agents/writer/agent.md"), "---\nname: writer\n--
 const { key } = await createApiKey(TENANT, "test", "owner@acme.test", undefined, "admin");
 const ctx = { params: Promise.resolve({ workspace: WS }) };
 const req = (url: string, init: { method?: string; body?: unknown } = {}) =>
-  new NextRequest(`http://localhost/api/workspaces/${WS}/${url}`, {
+  new NextRequest(`http://localhost/v1/workspaces/${WS}/${url}`, {
     method: init.method ?? "GET",
     headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
     ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),

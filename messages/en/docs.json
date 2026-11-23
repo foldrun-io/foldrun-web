@@ -9,7 +9,7 @@
     "requestBody": "Request body",
     "schema": "Schema",
     "tags": "Tags",
-    "versionEveryRouteFromApiOpenapi": "Version <span>{version}</span> · every route, from <a>/api/openapi.json</a> · <link>Using the API</link>"
+    "versionEveryRouteFromApiOpenapi": "Version <span>{version}</span> · every route, from <a>/v1/openapi.json</a> · <link>Using the API</link>"
   },
   "doc-page": {
     "docs": "Docs"

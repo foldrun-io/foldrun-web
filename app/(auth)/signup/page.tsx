@@ -71,7 +71,7 @@ export default async function SignupPage({
   // and the member is created (acceptInvite).
   const invited = invite ? await peekInvite(invite) : null;
   // The doors as this server runs them — the same resolver the POST and
-  // GET /api/signup use (server/signup.ts).
+  // GET /v1/signup use (server/signup.ts).
   const state = signupPageState({
     inviteGiven: Boolean(invite),
     inviteValid: Boolean(invited),

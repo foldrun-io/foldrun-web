@@ -56,7 +56,7 @@ export default async function WorkspaceSettingsPage({
   const tab: Tab = TABS.includes(tabParam as Tab) ? (tabParam as Tab) : "general";
   if (!fs.existsSync(workspaceDir(tenant, workspace))) notFound();
 
-  // With each secret's health, keyed as GET /api/secrets keys it — an
+  // With each secret's health, keyed as GET /v1/secrets keys it — an
   // inherited account secret's health is the account entry's, not this one's.
   const health = await secretHealth(tenant);
   const secrets = listSecrets(tenant, workspace).map((s) => ({
@@ -73,10 +73,10 @@ export default async function WorkspaceSettingsPage({
   const managesWorkspace = role === null || can(role, "workspace:manage");
   const { budget, spentUsd: spent } = await workspaceBudgetStanding(tenant, workspace);
   const own = defaultsOf(readAgentsMdKeys(workspaceDir(tenant, workspace)));
-  // The account's, as GET /api/account answers this person: limited to
+  // The account's, as GET /v1/account answers this person: limited to
   // some workspaces, its notify URL is "set", not shown (30 Oct 2026).
   const inherited = accountDefaultsFor(defaultsOf(readAgentsMdKeys(accountDir(tenant))), await viewerScope());
-  const endpoint = `/api/workspaces/${workspace}`;
+  const endpoint = `/v1/workspaces/${workspace}`;
   const halt = await pauseView(tenant, workspace);
 
   // Which endpoint this workspace's model calls ride, resolved the way the
@@ -200,7 +200,7 @@ export default async function WorkspaceSettingsPage({
               title={$t("workspace.settings-page.deleteThisWorkspace")}
               description={$t("workspace.settings-page.itsAgentsFlowsRunsSecretsAnd")}
               hint={$t("workspace.settings-page.theLedgerKeepsWhatItsRuns")}
-              footer={<DeleteButton variant="button" endpoint={`/api/workspaces/${workspace}`} tenant={tenant} confirmText={$t("workspace.settings-page.deleteWorkspaceAndEverythingInIt", { workspace: String(workspace) })} redirectTo={`/dashboard${qs}`} />}
+              footer={<DeleteButton variant="button" endpoint={`/v1/workspaces/${workspace}`} tenant={tenant} confirmText={$t("workspace.settings-page.deleteWorkspaceAndEverythingInIt", { workspace: String(workspace) })} redirectTo={`/dashboard${qs}`} />}
             />
           </SettingsSection>
         </div>

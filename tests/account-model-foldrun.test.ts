@@ -1,4 +1,4 @@
-// /api/account/model, foldrun's models: an account chooses to run on the
+// /v1/account/model, foldrun's models: an account chooses to run on the
 // platform's keys for one provider instead of its own. The owner chooses
 // (they are billed in credits); a provider the platform cannot serve is
 // refused at the choice, not at the first step; a key alone never changes
@@ -23,7 +23,7 @@ delete process.env.FOLDRUN_DEV_NO_AUTH;
 delete process.env.FOLDRUN_DATABASE_URL;
 fs.mkdirSync(path.join(process.env.FOLDRUN_DATA, "acme", "workspaces"), { recursive: true });
 const { NextRequest } = await import("next/server");
-const route = await import("../app/api/account/model/route.ts");
+const route = await import("../app/v1/account/model/route.ts");
 const { createApiKey } = await import("../server/auth.ts");
 const { setSupplyLeversForTest } = await import("@/platform/settings");
 const keys = await import("@/platform/model-keys");
@@ -42,8 +42,8 @@ const { key: owner } = await createApiKey("acme", "ci", "ci@acme.test", undefine
 const { key: admin } = await createApiKey("acme", "ci2", "ci2@acme.test", undefined, "admin", null);
 const { key: viewer } = await createApiKey("acme", "ro", "ro@acme.test", undefined, "viewer", null);
 const h = (k: string) => ({ authorization: `Bearer ${k}`, "content-type": "application/json" });
-const get = (k = owner) => route.GET(new NextRequest("http://x/api/account/model", { headers: h(k) }));
-const put = (body: object, k = owner) => route.PUT(new NextRequest("http://x/api/account/model", { method: "PUT", headers: h(k), body: JSON.stringify(body) }));
+const get = (k = owner) => route.GET(new NextRequest("http://x/v1/account/model", { headers: h(k) }));
+const put = (body: object, k = owner) => route.PUT(new NextRequest("http://x/v1/account/model", { method: "PUT", headers: h(k), body: JSON.stringify(body) }));
 
 resetModelChoicesForTests();
 keys.resetModelKeysForTests();

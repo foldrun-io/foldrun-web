@@ -2,7 +2,7 @@
 // (FOL-199, 16 Nov 2026). The hosted fuzz run (Schemathesis) fails on a
 // status the document does not list, and each run found one more — a 409
 // here, a 202 there — until they were listed together. This sweep reads each
-// app/api/**/route.ts for the statuses it writes (`status: NNN`,
+// app/v1/**/route.ts for the statuses it writes (`status: NNN`,
 // `refuse(…, NNN)`) and fails on one that no method of that path documents,
 // so a new one is caught here, not by the next fuzz run.
 //
@@ -49,7 +49,7 @@ test("the sweep reads the statuses a route writes", () => {
 
 test("every status a route returns on purpose is in the OpenAPI document", () => {
   const doc = openapiDocument() as Doc;
-  const files = routeFiles(path.join(root, "app/api"));
+  const files = routeFiles(path.join(root, "app/v1"));
   assert.ok(files.length > 100, `only ${files.length} route files found`);
   const missing: string[] = [];
   for (const f of files) {
@@ -66,13 +66,13 @@ test("every status a route returns on purpose is in the OpenAPI document", () =>
 
 test("an MCP notification's 202 has no body; an eval run's 202 has its own", () => {
   const doc = openapiDocument() as Doc & { paths: Record<string, Record<string, { responses: Record<string, { content?: unknown }> }>> };
-  assert.equal(doc.paths["/api/mcp"].post.responses["202"].content, undefined);
-  assert.ok(doc.paths["/api/workspaces/{workspace}/evals/{evalName}/run"].post.responses["202"].content);
+  assert.equal(doc.paths["/v1/mcp"].post.responses["202"].content, undefined);
+  assert.ok(doc.paths["/v1/workspaces/{workspace}/evals/{evalName}/run"].post.responses["202"].content);
 });
 
 test("a 416 (Range outside the file) is documented with no body, as the routes send it", () => {
   const doc = openapiDocument() as Doc & { paths: Record<string, Record<string, { responses: Record<string, { content?: unknown; $ref?: string }> }>> };
-  for (const p of ["/api/workspaces/{workspace}/storage/download", "/api/workspaces/{workspace}/runs/{runId}/archive"]) {
+  for (const p of ["/v1/workspaces/{workspace}/storage/download", "/v1/workspaces/{workspace}/runs/{runId}/archive"]) {
     const r = doc.paths[p].get.responses["416"];
     assert.ok(r && r.content === undefined && r.$ref === undefined, `${p}: ${JSON.stringify(r)}`);
   }
@@ -80,7 +80,7 @@ test("a 416 (Range outside the file) is documented with no body, as the routes s
 
 test("a 206 (part of a file) is documented with the file's bytes as its body", () => {
   const doc = openapiDocument() as Doc & { paths: Record<string, Record<string, { responses: Record<string, { content?: Record<string, unknown> }> }>> };
-  for (const p of ["/api/workspaces/{workspace}/storage/download", "/api/workspaces/{workspace}/runs/{runId}/archive"]) {
+  for (const p of ["/v1/workspaces/{workspace}/storage/download", "/v1/workspaces/{workspace}/runs/{runId}/archive"]) {
     assert.ok(doc.paths[p].get.responses["206"].content?.["*/*"], p);
   }
 });

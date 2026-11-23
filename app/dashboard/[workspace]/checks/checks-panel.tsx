@@ -75,7 +75,7 @@ export function ChecksPanel({ workspace, tenantQuery, canOnline = true }: { work
   // so the effect below only starts the request.
   const load = useCallback(() => {
     const q = [security ? "security=1" : "", online ? "online=1" : ""].filter(Boolean).join("&");
-    return fetch(`/api/workspaces/${encodeURIComponent(workspace)}/check${q ? `?${q}` : ""}`).then(async (res) => {
+    return fetch(`/v1/workspaces/${encodeURIComponent(workspace)}/check${q ? `?${q}` : ""}`).then(async (res) => {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) setError(body.error ?? `HTTP ${res.status}`);
       else {

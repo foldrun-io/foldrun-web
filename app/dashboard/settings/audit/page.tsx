@@ -2,7 +2,7 @@
 // invites, secrets by name, deploys, plan changes, and support's visits —
 // newest first, filtered, a page at a time, and as CSV for an auditor.
 //
-// The same reader as GET /api/audit, with the same gate: the owner and
+// The same reader as GET /v1/audit, with the same gate: the owner and
 // admins who can see the whole account.
 
 import { $el, $rich, $t } from "@/i18n";
@@ -135,7 +135,7 @@ export default async function AuditLogPage({
     error = err instanceof Error ? err.message : String(err);
   }
   const workspaces = listWorkspaces(tenant).filter((w) => scopeAllows(scope, w.name)).map((w) => w.name);
-  const csv = `/api/audit${qs({ format: "csv", cursor: undefined, tenant: undefined })}`;
+  const csv = `/v1/audit${qs({ format: "csv", cursor: undefined, tenant: undefined })}`;
   const filtered = Boolean(sp.action || sp.actor || sp.workspace || since !== "30d");
   const field = "grid min-w-0 gap-1.5 text-sm font-medium text-fg";
 

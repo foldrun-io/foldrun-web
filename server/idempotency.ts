@@ -226,7 +226,7 @@ export async function idempotent(req: NextRequest, handler: () => Promise<Respon
 
   const bytes = new Uint8Array(await req.clone().arrayBuffer());
   const url = req.nextUrl;
-  // Keyed, not a bare hash: the body of PUT /api/secrets IS a secret, and a
+  // Keyed, not a bare hash: the body of PUT /v1/secrets IS a secret, and a
   // plain sha256 of it in Redis for a day is a guessing target offline.
   const fp = sha(`${req.method} ${url.pathname}${requestQuery(url)}\n`) + crypto.createHmac("sha256", installKey()).update(bytes).digest("hex");
   const id = sha(`${auth.tenant}\n${auth.actor.kind}:${auth.actor.id}\n${req.method} ${url.pathname}\n${key}`).slice(0, 40);

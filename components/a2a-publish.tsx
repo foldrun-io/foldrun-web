@@ -2,7 +2,7 @@
 
 // "Publish over A2A" on a flow card (1 Nov 2026): whether outside agents with
 // an A2A key may call this flow, and what its agent card says. It edits the
-// flow's `a2a:` through PATCH /api/workspaces/<ws>/flows/<f> { a2a } — the
+// flow's `a2a:` through PATCH /v1/workspaces/<ws>/flows/<f> { a2a } — the
 // same file everything else edits — and shows where the card is served, with
 // a curl to try it. Publishing is an admin's (workspace:manage); the server
 // refuses anyone else, and the control says so before they try.
@@ -57,7 +57,7 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
   // Where the card is served — the server's answer, from the install's own
   // address (never this browser's), read when the panel opens.
   async function locate() {
-    const res = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/a2a`, { headers }).catch(() => null);
+    const res = await fetch(`/v1/workspaces/${encodeURIComponent(workspace)}/a2a`, { headers }).catch(() => null);
     const d = res && res.ok ? ((await res.json().catch(() => null)) as { flows?: { flow: string; card: string; url: string }[]; risks?: A2aRisk[] } | null) : null;
     const hit = d?.flows?.find((f) => f.flow === flow);
     setWhere(hit ? { card: hit.card, url: hit.url } : null);
@@ -68,7 +68,7 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/flows/${encodeURIComponent(flow)}`, { method: "PATCH", headers, body: JSON.stringify({ a2a: a2aBodyOf(form) }) });
+      const res = await fetch(`/v1/workspaces/${encodeURIComponent(workspace)}/flows/${encodeURIComponent(flow)}`, { method: "PATCH", headers, body: JSON.stringify({ a2a: a2aBodyOf(form) }) });
       const d = (await res.json().catch(() => ({}))) as { error?: string; flow?: { a2a?: Published | null } };
       if (!res.ok) throw new Error(d.error ?? `${res.status}`);
       const next = a2aFormOf(d.flow?.a2a ?? null);

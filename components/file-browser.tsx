@@ -88,7 +88,7 @@ const KIND_ICON: Record<FileKind, typeof FileIcon> = {
   other: FileIcon,
 };
 
-const base = (ws: string) => `/api/workspaces/${encodeURIComponent(ws)}/storage`;
+const base = (ws: string) => `/v1/workspaces/${encodeURIComponent(ws)}/storage`;
 /** A .txt is already text: nothing to extract beside it. */
 const isText = (f: BrowserFile) => /\.txt$/i.test(f.path);
 const downloadHref = (f: BrowserFile) => `${base(f.workspace)}/download?path=${encodeURIComponent(f.path)}`;
@@ -295,7 +295,7 @@ export function FileBrowser({
     if (f.share?.url && shareState(f.share, now).state === "shared") return copy(f.share.url, $t("components.file-browser.linkCopied"));
     setBusy(keyOf(f));
     try {
-      const r = await fetch(`/api/workspaces/${encodeURIComponent(f.workspace)}/shares`, { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ path: `storage/${f.path}` }) });
+      const r = await fetch(`/v1/workspaces/${encodeURIComponent(f.workspace)}/shares`, { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ path: `storage/${f.path}` }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error ?? $t("components.file-browser.sharingFailed", { status: String(r.status) }));
       const s: BrowserShare = { id: j.id, token: j.token, url: j.url, expiresAt: j.expiresAt ?? null };
@@ -312,7 +312,7 @@ export function FileBrowser({
   const unshare = async (f: BrowserFile) => {
     if (!f.share) return;
     if (!(await confirm({ title: $t("components.file-browser.stopSharing", { path: String(f.path) }), body: $t("components.file-browser.theLinkStopsWorkingForEveryone"), confirmLabel: $t("components.file-browser.stopSharing2") }))) return;
-    const r = await fetch(`/api/workspaces/${encodeURIComponent(f.workspace)}/shares?id=${encodeURIComponent(f.share.id)}`, { method: "DELETE", headers });
+    const r = await fetch(`/v1/workspaces/${encodeURIComponent(f.workspace)}/shares?id=${encodeURIComponent(f.share.id)}`, { method: "DELETE", headers });
     if (r.ok) { patch(f, { share: null }); setToast($t("components.file-browser.noLongerShared")); router.refresh(); } else setToast($t("components.file-browser.couldNotStopSharing", { status: String(r.status) }));
   };
   // Files into a desk (into the folder being looked at), one after another,
@@ -347,7 +347,7 @@ export function FileBrowser({
   const extract = async (f: BrowserFile) => {
     setBusy(`extract:${keyOf(f)}`);
     try {
-      const r = await fetch(`/api/workspaces/${encodeURIComponent(f.workspace)}/storage/extract`, { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ path: f.path, write: true, wait: 20 }) });
+      const r = await fetch(`/v1/workspaces/${encodeURIComponent(f.workspace)}/storage/extract`, { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ path: f.path, write: true, wait: 20 }) });
       let j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error ?? $t("components.file-browser.extractingTextFailed", { status: String(r.status) }));
       if (r.status === 202) {
@@ -357,7 +357,7 @@ export function FileBrowser({
         for (let tries = 0; ; tries++) {
           if (tries >= 1200) throw new Error($t("components.file-browser.stillReadingTheTxtAppearsBeside"));
           await new Promise((done) => setTimeout(done, 3000));
-          const p = await fetch(`/api/extract/${encodeURIComponent(j.id)}`, { headers, cache: "no-store" });
+          const p = await fetch(`/v1/extract/${encodeURIComponent(j.id)}`, { headers, cache: "no-store" });
           const s = await p.json().catch(() => ({}));
           if (!p.ok) throw new Error(s.error ?? $t("components.file-browser.extractingTextFailed", { status: String(p.status) }));
           if (s.status === "running") continue;

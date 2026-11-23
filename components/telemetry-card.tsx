@@ -41,7 +41,7 @@ export function TelemetryCard({ tenant, initial, mayEdit }: { tenant: string; in
       ? null
       : { otlp: endpoint.trim(), headers: { ...others, ...(secret.trim() ? { [header.trim().toLowerCase()]: `\${${secret.trim()}}` } : {}) } };
     try {
-      const res = await fetch("/api/account", { method: "PATCH", headers, body: JSON.stringify({ telemetry }) });
+      const res = await fetch("/v1/account", { method: "PATCH", headers, body: JSON.stringify({ telemetry }) });
       const answer = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) setError(answer.error ?? `HTTP ${res.status}`);
       else {
@@ -61,7 +61,7 @@ export function TelemetryCard({ tenant, initial, mayEdit }: { tenant: string; in
     setError(null);
     setNote(null);
     try {
-      const res = await fetch("/api/account/telemetry/test", { method: "POST", headers, body: "{}" });
+      const res = await fetch("/v1/account/telemetry/test", { method: "POST", headers, body: "{}" });
       const answer = (await res.json().catch(() => ({}))) as { ok?: boolean; status?: number; error?: string; spans?: number };
       if (!res.ok) setError(answer.error ?? `HTTP ${res.status}`);
       else if (answer.ok) setNote($t("components.telemetry-card.theCollectorTookItSpansHttp", { v0: String(answer.spans ?? 0), status: String(answer.status) }));
@@ -106,7 +106,7 @@ export function TelemetryCard({ tenant, initial, mayEdit }: { tenant: string; in
         {note && <Callout tone="success" role="status">{note}</Callout>}
         {error && <Callout tone="danger" role="alert">{error}</Callout>}
         {/* A member limited to some workspaces is told it is set, not where
-            runs go or with which header (GET /api/account, 30 Oct 2026). */}
+            runs go or with which header (GET /v1/account, 30 Oct 2026). */}
         {initial?.hidden && <p className="text-sm text-fg-muted">{$t("components.telemetry-card.runsAreSentToACollector")}</p>}
         {!initial?.hidden && (
           <>

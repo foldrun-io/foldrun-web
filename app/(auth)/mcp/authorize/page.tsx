@@ -6,7 +6,7 @@ import { McpAuthorize } from "./authorize";
 export const metadata = { title: $t("auth.mcp-authorize-page.connectAnAiApp") };
 
 // An AI app (claude.ai, an MCP client) sent the person here to sign it in to
-// /api/mcp (server/mcp-oauth.ts). The page shows who is asking, where the
+// /v1/mcp (server/mcp-oauth.ts). The page shows who is asking, where the
 // answer goes and what it may do, and sends the person back to the app with
 // a code — or with a no.
 export default function McpAuthorizePage() {

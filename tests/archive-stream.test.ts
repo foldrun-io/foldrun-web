@@ -19,7 +19,7 @@ process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
-const archive = (await import("../app/api/workspaces/[workspace]/runs/[runId]/archive/route.ts")) as {
+const archive = (await import("../app/v1/workspaces/[workspace]/runs/[runId]/archive/route.ts")) as {
   GET: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string; runId: string }> }) => Promise<Response>;
 };
 
@@ -38,7 +38,7 @@ fs.writeFileSync(path.join(out, "empty.txt"), "");
 const { key } = await createApiKey(TENANT, "test", "owner@acme.test", undefined, "viewer");
 const fetchOutput = (rel: string, range?: string) =>
   archive.GET(
-    new NextRequest(`http://localhost/api/workspaces/${WS}/runs/${RUN}/archive?agent=browser&path=${encodeURIComponent(rel)}`, {
+    new NextRequest(`http://localhost/v1/workspaces/${WS}/runs/${RUN}/archive?agent=browser&path=${encodeURIComponent(rel)}`, {
       headers: { authorization: `Bearer ${key}`, ...(range ? { range } : {}) },
     }),
     { params: Promise.resolve({ workspace: WS, runId: RUN }) },
@@ -50,7 +50,7 @@ test("the whole file is a 200 with its length, the same bytes, and never a buffe
   assert.equal(res.headers.get("content-length"), String(BYTES.length));
   assert.equal(res.headers.get("content-type"), "video/webm");
   assert.ok(Buffer.from(await res.arrayBuffer()).equals(BYTES));
-  const src = fs.readFileSync(new URL("../app/api/workspaces/[workspace]/runs/[runId]/archive/route.ts", import.meta.url), "utf8");
+  const src = fs.readFileSync(new URL("../app/v1/workspaces/[workspace]/runs/[runId]/archive/route.ts", import.meta.url), "utf8");
   assert.doesNotMatch(src, /readFileSync|Buffer\.alloc/, "the route streams; it does not read the file into memory");
 });
 

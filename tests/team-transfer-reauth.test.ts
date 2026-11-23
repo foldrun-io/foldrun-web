@@ -22,12 +22,12 @@ delete process.env.FOLDRUN_RESEND_API_KEY;
 const { NextRequest } = await import("next/server");
 const { createUser, mintSession, setMfa, ownerOf, SESSION_COOKIE } = await import("../server/users.ts");
 const { totp } = await import("../server/totp.ts");
-const transfer = await import("../app/api/team/transfer/route.ts");
+const transfer = await import("../app/v1/team/transfer/route.ts");
 
 const PW = "a long enough password 1";
 const cookieOf = async (u: Parameters<typeof mintSession>[0]) => `${SESSION_COOKIE}=${(await mintSession(u)).value}`;
 const ask = (cookie: string, body: unknown) =>
-  transfer.POST(new NextRequest("http://x/api/team/transfer", { method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify(body) }));
+  transfer.POST(new NextRequest("http://x/v1/team/transfer", { method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify(body) }));
 
 test("a session alone no longer hands the account over: the password is asked, and checked", async () => {
   const owner = await createUser("owner@transfer.test", PW, "transfer-a", { request: "free" });

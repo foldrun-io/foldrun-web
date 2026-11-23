@@ -102,7 +102,7 @@ export function defaultsOf(fm: Record<string, unknown>): Defaults {
  * workspaces learns that notify: and telemetry: are set, never the webhook
  * URL, the collector, its headers or a token in them — a Slack incoming
  * webhook URL is itself a credential (owner decision, 30 Oct 2026). The
- * marker is `hidden: true`; GET /api/account, GET /api/account/jobs and both
+ * marker is `hidden: true`; GET /v1/account, GET /v1/account/jobs and both
  * Settings pages answer through this.
  */
 export function accountDefaultsFor(d: Defaults, workspaces: readonly string[] | null): Defaults {

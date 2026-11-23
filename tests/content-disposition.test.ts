@@ -17,7 +17,7 @@ process.env.FOLDRUN_DEV_NO_AUTH = "1";
 const { NextRequest } = await import("next/server");
 const { contentDisposition } = await import("../server/content-disposition.ts");
 const { putFile } = await import("../../foldrun-core/src/storage.ts");
-const download = await import("../app/api/workspaces/[workspace]/storage/download/route.ts");
+const download = await import("../app/v1/workspaces/[workspace]/storage/download/route.ts");
 
 test("a name outside Latin-1 is a valid header, ASCII first and exact in filename*", () => {
   const value = contentDisposition("attachment", 'résumé "報告" 🎉.pdf');
@@ -33,7 +33,7 @@ test("a stored file named in Japanese downloads with 200, as an attachment and a
   await putFile("default", "desk", "報告.pdf", Buffer.from("%PDF-1.4"), "test");
   const ctx = { params: Promise.resolve({ workspace: "desk" }) };
   for (const q of ["", "&inline=1"]) {
-    const res = await download.GET(new NextRequest(`http://x/api/workspaces/desk/storage/download?path=${encodeURIComponent("報告.pdf")}${q}`), ctx);
+    const res = await download.GET(new NextRequest(`http://x/v1/workspaces/desk/storage/download?path=${encodeURIComponent("報告.pdf")}${q}`), ctx);
     assert.equal(res.status, 200, q);
     assert.match(res.headers.get("content-disposition")!, /filename\*=UTF-8''%E5%A0%B1%E5%91%8A\.pdf/);
   }

@@ -1,4 +1,4 @@
-// Your inbox (server/inbox.ts, GET/POST /api/me/inbox): what waits on one
+// Your inbox (server/inbox.ts, GET/POST /v1/me/inbox): what waits on one
 // person, in three buckets that never mix, and marks that only change that
 // person's view.
 //
@@ -14,7 +14,7 @@ process.env.FOLDRUN_HISTORY = "journal";
 delete process.env.FOLDRUN_DEV_NO_AUTH;
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
-const inboxRoute = await import("../app/api/me/inbox/route.ts");
+const inboxRoute = await import("../app/v1/me/inbox/route.ts");
 const { inboxFor, markInbox, personOf } = await import("../server/inbox.ts");
 const { writeRun } = await import("../../foldrun-core/src/store.ts");
 const { updateNotice } = await import("../../foldrun-platform/src/notices.ts");
@@ -111,7 +111,7 @@ test("marks change only your view, and a scope narrows what you see", async () =
 test("the route: a key minted by a person reads that person's inbox; one with no person is refused", async () => {
   const { key } = await createApiKey("acme", "ana's cli", ANA, undefined, "editor");
   const { key: orphan } = await createApiKey("acme", "robot", undefined, undefined, "editor");
-  const get = (k: string, q = "") => inboxRoute.GET(new NextRequest(`http://x/api/me/inbox${q}`, { headers: { authorization: `Bearer ${k}` } }));
+  const get = (k: string, q = "") => inboxRoute.GET(new NextRequest(`http://x/v1/me/inbox${q}`, { headers: { authorization: `Bearer ${k}` } }));
   const res = await get(key);
   assert.equal(res.status, 200);
   const body = await res.json();
@@ -121,7 +121,7 @@ test("the route: a key minted by a person reads that person's inbox; one with no
   assert.ok(team.items.length >= 1 && team.items.every((i: { bucket: string }) => i.bucket === "team"));
   assert.equal((await get(key, "?bucket=nope")).status, 400);
   assert.equal((await get(orphan)).status, 400);
-  const post = await inboxRoute.POST(new NextRequest("http://x/api/me/inbox", { method: "POST", headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ id: "run:desk/run-blocked", action: "dismiss" }) }));
+  const post = await inboxRoute.POST(new NextRequest("http://x/v1/me/inbox", { method: "POST", headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ id: "run:desk/run-blocked", action: "dismiss" }) }));
   assert.equal(post.status, 200);
   const after = await (await get(key, "?dismissed=1")).json();
   assert.deepEqual(after.items.map((i: { id: string }) => i.id), ["run:desk/run-blocked"]);

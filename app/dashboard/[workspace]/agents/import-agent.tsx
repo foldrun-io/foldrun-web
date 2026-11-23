@@ -2,7 +2,7 @@
 
 // "Import agent": bring an agent you already have in another workspace of
 // this account into this one — its agent.md and own skills/scripts, never
-// its memory. POST /api/workspaces/<ws>/agents/import (core agent-import.ts).
+// its memory. POST /v1/workspaces/<ws>/agents/import (core agent-import.ts).
 
 import { $t } from "@/i18n";
 import { useEffect, useState } from "react";
@@ -38,7 +38,7 @@ export function ImportAgentButton({
 
   useEffect(() => {
     if (!open || sources) return;
-    fetch(`/api/workspaces/${encodeURIComponent(workspace)}/agents/import`, { headers })
+    fetch(`/v1/workspaces/${encodeURIComponent(workspace)}/agents/import`, { headers })
       .then(async (r) => {
         const body = await r.json();
         if (!r.ok) throw new Error(body.error ?? `HTTP ${r.status}`);
@@ -63,7 +63,7 @@ export function ImportAgentButton({
     setBusy(true);
     setError(null);
     try {
-      const r = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/agents/import`, {
+      const r = await fetch(`/v1/workspaces/${encodeURIComponent(workspace)}/agents/import`, {
         method: "POST",
         headers,
         body: JSON.stringify({ from, agent, ...(as.trim() ? { as: as.trim() } : {}) }),

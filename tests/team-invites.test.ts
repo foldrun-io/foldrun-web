@@ -29,11 +29,11 @@ const { createUser, mintSession, SESSION_COOKIE, peekInvite, listMembers } = awa
 const { installKey } = await import("@/lib/webhook.ts");
 const { saveWorkspace, templateFiles } = await import("@/lib/store.ts");
 const { readInvitesFile, writeInvitesFile } = await import("@/platform/invites.ts");
-const teamRoute = await import("../app/api/team/route.ts");
-const invitesRoute = await import("../app/api/team/invites/route.ts");
-const inviteRoute = await import("../app/api/team/invites/[id]/route.ts");
-const memberRoute = await import("../app/api/team/members/[id]/route.ts");
-const signupRoute = await import("../app/api/auth/signup/route.ts");
+const teamRoute = await import("../app/v1/team/route.ts");
+const invitesRoute = await import("../app/v1/team/invites/route.ts");
+const inviteRoute = await import("../app/v1/team/invites/[id]/route.ts");
+const memberRoute = await import("../app/v1/team/members/[id]/route.ts");
+const signupRoute = await import("../app/v1/auth/signup/route.ts");
 
 const PW = "a long and unusual passphrase 42!";
 const BASE = "http://localhost:3900";
@@ -60,21 +60,21 @@ let n = 0;
 const fresh = (who = "p") => `${who}${++n}@inv.test`;
 
 async function invite(cookie: string, body: Record<string, unknown> = {}): Promise<{ id: string; token: string; status: number; body: Record<string, unknown> }> {
-  const r = await teamRoute.POST(req("POST", "/api/team", { cookie }, { send: false, ...body }));
+  const r = await teamRoute.POST(req("POST", "/v1/team", { cookie }, { send: false, ...body }));
   const j = (await r.json()) as Record<string, unknown>;
   const token = typeof j.path === "string" ? decodeURIComponent(j.path.split("invite=")[1]) : "";
   return { id: j.id as string, token, status: r.status, body: j };
 }
 async function signup(token: string, email: string, password = PW) {
-  const r = await signupRoute.POST(req("POST", "/api/auth/signup", {}, { email, password, account: "ignored", invite: token }));
+  const r = await signupRoute.POST(req("POST", "/v1/auth/signup", {}, { email, password, account: "ignored", invite: token }));
   return { status: r.status, body: (await r.json()) as { error?: string; tenant?: string } };
 }
 const status = (id: string) => readInvitesFile().find((r) => r.id === id);
 const pending = (id: string) => { const r = status(id)!; return !r.usedAt && !r.revokedAt; };
 const del = (id: string, auth: { cookie?: string; key?: string } = { cookie: ownerCookie }) =>
-  inviteRoute.DELETE(req("DELETE", `/api/team/invites/${id}`, auth), { params: Promise.resolve({ id }) });
+  inviteRoute.DELETE(req("DELETE", `/v1/team/invites/${id}`, auth), { params: Promise.resolve({ id }) });
 const list = async (auth: { cookie?: string; key?: string } = { cookie: ownerCookie }, q = "") => {
-  const r = await invitesRoute.GET(req("GET", `/api/team/invites${q}`, auth));
+  const r = await invitesRoute.GET(req("GET", `/v1/team/invites${q}`, auth));
   return { status: r.status, body: (await r.json()) as { invites: { id: string; status: string; email: string | null }[]; error?: string } };
 };
 const mac = (id: string, exp: string) => crypto.createHmac("sha256", installKey()).update(`invite4:${id}.${exp}`).digest("hex");
@@ -125,7 +125,7 @@ test("joined, removed, back with the same link: refused — and a second pending
   // used, and must die with the removal.
   const spare = await invite(ownerCookie, { email, role: "admin" });
   assert.equal(spare.status, 200);
-  const removed = await memberRoute.DELETE(req("DELETE", `/api/team/members/${member.id}`, { cookie: ownerCookie }), { params: Promise.resolve({ id: member.id }) });
+  const removed = await memberRoute.DELETE(req("DELETE", `/v1/team/members/${member.id}`, { cookie: ownerCookie }), { params: Promise.resolve({ id: member.id }) });
   assert.equal(removed.status, 200, await removed.clone().text());
   assert.equal(status(spare.id)!.revokeReason, "its maker or addressee left the team");
   const back = await signup(inv.token, email);
@@ -258,7 +258,7 @@ test("removal revokes the invites to their address in the same step: none is lef
   const member = (await listMembers(tenant)).find((m) => m.email === email)!;
   const spare = await invite(ownerCookie, { email, role: "viewer" });
   const [removed, rejoin] = await Promise.all([
-    memberRoute.DELETE(req("DELETE", `/api/team/members/${member.id}`, { cookie: ownerCookie }), { params: Promise.resolve({ id: member.id }) }),
+    memberRoute.DELETE(req("DELETE", `/v1/team/members/${member.id}`, { cookie: ownerCookie }), { params: Promise.resolve({ id: member.id }) }),
     signup(spare.token, email),
   ]);
   assert.equal(removed.status, 200);
@@ -276,7 +276,7 @@ test("a minter removed or demoted voids what they handed out", async () => {
   const b = await invite(adminCookie, { role: "viewer", workspaces: ["desk-a"] });
   assert.equal(a.status, 200, JSON.stringify(a.body));
   // Demoted to editor: they can no longer invite anyone.
-  const demote = await memberRoute.PATCH(req("PATCH", `/api/team/members/${admin.id}`, { cookie: ownerCookie }, { role: "editor" }), { params: Promise.resolve({ id: admin.id }) });
+  const demote = await memberRoute.PATCH(req("PATCH", `/v1/team/members/${admin.id}`, { cookie: ownerCookie }, { role: "editor" }), { params: Promise.resolve({ id: admin.id }) });
   assert.equal(demote.status, 200, await demote.clone().text());
   assert.equal(status(a.id)!.revokeReason, "its maker's role or workspaces narrowed");
   assert.equal(status(b.id)!.revokeReason, "its maker's role or workspaces narrowed");
@@ -289,7 +289,7 @@ test("a minter removed or demoted voids what they handed out", async () => {
   const c = await invite(await cookieOf(admin2), { role: "viewer", workspaces: ["desk-b"] });
   const d = await invite(await cookieOf(admin2), { role: "viewer", workspaces: ["desk-a"] });
   // Narrowed to desk-a: the desk-b invite goes, the desk-a one stays.
-  const narrow = await memberRoute.PATCH(req("PATCH", `/api/team/members/${admin2.id}`, { cookie: ownerCookie }, { workspaces: ["desk-a"] }), { params: Promise.resolve({ id: admin2.id }) });
+  const narrow = await memberRoute.PATCH(req("PATCH", `/v1/team/members/${admin2.id}`, { cookie: ownerCookie }, { workspaces: ["desk-a"] }), { params: Promise.resolve({ id: admin2.id }) });
   assert.equal(narrow.status, 200, await narrow.clone().text());
   assert.ok(!pending(c.id), "desk-b is no longer theirs to give");
   assert.ok(pending(d.id), "desk-a still is");
@@ -298,7 +298,7 @@ test("a minter removed or demoted voids what they handed out", async () => {
   Object.assign(rows.find((r) => r.id === c.id)!, { revokedAt: null, revokedBy: null, revokeReason: null });
   writeInvitesFile(rows);
   assert.equal((await signup(c.token, fresh("missed"))).status, 400, "the maker's scope is checked on accept");
-  const gone = await memberRoute.DELETE(req("DELETE", `/api/team/members/${admin2.id}`, { cookie: ownerCookie }), { params: Promise.resolve({ id: admin2.id }) });
+  const gone = await memberRoute.DELETE(req("DELETE", `/v1/team/members/${admin2.id}`, { cookie: ownerCookie }), { params: Promise.resolve({ id: admin2.id }) });
   assert.equal(gone.status, 200);
   assert.ok(!pending(d.id), "removed: their invites go");
   assert.equal((await signup(d.token, fresh("late"))).status, 400);
@@ -341,6 +341,6 @@ test("keys: an admin key may list and revoke, an editor key may not, and no key 
   const inv = await invite(ownerCookie, { role: "viewer" });
   assert.equal((await del(inv.id, { key: editorKey })).status, 403);
   assert.equal((await del(inv.id, { key: adminKey })).status, 200);
-  const minted = await teamRoute.POST(req("POST", "/api/team", { key: adminKey }, { role: "viewer" }));
+  const minted = await teamRoute.POST(req("POST", "/v1/team", { key: adminKey }, { role: "viewer" }));
   assert.equal(minted.status, 401, "inviting is a person's");
 });

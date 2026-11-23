@@ -1,4 +1,4 @@
-// The sign-up switches (7 Nov 2026): GET /api/signup (open, exact-origin
+// The sign-up switches (7 Nov 2026): GET /v1/signup (open, exact-origin
 // CORS, a minute's cache, exactly { free, paid, plans }), the sign-up POST
 // asking the door it is for (a plan refused, closed refused before any
 // address work), the first account decided under the lock (two at once make
@@ -27,9 +27,9 @@ delete process.env.FOLDRUN_SETUP_TOKEN;
 const { NextRequest } = await import("next/server");
 const { registerPlatform } = await import("../../foldrun-core/src/platform.ts");
 const { billing } = await import("@/platform/billing");
-const signupApi = await import("../app/api/signup/route.ts");
-const signupPost = await import("../app/api/auth/signup/route.ts");
-const verifyRoute = await import("../app/api/auth/verify/route.ts");
+const signupApi = await import("../app/v1/signup/route.ts");
+const signupPost = await import("../app/v1/auth/signup/route.ts");
+const verifyRoute = await import("../app/v1/auth/verify/route.ts");
 const { createUser, accountAdmission, findUser, hasUsers } = await import("../server/users.ts");
 const { signupPageState, signupModesNow, publicSignup } = await import("../server/signup.ts");
 const { verifyLink } = await import("../server/auth-flows.ts");
@@ -39,7 +39,7 @@ const PW = "a long and unusual passphrase 42!";
 const hosted = (on: boolean) => registerPlatform({ edition: () => (on ? "hosted" : "self-hosted") });
 const get = (url: string, headers: Record<string, string> = {}) => new NextRequest(`http://x${url}`, { headers });
 const post = (body: unknown) =>
-  new NextRequest("http://x/api/auth/signup", { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", "x-forwarded-for": `10.0.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}` } });
+  new NextRequest("http://x/v1/auth/signup", { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", "x-forwarded-for": `10.0.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}` } });
 
 /** Give billing an offer for the length of `fn` — whichever billing this
  *  build carries (the public one has none, the hosted one its own). */
@@ -61,90 +61,90 @@ const PLAN: PublicPlan = { id: "pro", name: "Pro", price: { amount: 9900, curren
 
 // ------------------------------------------------------------ the read
 
-test("GET /api/signup: open, exactly { free, paid, plans }, cached a minute", async () => {
+test("GET /v1/signup: open, exactly { free, paid, plans }, cached a minute", async () => {
   hosted(true);
   await withOffer(null, async () => {
     process.env.FOLDRUN_OPEN_SIGNUP = "0";
-    let res = await signupApi.GET(get("/api/signup"));
+    let res = await signupApi.GET(get("/v1/signup"));
     assert.equal(res.status, 200);
     assert.equal(res.headers.get("cache-control"), "public, max-age=60");
     assert.deepEqual(await res.json(), { free: false, paid: false, plans: [] });
     process.env.FOLDRUN_OPEN_SIGNUP = "1";
-    res = await signupApi.GET(get("/api/signup"));
+    res = await signupApi.GET(get("/v1/signup"));
     assert.deepEqual(await res.json(), { free: true, paid: false, plans: [] });
   });
   delete process.env.FOLDRUN_OPEN_SIGNUP;
 });
 
-test("GET /api/signup: the first-account exception is never advertised as free sign-up", async () => {
+test("GET /v1/signup: the first-account exception is never advertised as free sign-up", async () => {
   hosted(true);
   fresh();
   assert.equal(await hasUsers(), false);
   assert.equal(signupModesNow(false).bootstrap, true);
-  const body = await (await signupApi.GET(get("/api/signup"))).json();
+  const body = await (await signupApi.GET(get("/v1/signup"))).json();
   assert.equal(body.free, false);
 });
 
-test("GET /api/signup: paid and plans only while paid is in effect; nothing beyond the contract", async () => {
+test("GET /v1/signup: paid and plans only while paid is in effect; nothing beyond the contract", async () => {
   hosted(true);
   // Configured but blocked (today: the paid flow does not exist): no plans.
   await withOffer({ paidConfigured: true, paidBlocked: "the paid sign-up flow is not built yet (FOL-125)", plans: [PLAN] }, async () => {
-    assert.deepEqual(await (await signupApi.GET(get("/api/signup"))).json(), { free: false, paid: false, plans: [] });
+    assert.deepEqual(await (await signupApi.GET(get("/v1/signup"))).json(), { free: false, paid: false, plans: [] });
   });
   // In effect: the plans, field by field — an extra field billing adds does not leak.
   const leaky = { ...PLAN, concurrency: 4, secret: "x", price: { ...PLAN.price, stripePrice: "price_123" } } as PublicPlan;
   await withOffer({ paidConfigured: true, paidBlocked: null, plans: [leaky] }, async () => {
-    const body = await (await signupApi.GET(get("/api/signup"))).json();
+    const body = await (await signupApi.GET(get("/v1/signup"))).json();
     assert.deepEqual(body, { free: false, paid: true, plans: [PLAN] });
     assert.deepEqual(Object.keys(body.plans[0]).sort(), ["credits", "id", "memoryGiB", "name", "price", "priority", "storageGb", "vcpu"]);
     assert.deepEqual(Object.keys(body.plans[0].price).sort(), ["amount", "currency", "interval"]);
   });
 });
 
-test("GET /api/signup: the community edition is { free, paid: false, plans: [] }, whatever billing offers", async () => {
+test("GET /v1/signup: the community edition is { free, paid: false, plans: [] }, whatever billing offers", async () => {
   hosted(false);
   process.env.FOLDRUN_OPEN_SIGNUP = "1";
   await withOffer({ paidConfigured: true, paidBlocked: null, plans: [PLAN] }, async () => {
-    assert.deepEqual(await (await signupApi.GET(get("/api/signup"))).json(), { free: true, paid: false, plans: [] });
+    assert.deepEqual(await (await signupApi.GET(get("/v1/signup"))).json(), { free: true, paid: false, plans: [] });
   });
   delete process.env.FOLDRUN_OPEN_SIGNUP;
   hosted(true);
 });
 
-test("GET /api/signup: CORS for the site's exact origins only, never *, never credentials", async () => {
+test("GET /v1/signup: CORS for the site's exact origins only, never *, never credentials", async () => {
   for (const origin of ["https://foldrun.io", "https://www.foldrun.io", "https://docs.foldrun.io"]) {
-    const res = await signupApi.GET(get("/api/signup", { origin }));
+    const res = await signupApi.GET(get("/v1/signup", { origin }));
     assert.equal(res.headers.get("access-control-allow-origin"), origin);
     assert.match(res.headers.get("vary") ?? "", /Origin/);
     assert.equal(res.headers.get("access-control-allow-credentials"), null);
   }
   for (const origin of ["https://evil.example", "https://foldrun.io.evil.example", "https://evilfoldrun.io", "http://foldrun.io", "https://foldrun.io:8443", "null", "https://status.foldrun.io"]) {
-    const res = await signupApi.GET(get("/api/signup", { origin }));
+    const res = await signupApi.GET(get("/v1/signup", { origin }));
     assert.equal(res.headers.get("access-control-allow-origin"), null, origin);
     assert.match(res.headers.get("vary") ?? "", /Origin/, "Vary even when refused, so a cache never hands one origin's answer to another");
     assert.equal(res.status, 200, "CORS decides who may read it in a browser, not who may ask");
   }
-  const pre = signupApi.OPTIONS(get("/api/signup", { origin: "https://foldrun.io" }));
+  const pre = signupApi.OPTIONS(get("/v1/signup", { origin: "https://foldrun.io" }));
   assert.equal(pre.status, 204);
   assert.equal(pre.headers.get("access-control-allow-origin"), "https://foldrun.io");
   assert.match(pre.headers.get("access-control-allow-methods") ?? "", /GET/);
-  assert.equal(signupApi.OPTIONS(get("/api/signup", { origin: "https://evil.example" })).headers.get("access-control-allow-origin"), null);
+  assert.equal(signupApi.OPTIONS(get("/v1/signup", { origin: "https://evil.example" })).headers.get("access-control-allow-origin"), null);
   process.env.FOLDRUN_SIGNUP_ORIGINS = "http://localhost:4321";
   try {
-    assert.equal((await signupApi.GET(get("/api/signup", { origin: "http://localhost:4321" }))).headers.get("access-control-allow-origin"), "http://localhost:4321");
-    assert.equal((await signupApi.GET(get("/api/signup", { origin: "https://foldrun.io" }))).headers.get("access-control-allow-origin"), null, "the variable replaces the list");
+    assert.equal((await signupApi.GET(get("/v1/signup", { origin: "http://localhost:4321" }))).headers.get("access-control-allow-origin"), "http://localhost:4321");
+    assert.equal((await signupApi.GET(get("/v1/signup", { origin: "https://foldrun.io" }))).headers.get("access-control-allow-origin"), null, "the variable replaces the list");
   } finally {
     delete process.env.FOLDRUN_SIGNUP_ORIGINS;
   }
 });
 
-test("GET /api/signup: a failure answers the same shape, doors shut, never cached, still with CORS", async () => {
+test("GET /v1/signup: a failure answers the same shape, doors shut, never cached, still with CORS", async () => {
   await withOffer(null, async () => {
     const b = billing() as { signupOffer?: () => SignupOffer };
     b.signupOffer = () => {
       throw new Error("boom");
     };
-    const res = await signupApi.GET(get("/api/signup", { origin: "https://foldrun.io" }));
+    const res = await signupApi.GET(get("/v1/signup", { origin: "https://foldrun.io" }));
     assert.equal(res.status, 503);
     assert.equal(res.headers.get("cache-control"), "no-store");
     assert.equal(res.headers.get("access-control-allow-origin"), "https://foldrun.io");
@@ -203,7 +203,7 @@ test("the setup token holds at the locked bootstrap decision too", async () => {
 
 // ------------------------------------------------------------ the POST
 
-test("POST /api/auth/signup: a plan is refused (400) before anything is made", async () => {
+test("POST /v1/auth/signup: a plan is refused (400) before anything is made", async () => {
   fresh();
   process.env.FOLDRUN_OPEN_SIGNUP = "1";
   for (const plan of ["pro", null, ""]) {
@@ -215,7 +215,7 @@ test("POST /api/auth/signup: a plan is refused (400) before anything is made", a
   delete process.env.FOLDRUN_OPEN_SIGNUP;
 });
 
-test("POST /api/auth/signup: first account is bootstrap; then closed for everyone alike; free records free", async () => {
+test("POST /v1/auth/signup: first account is bootstrap; then closed for everyone alike; free records free", async () => {
   fresh();
   delete process.env.FOLDRUN_OPEN_SIGNUP;
   const first = await signupPost.POST(post({ email: "founder@example.test", password: PW, account: "founder" }));

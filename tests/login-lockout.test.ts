@@ -42,11 +42,11 @@ globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
 const { NextRequest } = await import("next/server");
 const { createUser } = await import("../server/users.ts");
 const { recentAudit } = await import("../server/audit.ts");
-const login = await import("../app/api/auth/login/route.ts");
+const login = await import("../app/v1/auth/login/route.ts");
 
 const PW = "a long enough password 1";
 const signIn = (email: string, password: string, ip?: string) =>
-  login.POST(new NextRequest("http://x/api/auth/login", {
+  login.POST(new NextRequest("http://x/v1/auth/login", {
     method: "POST",
     headers: { "content-type": "application/json", ...(ip ? { "x-forwarded-for": ip } : {}) },
     body: JSON.stringify({ email, password }),

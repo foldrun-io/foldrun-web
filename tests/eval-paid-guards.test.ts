@@ -32,7 +32,7 @@ const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 const { setPaused } = await import("../../foldrun-platform/src/admin.ts");
 const { refuseAssistantJob, ASSISTANT_PER_HOUR } = await import("../server/assistant-limits.ts");
-const compare = await import("../app/api/workspaces/[workspace]/evals/[evalName]/compare/route.ts");
+const compare = await import("../app/v1/workspaces/[workspace]/evals/[evalName]/compare/route.ts");
 
 const { key } = await createApiKey(TENANT, "ci", "ed@acme.test", undefined, "editor");
 
@@ -40,7 +40,7 @@ test("compare in a paused workspace is refused before anything is planned or cla
   await setPaused(TENANT, WS, { pause: { by: "ana@acme.test" } });
   try {
     const res = await compare.POST(
-      new NextRequest(`http://localhost/api/workspaces/${WS}/evals/house-style/compare`, {
+      new NextRequest(`http://localhost/v1/workspaces/${WS}/evals/house-style/compare`, {
         method: "POST",
         headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
         body: JSON.stringify({ configs: [{ model: "fast" }, { model: "max" }] }),
@@ -65,9 +65,9 @@ test("an assistant job is held to the caller's hour, and one caller's hour is no
 
 test("improve and the assistant both take the same brakes, before the job is queued", () => {
   const read = (p: string) => fs.readFileSync(new URL(p, import.meta.url), "utf8");
-  const improve = read("../app/api/workspaces/[workspace]/evals/[evalName]/improve/route.ts");
+  const improve = read("../app/v1/workspaces/[workspace]/evals/[evalName]/improve/route.ts");
   assert.ok(improve.indexOf("refuseAssistantJob(") > 0 && improve.indexOf("refuseAssistantJob(") < improve.indexOf("proposeNow("), "improve checks before it queues the draft");
-  const assistant = read("../app/api/workspaces/[workspace]/assistant/route.ts");
+  const assistant = read("../app/v1/workspaces/[workspace]/assistant/route.ts");
   assert.ok(assistant.indexOf("refuseAssistantJob(") > 0 && assistant.indexOf("refuseAssistantJob(") < assistant.indexOf("enqueueAssistantJob(job)"), "the assistant route uses the same function");
   assert.doesNotMatch(assistant, /assertFunds|PLATFORM_PER_DAY = /, "no second copy of the brakes in the route");
 });

@@ -1,4 +1,4 @@
-// The customer's audit log: GET /api/audit reads one account's entries —
+// The customer's audit log: GET /v1/audit reads one account's entries —
 // the caller's, never another's — for the owner and unscoped admins (people
 // or keys), with filters, a cursor and CSV. And the security-relevant acts
 // write their line: keys, secrets by name, deploys, workspace deletes.
@@ -22,9 +22,9 @@ const { createApiKey } = await import("../server/auth.ts");
 // Fixtures: several accounts, each its own owner — signup stays open for them.
 process.env.FOLDRUN_OPEN_SIGNUP = "1";
 const { createUser } = await import("../server/users.ts");
-const auditRoute = await import("../app/api/audit/route.ts");
-const keysRoute = await import("../app/api/keys/route.ts");
-const secretsRoute = await import("../app/api/secrets/route.ts");
+const auditRoute = await import("../app/v1/audit/route.ts");
+const keysRoute = await import("../app/v1/keys/route.ts");
+const secretsRoute = await import("../app/v1/secrets/route.ts");
 const { audit, auditCsv, queryAudit } = await import("../server/audit.ts");
 
 await createUser("owner@acme.test", "correct horse battery staple 9", "acme", { request: "free" });
@@ -40,13 +40,13 @@ const call = (key: string, url: string, init: { method?: string; body?: unknown;
     headers: { authorization: `Bearer ${key}`, "content-type": "application/json", ...(init.headers ?? {}) },
     ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
   });
-const read = async (key: string, qs = "", headers: Record<string, string> = {}) => auditRoute.GET(call(key, `/api/audit${qs}`, { headers }));
+const read = async (key: string, qs = "", headers: Record<string, string> = {}) => auditRoute.GET(call(key, `/v1/audit${qs}`, { headers }));
 
 test("key mint and secret writes are recorded — the secret by name, never its value", async () => {
-  assert.equal((await keysRoute.POST(call(acmeAdmin, "/api/keys", { method: "POST", body: { label: "laptop", role: "viewer", expires: "30d" } }))).status, 200);
-  assert.equal((await secretsRoute.PUT(call(acmeAdmin, "/api/secrets", { method: "PUT", body: { name: "CRM_TOKEN", value: "sk-very-secret-value" } }))).status, 200);
-  assert.equal((await secretsRoute.DELETE(call(acmeAdmin, "/api/secrets", { method: "DELETE", body: { name: "CRM_TOKEN" } }))).status, 200);
-  assert.equal((await keysRoute.POST(call(globexAdmin, "/api/keys", { method: "POST", body: { label: "globex-only" } }))).status, 200);
+  assert.equal((await keysRoute.POST(call(acmeAdmin, "/v1/keys", { method: "POST", body: { label: "laptop", role: "viewer", expires: "30d" } }))).status, 200);
+  assert.equal((await secretsRoute.PUT(call(acmeAdmin, "/v1/secrets", { method: "PUT", body: { name: "CRM_TOKEN", value: "sk-very-secret-value" } }))).status, 200);
+  assert.equal((await secretsRoute.DELETE(call(acmeAdmin, "/v1/secrets", { method: "DELETE", body: { name: "CRM_TOKEN" } }))).status, 200);
+  assert.equal((await keysRoute.POST(call(globexAdmin, "/v1/keys", { method: "POST", body: { label: "globex-only" } }))).status, 200);
 
   const res = await read(acmeAdmin);
   assert.equal(res.status, 200);
@@ -78,7 +78,7 @@ test("only the owner and unscoped admins: an editor key and a workspace-scoped a
   const scoped = await read(acmeScoped);
   assert.equal(scoped.status, 403);
   assert.match(((await scoped.json()) as { error: string }).error, /whole account/);
-  assert.equal((await auditRoute.GET(new NextRequest("http://x/api/audit"))).status, 401);
+  assert.equal((await auditRoute.GET(new NextRequest("http://x/v1/audit"))).status, 401);
 });
 
 test("filters, cursor paging and CSV", async () => {

@@ -40,7 +40,7 @@ export function useRunOverlay(workspace: string, tenant: string, runId: string |
   useEffect(() => {
     if (!runId || !live) return;
     const q = tenant !== "default" ? `?tenant=${encodeURIComponent(tenant)}` : "";
-    const source = new EventSource(`/api/workspaces/${workspace}/runs/${runId}/stream${q}`);
+    const source = new EventSource(`/v1/workspaces/${workspace}/runs/${runId}/stream${q}`);
     source.onopen = () => setLink("live");
     let last = "";
     source.addEventListener("run", (e) => {
@@ -70,7 +70,7 @@ export function useRunOverlay(workspace: string, tenant: string, runId: string |
   useEffect(() => {
     if (!runId || known || held) return;
     let gone = false;
-    fetch(`/api/workspaces/${workspace}/runs/${runId}`, { headers: { "x-foldrun-tenant": tenant } })
+    fetch(`/v1/workspaces/${workspace}/runs/${runId}`, { headers: { "x-foldrun-tenant": tenant } })
       .then((r) => (r.ok ? r.json() : null))
       .then((body) => {
         const run = body?.run ?? body;

@@ -1,4 +1,4 @@
-// GET/PUT /api/account/beta — the account joins or leaves the beta (13 Nov
+// GET/PUT /v1/account/beta — the account joins or leaves the beta (13 Nov
 // 2026): who may, the beta flags it answers with, and that a beta flag
 // follows.
 //
@@ -19,7 +19,7 @@ process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 const { flagOn, resetFlagCache } = await import("@/platform/flags.ts");
-const route = (await import("../app/api/account/beta/route.ts")) as unknown as {
+const route = (await import("../app/v1/account/beta/route.ts")) as unknown as {
   GET: (req: InstanceType<typeof NextRequest>) => Promise<Response>;
   PUT: (req: InstanceType<typeof NextRequest>) => Promise<Response>;
 };
@@ -32,7 +32,7 @@ const { key: editor } = await createApiKey(T, "editor", "o@acme.test", undefined
 const { key: viewer } = await createApiKey(T, "viewer", "o@acme.test", undefined, "viewer");
 const { key: scopedAdmin } = await createApiKey(T, "scoped", "o@acme.test", undefined, "admin", ["desk"]);
 
-const url = "http://localhost/api/account/beta";
+const url = "http://localhost/v1/account/beta";
 const get = (key: string) => route.GET(new NextRequest(url, { headers: { authorization: `Bearer ${key}` } }));
 const put = (key: string, body: unknown) =>
   route.PUT(new NextRequest(url, { method: "PUT", headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify(body) }));

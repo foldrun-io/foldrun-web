@@ -7,9 +7,9 @@
 // for ~10 s (cloudhost's lab Agent: create, then PUT a secret at once). So a
 // request first brings what it names level with the heads:
 //
-//   /api/workspaces/<ws>/…, or ?workspace=<ws>    that workspace
-//   /api/workspaces (list, create)                 the account's workspaces
-//   /api/library…, /api/account/agents-md          the account shelf (@library)
+//   /v1/workspaces/<ws>/…, or ?workspace=<ws>    that workspace
+//   /v1/workspaces (list, create)                 the account's workspaces
+//   /v1/library…, /v1/account/agents-md          the account shelf (@library)
 //
 // One indexed read of the heads when nothing moved; a sync only when it did.
 // Bounded: past FRESH_MS the request is answered from the copy it has, and a
@@ -21,15 +21,15 @@ import { mirrorOn } from "@/lib/mirror-base";
 import { syncFromHeads, syncTenantFromHeads } from "@/lib/workspace-revisions";
 
 const FRESH_MS = 2_000;
-const WS = /^\/api\/workspaces\/([^/]+)/;
+const WS = /^\/v1\/workspaces\/([^/]+)/;
 
 /** What a request names, for the sync: a workspace, the account, the shelf, or nothing. */
 export function freshTarget(pathname: string, workspaceParam: string | null): { workspace: string } | { account: true } | null {
   const m = pathname.match(WS);
   if (m) return { workspace: decodeURIComponent(m[1]) };
   if (workspaceParam) return { workspace: workspaceParam };
-  if (pathname === "/api/workspaces") return { account: true };
-  if (pathname === "/api/library" || pathname.startsWith("/api/library/") || pathname === "/api/account/agents-md") return { workspace: "@library" };
+  if (pathname === "/v1/workspaces") return { account: true };
+  if (pathname === "/v1/library" || pathname.startsWith("/v1/library/") || pathname === "/v1/account/agents-md") return { workspace: "@library" };
   return null;
 }
 

@@ -1,5 +1,5 @@
 // Your inbox: everything waiting on you across your workspaces, in one list
-// (server/inbox.ts — the same as GET /api/me/inbox and `foldrun inbox`).
+// (server/inbox.ts — the same as GET /v1/me/inbox and `foldrun inbox`).
 // Three tabs that never mix: assigned to you, runs you started, and the rest
 // of what waits in your workspaces; a fourth for what you set aside.
 

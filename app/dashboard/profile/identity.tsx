@@ -28,7 +28,7 @@ export function NameForm({ firstName, lastName }: { firstName: string | null; la
         e.preventDefault();
         setState({});
         setBusy(true);
-        const res = await fetch("/api/auth/name", {
+        const res = await fetch("/v1/auth/name", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ firstName: first, lastName: last }),
@@ -71,7 +71,7 @@ export function EmailForm({ current }: { current: string }) {
         setState({});
         if (!(await confirm({ title: $t("profile.identity.moveYourLoginFromTo", { current: String(current), v1: String(email.trim()) }), body: $t("profile.identity.theMoveHappensWhenYouClick"), confirmLabel: $t("profile.identity.moveMyLogin"), destructive: false }))) return;
         setBusy(true);
-        const res = await fetch("/api/auth/email", {
+        const res = await fetch("/v1/auth/email", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ email, password }),

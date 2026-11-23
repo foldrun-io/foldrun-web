@@ -1,4 +1,4 @@
-// GET/PUT /api/account/agents-md — the account's own AGENTS.md, whole (cloudhost,
+// GET/PUT /v1/account/agents-md — the account's own AGENTS.md, whole (cloudhost,
 // 11 Nov 2026): who may read and write it, the deploy's checks, ifMatch.
 //
 //   node --import ./tests/register.mjs --test tests/account-agents-md-route.test.ts
@@ -17,11 +17,11 @@ process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
-const route = (await import("../app/api/account/agents-md/route.ts")) as unknown as {
+const route = (await import("../app/v1/account/agents-md/route.ts")) as unknown as {
   GET: (req: InstanceType<typeof NextRequest>) => Promise<Response>;
   PUT: (req: InstanceType<typeof NextRequest>) => Promise<Response>;
 };
-const account = (await import("../app/api/account/route.ts")) as unknown as { GET: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
+const account = (await import("../app/v1/account/route.ts")) as unknown as { GET: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
 
 const T = "acme";
 fs.mkdirSync(path.join(DATA, T, "workspaces", "desk"), { recursive: true });
@@ -31,7 +31,7 @@ const { key: editor } = await createApiKey(T, "editor", "o@acme.test", undefined
 const { key: viewer } = await createApiKey(T, "viewer", "o@acme.test", undefined, "viewer");
 const { key: scopedAdmin } = await createApiKey(T, "scoped", "o@acme.test", undefined, "admin", ["desk"]);
 
-const url = "http://localhost/api/account/agents-md";
+const url = "http://localhost/v1/account/agents-md";
 const get = (key: string) => route.GET(new NextRequest(url, { headers: { authorization: `Bearer ${key}` } }));
 const put = (key: string, body: unknown) =>
   route.PUT(new NextRequest(url, { method: "PUT", headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify(body) }));
@@ -50,8 +50,8 @@ test("an admin of every workspace writes the whole file; GET reads it back; the 
   const back = await (await get(viewer)).json();
   assert.equal(back.content, GOOD, "an unscoped viewer may read it");
   assert.equal(back.sha256, body.sha256);
-  const defaults = await (await account.GET(new NextRequest("http://localhost/api/account", { headers: { authorization: `Bearer ${admin}` } }))).json();
-  assert.equal(defaults.defaults.timezone, "Asia/Tehran", "PATCH /api/account's view reads the same file");
+  const defaults = await (await account.GET(new NextRequest("http://localhost/v1/account", { headers: { authorization: `Bearer ${admin}` } }))).json();
+  assert.equal(defaults.defaults.timezone, "Asia/Tehran", "PATCH /v1/account's view reads the same file");
   const again = await (await put(admin, { content: GOOD })).json();
   assert.equal(again.unchanged, true);
 });

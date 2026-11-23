@@ -192,7 +192,7 @@ export function KeyManager({
     setBusy(true); // undisplayed key that could only be found by its prefix.
     setError(null);
     try {
-      const res = await fetch("/api/keys", {
+      const res = await fetch("/v1/keys", {
         method: "POST",
         headers: { "content-type": "application/json" },
         // Unsaid, the scope is the minter's own; a list narrows it.
@@ -231,7 +231,7 @@ export function KeyManager({
       body: $t("settings.keys.clientsUsingItStopWorkingImmediately"),
       confirmLabel: $t("settings.keys.revoke"),
     }))) return;
-    await fetch("/api/keys", {
+    await fetch("/v1/keys", {
       method: "DELETE",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ tenant, id }),
@@ -248,7 +248,7 @@ export function KeyManager({
       confirmLabel: $t("settings.keys.delete"),
     }))) return;
     setRowError(null);
-    const res = await fetch(`/api/keys/${encodeURIComponent(id)}`, { method: "DELETE" });
+    const res = await fetch(`/v1/keys/${encodeURIComponent(id)}`, { method: "DELETE" });
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as { error?: string };
       setRowError({ id, message: body.error ?? $t("settings.keys.couldNotDeleteKey") });
@@ -270,7 +270,7 @@ export function KeyManager({
     setRowError(null);
     try {
       const picked = Object.fromEntries(TIERS.filter((t) => modelDraft[t].trim()).map((t) => [t, modelDraft[t].trim()]));
-      const res = await fetch(`/api/keys/${encodeURIComponent(id)}`, {
+      const res = await fetch(`/v1/keys/${encodeURIComponent(id)}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ models: Object.keys(picked).length ? picked : null }),
@@ -295,7 +295,7 @@ export function KeyManager({
     setBusy(true);
     setRowError(null);
     try {
-      const res = await fetch(`/api/keys/${encodeURIComponent(walletEdit.id)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ walletUsd: amount }) });
+      const res = await fetch(`/v1/keys/${encodeURIComponent(walletEdit.id)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ walletUsd: amount }) });
       const data = await res.json();
       // Saved when the platform answers with the budget it kept (rounded
       // to cents, so 1.234 is 1.23) — never compared with the draft (Codex).
@@ -315,7 +315,7 @@ export function KeyManager({
     setBusy(true);
     setRowError(null);
     try {
-      const res = await fetch(`/api/keys/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ requireCustomer: on }) });
+      const res = await fetch(`/v1/keys/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ requireCustomer: on }) });
       const data = await res.json();
       if (res.ok) router.refresh();
       else setRowError({ id, message: data.error ?? $t("settings.keys.failedToChangeIt") });
@@ -331,7 +331,7 @@ export function KeyManager({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/keys/${encodeURIComponent(id)}/rotate`, {
+      const res = await fetch(`/v1/keys/${encodeURIComponent(id)}/rotate`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ grace }),
@@ -424,7 +424,7 @@ export function KeyManager({
                   {/* An outside agent's key: it opens /a2a/<account>/<workspace>/…
                       for the flows named here (each published with a2a: — a flow
                       not published cannot be chosen, FOL-112), and
-                      no /api route — not runs, approvals, source or keys. */}
+                      no /v1 route — not runs, approvals, source or keys. */}
                   <p>{$t("settings.keys.anA2aKeyLetsAnOutside")}</p>
                   <div className="flex flex-wrap items-center gap-4">
                     <label className="inline-flex items-center gap-2 text-fg">
@@ -477,7 +477,7 @@ export function KeyManager({
                   {/* A coding agent's key: Claude Code (or any tool that takes
                       an Anthropic base URL and key) spends the account's
                       credits on foldrun's models through the
-                      gateway, up to the limits set here. No /api route. */}
+                      gateway, up to the limits set here. No /v1 route. */}
                   <Field label={$t("settings.keys.runsOn")}>
                     <Select value={runsOn} onChange={(e) => setRunsOn(e.target.value as "models" | "login" | "account")} className="w-full max-w-md" aria-label={$t("settings.keys.whatTheKeySCallsRun")}>
                       <option value="models">{$t("settings.keys.foldrunSModelsBilledWithLimits")}</option>
@@ -915,7 +915,7 @@ export function TickButton() {
         onClick={async () => {
           setBusy(true);
           try {
-            const res = await fetch("/api/schedule", { method: "POST" });
+            const res = await fetch("/v1/schedule", { method: "POST" });
             const data = await res.json();
             setResult(
               data.fired?.length ? $t("settings.keys.fired", { list: data.fired.join(", ") }) : $t("settings.keys.nothingDueRightNow"),

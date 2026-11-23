@@ -30,7 +30,7 @@ export function McpAuthorize() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    fetch("/api/auth/session")
+    fetch("/v1/auth/session")
       .then((r) => r.json() as Promise<{ user: unknown }>)
       .then(async (s) => {
         // The login page is the app's own: the router. The OAuth redirects
@@ -39,7 +39,7 @@ export function McpAuthorize() {
           router.push(`/login?next=${encodeURIComponent(`/mcp/authorize?${request}`)}`);
           return;
         }
-        const res = await fetch(`/api/mcp/oauth/authorize?request=${encodeURIComponent(request)}`);
+        const res = await fetch(`/v1/mcp/oauth/authorize?request=${encodeURIComponent(request)}`);
         const body = (await res.json().catch(() => ({}))) as Ask & { error?: string; redirect?: string };
         if (body.redirect) {
           window.location.assign(body.redirect);
@@ -59,7 +59,7 @@ export function McpAuthorize() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/mcp/oauth/authorize", {
+      const res = await fetch("/v1/mcp/oauth/authorize", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ request, decision, access, workspaces: scope === "all" ? null : chosen }),

@@ -1,6 +1,6 @@
 // The account's insights for one caller (FOL-72 step 8): core insights.ts
 // over the whole records of the runs in the window, in the workspaces they
-// may see — the Observe page, GET /api/insights and `foldrun insights`.
+// may see — the Observe page, GET /v1/insights and `foldrun insights`.
 
 import { listRunSummaries, listWorkspaces, readRun, type RunRecord } from "@/lib/store";
 import { findInsights, type Insight } from "@/lib/insights";
@@ -25,7 +25,7 @@ export function accountInsights(tenant: string, scope: string[] | null, days = 7
 /**
  * accountInsights, remembered for a short while per account, scope, window
  * and workspace (30 Oct 2026). Each answer reads up to PER_WORKSPACE whole
- * run records per workspace, synchronously; a key polling GET /api/insights
+ * run records per workspace, synchronously; a key polling GET /v1/insights
  * on a 25-workspace account read ~7,500 files a request. Recurring problems
  * over days do not change by the second, so thirty seconds of staleness
  * costs nothing and bounds the reads to one pass per half-minute per caller

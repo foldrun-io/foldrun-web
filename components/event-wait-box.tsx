@@ -64,7 +64,7 @@ export function EventWaitBox({
   };
 
   const viaApprove = (decision: "approve" | "reject") =>
-    send(`/api/workspaces/${encodeURIComponent(workspace)}/runs/${encodeURIComponent(runId)}/approve`, {
+    send(`/v1/workspaces/${encodeURIComponent(workspace)}/runs/${encodeURIComponent(runId)}/approve`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-foldrun-tenant": tenant, "idempotency-key": crypto.randomUUID() },
       body: JSON.stringify({
@@ -76,7 +76,7 @@ export function EventWaitBox({
 
   const curl = release
     ? `curl -X POST '${release.url}' \\\n  -H 'content-type: application/json' \\\n  -d '{"status":"done"}'`
-    : `curl -X POST "$FOLDRUN_URL/api/events/<account>/${workspace}/${runId}?token=<token>" \\\n  -H 'content-type: application/json' \\\n  -d '{"status":"done"}'`;
+    : `curl -X POST "$FOLDRUN_URL/v1/events/<account>/${workspace}/${runId}?token=<token>" \\\n  -H 'content-type: application/json' \\\n  -d '{"status":"done"}'`;
 
   return (
     <Callout tone="info" className="mb-4 p-3 text-[13px] sm:p-4" bodyClassName="space-y-3">

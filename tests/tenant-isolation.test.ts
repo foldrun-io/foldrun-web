@@ -1,5 +1,5 @@
 // One account can never read or change another's. Not argued route by route:
-// every route file under app/api is found on disk and every method it
+// every route file under app/v1 is found on disk and every method it
 // exports is called — as an attacker holding a real key to their OWN
 // account, aimed at the victim's workspace, runs, flows and files by name,
 // with the victim's tenant smuggled in every place a request can carry it
@@ -83,7 +83,7 @@ const victimRoot = path.join(DATA, VICTIM);
 const before = snapshot(victimRoot);
 
 // ---- every route, every method ---------------------------------------------
-const API = path.join(import.meta.dirname, "..", "app", "api");
+const API = path.join(import.meta.dirname, "..", "app", "v1");
 const routes: string[] = [];
 (function find(d: string) {
   for (const e of fs.readdirSync(d, { withFileTypes: true })) {
@@ -149,7 +149,7 @@ async function attackAll(auth: Record<string, string>): Promise<{ calls: number;
       const handler = mod[method];
       if (typeof handler !== "function") continue;
       const qs = `tenant=${VICTIM}&workspace=${WS}&path=AGENTS.md&runId=${RUN}&flow=${FLOW}&account=${VICTIM}`;
-      const req = new NextRequest(`http://localhost/api/${urlPath}?${qs}`, {
+      const req = new NextRequest(`http://localhost/v1/${urlPath}?${qs}`, {
         method,
         headers: { "content-type": "application/json", "x-foldrun-tenant": VICTIM, ...auth },
         ...(method === "GET" ? {} : { body }),
@@ -163,7 +163,7 @@ async function attackAll(auth: Record<string, string>): Promise<{ calls: number;
         // A throw is a refusal, as long as it does not quote the victim.
         text = err instanceof Error ? `${err.message}\n${err.stack ?? ""}` : String(err);
       }
-      if (text.includes(CANARY)) leaks.push(`${method} /api/${urlPath}`);
+      if (text.includes(CANARY)) leaks.push(`${method} /v1/${urlPath}`);
     }
   }
   return { calls, leaks };
@@ -184,7 +184,7 @@ function assertVictimUntouched() {
   }
 }
 
-test("the route list is real: every file under app/api was found", () => {
+test("the route list is real: every file under app/v1 was found", () => {
   assert.ok(routes.length >= 90, `found ${routes.length} routes`);
 });
 
@@ -213,7 +213,7 @@ test("the canary is findable: the victim's own key does read it, so silence abov
   const { key } = await createApiKey(VICTIM, "own", "me@victim.test", undefined, "admin");
   const mod = (await import(path.join(API, "workspaces/[workspace]/source/route.ts"))) as { GET: Handler };
   const res = await mod.GET(
-    new NextRequest(`http://localhost/api/workspaces/${WS}/source?path=AGENTS.md`, { headers: { authorization: `Bearer ${key}` } }),
+    new NextRequest(`http://localhost/v1/workspaces/${WS}/source?path=AGENTS.md`, { headers: { authorization: `Bearer ${key}` } }),
     { params: Promise.resolve({ workspace: WS }) },
   );
   assert.equal(res.status, 200);

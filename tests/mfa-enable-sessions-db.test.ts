@@ -31,7 +31,7 @@ test("enabling MFA ends every other session and keeps this browser's", opts, asy
   const { createUser, mintSession, verifySession, sealString, mfaEnrolBinding, SESSION_COOKIE } = await import("../server/users.ts");
   const { mintToken, ENROL_TTL_MS } = await import("../server/auth-tokens.ts");
   const { totp } = await import("../server/totp.ts");
-  const enable = await import("../app/api/auth/mfa/enable/route.ts");
+  const enable = await import("../app/v1/auth/mfa/enable/route.ts");
 
   const tenant = `mfaon${Date.now()}`;
   const user = await createUser(`owner@${tenant}.test`, "a long enough password here 1", tenant, { request: "free" });
@@ -40,7 +40,7 @@ test("enabling MFA ends every other session and keeps this browser's", opts, asy
 
   const secret = "JBSWY3DPEHPK3PXP";
   const enrol = mintToken("mfa-enrol", { u: user.id, s: sealString(secret, mfaEnrolBinding(user.id)) }, ENROL_TTL_MS);
-  const res = await enable.POST(new NextRequest("http://x/api/auth/mfa/enable", {
+  const res = await enable.POST(new NextRequest("http://x/v1/auth/mfa/enable", {
     method: "POST",
     headers: { "content-type": "application/json", cookie: `${SESSION_COOKIE}=${mine.value}` },
     body: JSON.stringify({ enrol, code: totp(secret) }),

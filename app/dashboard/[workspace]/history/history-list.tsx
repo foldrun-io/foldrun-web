@@ -79,7 +79,7 @@ export function HistoryList({
     setRolling(r.id);
     setNote(null);
     try {
-      const res = await fetch(`/api/workspaces/${workspace}/restore`, { method: "POST", headers: { "content-type": "application/json", "x-foldrun-tenant": tenant }, body: JSON.stringify({ to: r.id, confirm: workspace }) });
+      const res = await fetch(`/v1/workspaces/${workspace}/restore`, { method: "POST", headers: { "content-type": "application/json", "x-foldrun-tenant": tenant }, body: JSON.stringify({ to: r.id, confirm: workspace }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `${res.status}`);
       if (data.applied === false) setNote(refusal(data));
@@ -102,7 +102,7 @@ export function HistoryList({
     if (details[id]) return;
     setDetails((d) => ({ ...d, [id]: "loading" }));
     try {
-      const res = await fetch(`/api/workspaces/${workspace}/history?id=${encodeURIComponent(id)}`, {
+      const res = await fetch(`/v1/workspaces/${workspace}/history?id=${encodeURIComponent(id)}`, {
         headers: { "x-foldrun-tenant": tenant },
       });
       const data = (await res.json()) as Detail;

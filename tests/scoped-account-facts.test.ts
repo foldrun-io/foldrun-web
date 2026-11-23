@@ -1,13 +1,13 @@
 // What a member or key limited to some workspaces reads of the ACCOUNT
 // (owner decision and review, 30 Oct 2026):
-//  - GET /api/account and GET /api/account/jobs: that notify: and telemetry:
+//  - GET /v1/account and GET /v1/account/jobs: that notify: and telemetry:
 //    are set, never the webhook URL, the collector, its headers or a token;
-//  - GET /api/account/api: not the account's API use (who calls what);
-//  - GET /api/avatars/workspace/<ws>: only a workspace it may open;
-//  - GET /api/me/onboarding: no other workspace's name;
-//  - GET /api/usage: not the wallet's ledger or the waivers;
-//  - GET /api/workspaces/<ws>/vocabulary: the workspace's secret names, not
-//    the account's (as GET /api/secrets lists them).
+//  - GET /v1/account/api: not the account's API use (who calls what);
+//  - GET /v1/avatars/workspace/<ws>: only a workspace it may open;
+//  - GET /v1/me/onboarding: no other workspace's name;
+//  - GET /v1/account/usage: not the wallet's ledger or the waivers;
+//  - GET /v1/workspaces/<ws>/vocabulary: the workspace's secret names, not
+//    the account's (as GET /v1/secrets lists them).
 // A caller with every workspace reads all of it, as before.
 //
 //   node --import ./tests/register.mjs --test tests/scoped-account-facts.test.ts
@@ -43,13 +43,13 @@ const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 const { setSecret } = await import("../../foldrun-core/src/secrets.ts");
 const { setAvatar } = await import("@/platform/avatars");
-const accountRoute = await import("../app/api/account/route.ts");
-const jobsRoute = await import("../app/api/account/jobs/route.ts");
-const apiRoute = await import("../app/api/account/api/route.ts");
-const avatarRoute = await import("../app/api/avatars/[kind]/[id]/route.ts");
-const onboardingRoute = await import("../app/api/me/onboarding/route.ts");
-const usageRoute = await import("../app/api/usage/route.ts");
-const vocabularyRoute = await import("../app/api/workspaces/[workspace]/vocabulary/route.ts");
+const accountRoute = await import("../app/v1/account/route.ts");
+const jobsRoute = await import("../app/v1/account/jobs/route.ts");
+const apiRoute = await import("../app/v1/account/api/route.ts");
+const avatarRoute = await import("../app/v1/avatars/[kind]/[id]/route.ts");
+const onboardingRoute = await import("../app/v1/me/onboarding/route.ts");
+const usageRoute = await import("../app/v1/account/usage/route.ts");
+const vocabularyRoute = await import("../app/v1/workspaces/[workspace]/vocabulary/route.ts");
 
 const { key: everyWs } = await createApiKey("acme", "all", "admin@acme.test", undefined, "admin");
 const { key: oneWs } = await createApiKey("acme", "one desk", "desk@acme.test", undefined, "viewer", ["mine"]);
@@ -60,12 +60,12 @@ const text = async (res: Response) => {
   return res.text();
 };
 
-test("GET /api/account: a scoped caller learns notify and telemetry are set, never where they go", async () => {
-  const full = JSON.parse(await text(await accountRoute.GET(call(everyWs, "/api/account")))) as { defaults: { notify: { url: string }; telemetry: { endpoint: string } } };
+test("GET /v1/account: a scoped caller learns notify and telemetry are set, never where they go", async () => {
+  const full = JSON.parse(await text(await accountRoute.GET(call(everyWs, "/v1/account")))) as { defaults: { notify: { url: string }; telemetry: { endpoint: string } } };
   assert.equal(full.defaults.notify.url, HOOK);
   assert.equal(full.defaults.telemetry.endpoint, COLLECTOR);
 
-  const body = await text(await accountRoute.GET(call(oneWs, "/api/account")));
+  const body = await text(await accountRoute.GET(call(oneWs, "/v1/account")));
   assert.doesNotMatch(body, /sekrit|hooks\.slack|otel\.example|OTEL_TOKEN|authorization/);
   const scoped = JSON.parse(body) as { defaults: { notify: { hidden?: boolean; url?: string; events: string[] }; telemetry: { hidden?: boolean }; alerts: unknown } };
   assert.equal(scoped.defaults.notify.hidden, true);
@@ -75,50 +75,50 @@ test("GET /api/account: a scoped caller learns notify and telemetry are set, nev
   assert.ok(scoped.defaults.alerts, "alerts are thresholds, no destination: still shown");
 });
 
-test("GET /api/account/jobs: the same for the four jobs' account values", async () => {
-  const full = await text(await jobsRoute.GET(call(everyWs, "/api/account/jobs")));
+test("GET /v1/account/jobs: the same for the four jobs' account values", async () => {
+  const full = await text(await jobsRoute.GET(call(everyWs, "/v1/account/jobs")));
   assert.match(full, /sekrit-token/);
   assert.match(full, /otel\.example\.com/);
-  const body = await text(await jobsRoute.GET(call(oneWs, "/api/account/jobs?workspace=mine")));
+  const body = await text(await jobsRoute.GET(call(oneWs, "/v1/account/jobs?workspace=mine")));
   assert.doesNotMatch(body, /sekrit|hooks\.slack|otel\.example|OTEL_TOKEN/);
   const fields = (JSON.parse(body) as { jobs: { fields: { key: string; account: unknown }[] }[] }).jobs.flatMap((j) => j.fields);
   assert.deepEqual(fields.find((f) => f.key === "telemetry")?.account, { hidden: true });
   assert.deepEqual(fields.find((f) => f.key === "notify")?.account, { email: "ops@acme.test", events: ["failed"], hidden: true });
 });
 
-test("GET /api/account/api: the account's API use only to a caller with every workspace", async () => {
-  const full = JSON.parse(await text(await apiRoute.GET(call(everyWs, "/api/account/api")))) as { usageHidden?: boolean };
+test("GET /v1/account/api: the account's API use only to a caller with every workspace", async () => {
+  const full = JSON.parse(await text(await apiRoute.GET(call(everyWs, "/v1/account/api")))) as { usageHidden?: boolean };
   assert.equal(full.usageHidden, undefined);
-  const scoped = JSON.parse(await text(await apiRoute.GET(call(oneWs, "/api/account/api")))) as { usage: unknown; usageHidden?: boolean; version: unknown };
+  const scoped = JSON.parse(await text(await apiRoute.GET(call(oneWs, "/v1/account/api")))) as { usage: unknown; usageHidden?: boolean; version: unknown };
   assert.equal(scoped.usage, null);
   assert.equal(scoped.usageHidden, true);
   assert.ok(scoped.version, "the version and limits are still answered");
 });
 
-test("GET /api/avatars/workspace/<ws>: only a workspace the caller may open", async () => {
+test("GET /v1/avatars/workspace/<ws>: only a workspace the caller may open", async () => {
   const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
   setAvatar("acme", "workspace", "aaa-hidden", png);
   setAvatar("acme", "workspace", "mine", png);
-  const get = (key: string, id: string) => avatarRoute.GET(call(key, `/api/avatars/workspace/${id}`), { params: Promise.resolve({ kind: "workspace", id }) });
+  const get = (key: string, id: string) => avatarRoute.GET(call(key, `/v1/avatars/workspace/${id}`), { params: Promise.resolve({ kind: "workspace", id }) });
   assert.equal((await get(oneWs, "aaa-hidden")).status, 403);
   assert.equal((await get(oneWs, "nothing-here")).status, 403, "the same answer whether or not it has a picture");
   assert.equal((await get(oneWs, "mine")).status, 200);
   assert.equal((await get(everyWs, "aaa-hidden")).status, 200);
 });
 
-test("GET /api/me/onboarding: a scoped caller's steps name only its own workspaces", async () => {
-  const full = await text(await onboardingRoute.GET(call(everyWs, "/api/me/onboarding")));
+test("GET /v1/me/onboarding: a scoped caller's steps name only its own workspaces", async () => {
+  const full = await text(await onboardingRoute.GET(call(everyWs, "/v1/me/onboarding")));
   assert.match(full, /aaa-hidden/, "the account's first workspace, to a caller with all");
-  const scoped = await text(await onboardingRoute.GET(call(oneWs, "/api/me/onboarding")));
+  const scoped = await text(await onboardingRoute.GET(call(oneWs, "/v1/me/onboarding")));
   assert.doesNotMatch(scoped, /aaa-hidden/);
   assert.match(scoped, /\/dashboard\/mine\//);
 });
 
-test("GET /api/usage: the ledger and the waivers only to a caller with every workspace", async () => {
-  const full = JSON.parse(await text(await usageRoute.GET(call(everyWs, "/api/usage")))) as { ledger: unknown; waived: unknown };
+test("GET /v1/account/usage: the ledger and the waivers only to a caller with every workspace", async () => {
+  const full = JSON.parse(await text(await usageRoute.GET(call(everyWs, "/v1/account/usage")))) as { ledger: unknown; waived: unknown };
   assert.ok(full.ledger && typeof full.ledger === "object");
   assert.ok(Array.isArray(full.waived));
-  const scoped = JSON.parse(await text(await usageRoute.GET(call(oneWs, "/api/usage")))) as { ledger: unknown; waived: unknown; workspaces: { workspace: string }[] };
+  const scoped = JSON.parse(await text(await usageRoute.GET(call(oneWs, "/v1/account/usage")))) as { ledger: unknown; waived: unknown; workspaces: { workspace: string }[] };
   assert.equal(scoped.ledger, null);
   assert.equal(scoped.waived, null);
   assert.deepEqual(scoped.workspaces.map((w) => w.workspace), ["mine"]);
@@ -128,7 +128,7 @@ test("GET …/vocabulary: the account's secret names only to a caller with every
   setSecret("acme", "STRIPE_LIVE_KEY", "sk_live_x");
   setSecret("acme", "DESK_TOKEN", "t", "mine");
   const vocab = async (key: string) =>
-    JSON.parse(await text(await vocabularyRoute.GET(call(key, "/api/workspaces/mine/vocabulary"), { params: Promise.resolve({ workspace: "mine" }) }))) as { secrets: string[] };
+    JSON.parse(await text(await vocabularyRoute.GET(call(key, "/v1/workspaces/mine/vocabulary"), { params: Promise.resolve({ workspace: "mine" }) }))) as { secrets: string[] };
   assert.deepEqual((await vocab(everyWs)).secrets.sort(), ["DESK_TOKEN", "STRIPE_LIVE_KEY"]);
   assert.deepEqual((await vocab(oneWs)).secrets, ["DESK_TOKEN"]);
 });
@@ -137,10 +137,10 @@ test("GET …/vocabulary: the account's secret names only to a caller with every
 // record is workspace:manage (an admin), not run:start (an editor) — an
 // editor could wipe the trail of a run they started.
 test("DELETE …/runs/<id>: an editor is refused, an admin passes the gate", async () => {
-  const runRoute = await import("../app/api/workspaces/[workspace]/runs/[runId]/route.ts");
+  const runRoute = await import("../app/v1/workspaces/[workspace]/runs/[runId]/route.ts");
   const { key: editor } = await createApiKey("acme", "ed", "ed@acme.test", undefined, "editor");
   const del = (key: string) =>
-    runRoute.DELETE(new NextRequest("http://x/api/workspaces/mine/runs/run-nope", { method: "DELETE", headers: { authorization: `Bearer ${key}` } }), { params: Promise.resolve({ workspace: "mine", runId: "run-nope" }) });
+    runRoute.DELETE(new NextRequest("http://x/v1/workspaces/mine/runs/run-nope", { method: "DELETE", headers: { authorization: `Bearer ${key}` } }), { params: Promise.resolve({ workspace: "mine", runId: "run-nope" }) });
   const refused = await del(editor);
   assert.equal(refused.status, 403);
   assert.match(((await refused.json()) as { error: string }).error, /admin/);

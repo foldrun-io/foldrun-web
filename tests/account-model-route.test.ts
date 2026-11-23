@@ -1,4 +1,4 @@
-// /api/account/model: an account brings its own model key. The key is
+// /v1/account/model: an account brings its own model key. The key is
 // stored in the account vault, shown only by its last four characters. The
 // key may be an API key or a Claude login token (the account's own
 // subscription). Admin only to change.
@@ -18,7 +18,7 @@ process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-model-
 delete process.env.FOLDRUN_DEV_NO_AUTH;
 delete process.env.FOLDRUN_DATABASE_URL;
 const { NextRequest } = await import("next/server");
-const route = await import("../app/api/account/model/route.ts");
+const route = await import("../app/v1/account/model/route.ts");
 const { createApiKey } = await import("../server/auth.ts");
 const { registerPlatform, platform } = await import("@/lib/platform");
 const { getSecret } = await import("@/lib/secrets");
@@ -26,9 +26,9 @@ const { getSecret } = await import("@/lib/secrets");
 const { key: admin } = await createApiKey("acme", "ci", "ci@acme.test", undefined, "admin", null);
 const { key: viewer } = await createApiKey("acme", "ro", "ro@acme.test", undefined, "viewer", null);
 const h = (k: string) => ({ authorization: `Bearer ${k}`, "content-type": "application/json" });
-const get = (k = admin) => route.GET(new NextRequest("http://x/api/account/model", { headers: h(k) }));
-const put = (body: object, k = admin) => route.PUT(new NextRequest("http://x/api/account/model", { method: "PUT", headers: h(k), body: JSON.stringify(body) }));
-const del = (k = admin) => route.DELETE(new NextRequest("http://x/api/account/model", { method: "DELETE", headers: h(k) }));
+const get = (k = admin) => route.GET(new NextRequest("http://x/v1/account/model", { headers: h(k) }));
+const put = (body: object, k = admin) => route.PUT(new NextRequest("http://x/v1/account/model", { method: "PUT", headers: h(k), body: JSON.stringify(body) }));
+const del = (k = admin) => route.DELETE(new NextRequest("http://x/v1/account/model", { method: "DELETE", headers: h(k) }));
 
 // acme is a customer: not one of the operator's accounts.
 const prev = platform.platformKeyAllowed;

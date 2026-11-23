@@ -23,8 +23,8 @@ const { fsBlobStore } = await import("@/lib/blob-store");
 const { localRunOutputStore, publishRunOutputs, noteRefused, setRunOutputsBackend } = await import("@/lib/run-outputs");
 type Ctx<P> = { params: Promise<P> };
 type Route = { GET: (req: InstanceType<typeof NextRequest>, ctx: Ctx<{ workspace: string; runId: string }>) => Promise<Response> };
-const archive = (await import("../app/api/workspaces/[workspace]/runs/[runId]/archive/route.ts")) as Route;
-const files = (await import("../app/api/workspaces/[workspace]/runs/[runId]/files/route.ts")) as Route;
+const archive = (await import("../app/v1/workspaces/[workspace]/runs/[runId]/archive/route.ts")) as Route;
+const files = (await import("../app/v1/workspaces/[workspace]/runs/[runId]/files/route.ts")) as Route;
 
 const TENANT = "acme";
 const WS = "desk";
@@ -64,9 +64,9 @@ fs.writeFileSync(path.join(ws, "runs", `${VOLUME}.json`), JSON.stringify({ id: V
 const { key } = await createApiKey(TENANT, "test", "owner@acme.test", undefined, "admin");
 const headers = { authorization: `Bearer ${key}` };
 const ctx = (runId: string) => ({ params: Promise.resolve({ workspace: WS, runId }) });
-const list = (runId: string) => files.GET(new NextRequest(`http://localhost/api/workspaces/${WS}/runs/${runId}/files`, { headers }), ctx(runId));
+const list = (runId: string) => files.GET(new NextRequest(`http://localhost/v1/workspaces/${WS}/runs/${runId}/files`, { headers }), ctx(runId));
 const fetchOutput = (runId: string, rel: string, extra: Record<string, string> = {}) =>
-  archive.GET(new NextRequest(`http://localhost/api/workspaces/${WS}/runs/${runId}/archive?agent=writer&path=${encodeURIComponent(rel)}`, { headers: { ...headers, ...extra } }), ctx(runId));
+  archive.GET(new NextRequest(`http://localhost/v1/workspaces/${WS}/runs/${runId}/archive?agent=writer&path=${encodeURIComponent(rel)}`, { headers: { ...headers, ...extra } }), ctx(runId));
 
 test("/files lists what the store holds and names what was not kept, with the limit", async () => {
   const res = await list(STORED);

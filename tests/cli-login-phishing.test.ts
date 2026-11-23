@@ -23,8 +23,8 @@ process.env.FOLDRUN_OPEN_SIGNUP = "1";
 const { NextRequest } = await import("next/server");
 const { beginCliLogin, decideCliLogin, describeCliLogin, requestOrigin, APPROVE_WINDOW_MS } = await import("../server/cli-login.ts");
 const { createUser, mintSession, SESSION_COOKIE } = await import("../server/users.ts");
-const loginRoute = await import("../app/api/cli/login/route.ts");
-const authorizeRoute = await import("../app/api/cli/authorize/route.ts");
+const loginRoute = await import("../app/v1/cli/login/route.ts");
+const authorizeRoute = await import("../app/v1/cli/authorize/route.ts");
 
 const person = { tenant: "acme", email: "owner@acme.test", role: "owner" as const, workspaces: null };
 const file = () => path.join(process.env.FOLDRUN_DATA!, "cli-logins.json");
@@ -49,13 +49,13 @@ test("where a request came from is the trusted proxy's word, coarsely — never 
 test("the approval page is told when and from where the terminal asked, and whether it is this browser's network", async () => {
   process.env.FOLDRUN_TRUST_PROXY = "1";
   try {
-    const started = await loginRoute.POST(new NextRequest("http://x/api/cli/login", {
+    const started = await loginRoute.POST(new NextRequest("http://x/v1/cli/login", {
       method: "POST",
       headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.9" },
       body: JSON.stringify({ hostname: "laptop" }),
     }));
     const { code } = (await started.json()) as { code: string };
-    const look = (ip: string) => authorizeRoute.GET(new NextRequest(`http://x/api/cli/authorize?code=${code}`, { headers: { "x-forwarded-for": ip } }));
+    const look = (ip: string) => authorizeRoute.GET(new NextRequest(`http://x/v1/cli/authorize?code=${code}`, { headers: { "x-forwarded-for": ip } }));
     const same = (await (await look("203.0.113.200")).json()) as { requestedFrom: string; createdAt: string; approveBy: string; sameNetwork: boolean };
     assert.equal(same.requestedFrom, "203.0.113.0/24");
     assert.equal(same.sameNetwork, true);
@@ -85,7 +85,7 @@ test("the route answers 410 for a stale approval, with what to do", async () => 
   const cookie = `${SESSION_COOKIE}=${(await mintSession(user)).value}`;
   const stale = await beginCliLogin("carried");
   age(stale.code, APPROVE_WINDOW_MS + 1000);
-  const res = await authorizeRoute.POST(new NextRequest("http://x/api/cli/authorize", {
+  const res = await authorizeRoute.POST(new NextRequest("http://x/v1/cli/authorize", {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ code: stale.code, decision: "approve" }),

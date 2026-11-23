@@ -33,7 +33,7 @@ export function HooksPanel({ tenant, workspace }: { tenant: string; workspace: s
           title={$t("components.hooks-panel.whenEachRuns")}
           description={$t("components.hooks-panel.theEventEachHookListensFor")}
           actions={
-            <Link href={`/api/workspaces/${workspace}/hooks`} className="text-[13px] font-medium text-fg-muted hover:text-fg">
+            <Link href={`/v1/workspaces/${workspace}/hooks`} className="text-[13px] font-medium text-fg-muted hover:text-fg">
               {$t("components.hooks-panel.asJson")}
             </Link>
           }

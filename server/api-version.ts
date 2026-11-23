@@ -6,7 +6,7 @@
 // response says which one it was answered under, in `Foldrun-Version`.
 //
 // The current version is API_VERSION in server/release.ts — one constant, the
-// same one /api/version and X-Foldrun-Api report. It moves only when a route
+// same one /v1/version and X-Foldrun-Api report. It moves only when a route
 // changes in a way an existing caller would break on; a new route or a new
 // field does not move it.
 //
@@ -36,7 +36,7 @@ export const FIRST_API_VERSION = "2026-10-01";
  *  request — a caller cannot set it. */
 export const RESOLVED_VERSION_HEADER = "x-foldrun-resolved-version";
 
-/** From this version an /api refusal is Anthropic's error body,
+/** From this version an /v1 refusal is Anthropic's error body,
  *  `{ type: "error", error: { type, message } }`, as /v1 answers
  *  (server/error-shape.ts). */
 export const ERROR_SHAPE_VERSION = "2026-11-22";
@@ -75,12 +75,25 @@ export interface VersionChange {
  */
 export const VERSION_CHANGES: VersionChange[] = [
   {
-    // One API, Anthropic's shape (owner, 22 Nov 2026): every /api refusal
+    // One URL format (owner, 23 Nov 2026): every route is /v1/<route>, so
+    // GET /v1/version has no path plan to give and drops `paths`. A caller
+    // pinned earlier gets it back, saying what is now true — the platform
+    // and the models under /v1, the account's usage at /v1/account/usage.
+    version: "2026-11-23",
+    summary: "GET /v1/version: `paths` is withdrawn — every route is `/v1/<route>`; callers pinned earlier get `paths` saying so (`platform: \"/v1\"`, `models: \"/v1\"`, the usage rename)",
+    routes: [{ method: "GET", path: /^\/v1\/version$/, file: "app/v1/version/route.ts" }],
+    downgrade(body) {
+      if (!body || typeof body !== "object" || "paths" in body) return body;
+      return { ...body, paths: { platform: "/v1", models: "/v1", renames: { "/api/usage": "/v1/account/usage" } } };
+    },
+  },
+  {
+    // One API, Anthropic's shape (owner, 22 Nov 2026): every /v1 refusal
     // is the body /v1 answers with. Applied where every refusal is built
     // (api.ts errorResponse, by ERROR_SHAPE_HEADER), not route by route, so
     // it names no route here; the downgrade is the same conversion.
     version: ERROR_SHAPE_VERSION,
-    summary: "every /api refusal is Anthropic's error body — `{ type: \"error\", error: { type, message } }`, a `code` and figures inside `error` — as /v1 answers; callers pinned earlier, and a signed-in browser, keep `{ error: \"…\" }`",
+    summary: "every /v1 refusal is Anthropic's error body — `{ type: \"error\", error: { type, message } }`, a `code` and figures inside `error` — as /v1 answers; callers pinned earlier, and a signed-in browser, keep `{ error: \"…\" }`",
     routes: [],
     downgrade(body) {
       const b = body as { type?: unknown; error?: unknown } | null;
@@ -97,8 +110,8 @@ export const VERSION_CHANGES: VersionChange[] = [
     // every version. Older pins keep the two keys, as null: a deliberate
     // redaction, not the old values. Nothing foldrun ships read them.
     version: "2026-10-26",
-    summary: "GET /api/usage: `ledger.providerCostUsd` and `ledger.marginUsd` are withdrawn; callers pinned earlier get both as null (a redaction, not the old values)",
-    routes: [{ method: "GET", path: /^\/api\/usage$/, file: "app/api/usage/route.ts" }],
+    summary: "GET /v1/account/usage: `ledger.providerCostUsd` and `ledger.marginUsd` are withdrawn; callers pinned earlier get both as null (a redaction, not the old values)",
+    routes: [{ method: "GET", path: /^\/v1\/account\/usage$/, file: "app/v1/account/usage/route.ts" }],
     downgrade(body) {
       const b = body as { ledger?: Record<string, unknown> } | null;
       if (!b || typeof b !== "object" || !b.ledger || typeof b.ledger !== "object") return body;
@@ -182,7 +195,7 @@ export function versionedJson(
 export interface Deprecation {
   method: string;
   path: RegExp;
-  /** The route as people read it, for What's new: `DELETE /api/workspaces/<ws>/thing`. */
+  /** The route as people read it, for What's new: `DELETE /v1/workspaces/<ws>/thing`. */
   route: string;
   /** When it was deprecated (ISO date). */
   deprecatedAt: string;
@@ -201,35 +214,35 @@ export const DEPRECATIONS: Deprecation[] = [
   // every account on the install is the operator's own, and the /git/
   // remote was never reachable from outside. The owner's call, against the
   // six-month default — a deprecation with customers on it gets the six.
-  { method: "GET", path: /^\/api\/workspaces\/[^/]+\/repo$/, route: "GET /api/workspaces/<ws>/repo", deprecatedAt: "2026-10-17", sunsetAt: "2026-10-17", link: "https://docs.foldrun.io/backups-and-restore" },
-  { method: "POST", path: /^\/api\/workspaces\/[^/]+\/repo$/, route: "POST /api/workspaces/<ws>/repo", deprecatedAt: "2026-10-17", sunsetAt: "2026-10-17", link: "https://docs.foldrun.io/backups-and-restore" },
-  { method: "POST", path: /^\/api\/git\/[^/]+\/[^/]+$/, route: "POST /api/git/<account>/<ws>", deprecatedAt: "2026-10-17", sunsetAt: "2026-10-17", link: "https://docs.foldrun.io/deploying" },
+  { method: "GET", path: /^\/v1\/workspaces\/[^/]+\/repo$/, route: "GET /v1/workspaces/<ws>/repo", deprecatedAt: "2026-10-17", sunsetAt: "2026-10-17", link: "https://docs.foldrun.io/backups-and-restore" },
+  { method: "POST", path: /^\/v1\/workspaces\/[^/]+\/repo$/, route: "POST /v1/workspaces/<ws>/repo", deprecatedAt: "2026-10-17", sunsetAt: "2026-10-17", link: "https://docs.foldrun.io/backups-and-restore" },
+  { method: "POST", path: /^\/v1\/git\/[^/]+\/[^/]+$/, route: "POST /v1/git/<account>/<ws>", deprecatedAt: "2026-10-17", sunsetAt: "2026-10-17", link: "https://docs.foldrun.io/deploying" },
   // One mechanism per flow edit (FOL-75, 5 Nov 2026): adding and removing a
   // step are PATCH { edit: { op: "insert" | "remove" } } — what the canvas,
   // the list view's board and the CLI all send. The older POST (a step at
   // the end) and DELETE ({ step }) made the same edits; sunset the same day
   // (owner, 5 Nov 2026: "deprecate now" — no paying customers, and no client
   // of ours calls them). Not /flows/draft, whose POST drafts.
-  { method: "POST", path: /^\/api\/workspaces\/[^/]+\/flows\/(?!draft$)[^/]+$/, route: "POST /api/workspaces/<ws>/flows/<flow>", deprecatedAt: "2026-11-05", sunsetAt: "2026-11-05", link: "https://docs.foldrun.io/api" },
-  { method: "DELETE", path: /^\/api\/workspaces\/[^/]+\/flows\/(?!draft$)[^/]+$/, route: "DELETE /api/workspaces/<ws>/flows/<flow>", deprecatedAt: "2026-11-05", sunsetAt: "2026-11-05", link: "https://docs.foldrun.io/api" },
+  { method: "POST", path: /^\/v1\/workspaces\/[^/]+\/flows\/(?!draft$)[^/]+$/, route: "POST /v1/workspaces/<ws>/flows/<flow>", deprecatedAt: "2026-11-05", sunsetAt: "2026-11-05", link: "https://docs.foldrun.io/api" },
+  { method: "DELETE", path: /^\/v1\/workspaces\/[^/]+\/flows\/(?!draft$)[^/]+$/, route: "DELETE /v1/workspaces/<ws>/flows/<flow>", deprecatedAt: "2026-11-05", sunsetAt: "2026-11-05", link: "https://docs.foldrun.io/api" },
 ];
 
 /**
  * Where the OpenAPI document was wrong and the API never behaved the way it
  * said, so correcting the document is not a break. scripts/api-guard.mjs
  * reports these instead of refusing them. `path` is the OpenAPI path,
- * `/api/workspaces/{workspace}/runs`. Never for a real change in what the
+ * `/v1/workspaces/{workspace}/runs`. Never for a real change in what the
  * API does: that is a VersionChange.
  */
 export const SCHEMA_CORRECTIONS: { method: string; path: string; reason: string }[] = [
   {
     method: "POST",
-    path: "/api/workspaces/{workspace}/deploy",
+    path: "/v1/workspaces/{workspace}/deploy",
     reason: "files was documented as a path → content object; the route has only ever taken an array of { path, content } and refuses an object with 400 (corrected 30 Oct 2026)",
   },
   {
     method: "GET",
-    path: "/api/billing",
+    path: "/v1/billing",
     reason: "balance was documented but never answered — the field has always been balanceUsd (corrected 30 Oct 2026)",
   },
 ];
@@ -264,7 +277,7 @@ export interface ApiChangelog {
   deprecations: { route: string; deprecatedAt: string; sunsetAt: string | null; link: string | null }[];
 }
 
-/** The API's own changelog, for What's new, /api/changelog and the CLI: the
+/** The API's own changelog, for What's new, /v1/changelog and the CLI: the
  *  versions, what each one broke, and what is deprecated. */
 export function apiChangelog(changes: VersionChange[] = VERSION_CHANGES, deprecations: Deprecation[] = DEPRECATIONS): ApiChangelog {
   return {

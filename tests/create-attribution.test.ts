@@ -22,10 +22,10 @@ const { createApiKey } = await import("../server/auth.ts");
 const { listRevisions } = await import("@/lib/history");
 
 type Handler = (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string }> }) => Promise<Response>;
-const agents = (await import("../app/api/workspaces/[workspace]/agents/route.ts")) as { POST: Handler };
-const flows = (await import("../app/api/workspaces/[workspace]/flows/route.ts")) as { POST: Handler };
-const evals = (await import("../app/api/workspaces/[workspace]/evals/route.ts")) as { POST: Handler };
-const workspace = (await import("../app/api/workspaces/[workspace]/route.ts")) as { PATCH: Handler };
+const agents = (await import("../app/v1/workspaces/[workspace]/agents/route.ts")) as { POST: Handler };
+const flows = (await import("../app/v1/workspaces/[workspace]/flows/route.ts")) as { POST: Handler };
+const evals = (await import("../app/v1/workspaces/[workspace]/evals/route.ts")) as { POST: Handler };
+const workspace = (await import("../app/v1/workspaces/[workspace]/route.ts")) as { PATCH: Handler };
 
 const TENANT = "acme";
 const WS = "desk";
@@ -36,7 +36,7 @@ const { key } = await createApiKey(TENANT, "laptop", "owner@acme.test", undefine
 
 const call = (h: Handler, method: string, route: string, body: unknown) =>
   h(
-    new NextRequest(`http://localhost/api/workspaces/${WS}${route}`, {
+    new NextRequest(`http://localhost/v1/workspaces/${WS}${route}`, {
       method,
       headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
       body: JSON.stringify(body),

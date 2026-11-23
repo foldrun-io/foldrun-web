@@ -1,5 +1,5 @@
-// Who may read more than "ok" from the open probes (/api/healthz,
-// /api/version). A stranger — a port scanner, a bot, a prompt-injected agent
+// Who may read more than "ok" from the open probes (/v1/healthz,
+// /v1/version). A stranger — a port scanner, a bot, a prompt-injected agent
 // fetching the public address — learns that the platform answers and which
 // release name and API date it speaks, and nothing else: no commit shas, no
 // release time, and not whether the database, Redis or a worker is up, which
@@ -11,7 +11,7 @@
 //     `version`, `doctor` and `check` read it;
 //   · the scraper's token (FOLDRUN_METRICS_TOKEN), which is how a monitor or
 //     a deploy smoke test reads the dependency flags without an account.
-// A key that opens no /api route (A2A, gateway) opens no detail either.
+// A key that opens no /v1 route (A2A, gateway) opens no detail either.
 //
 // A request with no credential at all never reaches the key lookup, so the
 // open, unmetered probes cost no more than before.

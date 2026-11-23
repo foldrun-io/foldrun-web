@@ -1,5 +1,5 @@
 // The environments a workspace's agents need, and whether each is built —
-// what GET /api/workspaces/<ws>/runtimes answers (and `foldrun deploy`
+// what GET /v1/workspaces/<ws>/runtimes answers (and `foldrun deploy`
 // polls), on the workspace overview. One row per distinct runtime: its
 // packages, the agents that use it, and the last build's outcome, with the
 // installer's own error when it failed. A workspace whose agents declare no

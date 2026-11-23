@@ -88,14 +88,14 @@ test("keyWithin: a scoped admin reaches only keys it could have minted", () => {
   assert.equal(keyWithin({ role: "admin", workspaces: null }, {}), true);
 });
 
-test("GET and DELETE /api/keys: a scoped admin cannot list or revoke a key outside its scope", async () => {
+test("GET and DELETE /v1/keys: a scoped admin cannot list or revoke a key outside its scope", async () => {
   delete process.env.FOLDRUN_DEV_NO_AUTH;
   const { NextRequest } = await import("next/server");
-  const route = await import("../app/api/keys/route.ts");
+  const route = await import("../app/v1/keys/route.ts");
   const { key: scoped, record: mine } = await createApiKey("scoped-co", "scoped", "s@x.test", undefined, "admin", ["leads"]);
   const { record: owners } = await createApiKey("scoped-co", "owner's", "o@x.test", undefined, "admin", null);
   const req = (method: string, body?: object) =>
-    new NextRequest("http://x/api/keys", {
+    new NextRequest("http://x/v1/keys", {
       method,
       headers: { authorization: `Bearer ${scoped}`, "content-type": "application/json" },
       ...(body ? { body: JSON.stringify(body) } : {}),
@@ -109,13 +109,13 @@ test("GET and DELETE /api/keys: a scoped admin cannot list or revoke a key outsi
 
 test("FOL-66: a non-admin key revokes ITSELF (so `foldrun logout` ends it) and is rejected after; it still cannot revoke another key", async () => {
   delete process.env.FOLDRUN_DEV_NO_AUTH;
-  const route = await import("../app/api/keys/route.ts");
+  const route = await import("../app/v1/keys/route.ts");
   // Minted at the person's own role, as `foldrun login`'s device flow does.
   const { key: editorKey, record: mine } = await createApiKey("logout-co", "cli · laptop", "e@x.test", undefined, "editor");
   const { record: other } = await createApiKey("logout-co", "someone else", "o@x.test", undefined, "admin", null);
   const del = (id: string) =>
     route.DELETE(
-      new NextRequest("http://x/api/keys", {
+      new NextRequest("http://x/v1/keys", {
         method: "DELETE",
         headers: { authorization: `Bearer ${editorKey}`, "content-type": "application/json" },
         body: JSON.stringify({ id }),
@@ -133,7 +133,7 @@ test("FOL-66: a non-admin key revokes ITSELF (so `foldrun logout` ends it) and i
 
   // And the exact credential the CLI dropped no longer calls the API.
   assert.equal(await apiKeyFor(editorKey), null, "the key no longer authenticates");
-  const after = await resolveTenant(new NextRequest("http://x/api/me", { headers: { authorization: `Bearer ${editorKey}` } }));
+  const after = await resolveTenant(new NextRequest("http://x/v1/me", { headers: { authorization: `Bearer ${editorKey}` } }));
   assert.equal(after.tenant, null, "every route now refuses it");
 });
 
@@ -157,7 +157,7 @@ test("a deploy key minted before the platform's git went opens nothing, through 
   // the lookup the rate gate uses
   assert.equal(await apiKeyFor(presented), null);
   // and the one every route uses
-  const got = await resolveTenant(new NextRequest("http://x/api/workspaces", { headers: { authorization: `Bearer ${presented}` } }));
+  const got = await resolveTenant(new NextRequest("http://x/v1/workspaces", { headers: { authorization: `Bearer ${presented}` } }));
   assert.equal(got.tenant, null);
   assert.equal(got.status, 403);
   assert.match(got.message ?? "", /deploy key/);

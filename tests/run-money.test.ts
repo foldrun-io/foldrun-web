@@ -17,7 +17,7 @@ process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 delete process.env.FOLDRUN_DATABASE_URL;
 
 const { NextRequest } = await import("next/server");
-const route = (await import("../app/api/workspaces/[workspace]/runs/[runId]/route.ts")) as unknown as {
+const route = (await import("../app/v1/workspaces/[workspace]/runs/[runId]/route.ts")) as unknown as {
   GET: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string; runId: string }> }) => Promise<Response>;
 };
 const { appendLedgerFile } = await import("@/platform/ledger");
@@ -27,7 +27,7 @@ const ws = path.join(DATA, T, "workspaces", WS);
 fs.mkdirSync(path.join(ws, "runs"), { recursive: true });
 fs.writeFileSync(path.join(ws, "AGENTS.md"), `---\nname: ${WS}\n---\n`);
 fs.writeFileSync(path.join(ws, "runs", `${RUN}.json`), JSON.stringify({ id: RUN, flow: "f", status: "completed", startedAt: "2026-11-11T00:00:00Z", finishedAt: "2026-11-11T00:01:00Z", steps: [{ agent: "a", status: "completed", costUsd: 0.02, events: [], result: "ok" }] }));
-const get = async () => (await route.GET(new NextRequest(`http://x/api/workspaces/${WS}/runs/${RUN}`, { headers: { "x-foldrun-tenant": T } }), { params: Promise.resolve({ workspace: WS, runId: RUN }) })).json();
+const get = async () => (await route.GET(new NextRequest(`http://x/v1/workspaces/${WS}/runs/${RUN}`, { headers: { "x-foldrun-tenant": T } }), { params: Promise.resolve({ workspace: WS, runId: RUN }) })).json();
 
 test("the estimate until the ledger settles the run, then the charge — and which is final", async () => {
   const before = await get();

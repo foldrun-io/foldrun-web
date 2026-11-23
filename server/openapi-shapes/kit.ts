@@ -92,7 +92,7 @@ export const Run = obj({
 
 export const EffectiveFlag = obj({
   name: str(), description: str(), owner: str(), default: bool, on: bool,
-  beta: { type: "boolean", description: "a beta flag: on for accounts in the beta before its rollout (GET/PUT /api/account/beta)" },
+  beta: { type: "boolean", description: "a beta flag: on for accounts in the beta before its rollout (GET/PUT /v1/account/beta)" },
   source: str("account | global | beta | rollout | default — what decided it"),
   rollout: { type: ["integer", "null"], description: "the rollout percentage in force, when one is" },
 });

@@ -6,7 +6,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { apiBreaks, judge } from "../scripts/api-guard.mjs";
+import { apiBreaks, judge, movedToV1 } from "../scripts/api-guard.mjs";
 
 const op = (response?: object, body?: object, query: object[] = []) => ({
   parameters: query,
@@ -18,14 +18,14 @@ const obj = (properties: Record<string, object>, required: string[] = []) => ({ 
 const str = { type: "string" };
 const num = { type: "integer" };
 
-const RUNS = "/api/workspaces/{workspace}/runs";
+const RUNS = "/v1/workspaces/{workspace}/runs";
 const base = (doc_: object) => ({ doc: doc_, current: "2026-10-01", changes: [], deprecations: [], corrections: [] });
 
 test("additions are never breaks: a new route, a new response field, a new optional request field", () => {
   const a = doc({ [RUNS]: { get: op(obj({ id: str })), post: op(undefined, obj({ flow: str }, ["flow"])) } });
   const b = doc({
     [RUNS]: { get: op(obj({ id: str, cost: num })), post: op(undefined, obj({ flow: str, tags: { type: "array", items: str } }, ["flow"])) },
-    "/api/new": { get: op() },
+    "/v1/new": { get: op() },
   });
   assert.deepEqual(apiBreaks(a, b), []);
 });
@@ -33,14 +33,14 @@ test("additions are never breaks: a new route, a new response field, a new optio
 test("what a caller breaks on: an operation gone, a field gone or retyped, a field newly required", () => {
   const a = doc({
     [RUNS]: { get: op(obj({ runs: { type: "array", items: obj({ id: str, finishedAt: str }) } })), post: op(undefined, obj({ flow: str, mode: { type: "string", enum: ["a", "b"] } })) },
-    "/api/old": { delete: op() },
+    "/v1/old": { delete: op() },
   });
   const b = doc({
     [RUNS]: { get: op(obj({ runs: { type: "array", items: obj({ id: num }) } })), post: op(undefined, obj({ flow: str, mode: { type: "string", enum: ["a"] } }, ["flow"]), [{ name: "since", in: "query", required: true }]) },
   });
   const whats = apiBreaks(a, b).map((x: { method: string; path: string; what: string }) => `${x.method} ${x.path}: ${x.what}`);
   assert.deepEqual(whats.sort(), [
-    `DELETE /api/old: the operation is gone`,
+    `DELETE /v1/old: the operation is gone`,
     `GET ${RUNS}: response field runs[].finishedAt is gone`,
     `GET ${RUNS}: response field runs[].id was string, now integer`,
     `POST ${RUNS}: query parameter since is now required`,
@@ -63,7 +63,7 @@ test("a break is refused unless something answers for it", () => {
 });
 
 test("a VersionChange newer than the base answers it — with the current version moved to it", () => {
-  const change = { version: "2026-11-01", summary: "finishedAt is endedAt", routes: [{ method: "GET", path: "^/api/workspaces/[^/]+/runs$" }] };
+  const change = { version: "2026-11-01", summary: "finishedAt is endedAt", routes: [{ method: "GET", path: "^/v1/workspaces/[^/]+/runs$" }] };
   const ok = judge([gone], base({}), { ...base({}), current: "2026-11-01", changes: [change] });
   assert.deepEqual([ok.refused.length, ok.answered.length, ok.problems], [0, 1, []]);
   const stale = judge([gone], base({}), { ...base({}), changes: [change] });
@@ -75,8 +75,8 @@ test("a VersionChange newer than the base answers it — with the current versio
 });
 
 test("an operation may go only after a deprecation the base already carried has reached its sunset", () => {
-  const removed = { method: "DELETE", path: "/api/old", what: "the operation is gone" };
-  const dep = { method: "DELETE", path: "^/api/old$", deprecatedAt: "2026-01-01", sunsetAt: "2026-07-01" };
+  const removed = { method: "DELETE", path: "/v1/old", what: "the operation is gone" };
+  const dep = { method: "DELETE", path: "^/v1/old$", deprecatedAt: "2026-01-01", sunsetAt: "2026-07-01" };
   assert.equal(judge([removed], { ...base({}), deprecations: [dep] }, base({}), "2026-10-13").refused.length, 0);
   assert.equal(judge([removed], { ...base({}), deprecations: [dep] }, base({}), "2026-06-30").refused.length, 1, "before the sunset");
   assert.equal(judge([removed], base({}), { ...base({}), deprecations: [dep] }, "2026-10-13").refused.length, 1, "deprecated in the same change: never announced");
@@ -93,10 +93,22 @@ test("a declared schema correction is reported, not refused", () => {
 // body to an operation that was described (and took none) is still a break.
 test("documenting an undescribed operation for the first time is not a break; a new required body on a described one is", () => {
   const generic = { type: "object", additionalProperties: true, description: "JSON — see docs/api.md for this route's fields" };
-  const a = doc({ "/api/x": { post: op(generic) }, "/api/y": { post: op(obj({ ok: { type: "boolean" } })) } });
+  const a = doc({ "/v1/x": { post: op(generic) }, "/v1/y": { post: op(obj({ ok: { type: "boolean" } })) } });
   const b = doc({
-    "/api/x": { post: op(obj({ ok: { type: "boolean" } }), obj({ name: str }, ["name"])) },
-    "/api/y": { post: op(obj({ ok: { type: "boolean" } }), obj({ name: str }, ["name"])) },
+    "/v1/x": { post: op(obj({ ok: { type: "boolean" } }), obj({ name: str }, ["name"])) },
+    "/v1/y": { post: op(obj({ ok: { type: "boolean" } }), obj({ name: str }, ["name"])) },
   });
-  assert.deepEqual(apiBreaks(a, b).map((x: { path: string; what: string }) => `${x.path}: ${x.what}`), ["/api/y: a request body is now required"]);
+  assert.deepEqual(apiBreaks(a, b).map((x: { path: string; what: string }) => `${x.path}: ${x.what}`), ["/v1/y: a request body is now required"]);
+});
+
+test("a base from before the /v1 move is compared under its /v1 names: a rename is no break, a field gone still is", () => {
+  const op = (props: Record<string, unknown>) => ({ get: { responses: { "200": { content: { "application/json": { schema: { type: "object", properties: props } } } } } } });
+  const base = { paths: { "/api/keys": op({ id: { type: "string" }, label: { type: "string" } }), "/api/usage": op({ usd: { type: "number" } }) } };
+  const head = { paths: { "/v1/keys": op({ id: { type: "string" } }), "/v1/account/usage": op({ usd: { type: "number" } }) } };
+  const moved = movedToV1(base);
+  assert.deepEqual(Object.keys(moved.paths).sort(), ["/v1/account/usage", "/v1/keys"]);
+  const breaks = apiBreaks(moved, head);
+  assert.equal(breaks.filter((b: { what: string }) => b.what === "the operation is gone").length, 0);
+  assert.ok(breaks.some((b: { path: string; what: string }) => b.path === "/v1/keys" && /label/.test(b.what)), JSON.stringify(breaks));
+  assert.equal(movedToV1(head), head, "a base already on /v1 is left alone");
 });

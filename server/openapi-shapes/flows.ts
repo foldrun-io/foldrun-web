@@ -1,4 +1,4 @@
-// OpenAPI request/response schemas: /api/workspaces/{workspace}/flows*, /api/workspaces/{workspace}/hooks/*.
+// OpenAPI request/response schemas: /v1/workspaces/{workspace}/flows*, /v1/workspaces/{workspace}/hooks/*.
 // Written from what each handler validates and answers (30 Oct 2026).
 
 import { type Shape, type Schema, obj, str, bool, int, arr, nullable } from "./kit.ts";
@@ -143,7 +143,7 @@ const HookActivity = obj({
 });
 
 export const SHAPES: Record<string, Shape> = {
-  "GET /api/workspaces/{workspace}/a2a": {
+  "GET /v1/workspaces/{workspace}/a2a": {
     response: obj({
       flows: arr(obj({
         flow: str(), published: bool, publicCard: bool,
@@ -165,13 +165,13 @@ export const SHAPES: Record<string, Shape> = {
       }), "the 50 newest A2A tasks"),
     }, ["flows", "keys", "tasks"]),
   },
-  "GET /api/workspaces/{workspace}/flows": { response: obj({ flows: arr(Flow) }) },
-  "POST /api/workspaces/{workspace}/flows": {
+  "GET /v1/workspaces/{workspace}/flows": { response: obj({ flows: arr(Flow) }) },
+  "POST /v1/workspaces/{workspace}/flows": {
     body: obj({ name: str("the new flow's name; flows/<name>.md"), pattern: str("pipeline | review-loop | fan-out | debate | router (anything else is pipeline)") }, ["name"]),
     response: obj({ ok: bool, path: str("flows/<name>.md"), pattern: str() }),
   },
-  "PATCH /api/workspaces/{workspace}/flows/{flow}": EDIT_FLOW,
-  "POST /api/workspaces/{workspace}/flows/{flow}/filter": {
+  "PATCH /v1/workspaces/{workspace}/flows/{flow}": EDIT_FLOW,
+  "POST /v1/workspaces/{workspace}/flows/{flow}/filter": {
     body: obj({ payload: { description: "the delivery to test: a webhook's JSON body (a string is read as one), an email's { from, to, subject, text }, a chained run's { run, flow, status, ending, verdict, summary }, a storage event's { by, paths }" } }, ["payload"]),
     response: obj({
       flow: str(), trigger: str(),
@@ -180,7 +180,7 @@ export const SHAPES: Record<string, Shape> = {
       match: bool, reason: str("why, in one sentence"),
     }),
   },
-  "POST /api/workspaces/{workspace}/flows/draft": {
+  "POST /v1/workspaces/{workspace}/flows/draft": {
     body: obj({
       description: str("the flow wanted, in words (at most 4000 characters). Without it the POST is a step added to a flow named draft, as POST …/flows/{flow} takes it"),
       flow: str("redraft this existing flow"),
@@ -195,9 +195,9 @@ export const SHAPES: Record<string, Shape> = {
       flow: { ...Flow, description: "only when no description was sent: the flow named draft after its step was added" },
     }),
   },
-  "PATCH /api/workspaces/{workspace}/flows/draft": { ...EDIT_FLOW, response: { ...(EDIT_FLOW.response as Schema), description: "the flow named draft, edited as PATCH …/flows/{flow}" } },
-  "DELETE /api/workspaces/{workspace}/flows/draft": REMOVE_STEP,
-  "GET /api/workspaces/{workspace}/hooks": {
+  "PATCH /v1/workspaces/{workspace}/flows/draft": { ...EDIT_FLOW, response: { ...(EDIT_FLOW.response as Schema), description: "the flow named draft, edited as PATCH …/flows/{flow}" } },
+  "DELETE /v1/workspaces/{workspace}/flows/draft": REMOVE_STEP,
+  "GET /v1/workspaces/{workspace}/hooks": {
     query: [
       { name: "runs", description: "how many runs to read back through for recent, newest first: 1–500, default 50" },
       { name: "all", description: "1 lists every hook record, not only deny, rewrite and error" },
@@ -207,18 +207,18 @@ export const SHAPES: Record<string, Shape> = {
       recent: arr(HookActivity, "newest first, at most 200"),
     }),
   },
-  "GET /api/workspaces/{workspace}/hooks/{flow}": {
+  "GET /v1/workspaces/{workspace}/hooks/{flow}": {
     response: obj({
       ok: bool, flow: str(),
-      path: str("/api/hooks/<account>/<workspace>/<flow>?token=… — carries the token"),
+      path: str("/v1/hooks/<account>/<workspace>/<flow>?token=… — carries the token"),
       url: nullable(str("path made absolute with FOLDRUN_PUBLIC_URL; null when that is unset")),
     }),
   },
-  "POST /api/workspaces/{workspace}/hooks/{flow}/rotate": {
+  "POST /v1/workspaces/{workspace}/hooks/{flow}/rotate": {
     noBody: "rotating needs nothing but the flow in the path; the old token stops working at once",
     response: obj({ ok: bool, path: nullable(str("the new webhook path, carrying the new token; null on an Idempotency-Key replay")) }),
   },
-  "POST /api/workspaces/{workspace}/hooks/{flow}/test": {
+  "POST /v1/workspaces/{workspace}/hooks/{flow}/test": {
     body: obj({ event: { type: "object", additionalProperties: true, description: "the event the hook reads on stdin; omitted, a sample for its kind" } }),
     response: obj({
       ok: bool,

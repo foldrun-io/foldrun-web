@@ -32,9 +32,9 @@ const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 const { readRun, writeRun } = await import("@/lib/store");
 type Handler<P> = (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<P> }) => Promise<Response>;
-const agentRun = (await import("../app/api/workspaces/[workspace]/agents/[agent]/run/route.ts")) as { POST: Handler<{ workspace: string; agent: string }> };
-const flowRun = (await import("../app/api/workspaces/[workspace]/flows/[flow]/run/route.ts")) as { POST: Handler<{ workspace: string; flow: string }> };
-const pause = (await import("../app/api/workspaces/[workspace]/pause/route.ts")) as { POST: Handler<{ workspace: string }>; DELETE: Handler<{ workspace: string }> };
+const agentRun = (await import("../app/v1/workspaces/[workspace]/agents/[agent]/run/route.ts")) as { POST: Handler<{ workspace: string; agent: string }> };
+const flowRun = (await import("../app/v1/workspaces/[workspace]/flows/[flow]/run/route.ts")) as { POST: Handler<{ workspace: string; flow: string }> };
+const pause = (await import("../app/v1/workspaces/[workspace]/pause/route.ts")) as { POST: Handler<{ workspace: string }>; DELETE: Handler<{ workspace: string }> };
 
 const TENANT = "acme";
 const WS = "desk";
@@ -79,11 +79,11 @@ function finishNextRun(status: "failed" | "completed", seen: Set<string>) {
 
 const seen = new Set<string>();
 const startAgent = () =>
-  agentRun.POST(new NextRequest(`http://localhost/api/workspaces/${WS}/agents/writer/run?wait=true&timeout=10`, { method: "POST", headers, body: JSON.stringify({ task: "hi" }) }), {
+  agentRun.POST(new NextRequest(`http://localhost/v1/workspaces/${WS}/agents/writer/run?wait=true&timeout=10`, { method: "POST", headers, body: JSON.stringify({ task: "hi" }) }), {
     params: Promise.resolve({ workspace: WS, agent: "writer" }),
   });
 const startFlow = () =>
-  flowRun.POST(new NextRequest(`http://localhost/api/workspaces/${WS}/flows/daily/run?wait=true&timeout=10`, { method: "POST", headers, body: JSON.stringify({ task: "hi" }) }), {
+  flowRun.POST(new NextRequest(`http://localhost/v1/workspaces/${WS}/flows/daily/run?wait=true&timeout=10`, { method: "POST", headers, body: JSON.stringify({ task: "hi" }) }), {
     params: Promise.resolve({ workspace: WS, flow: "daily" }),
   });
 
@@ -112,7 +112,7 @@ for (const [what, start] of [["agent run", startAgent], ["flow run", startFlow]]
 
 test("a start refused before any run exists (a paused workspace) stays a 4xx, and queues nothing", async () => {
   const ctx = { params: Promise.resolve({ workspace: WS }) };
-  const paused = await pause.POST(new NextRequest(`http://localhost/api/workspaces/${WS}/pause`, { method: "POST", headers, body: JSON.stringify({ reason: "maintenance" }) }), ctx);
+  const paused = await pause.POST(new NextRequest(`http://localhost/v1/workspaces/${WS}/pause`, { method: "POST", headers, body: JSON.stringify({ reason: "maintenance" }) }), ctx);
   assert.equal(paused.status, 200, await paused.clone().text());
   const before = fs.readdirSync(path.join(ws, "runs")).length;
   for (const res of [await startAgent(), await startFlow()]) {
@@ -121,5 +121,5 @@ test("a start refused before any run exists (a paused workspace) stays a 4xx, an
     assert.match(body.error, /paused/);
   }
   assert.equal(fs.readdirSync(path.join(ws, "runs")).length, before, "no run record was made");
-  await pause.DELETE(new NextRequest(`http://localhost/api/workspaces/${WS}/pause`, { method: "DELETE", headers }), ctx);
+  await pause.DELETE(new NextRequest(`http://localhost/v1/workspaces/${WS}/pause`, { method: "DELETE", headers }), ctx);
 });

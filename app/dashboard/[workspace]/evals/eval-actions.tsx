@@ -78,7 +78,7 @@ export function EvalMenu({
   const t = tenant !== "default" ? `&tenant=${tenant}` : "";
   const remove = async () => {
     if (!(await confirm({ title: confirmText, confirmLabel: $t("workspace.evals-eval-actions.delete") }))) return;
-    const res = await fetch(`/api/workspaces/${workspace}/source`, {
+    const res = await fetch(`/v1/workspaces/${workspace}/source`, {
       method: "DELETE",
       headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
       body: JSON.stringify({ path: `evals/${file}` }),

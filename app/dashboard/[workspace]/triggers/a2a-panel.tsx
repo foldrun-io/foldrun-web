@@ -5,7 +5,7 @@
 // flows whose frontmatter says `a2a:`, each one's card and endpoint), the
 // A2A keys that may call them (an admin's view), and the newest A2A tasks
 // with the key that asked and the run that served each. One read: GET
-// /api/workspaces/<ws>/a2a. Publishing is on each flow's card (Flows page).
+// /v1/workspaces/<ws>/a2a. Publishing is on each flow's card (Flows page).
 
 import { $el, $rich, $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
@@ -42,7 +42,7 @@ export function A2aPanel({ workspace, tenant }: { workspace: string; tenant: str
   useEffect(() => {
     let live = true;
     void (async () => {
-      const res = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/a2a`, { headers: tenant !== "default" ? { "x-foldrun-tenant": tenant } : {} }).catch(() => null);
+      const res = await fetch(`/v1/workspaces/${encodeURIComponent(workspace)}/a2a`, { headers: tenant !== "default" ? { "x-foldrun-tenant": tenant } : {} }).catch(() => null);
       const body = res ? await res.json().catch(() => ({})) : {};
       if (!live) return;
       if (!res || !res.ok) setError((body as { error?: string }).error ?? `HTTP ${res?.status ?? "—"}`);

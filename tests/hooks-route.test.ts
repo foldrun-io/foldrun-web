@@ -22,8 +22,8 @@ process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 type Handler = (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
-const testRoute = (await import("../app/api/workspaces/[workspace]/hooks/[flow]/test/route.ts")) as unknown as { POST: Handler };
-const listRoute = (await import("../app/api/workspaces/[workspace]/hooks/route.ts")) as unknown as { GET: Handler };
+const testRoute = (await import("../app/v1/workspaces/[workspace]/hooks/[flow]/test/route.ts")) as unknown as { POST: Handler };
+const listRoute = (await import("../app/v1/workspaces/[workspace]/hooks/route.ts")) as unknown as { GET: Handler };
 const { hookTestRefusal, testEvent, HOOK_SAMPLE } = await import("../server/hooks.ts");
 const { hookActivity, hookTally, hookBadge } = await import("../components/hooks-model.ts");
 const { classify } = await import("../components/trace-model.ts");
@@ -70,7 +70,7 @@ const { key: viewer } = await createApiKey(TENANT, "viewer", "owner@acme.test", 
 const ctx = (params: Record<string, string>) => ({ params: Promise.resolve(params) });
 const post = (name: string, body: unknown, key: string | undefined = editor) =>
   testRoute.POST(
-    new NextRequest(`http://localhost/api/workspaces/desk/hooks/${name}/test`, {
+    new NextRequest(`http://localhost/v1/workspaces/desk/hooks/${name}/test`, {
       method: "POST",
       headers: { "content-type": "application/json", ...(key ? { authorization: `Bearer ${key}` } : {}) },
       body: JSON.stringify(body),
@@ -151,7 +151,7 @@ test("an isolated install refuses rather than spawn customer code in the web pro
 
 test("the listing: both scopes, shadowing, who turns each on, and recent denies and rewrites", async () => {
   const res = await listRoute.GET(
-    new NextRequest("http://localhost/api/workspaces/desk/hooks", { headers: { authorization: `Bearer ${viewer}` } }),
+    new NextRequest("http://localhost/v1/workspaces/desk/hooks", { headers: { authorization: `Bearer ${viewer}` } }),
     ctx({ workspace: "desk" }),
   );
   assert.equal(res.status, 200);

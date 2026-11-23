@@ -2,7 +2,7 @@
 // a flow's appended step answer once per Idempotency-Key (the rotate's replay
 // never repeats the token), a draft is refused before its body is read,
 // observe and triggers take `days` with `since` still read, and a key scoped
-// to some workspaces sees only those in /api/usage. A person releases a
+// to some workspaces sees only those in /v1/account/usage. A person releases a
 // `wait: event` step with a payload through approve, under their own name.
 //
 //   node --import ./tests/register.mjs --test tests/route-consistency.test.ts
@@ -25,15 +25,15 @@ const { createApiKey } = await import("../server/auth.ts");
 const { resetIdempotencyMemory } = await import("../server/idempotency.ts");
 const { hookGeneration } = await import("@/lib/webhook");
 type Handler = (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
-const rotate = (await import("../app/api/workspaces/[workspace]/hooks/[flow]/rotate/route.ts")) as unknown as { POST: Handler };
-const draft = (await import("../app/api/workspaces/[workspace]/flows/draft/route.ts")) as unknown as { POST: Handler; DELETE: () => Promise<Response> };
-const triggers = (await import("../app/api/workspaces/[workspace]/triggers/route.ts")) as unknown as { GET: Handler };
-const observe = (await import("../app/api/workspaces/[workspace]/observe/route.ts")) as unknown as { GET: Handler };
-const usage = (await import("../app/api/usage/route.ts")) as unknown as { GET: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
-const approve = (await import("../app/api/workspaces/[workspace]/runs/[runId]/approve/route.ts")) as unknown as { POST: Handler };
-const bulk = (await import("../app/api/workspaces/[workspace]/runs/bulk/route.ts")) as unknown as { POST: Handler };
-const stopRoute = (await import("../app/api/workspaces/[workspace]/runs/[runId]/stop/route.ts")) as unknown as { POST: Handler };
-const rerunRoute = (await import("../app/api/workspaces/[workspace]/runs/[runId]/rerun/route.ts")) as unknown as { POST: Handler };
+const rotate = (await import("../app/v1/workspaces/[workspace]/hooks/[flow]/rotate/route.ts")) as unknown as { POST: Handler };
+const draft = (await import("../app/v1/workspaces/[workspace]/flows/draft/route.ts")) as unknown as { POST: Handler; DELETE: () => Promise<Response> };
+const triggers = (await import("../app/v1/workspaces/[workspace]/triggers/route.ts")) as unknown as { GET: Handler };
+const observe = (await import("../app/v1/workspaces/[workspace]/observe/route.ts")) as unknown as { GET: Handler };
+const usage = (await import("../app/v1/account/usage/route.ts")) as unknown as { GET: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
+const approve = (await import("../app/v1/workspaces/[workspace]/runs/[runId]/approve/route.ts")) as unknown as { POST: Handler };
+const bulk = (await import("../app/v1/workspaces/[workspace]/runs/bulk/route.ts")) as unknown as { POST: Handler };
+const stopRoute = (await import("../app/v1/workspaces/[workspace]/runs/[runId]/stop/route.ts")) as unknown as { POST: Handler };
+const rerunRoute = (await import("../app/v1/workspaces/[workspace]/runs/[runId]/rerun/route.ts")) as unknown as { POST: Handler };
 const { writeRun, readRun } = await import("@/lib/store");
 
 const TENANT = "acme";
@@ -62,7 +62,7 @@ const req = (method: string, url: string, key?: string, body?: unknown, headers:
 
 test("rotating a webhook twice with one Idempotency-Key rotates once, and the replay withholds the token", async () => {
   resetIdempotencyMemory();
-  const send = () => rotate.POST(req("POST", "/api/workspaces/desk/hooks/hooked/rotate", admin, {}, { "idempotency-key": "rot-1" }), ctx({ workspace: "desk", flow: "hooked" }));
+  const send = () => rotate.POST(req("POST", "/v1/workspaces/desk/hooks/hooked/rotate", admin, {}, { "idempotency-key": "rot-1" }), ctx({ workspace: "desk", flow: "hooked" }));
   const first = await send();
   assert.equal(first.status, 200);
   assert.match(((await first.json()) as { path: string }).path, /token=/);
@@ -75,7 +75,7 @@ test("rotating a webhook twice with one Idempotency-Key rotates once, and the re
 test("flows/draft no longer takes a step: a POST with no description is 400, a DELETE 410, and the flow named draft is untouched (FOL-75)", async () => {
   resetIdempotencyMemory();
   const before = fs.readFileSync(DRAFT_FLOW, "utf8");
-  const res = await draft.POST(req("POST", "/api/workspaces/desk/flows/draft", admin, { target: "writer", instruction: "Again." }), ctx({ workspace: "desk" }));
+  const res = await draft.POST(req("POST", "/v1/workspaces/desk/flows/draft", admin, { target: "writer", instruction: "Again." }), ctx({ workspace: "desk" }));
   assert.equal(res.status, 400);
   assert.match(((await res.json()) as { error: string }).error, /PATCH \{ edit/);
   const gone = await draft.DELETE();
@@ -85,15 +85,15 @@ test("flows/draft no longer takes a step: a POST with no description is 400, a D
 });
 
 test("a draft without a credential is 401 before its body is read, even a malformed one", async () => {
-  const res = await draft.POST(req("POST", "/api/workspaces/desk/flows/draft", undefined, "{not json"), ctx({ workspace: "desk" }));
+  const res = await draft.POST(req("POST", "/v1/workspaces/desk/flows/draft", undefined, "{not json"), ctx({ workspace: "desk" }));
   assert.equal(res.status, 401);
-  const bad = await draft.POST(req("POST", "/api/workspaces/desk/flows/draft", admin, "{not json"), ctx({ workspace: "desk" }));
+  const bad = await draft.POST(req("POST", "/v1/workspaces/desk/flows/draft", admin, "{not json"), ctx({ workspace: "desk" }));
   assert.equal(bad.status, 400);
   assert.equal(((await bad.json()) as { error: string }).error, "malformed JSON");
 });
 
 test("triggers and observe take ?days=, still read ?since=, and clamp rather than refuse", async () => {
-  const days = async (q: string) => ((await (await triggers.GET(req("GET", `/api/workspaces/desk/triggers${q}`, admin), ctx({ workspace: "desk" }))).json()) as { days: number }).days;
+  const days = async (q: string) => ((await (await triggers.GET(req("GET", `/v1/workspaces/desk/triggers${q}`, admin), ctx({ workspace: "desk" }))).json()) as { days: number }).days;
   assert.equal(await days(""), 7);
   assert.equal(await days("?days=3"), 3);
   assert.equal(await days("?since=5"), 5, "the older spelling still works");
@@ -101,17 +101,17 @@ test("triggers and observe take ?days=, still read ?since=, and clamp rather tha
   assert.equal(await days("?days=9999"), 365);
   assert.equal(await days("?days=abc"), 7);
 
-  const window = async (q: string) => ((await (await observe.GET(req("GET", `/api/workspaces/desk/observe${q}`, admin), ctx({ workspace: "desk" }))).json()) as { sinceDays: number }).sinceDays;
+  const window = async (q: string) => ((await (await observe.GET(req("GET", `/v1/workspaces/desk/observe${q}`, admin), ctx({ workspace: "desk" }))).json()) as { sinceDays: number }).sinceDays;
   assert.equal(await window(""), 30);
   assert.equal(await window("?days=7"), 7);
   assert.equal(await window("?since=14"), 14);
   assert.equal(await window("?days=0"), 1);
 });
 
-test("a key scoped to some workspaces sees only those in /api/usage", async () => {
-  const all = (await (await usage.GET(req("GET", "/api/usage", admin))).json()) as { workspaces: { workspace: string }[] };
+test("a key scoped to some workspaces sees only those in /v1/account/usage", async () => {
+  const all = (await (await usage.GET(req("GET", "/v1/account/usage", admin))).json()) as { workspaces: { workspace: string }[] };
   assert.deepEqual(all.workspaces.map((w) => w.workspace).sort(), ["desk", "other"]);
-  const mine = (await (await usage.GET(req("GET", "/api/usage", scoped))).json()) as { workspaces: { workspace: string }[] };
+  const mine = (await (await usage.GET(req("GET", "/v1/account/usage", scoped))).json()) as { workspaces: { workspace: string }[] };
   assert.deepEqual(mine.workspaces.map((w) => w.workspace), ["desk"]);
 });
 
@@ -121,7 +121,7 @@ test("approve with a payload releases a wait: event step as the caller, and is a
   const park = (id: string, steps: Record<string, unknown>[]) =>
     writeRun(TENANT, "desk", { id, flow: "publish", status: "awaiting-approval", startedAt: new Date().toISOString(), finishedAt: null, steps } as never);
   const send = (id: string, body: unknown, key = "k-" + id) =>
-    approve.POST(req("POST", `/api/workspaces/desk/runs/${id}/approve`, admin, body, { "idempotency-key": key }), ctx({ workspace: "desk", runId: id }));
+    approve.POST(req("POST", `/v1/workspaces/desk/runs/${id}/approve`, admin, body, { "idempotency-key": key }), ctx({ workspace: "desk", runId: id }));
 
   park("run-gate", [step({})]);
   const gate = await send("run-gate", { decision: "approve", payload: "x" });
@@ -154,7 +154,7 @@ test("approve takes only decision approve or reject; anything else is a 400 that
     steps: [{ agent: "writer", instruction: "do it", group: 1, status: "awaiting-approval", events: [] }],
   } as never);
   const send = (body: unknown, key: string) =>
-    approve.POST(req("POST", "/api/workspaces/desk/runs/run-typo/approve", admin, body, { "idempotency-key": key }), ctx({ workspace: "desk", runId: "run-typo" }));
+    approve.POST(req("POST", "/v1/workspaces/desk/runs/run-typo/approve", admin, body, { "idempotency-key": key }), ctx({ workspace: "desk", runId: "run-typo" }));
   for (const [i, body] of [{ decision: "deny" }, { decision: "REJECT" }, { decison: "reject" }, {}, { decision: "approve", step: "0" }, { decision: "approve", step: 0.5 }].entries()) {
     const res = await send(body, `k-typo-${i}`);
     assert.equal(res.status, 400, JSON.stringify(body));
@@ -178,8 +178,8 @@ test("stop and rerun answer 404 for no run, 409 for the wrong state, 400 for a h
   // A record a fault reads: no steps array, so rerunFrom throws a TypeError.
   fs.writeFileSync(path.join(runs, "run-broken.json"), JSON.stringify({ id: "run-broken", flow: "f", status: "failed", startedAt: at, finishedAt: at, steps: null }));
 
-  const stop = (id: string) => stopRoute.POST(req("POST", `/api/workspaces/other/runs/${id}/stop`, admin, {}, { "idempotency-key": `s-${id}` }), ctx({ workspace: "other", runId: id }));
-  const rerun = (id: string, body: unknown, k: string) => rerunRoute.POST(req("POST", `/api/workspaces/other/runs/${id}/rerun`, admin, body, { "idempotency-key": k }), ctx({ workspace: "other", runId: id }));
+  const stop = (id: string) => stopRoute.POST(req("POST", `/v1/workspaces/other/runs/${id}/stop`, admin, {}, { "idempotency-key": `s-${id}` }), ctx({ workspace: "other", runId: id }));
+  const rerun = (id: string, body: unknown, k: string) => rerunRoute.POST(req("POST", `/v1/workspaces/other/runs/${id}/rerun`, admin, body, { "idempotency-key": k }), ctx({ workspace: "other", runId: id }));
   assert.equal((await stop("run-nowhere")).status, 404);
   assert.equal((await stop("run-done")).status, 409);
   assert.equal((await rerun("run-nowhere", { step: 1 }, "r1")).status, 404);
@@ -188,7 +188,7 @@ test("stop and rerun answer 404 for no run, 409 for the wrong state, 400 for a h
   assert.equal(half.status, 400);
   assert.match(((await half.json()) as { error: string }).error, /whole number/);
 
-  const send = (body: unknown, k: string) => bulk.POST(req("POST", "/api/workspaces/other/runs/bulk", admin, body, { "idempotency-key": k }), ctx({ workspace: "other" }));
+  const send = (body: unknown, k: string) => bulk.POST(req("POST", "/v1/workspaces/other/runs/bulk", admin, body, { "idempotency-key": k }), ctx({ workspace: "other" }));
   assert.equal((await send({ action: "rerun", runIds: ["run-done"], from: 1.5 }, "b1")).status, 400);
   const res = await send({ action: "rerun", runIds: ["run-broken"] }, "b2");
   assert.equal(res.status, 200);

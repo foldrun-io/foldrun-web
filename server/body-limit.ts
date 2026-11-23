@@ -1,4 +1,4 @@
-// The largest request body an /api route receives whole.
+// The largest request body an /v1 route receives whole.
 //
 // Next.js buffers the body of every request its proxy (proxy.ts) sees, up to
 // `experimental.proxyClientMaxBodySize`, and passes anything larger on CUT
@@ -16,7 +16,7 @@ export function bodyTooLarge(contentLength: string | null): string | null {
   if (!contentLength || !Number.isFinite(n) || n <= API_BODY_LIMIT_BYTES) return null;
   return (
     `request body is ${(n / 1024 / 1024).toFixed(1)} MB; the API takes at most ${API_BODY_LIMIT_BYTES / 1024 / 1024} MB per request. ` +
-    `For a large file, POST /api/workspaces/<ws>/storage/upload-url and PUT the bytes to the URL it returns.`
+    `For a large file, POST /v1/workspaces/<ws>/storage/upload-url and PUT the bytes to the URL it returns.`
   );
 }
 

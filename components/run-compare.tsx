@@ -18,7 +18,7 @@ export function RunCompare({ workspace, runId, tenant }: { workspace: string; ru
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/runs/${encodeURIComponent(runId)}/compare`, { headers: { "x-foldrun-tenant": tenant } });
+      const res = await fetch(`/v1/workspaces/${encodeURIComponent(workspace)}/runs/${encodeURIComponent(runId)}/compare`, { headers: { "x-foldrun-tenant": tenant } });
       const body = (await res.json().catch(() => ({}))) as { comparison?: RunComparison; chosen?: string; error?: string };
       setState(res.ok && body.comparison ? { comparison: body.comparison, chosen: body.chosen ?? "" } : body.error ?? `${res.status}`);
     } catch (err) {

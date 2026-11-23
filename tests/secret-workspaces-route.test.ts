@@ -1,5 +1,5 @@
 // An account secret limited to selected workspaces, through the API:
-// PATCH /api/secrets { name, workspaces } (account-wide admins only), GET
+// PATCH /v1/secrets { name, workspaces } (account-wide admins only), GET
 // lists the list, a workspace off it resolves the secret as not set, and a
 // rename or delete of a workspace carries the list along (30 Oct 2026).
 //
@@ -21,9 +21,9 @@ process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 const { getSecret, setSecret } = await import("../../foldrun-core/src/secrets.ts");
-const secretsRoute = await import("../app/api/secrets/route.ts");
+const secretsRoute = await import("../app/v1/secrets/route.ts");
 type Handler = (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string }> }) => Promise<Response>;
-const wsRoute = (await import("../app/api/workspaces/[workspace]/route.ts")) as unknown as { PATCH: Handler; DELETE: Handler };
+const wsRoute = (await import("../app/v1/workspaces/[workspace]/route.ts")) as unknown as { PATCH: Handler; DELETE: Handler };
 
 for (const ws of ["sales", "ops", "blog"]) {
   const dir = path.join(process.env.FOLDRUN_DATA!, "acme", "workspaces", ws);
@@ -40,8 +40,8 @@ const call = (key: string, url: string, method: string, body?: unknown) =>
     headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
-const patch = (key: string, body: unknown) => secretsRoute.PATCH(call(key, "/api/secrets", "PATCH", body));
-const listed = async () => ((await (await secretsRoute.GET(call(admin, "/api/secrets", "GET"))).json()) as { secrets: { name: string; workspaces?: string[] }[] }).secrets;
+const patch = (key: string, body: unknown) => secretsRoute.PATCH(call(key, "/v1/secrets", "PATCH", body));
+const listed = async () => ((await (await secretsRoute.GET(call(admin, "/v1/secrets", "GET"))).json()) as { secrets: { name: string; workspaces?: string[] }[] }).secrets;
 
 setSecret("acme", "STRIPE_KEY", "sk_live");
 
@@ -79,18 +79,18 @@ test("sites and workspaces in one call", async () => {
 });
 
 test("renaming a workspace keeps its secrets; deleting one takes its name off the list", async () => {
-  const renamed = await wsRoute.PATCH(call(admin, "/api/workspaces/ops", "PATCH", { name: "operations" }), { params: Promise.resolve({ workspace: "ops" }) });
+  const renamed = await wsRoute.PATCH(call(admin, "/v1/workspaces/ops", "PATCH", { name: "operations" }), { params: Promise.resolve({ workspace: "ops" }) });
   assert.equal(renamed.status, 200, await renamed.clone().text());
   assert.equal(getSecret("acme", "STRIPE_KEY", "operations")?.value, "sk_live");
   assert.deepEqual((await listed()).find((s) => s.name === "STRIPE_KEY")?.workspaces, ["operations", "sales"]);
 
-  const gone = await wsRoute.DELETE(call(admin, "/api/workspaces/sales", "DELETE"), { params: Promise.resolve({ workspace: "sales" }) });
+  const gone = await wsRoute.DELETE(call(admin, "/v1/workspaces/sales", "DELETE"), { params: Promise.resolve({ workspace: "sales" }) });
   assert.equal(gone.status, 200, await gone.clone().text());
   assert.deepEqual((await listed()).find((s) => s.name === "STRIPE_KEY")?.workspaces, ["operations"]);
 });
 
 test("PUT sets the value and the limit in one write, and never ignores a workspaces it was sent", async () => {
-  const put = (key: string, body: unknown) => secretsRoute.PUT(call(key, "/api/secrets", "PUT", body));
+  const put = (key: string, body: unknown) => secretsRoute.PUT(call(key, "/v1/secrets", "PUT", body));
   const made = await put(admin, { name: "CRM_KEY", value: "crm", workspaces: ["blog"] });
   assert.equal(made.status, 200, await made.clone().text());
   assert.deepEqual(((await made.json()) as { workspaces: string[] }).workspaces, ["blog"]);
@@ -118,7 +118,7 @@ test("a delete is refused, and nothing deleted, while a secret limited to it can
   const good = vault.CRM_KEY;
   vault.CRM_KEY = { ...good, data: Buffer.from("garbage").toString("base64") };
   fs.writeFileSync(file, JSON.stringify(vault));
-  const res = await wsRoute.DELETE(call(admin, "/api/workspaces/blog", "DELETE"), { params: Promise.resolve({ workspace: "blog" }) });
+  const res = await wsRoute.DELETE(call(admin, "/v1/workspaces/blog", "DELETE"), { params: Promise.resolve({ workspace: "blog" }) });
   assert.equal(res.status, 409);
   assert.match(((await res.json()) as { error: string }).error, /Nothing was deleted: CRM_KEY/);
   assert.ok(fs.existsSync(path.join(process.env.FOLDRUN_DATA!, "acme", "workspaces", "blog")));
@@ -128,7 +128,7 @@ test("a delete is refused, and nothing deleted, while a secret limited to it can
 });
 
 test("renaming onto a name that is taken is refused before the vault is touched", async () => {
-  const res = await wsRoute.PATCH(call(admin, "/api/workspaces/operations", "PATCH", { name: "blog" }), { params: Promise.resolve({ workspace: "operations" }) });
+  const res = await wsRoute.PATCH(call(admin, "/v1/workspaces/operations", "PATCH", { name: "blog" }), { params: Promise.resolve({ workspace: "operations" }) });
   assert.equal(res.status, 409);
   assert.equal(getSecret("acme", "CRM_KEY", "operations")?.value, "crm");
 });

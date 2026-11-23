@@ -114,7 +114,7 @@ export function ApiSettings({ facts, qs }: { facts: ApiFacts; qs: string }) {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/account/api", {
+      const res = await fetch("/v1/account/api", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ version: pick || null }),
@@ -205,7 +205,7 @@ export function ApiSettings({ facts, qs }: { facts: ApiFacts; qs: string }) {
               {$t("settings.api-settings.apiReference")}
             </Link>
             <span className="text-fg-subtle"> · </span>
-            <a href="/api/openapi.json" className="text-link hover:underline">
+            <a href="/v1/openapi.json" className="text-link hover:underline">
               {$t("settings.api-settings.openapiJson")}
             </a>
           </>

@@ -19,7 +19,7 @@ process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
-const route = (await import("../app/api/workspaces/[workspace]/flows/[flow]/route.ts")) as {
+const route = (await import("../app/v1/workspaces/[workspace]/flows/[flow]/route.ts")) as {
   PATCH: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string; flow: string }> }) => Promise<Response>;
 };
 
@@ -46,7 +46,7 @@ const { key } = await createApiKey(TENANT, "test", "owner@acme.test", undefined,
 
 const patch = (body: unknown) =>
   route.PATCH(
-    new NextRequest(`http://localhost/api/workspaces/${WS}/flows/morning`, {
+    new NextRequest(`http://localhost/v1/workspaces/${WS}/flows/morning`, {
       method: "PATCH",
       headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
       body: JSON.stringify(body),

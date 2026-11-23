@@ -1,10 +1,10 @@
 // A caller scoped to some workspaces — a member or a key handed to one desk —
 // neither reads the other workspaces' setup through an account route nor
 // changes what every workspace shares (30 Oct 2026):
-//   - GET /api/account/providers names only the account's provider blocks
+//   - GET /v1/account/providers names only the account's provider blocks
 //     and its own workspaces', and POST (a paid check of every workspace's
 //     credentials) needs every workspace;
-//   - PATCH /api/account/api (the version pin every key gets) needs every
+//   - PATCH /v1/account/api (the version pin every key gets) needs every
 //     workspace.
 //
 //   node --import ./tests/register.mjs --test tests/account-scope-reads.test.ts
@@ -36,8 +36,8 @@ for (const [p, body] of Object.entries(files)) {
 
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
-const providersRoute = await import("../app/api/account/providers/route.ts");
-const apiRoute = await import("../app/api/account/api/route.ts");
+const providersRoute = await import("../app/v1/account/providers/route.ts");
+const apiRoute = await import("../app/v1/account/api/route.ts");
 
 const { key: everyWs } = await createApiKey("acme", "all", "admin@acme.test", undefined, "admin");
 const { key: oneWs } = await createApiKey("acme", "one desk", "desk@acme.test", undefined, "admin", ["mine"]);
@@ -49,10 +49,10 @@ const call = (key: string, url: string, method = "GET", body?: unknown) =>
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
 
-test("GET /api/account/providers: a scoped caller sees the account's blocks and its own workspaces', not the others'", async () => {
-  const all = (await (await providersRoute.GET(call(everyWs, "/api/account/providers"))).json()) as { configured: { declaredIn: string }[] };
+test("GET /v1/account/providers: a scoped caller sees the account's blocks and its own workspaces', not the others'", async () => {
+  const all = (await (await providersRoute.GET(call(everyWs, "/v1/account/providers"))).json()) as { configured: { declaredIn: string }[] };
   assert.deepEqual(all.configured.map((c) => c.declaredIn).sort(), ["account", "mine/a", "secret-desk", "secret-desk/b"]);
-  const res = await providersRoute.GET(call(oneWs, "/api/account/providers"));
+  const res = await providersRoute.GET(call(oneWs, "/v1/account/providers"));
   assert.equal(res.status, 200);
   const text = await res.text();
   assert.doesNotMatch(text, /secret-desk|hidden-gateway|other\.example/);
@@ -60,10 +60,10 @@ test("GET /api/account/providers: a scoped caller sees the account's blocks and 
   assert.deepEqual(scoped.configured.map((c) => c.declaredIn).sort(), ["account", "mine/a"]);
 });
 
-test("POST /api/account/providers (a paid check of every workspace) and PATCH /api/account/api (every key's pin) need every workspace", async () => {
-  const check = await providersRoute.POST(call(oneWs, "/api/account/providers", "POST", {}));
+test("POST /v1/account/providers (a paid check of every workspace) and PATCH /v1/account/api (every key's pin) need every workspace", async () => {
+  const check = await providersRoute.POST(call(oneWs, "/v1/account/providers", "POST", {}));
   assert.equal(check.status, 403);
-  const pin = await apiRoute.PATCH(call(oneWs, "/api/account/api", "PATCH", { version: null }));
+  const pin = await apiRoute.PATCH(call(oneWs, "/v1/account/api", "PATCH", { version: null }));
   assert.equal(pin.status, 403);
   assert.match(((await pin.json()) as { error: string }).error, /shared by every workspace/);
 });

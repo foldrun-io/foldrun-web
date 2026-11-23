@@ -163,15 +163,15 @@ export function ConcurrencyCard({ endpoint, tenant, initial, plan }: { endpoint:
   );
 }
 
-/** A step waiting for room to start (GET /api/usage/compute `waiting`). */
+/** A step waiting for room to start (GET /v1/account/usage/compute `waiting`). */
 export type RoomWaitRow = { workspace: string; runId: string; flow: string; step: number; agent: string; since: string; why: string; cpus: number; memGiB: number; diskGiB?: number; level?: string };
 
-/** What a level's running steps hold (GET /api/usage/compute). */
+/** What a level's running steps hold (GET /v1/account/usage/compute). */
 export type HeldRow = { vcpu: number; memGiB: number; diskGiB?: number; steps: number };
 /** The figures a level allows; null is no cap at that level. */
 export type PoolRow = { vcpu: number | null; memGiB: number | null; diskGiB?: number | null; stepVcpu?: number | null; stepMemGiB?: number | null; stepDiskGiB?: number | null; source?: string | null; stepDefault?: string[] };
 /** The account's runs waiting for their turn and the most before a new one
- *  is refused (GET /api/usage/compute `runsWaiting`, FOL-100). */
+ *  is refused (GET /v1/account/usage/compute `runsWaiting`, FOL-100). */
 export type RunsWaitingRow = { waiting: number | null; limit: number | null };
 
 const LEVEL_WORDS = {
@@ -226,7 +226,7 @@ export function ComputeCard({
     const d = (await res0.json().catch(() => ({}))) as { error?: string; defaults?: Defaults; flow?: { compute?: Defaults["compute"] } };
     if (!res0.ok) throw new Error(d.error ?? `${res0.status}`);
     if (level === "account") {
-      const res = await fetch("/api/usage/compute", { headers: { "x-foldrun-tenant": tenant } }).catch(() => null);
+      const res = await fetch("/v1/account/usage/compute", { headers: { "x-foldrun-tenant": tenant } }).catch(() => null);
       const fresh = res && res.ok ? ((await res.json().catch(() => null)) as { compute?: PoolRow; inUse?: HeldRow; waiting?: RoomWaitRow[]; runsWaiting?: RunsWaitingRow } | null) : null;
       if (fresh?.compute && fresh.inUse) setLive({ pool: fresh.compute, inUse: fresh.inUse, waiting: fresh.waiting ?? [], runsWaiting: fresh.runsWaiting ?? runsWaiting, at: Date.now() });
     }
@@ -610,7 +610,7 @@ function NotifyTest({ workspace, tenant }: { workspace: string; tenant: string }
     setState({ busy: true, result: null });
     try {
       const res = await fetch(
-        `/api/workspaces/${encodeURIComponent(workspace)}/notify/test${tenant !== "default" ? `?tenant=${tenant}` : ""}`,
+        `/v1/workspaces/${encodeURIComponent(workspace)}/notify/test${tenant !== "default" ? `?tenant=${tenant}` : ""}`,
         { method: "POST" },
       );
       const body = await res.json();

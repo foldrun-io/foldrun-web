@@ -98,13 +98,13 @@ export function CustomersCard({ tenant, limits, defaults, blocked, spend, canMan
       }
       patch.dailyModelUsd = d;
     }
-    if (await send("/api/customers", "PATCH", patch)) setSaid($t("settings.customers.limitsSaved"));
+    if (await send("/v1/customers", "PATCH", patch)) setSaid($t("settings.customers.limitsSaved"));
   };
 
   const block = async () => {
     const id = who.trim();
     if (!id) return;
-    if (await send(`/api/customers/${encodeURIComponent(id)}/block`, "PUT", why.trim() ? { reason: why.trim() } : {})) {
+    if (await send(`/v1/customers/${encodeURIComponent(id)}/block`, "PUT", why.trim() ? { reason: why.trim() } : {})) {
       setWho("");
       setWhy("");
       setSaid($t("settings.customers.isBlocked", { id: String(id) }));
@@ -113,7 +113,7 @@ export function CustomersCard({ tenant, limits, defaults, blocked, spend, canMan
 
   const unblock = async (id: string) => {
     const ok = await ask({ title: $t("settings.customers.unblock", { id: String(id) }), body: $t("settings.customers.itsRunsAndGatewayCallsAre"), confirmLabel: $t("settings.customers.unblock2") });
-    if (ok && (await send(`/api/customers/${encodeURIComponent(id)}/block`, "DELETE"))) setSaid($t("settings.customers.isUnblocked", { id: String(id) }));
+    if (ok && (await send(`/v1/customers/${encodeURIComponent(id)}/block`, "DELETE"))) setSaid($t("settings.customers.isUnblocked", { id: String(id) }));
   };
 
   return (

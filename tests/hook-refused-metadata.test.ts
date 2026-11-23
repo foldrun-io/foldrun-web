@@ -17,7 +17,7 @@ process.env.FOLDRUN_DISABLE_WORKER = "1";
 process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 delete process.env.FOLDRUN_TRUST_PROXY;
 const { NextRequest } = await import("next/server");
-const { POST } = await import("../app/api/hooks/[tenant]/[workspace]/[flow]/route.ts");
+const { POST } = await import("../app/v1/hooks/[tenant]/[workspace]/[flow]/route.ts");
 const { recordDelivery, readDeliveries } = await import("../../foldrun-core/src/webhook.ts");
 const { listWorkspaces } = await import("../../foldrun-core/src/store.ts");
 
@@ -33,7 +33,7 @@ function workspace(name: string): string {
 
 const hit = (ws: string, flow: string, token: string) =>
   POST(
-    new NextRequest(`http://x/api/hooks/acme/${ws}/${flow}?token=${token}`, {
+    new NextRequest(`http://x/v1/hooks/acme/${ws}/${flow}?token=${token}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: "{}",

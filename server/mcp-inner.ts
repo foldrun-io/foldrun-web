@@ -1,5 +1,5 @@
-// The mark on an in-process call a /api/mcp tool makes (server/mcp.ts) to the
-// route it stands for. An AI app's OAuth access token opens /api/mcp and, with
+// The mark on an in-process call a /v1/mcp tool makes (server/mcp.ts) to the
+// route it stands for. An AI app's OAuth access token opens /v1/mcp and, with
 // this mark, the routes its tools call — and nothing else: the secret is made
 // when the process starts, lives only in memory and is never sent anywhere, so
 // no request from outside can carry it.

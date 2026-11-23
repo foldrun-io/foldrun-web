@@ -121,7 +121,7 @@ export function a2aCurl(endpoint: string, opts: { text?: string; keyEnv?: string
 
 /** A run an outside agent started: "A2A · <key label>". The key is the A2A
  *  key's principal (RunRecord.a2a.key); `labels` maps principals to labels
- *  (GET /api/keys, or the A2A view's tasks). Null for every other run. */
+ *  (GET /v1/keys, or the A2A view's tasks). Null for every other run. */
 export function a2aRunLabel(run: { trigger?: string; a2a?: { key: string } | null }, labels: Record<string, string | null | undefined> = {}): string | null {
   if (run.trigger !== "a2a" && !run.a2a) return null;
   const key = run.a2a?.key;
@@ -129,7 +129,7 @@ export function a2aRunLabel(run: { trigger?: string; a2a?: { key: string } | nul
   return label ? `A2A · ${label}` : $t("components.a2a-model.a2aAnOutsideAgent");
 }
 
-/** The principal → label map from a key list (GET /api/keys or listApiKeys):
+/** The principal → label map from a key list (GET /v1/keys or listApiKeys):
  *  every key of a rotation chain shares its first id, and the live one's
  *  label wins. */
 export function a2aKeyLabels(keys: { id: string; label: string; purpose?: string; revokedAt?: string | null; a2a?: { principal?: string } | null }[]): Record<string, string> {

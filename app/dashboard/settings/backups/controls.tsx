@@ -83,7 +83,7 @@ export function RestoreWorkspace({
     setError(null);
     setDone(null);
     setPlan(null);
-    const r = await post(`/api/workspaces/${encodeURIComponent(ws)}/restore`, { to, dryRun: true });
+    const r = await post(`/v1/workspaces/${encodeURIComponent(ws)}/restore`, { to, dryRun: true });
     if (!r.ok) setError(String(r.body.error ?? `HTTP ${r.status}`));
     else setPlan(r.body as unknown as Plan);
     setBusy(false);
@@ -93,7 +93,7 @@ export function RestoreWorkspace({
     if (!plan) return;
     setBusy(true);
     setError(null);
-    const r = await post(`/api/workspaces/${encodeURIComponent(ws)}/restore`, { to: plan.to.sha, confirm: typed, expectRemoved: plan.removed });
+    const r = await post(`/v1/workspaces/${encodeURIComponent(ws)}/restore`, { to: plan.to.sha, confirm: typed, expectRemoved: plan.removed });
     if (!r.ok) setError(String(r.body.error ?? `HTTP ${r.status}`));
     else {
       setDone($t("settings.backups-controls.restoredToToUndoItRestore", { ws: String(ws), v1: String(plan.to.sha.slice(0, 7)), v2: String(plan.from?.slice(0, 7) ?? $t("settings.backups-controls.thePreviousCommit")) }));
@@ -213,7 +213,7 @@ export function RequestRestore({
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const r = await post("/api/account/backups/requests", { what, workspace: workspace || null, target, backupId: backupId || null, note });
+    const r = await post("/v1/account/backups/requests", { what, workspace: workspace || null, target, backupId: backupId || null, note });
     if (!r.ok) setError(String(r.body.error ?? `HTTP ${r.status}`));
     else {
       const req = r.body.request as RequestRow;

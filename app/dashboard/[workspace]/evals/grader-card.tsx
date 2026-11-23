@@ -75,7 +75,7 @@ export function GraderDetail({
     setError(null);
     setFresh(null);
     try {
-      const res = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/evals/${encodeURIComponent(info.name)}/grade`, {
+      const res = await fetch(`/v1/workspaces/${encodeURIComponent(workspace)}/evals/${encodeURIComponent(info.name)}/grade`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
         body: JSON.stringify({ run: runId.trim() }),

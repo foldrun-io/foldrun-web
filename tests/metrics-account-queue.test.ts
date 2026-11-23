@@ -1,4 +1,4 @@
-// GET /api/metrics: the queue's busiest accounts by rank, never by name
+// GET /v1/metrics: the queue's busiest accounts by rank, never by name
 // (FOL-123) — a metric's labels are fixed (FOL-121), and an account's name
 // is not one.
 //
@@ -16,7 +16,7 @@ process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 delete process.env.FOLDRUN_REDIS_URL;
 delete process.env.FOLDRUN_DATABASE_URL;
 const { NextRequest } = await import("next/server");
-const route = await import("../app/api/metrics/route.ts");
+const route = await import("../app/v1/metrics/route.ts");
 
 test("ranked per-account queue gauges, with no account named anywhere", async () => {
   const pending = path.join(process.env.FOLDRUN_DATA!, "queue", "pending");
@@ -27,7 +27,7 @@ test("ranked per-account queue gauges, with no account named anywhere", async ()
   job(9, "quietcustomer");
   process.env.FOLDRUN_METRICS_TOKEN = "m".repeat(40);
   try {
-    const res = await route.GET(new NextRequest("http://x/api/metrics", { headers: { authorization: `Bearer ${"m".repeat(40)}` } }));
+    const res = await route.GET(new NextRequest("http://x/v1/metrics", { headers: { authorization: `Bearer ${"m".repeat(40)}` } }));
     assert.equal(res.status, 200);
     const text = await res.text();
     assert.match(text, /^foldrun_queue_account_pending\{rank="1"\} 3$/m);

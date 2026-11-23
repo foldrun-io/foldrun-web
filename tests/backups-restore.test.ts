@@ -14,9 +14,9 @@ process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-backup
 delete process.env.FOLDRUN_DEV_NO_AUTH;
 delete process.env.FOLDRUN_DATABASE_URL;
 const { NextRequest } = await import("next/server");
-const restoreRoute = await import("../app/api/workspaces/[workspace]/restore/route.ts");
-const backupsRoute = await import("../app/api/account/backups/route.ts");
-const requestsRoute = await import("../app/api/account/backups/requests/route.ts");
+const restoreRoute = await import("../app/v1/workspaces/[workspace]/restore/route.ts");
+const backupsRoute = await import("../app/v1/account/backups/route.ts");
+const requestsRoute = await import("../app/v1/account/backups/requests/route.ts");
 const { createApiKey } = await import("../server/auth.ts");
 const { deployWorkspace } = await import("@/lib/deploy");
 const { recordBackup } = await import("@/platform/backups");
@@ -28,7 +28,7 @@ const { key } = await createApiKey("acme", "ci", "ci@acme.test", undefined, "adm
 const { key: viewer } = await createApiKey("acme", "ro", "ro@acme.test", undefined, "viewer", null);
 const auth = (k = key) => ({ authorization: `Bearer ${k}`, "content-type": "application/json" });
 const restore = (body: object, k = key) =>
-  restoreRoute.POST(new NextRequest("http://x/api/workspaces/desk/restore", { method: "POST", headers: auth(k), body: JSON.stringify(body) }), {
+  restoreRoute.POST(new NextRequest("http://x/v1/workspaces/desk/restore", { method: "POST", headers: auth(k), body: JSON.stringify(body) }), {
     params: Promise.resolve({ workspace: "desk" }),
   });
 
@@ -141,7 +141,7 @@ test("backups: the account sees the snapshots it is in, the policy, and its work
   await recordBackup({ at: "2026-09-30T17:30:00Z", archive: "foldrun-data-20261001-0330.tar.gz", accounts: ["acme"], kinds: ["files", "database", "keys"], verified: true, offsite: "r2", bytes: 1234 });
   await recordBackup({ at: "2026-09-30T17:30:00Z", archive: "foldrun-data-other.tar.gz", accounts: ["someone-else"] });
   await recordBackup({ at: "2026-10-01T17:30:00Z", archive: "foldrun-data-20261002-0330.tar.gz.age", accounts: ["acme"], kinds: ["files", "database", "keys"], verified: true, offsite: "r2", encrypted: true, recipient: "sha256:0123456789abcdef" });
-  const res = await backupsRoute.GET(new NextRequest("http://x/api/account/backups", { headers: auth() }));
+  const res = await backupsRoute.GET(new NextRequest("http://x/v1/account/backups", { headers: auth() }));
   assert.equal(res.status, 200);
   const body = await res.json();
   assert.deepEqual(body.backups.map((b: { archive: string }) => b.archive), ["foldrun-data-20261002-0330.tar.gz.age", "foldrun-data-20261001-0330.tar.gz"]);
@@ -160,7 +160,7 @@ test("backups: the account sees the snapshots it is in, the policy, and its work
 });
 
 test("a restore request is recorded and listed; a viewer cannot ask; bad input is a 400", async () => {
-  const ask = (b: object, k = key) => requestsRoute.POST(new NextRequest("http://x/api/account/backups/requests", { method: "POST", headers: auth(k), body: JSON.stringify(b) }));
+  const ask = (b: object, k = key) => requestsRoute.POST(new NextRequest("http://x/v1/account/backups/requests", { method: "POST", headers: auth(k), body: JSON.stringify(b) }));
   assert.equal((await ask({ what: "runs", target: "yesterday" }, viewer)).status, 403);
   assert.equal((await ask({ what: "the lot", target: "yesterday" })).status, 400);
   assert.equal((await ask({ what: "runs" })).status, 400);
@@ -169,20 +169,20 @@ test("a restore request is recorded and listed; a viewer cannot ask; bad input i
   assert.equal(res.status, 201);
   const { request } = await res.json();
   assert.equal(request.notified, false, "no mail credential in tests: recorded, and says it was not mailed");
-  const list = await (await requestsRoute.GET(new NextRequest("http://x/api/account/backups/requests", { headers: auth() }))).json();
+  const list = await (await requestsRoute.GET(new NextRequest("http://x/v1/account/backups/requests", { headers: auth() }))).json();
   assert.equal(list.requests[0].id, request.id);
   assert.equal(list.requests[0].workspace, "desk");
 });
 
 test("restore requests are listed only for the workspaces a caller was given; an account-wide one only to an unscoped caller", async () => {
-  const ask = (b: object) => requestsRoute.POST(new NextRequest("http://x/api/account/backups/requests", { method: "POST", headers: auth(), body: JSON.stringify(b) }));
+  const ask = (b: object) => requestsRoute.POST(new NextRequest("http://x/v1/account/backups/requests", { method: "POST", headers: auth(), body: JSON.stringify(b) }));
   assert.equal((await ask({ what: "runs", workspace: "desk", target: "2026-09-30 10:00" })).status, 201);
   assert.equal((await ask({ what: "everything", target: "2026-09-30 11:00" })).status, 201);
   const { key: scoped } = await createApiKey("acme", "other-only", "o@acme.test", undefined, "admin", ["other"]);
   const { key: deskOnly } = await createApiKey("acme", "desk-only", "d@acme.test", undefined, "admin", ["desk"]);
   const listed = async (k: string) => {
-    const a = await (await requestsRoute.GET(new NextRequest("http://x/api/account/backups/requests", { headers: auth(k) }))).json();
-    const b = await (await backupsRoute.GET(new NextRequest("http://x/api/account/backups", { headers: auth(k) }))).json();
+    const a = await (await requestsRoute.GET(new NextRequest("http://x/v1/account/backups/requests", { headers: auth(k) }))).json();
+    const b = await (await backupsRoute.GET(new NextRequest("http://x/v1/account/backups", { headers: auth(k) }))).json();
     assert.deepEqual(a.requests, b.requests);
     return a.requests as { workspace: string | null }[];
   };

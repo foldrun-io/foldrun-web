@@ -107,11 +107,11 @@ test(
     const { migrate } = await import("@/platform/db.ts");
     await migrate();
     const { NextRequest } = await import("next/server");
-    const signup = await import("../app/api/auth/signup/route.ts");
+    const signup = await import("../app/v1/auth/signup/route.ts");
     const email = `race-${Date.now()}@example.test`;
     const attempt = (n: number) =>
       signup.POST(
-        new NextRequest("http://x/api/auth/signup", {
+        new NextRequest("http://x/v1/auth/signup", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ email, password: "correct horse battery staple 9", account: `race${Date.now()}${n}` }),

@@ -1,4 +1,4 @@
-// OpenAPI request/response schemas: /api/account*, /api/approvals, /api/approve/*, /api/assistant/*, /api/audit, /api/usage/budget.
+// OpenAPI request/response schemas: /v1/account*, /v1/approvals, /v1/approve/*, /v1/assistant/*, /v1/audit, /v1/account/usage/budget.
 // Written from what each handler validates and answers (30 Oct 2026).
 
 import { type Schema, type Shape, obj, str, bool, int, arr, nullable, OK } from "./kit.ts";
@@ -54,7 +54,7 @@ const Defaults = obj({
   alerts: nullable(Alerts),
   judge: nullable(Judge),
 });
-/** GET /api/account: the same, with notify:'s URL and telemetry: hidden from a caller limited to some workspaces. */
+/** GET /v1/account: the same, with notify:'s URL and telemetry: hidden from a caller limited to some workspaces. */
 const DefaultsView = obj({
   ...(Defaults.properties as Record<string, Schema>),
   notify: nullable(NotifyView),
@@ -170,41 +170,41 @@ const workspaceRev = obj({
 });
 
 export const SHAPES: Record<string, Shape> = {
-  "GET /api/account": { response: obj({ defaults: DefaultsView }) },
-  "GET /api/customers": {
+  "GET /v1/account": { response: obj({ defaults: DefaultsView }) },
+  "GET /v1/customers": {
     response: obj({
       limits: { ...obj({ startsPerMinute: int, gatewayRpm: int, gatewayConcurrency: int, maxOpenRuns: int, dailyModelUsd: nullable({ type: "number" }) }), description: "in force for this account's end customers (FOL-168): runs a customer may start a minute, gateway calls a minute and at once — only for requests that name a customer" },
       defaults: obj({ startsPerMinute: int, gatewayRpm: int, gatewayConcurrency: int, maxOpenRuns: int, dailyModelUsd: nullable({ type: "number" }) }),
       blocked: arr(obj({ customer: str(), by: str(), reason: nullable(str()), at: str() })),
     }),
   },
-  "PATCH /api/customers": {
+  "PATCH /v1/customers": {
     body: { ...obj({ startsPerMinute: nullable(int), gatewayRpm: nullable(int), gatewayConcurrency: nullable(int), maxOpenRuns: nullable(int), dailyModelUsd: nullable({ type: "number" }) }), description: "whole numbers 1–100,000 (dailyModelUsd: dollars a day, more than 0); null puts one back to the default. An admin over every workspace" },
     response: obj({ limits: obj({ startsPerMinute: int, gatewayRpm: int, gatewayConcurrency: int, maxOpenRuns: int, dailyModelUsd: nullable({ type: "number" }) }), defaults: obj({ startsPerMinute: int, gatewayRpm: int, gatewayConcurrency: int, maxOpenRuns: int, dailyModelUsd: nullable({ type: "number" }) }) }),
   },
-  "GET /api/customers/usage": {
+  "GET /v1/customers/usage": {
     query: [{ name: "days", description: "UTC days back, today included; 1–90, default 7" }],
     response: obj({ days: int, customers: arr(obj({ customer: str(), chargedUsd: { type: "number" }, todayUsd: { type: "number" }, calls: int }), "newest-spending first, at most 500 — calls on foldrun's models that named a customer, charged") }),
   },
-  "PUT /api/customers/{customer}/block": {
+  "PUT /v1/customers/{customer}/block": {
     body: obj({ reason: str("why, kept on the block and the audit log") }),
     response: obj({ ok: bool, customer: str(), blocked: bool }),
   },
-  "DELETE /api/customers/{customer}/block": {
+  "DELETE /v1/customers/{customer}/block": {
     response: obj({ ok: bool, customer: str(), blocked: bool }),
   },
-  "GET /api/account/agents-md": {
+  "GET /v1/account/agents-md": {
     response: obj({ content: str("the whole file, empty when there is none"), sha256: nullable(str("send it back as ifMatch")), exists: bool }),
   },
-  "PUT /api/account/agents-md": {
+  "PUT /v1/account/agents-md": {
     body: obj({ content: str("the whole AGENTS.md"), ifMatch: nullable(str("the sha256 a GET answered; null: there was no file")), message: str("a note for the audit log") }, ["content"]),
     response: obj({ ok: bool, sha256: str(), unchanged: { ...bool, description: "it already said that" }, issues: arr(obj({ rule: str(), level: str(), file: str(), message: str() })) }),
   },
-  "PATCH /api/account": {
+  "PATCH /v1/account": {
     body: { ...DefaultsPatch, description: "at least one key; null clears one. The keys are edited in place in AGENTS.md, comments kept" },
     response: obj({ ok: bool, defaults: Defaults }),
   },
-  "GET /api/account/backups": {
+  "GET /v1/account/backups": {
     response: obj({
       policy: obj({
         schedule: str(), keepLocal: int, keepOffsiteDays: nullable(int),
@@ -217,8 +217,8 @@ export const SHAPES: Record<string, Shape> = {
       workspaces: arr(workspaceRev, "the caller's workspaces and how far back their own history reaches"),
     }),
   },
-  "GET /api/account/backups/requests": { response: obj({ requests: arr(RestoreRequest, "newest first, at most 20 — those the caller may see") }) },
-  "POST /api/account/backups/requests": {
+  "GET /v1/account/backups/requests": { response: obj({ requests: arr(RestoreRequest, "newest first, at most 20 — those the caller may see") }) },
+  "POST /v1/account/backups/requests": {
     body: obj(
       {
         what: str("runs | state | storage | everything"),
@@ -232,7 +232,7 @@ export const SHAPES: Record<string, Shape> = {
     status: "201",
     response: obj({ ok: bool, request: RestoreRequest }),
   },
-  "POST /api/account/close": {
+  "POST /v1/account/close": {
     body: obj({ confirm: str("the account's name, typed back"), reason: str("at most 500 characters") }, ["confirm"]),
     response: obj({
       ok: bool,
@@ -241,7 +241,7 @@ export const SHAPES: Record<string, Shape> = {
       billing: str("what happened to the subscription, in words"),
     }),
   },
-  "GET /api/account/export": {
+  "GET /v1/account/export": {
     media: {
       type: "application/json",
       description: "an attachment, foldrun-<account>-export.json",
@@ -262,7 +262,7 @@ export const SHAPES: Record<string, Shape> = {
       }),
     },
   },
-  "GET /api/account/jobs": {
+  "GET /v1/account/jobs": {
     query: [{ name: "workspace", description: "also that workspace's values" }],
     response: obj({
       workspace: str("echoed when asked"),
@@ -282,8 +282,8 @@ export const SHAPES: Record<string, Shape> = {
       ),
     }),
   },
-  "GET /api/account/model": { response: AccountModelView },
-  "PUT /api/account/model": {
+  "GET /v1/account/model": { response: AccountModelView },
+  "PUT /v1/account/model": {
     body: obj({
       provider: str("a preset name (anthropic, openrouter, openai, groq, …) or custom"),
       apiKey: str("write-only; required unless source is given; may be an API key or a Claude login token (the account's own claude.ai subscription)"),
@@ -295,9 +295,9 @@ export const SHAPES: Record<string, Shape> = {
     }),
     response: { ...AccountModelView, properties: { ok: bool, ...(AccountModelView.properties as Record<string, Schema>) } },
   },
-  "DELETE /api/account/model": { response: { ...AccountModelView, properties: { ok: bool, ...(AccountModelView.properties as Record<string, Schema>) } } },
-  "GET /api/account/pause": { response: PauseView },
-  "POST /api/account/pause": {
+  "DELETE /v1/account/model": { response: { ...AccountModelView, properties: { ok: bool, ...(AccountModelView.properties as Record<string, Schema>) } } },
+  "GET /v1/account/pause": { response: PauseView },
+  "POST /v1/account/pause": {
     body: obj({ reason: str("at most 300 characters"), stop: { ...bool, description: "true also stops every running, queued or parked run (needs run:start)" } }),
     response: {
       ...PauseView,
@@ -309,18 +309,18 @@ export const SHAPES: Record<string, Shape> = {
       },
     },
   },
-  "DELETE /api/account/pause": { response: { ...PauseView, properties: { ok: bool, ...(PauseView.properties as Record<string, Schema>) } } },
-  "GET /api/account/providers": {
+  "DELETE /v1/account/pause": { response: { ...PauseView, properties: { ok: bool, ...(PauseView.properties as Record<string, Schema>) } } },
+  "GET /v1/account/providers": {
     response: obj({
       configured: arr(obj({ provider: str("preset name or base URL"), declaredIn: str(), model: str(), format: str("anthropic | openai") }), "the provider: blocks in use the caller may see"),
       lastCheck: LastCheck,
     }),
   },
-  "POST /api/account/providers": {
+  "POST /v1/account/providers": {
     noBody: "It checks every provider block the account uses; there is nothing to choose.",
     response: obj({ ok: bool, lastCheck: LastCheck }),
   },
-  "POST /api/account/telemetry/test": {
+  "POST /v1/account/telemetry/test": {
     body: obj({ workspace: str("use its telemetry: block; omitted, the account's (needs access to every workspace)") }),
     response: obj({
       ok: { ...bool, description: "the collector took every span" },
@@ -329,20 +329,20 @@ export const SHAPES: Record<string, Shape> = {
       endpoint: str(),
     }),
   },
-  "GET /api/approvals": {
+  "GET /v1/approvals": {
     response: obj({
       approvals: arr(PendingGate, "one per waiting step, oldest first"),
       questions: arr(PendingQuestion, "questions agents are asking mid-step"),
     }),
   },
-  "GET /api/approve/{tenant}/{workspace}/{runId}": {
+  "GET /v1/approve/{tenant}/{workspace}/{runId}": {
     query: [
       { name: "token", description: "the link's token — the only credential" },
       { name: "decision", description: "reject pre-selects the Reject button; nothing is decided on GET" },
     ],
     media: { type: "text/html", schema: { type: "string" }, description: "a page showing what waits, its preview files, and Approve / Reject buttons" },
   },
-  "POST /api/approve/{tenant}/{workspace}/{runId}": {
+  "POST /v1/approve/{tenant}/{workspace}/{runId}": {
     query: [{ name: "token", description: "the link's token — the only credential" }],
     body: obj(
       { decision: str("approve | reject; anything else is approve"), note: str("an answer to the ask:, or a note for the agent") },
@@ -353,7 +353,7 @@ export const SHAPES: Record<string, Shape> = {
       description: "for a JSON body or Accept: application/json; a browser form post (form-encoded, same fields) gets an HTML page",
     },
   },
-  "GET /api/assistant/conversations": {
+  "GET /v1/assistant/conversations": {
     query: [
       { name: "workspace", description: "only this workspace's" },
       { name: "q", description: "search the titles and every message" },
@@ -361,7 +361,7 @@ export const SHAPES: Record<string, Shape> = {
     ],
     response: obj({ conversations: arr(ConversationSummary, "the caller's own, newest first") }),
   },
-  "GET /api/assistant/conversations/{id}": {
+  "GET /v1/assistant/conversations/{id}": {
     response: obj({
       id: str(), workspace: str(), title: str(),
       messages: arr(obj({ role: str("user | assistant"), content: str(), meta: { type: "object", additionalProperties: true, description: "what the dashboard draws under a reply: sources, tokens, charge, a proposed workspace" } }, ["role", "content"])),
@@ -369,8 +369,8 @@ export const SHAPES: Record<string, Shape> = {
       createdAt: str(), updatedAt: str(),
     }),
   },
-  "DELETE /api/assistant/conversations/{id}": { response: OK },
-  "GET /api/audit": {
+  "DELETE /v1/assistant/conversations/{id}": { response: OK },
+  "GET /v1/audit": {
     query: [
       { name: "since", description: "7d, 24h, 30m or a date" },
       { name: "until", description: "the same" },
@@ -387,7 +387,7 @@ export const SHAPES: Record<string, Shape> = {
       retention: str("how long entries are kept"),
     }),
   },
-  "GET /api/usage/budget": {
+  "GET /v1/account/usage/budget": {
     response: obj({
       account: {
         ...BudgetStanding,

@@ -27,13 +27,13 @@ const { createUser, mintSession, SESSION_COOKIE } = await import("../server/user
 const { jsonObject } = await import("../server/body.ts");
 const { ApiError } = await import("../server/api.ts");
 type Handler = (req: InstanceType<typeof NextRequest>, ctx?: { params: Promise<Record<string, string>> }) => Promise<Response>;
-const library = (await import("../app/api/library/[kind]/route.ts")) as unknown as Record<string, Handler>;
-const gallery = (await import("../app/api/library/gallery/route.ts")) as unknown as Record<string, Handler>;
-const authorize = (await import("../app/api/cli/authorize/route.ts")) as unknown as Record<string, Handler>;
-const flowRoute = (await import("../app/api/workspaces/[workspace]/flows/[flow]/route.ts")) as unknown as Record<string, Handler>;
-const wsRoute = (await import("../app/api/workspaces/[workspace]/route.ts")) as unknown as Record<string, Handler>;
-const storage = (await import("../app/api/workspaces/[workspace]/storage/route.ts")) as unknown as Record<string, Handler>;
-const uploadUrl = (await import("../app/api/workspaces/[workspace]/storage/upload-url/route.ts")) as unknown as Record<string, Handler>;
+const library = (await import("../app/v1/library/[kind]/route.ts")) as unknown as Record<string, Handler>;
+const gallery = (await import("../app/v1/library/gallery/route.ts")) as unknown as Record<string, Handler>;
+const authorize = (await import("../app/v1/cli/authorize/route.ts")) as unknown as Record<string, Handler>;
+const flowRoute = (await import("../app/v1/workspaces/[workspace]/flows/[flow]/route.ts")) as unknown as Record<string, Handler>;
+const wsRoute = (await import("../app/v1/workspaces/[workspace]/route.ts")) as unknown as Record<string, Handler>;
+const storage = (await import("../app/v1/workspaces/[workspace]/storage/route.ts")) as unknown as Record<string, Handler>;
+const uploadUrl = (await import("../app/v1/workspaces/[workspace]/storage/upload-url/route.ts")) as unknown as Record<string, Handler>;
 
 const TENANT = "acme";
 const WS = "desk";
@@ -66,46 +66,46 @@ test("jsonObject: an object passes; null, arrays, scalars, malformed and empty a
 });
 
 test("library POST/PUT/DELETE and gallery POST: a null body is 400", async () => {
-  await is400(await library.POST(req("POST", "/api/library/skills", "null"), params({ kind: "skills" })));
-  await is400(await library.PUT(req("PUT", "/api/library/skills", "null"), params({ kind: "skills" })));
-  await is400(await library.DELETE(req("DELETE", "/api/library/skills", "null"), params({ kind: "skills" })));
-  await is400(await library.POST(req("POST", "/api/library/skills", JSON.stringify({ name: "ok-name", template: 7 })), params({ kind: "skills" })));
-  await is400(await library.PUT(req("PUT", "/api/library/skills", JSON.stringify({ path: 1, content: "x" })), params({ kind: "skills" })));
-  await is400(await gallery.POST(req("POST", "/api/library/gallery", "null")));
-  await is400(await gallery.POST(req("POST", "/api/library/gallery", JSON.stringify({ tool: ["web"] }))));
+  await is400(await library.POST(req("POST", "/v1/library/skills", "null"), params({ kind: "skills" })));
+  await is400(await library.PUT(req("PUT", "/v1/library/skills", "null"), params({ kind: "skills" })));
+  await is400(await library.DELETE(req("DELETE", "/v1/library/skills", "null"), params({ kind: "skills" })));
+  await is400(await library.POST(req("POST", "/v1/library/skills", JSON.stringify({ name: "ok-name", template: 7 })), params({ kind: "skills" })));
+  await is400(await library.PUT(req("PUT", "/v1/library/skills", JSON.stringify({ path: 1, content: "x" })), params({ kind: "skills" })));
+  await is400(await gallery.POST(req("POST", "/v1/library/gallery", "null")));
+  await is400(await gallery.POST(req("POST", "/v1/library/gallery", JSON.stringify({ tool: ["web"] }))));
 });
 
 test("cli authorize: no body, a null body or a non-string code is 400", async () => {
   const user = await createUser("body@acme-body.test", "a long enough password 1", "acme-body", { request: "free" });
   const cookie = `${SESSION_COOKIE}=${(await mintSession(user)).value}`;
   for (const body of [undefined, "null", "[]", JSON.stringify({ code: 12345678 })]) {
-    await is400(await authorize.POST(req("POST", "/api/cli/authorize", body, { cookie })));
+    await is400(await authorize.POST(req("POST", "/v1/cli/authorize", body, { cookie })));
   }
 });
 
 test("flow PATCH: edits [null], a numeric schedule, bad groups are 400 and the file is unchanged", async () => {
   const p = params({ workspace: WS, flow: "morning" });
-  await is400(await flowRoute.PATCH(req("PATCH", `/api/workspaces/${WS}/flows/morning`, "null"), p));
-  await is400(await flowRoute.PATCH(req("PATCH", `/api/workspaces/${WS}/flows/morning`, JSON.stringify({ edits: [null] })), p));
-  await is400(await flowRoute.PATCH(req("PATCH", `/api/workspaces/${WS}/flows/morning`, JSON.stringify({ trigger: { trigger: "schedule", schedule: 5 } })), p));
+  await is400(await flowRoute.PATCH(req("PATCH", `/v1/workspaces/${WS}/flows/morning`, "null"), p));
+  await is400(await flowRoute.PATCH(req("PATCH", `/v1/workspaces/${WS}/flows/morning`, JSON.stringify({ edits: [null] })), p));
+  await is400(await flowRoute.PATCH(req("PATCH", `/v1/workspaces/${WS}/flows/morning`, JSON.stringify({ trigger: { trigger: "schedule", schedule: 5 } })), p));
   // A cron that names no real date would silently never run.
-  await is400(await flowRoute.PATCH(req("PATCH", `/api/workspaces/${WS}/flows/morning`, JSON.stringify({ trigger: { trigger: "schedule", schedule: "0 0 30 2 *" } })), p));
-  await is400(await flowRoute.PATCH(req("PATCH", `/api/workspaces/${WS}/flows/morning`, JSON.stringify({ groups: [["a"]] })), p));
+  await is400(await flowRoute.PATCH(req("PATCH", `/v1/workspaces/${WS}/flows/morning`, JSON.stringify({ trigger: { trigger: "schedule", schedule: "0 0 30 2 *" } })), p));
+  await is400(await flowRoute.PATCH(req("PATCH", `/v1/workspaces/${WS}/flows/morning`, JSON.stringify({ groups: [["a"]] })), p));
   assert.equal(fs.readFileSync(flowFile, "utf8"), FLOW);
 });
 
 test("workspace PATCH: no body, a null body or a numeric name is 400", async () => {
   const p = params({ workspace: WS });
-  await is400(await wsRoute.PATCH(req("PATCH", `/api/workspaces/${WS}`), p));
-  await is400(await wsRoute.PATCH(req("PATCH", `/api/workspaces/${WS}`, "null"), p));
-  await is400(await wsRoute.PATCH(req("PATCH", `/api/workspaces/${WS}`, JSON.stringify({ name: 42 })), p));
+  await is400(await wsRoute.PATCH(req("PATCH", `/v1/workspaces/${WS}`), p));
+  await is400(await wsRoute.PATCH(req("PATCH", `/v1/workspaces/${WS}`, "null"), p));
+  await is400(await wsRoute.PATCH(req("PATCH", `/v1/workspaces/${WS}`, JSON.stringify({ name: 42 })), p));
   assert.ok(fs.existsSync(ws), "not renamed");
 });
 
 test("storage POST and upload-url: no body or a null body is 400", async () => {
   const p = params({ workspace: WS });
   for (const body of [undefined, "null"]) {
-    await is400(await storage.POST(req("POST", `/api/workspaces/${WS}/storage`, body), p));
-    await is400(await uploadUrl.POST(req("POST", `/api/workspaces/${WS}/storage/upload-url`, body), p));
+    await is400(await storage.POST(req("POST", `/v1/workspaces/${WS}/storage`, body), p));
+    await is400(await uploadUrl.POST(req("POST", `/v1/workspaces/${WS}/storage/upload-url`, body), p));
   }
 });

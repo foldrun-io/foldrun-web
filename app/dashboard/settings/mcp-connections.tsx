@@ -1,7 +1,7 @@
 "use client";
 
 // Settings → API keys → Connected AI apps: the apps a person signed in to
-// /api/mcp over OAuth (server/mcp-oauth.ts), with Revoke — which ends every
+// /v1/mcp over OAuth (server/mcp-oauth.ts), with Revoke — which ends every
 // token the connection issued at once.
 
 import { $el, $rich, $t } from "@/i18n";
@@ -45,7 +45,7 @@ export function McpConnections({ connections, everyone }: { connections: Connect
     // Empty means "the ones you can open": left out, so a scoped admin's own
     // scope is used (null would ask for every workspace, which they cannot give).
     const workspaces = m.workspaces.trim() ? m.workspaces.split(",").map((w) => w.trim()).filter(Boolean) : undefined;
-    const res = await fetch("/api/mcp/clients", {
+    const res = await fetch("/v1/mcp/clients", {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ role: m.role, access: m.access, ...(workspaces ? { workspaces } : {}), name: m.name }),
     });
@@ -96,7 +96,7 @@ export function McpConnections({ connections, everyone }: { connections: Connect
     if (!ok) return;
     setBusy(c.id);
     setError(null);
-    const res = await fetch(`/api/mcp/connections/${encodeURIComponent(c.id)}`, { method: "DELETE" });
+    const res = await fetch(`/v1/mcp/connections/${encodeURIComponent(c.id)}`, { method: "DELETE" });
     if (!res.ok) setError(((await res.json().catch(() => ({}))) as { error?: string }).error ?? $t("settings.mcp-connections.couldNotDisconnectIt"));
     setBusy(null);
     router.refresh();

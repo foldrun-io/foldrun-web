@@ -17,7 +17,7 @@ import path from "node:path";
  * when a route changes in a way an existing caller would break on. Additive
  * changes — a new route, a new field — do not move it.
  */
-export const API_VERSION = "2026-11-22";
+export const API_VERSION = "2026-11-23";
 
 export const COMPONENTS = ["core", "platform", "web", "docs", "infra", "cli", "admin"] as const;
 export type Component = (typeof COMPONENTS)[number];
@@ -170,7 +170,7 @@ export function releases(limit = 10): Release[] {
   return list.slice(0, Math.max(0, Math.min(limit, 50)));
 }
 
-/** The response headers every /api response carries. */
+/** The response headers every /v1 response carries. */
 export function versionHeaders(): Record<string, string> {
   const v = versionInfo();
   const h: Record<string, string> = { "x-foldrun-version": v.version, "x-foldrun-api": v.api };

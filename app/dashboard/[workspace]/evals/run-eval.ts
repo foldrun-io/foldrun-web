@@ -11,7 +11,7 @@ import type { EvalResult } from "@/lib/evals";
 
 export async function runEval(workspace: string, tenant: string, name: string): Promise<EvalResult> {
   const headers = { "content-type": "application/json", "x-foldrun-tenant": tenant };
-  const res = await fetch(`/api/workspaces/${workspace}/evals/${name}/run`, {
+  const res = await fetch(`/v1/workspaces/${workspace}/evals/${name}/run`, {
     method: "POST",
     headers,
     body: JSON.stringify({ async: true }),
@@ -22,7 +22,7 @@ export async function runEval(workspace: string, tenant: string, name: string): 
   const runId = encodeURIComponent(String(data.runId ?? ""));
   for (;;) {
     await new Promise((r) => setTimeout(r, 4000));
-    const poll = await fetch(`/api/workspaces/${workspace}/evals/${name}/run?run=${runId}`, { headers });
+    const poll = await fetch(`/v1/workspaces/${workspace}/evals/${name}/run?run=${runId}`, { headers });
     const view = (await poll.json()) as { state?: string; error?: string; result?: EvalResult };
     if (!poll.ok) throw new Error($t("workspace.evals-run-eval.couldNotReadTheRunS", { v0: String(view.error ?? poll.status) }));
     if (view.state === "running") continue;

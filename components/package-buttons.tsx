@@ -2,8 +2,8 @@
 
 // Export and import a workspace, a flow or an agent as a .zip.
 //
-//   ExportLink           GET /api/workspaces/<ws>/export[?kind=&name=] — a download
-//   ImportPackageButton  POST /api/workspaces/<ws>/import?dryRun=1 to preview,
+//   ExportLink           GET /v1/workspaces/<ws>/export[?kind=&name=] — a download
+//   ImportPackageButton  POST /v1/workspaces/<ws>/import?dryRun=1 to preview,
 //                        then POST …/import[?overwrite=1] to apply
 //
 // The preview is the point: it says what the package adds, what it would
@@ -45,7 +45,7 @@ export function ExportLink({
       }
     >
       <a
-        href={`/api/workspaces/${encodeURIComponent(workspace)}/export${qs}`}
+        href={`/v1/workspaces/${encodeURIComponent(workspace)}/export${qs}`}
         download
         className={className ?? buttonVariants({ variant: "secondary", size: "md" })}
       >
@@ -107,7 +107,7 @@ export function ImportPackageButton({
 
   const send = async (query: string): Promise<Plan> => {
     if (!file) throw new Error($t("components.package-buttons.chooseAZipFirst"));
-    const r = await fetch(`/api/workspaces/${encodeURIComponent(target)}/import${query}`, {
+    const r = await fetch(`/v1/workspaces/${encodeURIComponent(target)}/import${query}`, {
       method: "POST",
       headers: { "content-type": "application/zip", "x-foldrun-tenant": tenant },
       body: file,

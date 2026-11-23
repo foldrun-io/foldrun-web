@@ -77,7 +77,7 @@ export function StepOptionsEditor({
     setError(null);
     const opt = (v: string) => (v.trim() ? v.trim() : null);
     const res = await flowWrite({
-      url: `/api/workspaces/${workspace}/flows/${flow}`,
+      url: `/v1/workspaces/${workspace}/flows/${flow}`,
       method: "PATCH",
       tenant,
       expect: typeof expect === "function" ? expect() : expect,

@@ -1,4 +1,4 @@
-// /a2a at the front door (1 Nov 2026): the same floor as /api — raw-path
+// /a2a at the front door (1 Nov 2026): the same floor as /v1 — raw-path
 // guard, body limit, cross-site rule — answered as JSON-RPC, and the session
 // cookie taken off the request so nothing behind it can sign in with one.
 //

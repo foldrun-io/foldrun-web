@@ -16,7 +16,7 @@ delete process.env.FOLDRUN_DEV_NO_AUTH;
 // The fake provider is on 127.0.0.1; the SSRF guard refuses that otherwise.
 process.env.FOLDRUN_EGRESS_ALLOW_PRIVATE = "1";
 const { NextRequest } = await import("next/server");
-const secrets = await import("../app/api/secrets/route.ts");
+const secrets = await import("../app/v1/secrets/route.ts");
 const { createApiKey } = await import("../server/auth.ts");
 const { listSecrets } = await import("../../foldrun-core/src/secrets.ts");
 
@@ -40,7 +40,7 @@ const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
 test.after(() => server.close());
 
 const call = (fn: (r: InstanceType<typeof NextRequest>) => Promise<Response>, method: string, body: object) =>
-  fn(new NextRequest("http://x/api/secrets", { method, headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify(body) }));
+  fn(new NextRequest("http://x/v1/secrets", { method, headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify(body) }));
 const recipe = (rt: string, client_id = "cid") => ({ token_url: `${base}/token`, client_id, client_secret: "shh", refresh_token: rt, revocation_url: `${base}/revoke` });
 
 test("replacing an oauth2 secret: the same app revokes nothing (per-app revocation would end the new grant); another app's old grant is revoked", async () => {

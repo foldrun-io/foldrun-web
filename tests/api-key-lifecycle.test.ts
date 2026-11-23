@@ -20,9 +20,9 @@ const { createApiKey, listApiKeys, parseKeyExpiry, parseGrace, coarseIp, resetKe
 // Fixtures: several accounts, each its own owner — signup stays open for them.
 process.env.FOLDRUN_OPEN_SIGNUP = "1";
 const { createUser } = await import("../server/users.ts");
-const keysRoute = await import("../app/api/keys/route.ts");
-const rotateRoute = await import("../app/api/keys/[id]/rotate/route.ts");
-const auditRoute = await import("../app/api/audit/route.ts");
+const keysRoute = await import("../app/v1/keys/route.ts");
+const rotateRoute = await import("../app/v1/keys/[id]/rotate/route.ts");
+const auditRoute = await import("../app/v1/audit/route.ts");
 const { warnExpiringKeys } = await import("../server/key-expiry.ts");
 const { apiGate, resetApiGateCaches } = await import("../server/api-limits.ts");
 
@@ -40,7 +40,7 @@ const call = (key: string, url: string, init: { method?: string; body?: unknown;
     ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
   });
 const mint = async (body: Record<string, unknown>) => {
-  const res = await keysRoute.POST(call(admin, "/api/keys", { method: "POST", body }));
+  const res = await keysRoute.POST(call(admin, "/v1/keys", { method: "POST", body }));
   return { status: res.status, body: (await res.json()) as { key: string; id: string; expiresAt: string | null; error?: string } };
 };
 const DAY = 86_400_000;
@@ -78,7 +78,7 @@ test("a key minted with an end carries it; a bad end is a 400, not a forever key
 test("an expired key is refused with a 401 that says it expired", async () => {
   const made = await mint({ label: "short", expires: "30d" });
   editKey(made.body.id, { expiresAt: new Date(Date.now() - 1000).toISOString() });
-  const res = await auditRoute.GET(call(made.body.key, "/api/audit"));
+  const res = await auditRoute.GET(call(made.body.key, "/v1/audit"));
   assert.equal(res.status, 401);
   assert.match(((await res.json()) as { error: string }).error, /API key expired on \d{4}-\d\d-\d\d/);
 });
@@ -86,11 +86,11 @@ test("an expired key is refused with a 401 that says it expired", async () => {
 test("last used: written on authentication with a coarse address, at most once a minute", async () => {
   resetKeyTouches();
   const made = await mint({ label: "used" });
-  await keysRoute.GET(call(made.body.key, "/api/keys", { headers: { "x-forwarded-for": "198.51.100.23" } })); // a viewer-or-editor key: refused, but authenticated
+  await keysRoute.GET(call(made.body.key, "/v1/keys", { headers: { "x-forwarded-for": "198.51.100.23" } })); // a viewer-or-editor key: refused, but authenticated
   const after = (await listApiKeys("acme")).find((k) => k.id === made.body.id)!;
   assert.ok(after.lastUsedAt, "last used is set");
   assert.equal(after.lastIp, "198.51.100.0/24", "never the full address");
-  await keysRoute.GET(call(made.body.key, "/api/keys", { headers: { "x-forwarded-for": "192.0.2.9" } }));
+  await keysRoute.GET(call(made.body.key, "/v1/keys", { headers: { "x-forwarded-for": "192.0.2.9" } }));
   const again = (await listApiKeys("acme")).find((k) => k.id === made.body.id)!;
   assert.equal(again.lastUsedAt, after.lastUsedAt, "a second use within the minute writes nothing");
   assert.equal(again.lastIp, "198.51.100.0/24");
@@ -101,7 +101,7 @@ test("last used: the rate-limit gate's lookup ahead of the route still records t
   resetApiGateCaches();
   const made = await mint({ label: "gated" });
   // What proxy.ts does on every API call: the gate resolves the key first, then the route does.
-  const req = () => call(made.body.key, "/api/keys", { headers: { "x-forwarded-for": "203.0.113.7" } });
+  const req = () => call(made.body.key, "/v1/keys", { headers: { "x-forwarded-for": "203.0.113.7" } });
   await apiGate(req());
   await keysRoute.GET(req());
   const after = (await listApiKeys("acme")).find((k) => k.id === made.body.id)!;
@@ -111,7 +111,7 @@ test("last used: the rate-limit gate's lookup ahead of the route still records t
 
 test("rotate with a grace: a new key with the same label, role and scope; the old one ends when the grace does", async () => {
   const { key: oldKey, record } = await createApiKey("acme", "deploy-bot", "owner@acme.test", undefined, "viewer", ["leads"], { expiresAt: new Date(Date.now() + 30 * DAY) });
-  const res = await rotateRoute.POST(call(admin, `/api/keys/${record.id}/rotate`, { method: "POST", body: { grace: "1h" } }), { params: Promise.resolve({ id: record.id }) });
+  const res = await rotateRoute.POST(call(admin, `/v1/keys/${record.id}/rotate`, { method: "POST", body: { grace: "1h" } }), { params: Promise.resolve({ id: record.id }) });
   assert.equal(res.status, 200);
   const out = (await res.json()) as { key: string; id: string; role: string; workspaces: string[]; expiresAt: string; replaced: { id: string; endsAt: string } };
   assert.equal(out.role, "viewer");
@@ -125,65 +125,65 @@ test("rotate with a grace: a new key with the same label, role and scope; the ol
   assert.equal(old.revokedAt, null, "still working during the grace");
   assert.ok(Math.abs(Date.parse(old.expiresAt!) - (Date.now() + 3_600_000)) < 60_000);
   // Both answer during the grace; once it is over the old one does not.
-  assert.equal((await keysRoute.GET(call(out.key, "/api/keys"))).status, 403, "the new key authenticates (a viewer may not list keys)");
+  assert.equal((await keysRoute.GET(call(out.key, "/v1/keys"))).status, 403, "the new key authenticates (a viewer may not list keys)");
   editKey(record.id, { expiresAt: new Date(Date.now() - 1).toISOString() });
-  assert.equal((await keysRoute.GET(call(oldKey, "/api/keys"))).status, 401);
+  assert.equal((await keysRoute.GET(call(oldKey, "/v1/keys"))).status, 401);
 });
 
 test("rotate with no grace revokes the old key at once; rotation is audited", async () => {
   const made = await mint({ label: "now" });
-  const res = await rotateRoute.POST(call(admin, `/api/keys/${made.body.id}/rotate`, { method: "POST", body: { grace: "0" } }), { params: Promise.resolve({ id: made.body.id }) });
+  const res = await rotateRoute.POST(call(admin, `/v1/keys/${made.body.id}/rotate`, { method: "POST", body: { grace: "0" } }), { params: Promise.resolve({ id: made.body.id }) });
   assert.equal(res.status, 200);
   const old = (await listApiKeys("acme")).find((k) => k.id === made.body.id)!;
   assert.ok(old.revokedAt);
-  const log = (await (await auditRoute.GET(call(admin, "/api/audit?action=apikey.rotated"))).json()) as { entries: { detail: Record<string, unknown> }[] };
+  const log = (await (await auditRoute.GET(call(admin, "/v1/audit?action=apikey.rotated"))).json()) as { entries: { detail: Record<string, unknown> }[] };
   assert.ok(log.entries.some((e) => e.detail.replaces === made.body.id));
   // A key rotated with no grace is revoked, but it was rotated: the 409 names
   // what replaced it rather than a 404 saying there is no such key.
-  const again = await rotateRoute.POST(call(admin, `/api/keys/${made.body.id}/rotate`, { method: "POST", body: {} }), { params: Promise.resolve({ id: made.body.id }) });
+  const again = await rotateRoute.POST(call(admin, `/v1/keys/${made.body.id}/rotate`, { method: "POST", body: {} }), { params: Promise.resolve({ id: made.body.id }) });
   assert.equal(again.status, 409);
   assert.match(((await again.json()) as { error: string }).error, /already rotated to .*rotate that one/);
   // A key revoked without a rotation cannot be rotated: not found.
   const gone = await mint({ label: "revoked" });
-  assert.equal((await keysRoute.DELETE(call(admin, "/api/keys", { method: "DELETE", body: { id: gone.body.id } }))).status, 200);
-  const revoked = await rotateRoute.POST(call(admin, `/api/keys/${gone.body.id}/rotate`, { method: "POST", body: {} }), { params: Promise.resolve({ id: gone.body.id }) });
+  assert.equal((await keysRoute.DELETE(call(admin, "/v1/keys", { method: "DELETE", body: { id: gone.body.id } }))).status, 200);
+  const revoked = await rotateRoute.POST(call(admin, `/v1/keys/${gone.body.id}/rotate`, { method: "POST", body: {} }), { params: Promise.resolve({ id: gone.body.id }) });
   assert.equal(revoked.status, 404);
 });
 
 test("a rotated key whose grace has run out still names its replacement, not 'expired — mint a new one'", async () => {
   const { record } = await createApiKey("acme", "ci-lapsed", "owner@acme.test", undefined, "editor", null);
-  const first = await rotateRoute.POST(call(admin, `/api/keys/${record.id}/rotate`, { method: "POST", body: { grace: "1h" } }), { params: Promise.resolve({ id: record.id }) });
+  const first = await rotateRoute.POST(call(admin, `/v1/keys/${record.id}/rotate`, { method: "POST", body: { grace: "1h" } }), { params: Promise.resolve({ id: record.id }) });
   assert.equal(first.status, 200);
   const made = (await first.json()) as { prefix: string };
   editKey(record.id, { expiresAt: new Date(Date.now() - 1000).toISOString() });
-  const again = await rotateRoute.POST(call(admin, `/api/keys/${record.id}/rotate`, { method: "POST", body: {} }), { params: Promise.resolve({ id: record.id }) });
+  const again = await rotateRoute.POST(call(admin, `/v1/keys/${record.id}/rotate`, { method: "POST", body: {} }), { params: Promise.resolve({ id: record.id }) });
   assert.equal(again.status, 409);
   assert.match(((await again.json()) as { error: string }).error, new RegExp(`already rotated to ${made.prefix}`));
 });
 
 test("a key already rotated cannot be rotated again: 409 naming the key that replaced it", async () => {
   const { record } = await createApiKey("acme", "ci-twice", "owner@acme.test", undefined, "editor", null);
-  const first = await rotateRoute.POST(call(admin, `/api/keys/${record.id}/rotate`, { method: "POST", body: { grace: "24h" } }), { params: Promise.resolve({ id: record.id }) });
+  const first = await rotateRoute.POST(call(admin, `/v1/keys/${record.id}/rotate`, { method: "POST", body: { grace: "24h" } }), { params: Promise.resolve({ id: record.id }) });
   assert.equal(first.status, 200);
   const made = (await first.json()) as { id: string; prefix: string };
   const old = (await listApiKeys("acme")).find((k) => k.id === record.id)!;
   assert.equal(old.replacedBy, made.id, "the old key records what replaced it");
   const before = (await listApiKeys("acme")).length;
-  const again = await rotateRoute.POST(call(admin, `/api/keys/${record.id}/rotate`, { method: "POST", body: { grace: "24h" } }), { params: Promise.resolve({ id: record.id }) });
+  const again = await rotateRoute.POST(call(admin, `/v1/keys/${record.id}/rotate`, { method: "POST", body: { grace: "24h" } }), { params: Promise.resolve({ id: record.id }) });
   assert.equal(again.status, 409);
   const body = (await again.json()) as { error: string };
   assert.match(body.error, new RegExp(`already rotated to ${made.prefix}`));
   assert.match(body.error, /rotate that one/);
   assert.equal((await listApiKeys("acme")).length, before, "no third key was minted");
   // The new key — the one whose secret may have been lost — rotates fine.
-  const next = await rotateRoute.POST(call(admin, `/api/keys/${made.id}/rotate`, { method: "POST", body: { grace: "0" } }), { params: Promise.resolve({ id: made.id }) });
+  const next = await rotateRoute.POST(call(admin, `/v1/keys/${made.id}/rotate`, { method: "POST", body: { grace: "0" } }), { params: Promise.resolve({ id: made.id }) });
   assert.equal(next.status, 200);
 });
 
 test("revoke is audited too", async () => {
   const made = await mint({ label: "gone" });
-  assert.equal((await keysRoute.DELETE(call(admin, "/api/keys", { method: "DELETE", body: { id: made.body.id } }))).status, 200);
-  const log = (await (await auditRoute.GET(call(admin, "/api/audit?action=apikey.revoked"))).json()) as { entries: { subject: string }[] };
+  assert.equal((await keysRoute.DELETE(call(admin, "/v1/keys", { method: "DELETE", body: { id: made.body.id } }))).status, 200);
+  const log = (await (await auditRoute.GET(call(admin, "/v1/audit?action=apikey.revoked"))).json()) as { entries: { subject: string }[] };
   assert.ok(log.entries.some((e) => e.subject === made.body.id));
 });
 
@@ -217,14 +217,14 @@ test("a key known only by its label rotates the owner's login key into a label-o
   // An admin key with no person behind it: the setup key of a fresh install.
   const { key: bare } = await createApiKey("acme", "setup", undefined, undefined, "admin");
   const { record: login } = await createApiKey("acme", "cli · laptop", "owner@acme.test", undefined, "admin", null, { origin: "cli-login" });
-  const res = await rotateRoute.POST(call(bare, `/api/keys/${login.id}/rotate`, { method: "POST", body: { grace: "0" } }), { params: Promise.resolve({ id: login.id }) });
+  const res = await rotateRoute.POST(call(bare, `/v1/keys/${login.id}/rotate`, { method: "POST", body: { grace: "0" } }), { params: Promise.resolve({ id: login.id }) });
   assert.equal(res.status, 200);
   const out = (await res.json()) as { id: string };
   const fresh = (await listApiKeys("acme")).find((k) => k.id === out.id)!;
   assert.equal(fresh.createdBy, undefined, "not the owner's address: the rotating caller is no person");
   // A person rotating it makes a key that acts as that person, as before.
   const { record: ci } = await createApiKey("acme", "ci", "owner@acme.test", undefined, "editor");
-  const byPerson = await rotateRoute.POST(call(admin, `/api/keys/${ci.id}/rotate`, { method: "POST", body: { grace: "0" } }), { params: Promise.resolve({ id: ci.id }) });
+  const byPerson = await rotateRoute.POST(call(admin, `/v1/keys/${ci.id}/rotate`, { method: "POST", body: { grace: "0" } }), { params: Promise.resolve({ id: ci.id }) });
   const nextId = ((await byPerson.json()) as { id: string }).id;
   const next = (await listApiKeys("acme")).find((k) => k.id === nextId)!;
   assert.equal(next.createdBy, "owner@acme.test");

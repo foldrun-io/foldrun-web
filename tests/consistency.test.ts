@@ -791,7 +791,7 @@ test("nothing a person reads still names the pre-rename files/", () => {
       // A PATH segment — files/ — is the thing that was renamed. Skip lines
       // that are explicitly about the legacy alias or the bucket name.
       if (!/(^|[^\w-])files\//.test(line)) continue;
-      if (/legacy|LEGACY|foldrun-files|api\/|route/.test(line)) continue;
+      if (/legacy|LEGACY|foldrun-files|v1\/|route/.test(line)) continue;
       offenders.push(`${rel}: ${line.trim().slice(0, 70)}`);
     }
   }
@@ -1057,7 +1057,7 @@ test("every API route is in docs/api.md", () => {
   // (foldrun-admin/docs/console.md, 28 Oct 2026); a public tree has neither.
   const consoleDoc = path.join(root, "../foldrun-admin/docs/console.md");
   const doc = read("../foldrun-docs/api.md") + (fs.existsSync(consoleDoc) ? "\n" + fs.readFileSync(consoleDoc, "utf8") : "");
-  const apiRoot = path.join(root, "app/api");
+  const apiRoot = path.join(root, "app/v1");
 
   const routes: string[] = [];
   const walkApi = (dir: string) => {
@@ -1065,13 +1065,13 @@ test("every API route is in docs/api.md", () => {
       const full = path.join(dir, e.name);
       if (e.isDirectory()) walkApi(full);
       else if (e.name === "route.ts") {
-        routes.push("/api/" + path.relative(apiRoot, dir).split(path.sep).join("/"));
+        routes.push("/v1/" + path.relative(apiRoot, dir).split(path.sep).join("/"));
       }
     }
   };
   walkApi(apiRoot);
   assert.ok(routes.length > 40, `found only ${routes.length} routes — is the walk right?`);
-  // The one public route outside /api: the share link.
+  // The one public route outside /v1: the share link.
   if (fs.existsSync(path.join(root, "app/s/[token]/route.ts"))) routes.push("/s/[token]");
 
   // Table rows by route, parsed once. The query string is the row's help,
@@ -1098,10 +1098,10 @@ test("every API route is in docs/api.md", () => {
   // foldrun.ir alone, never in foldrun.io's docs (owner, 11 Nov 2026). A route
   // that exists only for it is listed here with why, instead of in api.md.
   const ONLY_ON_FOLDRUN_IR: Record<string, string> = {
-    "/api/keys/[id]": "PATCH a gateway key's model map — Claude Code's tiers on other models",
-    "/api/billing/coding-plan": "a plan for login gateway keys — sold at foldrun.ir; in foldrun-admin/docs/console.md",
-    "/api/billing/partner/plans": "foldrun.ir's storefront turns a coding plan on; in foldrun-admin/docs/console.md",
-    "/api/billing/partner/plans/offer": "foldrun.ir's storefront reads what an account can buy; in foldrun-admin/docs/console.md",
+    "/v1/keys/[id]": "PATCH a gateway key's model map — Claude Code's tiers on other models",
+    "/v1/billing/coding-plan": "a plan for login gateway keys — sold at foldrun.ir; in foldrun-admin/docs/console.md",
+    "/v1/billing/partner/plans": "foldrun.ir's storefront turns a coding plan on; in foldrun-admin/docs/console.md",
+    "/v1/billing/partner/plans/offer": "foldrun.ir's storefront reads what an account can buy; in foldrun-admin/docs/console.md",
   };
   const missing = routes.filter((r) => !(r in ONLY_ON_FOLDRUN_IR) && !rowsFor(r).some((row) => row.methods.length));
   assert.deepEqual(
@@ -1118,7 +1118,7 @@ test("every API route is in docs/api.md", () => {
   const phantomMethods: string[] = [];
   for (const r of routes) {
     if (r in ONLY_ON_FOLDRUN_IR) continue;
-    const file = r === "/s/[token]" ? path.join(root, "app/s/[token]/route.ts") : path.join(apiRoot, r.replace(/^\/api\/?/, ""), "route.ts");
+    const file = r === "/s/[token]" ? path.join(root, "app/s/[token]/route.ts") : path.join(apiRoot, r.replace(/^\/v1\/?/, ""), "route.ts");
     const src = fs.readFileSync(file, "utf8");
     const exported = [...src.matchAll(/^export (?:async )?function (GET|POST|PUT|PATCH|DELETE|HEAD)\b/gm)].map((m) => m[1]);
     const documented = new Set(rowsFor(r).flatMap((row) => row.methods));
@@ -1244,7 +1244,7 @@ test("the app's root is a redirect, not a second landing page", () => {
 // audit.
 
 /** Doors that only exist on the hosted edition. */
-const COMMERCIAL_ROUTES = ["/dashboard/wallet", "/api/billing"];
+const COMMERCIAL_ROUTES = ["/dashboard/wallet", "/v1/billing"];
 
 /** How a file may ask the question — server or client. */
 const EDITION_ASKED = /platform\.edition\(\)|useHosted\(\)|useEdition\(\)|requireHosted\(\)/;
@@ -1252,7 +1252,7 @@ const EDITION_ASKED = /platform\.edition\(\)|useHosted\(\)|useEdition\(\)|requir
 test("every file that opens a commercial door asks the edition first", () => {
   const offenders: string[] = [];
   // Surfaces only — app/ and components/. server/ is plumbing the gated
-  // routes call (server/stripe.ts builds a return URL to /api/billing); the
+  // routes call (server/stripe.ts builds a return URL to /v1/billing); the
   // route that calls it is the door, and the route is tested below.
   const surfaces = ["app", "components"].flatMap((d) => walk(path.join(root, d), (f) => /\.(ts|tsx)$/.test(f)));
   for (const file of surfaces) {
@@ -1261,7 +1261,7 @@ test("every file that opens a commercial door asks the edition first", () => {
     // The commercial subtrees themselves are gated at their own top (the
     // page 404s, the routes requireHosted) — a link between two hosted-only
     // files needs no second gate.
-    if (/^app\/(dashboard\/wallet|dashboard\/billing|api\/billing)\//.test(rel)) continue;
+    if (/^app\/(dashboard\/wallet|dashboard\/billing|v1\/billing)\//.test(rel)) continue;
     // Pure models get their inputs already gated and carry no chrome of
     // their own; an href in a data structure is not a door until a
     // component renders it, and that component is what this test reads.
@@ -1292,7 +1292,7 @@ test("billingEnabled() is asked only where the edition is already hosted", () =>
     // dev and staging, where billing is off (FOL-28). The money notices
     // (server/billing-notices.ts, hosted-only, called after the edition is
     // settled) word the funds gate, so they ask its own question.
-    .filter((rel) => !/^(app\/(dashboard\/wallet|dashboard\/billing|api\/billing)|server\/admin(-api)?)\//.test(rel) && rel !== "app/dashboard/layout.tsx" && rel !== "server/billing-notices.ts");
+    .filter((rel) => !/^(app\/(dashboard\/wallet|dashboard\/billing|v1\/billing)|server\/admin(-api)?)\//.test(rel) && rel !== "app/dashboard/layout.tsx" && rel !== "server/billing-notices.ts");
   assert.deepEqual(offenders, [], `ask platform.edition() instead:\n${offenders.join("\n")}`);
 });
 
@@ -1378,7 +1378,7 @@ test("widening from a workspace's runs to the account's keeps the filters", () =
 // with foldrun-admin laid over it — holds none of it.
 
 test("the customer app holds no operator console", () => {
-  for (const t of ["app/admin", "app/api/admin", "server/admin", "app/operator", "server/surface.ts"]) {
+  for (const t of ["app/admin", "app/v1/admin", "server/admin", "app/operator", "server/surface.ts"]) {
     assert.equal(fs.existsSync(path.join(root, t)), false, `${t} is the console's, which is its own application`);
   }
 });
@@ -1388,11 +1388,11 @@ test("no customer-facing file grants or draws a way into the operator console", 
   // their own second factor vouch for (foldrun-admin), not an account here:
   // no route names a role for it, no session says who may use it, and the
   // menu draws no door to it.
-  const offenders = walk(path.join(root, "app/api"), (f) => f.endsWith("route.ts"))
+  const offenders = walk(path.join(root, "app/v1"), (f) => f.endsWith("route.ts"))
     .filter((f) => /role.*["'](operator|superadmin|super-admin)["']/.test(fs.readFileSync(f, "utf8")))
     .map((f) => path.relative(root, f));
   assert.deepEqual(offenders, []);
-  assert.doesNotMatch(read("app/api/auth/session/route.ts"), /superAdmin|adminUrl|isSuperAdmin/);
+  assert.doesNotMatch(read("app/v1/auth/session/route.ts"), /superAdmin|adminUrl|isSuperAdmin/);
   assert.doesNotMatch(read("components/user-menu.tsx"), /Super admin|adminUrl/);
   assert.doesNotMatch(read("../foldrun-platform/src/admin.ts"), /isSuperAdmin/);
 });

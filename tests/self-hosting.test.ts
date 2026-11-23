@@ -78,7 +78,7 @@ exit 0
   fs.writeFileSync(
     path.join(bin, "curl"),
     `#!/bin/sh
-case "$*" in *api/healthz*) echo '{"ok":true,"version":"v","role":"all","workerAlive":true}'; exit 0 ;; esac
+case "$*" in *v1/healthz*) echo '{"ok":true,"version":"v","role":"all","workerAlive":true}'; exit 0 ;; esac
 exec "${realCurl}" "$@"
 `,
     { mode: 0o755 },
@@ -127,7 +127,7 @@ test("a fresh install: a new secret, this machine only, the stable version by na
   // The first account is tied to whoever ran this: a token in .env, and the link that carries it.
   assert.match(env.FOLDRUN_SETUP_TOKEN, /^[0-9a-f]{32}$/);
   assert.ok(r.out.includes(`/signup?setup=${env.FOLDRUN_SETUP_TOKEN}`), r.out);
-  // /api/healthz tells a stranger only "ok": the wait for the worker reads the rest with this token (L12).
+  // /v1/healthz tells a stranger only "ok": the wait for the worker reads the rest with this token (L12).
   assert.match(env.FOLDRUN_METRICS_TOKEN, /^[0-9a-f]{32}$/);
   assert.equal(env.COMPOSE_PROJECT_NAME, "foldrun");
   assert.equal(env.FOLDRUN_PUBLIC_URL, "http://localhost:3900");
@@ -420,7 +420,7 @@ case "$1" in --prefix) echo /opt/homebrew ;; install) case "$*" in *" docker "*|
   fs.writeFileSync(path.join(stash, "get-docker.sh"), `printf 'get-docker uid=%s sudo=%s\\n' "$(id -u)" "\${FAKE_SUDO:-}" >> "${log}"\ncp "${stash}/docker" "${bin}/docker"\n`);
   sh("curl", `case "$*" in
   *get.docker.com*) printf 'curl get.docker.com\\n' >> "${log}"; for a; do [ "$prev" = -o ] && cp "${stash}/get-docker.sh" "$a"; prev=$a; done; exit 0 ;;
-  *api/healthz*) echo '{"ok":true,"version":"v","role":"all","workerAlive":true}'; exit 0 ;;
+  *v1/healthz*) echo '{"ok":true,"version":"v","role":"all","workerAlive":true}'; exit 0 ;;
 esac
 exec "${realCurl}" "$@"`);
   // The machine's rootful socket: there, and not writable by this user.

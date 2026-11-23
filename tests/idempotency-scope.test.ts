@@ -19,7 +19,7 @@ delete process.env.FOLDRUN_REDIS_URL;
 const { createApiKey } = await import("../server/auth.ts");
 const { idempotent, resetIdempotencyMemory } = await import("../server/idempotency.ts");
 
-const req = (key: string, idem: string, body = "{}", p = "/api/keys") =>
+const req = (key: string, idem: string, body = "{}", p = "/v1/keys") =>
   new NextRequest(`http://localhost:3900${p}`, {
     method: "POST",
     headers: { authorization: `Bearer ${key}`, "idempotency-key": idem, "content-type": "application/json" },

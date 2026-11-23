@@ -54,7 +54,7 @@ export function TimezoneForm({ current }: { current: string | null }) {
         e.preventDefault();
         setError("");
         setBusy(true);
-        const res = await fetch("/api/auth/timezone", {
+        const res = await fetch("/v1/auth/timezone", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ timezone: value === AUTOMATIC ? null : value }),

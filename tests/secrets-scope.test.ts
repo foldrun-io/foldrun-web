@@ -13,9 +13,9 @@ import path from "node:path";
 process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-secrets-scope-"));
 delete process.env.FOLDRUN_DEV_NO_AUTH;
 const { NextRequest } = await import("next/server");
-const secrets = await import("../app/api/secrets/route.ts");
-const start = await import("../app/api/oauth/start/route.ts");
-const reconnect = await import("../app/api/oauth/reconnect/route.ts");
+const secrets = await import("../app/v1/secrets/route.ts");
+const start = await import("../app/v1/oauth/start/route.ts");
+const reconnect = await import("../app/v1/oauth/reconnect/route.ts");
 const { createApiKey } = await import("../server/auth.ts");
 const { setSecret, listSecrets } = await import("../../foldrun-core/src/secrets.ts");
 
@@ -39,40 +39,40 @@ const call = (fn: (r: InstanceType<typeof NextRequest>) => Promise<Response>, ke
   }));
 
 test("a scoped key cannot list, write or delete another workspace's secrets", async () => {
-  assert.equal((await call(secrets.GET, scoped, "GET", "/api/secrets?workspace=blog")).status, 403);
-  assert.equal((await call(secrets.PUT, scoped, "PUT", "/api/secrets", { name: "X", value: "v", workspace: "blog" })).status, 403);
-  assert.equal((await call(secrets.DELETE, scoped, "DELETE", "/api/secrets", { name: "BLOG_TOKEN", workspace: "blog" })).status, 403);
+  assert.equal((await call(secrets.GET, scoped, "GET", "/v1/secrets?workspace=blog")).status, 403);
+  assert.equal((await call(secrets.PUT, scoped, "PUT", "/v1/secrets", { name: "X", value: "v", workspace: "blog" })).status, 403);
+  assert.equal((await call(secrets.DELETE, scoped, "DELETE", "/v1/secrets", { name: "BLOG_TOKEN", workspace: "blog" })).status, 403);
   assert.ok(listSecrets("acme", "blog").some((s) => s.name === "BLOG_TOKEN" && s.scope === "workspace"));
   assert.ok(!listSecrets("acme", "blog").some((s) => s.name === "X"));
 });
 
 test("a scoped key cannot touch account-level secrets", async () => {
-  assert.equal((await call(secrets.GET, scoped, "GET", "/api/secrets")).status, 403);
-  assert.equal((await call(secrets.PUT, scoped, "PUT", "/api/secrets", { name: "ACCOUNT_TOKEN", value: "evil" })).status, 403);
-  assert.equal((await call(secrets.DELETE, scoped, "DELETE", "/api/secrets", { name: "ACCOUNT_TOKEN" })).status, 403);
+  assert.equal((await call(secrets.GET, scoped, "GET", "/v1/secrets")).status, 403);
+  assert.equal((await call(secrets.PUT, scoped, "PUT", "/v1/secrets", { name: "ACCOUNT_TOKEN", value: "evil" })).status, 403);
+  assert.equal((await call(secrets.DELETE, scoped, "DELETE", "/v1/secrets", { name: "ACCOUNT_TOKEN" })).status, 403);
   assert.ok(listSecrets("acme").some((s) => s.name === "ACCOUNT_TOKEN"));
 });
 
 test("a scoped key works in its own workspace and sees only that workspace's names", async () => {
-  const res = await call(secrets.GET, scoped, "GET", "/api/secrets?workspace=leads");
+  const res = await call(secrets.GET, scoped, "GET", "/v1/secrets?workspace=leads");
   assert.equal(res.status, 200);
   const names = ((await res.json()) as { secrets: { name: string }[] }).secrets.map((s) => s.name);
   assert.deepEqual(names, ["LEADS_TOKEN"]);
-  assert.equal((await call(secrets.PUT, scoped, "PUT", "/api/secrets", { name: "NEW", value: "v", workspace: "leads" })).status, 200);
-  assert.equal((await call(secrets.DELETE, scoped, "DELETE", "/api/secrets", { name: "NEW", workspace: "leads" })).status, 200);
+  assert.equal((await call(secrets.PUT, scoped, "PUT", "/v1/secrets", { name: "NEW", value: "v", workspace: "leads" })).status, 200);
+  assert.equal((await call(secrets.DELETE, scoped, "DELETE", "/v1/secrets", { name: "NEW", workspace: "leads" })).status, 200);
 });
 
 test("an unscoped key still sees the account's secrets", async () => {
-  const res = await call(secrets.GET, full, "GET", "/api/secrets?workspace=blog");
+  const res = await call(secrets.GET, full, "GET", "/v1/secrets?workspace=blog");
   const names = ((await res.json()) as { secrets: { name: string }[] }).secrets.map((s) => s.name);
   assert.deepEqual(names, ["ACCOUNT_TOKEN", "BLOG_TOKEN"]);
 });
 
 test("a scoped key cannot start or reconnect an OAuth grant outside its scope", async () => {
-  assert.equal((await call(start.POST, scoped, "POST", "/api/oauth/start", { client: "c", secret: "S", workspace: "blog" })).status, 403);
-  assert.equal((await call(start.POST, scoped, "POST", "/api/oauth/start", { client: "c", secret: "S" })).status, 403);
-  assert.equal((await call(reconnect.POST, scoped, "POST", "/api/oauth/reconnect", { secret: "S", workspace: "blog" })).status, 403);
-  assert.equal((await call(reconnect.POST, scoped, "POST", "/api/oauth/reconnect", { secret: "S" })).status, 403);
+  assert.equal((await call(start.POST, scoped, "POST", "/v1/oauth/start", { client: "c", secret: "S", workspace: "blog" })).status, 403);
+  assert.equal((await call(start.POST, scoped, "POST", "/v1/oauth/start", { client: "c", secret: "S" })).status, 403);
+  assert.equal((await call(reconnect.POST, scoped, "POST", "/v1/oauth/reconnect", { secret: "S", workspace: "blog" })).status, 403);
+  assert.equal((await call(reconnect.POST, scoped, "POST", "/v1/oauth/reconnect", { secret: "S" })).status, 403);
   // Its own workspace gets past the scope check to the lookup.
-  assert.equal((await call(start.POST, scoped, "POST", "/api/oauth/start", { client: "c", secret: "S", workspace: "leads" })).status, 404);
+  assert.equal((await call(start.POST, scoped, "POST", "/v1/oauth/start", { client: "c", secret: "S", workspace: "leads" })).status, 404);
 });

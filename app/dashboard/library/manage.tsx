@@ -36,7 +36,7 @@ export function DeleteLibraryItem({
           if (!(await confirm({ title: $t("library.manage.deleteFromTheLibrary", { name: String(name) }), confirmLabel: $t("library.manage.delete") }))) return;
           // For standard skills the folder is the unit, not the SKILL.md file.
           const target = wholeFolder ? path.replace(/\/(SKILL|tool)\.md$/, "") : path;
-          await fetch(`/api/library/${kind}`, {
+          await fetch(`/v1/library/${kind}`, {
             method: "DELETE",
             headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
             body: JSON.stringify({ path: target }),

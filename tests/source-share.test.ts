@@ -1,4 +1,4 @@
-// POST /api/workspaces/<ws>/source/share — "Move to shared" in one call,
+// POST /v1/workspaces/<ws>/source/share — "Move to shared" in one call,
 // for the dashboard and `foldrun source share` alike (5 Nov 2026).
 //
 //   node --import ./tests/register.mjs --test tests/source-share.test.ts
@@ -15,7 +15,7 @@ delete process.env.FOLDRUN_DEV_NO_AUTH;
 
 const { createApiKey } = await import("../server/auth.ts");
 const { createUser } = await import("../server/users.ts");
-const route = await import("../app/api/workspaces/[workspace]/source/share/route.ts");
+const route = await import("../app/v1/workspaces/[workspace]/source/share/route.ts");
 
 await createUser("owner@share.test", "a long and unusual passphrase 42!", "share-co", { request: "free" });
 const ws = path.join(process.env.FOLDRUN_DATA!, "share-co", "workspaces", "desk");
@@ -32,7 +32,7 @@ const { key: viewer } = await createApiKey("share-co", "look", "owner@share.test
 
 const call = (key: string, body: unknown) =>
   route.POST(
-    new NextRequest("http://localhost:3900/api/workspaces/desk/source/share", {
+    new NextRequest("http://localhost:3900/v1/workspaces/desk/source/share", {
       method: "POST",
       headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
       body: JSON.stringify(body),

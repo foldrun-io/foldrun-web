@@ -49,7 +49,7 @@ interface Gate {
 
 // Every 20 s while the tab is looked at; every 60 s while it is not. A
 // dashboard left open in a background tab all day was the single largest
-// caller of /api/approvals, and it was asking on behalf of nobody.
+// caller of /v1/approvals, and it was asking on behalf of nobody.
 const POLL_MS = 20_000;
 const HIDDEN_POLL_MS = 60_000;
 
@@ -87,7 +87,7 @@ export function PendingApprovals() {
   useEffect(() => {
     let live = true;
     const load = () =>
-      fetch("/api/approvals", { headers: { "x-foldrun-tenant": account } })
+      fetch("/v1/approvals", { headers: { "x-foldrun-tenant": account } })
         .then((r) => (r.ok ? r.json() : { approvals: [] }))
         .then((d) => {
           if (!live) return;
@@ -133,7 +133,7 @@ export function PendingApprovals() {
     const k = key(g);
     setBusy((b) => new Set(b).add(k));
     try {
-      const res = await fetch(`/api/workspaces/${g.workspace}/runs/${g.runId}/approve`, {
+      const res = await fetch(`/v1/workspaces/${g.workspace}/runs/${g.runId}/approve`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-foldrun-tenant": account },
         body: JSON.stringify({ decision, step: g.step }),
@@ -156,7 +156,7 @@ export function PendingApprovals() {
     setBusy((b) => new Set(b).add(k));
     const fail = (msg: string) => setAnswerError((e) => ({ ...e, [q.id]: msg }));
     try {
-      const res = await fetch(`/api/workspaces/${q.workspace}/runs/${q.runId}/answer`, {
+      const res = await fetch(`/v1/workspaces/${q.workspace}/runs/${q.runId}/answer`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-foldrun-tenant": account },
         body: JSON.stringify({ question: q.id, answer: text }),

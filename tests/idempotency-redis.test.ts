@@ -54,7 +54,7 @@ const until = async (cond: () => boolean) => {
 };
 
 const req = (key: string, idem: string) =>
-  new NextRequest("http://localhost:3900/api/workspaces/w/flows/f/run", {
+  new NextRequest("http://localhost:3900/v1/workspaces/w/flows/f/run", {
     method: "POST",
     headers: { authorization: `Bearer ${key}`, "idempotency-key": idem, "content-type": "application/json" },
     body: "{}",

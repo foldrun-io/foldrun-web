@@ -12,7 +12,7 @@ import path from "node:path";
 
 process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-approve-route-"));
 const { NextRequest } = await import("next/server");
-const { GET, POST } = await import("../app/api/approve/[tenant]/[workspace]/[runId]/route.ts");
+const { GET, POST } = await import("../app/v1/approve/[tenant]/[workspace]/[runId]/route.ts");
 const { approveLinkToken } = await import("../../foldrun-core/src/approvals.ts");
 const { approveToken } = await import("../../foldrun-core/src/webhook.ts");
 const { writeRun, readRun } = await import("../../foldrun-core/src/store.ts");
@@ -34,10 +34,10 @@ const park = (id: string, flow = "publish") =>
   });
 
 const ctx = (runId: string) => ({ params: Promise.resolve({ tenant: "acme", workspace: "desk", runId }) });
-const get = (runId: string, token: string) => GET(new NextRequest(`http://x/api/approve/acme/desk/${runId}?token=${token}`), ctx(runId));
+const get = (runId: string, token: string) => GET(new NextRequest(`http://x/v1/approve/acme/desk/${runId}?token=${token}`), ctx(runId));
 const post = (runId: string, token: string, decision = "approve") =>
   POST(
-    new NextRequest(`http://x/api/approve/acme/desk/${runId}?token=${token}`, {
+    new NextRequest(`http://x/v1/approve/acme/desk/${runId}?token=${token}`, {
       method: "POST",
       headers: { "content-type": "application/json", accept: "application/json" },
       body: JSON.stringify({ decision }),

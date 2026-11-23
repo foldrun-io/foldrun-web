@@ -162,7 +162,7 @@ function SecretSites({ row, tenant, workspace, editable }: { row: ConnectionRow;
     setError(null);
     setBusy(true);
     try {
-      const res = await fetch("/api/secrets", {
+      const res = await fetch("/v1/secrets", {
         method: "PATCH",
         headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
         body: JSON.stringify({ sites: next, name: row.name, workspace: row.scope === "workspace" ? workspace : undefined }),
@@ -229,7 +229,7 @@ function SecretWorkspaces({ row, tenant, choices }: { row: ConnectionRow; tenant
     setError(null);
     setBusy(true);
     try {
-      const res = await fetch("/api/secrets", {
+      const res = await fetch("/v1/secrets", {
         method: "PATCH",
         headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
         // ifWorkspaces: the list this row showed. Another admin's change
@@ -315,14 +315,14 @@ export function Connections({
   tenant: string;
   secrets: ConnectionRow[];
   clients: SavedClientRow[];
-  /** OAuth grant health per oauth2 secret, from /api/oauth/connections' source. */
+  /** OAuth grant health per oauth2 secret, from /v1/oauth/connections' source. */
   connections?: OAuthConnectionRow[];
   workspace?: string;
   /** False when the host page titles the section itself. */
   heading?: boolean;
   /** The redirect URL the consent flow will actually use, when the server
    *  has one configured (FOLDRUN_OAUTH_CALLBACK_URL). Otherwise it is this
-   *  page's own origin plus /api/oauth/callback, filled in on the client. */
+   *  page's own origin plus /v1/oauth/callback, filled in on the client. */
   callbackUrl?: string | null;
   /** Every workspace's name, on the account's page for a viewer who may
    *  limit an account secret to some of them; otherwise the limit is shown
@@ -357,7 +357,7 @@ export function Connections({
   // Resolved after mount: the server does not know which address the browser
   // used, and the consent flow builds the redirect from exactly that.
   const origin = useBrowserValue(() => window.location.origin, "");
-  const redirect = callbackUrl || (origin ? `${origin}/api/oauth/callback` : "");
+  const redirect = callbackUrl || (origin ? `${origin}/v1/oauth/callback` : "");
   // Any edit clears the last error: it was about what the form held then.
   const set = (k: string) => (e: { target: { value: string } }) => {
     setError(null);
@@ -366,13 +366,13 @@ export function Connections({
     const stale: Record<string, string> = k === "issuer" ? { revocation_url: "", device_url: "", par_url: "", iss_parameter: "", discovered_secret: "" } : {};
     setF((cur) => ({ ...cur, ...stale, [k]: e.target.value }));
   };
-  // Discovery (POST /api/oauth/discover): the provider's own metadata fills
+  // Discovery (POST /v1/oauth/discover): the provider's own metadata fills
   // the URLs and how the app signs in at the token URL; what it found about
   // revocation, device sign-in and PAR is kept for the save.
   const [discovering, setDiscovering] = useState(false);
   type Discovered = { authorize_url?: string; token_url: string; token_auth?: string; revocation_url?: string; device_url?: string; par_url?: string; iss_parameter?: boolean };
   const fetchDiscovery = async (issuer: string, hasSecret: boolean): Promise<Discovered> => {
-    const res = await fetch("/api/oauth/discover", {
+    const res = await fetch("/v1/oauth/discover", {
       method: "POST", headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
       body: JSON.stringify({ issuer, has_secret: hasSecret, ...(f.pkce === "off" ? { pkce: false } : {}) }),
     });
@@ -417,7 +417,7 @@ export function Connections({
 
   async function reconnect(row: ConnectionRow) {
     setError(null);
-    const res = await fetch("/api/oauth/reconnect", {
+    const res = await fetch("/v1/oauth/reconnect", {
       method: "POST", headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
       body: JSON.stringify({ secret: row.name, workspace: row.scope === "workspace" ? workspace : undefined }),
     });
@@ -430,7 +430,7 @@ export function Connections({
   const hasClient = (n: string) => clients.some((c) => c.name === clientNameFor(n));
 
   async function put(payload: object): Promise<{ public_jwk?: Record<string, unknown> }> {
-    const res = await fetch("/api/secrets", {
+    const res = await fetch("/v1/secrets", {
       method: "PUT",
       headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
       body: JSON.stringify({ workspace, ...payload, name, ...(!workspace && limitTo && newLimit !== null ? { workspaces: newLimit } : {}) }),
@@ -530,7 +530,7 @@ export function Connections({
           tokenAuth = (await fetchDiscovery(f.issuer.trim(), hasSecret)).token_auth ?? "client_secret_post";
         }
         // Browser OAuth: save the client, then straight into consent.
-        const saved = await fetch("/api/oauth/clients", {
+        const saved = await fetch("/v1/oauth/clients", {
           method: "POST", headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
           body: JSON.stringify({ config: {
             authorize_url: f.authorize_url, token_url: f.token_url,
@@ -571,13 +571,13 @@ export function Connections({
   }
 
   /** Connect a saved app with a code instead of a redirect, polling until
-   *  the grant is stored (POST /api/oauth/device, then …/device/<id>). */
+   *  the grant is stored (POST /v1/oauth/device, then …/device/<id>). */
   async function connectWithCode() {
     if (!savedApp) return;
     if (!f.scope?.trim()) { setError($t("settings.connections.typeTheScopesThisConnectionNeeds")); return; }
     setError(null); setBusy(true);
     try {
-      const res = await fetch("/api/oauth/device", {
+      const res = await fetch("/v1/oauth/device", {
         method: "POST", headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
         body: JSON.stringify({ client: savedApp.name, secret: name, workspace, scopes: f.scope }),
       });
@@ -593,7 +593,7 @@ export function Connections({
         // the platform's own answer stops the wait (Codex review).
         let p: Response;
         try {
-          p = await fetch(`/api/oauth/device/${started.id}`, { method: "POST", headers: { "x-foldrun-tenant": tenant } });
+          p = await fetch(`/v1/oauth/device/${started.id}`, { method: "POST", headers: { "x-foldrun-tenant": tenant } });
         } catch {
           interval = interval >= 60 ? interval : Math.min(interval * 2, 60);
           continue;
@@ -618,7 +618,7 @@ export function Connections({
   }
 
   async function connect(secretName: string, client = clientNameFor(secretName), scopes?: string) {
-    const res = await fetch("/api/oauth/start", {
+    const res = await fetch("/v1/oauth/start", {
       method: "POST", headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
       body: JSON.stringify({ client, secret: secretName, workspace, ...(scopes?.trim() ? { scopes } : {}) }),
     });
@@ -638,7 +638,7 @@ export function Connections({
     )
       return;
     setNotice(null);
-    const res = await fetch("/api/secrets", {
+    const res = await fetch("/v1/secrets", {
       method: "DELETE", headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
       body: JSON.stringify({ workspace: row.scope === "account" ? undefined : workspace, name: row.name }),
     });
@@ -655,7 +655,7 @@ export function Connections({
     const app = clientNameFor(row.name);
     const sharedBy = connections.filter((c) => c.client === app && !(c.name === row.name && (c.workspace ?? undefined) === (row.scope === "workspace" ? workspace : undefined)));
     if (!workspace && hasClient(row.name) && sharedBy.length === 0) {
-      await fetch("/api/oauth/clients", {
+      await fetch("/v1/oauth/clients", {
         method: "DELETE", headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
         body: JSON.stringify({ client: clientNameFor(row.name) }),
       });
@@ -907,7 +907,7 @@ export function Connections({
                 <Callout tone="warning" className="sm:col-span-2 px-3 py-2 text-xs">
                   <div className="font-medium">{$t("settings.connections.1RegisterThisRedirectUrlOn")}</div>
                   <div className="mt-1 flex items-center gap-2">
-                    <code className="font-mono break-all">{redirect || "…/api/oauth/callback"}</code>
+                    <code className="font-mono break-all">{redirect || "…/v1/oauth/callback"}</code>
                     <button type="button" onClick={copyRedirect} className={buttonVariants({ variant: "secondary", size: "md" })}>{copied ? $t("settings.connections.copied") : $t("settings.connections.copy")}</button>
                   </div>
                   <div className="mt-1">
@@ -1089,7 +1089,7 @@ export function Connections({
 function IdentityFields({ tenant, workspace, audience, onAudience }: { tenant: string; workspace?: string; audience: string; onAudience: (e: { target: { value: string } }) => void }) {
   const [info, setInfo] = useState<{ enabled: boolean; issuer: string | null; subject: string } | null>(null);
   useEffect(() => {
-    void fetch(`/api/identity${workspace ? `?workspace=${encodeURIComponent(workspace)}` : ""}`, { headers: { "x-foldrun-tenant": tenant } })
+    void fetch(`/v1/identity${workspace ? `?workspace=${encodeURIComponent(workspace)}` : ""}`, { headers: { "x-foldrun-tenant": tenant } })
       .then((r) => (r.ok ? r.json() : null))
       .then(setInfo)
       .catch(() => setInfo(null));

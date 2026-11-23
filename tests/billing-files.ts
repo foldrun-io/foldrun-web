@@ -12,8 +12,8 @@ import path from "node:path";
  *  routes, support views, the internal admin API, Stripe. Paths from the
  *  repo root. */
 export const BILLING_FILES = [
-  "app/api/billing/",
-  "app/api/support/",
+  "app/v1/billing/",
+  "app/v1/support/",
   "app/dashboard/billing/",
   "app/dashboard/wallet/",
   "app/support/",
@@ -161,7 +161,7 @@ export function billingUiFiles(root: string = ROOT): string[] {
   // A regex, not a quoted string: quality/leak.sh reads every quoted path in
   // this file (comments too) as a private name, and the public api folder
   // written in quotes failed the open-source image's leak check (17 Nov 2026).
-  for (const p of BILLING_FILES) if (/^(app|components)\//.test(p) && !/^app\/api\//.test(p)) walk(p.replace(/\/$/, ""));
+  for (const p of BILLING_FILES) if (/^(app|components)\//.test(p) && !/^app\/v1\//.test(p)) walk(p.replace(/\/$/, ""));
   for (const p of Object.keys(STUBS)) if (/\.tsx?$/.test(p)) walk(p);
   return out.filter((f) => /\.tsx?$/.test(f) && !/(^|\/)route\.ts$/.test(f) && !/\.(test|d)\.ts$/.test(f));
 }
@@ -198,6 +198,6 @@ const ROOT = path.join(import.meta.dirname, "..");
  *  false on the public one, where none of BILLING_FILES is there. */
 export const billingPresent: boolean = BILLING_FILES.every((p) => fs.existsSync(path.join(ROOT, p)));
 
-/** An API operation ("GET /api/billing/plans") or path that is billing's:
+/** An API operation ("GET /v1/billing/plans") or path that is billing's:
  *  the customer billing routes and support's. */
-export const isBillingRoute = (op: string): boolean => /(^|\s)\/api\/(billing|support)(\/|$|\s)/.test(op);
+export const isBillingRoute = (op: string): boolean => /(^|\s)\/v1\/(billing|support)(\/|$|\s)/.test(op);

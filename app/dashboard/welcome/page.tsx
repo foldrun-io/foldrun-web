@@ -109,7 +109,7 @@ export default async function Welcome({ searchParams }: { searchParams: Promise<
         demoWorkspace={DEMO_WORKSPACE}
         // --url always: right on every install, the hosted one included.
         cliLogin={$t("welcome.page.foldrunLoginUrl", { origin: String(origin) })}
-        mcpUrl={`${origin}/api/mcp`}
+        mcpUrl={`${origin}/v1/mcp`}
       />
     </Page>
   );

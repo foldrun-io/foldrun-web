@@ -17,7 +17,7 @@ delete process.env.FOLDRUN_DEV_NO_AUTH;
 
 const { createApiKey, listApiKeys, resolveTenant } = await import("../server/auth.ts");
 const { createUser, mintSession, SESSION_COOKIE } = await import("../server/users.ts");
-const memberRoute = await import("../app/api/team/members/[id]/route.ts");
+const memberRoute = await import("../app/v1/team/members/[id]/route.ts");
 
 const PW = "a long and unusual passphrase 42!";
 const tenant = "keys-co";
@@ -28,7 +28,7 @@ const asOwner = (method: string, p: string, body?: unknown) =>
 // A key works when the auth funnel names an account for it (a refusal
 // answers { tenant: null, status }).
 const works = async (key: string) =>
-  (await resolveTenant(new NextRequest("http://localhost:3900/api/workspaces", { headers: { authorization: `Bearer ${key}` } }))).tenant !== null;
+  (await resolveTenant(new NextRequest("http://localhost:3900/v1/workspaces", { headers: { authorization: `Bearer ${key}` } }))).tenant !== null;
 
 test("removing a member stops every key they minted — the CLI's and a manual one — right away", async () => {
   const member = await createUser("dev@keys.test", PW, tenant, { joining: true, role: "admin" });
@@ -38,7 +38,7 @@ test("removing a member stops every key they minted — the CLI's and a manual o
   assert.equal(await works(cli.key), true);
   assert.equal(await works(manual.key), true);
 
-  const r = await memberRoute.DELETE(asOwner("DELETE", `/api/team/members/${member.id}`), { params: Promise.resolve({ id: member.id }) });
+  const r = await memberRoute.DELETE(asOwner("DELETE", `/v1/team/members/${member.id}`), { params: Promise.resolve({ id: member.id }) });
   assert.equal(r.status, 200, await r.clone().text());
   assert.equal(await works(cli.key), false, "the foldrun login key stops");
   assert.equal(await works(manual.key), false, "the manual key stops");
@@ -51,12 +51,12 @@ test("a lower role stops the keys above it; a narrower scope stops the keys that
   const member = await createUser("ops@keys.test", PW, tenant, { joining: true, role: "admin" });
   const adminKey = await createApiKey(tenant, "admin key", member.email, undefined, "admin", null);
   const viewerKey = await createApiKey(tenant, "viewer key", member.email, undefined, "viewer", ["desk-a"]);
-  const r = await memberRoute.PATCH(asOwner("PATCH", `/api/team/members/${member.id}`, { role: "viewer" }), { params: Promise.resolve({ id: member.id }) });
+  const r = await memberRoute.PATCH(asOwner("PATCH", `/v1/team/members/${member.id}`, { role: "viewer" }), { params: Promise.resolve({ id: member.id }) });
   assert.equal(r.status, 200, await r.clone().text());
   assert.equal(await works(adminKey.key), false, "admin key above a viewer: stopped");
   assert.equal(await works(viewerKey.key), true, "a viewer key for desk-a still fits");
 
-  const narrowed = await memberRoute.PATCH(asOwner("PATCH", `/api/team/members/${member.id}`, { workspaces: ["desk-b"] }), { params: Promise.resolve({ id: member.id }) });
+  const narrowed = await memberRoute.PATCH(asOwner("PATCH", `/v1/team/members/${member.id}`, { workspaces: ["desk-b"] }), { params: Promise.resolve({ id: member.id }) });
   assert.equal(narrowed.status, 200, await narrowed.clone().text());
   assert.equal(await works(viewerKey.key), false, "desk-a is no longer theirs: stopped");
 });
@@ -66,7 +66,7 @@ test("a member who changed their address is still found: their keys stop when th
   const member = await createUser("old@keys.test", PW, tenant, { joining: true, role: "editor" });
   const k = await createApiKey(tenant, "cli · laptop", member.email, undefined, "editor", null);
   await changeEmail(member.id, "new@keys.test");
-  const r = await memberRoute.DELETE(asOwner("DELETE", `/api/team/members/${member.id}`), { params: Promise.resolve({ id: member.id }) });
+  const r = await memberRoute.DELETE(asOwner("DELETE", `/v1/team/members/${member.id}`), { params: Promise.resolve({ id: member.id }) });
   assert.equal(r.status, 200);
   assert.equal(await works(k.key), false);
 });
@@ -74,7 +74,7 @@ test("a member who changed their address is still found: their keys stop when th
 test("a role saved and a workspace change refused in the same request still stops the keys above the new role", async () => {
   const member = await createUser("half@keys.test", PW, tenant, { joining: true, role: "admin" });
   const k = await createApiKey(tenant, "admin key", member.email, undefined, "admin", null);
-  const r = await memberRoute.PATCH(asOwner("PATCH", `/api/team/members/${member.id}`, { role: "viewer", workspaces: "not a list" }), { params: Promise.resolve({ id: member.id }) });
+  const r = await memberRoute.PATCH(asOwner("PATCH", `/v1/team/members/${member.id}`, { role: "viewer", workspaces: "not a list" }), { params: Promise.resolve({ id: member.id }) });
   assert.equal(r.status, 400);
   assert.equal(await works(k.key), false, "the role landed, so its keys above it stop");
 });
@@ -82,12 +82,12 @@ test("a role saved and a workspace change refused in the same request still stop
 
 test("PATCH an unknown member is 404, whatever the body — not 'nothing to change' (30 Oct 2026)", async () => {
   for (const body of [undefined, { role: "viewer" }]) {
-    const r = await memberRoute.PATCH(asOwner("PATCH", "/api/team/members/no-such-id", body), { params: Promise.resolve({ id: "no-such-id" }) });
+    const r = await memberRoute.PATCH(asOwner("PATCH", "/v1/team/members/no-such-id", body), { params: Promise.resolve({ id: "no-such-id" }) });
     assert.equal(r.status, 404, await r.clone().text());
   }
   // A known member with an empty body is still told what to send.
   const member = await createUser("idle@keys.test", PW, tenant, { joining: true, role: "editor" });
-  const r = await memberRoute.PATCH(asOwner("PATCH", `/api/team/members/${member.id}`), { params: Promise.resolve({ id: member.id }) });
+  const r = await memberRoute.PATCH(asOwner("PATCH", `/v1/team/members/${member.id}`), { params: Promise.resolve({ id: member.id }) });
   assert.equal(r.status, 400);
   assert.match(((await r.json()) as { error: string }).error, /nothing to change/);
 });

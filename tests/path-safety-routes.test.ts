@@ -24,13 +24,13 @@ const { createApiKey } = await import("../server/auth.ts");
 type Ctx = { params: Promise<Record<string, string>> };
 type H = (req: InstanceType<typeof NextRequest>, ctx: Ctx) => Promise<Response>;
 const mod = async (p: string) => (await import(p)) as Record<string, H>;
-const source = await mod("../app/api/workspaces/[workspace]/source/route.ts");
-const storage = await mod("../app/api/workspaces/[workspace]/storage/route.ts");
-const download = await mod("../app/api/workspaces/[workspace]/storage/download/route.ts");
-const archive = await mod("../app/api/workspaces/[workspace]/runs/[runId]/archive/route.ts");
-const calls = await mod("../app/api/workspaces/[workspace]/runs/[runId]/calls/[callId]/route.ts");
-const library = await mod("../app/api/library/[kind]/route.ts");
-const avatars = await mod("../app/api/avatars/[kind]/[id]/route.ts");
+const source = await mod("../app/v1/workspaces/[workspace]/source/route.ts");
+const storage = await mod("../app/v1/workspaces/[workspace]/storage/route.ts");
+const download = await mod("../app/v1/workspaces/[workspace]/storage/download/route.ts");
+const archive = await mod("../app/v1/workspaces/[workspace]/runs/[runId]/archive/route.ts");
+const calls = await mod("../app/v1/workspaces/[workspace]/runs/[runId]/calls/[callId]/route.ts");
+const library = await mod("../app/v1/library/[kind]/route.ts");
+const avatars = await mod("../app/v1/avatars/[kind]/[id]/route.ts");
 
 const TENANT = "acme";
 const WS = "desk";
@@ -78,17 +78,17 @@ test("source routes (GET, PUT, PATCH rename, DELETE): hostile paths are refused 
   let okWrites = 0;
   for (const rel of NAMES) {
     for (const p of [rel, `agents/${rel}`, `knowledge/${rel}`]) {
-      await fine(`GET ${p}`, await source.GET(new NextRequest(url(`/api/workspaces/${WS}/source`, { path: p }), { headers }), c));
-      const put = await fine(`PUT ${p}`, await source.PUT(new NextRequest(url(`/api/workspaces/${WS}/source`), { method: "PUT", headers, body: JSON.stringify({ path: p, content: "---\nname: t\n---\nhi\n" }) }), c));
+      await fine(`GET ${p}`, await source.GET(new NextRequest(url(`/v1/workspaces/${WS}/source`, { path: p }), { headers }), c));
+      const put = await fine(`PUT ${p}`, await source.PUT(new NextRequest(url(`/v1/workspaces/${WS}/source`), { method: "PUT", headers, body: JSON.stringify({ path: p, content: "---\nname: t\n---\nhi\n" }) }), c));
       if (put.status === 200) {
         okWrites++;
         // a name the writer took, the reader and delete take
-        const got = await fine(`GET-after-PUT ${p}`, await source.GET(new NextRequest(url(`/api/workspaces/${WS}/source`, { path: p }), { headers }), c));
+        const got = await fine(`GET-after-PUT ${p}`, await source.GET(new NextRequest(url(`/v1/workspaces/${WS}/source`, { path: p }), { headers }), c));
         assert.equal(got.status, 200, `reader refused what the writer took: ${JSON.stringify(p)}`);
-        await fine(`PATCH ${p}`, await source.PATCH(new NextRequest(url(`/api/workspaces/${WS}/source`), { method: "PATCH", headers, body: JSON.stringify({ from: p, to: `knowledge/moved-${okWrites}.md` }) }), c));
-        await fine(`DELETE ${p}`, await source.DELETE(new NextRequest(url(`/api/workspaces/${WS}/source`), { method: "DELETE", headers, body: JSON.stringify({ path: p }) }), c));
+        await fine(`PATCH ${p}`, await source.PATCH(new NextRequest(url(`/v1/workspaces/${WS}/source`), { method: "PATCH", headers, body: JSON.stringify({ from: p, to: `knowledge/moved-${okWrites}.md` }) }), c));
+        await fine(`DELETE ${p}`, await source.DELETE(new NextRequest(url(`/v1/workspaces/${WS}/source`), { method: "DELETE", headers, body: JSON.stringify({ path: p }) }), c));
       }
-      await fine(`DELETE-raw ${p}`, await source.DELETE(new NextRequest(url(`/api/workspaces/${WS}/source`), { method: "DELETE", headers, body: JSON.stringify({ path: p }) }), c));
+      await fine(`DELETE-raw ${p}`, await source.DELETE(new NextRequest(url(`/v1/workspaces/${WS}/source`), { method: "DELETE", headers, body: JSON.stringify({ path: p }) }), c));
     }
   }
   assert.ok(okWrites > 10, String(okWrites));
@@ -100,17 +100,17 @@ test("file store routes: hostile names are refused or normal; an uploaded name d
   const c = params({ workspace: WS });
   let stored = 0;
   for (const rel of NAMES) {
-    const raw = await storage.PUT(new NextRequest(url(`/api/workspaces/${WS}/storage`, { path: rel }), { method: "PUT", headers: { authorization: headers.authorization, "content-length": "5" }, body: "bytes" }), c);
+    const raw = await storage.PUT(new NextRequest(url(`/v1/workspaces/${WS}/storage`, { path: rel }), { method: "PUT", headers: { authorization: headers.authorization, "content-length": "5" }, body: "bytes" }), c);
     const put = await fine(`PUT ${rel}`, raw);
     if (put.status === 200) {
       stored++;
       const body = JSON.parse(put.text).file.path as string;
-      const dl = await fine(`download ${rel}`, await download.GET(new NextRequest(url(`/api/workspaces/${WS}/storage/download`, { path: rel }), { headers }), c));
+      const dl = await fine(`download ${rel}`, await download.GET(new NextRequest(url(`/v1/workspaces/${WS}/storage/download`, { path: rel }), { headers }), c));
       assert.equal(dl.status, 200, `download refused what upload took: ${JSON.stringify(rel)}`);
-      const del = await fine(`DELETE ${rel}`, await storage.DELETE(new NextRequest(url(`/api/workspaces/${WS}/storage`, { path: body }), { method: "DELETE", headers }), c));
+      const del = await fine(`DELETE ${rel}`, await storage.DELETE(new NextRequest(url(`/v1/workspaces/${WS}/storage`, { path: body }), { method: "DELETE", headers }), c));
       assert.equal(del.status, 200, `delete refused what upload took: ${JSON.stringify(rel)}`);
     } else {
-      await fine(`download-refused ${rel}`, await download.GET(new NextRequest(url(`/api/workspaces/${WS}/storage/download`, { path: rel }), { headers }), c));
+      await fine(`download-refused ${rel}`, await download.GET(new NextRequest(url(`/v1/workspaces/${WS}/storage/download`, { path: rel }), { headers }), c));
     }
   }
   assert.ok(stored > 20, String(stored));
@@ -120,19 +120,19 @@ test("run archive, calls and library routes: hostile agent, path, call id and li
   const before = snapshot(outside);
   const c = params({ workspace: WS, runId: RUN });
   for (const n of NAMES) {
-    await fine(`archive agent=${n}`, await archive.GET(new NextRequest(url(`/api/workspaces/${WS}/runs/${RUN}/archive`, { agent: n, path: "report.md" }), { headers }), c));
-    const r = await fine(`archive path=${n}`, await archive.GET(new NextRequest(url(`/api/workspaces/${WS}/runs/${RUN}/archive`, { agent: "writer", path: n }), { headers }), c));
+    await fine(`archive agent=${n}`, await archive.GET(new NextRequest(url(`/v1/workspaces/${WS}/runs/${RUN}/archive`, { agent: n, path: "report.md" }), { headers }), c));
+    const r = await fine(`archive path=${n}`, await archive.GET(new NextRequest(url(`/v1/workspaces/${WS}/runs/${RUN}/archive`, { agent: "writer", path: n }), { headers }), c));
     assert.ok(r.status === 404 || r.status === 400 || r.status === 200, `archive path ${JSON.stringify(n)} -> ${r.status}`);
-    await fine(`call ${n}`, await calls.GET(new NextRequest(`http://localhost/api/workspaces/${WS}/runs/${RUN}/calls/${encodeURIComponent(n)}`, { headers }), params({ workspace: WS, runId: RUN, callId: n })));
-    await fine(`library get ${n}`, await library.GET(new NextRequest(url("/api/library/knowledge", { path: n }), { headers }), params({ kind: "knowledge" })));
-    const w = await fine(`library put ${n}`, await library.PUT(new NextRequest(url("/api/library/knowledge"), { method: "PUT", headers, body: JSON.stringify({ path: n, content: "---\nname: t\n---\nhi\n" }) }), params({ kind: "knowledge" })));
+    await fine(`call ${n}`, await calls.GET(new NextRequest(`http://localhost/v1/workspaces/${WS}/runs/${RUN}/calls/${encodeURIComponent(n)}`, { headers }), params({ workspace: WS, runId: RUN, callId: n })));
+    await fine(`library get ${n}`, await library.GET(new NextRequest(url("/v1/library/knowledge", { path: n }), { headers }), params({ kind: "knowledge" })));
+    const w = await fine(`library put ${n}`, await library.PUT(new NextRequest(url("/v1/library/knowledge"), { method: "PUT", headers, body: JSON.stringify({ path: n, content: "---\nname: t\n---\nhi\n" }) }), params({ kind: "knowledge" })));
     if (w.status === 200) {
-      const g = await fine(`library get-after-put ${n}`, await library.GET(new NextRequest(url("/api/library/knowledge", { path: n }), { headers }), params({ kind: "knowledge" })));
+      const g = await fine(`library get-after-put ${n}`, await library.GET(new NextRequest(url("/v1/library/knowledge", { path: n }), { headers }), params({ kind: "knowledge" })));
       assert.equal(g.status, 200, `reader refused what the writer took: ${JSON.stringify(n)}`);
-      await fine(`library delete ${n}`, await library.DELETE(new NextRequest(url("/api/library/knowledge"), { method: "DELETE", headers, body: JSON.stringify({ path: n }) }), params({ kind: "knowledge" })));
+      await fine(`library delete ${n}`, await library.DELETE(new NextRequest(url("/v1/library/knowledge"), { method: "DELETE", headers, body: JSON.stringify({ path: n }) }), params({ kind: "knowledge" })));
     }
-    await fine(`library kind=${n}`, await library.GET(new NextRequest(url(`/api/library/${encodeURIComponent(n)}`), { headers }), params({ kind: n })));
-    await fine(`avatar id=${n}`, await avatars.GET(new NextRequest(`http://localhost/api/avatars/user/${encodeURIComponent(n)}`, { headers }), params({ kind: "user", id: n })));
+    await fine(`library kind=${n}`, await library.GET(new NextRequest(url(`/v1/library/${encodeURIComponent(n)}`), { headers }), params({ kind: n })));
+    await fine(`avatar id=${n}`, await avatars.GET(new NextRequest(`http://localhost/v1/avatars/user/${encodeURIComponent(n)}`, { headers }), params({ kind: "user", id: n })));
   }
   // the call that exists is readable, by its own id
   assert.equal((await calls.GET(new NextRequest(`http://localhost/x`, { headers }), params({ workspace: WS, runId: RUN, callId: "call-1" }))).status, 200);

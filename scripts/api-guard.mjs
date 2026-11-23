@@ -197,6 +197,27 @@ export function judge(breaks, base, head, today = new Date().toISOString().slice
   return { refused, answered, problems };
 }
 
+// ------------------------------------------------------------- the /v1 move
+
+/**
+ * One URL format (owner, 23 Nov 2026: "the /api can be dropped, we don't
+ * have users yet"): every route moved from /api/<route> to /v1/<route>, and
+ * the account's usage from /api/usage to /v1/account/usage. A base from
+ * before the move is read under its new names, so each operation is still
+ * compared shape for shape with itself — a field gone or retyped in the
+ * same push is still refused. A base already on /v1 is returned as it is.
+ */
+export function movedToV1(doc) {
+  const paths = doc?.paths ?? {};
+  if (!Object.keys(paths).some((k) => k.startsWith("/api/"))) return doc;
+  const moved = {};
+  for (const [k, v] of Object.entries(paths)) {
+    const to = k.replace(/^\/api\/usage(?=\/|$)/, "/v1/account/usage").replace(/^\/api\//, "/v1/");
+    moved[to] = v;
+  }
+  return { ...doc, paths: moved };
+}
+
 // ------------------------------------------------------------- reading a tree
 
 function git(args, cwd = webRoot) {
@@ -301,6 +322,11 @@ function main() {
   const dir = treeAt(base.ref);
   try {
     const before = describe(dir);
+    const wasApi = before.doc !== movedToV1(before.doc);
+    if (wasApi) {
+      before.doc = movedToV1(before.doc);
+      console.log("api-guard: the base still spells its routes /api/…; compared under their /v1 names (the 23 Nov 2026 move)");
+    }
     const after = describe(webRoot);
     const { refused, answered, problems } = judge(apiBreaks(before.doc, after.doc), before, after);
     const label = `${base.why}, ${base.ref.slice(0, 7)}`;

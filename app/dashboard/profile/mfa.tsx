@@ -42,7 +42,7 @@ export function MfaSection({ enabled }: { enabled: boolean }) {
       <form className="space-y-3 text-sm" onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
-        if (await post("/api/auth/mfa/disable", { password: f.get("password"), code: f.get("code") })) router.refresh();
+        if (await post("/v1/auth/mfa/disable", { password: f.get("password"), code: f.get("code") })) router.refresh();
       }}>
         <p className="text-fg-secondary">{$rich("profile.mfa.twoFactorAuthenticationIsOnEvery", { span: (chunks) => <span className="font-medium text-success">{chunks}</span> })}</p>
         <Disclosure className="rounded-lg border border-line p-3" summaryClassName="text-fg-secondary" summary={$t("profile.mfa.turnItOff")}>
@@ -62,7 +62,7 @@ export function MfaSection({ enabled }: { enabled: boolean }) {
       <form className="space-y-3 text-sm" onSubmit={async (e) => {
         e.preventDefault();
         const code = String(new FormData(e.currentTarget).get("code") ?? "");
-        const j = await post("/api/auth/mfa/enable", { enrol: setup.enrol, code });
+        const j = await post("/v1/auth/mfa/enable", { enrol: setup.enrol, code });
         if (j) { setSetup(null); setBackup(j.backup as string[]); setEnded(typeof j.otherSessionsEnded === "number" ? j.otherSessionsEnded : 0); }
       }}>
         {/* The QR on the left; everything a person does on the right, in
@@ -92,7 +92,7 @@ export function MfaSection({ enabled }: { enabled: boolean }) {
     <div className="space-y-3 text-sm">
       <p className="text-fg-secondary">{$rich("profile.mfa.twoFactorAuthenticationIsOffTurn", { span: (chunks) => <span className="font-medium">{chunks}</span> })}</p>
       {err && <p className="text-danger">{err}</p>}
-      <button disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })} onClick={async () => { const j = await post("/api/auth/mfa/setup", {}); if (j) setSetup(j as { secret: string; qr: string; enrol: string }); }}>{$t("profile.mfa.setUpTwoFactor")}</button>
+      <button disabled={busy} className={buttonVariants({ variant: "primary", size: "md" })} onClick={async () => { const j = await post("/v1/auth/mfa/setup", {}); if (j) setSetup(j as { secret: string; qr: string; enrol: string }); }}>{$t("profile.mfa.setUpTwoFactor")}</button>
     </div>
   );
 }

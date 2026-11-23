@@ -66,7 +66,7 @@ await step("the owner signs in and lands on the dashboard", async () => {
   await violations("the dashboard after sign-in");
 });
 await step("a run exists to look at (started through the API)", async () => {
-  const r = await fetch(`${base}/api/workspaces/${ws}/flows/hello/run?wait=true&timeout=300`, {
+  const r = await fetch(`${base}/v1/workspaces/${ws}/flows/hello/run?wait=true&timeout=300`, {
     method: "POST",
     headers: { authorization: `Bearer ${process.env.QUALITY_TOKEN}`, "content-type": "application/json", "idempotency-key": `browser-${Date.now()}` },
     body: "{}",

@@ -14,7 +14,7 @@ delete process.env.FOLDRUN_DEV_NO_AUTH;
 delete process.env.FOLDRUN_DATABASE_URL;
 const { themePreference, effectiveTheme, isTheme, THEMES } = await import("../components/theme-model.ts");
 const { NextRequest } = await import("next/server");
-const { GET, PATCH } = await import("../app/api/me/preferences/route.ts");
+const { GET, PATCH } = await import("../app/v1/me/preferences/route.ts");
 const { createApiKey } = await import("../server/auth.ts");
 const { createUser, mintSession, SESSION_COOKIE, findUserById } = await import("../server/users.ts");
 
@@ -58,8 +58,8 @@ test("the route: a person sets and reads their theme; system is stored as nothin
   const { value } = await mintSession(user);
   const cookie = `${SESSION_COOKIE}=${value}`;
   const patch = (body: unknown, headers: Record<string, string> = { cookie }) =>
-    PATCH(new NextRequest("http://x/api/me/preferences", { method: "PATCH", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify(body) }));
-  const get = async (headers: Record<string, string> = { cookie }) => (await GET(new NextRequest("http://x/api/me/preferences", { headers }))).json();
+    PATCH(new NextRequest("http://x/v1/me/preferences", { method: "PATCH", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify(body) }));
+  const get = async (headers: Record<string, string> = { cookie }) => (await GET(new NextRequest("http://x/v1/me/preferences", { headers }))).json();
 
   assert.deepEqual(await get(), { theme: "system", runViews: [] });
   assert.equal((await patch({ theme: "sepia" })).status, 400);
@@ -90,9 +90,9 @@ test("the route: a person sets and reads their theme; system is stored as nothin
 
 test("the route: a key minted by nobody, or no credential, is refused", async () => {
   const { key } = await createApiKey("theme2", "ci", "ci-bot", undefined, "admin", null);
-  const res = await GET(new NextRequest("http://x/api/me/preferences", { headers: { authorization: `Bearer ${key}` } }));
+  const res = await GET(new NextRequest("http://x/v1/me/preferences", { headers: { authorization: `Bearer ${key}` } }));
   assert.equal(res.status, 400);
-  const none = await GET(new NextRequest("http://x/api/me/preferences"));
+  const none = await GET(new NextRequest("http://x/v1/me/preferences"));
   assert.equal(none.status, 401);
 });
 

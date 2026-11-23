@@ -1,7 +1,7 @@
 "use client";
 
 // Whether the account's model providers still take its keys: the last daily
-// check per provider (GET /api/account/providers, read on the server for the
+// check per provider (GET /v1/account/providers, read on the server for the
 // first paint), and "Check now", which POSTs the same route — the moment
 // after someone rotated a key and wants to know before a desk finds out.
 // A check spends a real model request at each endpoint, so the button needs
@@ -66,7 +66,7 @@ export function ProviderCheck({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/account/providers", {
+      const res = await fetch("/v1/account/providers", {
         method: "POST",
         headers: { "content-type": "application/json", "x-foldrun-tenant": tenant, "idempotency-key": crypto.randomUUID() },
       });

@@ -1,4 +1,4 @@
-// GET /api/schedule: the next three fires come from the scheduler's own
+// GET /v1/schedule: the next three fires come from the scheduler's own
 // nextFire (hours, not 57,600 minutes), and a cron whose day never comes
 // (`0 0 30 2 *`) is answered at once with none. 30 Oct 2026.
 //
@@ -32,7 +32,7 @@ for (const [p, body] of Object.entries(files)) {
 
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
-const route = await import("../app/api/schedule/route.ts");
+const route = await import("../app/v1/schedule/route.ts");
 const { parseCron, cronMatches } = await import("@/platform/scheduler");
 const { key } = await createApiKey("acme", "viewer", "v@acme.test", undefined, "viewer");
 
@@ -51,7 +51,7 @@ function byMinutes(expr: string, tz: string, from: number, count = 3): string[] 
 test("an impossible cron is valid with no upcoming fires, answered fast; a real one agrees with the minute scan", async () => {
   const before = Date.now();
   const t = performance.now();
-  const res = await route.GET(new NextRequest("http://x/api/schedule", { headers: { authorization: `Bearer ${key}` } }));
+  const res = await route.GET(new NextRequest("http://x/v1/schedule", { headers: { authorization: `Bearer ${key}` } }));
   const took = performance.now() - t;
   assert.equal(res.status, 200);
   const { scheduled } = (await res.json()) as { scheduled: { flow: string; valid: boolean; upcoming: string[] }[] };

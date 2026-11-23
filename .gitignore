@@ -51,8 +51,8 @@ next-env.d.ts
 # operator console's admin API, Stripe) is laid over
 # this checkout by its overlay.sh for a hosted build. Never commit its files:
 # scripts/billing-guard.mjs refuses them in pre-commit, pre-push and CI.
-/app/api/billing/
-/app/api/support/
+/app/v1/billing/
+/app/v1/support/
 /app/dashboard/billing/
 /app/dashboard/wallet/
 /app/support/

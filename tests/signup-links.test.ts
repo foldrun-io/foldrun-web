@@ -18,14 +18,14 @@ delete process.env.FOLDRUN_OPEN_SIGNUP;
 delete process.env.FOLDRUN_SETUP_TOKEN;
 
 const { NextRequest } = await import("next/server");
-const signupPost = await import("../app/api/auth/signup/route.ts");
+const signupPost = await import("../app/v1/auth/signup/route.ts");
 const { signupLinkUrl, readSignupLink } = await import("../server/signup-links.ts");
 const { createUser, findUser, accountAdmission } = await import("../server/users.ts");
 const { mintToken } = await import("../server/auth-tokens.ts");
 
 const PW = "a long and unusual passphrase 42!";
 const post = (body: unknown) =>
-  new NextRequest("http://x/api/auth/signup", {
+  new NextRequest("http://x/v1/auth/signup", {
     method: "POST",
     body: JSON.stringify(body),
     headers: { "content-type": "application/json", "x-forwarded-for": `10.1.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}` },

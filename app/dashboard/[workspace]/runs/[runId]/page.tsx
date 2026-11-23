@@ -142,7 +142,7 @@ export default async function RunPage({
         {run.inputs.map((f) => (
           <li key={f.path} className="flex items-baseline gap-2 px-4 py-2 text-[13px]">
             <Link
-              href={`/api/workspaces/${encodeURIComponent(workspace)}/storage/download?path=${encodeURIComponent(`${RUN_INPUTS_PREFIX}${run.id}/${f.path}`)}${tenant !== "default" ? `&tenant=${encodeURIComponent(tenant)}` : ""}`}
+              href={`/v1/workspaces/${encodeURIComponent(workspace)}/storage/download?path=${encodeURIComponent(`${RUN_INPUTS_PREFIX}${run.id}/${f.path}`)}${tenant !== "default" ? `&tenant=${encodeURIComponent(tenant)}` : ""}`}
               className="min-w-0 flex-1 truncate font-mono text-fg hover:underline"
             >
               {f.path}

@@ -65,12 +65,12 @@ test("a write wakes an idle stream at once, and an idle stream rarely asks the d
   const record = (status: string, note: string) => ({ id: RUN, flow: "f", status, startedAt: "2026-11-12T00:00:00Z", steps: [], note });
   store.writeRun(TENANT, WS, record("running", "first") as never);
 
-  const route = await import("../app/api/workspaces/[workspace]/runs/[runId]/stream/route.ts");
+  const route = await import("../app/v1/workspaces/[workspace]/runs/[runId]/stream/route.ts");
   const { NextRequest } = await import("next/server");
   const abort = new AbortController();
   try {
     const res = await route.GET(
-      new NextRequest(`http://x/api/workspaces/${WS}/runs/${RUN}/stream`, { headers: { "x-foldrun-tenant": TENANT }, signal: abort.signal }),
+      new NextRequest(`http://x/v1/workspaces/${WS}/runs/${RUN}/stream`, { headers: { "x-foldrun-tenant": TENANT }, signal: abort.signal }),
       { params: Promise.resolve({ workspace: WS, runId: RUN }) },
     );
     assert.equal(res.status, 200);

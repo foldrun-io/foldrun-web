@@ -97,7 +97,7 @@ export function FrontmatterForm({
 
   useEffect(() => {
     if (!workspace) return;
-    fetch(`/api/workspaces/${workspace}/vocabulary`, {
+    fetch(`/v1/workspaces/${workspace}/vocabulary`, {
       headers: { "x-foldrun-tenant": tenant ?? "default" },
     })
       .then((r) => (r.ok ? r.json() : null))

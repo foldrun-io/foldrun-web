@@ -549,9 +549,9 @@ export function a2aCallerName(c: Pick<A2aCaller, "label" | "prefix">): string {
 
 // ------------------------------------------------- the workspace's own view
 
-/** GET /api/workspaces/<ws>/a2a: the flows that say `a2a:`, where each is
+/** GET /v1/workspaces/<ws>/a2a: the flows that say `a2a:`, where each is
  *  served, and the newest A2A tasks with the key that asked — for the
- *  workspace's own people (an /api route, normal auth). */
+ *  workspace's own people (an /v1 route, normal auth). */
 export async function workspaceA2a(req: NextRequest, tenant: string, workspace: string) {
   const origin = publicOrigin(req);
   const flows = listFlows(tenant, workspace)

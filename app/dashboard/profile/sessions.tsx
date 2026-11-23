@@ -51,7 +51,7 @@ export function SessionList() {
   // The answer is set when it arrives, never in the same tick as the call,
   // so the effect below only starts the request.
   const load = () =>
-    fetch("/api/auth/sessions").then(async (res) => {
+    fetch("/v1/auth/sessions").then(async (res) => {
       if (!res.ok) return setError($t("profile.sessions.couldNotLoadYourSessions"));
       setState(await res.json());
     });
@@ -62,7 +62,7 @@ export function SessionList() {
   const end = async (body: Record<string, unknown>, tag: string) => {
     setBusy(tag);
     setError("");
-    const res = await fetch("/api/auth/sessions", {
+    const res = await fetch("/v1/auth/sessions", {
       method: "DELETE",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),

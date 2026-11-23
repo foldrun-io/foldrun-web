@@ -71,7 +71,7 @@ export default async function LimitsPage({ searchParams }: { searchParams: Promi
       <BillingTabs current="limits" tenant={tenant} hosted={platform.edition() === "hosted"} />
       <div className="space-y-8">
         <Panel title={$t("limits.page.wholeAccount")} description={$t("limits.page.acrossEveryWorkspaceAtTheCap")} flush>
-          <CapRow title={$t("limits.page.accountCap")} standing={account} endpoint="/api/account" tenant={tenant} />
+          <CapRow title={$t("limits.page.accountCap")} standing={account} endpoint="/v1/account" tenant={tenant} />
           {!accountNotify && (
             <p className="border-t border-line bg-warning-soft px-5 py-3 text-sm text-warning">
               {$rich("limits.page.warningsHaveNowhereToGoThe", { link: (chunks) => <Link href={`/dashboard/settings?tab=policies${qs.replace("?", "&")}#observability`} className="font-medium underline underline-offset-2">{chunks}</Link> })}
@@ -86,7 +86,7 @@ export default async function LimitsPage({ searchParams }: { searchParams: Promi
               {workspaces
                 .sort((a, b) => b.standing.spentUsd - a.standing.spentUsd)
                 .map((w) => (
-                  <CapRow key={w.name} title={w.name} standing={w.standing} endpoint={`/api/workspaces/${encodeURIComponent(w.name)}`} tenant={tenant} />
+                  <CapRow key={w.name} title={w.name} standing={w.standing} endpoint={`/v1/workspaces/${encodeURIComponent(w.name)}`} tenant={tenant} />
                 ))}
             </div>
           )}

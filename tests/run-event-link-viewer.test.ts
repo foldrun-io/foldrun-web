@@ -27,9 +27,9 @@ const { writeRun, readRun } = await import("../../foldrun-core/src/store.ts");
 const { eventUrl } = await import("../../foldrun-core/src/webhook.ts");
 const { runTextFor, runFor } = await import("../server/run-links.ts");
 type Ctx = { params: Promise<{ workspace: string; runId: string }> };
-const run = (await import("../app/api/workspaces/[workspace]/runs/[runId]/route.ts")) as { GET: (r: InstanceType<typeof NextRequest>, c: Ctx) => Promise<Response> };
-const stream = (await import("../app/api/workspaces/[workspace]/runs/[runId]/stream/route.ts")) as { GET: (r: InstanceType<typeof NextRequest>, c: Ctx) => Promise<Response> };
-const events = await import("../app/api/events/[tenant]/[workspace]/[runId]/route.ts");
+const run = (await import("../app/v1/workspaces/[workspace]/runs/[runId]/route.ts")) as { GET: (r: InstanceType<typeof NextRequest>, c: Ctx) => Promise<Response> };
+const stream = (await import("../app/v1/workspaces/[workspace]/runs/[runId]/stream/route.ts")) as { GET: (r: InstanceType<typeof NextRequest>, c: Ctx) => Promise<Response> };
+const events = await import("../app/v1/events/[tenant]/[workspace]/[runId]/route.ts");
 
 const TENANT = "acme";
 const WS = "desk";
@@ -50,7 +50,7 @@ const keys = {
   editor: (await createApiKey(TENANT, "e", "e@acme.test", undefined, "editor")).key,
 };
 const ctx: Ctx = { params: Promise.resolve({ workspace: WS, runId: ID }) };
-const as = (k: string) => new NextRequest(`http://localhost/api/workspaces/${WS}/runs/${ID}`, { headers: { authorization: `Bearer ${k}` } });
+const as = (k: string) => new NextRequest(`http://localhost/v1/workspaces/${WS}/runs/${ID}`, { headers: { authorization: `Bearer ${k}` } });
 
 async function firstFrame(res: Response): Promise<string> {
   const reader = res.body!.getReader();
@@ -82,10 +82,10 @@ test("an editor still gets the link, and it still releases the step; the viewer'
 });
 
 test("runTextFor and runFor: only the release line changes, only for a caller who may not run things", () => {
-  const raw = JSON.stringify({ steps: [{ events: [{ text: `release it with POST ${url}` }, { text: "other POST /api/x" }] }] });
+  const raw = JSON.stringify({ steps: [{ events: [{ text: `release it with POST ${url}` }, { text: "other POST /v1/x" }] }] });
   assert.equal(runTextFor(raw, { role: "editor" }), raw);
   const viewer = runTextFor(raw, { role: "viewer" });
-  assert.ok(!viewer.includes(token) && viewer.includes("other POST /api/x"));
+  assert.ok(!viewer.includes(token) && viewer.includes("other POST /v1/x"));
   assert.doesNotThrow(() => JSON.parse(viewer));
   const plain = { id: "x", steps: [] };
   assert.equal(runFor(plain, { role: "viewer" }), plain, "nothing to hide: the same object");

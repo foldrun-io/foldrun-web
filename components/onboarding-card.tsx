@@ -5,7 +5,7 @@
 // is, every step ticking itself from the account's real state, the next one
 // opened up as the primary action, and "Resume setup" back into the welcome
 // flow. A step hides from its "…" menu, the whole card from the card's
-// (PATCH /api/me/onboarding) — both a person's own choice. Gone by itself
+// (PATCH /v1/me/onboarding) — both a person's own choice. Gone by itself
 // once every step is done or hidden. The steps come from the server; this
 // only draws them.
 
@@ -29,7 +29,7 @@ export function withQs(href: string, qs: string): string {
 /** Null when saved, else what went wrong — a 401/403 is said, not swallowed. */
 export async function patchOnboarding(body: Record<string, unknown>): Promise<string | null> {
   try {
-    const res = await fetch("/api/me/onboarding", {
+    const res = await fetch("/v1/me/onboarding", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),

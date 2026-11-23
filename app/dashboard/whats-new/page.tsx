@@ -1,7 +1,7 @@
 // What's new: the releases this install has run, newest first, each with
 // what changed since the one before. The notes are written by the deploy
 // from commit subjects (foldrun-infra/dev/ci/changelog.mjs) and ship in the
-// image — this page reads the same record /api/changelog serves. Above them,
+// image — this page reads the same record /v1/changelog serves. Above them,
 // the API's own changelog: its dated versions, what each one broke, and the
 // routes on their way out, from server/api-version.ts.
 

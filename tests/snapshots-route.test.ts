@@ -21,7 +21,7 @@ const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 const { packSnapshot } = await import("@/lib/snapshot-archive");
 type Handler = (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string }> }) => Promise<Response>;
-const route = (await import("../app/api/workspaces/[workspace]/snapshots/route.ts")) as unknown as { POST: Handler };
+const route = (await import("../app/v1/workspaces/[workspace]/snapshots/route.ts")) as unknown as { POST: Handler };
 
 const TENANT = "acme";
 for (const ws of ["desk", "other"]) {
@@ -35,7 +35,7 @@ const { key: otherOnly } = await createApiKey(TENANT, "other-only", "owner@acme.
 
 const post = (ws: string, key: string, body: Uint8Array, headers: Record<string, string> = {}) =>
   route.POST(
-    new NextRequest(`http://localhost/api/workspaces/${ws}/snapshots`, {
+    new NextRequest(`http://localhost/v1/workspaces/${ws}/snapshots`, {
       method: "POST",
       headers: { authorization: `Bearer ${key}`, "content-type": "application/gzip", "content-length": String(body.length), ...headers },
       body: body as Uint8Array<ArrayBuffer>,
@@ -67,7 +67,7 @@ test("who may not: a viewer, a key held to another workspace; an unknown workspa
 
 test("refused before the body is read: no length (411), too large a length (413), an empty body (400)", async () => {
   const noLen = await route.POST(
-    new NextRequest("http://localhost/api/workspaces/desk/snapshots", { method: "POST", headers: { authorization: `Bearer ${editor}` }, body: new ReadableStream(), duplex: "half" } as never),
+    new NextRequest("http://localhost/v1/workspaces/desk/snapshots", { method: "POST", headers: { authorization: `Bearer ${editor}` }, body: new ReadableStream(), duplex: "half" } as never),
     { params: Promise.resolve({ workspace: "desk" }) },
   );
   assert.equal(noLen.status, 411);
@@ -92,12 +92,12 @@ test("run an agent on a snapshot: refused without the k8s sandbox, for a bad or 
   const agentDir = path.join(DATA, TENANT, "workspaces", "desk", "agents", "coder");
   fs.mkdirSync(agentDir, { recursive: true });
   fs.writeFileSync(path.join(agentDir, "agent.md"), "---\nname: coder\ndescription: codes\n---\n\nCode.\n");
-  const run = (await import("../app/api/workspaces/[workspace]/agents/[agent]/run/route.ts")) as unknown as {
+  const run = (await import("../app/v1/workspaces/[workspace]/agents/[agent]/run/route.ts")) as unknown as {
     POST: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string; agent: string }> }) => Promise<Response>;
   };
   const start = (body: unknown) =>
     run.POST(
-      new NextRequest("http://localhost/api/workspaces/desk/agents/coder/run", { method: "POST", headers: { authorization: `Bearer ${editor}`, "content-type": "application/json" }, body: JSON.stringify(body) }),
+      new NextRequest("http://localhost/v1/workspaces/desk/agents/coder/run", { method: "POST", headers: { authorization: `Bearer ${editor}`, "content-type": "application/json" }, body: JSON.stringify(body) }),
       { params: Promise.resolve({ workspace: "desk", agent: "coder" }) },
     );
   const prev = process.env.FOLDRUN_RUN_ISOLATION;

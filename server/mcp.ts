@@ -1,6 +1,6 @@
 // The platform as an MCP server (Model Context Protocol), 1 Nov 2026.
 //
-// POST /api/mcp takes one JSON-RPC 2.0 message per request — MCP's
+// POST /v1/mcp takes one JSON-RPC 2.0 message per request — MCP's
 // Streamable HTTP transport, answered as plain JSON (no SSE stream, no
 // session id: every request stands alone). An AI app — Claude Code, Claude
 // Desktop, Cursor, Codex — connects with an API key and gets the tools below:
@@ -10,7 +10,7 @@
 // one of its files, check it — so an app with no shell (Claude Desktop) can
 // build an automation, not only drive one.
 //
-// No tool has a power of its own. Each one is a call to an existing /api
+// No tool has a power of its own. Each one is a call to an existing /v1
 // route, made in-process with the caller's own key, so the role, the
 // workspace scope, the A2A-key refusal, idempotency and every check are the
 // route's — the same answer the CLI or curl would get. A tool adds only the
@@ -47,7 +47,7 @@ type Args = Record<string, unknown>;
 type Params = Record<string, string>;
 type RouteModule = Record<string, unknown>;
 
-/** One call to an /api route: its module, method, path parameters, query and body. */
+/** One call to an /v1 route: its module, method, path parameters, query and body. */
 interface Call {
   route: () => Promise<RouteModule>;
   method: "GET" | "POST" | "PUT" | "DELETE";
@@ -84,22 +84,22 @@ const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : und
 
 // Static import paths, so the bundler sees every module a tool may reach.
 const R = {
-  me: () => import("@/app/api/me/route"),
-  workspaces: () => import("@/app/api/workspaces/route"),
-  inbox: () => import("@/app/api/me/inbox/route"),
-  approvals: () => import("@/app/api/approvals/route"),
-  flows: () => import("@/app/api/workspaces/[workspace]/flows/route"),
-  flowRun: () => import("@/app/api/workspaces/[workspace]/flows/[flow]/run/route"),
-  agents: () => import("@/app/api/workspaces/[workspace]/agents/route"),
-  agentRun: () => import("@/app/api/workspaces/[workspace]/agents/[agent]/run/route"),
-  runs: () => import("@/app/api/workspaces/[workspace]/runs/route"),
-  run: () => import("@/app/api/workspaces/[workspace]/runs/[runId]/route"),
-  approve: () => import("@/app/api/workspaces/[workspace]/runs/[runId]/approve/route"),
-  answer: () => import("@/app/api/workspaces/[workspace]/runs/[runId]/answer/route"),
-  message: () => import("@/app/api/workspaces/[workspace]/runs/[runId]/message/route"),
-  stop: () => import("@/app/api/workspaces/[workspace]/runs/[runId]/stop/route"),
-  source: () => import("@/app/api/workspaces/[workspace]/source/route"),
-  check: () => import("@/app/api/workspaces/[workspace]/check/route"),
+  me: () => import("@/app/v1/me/route"),
+  workspaces: () => import("@/app/v1/workspaces/route"),
+  inbox: () => import("@/app/v1/me/inbox/route"),
+  approvals: () => import("@/app/v1/approvals/route"),
+  flows: () => import("@/app/v1/workspaces/[workspace]/flows/route"),
+  flowRun: () => import("@/app/v1/workspaces/[workspace]/flows/[flow]/run/route"),
+  agents: () => import("@/app/v1/workspaces/[workspace]/agents/route"),
+  agentRun: () => import("@/app/v1/workspaces/[workspace]/agents/[agent]/run/route"),
+  runs: () => import("@/app/v1/workspaces/[workspace]/runs/route"),
+  run: () => import("@/app/v1/workspaces/[workspace]/runs/[runId]/route"),
+  approve: () => import("@/app/v1/workspaces/[workspace]/runs/[runId]/approve/route"),
+  answer: () => import("@/app/v1/workspaces/[workspace]/runs/[runId]/answer/route"),
+  message: () => import("@/app/v1/workspaces/[workspace]/runs/[runId]/message/route"),
+  stop: () => import("@/app/v1/workspaces/[workspace]/runs/[runId]/stop/route"),
+  source: () => import("@/app/v1/workspaces/[workspace]/source/route"),
+  check: () => import("@/app/v1/workspaces/[workspace]/check/route"),
 } as const;
 
 export const MCP_TOOLS: McpTool[] = [
@@ -109,7 +109,7 @@ export const MCP_TOOLS: McpTool[] = [
     description: "The account this key acts for: its role, the workspaces it may open (null: all) and the key itself.",
     inputSchema: obj({}),
     read: true,
-    call: () => ({ route: R.me, method: "GET", path: "/api/me" }),
+    call: () => ({ route: R.me, method: "GET", path: "/v1/me" }),
   },
   {
     name: "list_workspaces",
@@ -117,7 +117,7 @@ export const MCP_TOOLS: McpTool[] = [
     description: "Every workspace this key may open, with its description.",
     inputSchema: obj({}),
     read: true,
-    call: () => ({ route: R.workspaces, method: "GET", path: "/api/workspaces" }),
+    call: () => ({ route: R.workspaces, method: "GET", path: "/v1/workspaces" }),
   },
   {
     name: "inbox",
@@ -130,7 +130,7 @@ export const MCP_TOOLS: McpTool[] = [
       workspace: str("only this workspace"),
     }),
     read: true,
-    call: (a) => ({ route: R.inbox, method: "GET", path: "/api/me/inbox", query: { bucket: s(a.bucket), kind: s(a.kind), workspace: s(a.workspace) } }),
+    call: (a) => ({ route: R.inbox, method: "GET", path: "/v1/me/inbox", query: { bucket: s(a.bucket), kind: s(a.kind), workspace: s(a.workspace) } }),
   },
   {
     name: "list_approvals",
@@ -139,7 +139,7 @@ export const MCP_TOOLS: McpTool[] = [
       "Every gate waiting on a person across the account (workspace, runId, step, agent, question, waitingSince) and, under `questions`, every question an agent is asking mid-step (id, runId, question, options). Decide a gate with decide_approval; answer a question with answer_question.",
     inputSchema: obj({}),
     read: true,
-    call: () => ({ route: R.approvals, method: "GET", path: "/api/approvals" }),
+    call: () => ({ route: R.approvals, method: "GET", path: "/v1/approvals" }),
   },
   {
     name: "list_flows",
@@ -147,7 +147,7 @@ export const MCP_TOOLS: McpTool[] = [
     description: "A workspace's flows: name, trigger, schedule, steps and the agents that run them.",
     inputSchema: obj({ workspace: WS }, ["workspace"]),
     read: true,
-    call: (a) => ({ route: R.flows, method: "GET", path: `/api/workspaces/${enc(s(a.workspace)!)}/flows`, params: { workspace: s(a.workspace)! } }),
+    call: (a) => ({ route: R.flows, method: "GET", path: `/v1/workspaces/${enc(s(a.workspace)!)}/flows`, params: { workspace: s(a.workspace)! } }),
   },
   {
     name: "list_runs",
@@ -169,7 +169,7 @@ export const MCP_TOOLS: McpTool[] = [
       return {
         route: R.runs,
         method: "GET",
-        path: `/api/workspaces/${enc(s(a.workspace)!)}/runs`,
+        path: `/v1/workspaces/${enc(s(a.workspace)!)}/runs`,
         params: { workspace: s(a.workspace)! },
         // The route has no flow filter; ask for more and keep that flow's.
         query: { limit: String(flow ? 500 : limit) },
@@ -187,7 +187,7 @@ export const MCP_TOOLS: McpTool[] = [
     description: "One run in full: every step, its agent, status, output, cost and timing, the gate or question it waits on, and why it failed.",
     inputSchema: obj({ workspace: WS, run_id: RUN }, ["workspace", "run_id"]),
     read: true,
-    call: (a) => ({ route: R.run, method: "GET", path: `/api/workspaces/${enc(s(a.workspace)!)}/runs/${enc(s(a.run_id)!)}`, params: { workspace: s(a.workspace)!, runId: s(a.run_id)! } }),
+    call: (a) => ({ route: R.run, method: "GET", path: `/v1/workspaces/${enc(s(a.workspace)!)}/runs/${enc(s(a.run_id)!)}`, params: { workspace: s(a.workspace)!, runId: s(a.run_id)! } }),
   },
   {
     name: "read_file",
@@ -195,7 +195,7 @@ export const MCP_TOOLS: McpTool[] = [
     description: "One file of a workspace's source (an agent.md, a flow, knowledge, AGENTS.md) — or, with no path, the tree of every file.",
     inputSchema: obj({ workspace: WS, path: str("e.g. flows/weekly.md or agents/writer/agent.md; left out: the file tree") }, ["workspace"]),
     read: true,
-    call: (a) => ({ route: R.source, method: "GET", path: `/api/workspaces/${enc(s(a.workspace)!)}/source`, params: { workspace: s(a.workspace)! }, query: { path: s(a.path) } }),
+    call: (a) => ({ route: R.source, method: "GET", path: `/v1/workspaces/${enc(s(a.workspace)!)}/source`, params: { workspace: s(a.workspace)! }, query: { path: s(a.path) } }),
   },
   {
     name: "check_workspace",
@@ -207,7 +207,7 @@ export const MCP_TOOLS: McpTool[] = [
     call: (a) => ({
       route: R.check,
       method: "GET",
-      path: `/api/workspaces/${enc(s(a.workspace)!)}/check`,
+      path: `/v1/workspaces/${enc(s(a.workspace)!)}/check`,
       params: { workspace: s(a.workspace)! },
       query: { security: a.security === true ? "1" : undefined },
     }),
@@ -219,7 +219,7 @@ export const MCP_TOOLS: McpTool[] = [
       "Make a new, blank workspace: an AGENTS.md (the context every agent in it shares) and nothing else. Refused when the name is taken — nothing is changed. Then add agents and flows with write_file. Confirm with the user first.",
     inputSchema: obj({ name: str("the new workspace's name: lowercase letters, digits and dashes") }, ["name"]),
     read: false,
-    call: (a) => ({ route: R.workspaces, method: "POST", path: "/api/workspaces", body: { name: s(a.name), template: true, ifAbsent: true } }),
+    call: (a) => ({ route: R.workspaces, method: "POST", path: "/v1/workspaces", body: { name: s(a.name), template: true, ifAbsent: true } }),
   },
   {
     name: "write_file",
@@ -243,7 +243,7 @@ export const MCP_TOOLS: McpTool[] = [
       return {
         route: R.source,
         method: "PUT",
-        path: `/api/workspaces/${enc(s(a.workspace)!)}/source`,
+        path: `/v1/workspaces/${enc(s(a.workspace)!)}/source`,
         params: { workspace: s(a.workspace)! },
         body: {
           path: s(a.path),
@@ -266,7 +266,7 @@ export const MCP_TOOLS: McpTool[] = [
     call: (a) => ({
       route: R.source,
       method: "DELETE",
-      path: `/api/workspaces/${enc(s(a.workspace)!)}/source`,
+      path: `/v1/workspaces/${enc(s(a.workspace)!)}/source`,
       params: { workspace: s(a.workspace)! },
       body: { path: s(a.path) },
     }),
@@ -277,7 +277,7 @@ export const MCP_TOOLS: McpTool[] = [
     description: "A workspace's agents: each one's name, what it is for, and when it last ran. `run_agent` runs one with a task of your own.",
     inputSchema: obj({ workspace: WS }, ["workspace"]),
     read: true,
-    call: (a) => ({ route: R.agents, method: "GET", path: `/api/workspaces/${enc(s(a.workspace)!)}/agents`, params: { workspace: s(a.workspace)! } }),
+    call: (a) => ({ route: R.agents, method: "GET", path: `/v1/workspaces/${enc(s(a.workspace)!)}/agents`, params: { workspace: s(a.workspace)! } }),
   },
   {
     name: "run_flow",
@@ -300,7 +300,7 @@ export const MCP_TOOLS: McpTool[] = [
     call: (a) => ({
       route: R.flowRun,
       method: "POST",
-      path: `/api/workspaces/${enc(s(a.workspace)!)}/flows/${enc(s(a.flow)!)}/run`,
+      path: `/v1/workspaces/${enc(s(a.workspace)!)}/flows/${enc(s(a.flow)!)}/run`,
       params: { workspace: s(a.workspace)!, flow: s(a.flow)! },
       body: { ...(s(a.task) !== undefined ? { task: s(a.task) } : {}), ...(a.test === true ? { test: true } : {}), ...(s(a.context) ? { context: s(a.context) } : {}), ...(Array.isArray(a.inputs) ? { inputs: a.inputs } : {}), ...(s(a.customer) ? { customer: s(a.customer) } : {}) },
     }),
@@ -327,7 +327,7 @@ export const MCP_TOOLS: McpTool[] = [
     call: (a) => ({
       route: R.agentRun,
       method: "POST",
-      path: `/api/workspaces/${enc(s(a.workspace)!)}/agents/${enc(s(a.agent)!)}/run`,
+      path: `/v1/workspaces/${enc(s(a.workspace)!)}/agents/${enc(s(a.agent)!)}/run`,
       params: { workspace: s(a.workspace)!, agent: s(a.agent)! },
       body: { task: s(a.task) ?? "", ...(a.test === true ? { test: true } : {}), ...(s(a.snapshot) ? { snapshot: s(a.snapshot) } : {}), ...(s(a.context) ? { context: s(a.context) } : {}), ...(Array.isArray(a.inputs) ? { inputs: a.inputs } : {}), ...(s(a.customer) ? { customer: s(a.customer) } : {}) },
     }),
@@ -351,7 +351,7 @@ export const MCP_TOOLS: McpTool[] = [
     call: (a) => ({
       route: R.approve,
       method: "POST",
-      path: `/api/workspaces/${enc(s(a.workspace)!)}/runs/${enc(s(a.run_id)!)}/approve`,
+      path: `/v1/workspaces/${enc(s(a.workspace)!)}/runs/${enc(s(a.run_id)!)}/approve`,
       params: { workspace: s(a.workspace)!, runId: s(a.run_id)! },
       body: { decision: s(a.decision), ...(s(a.note) ? { note: s(a.note) } : {}), ...(n(a.step) !== undefined ? { step: n(a.step) } : {}) },
     }),
@@ -366,7 +366,7 @@ export const MCP_TOOLS: McpTool[] = [
     call: (a) => ({
       route: R.answer,
       method: "POST",
-      path: `/api/workspaces/${enc(s(a.workspace)!)}/runs/${enc(s(a.run_id)!)}/answer`,
+      path: `/v1/workspaces/${enc(s(a.workspace)!)}/runs/${enc(s(a.run_id)!)}/answer`,
       params: { workspace: s(a.workspace)!, runId: s(a.run_id)! },
       body: { question: s(a.question), answer: s(a.answer) },
     }),
@@ -381,7 +381,7 @@ export const MCP_TOOLS: McpTool[] = [
     call: (a) => ({
       route: R.message,
       method: "POST",
-      path: `/api/workspaces/${enc(s(a.workspace)!)}/runs/${enc(s(a.run_id)!)}/message`,
+      path: `/v1/workspaces/${enc(s(a.workspace)!)}/runs/${enc(s(a.run_id)!)}/message`,
       params: { workspace: s(a.workspace)!, runId: s(a.run_id)! },
       body: { text: s(a.text), ...(n(a.step) !== undefined ? { step: n(a.step) } : {}) },
     }),
@@ -396,7 +396,7 @@ export const MCP_TOOLS: McpTool[] = [
     call: (a) => ({
       route: R.stop,
       method: "POST",
-      path: `/api/workspaces/${enc(s(a.workspace)!)}/runs/${enc(s(a.run_id)!)}/stop`,
+      path: `/v1/workspaces/${enc(s(a.workspace)!)}/runs/${enc(s(a.run_id)!)}/stop`,
       params: { workspace: s(a.workspace)!, runId: s(a.run_id)! },
       body: {},
     }),

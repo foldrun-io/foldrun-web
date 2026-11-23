@@ -118,7 +118,7 @@ export function TriggerEditor({
   async function save() {
     setBusy(true);
     setError(null);
-    const res = await fetch(`/api/workspaces/${workspace}/flows/${flow}`, {
+    const res = await fetch(`/v1/workspaces/${workspace}/flows/${flow}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({

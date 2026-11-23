@@ -38,7 +38,7 @@ export function CallContent({ run, call, tenant }: { run: CallRun; call: string;
   const [state, setState] = useState<{ input?: string; output?: string; inputChars?: number; outputChars?: number; inputCut?: boolean; outputCut?: boolean } | string | null>(null);
   useEffect(() => {
     let live = true;
-    fetch(`/api/workspaces/${encodeURIComponent(run.workspace)}/runs/${encodeURIComponent(run.runId)}/calls/${encodeURIComponent(call)}`, { headers: { "x-foldrun-tenant": tenant } })
+    fetch(`/v1/workspaces/${encodeURIComponent(run.workspace)}/runs/${encodeURIComponent(run.runId)}/calls/${encodeURIComponent(call)}`, { headers: { "x-foldrun-tenant": tenant } })
       .then(async (r) => {
         const body = (await r.json().catch(() => ({}))) as { call?: object; error?: string };
         if (live) setState(r.ok && body.call ? body.call : callContentError(r.status, body.error));

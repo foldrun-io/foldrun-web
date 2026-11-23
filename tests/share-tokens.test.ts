@@ -1,7 +1,7 @@
 // Share links: who is handed the token, and how fast a revoke bites
 // (30 Oct 2026).
 //
-// GET /api/workspaces/<ws>/shares returned every live token — the bearer
+// GET /v1/workspaces/<ws>/shares returned every live token — the bearer
 // capability behind /s/<token> — to every viewer, so a contractor who listed
 // them kept working public links after their key was revoked. Now an admin
 // and a link's own maker see the token and URL; everyone else sees the link
@@ -35,7 +35,7 @@ fs.writeFileSync(path.join(ws, "outputs", "report.txt"), "the report");
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 const { shareId, readerSeesToken } = await import("@/platform/shares");
-const shares = await import("../app/api/workspaces/[workspace]/shares/route.ts");
+const shares = await import("../app/v1/workspaces/[workspace]/shares/route.ts");
 const serve = await import("../app/s/[token]/route.ts");
 
 const keyOf = async (who: string, role: "admin" | "editor" | "viewer") => (await createApiKey(TENANT, who, `${who}@acme.test`, undefined, role)).key;
@@ -47,7 +47,7 @@ const viewer = await keyOf("vic", "viewer");
 const call = (method: string, key: string, query = "", body?: unknown) => {
   const h = (shares as unknown as Record<string, (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string }> }) => Promise<Response>>)[method];
   return h(
-    new NextRequest(`http://localhost/api/workspaces/${WS}/shares${query}`, {
+    new NextRequest(`http://localhost/v1/workspaces/${WS}/shares${query}`, {
       method,
       headers: { authorization: `Bearer ${key}`, "content-type": "application/json", "idempotency-key": `${Math.random()}` },
       ...(body ? { body: JSON.stringify(body) } : {}),

@@ -1,4 +1,4 @@
-// OpenAPI request/response schemas: everything else outside /api/workspaces: hooks, inbox, events, changelog, healthz, version, status, metrics, usage, issues, insights, schedule, search, openapi.json, mcp, extract, /s/{token}.
+// OpenAPI request/response schemas: everything else outside /v1/workspaces: hooks, inbox, events, changelog, healthz, version, status, metrics, usage, issues, insights, schedule, search, openapi.json, mcp, extract, /s/{token}.
 // Written from what each handler validates and answers (30 Oct 2026).
 
 import { type Schema, type Shape, obj, str, bool, int, arr, nullable, Failure, ExtractResult, ExtractJobError } from "./kit.ts";
@@ -85,7 +85,7 @@ const AccountObservation = obj({
 });
 
 export const SHAPES: Record<string, Shape> = {
-  "GET /api/changelog": {
+  "GET /v1/changelog": {
     query: [{ name: "limit", description: "releases, default 10, 1–50" }],
     response: obj({
       version: str("what this install runs"),
@@ -103,7 +103,7 @@ export const SHAPES: Record<string, Shape> = {
       ),
     }),
   },
-  "POST /api/events/{tenant}/{workspace}/{runId}": {
+  "POST /v1/events/{tenant}/{workspace}/{runId}": {
     query: [
       { name: "token", description: "the event URL's token — the only credential" },
       { name: "step", description: "the parked step's index, as the event URL carries it (since 30 Oct 2026): the token is that step's, for one park, and releases it alone. A URL without it (made before then) still releases a step parked under it" },
@@ -111,7 +111,7 @@ export const SHAPES: Record<string, Shape> = {
     body: { description: "anything — read as text, the first 20,000 characters become the waiting step's event payload" },
     response: obj({ ok: bool, runId: str(), steps: arr(int, "the step indexes released") }),
   },
-  "GET /api/healthz": {
+  "GET /v1/healthz": {
     response: obj({
       ok: { ...bool, description: "always true — healthz reports, never gates. Without a credential this is the whole answer; the fields below need a key, a session or the scraper's token" },
       version: str(), role: str("all | web | worker …, FOLDRUN_ROLE"),
@@ -120,7 +120,7 @@ export const SHAPES: Record<string, Shape> = {
       redis: { ...nullable(bool), description: "null with no Redis configured" },
     }),
   },
-  "POST /api/hooks/{tenant}/{workspace}/{flow}": {
+  "POST /v1/hooks/{tenant}/{workspace}/{flow}": {
     query: [{ name: "token", description: "the hook's token, when the sender cannot send Authorization: Bearer or X-Foldrun-Token" }],
     body: { description: "anything — the whole body is what a signature:, idempotency: body:<field> and filter: read (filter: as JSON); the first 20,000 characters become the run's task" },
     response: {
@@ -128,7 +128,7 @@ export const SHAPES: Record<string, Shape> = {
       properties: { ...(TriggerAnswer.properties as Record<string, Schema>), challenge: str("Slack's url_verification handshake, answered without starting anything") },
     },
   },
-  "POST /api/inbox/{tenant}/{workspace}/{flow}": {
+  "POST /v1/inbox/{tenant}/{workspace}/{flow}": {
     query: [{ name: "token", description: "the inbox's token, when the sender cannot send Authorization: Bearer or X-Foldrun-Token" }],
     body: {
       ...obj({ from: str(), to: str(), subject: str(), text: str(), html: str() }),
@@ -137,21 +137,21 @@ export const SHAPES: Record<string, Shape> = {
     },
     response: TriggerAnswer,
   },
-  "GET /api/metrics": {
+  "GET /v1/metrics": {
     media: {
       type: "text/plain",
       schema: { type: "string", description: "Prometheus text exposition, version 0.0.4 (Content-Type: text/plain; version=0.0.4): foldrun_queue_*, run counts, room-wait and billing gauges" },
       description: "Every account's operational numbers, for a scraper. Only with Authorization: Bearer <FOLDRUN_METRICS_TOKEN> — no account key or session is taken; 404 while that token is unset or a wrong one is sent (wrong tokens are rate-limited)",
     },
   },
-  "GET /api/observe": {
+  "GET /v1/observe": {
     query: [{ name: "days", description: "the window in days, 1–365 (default 7)" }],
     response: AccountObservation,
   },
-  "GET /api/openapi.json": {
+  "GET /v1/openapi.json": {
     response: { ...obj({ openapi: str("3.1.0"), info: { type: "object", additionalProperties: true }, paths: { type: "object", additionalProperties: true }, components: { type: "object", additionalProperties: true } }), additionalProperties: true, description: "this document" },
   },
-  "GET /api/schedule": {
+  "GET /v1/schedule": {
     response: obj({
       scheduled: arr(
         obj({
@@ -164,11 +164,11 @@ export const SHAPES: Record<string, Shape> = {
       ),
     }),
   },
-  "POST /api/schedule": {
+  "POST /v1/schedule": {
     noBody: "It ticks the scheduler now; there is nothing to choose.",
     response: obj({ ok: bool, fired: arr(str("<workspace>/<flow>"), "this account's flows the tick started") }),
   },
-  "GET /api/search": {
+  "GET /v1/search": {
     query: [{ name: "q", description: "at most 100 characters; empty lists the workspaces alone" }],
     response: obj({
       hits: arr(
@@ -181,7 +181,7 @@ export const SHAPES: Record<string, Shape> = {
       ),
     }),
   },
-  "GET /api/status": {
+  "GET /v1/status": {
     response: obj({
       status: str("operational | maintenance | degraded | outage — unknown (with a 503) when it could not be worked out"),
       description: str(), updatedAt: str(),
@@ -193,7 +193,7 @@ export const SHAPES: Record<string, Shape> = {
       maintenance: arr(PublicIncident, "maintenance now or announced"),
     }),
   },
-  "GET /api/signup": {
+  "GET /v1/signup": {
     response: obj({
       free: { ...bool, description: "a stranger may open an account without paying (signup.open)" },
       paid: { ...bool, description: "a stranger may open an account by choosing a plan — hosted only, and only while payments are ready and the paid flow exists" },
@@ -210,7 +210,7 @@ export const SHAPES: Record<string, Shape> = {
       ),
     }),
   },
-  "GET /api/status/history": {
+  "GET /v1/status/history": {
     query: [{ name: "days", description: "1–90, default 90" }],
     response: obj({
       days: int, sampleMinutes: int,
@@ -222,7 +222,7 @@ export const SHAPES: Record<string, Shape> = {
       incidents: arr(PublicIncident),
     }),
   },
-  "GET /api/usage/history": {
+  "GET /v1/account/usage/history": {
     query: [{ name: "days", description: "the window, default 56, 1–365; over 21 days it buckets by week" }],
     response: obj({
       from: str(), to: str(), bucket: str("day | week"), periods: arr(str()),
@@ -233,8 +233,8 @@ export const SHAPES: Record<string, Shape> = {
       unsplitUsd: { ...num, description: "charges written before the model/platform split existed" },
     }),
   },
-  "GET /api/version": {
-    // Without a credential only `version`, `api`, `urls` and `paths` are sent; the rest needs a key, a session or the scraper's token.
+  "GET /v1/version": {
+    // Without a credential only `version`, `api` and `urls` are sent; the rest needs a key, a session or the scraper's token.
     response: obj({
       version: str("vYYYY.MM.DD.N, or dev"), released_at: nstr(), build: nstr(), api: str("the current API version, YYYY-MM-DD"),
       components: Components,
@@ -245,14 +245,9 @@ export const SHAPES: Record<string, Shape> = {
         api: { ...nstr(), description: "where programs call — keys, the CLI, Claude Code, for the platform and models (FOLDRUN_PUBLIC_API_URL); null: the address this was asked at answers them" },
         app: { ...nstr(), description: "the dashboard's address, where people sign in (FOLDRUN_PUBLIC_URL); null when unset" },
       }),
-      paths: obj({
-        platform: str('"/v1" where the API host maps the platform under /v1 (FOLDRUN_API_V1), else "/api"'),
-        models: { ...nstr(), description: '"/v1" on the API host (messages, count_tokens, models, usage); null when this install has no API host' },
-        renames: { type: "object", additionalProperties: { type: "string" }, description: "the /api paths whose /v1 name differs, /api prefix → /v1 prefix (e.g. /api/usage → /v1/account/usage); empty while platform is /api" },
-      }),
     }),
   },
-  "POST /api/mcp": {
+  "POST /v1/mcp": {
     body: obj(
       {
         jsonrpc: str('"2.0"'),
@@ -272,7 +267,7 @@ export const SHAPES: Record<string, Shape> = {
     // version it does not speak, no credential, another origin.
     errorShape: "RpcError",
   },
-  "POST /api/mcp/oauth/register": {
+  "POST /v1/mcp/oauth/register": {
     body: obj(
       {
         redirect_uris: arr(str("https, or http to localhost; no fragment"), "one to ten"),
@@ -299,7 +294,7 @@ export const SHAPES: Record<string, Shape> = {
       client_secret_expires_at: { ...int, description: "0: never" },
     }),
   },
-  "GET /api/mcp/oauth/authorize": {
+  "GET /v1/mcp/oauth/authorize": {
     response: obj({
       client: obj({ name: str(), id: str(), kind: str("dcr | cimd"), uri: nstr() }),
       redirectHost: str("where the answer goes — what the person is shown"),
@@ -312,7 +307,7 @@ export const SHAPES: Record<string, Shape> = {
       redirect: str("instead of the rest: the app's redirect URI with OAuth's error, for a fault the app should hear about"),
     }),
   },
-  "POST /api/mcp/oauth/authorize": {
+  "POST /v1/mcp/oauth/authorize": {
     body: obj(
       {
         request: str("the app's authorization request, as its query string"),
@@ -324,7 +319,7 @@ export const SHAPES: Record<string, Shape> = {
     ),
     response: obj({ ok: bool, redirect: str("the app's redirect URI with code, state and iss — or error=access_denied") }),
   },
-  "POST /api/mcp/oauth/token": {
+  "POST /v1/mcp/oauth/token": {
     body: obj(
       {
         grant_type: str("authorization_code | refresh_token"),
@@ -336,19 +331,19 @@ export const SHAPES: Record<string, Shape> = {
         client_secret: str("or HTTP Basic"),
         client_assertion_type: str("urn:ietf:params:oauth:client-assertion-type:jwt-bearer, for private_key_jwt"),
         client_assertion: str("private_key_jwt: a JWT signed with a key in the app's JWKS — iss = sub = client_id, aud = the issuer or this endpoint, ≤ 5 minutes, jti used once"),
-        resource: str("this install's /api/mcp"),
+        resource: str("this install's /v1/mcp"),
       },
       ["grant_type"],
     ),
     response: obj({
-      access_token: str("fmcp_at_…, opens POST /api/mcp only"),
+      access_token: str("fmcp_at_…, opens POST /v1/mcp only"),
       token_type: str("Bearer"),
       expires_in: int,
       refresh_token: str("rotated on every use"),
       scope: str("mcp:read, or mcp:read mcp:write"),
     }),
   },
-  "POST /api/mcp/oauth/revoke": {
+  "POST /v1/mcp/oauth/revoke": {
     body: obj(
       {
         token: str("an fmcp_at_ access token or fmcp_rt_ refresh token this app holds"),
@@ -360,7 +355,7 @@ export const SHAPES: Record<string, Shape> = {
     ),
     response: { type: "object", description: "200 with an empty body: the connection the token speaks for has ended (also for a token already unknown, RFC 7009 §2.2)" },
   },
-  "POST /api/mcp/clients": {
+  "POST /v1/mcp/clients": {
     body: obj({
       name: str("what the machine client is, as people will read it"),
       role: str("viewer (default) | editor | admin | owner — never above yours"),
@@ -374,12 +369,12 @@ export const SHAPES: Record<string, Shape> = {
     response: obj({
       client_id: str(),
       client_secret: str("the secret methods only — shown once"),
-      grant: str("its connection id: DELETE /api/mcp/connections/<id> ends it"),
+      grant: str("its connection id: DELETE /v1/mcp/connections/<id> ends it"),
       token_endpoint: str("POST grant_type=client_credentials here"),
       token_endpoint_auth_method: str(),
     }, ["client_id", "grant", "token_endpoint"]),
   },
-  "GET /api/mcp/connections": {
+  "GET /v1/mcp/connections": {
     response: obj({
       connections: arr(
         obj({
@@ -400,8 +395,8 @@ export const SHAPES: Record<string, Shape> = {
       everyone: { ...bool, description: "true: every connection in the account (keys:manage); false: your own" },
     }),
   },
-  "DELETE /api/mcp/connections/{id}": { response: obj({ ok: bool, id: str(), revoked: bool }) },
-  "POST /api/extract": {
+  "DELETE /v1/mcp/connections/{id}": { response: obj({ ok: bool, id: str(), revoked: bool }) },
+  "POST /v1/extract": {
     query: [
       { name: "name", description: "the file's name; its extension helps tell the type (the bytes decide)" },
       { name: "lang", description: "fa | en | auto (default): OCR fas+eng or eng; speech in Persian, English, or the language heard" },
@@ -412,7 +407,7 @@ export const SHAPES: Record<string, Shape> = {
     noBody: "The request body is the file's raw bytes, not JSON, with a Content-Length — at most FOLDRUN_EXTRACT_MAX_MB (default 100) and the API's per-request limit (10 MB); a larger file goes to storage first, then …/storage/extract.",
     response: { ...ExtractResult, description: "the text, when it is done within wait. 202 { id, status: running, poll } when it is not; 429 with Retry-After past 20 a minute per key or 3 running per account; 413, 415, 422 from the parser; 503 when extraction is not set up" },
   },
-  "GET /api/extract/{id}": {
+  "GET /v1/extract/{id}": {
     response: obj({
       id: str(), status: str("running | done | failed"),
       workspace: str("the workspace of a storage file's job"),

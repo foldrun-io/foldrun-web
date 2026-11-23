@@ -20,7 +20,7 @@ export function VerifyBanner({ email }: { email: string }) {
         <button
           className="underline hover:text-amber-950"
           onClick={async () => {
-            const res = await fetch("/api/auth/verify/resend", { method: "POST" });
+            const res = await fetch("/v1/auth/verify/resend", { method: "POST" });
             if (res.ok) setState("sent");
             else { setErr(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `HTTP ${res.status}`); setState("error"); }
           }}

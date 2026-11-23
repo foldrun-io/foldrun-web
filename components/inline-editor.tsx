@@ -70,7 +70,7 @@ export function InlineEditor({
   path: string;
   /** Set for an account-library file — it reads and writes a different store. */
   libraryKind?: string;
-  /** The account's own AGENTS.md (/api/account/agents-md): every workspace's
+  /** The account's own AGENTS.md (/v1/account/agents-md): every workspace's
    *  shared context. Never saved past the deploy's checks — no "save anyway". */
   accountFile?: boolean;
   /** The account file's sha256 as the server read it (null: no file) — sent
@@ -234,11 +234,11 @@ export function InlineEditor({
 
   // One place decides which store a file lives in; everything below is scope-blind.
   const readUrl = accountFile
-    ? "/api/account/agents-md"
+    ? "/v1/account/agents-md"
     : libraryKind
-      ? `/api/library/${libraryKind}?path=${encodeURIComponent(path)}`
-      : `/api/workspaces/${workspace}/source?path=${encodeURIComponent(path)}`;
-  const writeUrl = accountFile ? "/api/account/agents-md" : libraryKind ? `/api/library/${libraryKind}` : `/api/workspaces/${workspace}/source`;
+      ? `/v1/library/${libraryKind}?path=${encodeURIComponent(path)}`
+      : `/v1/workspaces/${workspace}/source?path=${encodeURIComponent(path)}`;
+  const writeUrl = accountFile ? "/v1/account/agents-md" : libraryKind ? `/v1/library/${libraryKind}` : `/v1/workspaces/${workspace}/source`;
 
   useEffect(() => {
     // Already supplied by the server — nothing to fetch. Declared inside the

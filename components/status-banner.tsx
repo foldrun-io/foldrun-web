@@ -3,7 +3,7 @@
 // An incident or a maintenance window, on every dashboard page while it is
 // live: amber for maintenance and minor incidents, red for a major one,
 // with the latest update and a link to the status page. Reads the same open
-// /api/status the public page reads, once a minute; says nothing when the
+// /v1/status the public page reads, once a minute; says nothing when the
 // platform is simply up. Not dismissable — it goes when the operator
 // resolves it.
 
@@ -26,7 +26,7 @@ export function StatusBanner({ statusPage }: { statusPage: string }) {
   useEffect(() => {
     let alive = true;
     const load = () =>
-      fetch("/api/status")
+      fetch("/v1/status")
         .then((r) => (r.ok ? r.json() : null))
         .then((d: { incidents?: Incident[]; maintenance?: Incident[] } | null) => {
           if (!alive || !d) return;

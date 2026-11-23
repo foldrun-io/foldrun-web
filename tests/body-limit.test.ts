@@ -16,7 +16,7 @@ import path from "node:path";
 import { API_BODY_LIMIT_BYTES, bodyTooLarge, bodyCut } from "../server/body-limit.ts";
 
 const put = (bytes: number) =>
-  new NextRequest("https://app.example.test/api/workspaces/desk/storage?path=big.jsonl", {
+  new NextRequest("https://app.example.test/v1/workspaces/desk/storage?path=big.jsonl", {
     method: "PUT",
     headers: { "content-length": String(bytes), authorization: "Bearer mda_x" },
   });
@@ -52,11 +52,11 @@ test("storage PUT: a chunked body is refused and nothing is stored", async () =>
   const ws = path.join(process.env.FOLDRUN_DATA, "default", "workspaces", "desk");
   fs.mkdirSync(ws, { recursive: true });
   fs.writeFileSync(path.join(ws, "AGENTS.md"), "---\nname: desk\n---\n");
-  const { PUT } = await import("../app/api/workspaces/[workspace]/storage/route.ts");
+  const { PUT } = await import("../app/v1/workspaces/[workspace]/storage/route.ts");
   const { getFile } = await import("../../foldrun-core/src/storage.ts");
   const ctx = { params: Promise.resolve({ workspace: "desk" }) };
   const send = (name: string, body: Buffer, length?: number) =>
-    PUT(new NextRequest(`https://app.example.test/api/workspaces/desk/storage?path=${name}`, {
+    PUT(new NextRequest(`https://app.example.test/v1/workspaces/desk/storage?path=${name}`, {
       method: "PUT",
       headers: length === undefined ? {} : { "content-length": String(length) },
       body: new Uint8Array(body),

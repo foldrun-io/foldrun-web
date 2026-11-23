@@ -33,7 +33,7 @@ export function DemoButton({
   const create = async () => {
     setBusy(true);
     setError(null);
-    const res = await fetch("/api/workspaces", {
+    const res = await fetch("/v1/workspaces", {
       method: "POST",
       headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
       body: JSON.stringify({ demo: true }),

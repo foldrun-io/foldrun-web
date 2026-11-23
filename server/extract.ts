@@ -1,8 +1,8 @@
 // Files to text, as the three routes answer it (12 Nov 2026):
 //
-//   POST /api/extract                                 a file sent whole
-//   GET  /api/extract/<id>                            a job, polled
-//   POST /api/workspaces/<ws>/storage/extract         a stored file, its text written beside it
+//   POST /v1/extract                                 a file sent whole
+//   GET  /v1/extract/<id>                            a job, polled
+//   POST /v1/workspaces/<ws>/storage/extract         a stored file, its text written beside it
 //
 // The work is the platform's (platform extract.ts): the parser pod, Whisper,
 // artifacts, jobs, limits. A route waits up to `wait` seconds (0–60, default
@@ -38,7 +38,7 @@ export function mayRead(actor: Actor, job: ExtractJob): boolean {
   return job.actor === credentialOf(actor);
 }
 
-/** A job's public view (GET /api/extract/<id>). */
+/** A job's public view (GET /v1/extract/<id>). */
 export function jobView(job: ExtractJob) {
   return {
     id: job.id,
@@ -57,7 +57,7 @@ export function answerFor(job: ExtractJob | null, extra: (job: ExtractJob) => Re
   if (!job) return errorResponse(new ApiError("the extraction was lost — ask again", 500));
   if (job.status === "running") {
     // Retry-After: when polling is worth it again.
-    return NextResponse.json({ id: job.id, status: "running", poll: `/api/extract/${job.id}` }, { status: 202, headers: { "retry-after": "3" } });
+    return NextResponse.json({ id: job.id, status: "running", poll: `/v1/extract/${job.id}` }, { status: 202, headers: { "retry-after": "3" } });
   }
   if (job.status === "failed" || !job.result) {
     const e = job.error ?? { status: 500, code: "internal", message: "the extraction failed on our side" };

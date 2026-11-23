@@ -34,7 +34,7 @@ export function FlowMoreMenu({ workspace, tenant, flow, file, deleteHref }: { wo
           </Tooltip>
           <Tooltip label={$t("workspace.flows-flow-actions.downloadThisFlowAndWhatIt")} side="left">
             <MenuItem asChild>
-              <a href={`/api/workspaces/${encodeURIComponent(workspace)}/export?kind=flow&name=${encodeURIComponent(flow)}`} download>
+              <a href={`/v1/workspaces/${encodeURIComponent(workspace)}/export?kind=flow&name=${encodeURIComponent(flow)}`} download>
                 <Download />
                 {$t("workspace.flows-flow-actions.exportZip")}
               </a>

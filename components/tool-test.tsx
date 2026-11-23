@@ -58,7 +58,7 @@ export function ToolTest({
     setBusy(true);
     setResult(null);
     try {
-      const res = await fetch(`/api/workspaces/${workspace}/tools/${tool}/test`, {
+      const res = await fetch(`/v1/workspaces/${workspace}/tools/${tool}/test`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
         body: JSON.stringify({ path: probePath, args }),

@@ -14,7 +14,7 @@ tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 # Counted by start time, not by list length: the listing is capped, so on a
 # busy stack two full pages look the same (Codex review).
 t0=$(python3 -c 'import datetime; print(datetime.datetime.now(datetime.timezone.utc).isoformat())')
-since() { curl -sS -H "authorization: Bearer $QUALITY_TOKEN" "$QUALITY_URL/api/workspaces/$WS/runs?limit=200" | python3 -c '
+since() { curl -sS -H "authorization: Bearer $QUALITY_TOKEN" "$QUALITY_URL/v1/workspaces/$WS/runs?limit=200" | python3 -c '
 import sys, json
 d = json.load(sys.stdin); runs = d.get("runs", d) if isinstance(d, dict) else d
 print(sum(1 for r in runs if (r.get("startedAt") or "") >= sys.argv[1]))' "$t0"; }
@@ -26,7 +26,7 @@ one() {
   local i=$1 code
   for _ in $(seq 1 20); do
     code=$(curl -sS -o "$tmp/$i" -w '%{http_code}' -H "authorization: Bearer $QUALITY_TOKEN" -H "content-type: application/json" \
-      -H "idempotency-key: $key" -X POST -d '{}' "$QUALITY_URL/api/workspaces/$WS/flows/hello/run")
+      -H "idempotency-key: $key" -X POST -d '{}' "$QUALITY_URL/v1/workspaces/$WS/flows/hello/run")
     [ "$code" = 409 ] || break
     sleep 1
   done

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The API against its own contract (27 Oct 2026): Schemathesis generates
-# requests from /api/openapi.json — valid and hostile — and this fails on any
+# requests from /v1/openapi.json — valid and hostile — and this fails on any
 # 5xx or any status code the document does not list. Routes that would
 # destroy the test's own footing (keys, the account, the team, sign-in) are
 # left out; everything else is fair game, on a throwaway stack.
@@ -18,10 +18,10 @@ QUALITY_DIR=$(cd "$(dirname "$0")" && pwd)
 . "$QUALITY_DIR/.state/env"
 IMAGE=${QUALITY_SCHEMATHESIS_IMAGE:-schemathesis/schemathesis:stable}
 log="$QUALITY_DIR/.state/fuzz.log"
-docker run --rm --network host "$IMAGE" run "$QUALITY_URL/api/openapi.json" \
+docker run --rm --network host "$IMAGE" run "$QUALITY_URL/v1/openapi.json" \
   --header "Authorization: Bearer $QUALITY_TOKEN" \
   --checks not_a_server_error,response_schema_conformance,status_code_conformance \
-  --exclude-path-regex "${QUALITY_FUZZ_EXCLUDE:-^/api/(keys|account|team|auth|me/mfa|admin|billing)}" \
+  --exclude-path-regex "${QUALITY_FUZZ_EXCLUDE:-^/v1/(keys|account|team|auth|me/mfa|admin|billing)}" \
   --exclude-method DELETE \
   --max-examples "${1:-25}" \
   --request-timeout 30 \

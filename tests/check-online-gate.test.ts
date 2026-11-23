@@ -22,7 +22,7 @@ const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 const { platform } = await import("@/lib/platform");
 type Handler = (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
-const route = (await import("../app/api/workspaces/[workspace]/check/route.ts")) as unknown as { GET: Handler };
+const route = (await import("../app/v1/workspaces/[workspace]/check/route.ts")) as unknown as { GET: Handler };
 
 const ws = path.join(DATA, "acme", "workspaces", "desk");
 const write = (rel: string, text: string) => {
@@ -43,7 +43,7 @@ platform.fetchUntrusted = (async () => {
 const { key: viewer } = await createApiKey("acme", "viewer", "v@acme.test", undefined, "viewer");
 const { key: editor } = await createApiKey("acme", "editor", "e@acme.test", undefined, "editor");
 const get = (q: string, key: string) =>
-  route.GET(new NextRequest(`http://localhost/api/workspaces/desk/check${q}`, { headers: { authorization: `Bearer ${key}` } }), {
+  route.GET(new NextRequest(`http://localhost/v1/workspaces/desk/check${q}`, { headers: { authorization: `Bearer ${key}` } }), {
     params: Promise.resolve({ workspace: "desk" }),
   });
 

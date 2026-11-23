@@ -17,13 +17,13 @@ import { dataRoot } from "@/lib/paths.ts";
 
 export type AuditAction =
   | "login"
-  // An AI app connected to /api/mcp over OAuth, or its connection was
+  // An AI app connected to /v1/mcp over OAuth, or its connection was
   // revoked — by a person, or because a refresh token was used twice.
   | "mcp.connected"
   | "mcp.revoked"
   // The kill switch: a person or key paused or resumed runs (server/pause.ts).
   | "account.paused"
-  // The account's own AGENTS.md written whole (PUT /api/account/agents-md).
+  // The account's own AGENTS.md written whole (PUT /v1/account/agents-md).
   | "account.agents_md_set"
   // FOL-168: an end customer blocked or unblocked; the customer limits changed.
   | "customer.blocked"
@@ -31,7 +31,7 @@ export type AuditAction =
   | "customer.limits"
   | "apikey.require_customer"
   | "account.resumed"
-  // The account joined or left the beta (app/api/account/beta).
+  // The account joined or left the beta (app/v1/account/beta).
   | "account.beta_joined"
   | "account.beta_left"
   | "workspace.paused"

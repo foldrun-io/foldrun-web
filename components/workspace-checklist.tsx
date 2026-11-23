@@ -5,7 +5,7 @@
 // it can be left to run, each item ticking itself from the workspace's real
 // state (workspace-checklist-model.ts), each a link to where it is done. An
 // item hides from its "…" menu, the whole card from the card's — a person's
-// own choice, kept in their prefs (PATCH /api/me/onboarding { checklist }).
+// own choice, kept in their prefs (PATCH /v1/me/onboarding { checklist }).
 
 import { $t } from "@/i18n";
 import type { ReactNode } from "react";

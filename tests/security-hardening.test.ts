@@ -65,8 +65,8 @@ function assertBaseline(res: { headers: Headers }, where: string) {
 }
 
 test("an API response carries the baseline headers and HSTS over https", async () => {
-  const res = await proxy(new NextRequest("https://app.foldrun.io/api/version"));
-  assertBaseline(res, "GET /api/version");
+  const res = await proxy(new NextRequest("https://app.foldrun.io/v1/version"));
+  assertBaseline(res, "GET /v1/version");
   assert.equal(res.headers.get("strict-transport-security"), "max-age=31536000");
 });
 
@@ -79,13 +79,13 @@ test("a dashboard page response (the login redirect) carries the baseline header
 });
 
 test("HSTS is withheld over plain http", async () => {
-  const res = await proxy(new NextRequest("http://localhost:3900/api/version"));
+  const res = await proxy(new NextRequest("http://localhost:3900/v1/version"));
   assert.equal(res.headers.get("strict-transport-security"), null, "no HSTS without TLS");
   assert.equal(res.headers.get("x-frame-options"), "DENY", "the rest of the floor still applies");
 });
 
 test("a route that hardens its own bytes is left untouched by the blanket policy", async () => {
-  const res = await proxy(new NextRequest("https://app.foldrun.io/api/avatars/user/abc"));
+  const res = await proxy(new NextRequest("https://app.foldrun.io/v1/avatars/user/abc"));
   assert.equal(res.headers.get("x-frame-options"), null, "self-hardened route keeps its own headers, not the blanket set");
   assert.equal(res.headers.get("content-security-policy-report-only"), null);
   assert.equal(res.headers.get("content-security-policy"), null);

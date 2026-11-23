@@ -1,4 +1,4 @@
-// The official MCP TypeScript SDK signing in to /api/mcp with OAuth, end to
+// The official MCP TypeScript SDK signing in to /v1/mcp with OAuth, end to
 // end through the real route handlers — no server, so it runs with `npm
 // test`. What claude.ai does, done by the SDK every MCP client builds on:
 // the 401 with resource_metadata, protected-resource and authorization-server
@@ -38,13 +38,13 @@ type Handler = (req: Req) => Promise<Response> | Response;
 
 const routes: Record<string, Record<string, Handler>> = {
   "/.well-known/oauth-protected-resource": await import("../app/.well-known/oauth-protected-resource/route.ts"),
-  "/.well-known/oauth-protected-resource/api/mcp": await import("../app/.well-known/oauth-protected-resource/api/mcp/route.ts"),
+  "/.well-known/oauth-protected-resource/v1/mcp": await import("../app/.well-known/oauth-protected-resource/v1/mcp/route.ts"),
   "/.well-known/oauth-authorization-server": await import("../app/.well-known/oauth-authorization-server/route.ts"),
-  "/api/mcp/oauth/register": await import("../app/api/mcp/oauth/register/route.ts"),
-  "/api/mcp/oauth/authorize": await import("../app/api/mcp/oauth/authorize/route.ts"),
-  "/api/mcp/oauth/token": await import("../app/api/mcp/oauth/token/route.ts"),
-  "/api/mcp/oauth/revoke": await import("../app/api/mcp/oauth/revoke/route.ts"),
-  "/api/mcp": await import("../app/api/mcp/route.ts"),
+  "/v1/mcp/oauth/register": await import("../app/v1/mcp/oauth/register/route.ts"),
+  "/v1/mcp/oauth/authorize": await import("../app/v1/mcp/oauth/authorize/route.ts"),
+  "/v1/mcp/oauth/token": await import("../app/v1/mcp/oauth/token/route.ts"),
+  "/v1/mcp/oauth/revoke": await import("../app/v1/mcp/oauth/revoke/route.ts"),
+  "/v1/mcp": await import("../app/v1/mcp/route.ts"),
 } as unknown as Record<string, Record<string, Handler>>;
 
 const seen: string[] = [];
@@ -91,7 +91,7 @@ class Provider {
 /** The person: approve the request the SDK's authorize URL carries. */
 async function approve(authorizeUrl: URL): Promise<string> {
   const request = authorizeUrl.searchParams.toString();
-  const res = await routes["/api/mcp/oauth/authorize"].POST(new NextRequest(`${ORIGIN}/api/mcp/oauth/authorize`, {
+  const res = await routes["/v1/mcp/oauth/authorize"].POST(new NextRequest(`${ORIGIN}/v1/mcp/oauth/authorize`, {
     method: "POST", headers: { "content-type": "application/json", origin: ORIGIN, cookie },
     body: JSON.stringify({ request, decision: "approve", access: "write", workspaces: null }),
   }));
@@ -104,7 +104,7 @@ async function approve(authorizeUrl: URL): Promise<string> {
 
 test("the MCP SDK: 401 → discovery → registration → PKCE → approval → tokens → tools → refresh → revoke", async () => {
   const provider = new Provider();
-  const serverUrl = new URL(`${ORIGIN}/api/mcp`);
+  const serverUrl = new URL(`${ORIGIN}/v1/mcp`);
   const connectFresh = async () => {
     const transport = new StreamableHTTPClientTransport(serverUrl, { authProvider: provider as never, fetch: inProcess });
     const client = new Client({ name: "conformance", version: "1.0.0" });
@@ -117,8 +117,8 @@ test("the MCP SDK: 401 → discovery → registration → PKCE → approval → 
   assert.ok(provider.info?.client_id, "registered itself (RFC 7591)");
   assert.ok(provider.authorizeUrl, "built an authorize URL");
   assert.equal(provider.authorizeUrl!.searchParams.get("code_challenge_method"), "S256");
-  assert.equal(provider.authorizeUrl!.searchParams.get("resource"), `${ORIGIN}/api/mcp`, "RFC 8707");
-  for (const step of ["POST /api/mcp", "GET /.well-known/oauth-protected-resource/api/mcp", "GET /.well-known/oauth-authorization-server", "POST /api/mcp/oauth/register"]) {
+  assert.equal(provider.authorizeUrl!.searchParams.get("resource"), `${ORIGIN}/v1/mcp`, "RFC 8707");
+  for (const step of ["POST /v1/mcp", "GET /.well-known/oauth-protected-resource/v1/mcp", "GET /.well-known/oauth-authorization-server", "POST /v1/mcp/oauth/register"]) {
     assert.ok(seen.includes(step), `the SDK made ${step}`);
   }
 

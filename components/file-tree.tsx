@@ -526,7 +526,7 @@ export function FileTree({
       return;
     }
 
-    const res = await fetch(`/api/workspaces/${workspace}/source`, {
+    const res = await fetch(`/v1/workspaces/${workspace}/source`, {
       method: "PUT",
       headers: { "content-type": "application/json", "x-foldrun-tenant": tenant ?? "default" },
       body: JSON.stringify({ path: rel, content: templateFor(rel) }),
@@ -553,7 +553,7 @@ export function FileTree({
     setError(null);
     const to = `${toFolder}/${from.split("/").pop()}`;
     if (to === from || from === toFolder || toFolder.startsWith(`${from}/`)) return;
-    const res = await fetch(`/api/workspaces/${workspace}/source`, {
+    const res = await fetch(`/v1/workspaces/${workspace}/source`, {
       method: "PATCH",
       headers: { "content-type": "application/json", "x-foldrun-tenant": tenant ?? "default" },
       body: JSON.stringify({ from, to }),
@@ -579,7 +579,7 @@ export function FileTree({
       }))
     )
       return;
-    const res = await fetch(`/api/workspaces/${workspace}/source`, {
+    const res = await fetch(`/v1/workspaces/${workspace}/source`, {
       method: "DELETE",
       headers: { "content-type": "application/json", "x-foldrun-tenant": tenant ?? "default" },
       body: JSON.stringify({ path: rel }),
@@ -605,7 +605,7 @@ export function FileTree({
       setRenaming(null);
       return;
     }
-    const res = await fetch(`/api/workspaces/${workspace}/source`, {
+    const res = await fetch(`/v1/workspaces/${workspace}/source`, {
       method: "PATCH",
       headers: { "content-type": "application/json", "x-foldrun-tenant": tenant ?? "default" },
       body: JSON.stringify({ from, to }),

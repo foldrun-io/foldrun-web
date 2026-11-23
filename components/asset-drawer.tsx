@@ -266,9 +266,9 @@ function AssetDetail({
 
   // One place decides which store a file lives in.
   const readUrl = item.account
-    ? `/api/library/${item.kind}?path=${encodeURIComponent(item.path)}`
-    : `/api/workspaces/${workspace}/source?path=${encodeURIComponent(item.path)}`;
-  const writeUrl = item.account ? `/api/library/${item.kind}` : `/api/workspaces/${workspace}/source`;
+    ? `/v1/library/${item.kind}?path=${encodeURIComponent(item.path)}`
+    : `/v1/workspaces/${workspace}/source?path=${encodeURIComponent(item.path)}`;
+  const writeUrl = item.account ? `/v1/library/${item.kind}` : `/v1/workspaces/${workspace}/source`;
 
   // The definition file, as the Overview form and the reading view edit it.
   const [content, setContent] = useState<string | null>(null);
@@ -677,7 +677,7 @@ function useVocabulary(workspace: string, tenant: string, wanted: boolean): Voca
   const [vocab, setVocab] = useState<Vocab>({ scripts: [], secrets: [] });
   useEffect(() => {
     if (!workspace || !wanted) return;
-    fetch(`/api/workspaces/${workspace}/vocabulary`, { headers: { "x-foldrun-tenant": tenant } })
+    fetch(`/v1/workspaces/${workspace}/vocabulary`, { headers: { "x-foldrun-tenant": tenant } })
       .then((r) => (r.ok ? r.json() : null))
       .then((v) => v && setVocab({ scripts: v.scripts ?? [], secrets: v.secrets ?? [] }))
       .catch(() => {});
@@ -963,7 +963,7 @@ function SourcePane({
   const [adding, setAdding] = useState(false);
   const [newFile, setNewFile] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
-  const writeUrl = account ? `/api/library/${kind}` : `/api/workspaces/${workspace}/source`;
+  const writeUrl = account ? `/v1/library/${kind}` : `/v1/workspaces/${workspace}/source`;
 
   // The folder it lives in, for adding to it: `tools/x/tool.md` → `tools/x`.
   const folder = files?.length ? path.slice(0, path.lastIndexOf("/")) : null;

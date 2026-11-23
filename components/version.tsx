@@ -43,7 +43,7 @@ export function VersionFooter({ collapsed, query = "" }: { collapsed?: boolean; 
 const POLL_MS = 5 * 60 * 1000;
 const DISMISS_KEY = "foldrun:update-dismissed";
 
-/** Every few minutes, and when the tab comes back: has /api/version moved? */
+/** Every few minutes, and when the tab comes back: has /v1/version moved? */
 export function UpdateToast({ pollMs = POLL_MS }: { pollMs?: number }) {
   const loaded = useVersion();
   const [newer, setNewer] = useState<string | null>(null);
@@ -57,7 +57,7 @@ export function UpdateToast({ pollMs = POLL_MS }: { pollMs?: number }) {
       if (Date.now() - last.current < 30_000) return;
       last.current = Date.now();
       try {
-        const res = await fetch("/api/version", { cache: "no-store" });
+        const res = await fetch("/v1/version", { cache: "no-store" });
         if (!res.ok) return;
         const body = (await res.json()) as { version?: string };
         const v = body.version;

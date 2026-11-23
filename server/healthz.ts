@@ -1,4 +1,4 @@
-// What /api/healthz reports about its dependencies, looked at once per few
+// What /v1/healthz reports about its dependencies, looked at once per few
 // seconds per process rather than once per call.
 
 import { peekWorkerLease } from "@/platform/queue";

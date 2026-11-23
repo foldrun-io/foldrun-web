@@ -1,5 +1,5 @@
 import { $t } from "@/i18n";
-// One write to PATCH/DELETE /api/workspaces/<ws>/flows/<flow> from the
+// One write to PATCH/DELETE /v1/workspaces/<ws>/flows/<flow> from the
 // list-view board or the step options editor. Their bodies name steps by
 // index, so each carries `expect` — the text those indices were read from —
 // and the route refuses it (409) when the file has moved on (another tab,

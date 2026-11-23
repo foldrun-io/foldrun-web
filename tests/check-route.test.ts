@@ -23,7 +23,7 @@ process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 type Handler = (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
-const route = (await import("../app/api/workspaces/[workspace]/check/route.ts")) as unknown as { GET: Handler };
+const route = (await import("../app/v1/workspaces/[workspace]/check/route.ts")) as unknown as { GET: Handler };
 
 const TENANT = "acme";
 const ws = path.join(DATA, TENANT, "workspaces", "desk");
@@ -45,7 +45,7 @@ write(ws, "knowledge/k.md", `---\ntype: Fact\n---\n\nKey: ${KEY}\n`);
 const { key: viewer } = await createApiKey(TENANT, "viewer", "owner@acme.test", undefined, "viewer");
 const get = async (q = "", key: string | undefined = viewer) => {
   const res = await route.GET(
-    new NextRequest(`http://localhost/api/workspaces/desk/check${q}`, { headers: key ? { authorization: `Bearer ${key}` } : {} }),
+    new NextRequest(`http://localhost/v1/workspaces/desk/check${q}`, { headers: key ? { authorization: `Bearer ${key}` } : {} }),
     { params: Promise.resolve({ workspace: "desk" }) },
   );
   return { status: res.status, body: (await res.json()) as any };
@@ -69,7 +69,7 @@ test("?security=1 and ?rule= narrow it; no key is refused; an unknown workspace 
   assert.deepEqual(r.body.findings.map((f: any) => f.rule), ["secret/hardcoded"]);
   assert.equal((await get("", "")).status, 401);
   const res = await route.GET(
-    new NextRequest("http://localhost/api/workspaces/nope/check", { headers: { authorization: `Bearer ${viewer}` } }),
+    new NextRequest("http://localhost/v1/workspaces/nope/check", { headers: { authorization: `Bearer ${viewer}` } }),
     { params: Promise.resolve({ workspace: "nope" }) },
   );
   assert.equal(res.status, 404);

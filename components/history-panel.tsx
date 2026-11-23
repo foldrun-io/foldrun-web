@@ -58,7 +58,7 @@ export function HistoryPanel({
 
   useEffect(() => {
     let live = true;
-    fetch(`/api/workspaces/${workspace}/history?path=${encodeURIComponent(path)}`, { headers })
+    fetch(`/v1/workspaces/${workspace}/history?path=${encodeURIComponent(path)}`, { headers })
       .then((r) => r.json())
       .then((d) => live && setRevisions(d.revisions ?? []))
       .catch(() => live && setError($t("components.history-panel.couldNotLoadHistory")));
@@ -73,7 +73,7 @@ export function HistoryPanel({
   useEffect(() => {
     if (!open) return;
     let live = true;
-    fetch(`/api/workspaces/${workspace}/history?id=${encodeURIComponent(open)}&path=${encodeURIComponent(path)}`, { headers })
+    fetch(`/v1/workspaces/${workspace}/history?id=${encodeURIComponent(open)}&path=${encodeURIComponent(path)}`, { headers })
       .then((r) => r.json())
       .then((d) => live && setDetail(d))
       .catch(() => live && setError($t("components.history-panel.couldNotLoadThatRevision")));

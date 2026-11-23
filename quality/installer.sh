@@ -21,7 +21,7 @@ fails=0
 # exported FOLDRUN_DATA_DIR or model key from a real install must not reach
 # this throwaway one (Codex review), as stack.sh does.
 clean() { env -i PATH="$PATH" HOME="$HOME" ${DOCKER_HOST:+DOCKER_HOST="$DOCKER_HOST"} "$@"; }
-healthy() { for _ in $(seq 1 120); do curl -fsS "$BASE/api/healthz" >/dev/null 2>&1 && return 0; sleep 2; done; return 1; }
+healthy() { for _ in $(seq 1 120); do curl -fsS "$BASE/v1/healthz" >/dev/null 2>&1 && return 0; sleep 2; done; return 1; }
 ok()  { echo "ok   $1"; }
 bad() { echo "FAIL $1"; fails=$((fails + 1)); }
 cleanup() {
@@ -43,7 +43,7 @@ fi
 script=$(curl -fsSL "$URL_INSTALL") || { echo "FAIL could not fetch $URL_INSTALL"; exit 1; }
 printf '%s' "$script" | clean FOLDRUN_DIR="$DIR/foldrun" FOLDRUN_BIND=127.0.0.1 _FOLDRUN_TTY=/dev/null sh > "$DIR/install.log" 2>&1 \
   && ok "the installer finished" || { bad "the installer failed:"; tail -20 "$DIR/install.log"; exit 1; }
-healthy && ok "the platform answers /api/healthz" || bad "no health answer"
+healthy && ok "the platform answers /v1/healthz" || bad "no health answer"
 env_get() { sed -n "s/^$1=//p" "$DIR/foldrun/.env" | head -1; }
 setup=$(env_get FOLDRUN_SETUP_TOKEN)
 [ -n "$setup" ] && ok "the installer wrote a setup token" || bad "no FOLDRUN_SETUP_TOKEN in .env"
@@ -61,8 +61,8 @@ grep -q FOLDRUN_EGRESS_ALLOW_PRIVATE "$DIR/foldrun/docker-compose.yml" || \
 jar="$DIR/cookies"
 curl -fsS -c "$jar" -H "content-type: application/json" -H "origin: $BASE" \
   -d "{\"email\":\"owner@install.example.test\",\"password\":\"install-$(openssl rand -hex 10)\",\"account\":\"install\",\"setup\":\"$setup\"}" \
-  "$BASE/api/auth/signup" >/dev/null && ok "the first account signs up with the setup token" || bad "signup"
-token=$(curl -fsS -b "$jar" -H "content-type: application/json" -H "origin: $BASE" -d '{"label":"installer","role":"admin"}' "$BASE/api/keys" \
+  "$BASE/v1/auth/signup" >/dev/null && ok "the first account signs up with the setup token" || bad "signup"
+token=$(curl -fsS -b "$jar" -H "content-type: application/json" -H "origin: $BASE" -d '{"label":"installer","role":"admin"}' "$BASE/v1/keys" \
   | python3 -c 'import sys,json; print(json.load(sys.stdin)["key"])') && ok "an API key" || bad "key"
 
 # 4. Deploy with the published CLI, run, read the record.
@@ -71,7 +71,7 @@ docker run --rm --network host -e FOLDRUN_URL="$BASE" -e FOLDRUN_TOKEN="$token" 
   npx -y "foldrun@${QUALITY_CLI:-latest}" deploy /fixtures/hello --to installed --yes >/dev/null \
   && ok "foldrun deploy to the fresh install" || bad "deploy"
 out=$(curl -sS -H "authorization: Bearer $token" -H "content-type: application/json" -H "idempotency-key: install-$(date +%s)" \
-  -X POST -d '{}' "$BASE/api/workspaces/installed/flows/hello/run?wait=true&timeout=300" -w '\n%{http_code}')
+  -X POST -d '{}' "$BASE/v1/workspaces/installed/flows/hello/run?wait=true&timeout=300" -w '\n%{http_code}')
 [ "${out##*$'\n'}" = 200 ] && printf '%s' "$out" | grep -q QUALITY-OK && ok "a run end to end on the fresh install" || bad "the run: ${out:0:400}"
 
 [ "$fails" = 0 ] && echo "installer: all ok" || { echo "installer: $fails failed"; tail -30 "$DIR/install.log"; exit 1; }

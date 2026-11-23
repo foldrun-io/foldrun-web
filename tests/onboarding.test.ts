@@ -19,7 +19,7 @@ delete process.env.FOLDRUN_DATABASE_URL;
 const { onboardingSteps } = await import("../components/onboarding-model.ts");
 const { onboardingFacts } = await import("../server/onboarding.ts");
 const { NextRequest } = await import("next/server");
-const { GET, PATCH } = await import("../app/api/me/onboarding/route.ts");
+const { GET, PATCH } = await import("../app/v1/me/onboarding/route.ts");
 const { createApiKey } = await import("../server/auth.ts");
 const { createUser, mintSession, SESSION_COOKIE, findUserById } = await import("../server/users.ts");
 const { deployWorkspace } = await import("@/lib/deploy");
@@ -119,24 +119,24 @@ test("facts from a fixture account: workspace, a deployed agent, a schedule, a k
 
 test("the route: a key reads the steps; a person hides and brings back the card", async () => {
   const { key } = await createApiKey("acme", "ci", "ci@acme.test", undefined, "admin", null);
-  const byKey = await GET(new NextRequest("http://x/api/me/onboarding", { headers: { authorization: `Bearer ${key}` } }));
+  const byKey = await GET(new NextRequest("http://x/v1/me/onboarding", { headers: { authorization: `Bearer ${key}` } }));
   assert.equal(byKey.status, 200);
   const body = await byKey.json();
   assert.equal(body.dismissed, false);
   assert.ok(Array.isArray(body.steps) && body.next.id === "workspace");
 
-  const keyPatch = await PATCH(new NextRequest("http://x/api/me/onboarding", { method: "PATCH", headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ dismissed: true }) }));
+  const keyPatch = await PATCH(new NextRequest("http://x/v1/me/onboarding", { method: "PATCH", headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ dismissed: true }) }));
   assert.equal(keyPatch.status, 401, "a key is nobody; hiding is a person's");
 
   const user = await createUser("owner@acme.test", "Qz8-vmT2-plx9-Wr4k-onb", "acme2", { request: "free" });
   const { value } = await mintSession(user);
   const cookie = `${SESSION_COOKIE}=${value}`;
   const patch = (dismissed: unknown) =>
-    PATCH(new NextRequest("http://x/api/me/onboarding", { method: "PATCH", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ dismissed }) }));
+    PATCH(new NextRequest("http://x/v1/me/onboarding", { method: "PATCH", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ dismissed }) }));
   assert.equal((await patch("yes")).status, 400);
   assert.equal((await patch(true)).status, 200);
   assert.ok((await findUserById(user.id))?.prefs?.onboardingDismissedAt);
-  const read = await (await GET(new NextRequest("http://x/api/me/onboarding", { headers: { cookie } }))).json();
+  const read = await (await GET(new NextRequest("http://x/v1/me/onboarding", { headers: { cookie } }))).json();
   assert.equal(read.dismissed, true);
   assert.equal((await patch(false)).status, 200);
   assert.equal((await findUserById(user.id))?.prefs ?? null, null);
@@ -184,9 +184,9 @@ test("the route: welcomed, per-step hide and show, a workspace's checklist", asy
   const { value } = await mintSession(user);
   const cookie = `${SESSION_COOKIE}=${value}`;
   const patch = (body: unknown) =>
-    PATCH(new NextRequest("http://x/api/me/onboarding", { method: "PATCH", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify(body) }));
+    PATCH(new NextRequest("http://x/v1/me/onboarding", { method: "PATCH", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify(body) }));
   const get = async (q = "") => {
-    const r = await GET(new NextRequest(`http://x/api/me/onboarding${q}`, { headers: { cookie } }));
+    const r = await GET(new NextRequest(`http://x/v1/me/onboarding${q}`, { headers: { cookie } }));
     return { status: r.status, body: await r.json() };
   };
 

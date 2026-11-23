@@ -45,7 +45,7 @@ export function RunSearch({ tenant }: { tenant: string }) {
   const [ask, promptDialog] = usePrompt();
   const [note, setNote] = useState<string | null>(null);
   useEffect(() => {
-    fetch("/api/me/preferences", { headers: { "x-foldrun-tenant": tenant } })
+    fetch("/v1/me/preferences", { headers: { "x-foldrun-tenant": tenant } })
       .then((r) => (r.ok ? r.json() : null))
       .then((b: { runViews?: RunView[] } | null) => b?.runViews && setViews(b.runViews))
       .catch(() => undefined);
@@ -73,7 +73,7 @@ export function RunSearch({ tenant }: { tenant: string }) {
     query.delete("page");
     query.delete("tenant");
     const list = [...views.filter((v) => v.name !== name.trim()), { name: name.trim(), query: query.toString() }];
-    const res = await fetch("/api/me/preferences", { method: "PATCH", headers: { "content-type": "application/json", "x-foldrun-tenant": tenant }, body: JSON.stringify({ runViews: list }) });
+    const res = await fetch("/v1/me/preferences", { method: "PATCH", headers: { "content-type": "application/json", "x-foldrun-tenant": tenant }, body: JSON.stringify({ runViews: list }) });
     const body = (await res.json().catch(() => ({}))) as { runViews?: RunView[]; error?: string };
     if (res.ok && body.runViews) setViews(body.runViews);
     setNote(res.ok ? $t("components.run-search.saved", { v0: String(name.trim()) }) : body.error ?? $t("components.run-search.couldNotSave"));

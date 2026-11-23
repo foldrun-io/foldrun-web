@@ -5,8 +5,8 @@ import { $t } from "@/i18n";
 // selection on the account-wide list, which spans workspaces, is one call per
 // workspace, and never more than the route's cap of runs in one call.
 
-/** POST /api/workspaces/<ws>/runs/bulk touches at most this many runs per
- *  call (app/api/workspaces/[workspace]/runs/bulk/route.ts, MAX). */
+/** POST /v1/workspaces/<ws>/runs/bulk touches at most this many runs per
+ *  call (app/v1/workspaces/[workspace]/runs/bulk/route.ts, MAX). */
 export const BULK_MAX = 100;
 
 export interface BulkCall {

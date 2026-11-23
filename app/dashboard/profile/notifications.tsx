@@ -33,7 +33,7 @@ export function NotificationPreferences({ workspaces }: { workspaces: string[] }
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    void fetch("/api/me/notifications")
+    void fetch("/v1/me/notifications")
       .then(async (r) => {
         const body = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(body.error ?? `HTTP ${r.status}`);
@@ -47,7 +47,7 @@ export function NotificationPreferences({ workspaces }: { workspaces: string[] }
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/me/notifications", {
+      const res = await fetch("/v1/me/notifications", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ category, enabled, ...(workspace ? { workspace } : {}) }),

@@ -1,5 +1,5 @@
 // The hosted plan's workspace count — one check for every door a new
-// workspace comes through: POST /api/workspaces, …/import of a workspace
+// workspace comes through: POST /v1/workspaces, …/import of a workspace
 // package, and …/deploy to a name that does not exist yet (30 Oct 2026:
 // deploy had none, so an editor could deploy past the plan's cap).
 //

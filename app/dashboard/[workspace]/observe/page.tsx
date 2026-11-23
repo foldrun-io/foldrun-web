@@ -118,7 +118,7 @@ export default async function ObservePage({
               value={String(sinceDays)}
               items={WINDOWS.map((w) => ({ key: String(w.days), label: w.label, href: `/dashboard/${workspace}/observe?since=${w.days}${tenantParam}` }))}
             />
-            <Link href={`/api/workspaces/${workspace}/observe?since=${sinceDays}`} className={buttonVariants({ variant: "secondary", size: "md" })}>
+            <Link href={`/v1/workspaces/${workspace}/observe?since=${sinceDays}`} className={buttonVariants({ variant: "secondary", size: "md" })}>
               <Braces aria-hidden />
               {$t("workspace.observe-page.json")}
             </Link>

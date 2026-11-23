@@ -28,7 +28,7 @@ const WRITES = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 /** Writes open to anyone (no credential yet), and the one that approves a
  *  CLI sign-in from a session. Every caller of these is our own page or the
  *  CLI, and every one sends JSON. */
-const OPEN_WRITES = /^\/api\/(?:auth\/(?:login(?:\/code(?:\/verify)?)?|signup|reset|forgot|mfa\/verify)|cli\/(?:login|authorize))\/?$/;
+const OPEN_WRITES = /^\/v1\/(?:auth\/(?:login(?:\/code(?:\/verify)?)?|signup|reset|forgot|mfa\/verify)|cli\/(?:login|authorize))\/?$/;
 
 function openWritePath(url: string | undefined): boolean {
   if (!url) return false;

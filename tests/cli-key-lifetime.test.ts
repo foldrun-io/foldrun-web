@@ -22,10 +22,10 @@ delete process.env.FOLDRUN_DEV_NO_AUTH;
 const { NextRequest } = await import("next/server");
 const { beginCliLogin, decideCliLogin, pollCliLogin } = await import("../server/cli-login.ts");
 const { listApiKeys, createApiKey, expiringKeys, resolveTenant, CLI_KEY_DAYS } = await import("../server/auth.ts");
-const rotate = (await import("../app/api/keys/[id]/rotate/route.ts")) as {
+const rotate = (await import("../app/v1/keys/[id]/rotate/route.ts")) as {
   POST: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ id: string }> }) => Promise<Response>;
 };
-const meRoute = (await import("../app/api/me/route.ts")) as { GET: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
+const meRoute = (await import("../app/v1/me/route.ts")) as { GET: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
 
 const DAY = 86_400_000;
 const viewer = { tenant: "acme", email: "viewer@acme.test", role: "viewer" as const, workspaces: ["blog"] };
@@ -41,7 +41,7 @@ async function signIn(host: string) {
 
 const post = (id: string, token: string) =>
   rotate.POST(
-    new NextRequest(`http://localhost/api/keys/${id}/rotate`, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: "{}" }),
+    new NextRequest(`http://localhost/v1/keys/${id}/rotate`, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: "{}" }),
     { params: Promise.resolve({ id }) },
   );
 
@@ -50,8 +50,8 @@ test("a login key is minted for 90 days and marked as one", async () => {
   assert.equal(record.origin, "cli-login");
   const life = Date.parse(record.expiresAt!) - Date.parse(record.createdAt);
   assert.ok(Math.abs(life - CLI_KEY_DAYS * DAY) < 60_000, `lives ${CLI_KEY_DAYS} days, not forever (${record.expiresAt})`);
-  const me = await (await meRoute.GET(new NextRequest("http://localhost/api/me", { headers: { authorization: `Bearer ${(await signIn("mbp-me")).token}` } }))).json();
-  assert.equal(me.actor.origin, "cli-login", "/api/me says so, for the CLI");
+  const me = await (await meRoute.GET(new NextRequest("http://localhost/v1/me", { headers: { authorization: `Bearer ${(await signIn("mbp-me")).token}` } }))).json();
+  assert.equal(me.actor.origin, "cli-login", "/v1/me says so, for the CLI");
   assert.ok(me.actor.expiresAt);
 });
 
@@ -72,7 +72,7 @@ test("a viewer's login key rotates itself: same label, role, scope and lifetime;
   assert.equal(old.replacedBy, body.id);
   const endsIn = Date.parse(old.expiresAt!) - Date.now();
   assert.ok(endsIn > 0 && endsIn <= 10 * 60_000, "a short grace, in case the new key was not saved");
-  assert.equal((await resolveTenant(new NextRequest("http://localhost/api/me", { headers: { authorization: `Bearer ${body.key}` } }))).tenant, "acme");
+  assert.equal((await resolveTenant(new NextRequest("http://localhost/v1/me", { headers: { authorization: `Bearer ${body.key}` } }))).tenant, "acme");
 });
 
 test("a login key may not rotate another key, and a key a person minted may not rotate itself", async () => {
@@ -97,7 +97,7 @@ test("the week's-notice expiry mail skips login keys; their end, once reached, s
   const all = JSON.parse(fs.readFileSync(file, "utf8"));
   all.find((k: { id: string }) => k.id === cli.id).expiresAt = new Date(Date.now() - DAY).toISOString();
   fs.writeFileSync(file, JSON.stringify(all));
-  const ended = await resolveTenant(new NextRequest("http://localhost/api/me", { headers: { authorization: `Bearer ${key}` } }));
+  const ended = await resolveTenant(new NextRequest("http://localhost/v1/me", { headers: { authorization: `Bearer ${key}` } }));
   assert.equal(ended.tenant, null);
   assert.match((ended as { message?: string }).message ?? "", /sign-in ended on .* run `foldrun login`/);
 });
@@ -129,14 +129,14 @@ test("a renewal whose answer was lost: a retry with the old key inside the grace
   assert.equal(fresh.origin, "cli-login");
   assert.equal(fresh.role, "viewer");
   assert.deepEqual(fresh.workspaces, ["blog"]);
-  assert.equal((await resolveTenant(new NextRequest("http://localhost/api/me", { headers: { authorization: `Bearer ${kept.key}` } }))).tenant, "acme");
+  assert.equal((await resolveTenant(new NextRequest("http://localhost/v1/me", { headers: { authorization: `Bearer ${kept.key}` } }))).tenant, "acme");
 });
 
 test("once the replacement has been used, the old key cannot rotate again", async () => {
   const { token, record } = await signIn("used");
   const first = await (await post(record.id, token)).json();
   // The CLI stored it and called with it.
-  assert.equal((await resolveTenant(new NextRequest("http://localhost/api/me", { headers: { authorization: `Bearer ${first.key}` } }))).tenant, "acme");
+  assert.equal((await resolveTenant(new NextRequest("http://localhost/v1/me", { headers: { authorization: `Bearer ${first.key}` } }))).tenant, "acme");
   const again = await post(record.id, token);
   assert.equal(again.status, 409, await again.clone().text());
   assert.equal((await listApiKeys("acme")).find((k) => k.id === first.id)!.revokedAt ?? null, null, "the key in use stays");

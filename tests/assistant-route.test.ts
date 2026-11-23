@@ -27,10 +27,10 @@ const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 const assistant = await import("../server/assistant.ts");
 const docs = await import("../server/assistant-docs.ts");
-const route = (await import("../app/api/workspaces/[workspace]/assistant/route.ts")) as {
+const route = (await import("../app/v1/workspaces/[workspace]/assistant/route.ts")) as {
   POST: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string }> }) => Promise<Response>;
 };
-const source = (await import("../app/api/workspaces/[workspace]/source/route.ts")) as {
+const source = (await import("../app/v1/workspaces/[workspace]/source/route.ts")) as {
   PUT: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string }> }) => Promise<Response>;
 };
 
@@ -53,7 +53,7 @@ const { key: viewer } = await createApiKey(TENANT, "viewer", "owner@acme.test", 
 const ctx = { params: Promise.resolve({ workspace: WS }) };
 const post = (body: unknown, opts: { key?: string; stream?: boolean } = {}) =>
   route.POST(
-    new NextRequest(`http://localhost/api/workspaces/${WS}/assistant`, {
+    new NextRequest(`http://localhost/v1/workspaces/${WS}/assistant`, {
       method: "POST",
       headers: {
         authorization: `Bearer ${opts.key ?? editor}`,
@@ -290,7 +290,7 @@ test("every kind of file it may propose is one the source PUT will save", async 
   assert.deepEqual(assistant.checkProposals(TENANT, WS, files).filter((i) => i.level === "error"), []);
   for (const f of files) {
     const res = await source.PUT(
-      new NextRequest(`http://localhost/api/workspaces/${WS}/source`, {
+      new NextRequest(`http://localhost/v1/workspaces/${WS}/source`, {
         method: "PUT",
         headers: { authorization: `Bearer ${editor}`, "content-type": "application/json" },
         body: JSON.stringify({ path: f.path, content: f.content, message: "written with the assistant: test", ifMatch: null }),
@@ -346,12 +346,12 @@ test("proposes a new workspace only under a free, well-formed name", async () =>
   assert.equal(fs.existsSync(path.join(DATA, TENANT, "workspaces", "ads-desk")), false, "proposing creates nothing");
 });
 
-test("POST /api/workspaces with ifAbsent refuses a name that exists, and never deploys over it", async () => {
-  const workspaces = (await import("../app/api/workspaces/route.ts")) as { POST: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
+test("POST /v1/workspaces with ifAbsent refuses a name that exists, and never deploys over it", async () => {
+  const workspaces = (await import("../app/v1/workspaces/route.ts")) as { POST: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
   const { key: admin } = await createApiKey(TENANT, "admin", "owner@acme.test", undefined, "admin");
   const create = (name: string) =>
     workspaces.POST(
-      new NextRequest("http://localhost/api/workspaces", {
+      new NextRequest("http://localhost/v1/workspaces", {
         method: "POST",
         headers: { authorization: `Bearer ${admin}`, "content-type": "application/json" },
         body: JSON.stringify({ name, template: true, ifAbsent: true }),
@@ -368,8 +368,8 @@ test("POST /api/workspaces with ifAbsent refuses a name that exists, and never d
 });
 
 test("every reply is kept as a conversation its asker can list, search, read, continue and delete — no one else", async () => {
-  const list = (await import("../app/api/assistant/conversations/route.ts")) as { GET: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
-  const one = (await import("../app/api/assistant/conversations/[id]/route.ts")) as {
+  const list = (await import("../app/v1/assistant/conversations/route.ts")) as { GET: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
+  const one = (await import("../app/v1/assistant/conversations/[id]/route.ts")) as {
     GET: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ id: string }> }) => Promise<Response>;
     DELETE: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ id: string }> }) => Promise<Response>;
   };
@@ -391,24 +391,24 @@ test("every reply is kept as a conversation its asker can list, search, read, co
   ).json()) as { conversation: string };
   assert.equal(again.conversation, first.conversation, "carried on, not a new one");
 
-  const mine = (await (await list.GET(get("http://localhost/api/assistant/conversations?q=CSV"))).json()) as { conversations: { id: string; title: string; messages: number; workspace: string }[] };
+  const mine = (await (await list.GET(get("http://localhost/v1/assistant/conversations?q=CSV"))).json()) as { conversations: { id: string; title: string; messages: number; workspace: string }[] };
   const found = mine.conversations.find((c) => c.id === first.conversation)!;
   assert.ok(found, JSON.stringify(mine));
   assert.equal(found.title, "how do I skip an empty csv step?");
   assert.equal(found.messages, 4, "both questions and both answers");
   assert.equal(found.workspace, WS);
-  const theirs = (await (await list.GET(get("http://localhost/api/assistant/conversations", other))).json()) as { conversations: unknown[] };
+  const theirs = (await (await list.GET(get("http://localhost/v1/assistant/conversations", other))).json()) as { conversations: unknown[] };
   assert.equal(theirs.conversations.length, 0, "another key sees none of mine");
 
   const ctxOf = { params: Promise.resolve({ id: first.conversation }) };
-  assert.equal((await one.GET(get(`http://localhost/api/assistant/conversations/${first.conversation}`, other), ctxOf)).status, 404);
-  const whole = (await (await one.GET(get(`http://localhost/api/assistant/conversations/${first.conversation}`), ctxOf)).json()) as { messages: { role: string }[]; owner?: string };
+  assert.equal((await one.GET(get(`http://localhost/v1/assistant/conversations/${first.conversation}`, other), ctxOf)).status, 404);
+  const whole = (await (await one.GET(get(`http://localhost/v1/assistant/conversations/${first.conversation}`), ctxOf)).json()) as { messages: { role: string }[]; owner?: string };
   assert.equal(whole.messages.length, 4);
   assert.equal(whole.owner, undefined, "the owner is not shown");
-  const del = (key: string) => one.DELETE(new NextRequest(`http://localhost/api/assistant/conversations/${first.conversation}`, { method: "DELETE", headers: { authorization: `Bearer ${key}` } }), ctxOf);
+  const del = (key: string) => one.DELETE(new NextRequest(`http://localhost/v1/assistant/conversations/${first.conversation}`, { method: "DELETE", headers: { authorization: `Bearer ${key}` } }), ctxOf);
   assert.equal((await del(other)).status, 404);
   assert.equal((await del(editor)).status, 200);
-  assert.equal((await one.GET(get(`http://localhost/api/assistant/conversations/${first.conversation}`), ctxOf)).status, 404);
+  assert.equal((await one.GET(get(`http://localhost/v1/assistant/conversations/${first.conversation}`), ctxOf)).status, 404);
   assert.equal((await post({ messages: [{ role: "user", content: "x" }], conversation: "../../etc" })).status, 400);
 });
 

@@ -1,4 +1,4 @@
-// The API reference, rendered from the same OpenAPI document /api/openapi.json
+// The API reference, rendered from the same OpenAPI document /v1/openapi.json
 // serves (server/openapi.ts). No viewer library: a list of operations by
 // tag, each with its description and, where the spec has one, its request
 // and response schema.
@@ -53,7 +53,7 @@ export default function ApiReference() {
         title={$t("docs.api-reference-page.apiReference")}
         description={
           <>
-            {$rich("docs.api-reference-page.versionEveryRouteFromApiOpenapi", { version: doc.info.version, span: (chunks) => <span className="font-mono">{chunks}</span>, a: (chunks) => <a href="/api/openapi.json" className="text-link hover:underline">{chunks}</a>, link: (chunks) => <Link href="/dashboard/docs/api-usage" className="text-link hover:underline">{chunks}</Link> })}
+            {$rich("docs.api-reference-page.versionEveryRouteFromApiOpenapi", { version: doc.info.version, span: (chunks) => <span className="font-mono">{chunks}</span>, a: (chunks) => <a href="/v1/openapi.json" className="text-link hover:underline">{chunks}</a>, link: (chunks) => <Link href="/dashboard/docs/api-usage" className="text-link hover:underline">{chunks}</Link> })}
           </>
         }
       />

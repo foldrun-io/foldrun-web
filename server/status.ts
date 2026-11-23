@@ -1,7 +1,7 @@
 // The status routes' shared edges: who may read them cross-origin, and where
 // the public status page lives.
 //
-// GET /api/status and /api/status/history are open — no session, no key —
+// GET /v1/status and /v1/status/history are open — no session, no key —
 // because the page that shows them is a static page on another origin
 // (foldrun.io/status), and because a status page that needs a login is no
 // use on the day the login is what is broken. They say nothing an outsider
@@ -26,7 +26,7 @@ export function statusPageUrl(): string {
  *  another. A request from anywhere else still gets the body — CORS only
  *  decides whether a browser lets the page read it. Exact matches only: no
  *  suffix, no pattern, and an opaque origin ("null") is never on a list.
- *  Shared by every open read a static site fetches (/api/status, /api/signup). */
+ *  Shared by every open read a static site fetches (/v1/status, /v1/signup). */
 export function withOpenCors(req: NextRequest, res: NextResponse, origins: string[]): NextResponse {
   const origin = req.headers.get("origin");
   if (origin && origin !== "null" && origins.includes(origin)) {

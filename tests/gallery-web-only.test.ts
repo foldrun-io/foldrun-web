@@ -13,14 +13,14 @@ import path from "node:path";
 process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-gallery-web-"));
 delete process.env.FOLDRUN_DEV_NO_AUTH;
 const { NextRequest } = await import("next/server");
-const { GET, POST } = await import("../app/api/library/gallery/route.ts");
+const { GET, POST } = await import("../app/v1/library/gallery/route.ts");
 const { startFrom } = await import("../server/starters.ts");
 const { createApiKey } = await import("../server/auth.ts");
 
 const OLD = ["web_search", "web_fetch", "web_browse"];
 const { key } = await createApiKey("acme", "ci", "ci@acme.test", undefined, "admin", null);
 const req = (method: string, body?: object) =>
-  new NextRequest("http://x/api/library/gallery", {
+  new NextRequest("http://x/v1/library/gallery", {
     method,
     headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
     ...(body ? { body: JSON.stringify(body) } : {}),

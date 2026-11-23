@@ -33,7 +33,7 @@ export async function jsonObject(req: Request, opts: { optional?: boolean } = {}
   }
   // A NUL (\u0000) in any string or key: Postgres cannot hold one in text or
   // jsonb ("unsupported Unicode escape sequence"), so a hosted write of it was
-  // a 500 (FOL-199, hosted fuzz: POST /api/mcp/clients with a name holding
+  // a 500 (FOL-199, hosted fuzz: POST /v1/mcp/clients with a name holding
   // one). No field here means anything by it — refused before any is read.
   const NUL = Symbol("nul");
   let value: unknown;

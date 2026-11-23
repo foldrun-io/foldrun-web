@@ -64,7 +64,7 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
   const load = useCallback(() => {
     const q = new URLSearchParams({ limit: String(PAGE), offset: String(offset) });
     if (filter) q.set("status", filter);
-    return fetch(`/api/workspaces/${encodeURIComponent(workspace)}/notify/deliveries?${q}`).then(async (res) => {
+    return fetch(`/v1/workspaces/${encodeURIComponent(workspace)}/notify/deliveries?${q}`).then(async (res) => {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) setError(body.error ?? `HTTP ${res.status}`);
       else {
@@ -82,7 +82,7 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
     setBusy(id);
     setNote(null);
     try {
-      const res = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/notify/deliveries/${encodeURIComponent(id)}/redeliver`, { method: "POST" });
+      const res = await fetch(`/v1/workspaces/${encodeURIComponent(workspace)}/notify/deliveries/${encodeURIComponent(id)}/redeliver`, { method: "POST" });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) setNote(body.error ?? `HTTP ${res.status}`);
       else setNote(body.ok ? $t("workspace.triggers-webhook-deliveries.redeliveredAccepted", { id: String(id), statusCode: String(body.attempt?.statusCode) }) : $t("workspace.triggers-webhook-deliveries.redelivered", { id: String(id), v1: String(body.attempt?.error ?? $t("workspace.triggers-webhook-deliveries.refused")) }));

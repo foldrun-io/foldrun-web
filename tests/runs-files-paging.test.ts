@@ -1,7 +1,7 @@
 // Two reads the CLI could not make (5 Nov 2026): which files a run archived
 // (GET …/runs/<id>/files — the run page's Out column, which the page reads on
 // the server), and the runs list a page at a time (GET …/runs?before=, which
-// answers `next`). Both scoped like every /api/workspaces/<ws>/… read.
+// answers `next`). Both scoped like every /v1/workspaces/<ws>/… read.
 //
 //   node --import ./tests/register.mjs --test tests/runs-files-paging.test.ts
 
@@ -22,9 +22,9 @@ const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 type Ctx<P> = { params: Promise<P> };
 type Handler<P> = (req: InstanceType<typeof NextRequest>, ctx: Ctx<P>) => Promise<Response>;
-const filesRoute = (await import("../app/api/workspaces/[workspace]/runs/[runId]/files/route.ts")) as { GET: Handler<{ workspace: string; runId: string }> };
-const runsRoute = (await import("../app/api/workspaces/[workspace]/runs/route.ts")) as { GET: Handler<{ workspace: string }> };
-const archiveRoute = (await import("../app/api/workspaces/[workspace]/runs/[runId]/archive/route.ts")) as { GET: Handler<{ workspace: string; runId: string }> };
+const filesRoute = (await import("../app/v1/workspaces/[workspace]/runs/[runId]/files/route.ts")) as { GET: Handler<{ workspace: string; runId: string }> };
+const runsRoute = (await import("../app/v1/workspaces/[workspace]/runs/route.ts")) as { GET: Handler<{ workspace: string }> };
+const archiveRoute = (await import("../app/v1/workspaces/[workspace]/runs/[runId]/archive/route.ts")) as { GET: Handler<{ workspace: string; runId: string }> };
 
 const TENANT = "acme";
 const WS = "desk";
@@ -64,8 +64,8 @@ const { key: scoped } = await createApiKey(TENANT, "scoped", "owner@acme.test", 
 
 const get = <P>(route: { GET: Handler<P> }, url: string, params: P, k: string = key) =>
   route.GET(new NextRequest(`http://localhost${url}`, { headers: { authorization: `Bearer ${k}` } }), { params: Promise.resolve(params) });
-const files = (runId: string, ws = WS, k = key) => get(filesRoute, `/api/workspaces/${ws}/runs/${runId}/files`, { workspace: ws, runId }, k);
-const runs = (query: string, ws = WS, k = key) => get(runsRoute, `/api/workspaces/${ws}/runs${query}`, { workspace: ws }, k);
+const files = (runId: string, ws = WS, k = key) => get(filesRoute, `/v1/workspaces/${ws}/runs/${runId}/files`, { workspace: ws, runId }, k);
+const runs = (query: string, ws = WS, k = key) => get(runsRoute, `/v1/workspaces/${ws}/runs${query}`, { workspace: ws }, k);
 
 // ------------------------------------------------------------------ files
 
@@ -85,7 +85,7 @@ test("files lists what the run archived, by agent then path, with the link that 
   assert.equal(body.totalBytes, 10 + 8 + 1234);
   // The href is the one the run page draws — and it serves those bytes.
   const cover = body.files[2];
-  assert.equal(cover.href, `/api/workspaces/${WS}/runs/${RUN}/archive?agent=writer&path=img%2Fcover%20%26%20title.png`);
+  assert.equal(cover.href, `/v1/workspaces/${WS}/runs/${RUN}/archive?agent=writer&path=img%2Fcover%20%26%20title.png`);
   const served = await get(archiveRoute, cover.href, { workspace: WS, runId: RUN });
   assert.equal(served.status, 200);
   assert.equal((await served.arrayBuffer()).byteLength, 1234);
@@ -103,7 +103,7 @@ test("a key scoped to another workspace is refused this run's files and runs lis
   assert.equal((await files(RUN, WS, scoped)).status, 403);
   assert.equal((await runs("", WS, scoped)).status, 403);
   assert.equal((await runs("", OTHER, scoped)).status, 200, "its own workspace still answers");
-  const none = await filesRoute.GET(new NextRequest(`http://localhost/api/workspaces/${WS}/runs/${RUN}/files`), { params: Promise.resolve({ workspace: WS, runId: RUN }) });
+  const none = await filesRoute.GET(new NextRequest(`http://localhost/v1/workspaces/${WS}/runs/${RUN}/files`), { params: Promise.resolve({ workspace: WS, runId: RUN }) });
   assert.equal(none.status, 401);
 });
 

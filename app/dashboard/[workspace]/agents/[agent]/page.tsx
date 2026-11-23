@@ -140,7 +140,7 @@ export default async function AgentPage({
               <FilePen aria-hidden />
               {$t("workspace.agents-agent-page.editAgentMd")}
             </Link>
-            <RunButton endpoint={`/api/workspaces/${workspace}/agents/${agent}/run`} tenant={tenant} label={$t("workspace.agents-agent-page.run")} dialog />
+            <RunButton endpoint={`/v1/workspaces/${workspace}/agents/${agent}/run`} tenant={tenant} label={$t("workspace.agents-agent-page.run")} dialog />
           </>
         }
       />
@@ -258,7 +258,7 @@ export default async function AgentPage({
             footer={
               <DeleteButton
                 variant="button"
-                endpoint={`/api/workspaces/${workspace}/source`}
+                endpoint={`/v1/workspaces/${workspace}/source`}
                 tenant={tenant}
                 body={{ path: `agents/${agent}` }}
                 confirmText={$t("workspace.agents-agent-page.deleteAgent2", { agent: String(agent), v1: String(callers.length ? $t("workspace.agents-agent-page.willStopWorking", { v0: String(callers.join(", ")) }) : "") })}

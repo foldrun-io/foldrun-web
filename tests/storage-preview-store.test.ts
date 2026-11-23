@@ -29,11 +29,11 @@ Object.assign(process.env, {
 delete process.env.FOLDRUN_WORKSPACE; // single-workspace mode has no managed file store
 const { NextRequest } = await import("next/server");
 const { putFile, storeOrigin } = await import("../../foldrun-core/src/storage.ts");
-const download = await import("../app/api/workspaces/[workspace]/storage/download/route.ts");
+const download = await import("../app/v1/workspaces/[workspace]/storage/download/route.ts");
 
 const ctx = { params: Promise.resolve({ workspace: "desk" }) };
 const get = (rel: string, q = "&inline=1") =>
-  download.GET(new NextRequest(`http://x/api/workspaces/desk/storage/download?path=${encodeURIComponent(rel)}${q}`), ctx);
+  download.GET(new NextRequest(`http://x/v1/workspaces/desk/storage/download?path=${encodeURIComponent(rel)}${q}`), ctx);
 
 test.before(() => {
   const ws = path.join(process.env.FOLDRUN_DATA!, "default", "workspaces", "desk");

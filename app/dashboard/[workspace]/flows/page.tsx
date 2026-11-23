@@ -229,7 +229,7 @@ export default async function FlowsPage({
                   {$t("workspace.flows-page.edit")}
                 </Link>
                 <FlowMoreMenu workspace={workspace} tenant={tenant} flow={f.name} file={f.file} deleteHref={`${self}&tab=settings${tenantParam}#delete`} />
-                <RunButton endpoint={`/api/workspaces/${workspace}/flows/${f.name}/run`} tenant={tenant} label={$t("workspace.flows-page.runFlow")} />
+                <RunButton endpoint={`/v1/workspaces/${workspace}/flows/${f.name}/run`} tenant={tenant} label={$t("workspace.flows-page.runFlow")} />
               </>
             }
           />
@@ -316,7 +316,7 @@ export default async function FlowsPage({
                 icon={<Workflow />}
                 title={$t("workspace.flows-page.thisFlowHasNotRunYet")}
                 description={$t("workspace.flows-page.runItHereFromTheCli")}
-                action={<RunButton endpoint={`/api/workspaces/${workspace}/flows/${f.name}/run`} tenant={tenant} label={$t("workspace.flows-page.runFlow")} />}
+                action={<RunButton endpoint={`/v1/workspaces/${workspace}/flows/${f.name}/run`} tenant={tenant} label={$t("workspace.flows-page.runFlow")} />}
               />
             ) : (
               <div className="max-w-5xl space-y-3">
@@ -373,7 +373,7 @@ export default async function FlowsPage({
               {/* Each run's own pool (27 Oct 2026): what one run of this flow may hold at once. */}
               <div className="mb-6">
                 <ComputeCard
-                  endpoint={`/api/workspaces/${encodeURIComponent(workspace)}/flows/${encodeURIComponent(f.name)}`}
+                  endpoint={`/v1/workspaces/${encodeURIComponent(workspace)}/flows/${encodeURIComponent(f.name)}`}
                   tenant={tenant}
                   level="flow"
                   initial={f.compute ? { vcpu: f.compute.vcpu ?? null, memGiB: f.compute.memGiB ?? null, diskGiB: f.compute.diskGiB ?? null } : null}
@@ -410,7 +410,7 @@ export default async function FlowsPage({
                 footer={
                   <DeleteButton
                 variant="button"
-                    endpoint={`/api/workspaces/${workspace}/source`}
+                    endpoint={`/v1/workspaces/${workspace}/source`}
                     tenant={tenant}
                     body={{ path: `flows/${f.file}` }}
                     confirmText={$t("workspace.flows-page.deleteFlow2", { name: String(f.name) })}
@@ -470,7 +470,7 @@ export default async function FlowsPage({
         next: row?.nextFireAt ? fmtIn(Date.parse(row.nextFireAt) - now) : undefined,
         cost: preview ? <Tooltip label={costTitle(preview)}><span>{preview.cost}</span></Tooltip> : undefined,
       },
-      action: <RunButton endpoint={`/api/workspaces/${workspace}/flows/${f.name}/run`} tenant={tenant} label={$t("workspace.flows-page.run")} />,
+      action: <RunButton endpoint={`/v1/workspaces/${workspace}/flows/${f.name}/run`} tenant={tenant} label={$t("workspace.flows-page.run")} />,
       card: (
         <ResourceCard
           href={href}

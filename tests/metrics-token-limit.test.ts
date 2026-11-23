@@ -1,4 +1,4 @@
-// GET /api/metrics: wrong scrape tokens are counted like the open
+// GET /v1/metrics: wrong scrape tokens are counted like the open
 // callbacks' (server/limits.ts), and the right token is never throttled by
 // them. 30 Oct 2026.
 //
@@ -16,10 +16,10 @@ process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 delete process.env.FOLDRUN_REDIS_URL;
 delete process.env.FOLDRUN_DATABASE_URL;
 const { NextRequest } = await import("next/server");
-const route = await import("../app/api/metrics/route.ts");
+const route = await import("../app/v1/metrics/route.ts");
 
 const scrape = (token: string, ip: string) =>
-  route.GET(new NextRequest("http://x/api/metrics", { headers: { authorization: `Bearer ${token}`, "x-forwarded-for": ip } }));
+  route.GET(new NextRequest("http://x/v1/metrics", { headers: { authorization: `Bearer ${token}`, "x-forwarded-for": ip } }));
 
 test("with no token configured the route is closed and counts nothing", async () => {
   delete process.env.FOLDRUN_METRICS_TOKEN;

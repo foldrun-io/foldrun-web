@@ -66,7 +66,7 @@ export function AvatarEditor({
   const picker = useFilePicker({ accept: "image/png,image/jpeg,image/webp", onFiles: ([f]) => void upload(f) });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const endpoint = `/api/avatars/${kind}/${encodeURIComponent(id)}`;
+  const endpoint = `/v1/avatars/${kind}/${encodeURIComponent(id)}`;
   const headers = { "x-foldrun-tenant": tenant };
 
   const upload = async (file: File) => {

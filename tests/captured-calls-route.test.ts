@@ -25,7 +25,7 @@ const { setRevisionBackend } = await import("../../foldrun-core/src/workspace-re
 const { callSink, flushCalls } = await import("../../foldrun-core/src/captured-calls.ts");
 const { recordCallIo } = await import("../../foldrun-core/src/capture.ts");
 const { noPins } = await import("../../foldrun-core/src/blob-pins.ts");
-const route = (await import("../app/api/workspaces/[workspace]/runs/[runId]/calls/[callId]/route.ts")) as {
+const route = (await import("../app/v1/workspaces/[workspace]/runs/[runId]/calls/[callId]/route.ts")) as {
   GET: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string; runId: string; callId: string }> }) => Promise<Response>;
 };
 
@@ -48,7 +48,7 @@ setRevisionBackend({ blobs: fsBlobStore(path.join(DATA, ".objects")), revisions:
 const { key } = await createApiKey(TENANT, "test", "owner@acme.test", undefined, "admin");
 const headers = { authorization: `Bearer ${key}` };
 const get = (call: string) =>
-  route.GET(new NextRequest(`http://localhost/api/workspaces/${WS}/runs/${RUN}/calls/${call}`, { headers }), { params: Promise.resolve({ workspace: WS, runId: RUN, callId: call }) });
+  route.GET(new NextRequest(`http://localhost/v1/workspaces/${WS}/runs/${RUN}/calls/${call}`, { headers }), { params: Promise.resolve({ workspace: WS, runId: RUN, callId: call }) });
 
 test("a call kept in the object store reads back; a volume call and an unknown call answer as before", async () => {
   const step = {};
@@ -85,7 +85,7 @@ test("a call's content is for editors and above: a viewer key is refused, an edi
   await flushCalls(step);
   const as = async (role: "viewer" | "editor") => {
     const { key } = await createApiKey(TENANT, role, "owner@acme.test", undefined, role);
-    return route.GET(new NextRequest(`http://localhost/api/workspaces/${WS}/runs/${RUN}/calls/c4`, { headers: { authorization: `Bearer ${key}` } }), {
+    return route.GET(new NextRequest(`http://localhost/v1/workspaces/${WS}/runs/${RUN}/calls/c4`, { headers: { authorization: `Bearer ${key}` } }), {
       params: Promise.resolve({ workspace: WS, runId: RUN, callId: "c4" }),
     });
   };

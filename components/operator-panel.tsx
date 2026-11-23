@@ -41,7 +41,7 @@ export function OperatorPanel({
   const [pending, setPending] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const base = `/api/workspaces/${encodeURIComponent(workspace)}/runs/${encodeURIComponent(runId)}`;
+  const base = `/v1/workspaces/${encodeURIComponent(workspace)}/runs/${encodeURIComponent(runId)}`;
   const headers = { "content-type": "application/json", "x-foldrun-tenant": tenant };
 
   if (!questions.length && !messages.length && !running) return null;

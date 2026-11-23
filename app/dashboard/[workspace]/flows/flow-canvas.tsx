@@ -873,14 +873,14 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
       return false;
     }
   };
-  const flowUrl = `/api/workspaces/${workspace}/flows/${flow}`;
+  const flowUrl = `/v1/workspaces/${workspace}/flows/${flow}`;
   // Every flow write carries `expect`: the text this drawing's step indices
   // were read from. The route refuses it (409) when the file has moved on —
   // another tab, the editor, our own last write not yet refreshed — instead
   // of applying the indices to whichever steps have them now.
   const flowPatch = (body: Record<string, unknown>) => send(flowUrl, "PATCH", raw ? { ...body, expect: raw } : body);
   const flowEdit = (edit: unknown) => flowPatch({ edit });
-  const agentEdit = (agent: string, body: unknown) => send(`/api/workspaces/${workspace}/agents/${agent}`, "PATCH", body);
+  const agentEdit = (agent: string, body: unknown) => send(`/v1/workspaces/${workspace}/agents/${agent}`, "PATCH", body);
 
   // The file changed under us (another tab, the editor, a deploy): an undo
   // would step over it, so the history goes. Our own write, still on its
@@ -1218,7 +1218,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
       });
       if (!ok) return;
     }
-    const data = await post(`/api/workspaces/${workspace}/runs/${last.id}/rerun`, { step: v.runStep });
+    const data = await post(`/v1/workspaces/${workspace}/runs/${last.id}/rerun`, { step: v.runStep });
     if (data?.runId) {
       setPicked(data.runId);
       router.refresh();
@@ -1229,7 +1229,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
   const testStep = async (index: number) => {
     const s = steps[index];
     if (!s || s.subflow || !teams[s.agent]) return;
-    const data = await post(`/api/workspaces/${workspace}/agents/${s.agent}/run`, { task: s.instruction ?? "", test: true });
+    const data = await post(`/v1/workspaces/${workspace}/agents/${s.agent}/run`, { task: s.instruction ?? "", test: true });
     if (data?.runId) router.push(`/dashboard/${workspace}/runs/${data.runId}${qs}`);
   };
 
@@ -1653,7 +1653,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
                   });
                   if (!v) return;
                   if (!/^[a-z0-9][a-z0-9-]*$/.test(v.name.trim())) return refuse($t("workspace.flows-flow-canvas.aNameIsLowerCaseLetters"));
-                  await send(`/api/workspaces/${workspace}/agents`, "POST", { name: v.name.trim(), description: v.description, model: v.model });
+                  await send(`/v1/workspaces/${workspace}/agents`, "POST", { name: v.name.trim(), description: v.description, model: v.model });
                 }}
               >
                 {$t("workspace.flows-flow-canvas.newAgent2")}

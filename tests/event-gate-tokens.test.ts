@@ -1,4 +1,4 @@
-// POST /api/events/<tenant>/<ws>/<run>: a URL releases its own step's park
+// POST /v1/events/<tenant>/<ws>/<run>: a URL releases its own step's park
 // and nothing else (30 Oct 2026). The token was per run and never expired,
 // so a URL handed out for a flow's first `wait: event` also released its
 // second. Now `&step=` names the gate, a spent URL is a 409, a wrong token or
@@ -20,7 +20,7 @@ delete process.env.FOLDRUN_REDIS_URL;
 delete process.env.FOLDRUN_TRUST_PROXY;
 
 const { NextRequest } = await import("next/server");
-const route = await import("../app/api/events/[tenant]/[workspace]/[runId]/route.ts");
+const route = await import("../app/v1/events/[tenant]/[workspace]/[runId]/route.ts");
 const { eventUrl } = await import("../../foldrun-core/src/webhook.ts");
 const { writeRun, readRun } = await import("../../foldrun-core/src/store.ts");
 

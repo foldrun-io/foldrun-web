@@ -52,7 +52,7 @@ export function FilterTest({
       parsed = payload;
     }
     try {
-      const res = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/flows/${encodeURIComponent(flow)}/filter`, {
+      const res = await fetch(`/v1/workspaces/${encodeURIComponent(workspace)}/flows/${encodeURIComponent(flow)}/filter`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
         body: JSON.stringify({ payload: parsed }),

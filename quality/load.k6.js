@@ -75,20 +75,20 @@ function record(res) {
 }
 
 export function traffic() {
-  const h = record(http.get(`${BASE}/api/healthz`, { tags: { kind: "health" } }));
+  const h = record(http.get(`${BASE}/v1/healthz`, { tags: { kind: "health" } }));
   check(h, { "health 200": (r) => r.status === 200 });
   const pick = Math.random();
   let r;
-  if (pick < 0.4) r = record(http.get(`${BASE}/api/workspaces`, tagged("read")));
-  else if (pick < 0.7) r = record(http.get(`${BASE}/api/workspaces/${WS}/runs`, tagged("read")));
-  else if (pick < 0.85) r = record(http.get(`${BASE}/api/workspaces/${WS}/flows`, tagged("read")));
-  else r = record(http.get(`${BASE}/api/openapi.json`, tagged("read")));
+  if (pick < 0.4) r = record(http.get(`${BASE}/v1/workspaces`, tagged("read")));
+  else if (pick < 0.7) r = record(http.get(`${BASE}/v1/workspaces/${WS}/runs`, tagged("read")));
+  else if (pick < 0.85) r = record(http.get(`${BASE}/v1/workspaces/${WS}/flows`, tagged("read")));
+  else r = record(http.get(`${BASE}/v1/openapi.json`, tagged("read")));
   check(r, { "read answered (or rate limited)": (x) => x.status === 200 || x.status === 429 });
   sleep(0.5 + Math.random());
 }
 
 export function startRun() {
-  const r = record(http.post(`${BASE}/api/workspaces/${WS}/flows/hello/run`, "{}", { ...auth, headers: { ...auth.headers, "idempotency-key": `load-${__VU}-${__ITER}-${Date.now()}` }, tags: { kind: "write" } }));
+  const r = record(http.post(`${BASE}/v1/workspaces/${WS}/flows/hello/run`, "{}", { ...auth, headers: { ...auth.headers, "idempotency-key": `load-${__VU}-${__ITER}-${Date.now()}` }, tags: { kind: "write" } }));
   const ok = r.status === 200 || r.status === 201 || r.status === 202;
   runAccepted.add(ok);
   check(r, { "run accepted": () => ok });

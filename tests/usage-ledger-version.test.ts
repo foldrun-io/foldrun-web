@@ -1,4 +1,4 @@
-// GET /api/usage's ledger is the account's balance and what it was charged,
+// GET /v1/account/usage's ledger is the account's balance and what it was charged,
 // nothing more. The 2026-10-26 API version withdrew the operator's accounting
 // view (`providerCostUsd`, `marginUsd`): callers pinned earlier keep the two
 // keys as null, a redaction rather than the old values. Exercised the way a
@@ -20,17 +20,17 @@ const { createApiKey } = await import("../server/auth.ts");
 const { apiGate, resetApiGateCaches } = await import("../server/api-limits.ts");
 const V = await import("../server/api-version.ts");
 const { updateAdminState } = await import("@/platform/admin");
-const { GET } = await import("../app/api/usage/route.ts");
+const { GET } = await import("../app/v1/account/usage/route.ts");
 
 const BASE = "http://localhost:3900";
 const PRIVATE = ["providerCostUsd", "marginUsd"];
 
 /** One request through the gate and the route, as the proxy runs them. */
 async function usage(headers: Record<string, string>): Promise<{ version: string; ledger: Record<string, unknown> }> {
-  const first = new NextRequest(`${BASE}/api/usage`, { headers });
+  const first = new NextRequest(`${BASE}/v1/account/usage`, { headers });
   const gate = await apiGate(first);
   assert.equal(gate.refuse, undefined, "the gate lets it through");
-  const res = await GET(new NextRequest(`${BASE}/api/usage`, { headers: { ...headers, ...gate.requestHeaders } }));
+  const res = await GET(new NextRequest(`${BASE}/v1/account/usage`, { headers: { ...headers, ...gate.requestHeaders } }));
   assert.equal(res.status, 200);
   const body = (await res.json()) as { ledger: Record<string, unknown> };
   return { version: gate.headers["foldrun-version"], ledger: body.ledger };

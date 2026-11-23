@@ -1,5 +1,5 @@
 // The model providers an account's files use, and the last check of each —
-// as GET /api/account/providers and the Settings page both show them. A
+// as GET /v1/account/providers and the Settings page both show them. A
 // caller scoped to some workspaces sees the account's own blocks (its runs
 // use them too) and its workspaces' — not the names of the workspaces and
 // agents it was not given, nor the gateways they use (30 Oct 2026).

@@ -33,19 +33,19 @@ type Req = InstanceType<typeof NextRequest>;
 type Handler<P> = (req: Req, ctx: { params: Promise<P> }) => Promise<Response>;
 type Rpc = { jsonrpc: string; id: unknown; result?: any; error?: { code: number; message: string; data?: any[] } }; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-const keysRoute = (await import("../app/api/keys/route.ts")) as { POST: (req: Req) => Promise<Response>; GET: (req: Req) => Promise<Response> };
-const rotateRoute = (await import("../app/api/keys/[id]/rotate/route.ts")) as { POST: Handler<{ id: string }> };
+const keysRoute = (await import("../app/v1/keys/route.ts")) as { POST: (req: Req) => Promise<Response>; GET: (req: Req) => Promise<Response> };
+const rotateRoute = (await import("../app/v1/keys/[id]/rotate/route.ts")) as { POST: Handler<{ id: string }> };
 const rpcRoute = (await import("../app/a2a/[tenant]/[workspace]/flows/[flow]/route.ts")) as { POST: Handler<{ tenant: string; workspace: string; flow: string }> };
 const cardRoute = (await import("../app/a2a/[tenant]/[workspace]/flows/[flow]/.well-known/agent-card.json/route.ts")) as { GET: Handler<{ tenant: string; workspace: string; flow: string }> };
 const indexRoute = (await import("../app/a2a/[tenant]/[workspace]/route.ts")) as { GET: Handler<{ tenant: string; workspace: string }> };
-const wsA2a = (await import("../app/api/workspaces/[workspace]/a2a/route.ts")) as { GET: Handler<{ workspace: string }> };
-const runsRoute = (await import("../app/api/workspaces/[workspace]/runs/route.ts")) as { GET: Handler<{ workspace: string }> };
-const sourceRoute = (await import("../app/api/workspaces/[workspace]/source/route.ts")) as { GET: Handler<{ workspace: string }>; PUT: Handler<{ workspace: string }>; PATCH: Handler<{ workspace: string }> };
-const storageRoute = (await import("../app/api/workspaces/[workspace]/storage/route.ts")) as { GET: Handler<{ workspace: string }> };
-const approveRoute = (await import("../app/api/workspaces/[workspace]/runs/[runId]/approve/route.ts")) as { POST: Handler<{ workspace: string; runId: string }> };
-const answerRoute = (await import("../app/api/workspaces/[workspace]/runs/[runId]/answer/route.ts")) as { POST: Handler<{ workspace: string; runId: string }> };
-const flowRunRoute = (await import("../app/api/workspaces/[workspace]/flows/[flow]/run/route.ts")) as { POST: Handler<{ workspace: string; flow: string }> };
-const flowRoute = (await import("../app/api/workspaces/[workspace]/flows/[flow]/route.ts")) as { PATCH: Handler<{ workspace: string; flow: string }> };
+const wsA2a = (await import("../app/v1/workspaces/[workspace]/a2a/route.ts")) as { GET: Handler<{ workspace: string }> };
+const runsRoute = (await import("../app/v1/workspaces/[workspace]/runs/route.ts")) as { GET: Handler<{ workspace: string }> };
+const sourceRoute = (await import("../app/v1/workspaces/[workspace]/source/route.ts")) as { GET: Handler<{ workspace: string }>; PUT: Handler<{ workspace: string }>; PATCH: Handler<{ workspace: string }> };
+const storageRoute = (await import("../app/v1/workspaces/[workspace]/storage/route.ts")) as { GET: Handler<{ workspace: string }> };
+const approveRoute = (await import("../app/v1/workspaces/[workspace]/runs/[runId]/approve/route.ts")) as { POST: Handler<{ workspace: string; runId: string }> };
+const answerRoute = (await import("../app/v1/workspaces/[workspace]/runs/[runId]/answer/route.ts")) as { POST: Handler<{ workspace: string; runId: string }> };
+const flowRunRoute = (await import("../app/v1/workspaces/[workspace]/flows/[flow]/run/route.ts")) as { POST: Handler<{ workspace: string; flow: string }> };
+const flowRoute = (await import("../app/v1/workspaces/[workspace]/flows/[flow]/route.ts")) as { PATCH: Handler<{ workspace: string; flow: string }> };
 
 function workspace(tenant: string, name: string, flows: Record<string, string>) {
   const ws = path.join(DATA, tenant, "workspaces", name);
@@ -82,7 +82,7 @@ const rivalAdmin = (await createApiKey("rival", "admin", undefined, undefined, "
 const json = (key: string | null, extra: Record<string, string> = {}) => ({ ...(key ? { authorization: `Bearer ${key}` } : {}), "content-type": "application/json", ...extra });
 
 async function mint(by: string, body: Record<string, unknown>) {
-  const res = await keysRoute.POST(new NextRequest("https://app.example.test/api/keys", { method: "POST", headers: json(by), body: JSON.stringify(body) }));
+  const res = await keysRoute.POST(new NextRequest("https://app.example.test/v1/keys", { method: "POST", headers: json(by), body: JSON.stringify(body) }));
   return { status: res.status, body: (await res.json()) as Record<string, any> }; // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 
@@ -126,18 +126,18 @@ test("an admin mints an A2A key for one workspace's flows; the request is checke
   assert.equal((await mint(admin, { purpose: "a2a", workspace: "desk", flows: ["leads"], maxTasks: 0 })).status, 400);
   assert.equal((await mint(admin, { purpose: "other", workspace: "desk", flows: ["leads"] })).status, 400);
   assert.equal((await mint(editor, { purpose: "a2a", workspace: "desk", flows: ["leads"] })).status, 403, "minting needs keys:manage");
-  const listed = (await (await keysRoute.GET(new NextRequest("https://app.example.test/api/keys", { headers: json(admin) }))).json()) as { keys: { id: string; purpose?: string; a2a?: { principal: string } }[] };
+  const listed = (await (await keysRoute.GET(new NextRequest("https://app.example.test/v1/keys", { headers: json(admin) }))).json()) as { keys: { id: string; purpose?: string; a2a?: { principal: string } }[] };
   const row = listed.keys.find((k) => k.id === minted.body.id)!;
   assert.equal(row.purpose, "a2a");
   assert.equal(row.a2a!.principal, minted.body.id, "a fresh key is its own principal");
 });
 
-test("an A2A key is refused by every ordinary /api route — runs, source, storage, approve, answer, keys, starting a flow", async () => {
+test("an A2A key is refused by every ordinary /v1 route — runs, source, storage, approve, answer, keys, starting a flow", async () => {
   const run = (await send(a2a, "hello", { flow: "gated" })).body.result.task;
   const runId = readRunIdOf(run.id);
   const ctxWs = { params: Promise.resolve({ workspace: "desk" }) };
   const ctxRun = { params: Promise.resolve({ workspace: "desk", runId }) };
-  const u = (p: string) => `https://app.example.test/api/workspaces/desk/${p}`;
+  const u = (p: string) => `https://app.example.test/v1/workspaces/desk/${p}`;
   const refusals = [
     await runsRoute.GET(new NextRequest(u("runs"), { headers: json(a2a) }), ctxWs),
     await sourceRoute.GET(new NextRequest(u("source?path=flows/leads.md"), { headers: json(a2a) }), ctxWs),
@@ -145,7 +145,7 @@ test("an A2A key is refused by every ordinary /api route — runs, source, stora
     await approveRoute.POST(new NextRequest(u(`runs/${runId}/approve`), { method: "POST", headers: json(a2a), body: JSON.stringify({ decision: "approve" }) }), ctxRun),
     await answerRoute.POST(new NextRequest(u(`runs/${runId}/answer`), { method: "POST", headers: json(a2a), body: JSON.stringify({ question: "q", answer: "yes" }) }), ctxRun),
     await flowRunRoute.POST(new NextRequest(u("flows/leads/run"), { method: "POST", headers: json(a2a), body: "{}" }), { params: Promise.resolve({ workspace: "desk", flow: "leads" }) }),
-    await keysRoute.GET(new NextRequest("https://app.example.test/api/keys", { headers: json(a2a) })),
+    await keysRoute.GET(new NextRequest("https://app.example.test/v1/keys", { headers: json(a2a) })),
   ];
   for (const r of refusals) {
     assert.equal(r.status, 403);
@@ -430,28 +430,28 @@ test("admission holds for A2A: overlap: skip is BUSY and leaves no task; the ope
 test("a rotated A2A key keeps its tasks", async () => {
   const k = await mint(admin, { purpose: "a2a", workspace: "desk", flows: ["leads"] });
   const t = (await send(k.body.key, "before rotation")).body.result.task;
-  const res = await rotateRoute.POST(new NextRequest(`https://app.example.test/api/keys/${k.body.id}/rotate`, { method: "POST", headers: json(admin), body: "{}" }), { params: Promise.resolve({ id: k.body.id }) });
+  const res = await rotateRoute.POST(new NextRequest(`https://app.example.test/v1/keys/${k.body.id}/rotate`, { method: "POST", headers: json(admin), body: "{}" }), { params: Promise.resolve({ id: k.body.id }) });
   assert.equal(res.status, 200);
   const rotated = ((await res.json()) as { key: string }).key;
   assert.equal((await call(rotated, "GetTask", { id: t.id })).body.result.id, t.id);
   assert.equal((await call(k.body.key, "GetTask", { id: t.id })).status, 401, "the old key is revoked");
 });
 
-test("GET /api/workspaces/<ws>/a2a: the flows that say a2a:, the newest tasks; keys for admins only", async () => {
-  const res = await wsA2a.GET(new NextRequest("https://app.example.test/api/workspaces/desk/a2a", { headers: json(admin) }), { params: Promise.resolve({ workspace: "desk" }) });
+test("GET /v1/workspaces/<ws>/a2a: the flows that say a2a:, the newest tasks; keys for admins only", async () => {
+  const res = await wsA2a.GET(new NextRequest("https://app.example.test/v1/workspaces/desk/a2a", { headers: json(admin) }), { params: Promise.resolve({ workspace: "desk" }) });
   const view = (await res.json()) as { flows: { flow: string; published: boolean; card: string }[]; keys: { label: string }[] | null; tasks: { key: { label: string | null }; state: string }[] };
   assert.deepEqual(view.flows.map((f) => f.flow).sort(), ["card", "gated", "hidden", "leads", "once", "typed", "ungranted"]);
   assert.equal(view.flows.find((f) => f.flow === "hidden")!.published, false);
   assert.equal(view.flows.find((f) => f.flow === "leads")!.card, "https://app.example.test/a2a/acme/desk/flows/leads/.well-known/agent-card.json");
   assert.ok(view.keys!.some((k) => k.label === "partner"));
   assert.ok(view.tasks.some((t) => t.key.label === "partner"));
-  const asViewer = (await (await wsA2a.GET(new NextRequest("https://app.example.test/api/workspaces/desk/a2a", { headers: json(viewer) }), { params: Promise.resolve({ workspace: "desk" }) })).json()) as { keys: unknown };
+  const asViewer = (await (await wsA2a.GET(new NextRequest("https://app.example.test/v1/workspaces/desk/a2a", { headers: json(viewer) }), { params: Promise.resolve({ workspace: "desk" }) })).json()) as { keys: unknown };
   assert.equal(asViewer.keys, null);
 });
 
 test("publishing is an admin's: an editor cannot change a flow's a2a:, an admin can", async () => {
   const put = (key: string, rel: string, content: string) =>
-    sourceRoute.PUT(new NextRequest("https://app.example.test/api/workspaces/desk/source", { method: "PUT", headers: json(key), body: JSON.stringify({ path: rel, content }) }), { params: Promise.resolve({ workspace: "desk" }) });
+    sourceRoute.PUT(new NextRequest("https://app.example.test/v1/workspaces/desk/source", { method: "PUT", headers: json(key), body: JSON.stringify({ path: rel, content }) }), { params: Promise.resolve({ workspace: "desk" }) });
   const published = flow("plain", "  publish: true\n");
   const refused = await put(editor, "flows/plain.md", published);
   assert.equal(refused.status, 403);
@@ -463,7 +463,7 @@ test("publishing is an admin's: an editor cannot change a flow's a2a:, an admin 
 
 test("PATCH …/flows/<f> { a2a }: merged over the block, admin only, checked; null removes it", async () => {
   const patch = (key: string, a2aBody: unknown) =>
-    flowRoute.PATCH(new NextRequest("https://app.example.test/api/workspaces/desk/flows/plain", { method: "PATCH", headers: json(key), body: JSON.stringify({ a2a: a2aBody }) }), { params: Promise.resolve({ workspace: "desk", flow: "plain" }) });
+    flowRoute.PATCH(new NextRequest("https://app.example.test/v1/workspaces/desk/flows/plain", { method: "PATCH", headers: json(key), body: JSON.stringify({ a2a: a2aBody }) }), { params: Promise.resolve({ workspace: "desk", flow: "plain" }) });
   const file = path.join(WS, "flows/plain.md");
   fs.writeFileSync(file, flow("plain", null));
   const refused = await patch(editor, { publish: true });
@@ -527,7 +527,7 @@ test("the crash window: a run created, its id never recorded — a retry after t
 
 test("a rename cannot publish by spelling the path another way — ./flows/x.md, flows//x.md", async () => {
   const patch = (key: string, from: string, to: string) =>
-    sourceRoute.PATCH(new NextRequest("https://app.example.test/api/workspaces/desk/source", { method: "PATCH", headers: json(key), body: JSON.stringify({ from, to }) }), { params: Promise.resolve({ workspace: "desk" }) });
+    sourceRoute.PATCH(new NextRequest("https://app.example.test/v1/workspaces/desk/source", { method: "PATCH", headers: json(key), body: JSON.stringify({ from, to }) }), { params: Promise.resolve({ workspace: "desk" }) });
   fs.mkdirSync(path.join(WS, "evals"), { recursive: true });
   fs.writeFileSync(path.join(WS, "evals/pub.md"), flow("sneaky", "  publish: true\n"));
   for (const to of ["./flows/sneaky.md", "flows//sneaky.md", "flows/./sneaky.md", "evals/../flows/sneaky.md", "flows/sneaky.md"]) {
@@ -670,7 +670,7 @@ test("a published flow with a secret-and-code agent and no accept_risk takes no 
   assert.equal(listRunSummaries("acme", "desk").length, before, "no run");
   assert.equal(((await call(k.body.key, "ListTasks", {}, { flow: "risky" })).body.result?.tasks ?? []).length, 0, "no task left behind");
   // The owner's view: the risk, for the dashboard's publish control.
-  const view = (await (await wsA2a.GET(new NextRequest("https://app.example.test/api/workspaces/desk/a2a", { headers: json(admin) }), { params: Promise.resolve({ workspace: "desk" }) })).json()) as { risks: unknown[] };
+  const view = (await (await wsA2a.GET(new NextRequest("https://app.example.test/v1/workspaces/desk/a2a", { headers: json(admin) }), { params: Promise.resolve({ workspace: "desk" }) })).json()) as { risks: unknown[] };
   assert.deepEqual(view.risks, [{ flow: "risky", agent: "coder", secrets: ["CRM_TOKEN"], accepted: false }]);
   // Accepted by an admin: served.
   fs.writeFileSync(path.join(WS, "flows", "risky.md"), flow("risky", "  publish: true\n  accept_risk: [coder]\n", "1. [[coder]] — do it\n"));

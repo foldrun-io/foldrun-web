@@ -1,7 +1,7 @@
 "use client";
 
 // Acknowledge, snooze, resolve or reopen one issue (FOL-54 step 3), through
-// POST /api/issues/<id> — the route the CLI's `foldrun issues` uses.
+// POST /v1/issues/<id> — the route the CLI's `foldrun issues` uses.
 
 import { $t } from "@/i18n";
 import { useState } from "react";
@@ -31,7 +31,7 @@ export function IssueActions({ id, status, tenant, platform = false, accountWide
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/issues/${encodeURIComponent(id)}`, {
+      const res = await fetch(`/v1/issues/${encodeURIComponent(id)}`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
         body: JSON.stringify({ action, ...extra }),

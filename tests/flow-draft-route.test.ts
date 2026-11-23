@@ -22,10 +22,10 @@ process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 const draft = await import("../server/flow-draft.ts");
-const route = (await import("../app/api/workspaces/[workspace]/flows/draft/route.ts")) as {
+const route = (await import("../app/v1/workspaces/[workspace]/flows/draft/route.ts")) as {
   POST: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string }> }) => Promise<Response>;
 };
-const source = (await import("../app/api/workspaces/[workspace]/source/route.ts")) as {
+const source = (await import("../app/v1/workspaces/[workspace]/source/route.ts")) as {
   PUT: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string }> }) => Promise<Response>;
 };
 
@@ -46,7 +46,7 @@ const { key: viewer } = await createApiKey(TENANT, "viewer", "owner@acme.test", 
 const ctx = { params: Promise.resolve({ workspace: WS }) };
 const post = (body: unknown, key = editor) =>
   route.POST(
-    new NextRequest(`http://localhost/api/workspaces/${WS}/flows/draft`, {
+    new NextRequest(`http://localhost/v1/workspaces/${WS}/flows/draft`, {
       method: "POST",
       headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
       body: JSON.stringify(body),
@@ -182,7 +182,7 @@ test("redrafting a flow returns its current text, and a save is the separate, ex
   assert.equal(fs.readFileSync(path.join(ws, "flows/publish.md"), "utf8"), EXISTING);
   // Only the save writes, and it holds the server to the text the draft saw.
   const put = await source.PUT(
-    new NextRequest(`http://localhost/api/workspaces/${WS}/source`, {
+    new NextRequest(`http://localhost/v1/workspaces/${WS}/source`, {
       method: "PUT",
       headers: { authorization: `Bearer ${editor}`, "content-type": "application/json" },
       body: JSON.stringify({ path: flow.path, content: flow.content, message: "drafted with AI", ifMatch: flow.sha256 }),
@@ -243,7 +243,7 @@ test("the prompt stays under its cap with no agents to drop, and keeps its instr
 test("a draft's new file is saved with ifMatch: null, refused once someone created it meanwhile", async () => {
   const put = (p: string, content: string) =>
     source.PUT(
-      new NextRequest(`http://localhost/api/workspaces/${WS}/source`, {
+      new NextRequest(`http://localhost/v1/workspaces/${WS}/source`, {
         method: "PUT",
         headers: { authorization: `Bearer ${editor}`, "content-type": "application/json" },
         body: JSON.stringify({ path: p, content, ifMatch: null }),

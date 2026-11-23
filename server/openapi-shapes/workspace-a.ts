@@ -1,4 +1,4 @@
-// OpenAPI request/response schemas: /api/workspaces, and /api/workspaces/{workspace}/<agents|assets|assistant|check|deploy|evals|export|import|… up to 'l'>.
+// OpenAPI request/response schemas: /v1/workspaces, and /v1/workspaces/{workspace}/<agents|assets|assistant|check|deploy|evals|export|import|… up to 'l'>.
 // Written from what each handler validates and answers (30 Oct 2026).
 
 import { type Shape, type Schema, obj, str, bool, int, arr, nullable, Proposal, Failure } from "./kit.ts";
@@ -120,8 +120,8 @@ const EvalHistoryEntry = obj({
 });
 
 export const SHAPES: Record<string, Shape> = {
-  "GET /api/workspaces": { response: obj({ workspaces: arr(WorkspaceSummary, "the ones the caller may see, most recently deployed first") }) },
-  "POST /api/workspaces": {
+  "GET /v1/workspaces": { response: obj({ workspaces: arr(WorkspaceSummary, "the ones the caller may see, most recently deployed first") }) },
+  "POST /v1/workspaces": {
     body: obj({
       name: str("required unless demo: true"),
       files: arr(obj({ path: str(), content: str() }, ["path", "content"]), "the workspace's files; not needed with template, starter or demo"),
@@ -136,12 +136,12 @@ export const SHAPES: Record<string, Shape> = {
       dashboard: str("its dashboard path"),
     }),
   },
-  "GET /api/workspaces/{workspace}/agents": { response: obj({ agents: arr(Agent) }) },
-  "POST /api/workspaces/{workspace}/agents": {
+  "GET /v1/workspaces/{workspace}/agents": { response: obj({ agents: arr(Agent) }) },
+  "POST /v1/workspaces/{workspace}/agents": {
     body: obj({ name: str("agents/<name>/agent.md"), description: str(), model: str() }, ["name"]),
     response: obj({ ok: bool, path: str() }),
   },
-  "POST /api/workspaces/{workspace}/agents/{agent}/run": {
+  "POST /v1/workspaces/{workspace}/agents/{agent}/run": {
     body: obj({ task: str("what the agent is asked to do"), test: { ...bool, description: "a test run" }, snapshot: str("a folder to work on: the id POST …/snapshots answered; the step finds it in snapshot/ and the run's outputs hold snapshot.patch (k8s sandbox only)"), context: str("a conversation this run is a turn of: 1–200 printable ASCII characters; the agent reads the earlier runs of the same context before the task (FOL-162)"), customer: str("which of your own users this run is for (FOL-168): an opaque id, 1–128 of letters, digits and . _ : @ -; never personal data. Limits and blocks follow it, and the model provider is told a hash of it as its end-user id"), inputs: { type: "array", items: str(), description: "files to hand the run: storage paths, as GET …/storage lists them — at most 20, 100 MiB together; staged at agents/<name>/inputs/ for the first step, held as they are now (FOL-163). Needs the k8s or container sandbox (409 otherwise); 404 names a path with no stored file" }, messages: { type: "array", items: str(), description: "with context: ids of this conversation's waiting session messages to include in this turn (GET …/sessions/<context>/messages?waiting=1), at most 20; the step reads them after the earlier turns, as data. All or none: 409 with `refused` when one is no longer waiting, and nothing starts. What does not fit in one turn's block waits again, named in `left`" } }),
     query: [
       { name: "wait", description: "true (or 1) answers when the run stops — 202 if it is still going at the timeout or waits on approval" },
@@ -155,19 +155,19 @@ export const SHAPES: Record<string, Shape> = {
       timedOut: bool, awaitingApproval: bool,
     }),
   },
-  "GET /api/workspaces/{workspace}/agents/import": {
+  "GET /v1/workspaces/{workspace}/agents/import": {
     response: obj({
       workspaces: arr(obj({ name: str(), agents: arr(obj({ name: str(), description: str() })) }), "every other workspace the caller may read that has agents"),
     }),
   },
-  "POST /api/workspaces/{workspace}/agents/import": {
+  "POST /v1/workspaces/{workspace}/agents/import": {
     body: obj({ from: str("the source workspace"), agent: str("the agent to copy"), as: str("a new name for it here") }, ["from", "agent"]),
     response: obj({
       ok: bool, from: str(), name: str("its name in this workspace"), files: arr(str(), "workspace-relative paths written"),
       warnings: arr(str(), "what it names that this workspace does not have"),
     }),
   },
-  "POST /api/workspaces/{workspace}/assets": {
+  "POST /v1/workspaces/{workspace}/assets": {
     body: obj(
       {
         kind: str("agents | evals | flows | tools | hooks | knowledge | memory | skills | scripts"),
@@ -180,7 +180,7 @@ export const SHAPES: Record<string, Shape> = {
     ),
     response: obj({ ok: bool, path: str("the document's main file"), type: nullable(str("its document type, when the kind has one")) }),
   },
-  "POST /api/workspaces/{workspace}/assistant": {
+  "POST /v1/workspaces/{workspace}/assistant": {
     body: obj(
       {
         messages: arr(obj({ role: str("user | assistant"), content: str() }, ["role", "content"]), "the conversation; the last is the person's"),
@@ -206,12 +206,12 @@ export const SHAPES: Record<string, Shape> = {
       description: "With Accept: text/event-stream the reply streams instead: status and text events ({ text }), then done (this object) or error ({ error, status })",
     },
   },
-  "GET /api/workspaces/{workspace}/evals": { response: obj({ evals: arr(EvalInfo) }) },
-  "POST /api/workspaces/{workspace}/evals": {
+  "GET /v1/workspaces/{workspace}/evals": { response: obj({ evals: arr(EvalInfo) }) },
+  "POST /v1/workspaces/{workspace}/evals": {
     body: obj({ name: str("evals/<name>.md") }, ["name"]),
     response: obj({ ok: bool, path: str() }),
   },
-  "GET /api/workspaces/{workspace}/evals/trends": {
+  "GET /v1/workspaces/{workspace}/evals/trends": {
     response: obj({
       workspace: str(),
       trends: arr(
@@ -225,7 +225,7 @@ export const SHAPES: Record<string, Shape> = {
       ),
     }),
   },
-  "GET /api/workspaces/{workspace}/evals/{evalName}/compare": {
+  "GET /v1/workspaces/{workspace}/evals/{evalName}/compare": {
     query: [{ name: "run", description: "one comparison by id; omitted, who holds it now and the kept comparisons" }],
     response: obj({
       ...laneView(EvalComparison),
@@ -235,7 +235,7 @@ export const SHAPES: Record<string, Shape> = {
       ),
     }),
   },
-  "POST /api/workspaces/{workspace}/evals/{evalName}/compare": {
+  "POST /v1/workspaces/{workspace}/evals/{evalName}/compare": {
     body: obj(
       {
         configs: arr(
@@ -250,11 +250,11 @@ export const SHAPES: Record<string, Shape> = {
     status: "202",
     response: obj({ started: bool, eval: str(), runId: str("poll GET …/compare?run=<runId>"), startedAt: str(), trials: { ...int, description: "cases × settings × repeat" }, maxUsd: num }),
   },
-  "POST /api/workspaces/{workspace}/evals/{evalName}/grade": {
+  "POST /v1/workspaces/{workspace}/evals/{evalName}/grade": {
     body: obj({ run: str("the id of a finished run to grade") }, ["run"]),
     response: Grade,
   },
-  "GET /api/workspaces/{workspace}/evals/{evalName}/grades": {
+  "GET /v1/workspaces/{workspace}/evals/{evalName}/grades": {
     query: [
       { name: "days", description: "the window: 1–90, default 30" },
       { name: "status", description: "pass | fail | error — filters grades, not summary" },
@@ -269,16 +269,16 @@ export const SHAPES: Record<string, Shape> = {
       grades: arr(Grade, "newest first"),
     }),
   },
-  "POST /api/workspaces/{workspace}/evals/{evalName}/improve": {
+  "POST /v1/workspaces/{workspace}/evals/{evalName}/improve": {
     noBody: "the eval in the path says what to fix: a grader's failed grades no proposal has covered, or the last result's failed cases",
     status: "202",
     response: { ...Proposal, description: "the proposal, drafting — poll GET …/proposals/{id}; nothing is written until a person applies it. 409 when there is nothing to fix, one is already open, or the workspace is paused" },
   },
-  "GET /api/workspaces/{workspace}/evals/{evalName}/run": {
+  "GET /v1/workspaces/{workspace}/evals/{evalName}/run": {
     query: [{ name: "run", description: "one run by id (what an async caller polls); omitted, who holds the eval now and its latest result" }],
     response: obj(laneView(nullable(EvalResult))),
   },
-  "POST /api/workspaces/{workspace}/evals/{evalName}/run": {
+  "POST /v1/workspaces/{workspace}/evals/{evalName}/run": {
     body: obj({ async: { ...bool, description: "true answers 202 { started, eval, runId, startedAt } at once and the eval runs on" } }),
     response: obj({
       ...EvalResultProps,
@@ -286,14 +286,14 @@ export const SHAPES: Record<string, Shape> = {
       runId: str("async: true only — poll GET …/run?run=<runId>"),
     }),
   },
-  "GET /api/workspaces/{workspace}/export": {
+  "GET /v1/workspaces/{workspace}/export": {
     query: [
       { name: "kind", description: "workspace (default) | flow | agent" },
       { name: "name", description: "the flow or agent, for kind flow or agent" },
     ],
     media: { type: "application/zip", description: "the package, as an attachment: authored source only — never memory, state, storage or a secret's value" },
   },
-  "GET /api/workspaces/{workspace}/history": {
+  "GET /v1/workspaces/{workspace}/history": {
     query: [
       { name: "path", description: "revisions that touched this file; with id, that revision narrowed to it" },
       { name: "id", description: "one revision in full, with each file's line diff" },
@@ -309,7 +309,7 @@ export const SHAPES: Record<string, Shape> = {
       }),
     }),
   },
-  "POST /api/workspaces/{workspace}/snapshots": {
+  "POST /v1/workspaces/{workspace}/snapshots": {
     noBody: "the body is the folder as a .tar.gz (core snapshot-archive.ts, what `foldrun snapshot push` makes), sent as application/gzip with a Content-Length, at most 50 MB compressed; not JSON",
     response: obj({
       snapshotId: str("the archive's sha256: pass it to a run"),
@@ -320,7 +320,7 @@ export const SHAPES: Record<string, Shape> = {
       reused: { ...bool, description: "this workspace already had this exact folder (200, not 201)" },
     }),
   },
-  "POST /api/workspaces/{workspace}/import": {
+  "POST /v1/workspaces/{workspace}/import": {
     noBody: "the body is the package itself — the .zip GET …/export answers — sent as application/zip with a Content-Length, at most 20 MB; not JSON",
     query: [
       { name: "dryRun", description: "1: what it would add, overwrite and still need; writes nothing" },

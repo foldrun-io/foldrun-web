@@ -1,5 +1,5 @@
 // One API, Anthropic's shape (owner, 22 Nov 2026): from API version
-// 2026-11-22 an /api refusal is the body /v1 answers with, and /api takes
+// 2026-11-22 an /v1 refusal is the body /v1 answers with, and /v1 takes
 // the key as x-api-key as well as Authorization: Bearer. Older pins and a
 // signed-in browser keep { error: "…" }.
 //
@@ -37,8 +37,8 @@ test("the two bodies, and the downgrade between them", () => {
   const now = S.errorBody("busy", 409, { runId: "r1" }, "anthropic");
   assert.deepEqual(S.legacyErrorBody(now), { error: "busy", runId: "r1" });
   const change = V.VERSION_CHANGES.find((c) => c.version === V.ERROR_SHAPE_VERSION)!;
-  assert.deepEqual(change.downgrade(now, { method: "GET", path: "/api/x", status: 409 }), { error: "busy", runId: "r1" });
-  assert.equal(V.CURRENT_API_VERSION, V.ERROR_SHAPE_VERSION, "the change is the current version");
+  assert.deepEqual(change.downgrade(now, { method: "GET", path: "/v1/x", status: 409 }), { error: "busy", runId: "r1" });
+  assert.ok(V.CURRENT_API_VERSION >= V.ERROR_SHAPE_VERSION, "the current version answers Anthropic's body");
 });
 
 test("refuse, refuseWith and errorResponse answer in the request's shape; nothing said is the old body", async () => {
@@ -52,7 +52,7 @@ test("refuse, refuseWith and errorResponse answer in the request's shape; nothin
   });
 });
 
-const req = (headers: Record<string, string> = {}, p = "/api/workspaces") => new NextRequest(`http://localhost${p}`, { headers });
+const req = (headers: Record<string, string> = {}, p = "/v1/workspaces") => new NextRequest(`http://localhost${p}`, { headers });
 
 test("the gate: a key on the current version gets Anthropic's body; an older pin, and a signed-in browser, the old one", async () => {
   resetApiGateCaches();
@@ -88,13 +88,13 @@ test("an account pinned before 2026-11-22 gets the old body from the proxy's own
   const { key } = await createApiKey("pinned-old", "ci", "ci@pinned.test", undefined, "admin", null);
   await updateAdminState("pinned-old", { apiVersion: "2026-10-26" }, "test", "api-version");
   forgetAccountProfile("pinned-old");
-  const big = new NextRequest("http://localhost/api/workspaces/w/source", { method: "PUT", headers: { "x-api-key": key, "content-type": "application/json", "content-length": String(64 * 1024 * 1024) } });
+  const big = new NextRequest("http://localhost/v1/workspaces/w/source", { method: "PUT", headers: { "x-api-key": key, "content-type": "application/json", "content-length": String(64 * 1024 * 1024) } });
   const r = await proxy(big);
   assert.equal(r.status, 413);
   const body = (await r.json()) as { error: unknown };
   assert.equal(typeof body.error, "string", "the account's pin, not current");
   const { key: now } = await createApiKey("acme", "ci2", "ci@acme.test", undefined, "admin", null);
-  const r2 = await proxy(new NextRequest("http://localhost/api/workspaces/w/source", { method: "PUT", headers: { "x-api-key": now, "content-type": "application/json", "content-length": String(64 * 1024 * 1024) } }));
+  const r2 = await proxy(new NextRequest("http://localhost/v1/workspaces/w/source", { method: "PUT", headers: { "x-api-key": now, "content-type": "application/json", "content-length": String(64 * 1024 * 1024) } }));
   assert.equal(((await r2.json()) as { type: string }).type, "error");
 });
 

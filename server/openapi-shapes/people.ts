@@ -1,4 +1,4 @@
-// OpenAPI request/response schemas: /api/auth/*, /api/cli/*, /api/me*, /api/team*, /api/unsubscribe, /api/support/*, /api/avatars/*.
+// OpenAPI request/response schemas: /v1/auth/*, /v1/cli/*, /v1/me*, /v1/team*, /v1/unsubscribe, /v1/support/*, /v1/avatars/*.
 // Written from what each handler validates and answers (30 Oct 2026).
 
 import { type Shape, type Schema, obj, str, bool, int, arr, OK } from "./kit.ts";
@@ -95,7 +95,7 @@ const Member = obj({
 });
 
 export const SHAPES: Record<string, Shape> = {
-  "POST /api/auth/email": {
+  "POST /v1/auth/email": {
     body: obj(
       {
         password: str("your current password"),
@@ -112,61 +112,61 @@ export const SHAPES: Record<string, Shape> = {
       otherSessionsEnded: { ...int, description: "always 0: other sessions end at the click, not now" },
     }),
   },
-  "POST /api/auth/forgot": {
+  "POST /v1/auth/forgot": {
     body: obj({ email: str() }, ["email"]),
     response: obj({ ok: bool, message: str("always the same sentence, whatever the address") }),
   },
-  "POST /api/auth/login": {
+  "POST /v1/auth/login": {
     body: obj({ email: str(), password: str() }, ["email", "password"]),
     response: obj({
       ok: bool,
-      mfa: { ...bool, description: "true: a second factor is on — no session yet; send challenge and a code to POST /api/auth/mfa/verify" },
-      challenge: str("with mfa: the five-minute token POST /api/auth/mfa/verify takes"),
+      mfa: { ...bool, description: "true: a second factor is on — no session yet; send challenge and a code to POST /v1/auth/mfa/verify" },
+      challenge: str("with mfa: the five-minute token POST /v1/auth/mfa/verify takes"),
       ...SignedIn,
     }, ["ok"]),
   },
-  "POST /api/auth/login/code": {
+  "POST /v1/auth/login/code": {
     body: obj({ email: str() }, ["email"]),
     response: obj({ ok: bool }, ["ok"]),
   },
-  "POST /api/auth/login/code/verify": {
+  "POST /v1/auth/login/code/verify": {
     body: obj({ email: str(), code: str("the six digits from the mail, from the browser that asked for them") }, ["email", "code"]),
     response: obj({
       ok: bool,
-      mfa: { ...bool, description: "true: a second factor is on — no session yet; send challenge and a code to POST /api/auth/mfa/verify" },
-      challenge: str("with mfa: the five-minute token POST /api/auth/mfa/verify takes"),
+      mfa: { ...bool, description: "true: a second factor is on — no session yet; send challenge and a code to POST /v1/auth/mfa/verify" },
+      challenge: str("with mfa: the five-minute token POST /v1/auth/mfa/verify takes"),
       ...SignedIn,
     }, ["ok"]),
   },
-  "POST /api/auth/logout": {
+  "POST /v1/auth/logout": {
     noBody: "the session cookie says which session ends; nothing else is read",
     response: OK,
   },
-  "POST /api/auth/mfa/disable": {
+  "POST /v1/auth/mfa/disable": {
     body: obj({ password: str(), code: str("six digits from the app, or one backup code") }, ["password", "code"]),
     response: OK,
   },
-  "POST /api/auth/mfa/enable": {
-    body: obj({ enrol: str("the enrol token POST /api/auth/mfa/setup answered"), code: str("six digits from the app") }, ["enrol", "code"]),
+  "POST /v1/auth/mfa/enable": {
+    body: obj({ enrol: str("the enrol token POST /v1/auth/mfa/setup answered"), code: str("six digits from the app") }, ["enrol", "code"]),
     response: obj({
       ok: bool,
       backup: arr(str(), "eight backup codes, shown exactly once"),
       otherSessionsEnded: { ...int, description: "the person's other sessions ended now; this browser keeps its own" },
     }),
   },
-  "POST /api/auth/mfa/setup": {
+  "POST /v1/auth/mfa/setup": {
     noBody: "the signed-in person is the one enrolling; a fresh secret is drawn here",
     response: obj({
       secret: str("the TOTP secret, base32, for typing into an app by hand"),
       uri: str("the otpauth:// URI an app scans"),
       qr: str("a data: URL of a PNG QR code of uri"),
-      enrol: str("a token carrying the sealed secret to POST /api/auth/mfa/enable — nothing is stored until then"),
+      enrol: str("a token carrying the sealed secret to POST /v1/auth/mfa/enable — nothing is stored until then"),
     }),
   },
-  "POST /api/auth/mfa/verify": {
+  "POST /v1/auth/mfa/verify": {
     body: obj(
       {
-        challenge: str("the token POST /api/auth/login answered with mfa: true"),
+        challenge: str("the token POST /v1/auth/login answered with mfa: true"),
         code: str("six digits from the app, or one backup code"),
       },
       ["challenge", "code"],
@@ -177,14 +177,14 @@ export const SHAPES: Record<string, Shape> = {
       backupUsed: { ...bool, description: "present (true) when a backup code signed in; it is spent" },
     }),
   },
-  "POST /api/auth/name": {
+  "POST /v1/auth/name": {
     body: obj({
       firstName: nstr("at most 80 characters; null or empty clears it"),
       lastName: nstr("at most 80 characters; null or empty clears it"),
     }),
     response: OK,
   },
-  "POST /api/auth/password": {
+  "POST /v1/auth/password": {
     body: obj({ current: str("your current password"), next: str("at least 10 characters, not your email, not in a known breach") }, ["current", "next"]),
     response: obj({
       ok: bool,
@@ -192,7 +192,7 @@ export const SHAPES: Record<string, Shape> = {
       message: str("what happened, in a sentence"),
     }),
   },
-  "POST /api/auth/reset": {
+  "POST /v1/auth/reset": {
     body: obj({ token: str("from the reset link"), password: str("the new password") }, ["token", "password"]),
     response: obj({
       ok: bool,
@@ -200,7 +200,7 @@ export const SHAPES: Record<string, Shape> = {
       signIn: { ...bool, description: "present (true) when a second factor is on: no session was made — sign in, and the login asks for the code" },
     }),
   },
-  "GET /api/auth/session": {
+  "GET /v1/auth/session": {
     response: obj({
       user: {
         ...obj({
@@ -216,25 +216,25 @@ export const SHAPES: Record<string, Shape> = {
         type: ["object", "null"],
         description: "null when not signed in",
       },
-      signupOpen: { ...bool, description: "there is a way in for a stranger to show: the install's first account, free sign-up, or paid sign-up in effect (GET /api/signup says which, for the public)" },
+      signupOpen: { ...bool, description: "there is a way in for a stranger to show: the install's first account, free sign-up, or paid sign-up in effect (GET /v1/signup says which, for the public)" },
       hasUsers: { ...bool, description: "the install has at least one account" },
     }),
   },
-  "GET /api/auth/sessions": {
+  "GET /v1/auth/sessions": {
     response: obj({
       revocable: { ...bool, description: "false: this install keeps no session rows, so it cannot list or end them (sessions is then empty)" },
       current: nstr("the id of the session making this request"),
       sessions: arr(SessionRow, "live sessions, most recently seen first"),
     }),
   },
-  "DELETE /api/auth/sessions": {
+  "DELETE /v1/auth/sessions": {
     body: obj({
       id: str("end this one session — never the one asking (use sign out)"),
       others: { ...bool, description: "true: end every session but the one asking; id is then ignored" },
     }),
     response: obj({ ok: { ...bool, description: "false when no live session of yours had that id" }, ended: int }),
   },
-  "POST /api/auth/signup": {
+  "POST /v1/auth/signup": {
     body: obj(
       {
         email: str(),
@@ -247,11 +247,11 @@ export const SHAPES: Record<string, Shape> = {
     ),
     response: obj({ ok: bool, ...SignedIn, workspace: str("where the dashboard opens; a new account gets one called home") }),
   },
-  "POST /api/auth/timezone": {
+  "POST /v1/auth/timezone": {
     body: obj({ timezone: nstr("an IANA zone, e.g. Australia/Sydney; null goes back to the browser's") }, ["timezone"]),
     response: obj({ ok: bool, timezone: nstr() }),
   },
-  "GET /api/auth/verify": {
+  "GET /v1/auth/verify": {
     query: [{ name: "token", description: "from the confirmation mail, or the link an email change mailed to the new address" }],
     status: "307",
     media: {
@@ -259,24 +259,24 @@ export const SHAPES: Record<string, Shape> = {
       description: "A temporary redirect (307): to /dashboard?verified=1 once the address is verified (and, for an email-change link, the login moved), else to /login?verify=invalid",
     },
   },
-  "POST /api/auth/verify/resend": {
+  "POST /v1/auth/verify/resend": {
     noBody: "the confirmation goes to the signed-in person's own address",
     response: obj({ ok: bool, already: { ...bool, description: "present (true) when the address is already verified; nothing is sent" } }),
   },
-  "GET /api/avatars/{kind}/{id}": {
+  "GET /v1/avatars/{kind}/{id}": {
     media: {
       type: "image/*",
       description: "the picture's bytes — image/png, image/jpeg or image/webp; cached for a year (a new picture has a new URL). kind is user | workspace | account",
     },
   },
-  "PUT /api/avatars/{kind}/{id}": {
+  "PUT /v1/avatars/{kind}/{id}": {
     noBody: "the body is the image's raw bytes, not JSON — a PNG, JPEG or WebP of at most 1 MB, told apart by its bytes, not its Content-Type",
     response: obj({ ok: bool, url: nstr("the new picture's URL, its version in the query") }),
   },
-  "DELETE /api/avatars/{kind}/{id}": {
+  "DELETE /v1/avatars/{kind}/{id}": {
     response: obj({ ok: bool, removed: { ...bool, description: "false when there was no picture" } }),
   },
-  "GET /api/cli/authorize": {
+  "GET /v1/cli/authorize": {
     query: [{ name: "code", description: "the XXXX-XXXX code `foldrun login` printed" }],
     response: obj({
       code: str("the code, normalised"),
@@ -296,7 +296,7 @@ export const SHAPES: Record<string, Shape> = {
       }),
     }, ["code", "hostname", "expiresAt", "status", "createdAt", "requestedFrom", "requestedCountry", "sameNetwork", "approveBy"]),
   },
-  "POST /api/cli/authorize": {
+  "POST /v1/cli/authorize": {
     body: obj(
       {
         code: str("the XXXX-XXXX code `foldrun login` printed"),
@@ -307,17 +307,17 @@ export const SHAPES: Record<string, Shape> = {
     ),
     response: obj({ ok: bool, status: str("approved | denied") }),
   },
-  "POST /api/cli/login": {
+  "POST /v1/cli/login": {
     body: obj({ hostname: str("the machine asking, for the key's label; letters, digits, . _ - and at most 64 kept; omitted, unknown") }),
     response: obj({
-      id: str("the secret the CLI polls GET /api/cli/login/{id} with — never show it"),
+      id: str("the secret the CLI polls GET /v1/cli/login/{id} with — never show it"),
       code: str("XXXX-XXXX, what the person confirms"),
       verifyUrl: str("the page the person confirms on"),
       expiresAt: str("ten minutes from now"),
       interval: { ...int, description: "seconds to wait between polls" },
     }),
   },
-  "GET /api/cli/login/{id}": {
+  "GET /v1/cli/login/{id}": {
     response: obj(
       {
         status: str("pending | denied | expired | approved"),
@@ -329,7 +329,7 @@ export const SHAPES: Record<string, Shape> = {
       ["status"],
     ),
   },
-  "GET /api/me": {
+  "GET /v1/me": {
     response: obj({
       account: str(),
       owner: nstr("the account owner's email"),
@@ -364,7 +364,7 @@ export const SHAPES: Record<string, Shape> = {
       },
     }),
   },
-  "GET /api/me/inbox": {
+  "GET /v1/me/inbox": {
     query: [
       { name: "bucket", description: "mine | started | team | all; omitted, mine and started" },
       { name: "kind", description: "approval | question | issue | proposal | run" },
@@ -394,7 +394,7 @@ export const SHAPES: Record<string, Shape> = {
       ),
     }),
   },
-  "POST /api/me/inbox": {
+  "POST /v1/me/inbox": {
     body: obj(
       {
         id: str("one item; or ids"),
@@ -405,8 +405,8 @@ export const SHAPES: Record<string, Shape> = {
     ),
     response: obj({ ok: bool, read: { ...int, description: "items you have read, in all" }, dismissed: { ...int, description: "items you have set aside, in all" } }),
   },
-  "GET /api/me/notifications": { response: MailPreferences },
-  "PATCH /api/me/notifications": {
+  "GET /v1/me/notifications": { response: MailPreferences },
+  "PATCH /v1/me/notifications": {
     body: obj({
       category: str("one change: the category's id"),
       enabled: bool,
@@ -415,7 +415,7 @@ export const SHAPES: Record<string, Shape> = {
     }),
     response: MailPreferences,
   },
-  "GET /api/me/onboarding": {
+  "GET /v1/me/onboarding": {
     query: [{ name: "workspace", description: "add that workspace's checklist to the answer; 404 for a workspace outside the caller's scope or that does not exist" }],
     response: obj({
       steps: arr(OnboardingStep),
@@ -431,7 +431,7 @@ export const SHAPES: Record<string, Shape> = {
       checklist: { ...WorkspaceChecklist, description: "with ?workspace=: that workspace's checklist (absent otherwise)" },
     }),
   },
-  "PATCH /api/me/onboarding": {
+  "PATCH /v1/me/onboarding": {
     body: obj({
       dismissed: { ...bool, description: "true hides the card for you; false brings it back" },
       welcomed: { ...bool, description: "true records that you have seen the welcome flow (the home page stops sending you there)" },
@@ -448,20 +448,20 @@ export const SHAPES: Record<string, Shape> = {
       checklist: obj({ dismissedAt: str(), hidden: arr(str()) }),
     }),
   },
-  "GET /api/me/preferences": { response: Preferences },
-  "PATCH /api/me/preferences": {
+  "GET /v1/me/preferences": { response: Preferences },
+  "PATCH /v1/me/preferences": {
     body: obj({
       theme: str("system | light | dark"),
       runViews: arr(RunView, "the whole list, replaced; at most 20"),
     }),
     response: Preferences,
   },
-  "GET /api/team": {
+  "GET /v1/team": {
     response: obj({ members: arr(Member) }),
   },
-  "PATCH /api/team/members/{id}": {
+  "PATCH /v1/team/members/{id}": {
     body: obj({
-      role: str("admin | editor | viewer — owner is transferred, not set (POST /api/team/transfer)"),
+      role: str("admin | editor | viewer — owner is transferred, not set (POST /v1/team/transfer)"),
       workspaces: { type: ["array", "null"], items: str(), description: "the workspaces they may open; null for all — never wider than your own" },
     }),
     response: obj({
@@ -470,10 +470,10 @@ export const SHAPES: Record<string, Shape> = {
       workspaces: { type: ["array", "null"], items: str(), description: "their workspaces now; null for all" },
     }),
   },
-  "DELETE /api/team/members/{id}": {
+  "DELETE /v1/team/members/{id}": {
     response: OK,
   },
-  "POST /api/team/transfer": {
+  "POST /v1/team/transfer": {
     body: obj(
       {
         to: str("the member id who becomes the owner"),
@@ -484,7 +484,7 @@ export const SHAPES: Record<string, Shape> = {
     ),
     response: OK,
   },
-  "POST /api/unsubscribe": {
+  "POST /v1/unsubscribe": {
     query: [{ name: "token", description: "the signed token from the List-Unsubscribe URL; or sent in the body" }],
     body: obj({
       token: str("as JSON, when it is not in the query. A mail client's one-click POST is the form body List-Unsubscribe=One-Click with the token in the query; the confirmation page posts a form with token and from=page, and is answered 303 back to /unsubscribe"),

@@ -146,7 +146,7 @@ export function AssistantDock({ tenant }: { tenant: string }) {
   useEffect(() => {
     if (!open || workspaces !== null) return;
     let live = true;
-    fetch("/api/workspaces", { headers: { "x-foldrun-tenant": tenant } })
+    fetch("/v1/workspaces", { headers: { "x-foldrun-tenant": tenant } })
       .then(async (res) => {
         const body = (await res.json().catch(() => ({}))) as { workspaces?: { name: string }[]; error?: string };
         if (!live) return;
@@ -374,7 +374,7 @@ function AssistantPanel({
       setMessages((m) => [...m, { role: "assistant", content: error, error: true }]);
     };
     try {
-      const res = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/assistant`, {
+      const res = await fetch(`/v1/workspaces/${encodeURIComponent(workspace)}/assistant`, {
         method: "POST",
         headers: { ...headers, accept: "text/event-stream" },
         body: JSON.stringify({
@@ -471,7 +471,7 @@ function AssistantPanel({
     const done: string[] = [];
     try {
       for (const f of which) {
-        const res = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/source`, {
+        const res = await fetch(`/v1/workspaces/${encodeURIComponent(workspace)}/source`, {
           method: "PUT",
           headers,
           // A new file expects none there (ifMatch: null): one created since
@@ -509,7 +509,7 @@ function AssistantPanel({
   const openStored = async (id: string) => {
     setShowHistory(false);
     try {
-      const res = await fetch(`/api/assistant/conversations/${encodeURIComponent(id)}`, { headers });
+      const res = await fetch(`/v1/assistant/conversations/${encodeURIComponent(id)}`, { headers });
       const c = (await res.json().catch(() => ({}))) as {
         id?: string;
         workspace?: string;
@@ -708,7 +708,7 @@ function History({ headers, current, onOpen }: { headers: Record<string, string>
   useEffect(() => {
     let live = true;
     const t = setTimeout(() => {
-      fetch(`/api/assistant/conversations?limit=100${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ""}`, { headers })
+      fetch(`/v1/assistant/conversations?limit=100${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ""}`, { headers })
         .then(async (res) => {
           const body = (await res.json().catch(() => ({}))) as { conversations?: ConversationSummary[]; error?: string };
           if (!live) return;
@@ -727,7 +727,7 @@ function History({ headers, current, onOpen }: { headers: Record<string, string>
   }, [q, headers, reload]);
 
   const remove = async (id: string) => {
-    const res = await fetch(`/api/assistant/conversations/${encodeURIComponent(id)}`, { method: "DELETE", headers });
+    const res = await fetch(`/v1/assistant/conversations/${encodeURIComponent(id)}`, { method: "DELETE", headers });
     if (res.ok) setReload((n) => n + 1);
   };
 
@@ -850,14 +850,14 @@ function Message({
   );
 }
 
-/** POST /api/workspaces for a blank workspace — what the dashboard's own
+/** POST /v1/workspaces for a blank workspace — what the dashboard's own
  *  "Create workspace" sends — with ifAbsent, so a name that exists (or that
  *  someone creates meanwhile) is refused by the server, never deployed over.
  *  Null when it worked, else the refusal. */
 async function createWorkspace(tenant: string, name: string): Promise<string | null> {
   if (!WORKSPACE_NAME.test(name)) return $t("components.assistant.lowerCaseLettersDigitsAndDashes");
   try {
-    await postCreate("/api/workspaces", tenant, name, { template: true, ifAbsent: true });
+    await postCreate("/v1/workspaces", tenant, name, { template: true, ifAbsent: true });
     return null;
   } catch (err) {
     return err instanceof Error ? err.message : $t("components.assistant.couldNotReachThePlatform");

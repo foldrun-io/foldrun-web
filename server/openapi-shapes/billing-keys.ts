@@ -1,4 +1,4 @@
-// OpenAPI request/response schemas: /api/billing*, /api/keys*, /api/secrets*, /api/oauth/*, /api/library/*, /api/identity.
+// OpenAPI request/response schemas: /v1/billing*, /v1/keys*, /v1/secrets*, /v1/oauth/*, /v1/library/*, /v1/identity.
 // Written from what each handler validates and answers (30 Oct 2026).
 
 import { type Schema, type Shape, obj, str, bool, int, arr, nullable, OK } from "./kit.ts";
@@ -130,14 +130,14 @@ const UnsettledOrder = obj({
   status: str("pending | failed"), plan: { type: ["string", "null"] }, createdAt: str(), expiresAt: str(),
 });
 const PARTNER_TOPUPS: Record<string, Shape> = {
-  "GET /api/billing/partner/topups/rate": {
+  "GET /v1/billing/partner/topups/rate": {
     response: obj({ tomanPerUsd: int, setAt: { type: ["string", "null"], description: "when the operator saved it" }, min: num, max: num }),
   },
-  "POST /api/billing/partner/topups/quote": {
+  "POST /v1/billing/partner/topups/quote": {
     body: obj({ account: str("a sign-in email or the account id"), usd: num }, ["account", "usd"]),
     response: obj({ account: obj({ label: str() }), usd: num, toman: int, rial: int, tomanPerUsd: int, setAt: { type: ["string", "null"] } }),
   },
-  "POST /api/billing/partner/topups": {
+  "POST /v1/billing/partner/topups": {
     status: "201",
     body: obj({
       account: str(), usd: num, toman: { ...int, description: "the figure the customer was shown; 409 with a new quote when the rate moved" },
@@ -145,15 +145,15 @@ const PARTNER_TOPUPS: Record<string, Shape> = {
     }, ["account", "usd", "toman"]),
     response: obj({ order: PartnerOrder }),
   },
-  "GET /api/billing/partner/topups": { response: obj({ orders: arr(UnsettledOrder, "the storefront's orders with a gateway session and no credit yet, oldest first") }) },
-  "GET /api/billing/partner/topups/{id}": { response: obj({ order: PartnerOrder }) },
-  "POST /api/billing/partner/topups/{id}/authority": { body: obj({ authority: str("the gateway's session id") }, ["authority"]), response: obj({ order: PartnerOrder }) },
-  "POST /api/billing/partner/topups/{id}/paid": {
+  "GET /v1/billing/partner/topups": { response: obj({ orders: arr(UnsettledOrder, "the storefront's orders with a gateway session and no credit yet, oldest first") }) },
+  "GET /v1/billing/partner/topups/{id}": { response: obj({ order: PartnerOrder }) },
+  "POST /v1/billing/partner/topups/{id}/authority": { body: obj({ authority: str("the gateway's session id") }, ["authority"]), response: obj({ order: PartnerOrder }) },
+  "POST /v1/billing/partner/topups/{id}/paid": {
     body: obj({ authority: str(), refId: str(), cardPan: str("masked by the gateway"), fee: { ...int, description: "Rial" } }, ["authority", "refId"]),
     response: obj({ order: PartnerOrder, credited: { ...bool, description: "false when an earlier call already credited it" } }),
   },
-  "POST /api/billing/partner/topups/{id}/failed": { body: obj({ reason: str() }), response: obj({ order: PartnerOrder }) },
-  "POST /api/billing/partner/signups": {
+  "POST /v1/billing/partner/topups/{id}/failed": { body: obj({ reason: str() }), response: obj({ order: PartnerOrder }) },
+  "POST /v1/billing/partner/signups": {
     status: "202",
     body: obj({ email: str("the address to open an account for"), ip: str("the customer's address, for the per-address limit") }, ["email"]),
     response: obj({ status: str("sent: the link is mailed; exists: the address already has a login (answered 200)") }),
@@ -195,36 +195,36 @@ const PlanOffer = obj({
   codeTiers: obj({ fast: obj({ covered: bool }), default: obj({ covered: bool }), max: obj({ covered: bool }) }),
 });
 const CODING_PLANS: Record<string, Shape> = {
-  "GET /api/billing/coding-plan": { response: PlanOffer },
-  "POST /api/billing/coding-plan": {
+  "GET /v1/billing/coding-plan": { response: PlanOffer },
+  "POST /v1/billing/coding-plan": {
     body: obj({ plan: PLAN_NAME }, ["plan"]),
     response: obj({ plan: CodingPlan, chargedUsd: num }),
   },
-  "PATCH /api/billing/coding-plan": {
+  "PATCH /v1/billing/coding-plan": {
     body: obj({ extraUsage: bool }, ["extraUsage"]),
     response: obj({ plan: CodingPlan, allowance: nullable(PlanAllowance) }),
   },
-  "DELETE /api/billing/coding-plan": { noBody: "stops the renewal; the plan runs to the end of its period", response: obj({ plan: nullable(CodingPlan) }) },
-  "POST /api/billing/partner/plans": {
+  "DELETE /v1/billing/coding-plan": { noBody: "stops the renewal; the plan runs to the end of its period", response: obj({ plan: nullable(CodingPlan) }) },
+  "POST /v1/billing/partner/plans": {
     body: obj({ account: str("a sign-in email or the account id"), plan: PLAN_NAME }, ["account", "plan"]),
     response: obj({ account: obj({ label: str() }), plan: CodingPlan, chargedUsd: num }),
   },
-  "POST /api/billing/partner/plans/offer": {
+  "POST /v1/billing/partner/plans/offer": {
     body: obj({ account: str("a sign-in email or the account id") }, ["account"]),
     response: obj({ account: obj({ label: str() }), prices: obj({ pro: nullable(num), max: nullable(num) }), available: obj({ pro: bool, max: bool }), plan: nullable(CodingPlan), balanceUsd: num }),
   },
 };
 
 export const SHAPES: Record<string, Shape> = {
-  "POST /api/billing": {
-    noBody: "refused with 404 for every caller since FOL-94 (28 Oct 2026): credit comes from a payment (POST /api/billing/checkout) or the platform team",
+  "POST /v1/billing": {
+    noBody: "refused with 404 for every caller since FOL-94 (28 Oct 2026): credit comes from a payment (POST /v1/billing/checkout) or the platform team",
     noResponse: "always the 404 error answer",
   },
-  "POST /api/billing/card": {
+  "POST /v1/billing/card": {
     noBody: "starts a Stripe Checkout in setup mode for the account's own customer; nothing to choose",
-    response: obj({ ok: bool, url: str("Stripe's page that collects the card; it returns to /api/billing/confirm") }, ["ok", "url"]),
+    response: obj({ ok: bool, url: str("Stripe's page that collects the card; it returns to /v1/billing/confirm") }, ["ok", "url"]),
   },
-  "GET /api/billing/confirm": {
+  "GET /v1/billing/confirm": {
     query: [{ name: "session_id", description: "the Stripe Checkout session Stripe returns with; everything about it is read from Stripe" }],
     status: "307",
     media: {
@@ -233,7 +233,7 @@ export const SHAPES: Record<string, Shape> = {
         "A redirect (307) to the dashboard: /dashboard/wallet?topup=success&usd=…|pending|unknown, ?card=saved|unconfirmed, or /dashboard/billing/plans?plan=<id>&started=1|pending|unknown",
     },
   },
-  "GET /api/billing/details": {
+  "GET /v1/billing/details": {
     response: obj({
       details: nullable(BillingDetails),
       stripe: { ...bool, description: "card payments are configured on this install" },
@@ -241,7 +241,7 @@ export const SHAPES: Record<string, Shape> = {
       tax: { ...bool, description: "Stripe Tax works GST out from the address" },
     }),
   },
-  "PUT /api/billing/details": {
+  "PUT /v1/billing/details": {
     body: obj(
       {
         legalName: str("required, at most 200 characters"),
@@ -261,7 +261,7 @@ export const SHAPES: Record<string, Shape> = {
       ["ok", "details", "synced"],
     ),
   },
-  "GET /api/billing/plans": {
+  "GET /v1/billing/plans": {
     response: obj({
       creditUsd: { ...num, description: "what one credit is, USD (0.01)" },
       trialCredits: int,
@@ -282,7 +282,7 @@ export const SHAPES: Record<string, Shape> = {
       overdraft: { ...obj({ limitUsd: { type: ["number", "null"] } }), type: ["object", "null"], description: "the platform's allowance to run past zero, when there is one" },
     }),
   },
-  "GET /api/billing/invoices": {
+  "GET /v1/billing/invoices": {
     response: obj({
       stripe: { ...bool, description: "Stripe is configured and the account has a customer there — false means no invoices to list" },
       invoices: arr(
@@ -308,7 +308,7 @@ export const SHAPES: Record<string, Shape> = {
       ),
     }),
   },
-  "GET /api/billing/statement": {
+  "GET /v1/billing/statement": {
     query: [
       { name: "month", description: "YYYY-MM; default this month" },
       { name: "format", description: "csv answers text/csv (an attachment: date, kind, description, workspace, flow, run, amount_usd, models_usd, platform_usd, reference, reason); otherwise JSON" },
@@ -321,7 +321,7 @@ export const SHAPES: Record<string, Shape> = {
       rows: arr(ledgerLine({ label: str("the line's description") })),
     }),
   },
-  "POST /api/billing/stripe": {
+  "POST /v1/billing/stripe": {
     body: {
       ...obj({ id: str(), type: str(), created: int, data: obj({ object: { type: "object", additionalProperties: true } }) }),
       additionalProperties: true,
@@ -329,11 +329,11 @@ export const SHAPES: Record<string, Shape> = {
     },
     response: obj({ ok: bool, status: str("ok | skipped | ignored"), outcome: str() }),
   },
-  "DELETE /api/billing/subscribe": {
+  "DELETE /v1/billing/subscribe": {
     noBody: "cancels the account's one subscription at the end of its cycle",
     response: obj({ ok: bool, endsAt: { type: ["string", "null"], description: "when the cycle, and the plan, end" } }),
   },
-  "GET /api/billing/wallet": {
+  "GET /v1/billing/wallet": {
     response: obj({
       enabled: { ...bool, description: "billing is on" },
       stripe: { ...bool, description: "card payments are configured on this install" },
@@ -365,14 +365,14 @@ export const SHAPES: Record<string, Shape> = {
   },
   ...PARTNER_TOPUPS,
   ...CODING_PLANS,
-  "PUT /api/billing/wallet": {
+  "PUT /v1/billing/wallet": {
     body: obj({
       autoTopUp: { ...AutoTopUp, type: ["object", "null"], description: "null turns auto top-up off; omitted, unchanged" },
       email: { type: ["string", "null"], description: "where low-balance warnings go; null or empty clears it; omitted, unchanged" },
     }),
     response: OK,
   },
-  "GET /api/identity": {
+  "GET /v1/identity": {
     query: [{ name: "workspace", description: "fill the workspace into the subject" }],
     response: obj({
       enabled: { ...bool, description: "keyless identities are on (FOLDRUN_OIDC_ISSUER is set)" },
@@ -381,7 +381,7 @@ export const SHAPES: Record<string, Shape> = {
       tokenSeconds: int,
     }),
   },
-  "PATCH /api/keys/{id}": {
+  "PATCH /v1/keys/{id}": {
     body: obj(
       {
         models: {
@@ -396,10 +396,10 @@ export const SHAPES: Record<string, Shape> = {
     ),
     response: obj({ ok: bool, id: str(), models: { type: ["object", "null"], properties: { opus: str(), sonnet: str(), haiku: str() } }, requireCustomer: bool, walletUsd: { type: "number" } }, ["ok", "id"]),
   },
-  "DELETE /api/keys/{id}": {
+  "DELETE /v1/keys/{id}": {
     response: obj({ ok: bool, id: str(), revoked: { ...bool, description: "whether this call ended a live key (false: it was already revoked or expired)" } }, ["ok", "id", "revoked"]),
   },
-  "POST /api/keys/{id}/rotate": {
+  "POST /v1/keys/{id}/rotate": {
     body: obj({
       grace: { type: ["string", "integer"], description: "how long the old key keeps working: 0 (default) or a duration up to 7d — 30m, 1h, 24h. A cli-login key rotating itself ignores it (10 minutes)" },
     }),
@@ -415,7 +415,7 @@ export const SHAPES: Record<string, Shape> = {
       ["ok", "key", "id"],
     ),
   },
-  "GET /api/library/{kind}": {
+  "GET /v1/library/{kind}": {
     query: [{ name: "path", description: "one file, relative to the kind's folder; omitted, the list" }],
     response: obj({
       kind: str(`the list: ${libraryKind}`),
@@ -431,7 +431,7 @@ export const SHAPES: Record<string, Shape> = {
       content: str("with ?path: the file's text"),
     }),
   },
-  "POST /api/library/{kind}": {
+  "POST /v1/library/{kind}": {
     body: obj(
       {
         name: str("kebab-case"),
@@ -442,15 +442,15 @@ export const SHAPES: Record<string, Shape> = {
     ),
     response: obj({ ok: bool, path: str("the first file written, relative to the kind's folder") }),
   },
-  "PUT /api/library/{kind}": {
+  "PUT /v1/library/{kind}": {
     body: obj({ path: str("relative to the kind's folder"), content: str() }, ["path", "content"]),
     response: obj({ ok: bool, path: str() }),
   },
-  "DELETE /api/library/{kind}": {
+  "DELETE /v1/library/{kind}": {
     body: obj({ path: str("a file or folder, relative to the kind's folder") }, ["path"]),
     response: OK,
   },
-  "GET /api/library/gallery": {
+  "GET /v1/library/gallery": {
     response: obj({
       tools: arr(obj({
         name: str(),
@@ -461,11 +461,11 @@ export const SHAPES: Record<string, Shape> = {
       })),
     }),
   },
-  "POST /api/library/gallery": {
+  "POST /v1/library/gallery": {
     body: obj({ tool: str("a gallery tool's or skill's name") }, ["tool"]),
     response: obj({ ok: bool, path: str() }),
   },
-  "GET /api/oauth/callback": {
+  "GET /v1/oauth/callback": {
     query: [
       { name: "code", description: "from the provider" },
       { name: "state", description: "the single-use nonce the start made" },
@@ -479,7 +479,7 @@ export const SHAPES: Record<string, Shape> = {
       description: "A redirect (307) to /dashboard/settings with ?connected=<secret>[&connected_static=1], or ?connect_error=<why>",
     },
   },
-  "GET /api/oauth/clients": {
+  "GET /v1/oauth/clients": {
     response: obj({
       clients: arr(obj({
         name: str(), authorize_url: str(), token_url: str(), client_id: str(), scopes: str(),
@@ -492,15 +492,15 @@ export const SHAPES: Record<string, Shape> = {
       }), "metadata only — the client_secret never comes back"),
     }),
   },
-  "POST /api/oauth/clients": {
+  "POST /v1/oauth/clients": {
     body: obj({ name: str("kebab-case, e.g. google-ads"), config: OAuthClientConfig }, ["name", "config"]),
     response: obj({ ok: bool, name: str(), public_jwk: { type: "object", additionalProperties: true, description: "private_key_jwt: the public key to register with the provider" } }),
   },
-  "DELETE /api/oauth/clients": {
+  "DELETE /v1/oauth/clients": {
     body: obj({ client: str("a saved client's name") }, ["client"]),
     response: OK,
   },
-  "GET /api/oauth/connections": {
+  "GET /v1/oauth/connections": {
     response: obj({
       connections: arr(obj({
         name: str("the secret"),
@@ -515,11 +515,11 @@ export const SHAPES: Record<string, Shape> = {
       })),
     }),
   },
-  "POST /api/oauth/handoff/{id}": {
+  "POST /v1/oauth/handoff/{id}": {
     noBody: "the hand-off in the path names the client, secret, workspace and scopes; a signed-in person accepts it",
     response: obj({ ok: bool, url: str("the provider's authorize URL, bound to this browser") }, ["ok", "url"]),
   },
-  "POST /api/oauth/reconnect": {
+  "POST /v1/oauth/reconnect": {
     body: obj(
       {
         secret: str("the oauth2 secret to connect again"),
@@ -539,7 +539,7 @@ export const SHAPES: Record<string, Shape> = {
       },
     },
   },
-  "POST /api/oauth/device": {
+  "POST /v1/oauth/device": {
     body: obj({
       client: str("a saved OAuth app with a device_url"),
       secret: str("the secret the grant becomes, UPPER_SNAKE_CASE"),
@@ -547,7 +547,7 @@ export const SHAPES: Record<string, Shape> = {
       scopes: str("space-separated, instead of the app's default"),
     }, ["client", "secret"]),
     response: obj({
-      id: str("poll POST /api/oauth/device/<id>"),
+      id: str("poll POST /v1/oauth/device/<id>"),
       user_code: str("what the person types"),
       verification_uri: str("where they type it"),
       verification_uri_complete: str("the same page with the code in it, when the provider gives one"),
@@ -555,7 +555,7 @@ export const SHAPES: Record<string, Shape> = {
       interval: { ...int, description: "seconds between polls; add 5 on slow_down" },
     }, ["id", "user_code", "verification_uri", "expires_in", "interval"]),
   },
-  "POST /api/oauth/device/{id}": {
+  "POST /v1/oauth/device/{id}": {
     noBody: "a poll needs nothing but the id in the path: one token request to the provider",
     response: obj({
       status: str("pending | slow_down | connected | denied | expired"),
@@ -563,7 +563,7 @@ export const SHAPES: Record<string, Shape> = {
       reason: str("denied or expired: why"),
     }, ["status"]),
   },
-  "POST /api/oauth/discover": {
+  "POST /v1/oauth/discover": {
     body: obj({
       issuer: str("the provider's issuer URL (https, no query or fragment)"),
       has_secret: { ...bool, description: "the app has a client secret (default true): picks token_auth" },
@@ -578,7 +578,7 @@ export const SHAPES: Record<string, Shape> = {
       }, ["issuer", "token_url", "iss_parameter", "metadata_url"]),
     }),
   },
-  "POST /api/oauth/start": {
+  "POST /v1/oauth/start": {
     body: obj(
       {
         client: str("a saved OAuth client's name"),

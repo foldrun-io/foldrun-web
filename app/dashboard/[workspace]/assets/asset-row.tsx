@@ -27,7 +27,7 @@ export function useAssetActions(item: Pick<AssetItem, "path" | "name" | "kind" |
   const { path, name, kind, account = false } = item;
   // Account entries live in a different store; deleting routes through this
   // so the row itself doesn't care which scope it is.
-  const writeUrl = account ? `/api/library/${kind}` : `/api/workspaces/${workspace}/source`;
+  const writeUrl = account ? `/v1/library/${kind}` : `/v1/workspaces/${workspace}/source`;
 
   // What the move is doing, or why it stopped — shown beside the control
   // that started it, not only while a pointer hovers.
@@ -51,7 +51,7 @@ export function useAssetActions(item: Pick<AssetItem, "path" | "name" | "kind" |
     try {
       // One call, on the server (5 Nov 2026): a skill or folder tool moves as
       // its whole folder and nothing is deleted until everything is copied.
-      const res = await fetch(`/api/workspaces/${workspace}/source/share`, {
+      const res = await fetch(`/v1/workspaces/${workspace}/source/share`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
         body: JSON.stringify({ path }),

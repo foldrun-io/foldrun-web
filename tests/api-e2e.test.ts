@@ -170,7 +170,7 @@ before(async () => {
   const deadline = Date.now() + 60_000;
   for (;;) {
     try {
-      await fetch(`${base}/api/workspaces`);
+      await fetch(`${base}/v1/workspaces`);
       break;
     } catch {
       if (Date.now() > deadline) throw new Error("the server never came up");
@@ -205,12 +205,12 @@ after(async () => {
 // tenant header" — so an instance that reached the internet before someone
 // remembered a flag served every workspace to anyone who asked.
 test("no key is refused", opts, async () => {
-  const res = await fetch(`${base}/api/workspaces`);
+  const res = await fetch(`${base}/v1/workspaces`);
   assert.equal(res.status, 401);
 });
 
 test("a wrong key is refused, and says why", opts, async () => {
-  const res = await fetch(`${base}/api/workspaces`, {
+  const res = await fetch(`${base}/v1/workspaces`, {
     headers: { authorization: "Bearer mda_definitely-not-a-key" },
   });
   assert.equal(res.status, 401);
@@ -222,7 +222,7 @@ test("a wrong key is refused, and says why", opts, async () => {
 });
 
 test("a caller pinned before 2026-11-22 keeps the old error body — read from Next's request store, in a real server", opts, async () => {
-  const res = await fetch(`${base}/api/workspaces`, {
+  const res = await fetch(`${base}/v1/workspaces`, {
     headers: { authorization: "Bearer mda_definitely-not-a-key", "foldrun-version": "2026-10-26" },
   });
   assert.equal(res.status, 401);
@@ -230,14 +230,14 @@ test("a caller pinned before 2026-11-22 keeps the old error body — read from N
 });
 
 test("a real key is accepted", opts, async () => {
-  const res = await api("/api/workspaces");
+  const res = await api("/v1/workspaces");
   assert.equal(res.status, 200, "the key this test wrote was not understood by the server");
 });
 
 test("the same key as x-api-key, as Anthropic's API takes it (one API)", opts, async () => {
-  const res = await fetch(`${base}/api/workspaces`, { headers: { "x-api-key": token } });
+  const res = await fetch(`${base}/v1/workspaces`, { headers: { "x-api-key": token } });
   assert.equal(res.status, 200);
-  const missing = await fetch(`${base}/api/workspaces/no-such-workspace-here/runs/no-such-run`, { headers: { "x-api-key": token } });
+  const missing = await fetch(`${base}/v1/workspaces/no-such-workspace-here/runs/no-such-run`, { headers: { "x-api-key": token } });
   const body = await missing.json();
   assert.equal(body.type, "error", JSON.stringify(body));
   assert.equal(typeof body.error.message, "string");
@@ -249,7 +249,7 @@ test("the same key as x-api-key, as Anthropic's API takes it (one API)", opts, a
 // everything is declarative, so the whole workspace is checked before any of
 // it is live.
 test("a flow naming an agent the deploy does not ship is refused", opts, async () => {
-  const res = await api("/api/workspaces/hello/deploy", {
+  const res = await api("/v1/workspaces/hello/deploy", {
     method: "POST",
     body: JSON.stringify({
       files: [
@@ -273,7 +273,7 @@ test("a flow naming an agent the deploy does not ship is refused", opts, async (
   assert.match(issue.where, /^flows\/publish\.md:\d+$/, "an issue should carry its line");
 
   // What the CLI reads (it pins 2026-10-01): the same fields at the top.
-  const pinned = await api("/api/workspaces/hello/deploy", {
+  const pinned = await api("/v1/workspaces/hello/deploy", {
     method: "POST",
     headers: { "foldrun-version": "2026-10-01" },
     body: JSON.stringify({ files: [{ path: "flows/publish.md", content: "---\nname: publish\n---\n\n1. [[ghost]] — vanish\n" }] }),
@@ -295,7 +295,7 @@ test("a good deploy lands, and the workspace is really there", opts, async () =>
 
   // Deployed over HTTP, so it has to be discoverable over HTTP — this route
   // was POST-only until this test asked for it.
-  const res = await api("/api/workspaces/hello/agents");
+  const res = await api("/v1/workspaces/hello/agents");
   assert.equal(res.status, 200, "an agent deployed over the API cannot be listed over it");
   const { agents } = await res.json();
   assert.ok(
@@ -303,33 +303,33 @@ test("a good deploy lands, and the workspace is really there", opts, async () =>
     `the server does not list what was just deployed: ${JSON.stringify(agents)}`,
   );
 
-  const flows = await api("/api/workspaces/hello/flows");
+  const flows = await api("/v1/workspaces/hello/flows");
   assert.equal(flows.status, 200);
   assert.ok((await flows.json()).flows.some((f: { name: string }) => f.name === "note"));
 });
 
 // 27 Oct 2026: compute at four levels over HTTP — the account's, a
 // workspace's and a flow's run pool are each set with a PATCH that merges,
-// and GET /api/usage/compute reads them all back.
+// and GET /v1/account/usage/compute reads them all back.
 test("compute: account, workspace and flow each take a merging PATCH, and usage reads every level", opts, async () => {
-  const acct = await api("/api/account", { method: "PATCH", body: JSON.stringify({ compute: { vcpu: 6, diskGiB: 60 } }) });
+  const acct = await api("/v1/account", { method: "PATCH", body: JSON.stringify({ compute: { vcpu: 6, diskGiB: 60 } }) });
   assert.equal(acct.status, 200, await acct.clone().text());
-  const merged = await api("/api/account", { method: "PATCH", body: JSON.stringify({ compute: { memGiB: 12 } }) });
+  const merged = await api("/v1/account", { method: "PATCH", body: JSON.stringify({ compute: { memGiB: 12 } }) });
   assert.deepEqual((await merged.json()).defaults.compute, { vcpu: 6, memGiB: 12, diskGiB: 60 }, "memGiB alone keeps vcpu and disk");
 
-  const ws = await api("/api/workspaces/hello", { method: "PATCH", body: JSON.stringify({ compute: { vcpu: 2, diskGiB: 20 }, concurrency: 99 }) });
+  const ws = await api("/v1/workspaces/hello", { method: "PATCH", body: JSON.stringify({ compute: { vcpu: 2, diskGiB: 20 }, concurrency: 99 }) });
   assert.equal(ws.status, 200, await ws.clone().text());
   const wsFile = fs.readFileSync(path.join(data, "store/default/workspaces/hello/AGENTS.md"), "utf8");
   assert.match(wsFile, /compute:/);
   assert.doesNotMatch(wsFile, /concurrency/, "an account-only key sent to a workspace is not written there");
 
-  const flow = await api("/api/workspaces/hello/flows/note", { method: "PATCH", body: JSON.stringify({ compute: { vcpu: 1, memGiB: 2 } }) });
+  const flow = await api("/v1/workspaces/hello/flows/note", { method: "PATCH", body: JSON.stringify({ compute: { vcpu: 1, memGiB: 2 } }) });
   assert.equal(flow.status, 200, await flow.clone().text());
   assert.deepEqual((await flow.json()).flow.compute, { vcpu: 1, memGiB: 2 });
-  const bad = await api("/api/workspaces/hello/flows/note", { method: "PATCH", body: JSON.stringify({ compute: { diskGiB: 0.5 } }) });
+  const bad = await api("/v1/workspaces/hello/flows/note", { method: "PATCH", body: JSON.stringify({ compute: { diskGiB: 0.5 } }) });
   assert.equal(bad.status, 400);
 
-  const usage = await (await api("/api/usage/compute")).json();
+  const usage = await (await api("/v1/account/usage/compute")).json();
   assert.equal(usage.compute.vcpu, 6);
   assert.equal(usage.compute.diskGiB, 60);
   const hello = usage.workspaces.find((w: { workspace: string }) => w.workspace === "hello");
@@ -337,9 +337,9 @@ test("compute: account, workspace and flow each take a merging PATCH, and usage 
   assert.ok(Array.isArray(usage.runs) && Array.isArray(usage.waiting));
 
   // Leave the account as it was for the tests after this one.
-  await api("/api/account", { method: "PATCH", body: JSON.stringify({ compute: null }) });
-  await api("/api/workspaces/hello", { method: "PATCH", body: JSON.stringify({ compute: null }) });
-  await api("/api/workspaces/hello/flows/note", { method: "PATCH", body: JSON.stringify({ compute: null }) });
+  await api("/v1/account", { method: "PATCH", body: JSON.stringify({ compute: null }) });
+  await api("/v1/workspaces/hello", { method: "PATCH", body: JSON.stringify({ compute: null }) });
+  await api("/v1/workspaces/hello/flows/note", { method: "PATCH", body: JSON.stringify({ compute: null }) });
 });
 
 // The CLI is the CI form, and CI only notices an exit code.
@@ -365,7 +365,7 @@ test("a dry run reports without changing anything", opts, async () => {
     path.join(data, "store/default/workspaces/hello/AGENTS.md"),
     "utf8",
   );
-  const res = await api("/api/workspaces/hello/deploy", {
+  const res = await api("/v1/workspaces/hello/deploy", {
     method: "POST",
     body: JSON.stringify({
       dryRun: true,
@@ -387,7 +387,7 @@ test("a dry run reports without changing anything", opts, async () => {
 // ── calling an agent ─────────────────────────────────────────────────────────
 
 test("without wait, a run returns a receipt", opts, async () => {
-  const res = await api("/api/workspaces/hello/agents/notetaker/run", {
+  const res = await api("/v1/workspaces/hello/agents/notetaker/run", {
     method: "POST",
     body: JSON.stringify({ task: "nothing, this run is abandoned deliberately" }),
   });
@@ -399,7 +399,7 @@ test("without wait, a run returns a receipt", opts, async () => {
 // make a broken agent indistinguishable from a quiet one.
 test("waiting on a run that fails answers 200, ok false, with the failure (FOL-106)", opts, async () => {
   // Deploy a flow whose agent is not there — no model call, fails immediately.
-  const res = await api("/api/workspaces/broken/deploy", {
+  const res = await api("/v1/workspaces/broken/deploy", {
     method: "POST",
     body: JSON.stringify({
       files: [
@@ -415,7 +415,7 @@ test("waiting on a run that fails answers 200, ok false, with the failure (FOL-1
     force: true,
   });
 
-  const run = await api("/api/workspaces/broken/flows/go/run?wait=true&timeout=30", {
+  const run = await api("/v1/workspaces/broken/flows/go/run?wait=true&timeout=30", {
     method: "POST",
   });
   assert.equal(run.status, 200, "a run that failed is the answer, not a fault (FOL-106)");
@@ -428,18 +428,18 @@ test("waiting on a run that fails answers 200, ok false, with the failure (FOL-1
   // The same verdict is available on the run itself, so a caller whose
   // first wait timed out (202) can keep asking in short requests rather
   // than hold one open past whatever proxy sits in front of the platform.
-  const again = await api(`/api/workspaces/broken/runs/${body.runId}?wait=true&timeout=5`);
+  const again = await api(`/v1/workspaces/broken/runs/${body.runId}?wait=true&timeout=5`);
   assert.equal(again.status, 200);
   const verdict = await again.json();
   assert.equal(verdict.runId, body.runId);
   assert.equal(verdict.status, "failed");
   assert.equal(verdict.timedOut, undefined, "a finished run is never 'still going'");
-  const missing = await api("/api/workspaces/broken/runs/run-nope?wait=true&timeout=5");
+  const missing = await api("/v1/workspaces/broken/runs/run-nope?wait=true&timeout=5");
   assert.equal(missing.status, 404);
 });
 
 test("a bad workspace name is refused rather than reaching the filesystem", opts, async () => {
-  const res = await api("/api/workspaces/..%2F..%2Fetc/deploy", {
+  const res = await api("/v1/workspaces/..%2F..%2Fetc/deploy", {
     method: "POST",
     body: JSON.stringify({ files: [{ path: "AGENTS.md", content: "x" }] }),
   });
@@ -454,7 +454,7 @@ let cookie = "";
 
 test("the first signup needs the install's setup token, and signs you in", opts, async () => {
   for (const setup of [undefined, "wrong-token-0123456789abcdefgh"]) {
-    const refused = await fetch(`${base}/api/auth/signup`, {
+    const refused = await fetch(`${base}/v1/auth/signup`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ email: "intruder@example.test", password: "correct horse battery", account: "intruder-e2e", ...(setup ? { setup } : {}) }),
@@ -464,7 +464,7 @@ test("the first signup needs the install's setup token, and signs you in", opts,
   }
   const page = await (await fetch(`${base}/signup`)).text();
   assert.match(page, /Open your setup link/);
-  const res = await fetch(`${base}/api/auth/signup`, {
+  const res = await fetch(`${base}/v1/auth/signup`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ email: "founder@example.test", password: "correct horse battery", account: "acme-e2e", setup: "e2e-setup-token-0123456789abcdef" }),
@@ -476,7 +476,7 @@ test("the first signup needs the install's setup token, and signs you in", opts,
 });
 
 test("the second signup needs the install to opt in", opts, async () => {
-  const res = await fetch(`${base}/api/auth/signup`, {
+  const res = await fetch(`${base}/v1/auth/signup`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ email: "second@example.test", password: "hunter2hunter2", account: "second-e2e" }),
@@ -486,7 +486,7 @@ test("the second signup needs the install to opt in", opts, async () => {
 });
 
 test("a wrong password is one generic refusal", opts, async () => {
-  const res = await fetch(`${base}/api/auth/login`, {
+  const res = await fetch(`${base}/v1/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ email: "founder@example.test", password: "not-the-password" }),
@@ -511,7 +511,7 @@ test("the approvals banner lists gates, not runs, and a decided gate leaves at o
   };
   fs.writeFileSync(path.join(runsDir, `${run.id}.json`), JSON.stringify(run, null, 2));
 
-  const listed = (await (await api("/api/approvals")).json()) as { approvals: { runId: string; step: number; agent: string; question: string; asked: boolean }[] };
+  const listed = (await (await api("/v1/approvals")).json()) as { approvals: { runId: string; step: number; agent: string; question: string; asked: boolean }[] };
   const ours = listed.approvals.filter((a) => a.runId === run.id);
   assert.equal(ours.length, 2, "one entry per waiting step");
   assert.deepEqual(ours.map((a) => [a.step, a.agent, a.question, a.asked]), [
@@ -521,7 +521,7 @@ test("the approvals banner lists gates, not runs, and a decided gate leaves at o
 
   // Decide one gate. The run is still parked (nothing is resuming it in
   // this test — exactly the window the banner used to get wrong).
-  const decided = await api(`/api/workspaces/hello/runs/${run.id}/approve`, {
+  const decided = await api(`/v1/workspaces/hello/runs/${run.id}/approve`, {
     method: "POST",
     body: JSON.stringify({ decision: "approve", step: 0 }),
   });
@@ -529,7 +529,7 @@ test("the approvals banner lists gates, not runs, and a decided gate leaves at o
   const record = JSON.parse(fs.readFileSync(path.join(runsDir, `${run.id}.json`), "utf8"));
   assert.equal(record.status, "awaiting-approval", "the run is still parked until a worker resumes it");
 
-  const after = (await (await api("/api/approvals")).json()) as { approvals: { runId: string; step: number }[] };
+  const after = (await (await api("/v1/approvals")).json()) as { approvals: { runId: string; step: number }[] };
   assert.deepEqual(
     after.approvals.filter((a) => a.runId === run.id).map((a) => a.step),
     [1],
@@ -537,7 +537,7 @@ test("the approvals banner lists gates, not runs, and a decided gate leaves at o
   );
 
   // Deciding it again is a 409, which the banner treats as "already gone".
-  const again = await api(`/api/workspaces/hello/runs/${run.id}/approve`, {
+  const again = await api(`/v1/workspaces/hello/runs/${run.id}/approve`, {
     method: "POST",
     body: JSON.stringify({ decision: "approve", step: 0 }),
   });
@@ -546,7 +546,7 @@ test("the approvals banner lists gates, not runs, and a decided gate leaves at o
 });
 
 test("the session cookie authenticates the API — same funnel as a key", opts, async () => {
-  const res = await fetch(`${base}/api/workspaces`, { headers: { cookie } });
+  const res = await fetch(`${base}/v1/workspaces`, { headers: { cookie } });
   assert.equal(res.status, 200);
 });
 
@@ -592,12 +592,12 @@ test("foldrun login: the code the terminal shows is the code the browser approve
   });
 
   // What the browser sees before deciding — no session needed to look.
-  const shown = await fetch(`${base}/api/cli/authorize?code=${code}`);
+  const shown = await fetch(`${base}/v1/cli/authorize?code=${code}`);
   assert.equal(shown.status, 200);
   assert.equal(((await shown.json()) as { status: string }).status, "pending");
 
   // Deciding needs a person.
-  const anon = await fetch(`${base}/api/cli/authorize`, {
+  const anon = await fetch(`${base}/v1/cli/authorize`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ code }),
@@ -605,7 +605,7 @@ test("foldrun login: the code the terminal shows is the code the browser approve
   assert.equal(anon.status, 401);
 
   // The person says yes — typed carelessly, which is how codes get typed.
-  const ok = await fetch(`${base}/api/cli/authorize`, {
+  const ok = await fetch(`${base}/v1/cli/authorize`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ code: code.toLowerCase().replace("-", " ") }),
@@ -628,7 +628,7 @@ test("foldrun login: the code the terminal shows is the code the browser approve
   assert.equal(fs.statSync(path.join(cliHome, "credentials.json")).mode & 0o777, 0o600);
 
   // The same code cannot be approved twice, and the CLI cannot collect twice.
-  const again = await fetch(`${base}/api/cli/authorize`, {
+  const again = await fetch(`${base}/v1/cli/authorize`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ code }),
@@ -655,7 +655,7 @@ test("foldrun whoami and keys work from the credentials file alone", opts, async
   assert.match(list.stdout, /ci\b.*by founder@example\.test/);
 
   // Deploy keys went with the platform's own git: asking for one is refused.
-  const deployAsk = await fetch(`${base}/api/keys`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ label: "old", workspace: "hello", access: "write" }) });
+  const deployAsk = await fetch(`${base}/v1/keys`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ label: "old", workspace: "hello", access: "write" }) });
   assert.equal(deployAsk.status, 400);
 
   const id = list.stdout.split("\n").find((l) => /\bci\b.*viewer · all projects/.test(l))?.match(/\b([0-9a-f]{12})\b/)?.[1];
@@ -667,14 +667,14 @@ test("foldrun whoami and keys work from the credentials file alone", opts, async
 });
 
 test("foldrun logout forgets the key and revokes it", opts, async () => {
-  const before = (await (await fetch(`${base}/api/keys`, { headers: { cookie } })).json()) as { keys: { label: string; revokedAt: string | null }[] };
+  const before = (await (await fetch(`${base}/v1/keys`, { headers: { cookie } })).json()) as { keys: { label: string; revokedAt: string | null }[] };
   assert.ok(before.keys.some((k) => k.label.startsWith("cli · ") && !k.revokedAt), "the CLI's key is live before logout");
 
   const out = cli("logout");
   assert.equal(out.status, 0, out.stderr);
   assert.match(out.stdout, /signed out/);
 
-  const after = (await (await fetch(`${base}/api/keys`, { headers: { cookie } })).json()) as typeof before;
+  const after = (await (await fetch(`${base}/v1/keys`, { headers: { cookie } })).json()) as typeof before;
   assert.ok(after.keys.every((k) => !k.label.startsWith("cli · ") || k.revokedAt), "the CLI's key is revoked after logout");
   assert.equal(cli("whoami").status, 1);
 });
@@ -689,7 +689,7 @@ test("foldrun login --token stores a dashboard-made key after checking it", opts
   // made by login, and the rest of this file still uses it.
   const out = cli("logout");
   assert.match(out.stdout, /not revoked/);
-  assert.equal((await api("/api/workspaces")).status, 200);
+  assert.equal((await api("/v1/workspaces")).status, 200);
 });
 
 test("the dashboard bounces strangers to login", opts, async () => {
@@ -707,7 +707,7 @@ test("the dashboard admits a session, whatever tenant the URL claims", opts, asy
 });
 
 test("billing reads empty, and credit by hand is refused (FOL-94)", hosted, async () => {
-  const empty = (await (await fetch(`${base}/api/billing`, { headers: { cookie } })).json()) as {
+  const empty = (await (await fetch(`${base}/v1/billing`, { headers: { cookie } })).json()) as {
     enabled: boolean;
     balanceUsd: number;
   };
@@ -718,33 +718,33 @@ test("billing reads empty, and credit by hand is refused (FOL-94)", hosted, asyn
 
   // No credit by hand, for anyone (FOL-94): a payment, or the platform
   // team's capped console adjustment.
-  const byHand = await fetch(`${base}/api/billing`, {
+  const byHand = await fetch(`${base}/v1/billing`, {
     method: "POST",
     headers: { cookie, "content-type": "application/json" },
     body: JSON.stringify({ usd: 5, note: "e2e" }),
   });
   assert.equal(byHand.status, 404);
-  const after = (await (await fetch(`${base}/api/billing`, { headers: { cookie } })).json()) as { balanceUsd: number };
+  const after = (await (await fetch(`${base}/v1/billing`, { headers: { cookie } })).json()) as { balanceUsd: number };
   assert.equal(after.balanceUsd, 0, "nothing was credited");
 });
 
 test("a team grows by invite link and refuses to lose its last member", opts, async () => {
-  const one = (await (await fetch(`${base}/api/team`, { headers: { cookie } })).json()) as {
+  const one = (await (await fetch(`${base}/v1/team`, { headers: { cookie } })).json()) as {
     members: { id: string; email: string }[];
   };
   assert.equal(one.members.length, 1);
 
   const invite = (await (
-    await fetch(`${base}/api/team`, { method: "POST", headers: { cookie } })
+    await fetch(`${base}/v1/team`, { method: "POST", headers: { cookie } })
   ).json()) as { path: string; id: string };
   assert.match(invite.path, /^\/signup\?invite=inv4\./);
-  const listed = (await (await fetch(`${base}/api/team/invites`, { headers: { cookie } })).json()) as { invites: { id: string; status: string }[] };
+  const listed = (await (await fetch(`${base}/v1/team/invites`, { headers: { cookie } })).json()) as { invites: { id: string; status: string }[] };
   assert.ok(listed.invites.some((i) => i.id === invite.id && i.status === "pending"), "the new invite is pending");
 
   // The invited signup joins the existing account — no open-signup flag, no
   // account field, whatever the body claims.
   const token = decodeURIComponent(invite.path.split("invite=")[1]);
-  const joined = await fetch(`${base}/api/auth/signup`, {
+  const joined = await fetch(`${base}/v1/auth/signup`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -759,34 +759,34 @@ test("a team grows by invite link and refuses to lose its last member", opts, as
   assert.equal((JSON.parse(joinedBody) as { tenant: string }).tenant, "acme-e2e");
 
   // It works once: the same link, another address, is refused.
-  const twice = await fetch(`${base}/api/auth/signup`, {
+  const twice = await fetch(`${base}/v1/auth/signup`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ email: "second@example.test", password: "hunter2hunter2", invite: token }),
   });
   assert.equal(twice.status, 400, await twice.text());
 
-  const two = (await (await fetch(`${base}/api/team`, { headers: { cookie } })).json()) as {
+  const two = (await (await fetch(`${base}/v1/team`, { headers: { cookie } })).json()) as {
     members: { id: string; email: string }[];
   };
   assert.equal(two.members.length, 2);
 
   // Remove the teammate; then the last member must be irremovable.
   const teammate = two.members.find((m) => m.email === "teammate@example.test")!;
-  const removed = await fetch(`${base}/api/team/members/${teammate.id}`, {
+  const removed = await fetch(`${base}/v1/team/members/${teammate.id}`, {
     method: "DELETE",
     headers: { cookie },
   });
   assert.equal(removed.status, 200);
   // Removed, then back with the link they came in on: refused.
-  const rejoin = await fetch(`${base}/api/auth/signup`, {
+  const rejoin = await fetch(`${base}/v1/auth/signup`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ email: "teammate@example.test", password: "hunter2hunter2", invite: token }),
   });
   assert.equal(rejoin.status, 400);
   const self = one.members[0];
-  const refused = await fetch(`${base}/api/team/members/${self.id}`, {
+  const refused = await fetch(`${base}/v1/team/members/${self.id}`, {
     method: "DELETE",
     headers: { cookie },
   });
@@ -797,16 +797,16 @@ test("rotating a webhook changes its URL, twice changes it twice", opts, async (
   // Only a webhook flow has a URL to rotate (30 Oct 2026): `note` is
   // trigger: manual, so it is refused as GET …/hooks/note refuses it, and
   // made a webhook for the rotation, then put back.
-  assert.equal((await api("/api/workspaces/hello/hooks/note/rotate", { method: "POST" })).status, 409);
-  assert.equal((await api("/api/workspaces/hello/hooks/no-such-flow/rotate", { method: "POST" })).status, 404);
-  const setTrigger = (trigger: string) => api("/api/workspaces/hello/flows/note", { method: "PATCH", body: JSON.stringify({ trigger: { trigger } }) });
+  assert.equal((await api("/v1/workspaces/hello/hooks/note/rotate", { method: "POST" })).status, 409);
+  assert.equal((await api("/v1/workspaces/hello/hooks/no-such-flow/rotate", { method: "POST" })).status, 404);
+  const setTrigger = (trigger: string) => api("/v1/workspaces/hello/flows/note", { method: "PATCH", body: JSON.stringify({ trigger: { trigger } }) });
   assert.equal((await setTrigger("webhook")).status, 200);
   try {
     const first = (await (
-      await api("/api/workspaces/hello/hooks/note/rotate", { method: "POST" })
+      await api("/v1/workspaces/hello/hooks/note/rotate", { method: "POST" })
     ).json()) as { path: string };
     const second = (await (
-      await api("/api/workspaces/hello/hooks/note/rotate", { method: "POST" })
+      await api("/v1/workspaces/hello/hooks/note/rotate", { method: "POST" })
     ).json()) as { path: string };
     assert.match(first.path, /token=/);
     assert.notEqual(first.path, second.path);
@@ -817,7 +817,7 @@ test("rotating a webhook changes its URL, twice changes it twice", opts, async (
 
 test("a signed Stripe payment credits the ledger exactly once", hosted, async () => {
   const balance = async () =>
-    ((await (await fetch(`${base}/api/billing`, { headers: { cookie } })).json()) as {
+    ((await (await fetch(`${base}/v1/billing`, { headers: { cookie } })).json()) as {
       balanceUsd: number;
     }).balanceUsd;
 
@@ -835,7 +835,7 @@ test("a signed Stripe payment credits the ledger exactly once", hosted, async ()
   const t = Math.floor(Date.now() / 1000);
   const mac = crypto.createHmac("sha256", "whsec_e2e_testing").update(`${t}.${event}`).digest("hex");
   const deliver = () =>
-    fetch(`${base}/api/billing/stripe`, {
+    fetch(`${base}/v1/billing/stripe`, {
       method: "POST",
       headers: { "stripe-signature": `t=${t},v1=${mac}` },
       body: event,
@@ -848,7 +848,7 @@ test("a signed Stripe payment credits the ledger exactly once", hosted, async ()
   assert.equal(await balance(), before + 7, "and credits nothing twice");
 
   // An unsigned copy of the same event is money nobody paid.
-  const forged = await fetch(`${base}/api/billing/stripe`, { method: "POST", body: event });
+  const forged = await fetch(`${base}/v1/billing/stripe`, { method: "POST", body: event });
   assert.equal(forged.status, 401);
   assert.equal(await balance(), before + 7);
 });
@@ -864,80 +864,80 @@ test("the trial lands when the owner verifies their address — once, and not at
   // Mint the link the mail would have carried, with the server's own key.
   process.env.FOLDRUN_SECRET_KEY = "e2e-install-key";
   const { mintToken, VERIFY_TTL_MS } = await import("../server/auth-tokens.ts");
-  const me = (await (await fetch(`${base}/api/auth/session`, { headers: { cookie } })).json()) as { user: { id: string; email: string } };
-  const before = (await (await fetch(`${base}/api/billing`, { headers: { cookie } })).json()) as { balanceUsd: number };
+  const me = (await (await fetch(`${base}/v1/auth/session`, { headers: { cookie } })).json()) as { user: { id: string; email: string } };
+  const before = (await (await fetch(`${base}/v1/billing`, { headers: { cookie } })).json()) as { balanceUsd: number };
   const token = mintToken("verify", { u: me.user.id, e: me.user.email }, VERIFY_TTL_MS);
-  const first = await fetch(`${base}/api/auth/verify?token=${encodeURIComponent(token)}`, { redirect: "manual" });
+  const first = await fetch(`${base}/v1/auth/verify?token=${encodeURIComponent(token)}`, { redirect: "manual" });
   assert.equal(first.status, 307, await first.text());
   assert.match(first.headers.get("location") ?? "", /verified=1/);
-  const after = (await (await fetch(`${base}/api/billing`, { headers: { cookie } })).json()) as { balanceUsd: number };
+  const after = (await (await fetch(`${base}/v1/billing`, { headers: { cookie } })).json()) as { balanceUsd: number };
   assert.equal(Math.round((after.balanceUsd - before.balanceUsd) * 100), 300, "300 credits, three dollars");
   // Following the link again verifies again and grants nothing.
-  await fetch(`${base}/api/auth/verify?token=${encodeURIComponent(token)}`, { redirect: "manual" });
-  const again = (await (await fetch(`${base}/api/billing`, { headers: { cookie } })).json()) as { balanceUsd: number };
+  await fetch(`${base}/v1/auth/verify?token=${encodeURIComponent(token)}`, { redirect: "manual" });
+  const again = (await (await fetch(`${base}/v1/billing`, { headers: { cookie } })).json()) as { balanceUsd: number };
   assert.equal(again.balanceUsd, after.balanceUsd);
 });
 
 // ---------------------------------------------------------------- sign-in security
 
 test("forgot: the same answer for every address, and a limit", opts, async () => {
-  const known = await fetch(`${base}/api/auth/forgot`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "founder@example.test" }) });
-  const unknown = await fetch(`${base}/api/auth/forgot`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "nobody@example.test" }) });
+  const known = await fetch(`${base}/v1/auth/forgot`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "founder@example.test" }) });
+  const unknown = await fetch(`${base}/v1/auth/forgot`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "nobody@example.test" }) });
   assert.equal(known.status, 200); assert.equal(unknown.status, 200);
   assert.equal(await known.text(), await unknown.text(), "the body must not reveal which address has an account");
 });
 
 test("a weak password is refused at signup, at change, and at reset", opts, async () => {
-  const res = await fetch(`${base}/api/auth/password`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ current: "irrelevant", next: "short" }) });
+  const res = await fetch(`${base}/v1/auth/password`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ current: "irrelevant", next: "short" }) });
   assert.equal(res.status, 400, await res.text());
 });
 
 test("two-factor: enrol with a real code, then sign-in needs the code, then a backup code, then disable", opts, async () => {
   const { totp } = await import("../server/totp.ts");
-  const setup = (await (await fetch(`${base}/api/auth/mfa/setup`, { method: "POST", headers: { cookie } })).json()) as { secret: string; qr: string; enrol: string };
+  const setup = (await (await fetch(`${base}/v1/auth/mfa/setup`, { method: "POST", headers: { cookie } })).json()) as { secret: string; qr: string; enrol: string };
   assert.match(setup.qr, /^data:image\/png;base64,/);
   // A wrong code stores nothing.
-  const bad = await fetch(`${base}/api/auth/mfa/enable`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ enrol: setup.enrol, code: "000000" }) });
+  const bad = await fetch(`${base}/v1/auth/mfa/enable`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ enrol: setup.enrol, code: "000000" }) });
   assert.equal(bad.status, 400);
-  const good = await fetch(`${base}/api/auth/mfa/enable`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ enrol: setup.enrol, code: totp(setup.secret) }) });
+  const good = await fetch(`${base}/v1/auth/mfa/enable`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ enrol: setup.enrol, code: totp(setup.secret) }) });
   const goodText = await good.text();
   assert.equal(good.status, 200, goodText);
   const { backup } = JSON.parse(goodText) as { backup: string[] };
   assert.equal(backup.length, 8);
 
   // Sign in: the password now buys a challenge, not a session.
-  const login = await fetch(`${base}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "founder@example.test", password: founderPassword }) });
+  const login = await fetch(`${base}/v1/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "founder@example.test", password: founderPassword }) });
   const loginText = await login.text();
   assert.equal(login.status, 200, loginText);
   const l = JSON.parse(loginText) as { mfa?: boolean; challenge?: string };
   assert.equal(l.mfa, true);
   assert.ok(!login.headers.getSetCookie().some((c) => c.startsWith("foldrun_session=")), "no session before the code");
   // A wrong code is refused; the right one mints the session.
-  const wrong = await fetch(`${base}/api/auth/mfa/verify`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ challenge: l.challenge, code: "000000" }) });
+  const wrong = await fetch(`${base}/v1/auth/mfa/verify`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ challenge: l.challenge, code: "000000" }) });
   assert.equal(wrong.status, 401);
-  const right = await fetch(`${base}/api/auth/mfa/verify`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ challenge: l.challenge, code: totp(setup.secret) }) });
+  const right = await fetch(`${base}/v1/auth/mfa/verify`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ challenge: l.challenge, code: totp(setup.secret) }) });
   assert.equal(right.status, 200, await right.text());
   const set1 = right.headers.getSetCookie().find((c) => c.startsWith("foldrun_session="));
   assert.ok(set1);
   // A backup code works once.
-  const login2 = (await (await fetch(`${base}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "founder@example.test", password: founderPassword }) })).json()) as { challenge: string };
-  const viaBackup = await fetch(`${base}/api/auth/mfa/verify`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ challenge: login2.challenge, code: backup[0] }) });
+  const login2 = (await (await fetch(`${base}/v1/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "founder@example.test", password: founderPassword }) })).json()) as { challenge: string };
+  const viaBackup = await fetch(`${base}/v1/auth/mfa/verify`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ challenge: login2.challenge, code: backup[0] }) });
   assert.equal(viaBackup.status, 200, await viaBackup.text());
-  const login3 = (await (await fetch(`${base}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "founder@example.test", password: founderPassword }) })).json()) as { challenge: string };
-  const reused = await fetch(`${base}/api/auth/mfa/verify`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ challenge: login3.challenge, code: backup[0] }) });
+  const login3 = (await (await fetch(`${base}/v1/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "founder@example.test", password: founderPassword }) })).json()) as { challenge: string };
+  const reused = await fetch(`${base}/v1/auth/mfa/verify`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ challenge: login3.challenge, code: backup[0] }) });
   assert.equal(reused.status, 401, "a backup code is single-use");
   // Disable needs the password and a code; then sign-in is one step again.
   cookie = set1!.split(";")[0];
-  const off = await fetch(`${base}/api/auth/mfa/disable`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ password: founderPassword, code: totp(setup.secret) }) });
+  const off = await fetch(`${base}/v1/auth/mfa/disable`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ password: founderPassword, code: totp(setup.secret) }) });
   assert.equal(off.status, 200, await off.text());
-  const plain = (await (await fetch(`${base}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "founder@example.test", password: founderPassword }) })).json()) as { mfa?: boolean };
+  const plain = (await (await fetch(`${base}/v1/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "founder@example.test", password: founderPassword }) })).json()) as { mfa?: boolean };
   assert.ok(!plain.mfa);
 });
 
 test("nothing can make an operator from inside an account", hosted, async () => {
   // The operator console's people are not accounts here. No member carries
   // a role word for it, because there is no such role.
-  const res = await fetch(`${base}/api/account/members`, { method: "GET", headers: { cookie } });
+  const res = await fetch(`${base}/v1/account/members`, { method: "GET", headers: { cookie } });
   if (res.status === 200) {
     const text = await res.text();
     assert.ok(!text.includes('"operator"') && !text.includes('"superadmin"'));
@@ -945,12 +945,12 @@ test("nothing can make an operator from inside an account", hosted, async () => 
 });
 
 test("the scheduler's manual tick answers", opts, async () => {
-  const res = await api("/api/schedule", { method: "POST" });
+  const res = await api("/v1/schedule", { method: "POST" });
   assert.equal(res.status, 200);
 });
 
 test("a webhook with a wrong token is refused before anything runs", opts, async () => {
-  const res = await fetch(`${base}/api/hooks/default/hello/anything?token=${"0".repeat(32)}`, {
+  const res = await fetch(`${base}/v1/hooks/default/hello/anything?token=${"0".repeat(32)}`, {
     method: "POST",
     body: "{}",
   });
@@ -959,7 +959,7 @@ test("a webhook with a wrong token is refused before anything runs", opts, async
 
 // The whole point, and the only test here that spends money.
 test("waiting on a working agent answers with the result and the cost", paid, async () => {
-  const res = await api("/api/workspaces/hello/agents/notetaker/run?wait=true&timeout=180", {
+  const res = await api("/v1/workspaces/hello/agents/notetaker/run?wait=true&timeout=180", {
     method: "POST",
     body: JSON.stringify({
       task: "In one short sentence, what is 2+2? Do not write any files.",

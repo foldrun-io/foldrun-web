@@ -25,9 +25,9 @@ test("health, status and version answer a caller whose read bucket is empty", as
   resetApiGateCaches();
   const { key } = await createApiKey("exempt-r", "ci", undefined, undefined, "editor");
   const auth = { authorization: `Bearer ${key}` };
-  for (let i = 0; i < TIERS.free.read; i++) await apiGate(req("GET", "/api/workspaces/w/runs", auth));
-  assert.ok((await apiGate(req("GET", "/api/workspaces/w/runs", auth))).refuse, "the bucket is empty");
-  for (const p of ["/api/healthz", "/api/status", "/api/status/history", "/api/version"]) {
+  for (let i = 0; i < TIERS.free.read; i++) await apiGate(req("GET", "/v1/workspaces/w/runs", auth));
+  assert.ok((await apiGate(req("GET", "/v1/workspaces/w/runs", auth))).refuse, "the bucket is empty");
+  for (const p of ["/v1/healthz", "/v1/status", "/v1/status/history", "/v1/version"]) {
     assert.equal((await apiGate(req("GET", p, auth))).refuse, undefined, `${p} is not rate limited`);
   }
 });
@@ -39,7 +39,7 @@ test("signing out works when the account's write bucket is spent", async () => {
   const { value } = await mintSession(user);
   const cookie = { cookie: `${SESSION_COOKIE}=${value}` };
   const keys = await Promise.all(Array.from({ length: ACCOUNT_MULTIPLE }, (_, i) => createApiKey(tenant, `k${i}`, undefined, undefined, "editor")));
-  for (const { key } of keys) for (let i = 0; i < TIERS.free.write; i++) await apiGate(req("POST", "/api/keys", { authorization: `Bearer ${key}` }));
-  assert.ok((await apiGate(req("POST", "/api/workspaces/w/deploy", cookie))).refuse, "the account's writes are spent");
-  assert.equal((await apiGate(req("POST", "/api/auth/logout", cookie))).refuse, undefined, "sign-out is not refused");
+  for (const { key } of keys) for (let i = 0; i < TIERS.free.write; i++) await apiGate(req("POST", "/v1/keys", { authorization: `Bearer ${key}` }));
+  assert.ok((await apiGate(req("POST", "/v1/workspaces/w/deploy", cookie))).refuse, "the account's writes are spent");
+  assert.equal((await apiGate(req("POST", "/v1/auth/logout", cookie))).refuse, undefined, "sign-out is not refused");
 });

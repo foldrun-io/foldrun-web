@@ -16,9 +16,9 @@ process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-byok-o
 delete process.env.FOLDRUN_DEV_NO_AUTH;
 delete process.env.FOLDRUN_DATABASE_URL;
 const { NextRequest } = await import("next/server");
-const route = await import("../app/api/account/model/route.ts");
-const agentsMd = await import("../app/api/account/agents-md/route.ts");
-const deploy = await import("../app/api/workspaces/[workspace]/deploy/route.ts");
+const route = await import("../app/v1/account/model/route.ts");
+const agentsMd = await import("../app/v1/account/agents-md/route.ts");
+const deploy = await import("../app/v1/workspaces/[workspace]/deploy/route.ts");
 const { createApiKey } = await import("../server/auth.ts");
 const { registerPlatform, platform } = await import("@/lib/platform");
 const { getSecret, setSecret } = await import("@/lib/secrets");
@@ -26,8 +26,8 @@ const { ownModelKeysOn } = await import("@/platform/model-choice");
 
 const { key: admin } = await createApiKey("acme", "ci", "ci@acme.test", undefined, "admin", null);
 const h = { authorization: `Bearer ${admin}`, "content-type": "application/json" };
-const put = (body: object) => route.PUT(new NextRequest("http://x/api/account/model", { method: "PUT", headers: h, body: JSON.stringify(body) }));
-const get = () => route.GET(new NextRequest("http://x/api/account/model", { headers: h }));
+const put = (body: object) => route.PUT(new NextRequest("http://x/v1/account/model", { method: "PUT", headers: h, body: JSON.stringify(body) }));
+const get = () => route.GET(new NextRequest("http://x/v1/account/model", { headers: h }));
 
 // acme is a customer: not one of the operator's accounts.
 // And core's hook as the platform's boot registers it (foldrun-platform
@@ -59,13 +59,13 @@ test("off: a key stored while they were on is not what the account runs on, and 
   setSecret("acme", "FOLDRUN_MODEL_API_KEY", "sk-ant-api03-stored-before-it-was-off-1111");
   const view = await (await get()).json();
   assert.notEqual(view.runsOn, "account");
-  const gone = await route.DELETE(new NextRequest("http://x/api/account/model", { method: "DELETE", headers: h }));
+  const gone = await route.DELETE(new NextRequest("http://x/v1/account/model", { method: "DELETE", headers: h }));
   assert.equal(gone.status, 200);
   assert.equal(getSecret("acme", "FOLDRUN_MODEL_API_KEY"), null);
 });
 
 test("off: an account AGENTS.md that names its own provider: is refused (config/own-model-key), and one without it is written", async () => {
-  const send = (content: string) => agentsMd.PUT(new NextRequest("http://x/api/account/agents-md", { method: "PUT", headers: h, body: JSON.stringify({ content }) }));
+  const send = (content: string) => agentsMd.PUT(new NextRequest("http://x/v1/account/agents-md", { method: "PUT", headers: h, body: JSON.stringify({ content }) }));
   const refused = await send("---\nprovider:\n  name: anthropic\n  token: ${MINE}\n---\n\nShared.\n");
   assert.equal(refused.status, 422);
   assert.match((await refused.json()).error, /own models|provider:/);
@@ -78,7 +78,7 @@ test("off: a deploy whose agent names its own provider: is refused, with the fil
     { path: "AGENTS.md", content: "---\nname: desk\n---\n\nA desk.\n" },
     { path: "agents/w/agent.md", content: "---\nname: w\ndescription: works\nprovider:\n  name: openai\n  token: ${MINE}\n---\n\nWork.\n" },
   ];
-  const res = await deploy.POST(new NextRequest("http://x/api/workspaces/desk/deploy", { method: "POST", headers: h, body: JSON.stringify({ files }) }), { params: Promise.resolve({ workspace: "desk" }) });
+  const res = await deploy.POST(new NextRequest("http://x/v1/workspaces/desk/deploy", { method: "POST", headers: h, body: JSON.stringify({ files }) }), { params: Promise.resolve({ workspace: "desk" }) });
   assert.equal(res.status, 422, await res.clone().text());
   const body = await res.json();
   assert.ok(body.issues.some((i: { where: string; message: string }) => /^agents\/w\/agent\.md:4$/.test(i.where) && /config\/own-model-key/.test(i.message)), JSON.stringify(body.issues));

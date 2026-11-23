@@ -411,9 +411,9 @@ export async function postCreate(endpoint: string, tenant: string, name: string,
 
 /** Where each scope posts to, for a document kind. */
 function targetFor(kind: Kind, where: Where, workspace?: string): CreateTarget {
-  if (where === "account") return { endpoint: `/api/library/${kind}` };
+  if (where === "account") return { endpoint: `/v1/library/${kind}` };
 
-  const base = `/api/workspaces/${workspace}`;
+  const base = `/v1/workspaces/${workspace}`;
   // Agents, flows and evals have their own REST collections; the rest share
   // the assets endpoint, which takes the kind as a field.
   if (kind === "agents" || kind === "flows" || kind === "evals") return { endpoint: `${base}/${kind}` };

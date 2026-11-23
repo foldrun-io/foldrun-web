@@ -1,5 +1,5 @@
-// The platform as an MCP server (1 Nov 2026): POST /api/mcp, end to end
-// through the route and the /api routes its tools call. What is held here:
+// The platform as an MCP server (1 Nov 2026): POST /v1/mcp, end to end
+// through the route and the /v1 routes its tools call. What is held here:
 // a key and nothing else opens it (no cookie, no A2A key, no foreign
 // Origin); the protocol's handshake, version negotiation, notifications and
 // errors; read-only mode; and that every tool answers what its route answers
@@ -27,7 +27,7 @@ process.env.ANTHROPIC_API_KEY = "sk-ant-test-invalid-mcp";
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 const { MCP_TOOLS, MCP_VERSIONS } = await import("../server/mcp.ts");
-const route = (await import("../app/api/mcp/route.ts")) as { POST: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
+const route = (await import("../app/v1/mcp/route.ts")) as { POST: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
 type Rpc = { jsonrpc: string; id: unknown; result?: any; error?: { code: number; message: string } }; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 function workspace(tenant: string, name: string) {
@@ -52,7 +52,7 @@ const a2a = (await createApiKey("acme", "partner", undefined, undefined, "editor
 let nextId = 1;
 async function post(body: unknown, opts: { key?: string | null; headers?: Record<string, string>; query?: string; raw?: string } = {}) {
   const key = opts.key === undefined ? admin : opts.key;
-  const req = new NextRequest(`https://app.example.test/api/mcp${opts.query ?? ""}`, {
+  const req = new NextRequest(`https://app.example.test/v1/mcp${opts.query ?? ""}`, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json, text/event-stream", ...(key ? { authorization: `Bearer ${key}` } : {}), ...(opts.headers ?? {}) },
     body: opts.raw ?? JSON.stringify(body),
@@ -81,7 +81,7 @@ test("a key and nothing else opens it", async () => {
   assert.equal(none.status, 401);
   assert.match(none.headers.get("www-authenticate") ?? "", /^Bearer /);
   assert.match(((await none.json()) as Rpc).error!.message, /send an API key/);
-  assert.match(none.headers.get("www-authenticate") ?? "", /resource_metadata="https:\/\/app\.example\.test\/\.well-known\/oauth-protected-resource\/api\/mcp"/);
+  assert.match(none.headers.get("www-authenticate") ?? "", /resource_metadata="https:\/\/app\.example\.test\/\.well-known\/oauth-protected-resource\/v1\/mcp"/);
 
   const cookie = await post({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }, { key: null, headers: { cookie: "foldrun_session=whatever" } });
   assert.equal(cookie.status, 401, "a session cookie never opens it");

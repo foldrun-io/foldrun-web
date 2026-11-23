@@ -59,7 +59,7 @@ function expected(row: Row, who: Who): Expect {
   if (words.has("keyOnly") && who.via === "session") return { kind: "deny", statuses: [401], why: "keys only" };
   if ((words.has("session")) && who.via === "key") return { kind: "deny", statuses: [401], why: "session only" };
   if (words.has("ownerOnly") && who.via === "key") return { kind: "deny", statuses: [401], why: "session only" };
-  if (p.startsWith("/api/workspaces/{workspace}") && who.scope && !who.scope.includes(A.ws)) return { kind: "deny", statuses: [403], why: "workspace out of scope" };
+  if (p.startsWith("/v1/workspaces/{workspace}") && who.scope && !who.scope.includes(A.ws)) return { kind: "deny", statuses: [403], why: "workspace out of scope" };
   if (RANK[who.role!] < RANK[min]) return { kind: "deny", statuses: [403], why: `needs ${min}` };
   if (words.has("person") && who.via === "key") return { kind: "deny", statuses: [401], why: "a person, not a key" };
   if (words.has("wide") && who.scope) return { kind: "deny", statuses: [403], why: "account-wide" };
@@ -126,14 +126,14 @@ function scan(row: Row, who: Who, res: Result, body: unknown) {
   if (res.status < 500 && /\bpublic\b|s-maxage/i.test(res.headers["cache-control"] ?? "") && who.via !== "none" && !specOf(row[2]).words.has("none")) fail(`${where}: an answer for a signed-in caller may be cached by anyone (${res.headers["cache-control"]})`);
 }
 
-test("every route in the generated list and in app/api has a row, and every row is a route", () => {
+test("every route in the generated list and in app/v1 has a row, and every row is a route", () => {
   const rows = new Set(TABLE.map(([m, p]) => `${m} ${p}`));
   const overlayHere = OVERLAY_ROWS.some(([, p]) => fs.existsSync(fileOf(p)));
   const listed = new Set<string>();
   for (const r of ROUTES) for (const m of r.methods) listed.add(`${m} ${r.path}`);
   const missing = [...listed].filter((k) => !rows.has(k) && (overlayHere || !OVERLAY_ONLY.test(k.split(" ")[1])) && !k.split(" ")[1].startsWith("/s/"));
   assert.deepEqual(missing, [], `routes with no row in authz-matrix-table.ts: ${missing.join(", ")}`);
-  const stale = [...rows].filter((k) => !listed.has(k) && !k.includes("/api/support/"));
+  const stale = [...rows].filter((k) => !listed.has(k) && !k.includes("/v1/support/"));
   assert.deepEqual(stale, [], `rows for routes that are not in the route list: ${stale.join(", ")}`);
   // And from the files: a handler exported but not in the list (the list is generated, the files are the truth).
   const onDisk: string[] = [];
@@ -143,7 +143,7 @@ test("every route in the generated list and in app/api has a row, and every row 
       if (e.isDirectory()) find(p);
       else if (e.name === "route.ts") {
         const src = fs.readFileSync(p, "utf8");
-        const rel = "/api/" + p.slice(API.length + 1).replace(/\/route\.ts$/, "").replace(/\[(\w+)\]/g, "{$1}");
+        const rel = "/v1/" + p.slice(API.length + 1).replace(/\/route\.ts$/, "").replace(/\[(\w+)\]/g, "{$1}");
         for (const m of ["GET", "POST", "PUT", "PATCH", "DELETE"]) if (new RegExp(`export (async )?function ${m}\\b|export const ${m}\\b`).test(src)) onDisk.push(`${m} ${rel}`);
       }
     }
@@ -231,7 +231,7 @@ test("x-foldrun-tenant, forwarded headers, ?tenant=, a body's tenant and a metho
   const spoof = {
     extraHeaders: {
       "x-foldrun-tenant": A.tenant, "x-tenant": A.tenant, "x-forwarded-for": "127.0.0.1", "x-forwarded-host": "localhost", "x-forwarded-proto": "https",
-      "x-real-ip": "127.0.0.1", "x-original-url": `/api/workspaces/${A.ws}`, "x-http-method-override": "DELETE", "x-middleware-subrequest": "middleware:middleware:middleware:middleware:middleware",
+      "x-real-ip": "127.0.0.1", "x-original-url": `/v1/workspaces/${A.ws}`, "x-http-method-override": "DELETE", "x-middleware-subrequest": "middleware:middleware:middleware:middleware:middleware",
     },
     query: `tenant=${A.tenant}&account=${A.tenant}&_method=DELETE`,
   };
@@ -300,31 +300,31 @@ test("a real write at A's own run, key, member, secret and share by anyone the d
 });
 
 test("A is whole after all of it, and the matrix could have seen a leak (its canaries are really there for A's own callers)", async () => {
-  const src = await call({ method: "GET", path: "/api/workspaces/{workspace}/source", params: PARAM_A, who: WHO.viewerKey, query: "path=AGENTS.md" });
+  const src = await call({ method: "GET", path: "/v1/workspaces/{workspace}/source", params: PARAM_A, who: WHO.viewerKey, query: "path=AGENTS.md" });
   assert.equal(src?.status, 200);
   assert.ok(src!.body.includes(A.content), "A's viewer reads A's file: the content canary is findable");
-  const run = await call({ method: "GET", path: "/api/workspaces/{workspace}/runs/{runId}", params: PARAM_A, who: WHO.viewerSession });
+  const run = await call({ method: "GET", path: "/v1/workspaces/{workspace}/runs/{runId}", params: PARAM_A, who: WHO.viewerSession });
   assert.ok(run!.body.includes(A.runText), "the run canary is findable");
-  const secrets = await call({ method: "GET", path: "/api/secrets", params: PARAM_A, who: WHO.viewerKey });
+  const secrets = await call({ method: "GET", path: "/v1/secrets", params: PARAM_A, who: WHO.viewerKey });
   assert.ok(secrets!.body.includes(A.secretName) || secrets!.status === 200, "the vault lists");
   for (const k of KEYS) {
-    const me = await call({ method: "GET", path: "/api/me", params: PARAM_A, who: { ...WHO.anon, headers: { authorization: `Bearer ${k.secret}` } } });
+    const me = await call({ method: "GET", path: "/v1/me", params: PARAM_A, who: { ...WHO.anon, headers: { authorization: `Bearer ${k.secret}` } } });
     assert.equal(me?.status, 200, `key ${k.id} still works`);
   }
-  const mine = await call({ method: "GET", path: "/api/workspaces/{workspace}/source", params: PARAM_A, who: WHO.strangerKey, query: "path=AGENTS.md" });
+  const mine = await call({ method: "GET", path: "/v1/workspaces/{workspace}/source", params: PARAM_A, who: WHO.strangerKey, query: "path=AGENTS.md" });
   assert.ok(mine!.body.includes(B.content) && !mine!.body.includes(A.content), "B's same-named workspace is B's own");
 });
 
 // ---- links whose token is the credential ----------------------------------------------------------
 test("a link's token opens exactly its own tenant, workspace and flow or run — A's token under B's names, or the reverse, opens nothing", async () => {
   const hook = (tenant: string, workspace: string, flow: string, token: string) =>
-    call({ method: "POST", path: "/api/hooks/{tenant}/{workspace}/{flow}", params: { tenant, workspace, flow }, who: WHO.anon, query: `token=${token}`, body: { x: 1 } });
+    call({ method: "POST", path: "/v1/hooks/{tenant}/{workspace}/{flow}", params: { tenant, workspace, flow }, who: WHO.anon, query: `token=${token}`, body: { x: 1 } });
   const inbox = (tenant: string, workspace: string, flow: string, token: string) =>
-    call({ method: "POST", path: "/api/inbox/{tenant}/{workspace}/{flow}", params: { tenant, workspace, flow }, who: WHO.anon, query: `token=${token}`, body: { x: 1 } });
+    call({ method: "POST", path: "/v1/inbox/{tenant}/{workspace}/{flow}", params: { tenant, workspace, flow }, who: WHO.anon, query: `token=${token}`, body: { x: 1 } });
   const approve = (method: "GET" | "POST", tenant: string, workspace: string, runId: string, token: string) =>
-    call({ method, path: "/api/approve/{tenant}/{workspace}/{runId}", params: { tenant, workspace, runId }, who: WHO.anon, query: `token=${token}`, body: { decision: "approve" } });
+    call({ method, path: "/v1/approve/{tenant}/{workspace}/{runId}", params: { tenant, workspace, runId }, who: WHO.anon, query: `token=${token}`, body: { decision: "approve" } });
   const event = (tenant: string, workspace: string, runId: string, token: string) =>
-    call({ method: "POST", path: "/api/events/{tenant}/{workspace}/{runId}", params: { tenant, workspace, runId }, who: WHO.anon, query: `token=${token}&step=0`, body: "paid" });
+    call({ method: "POST", path: "/v1/events/{tenant}/{workspace}/{runId}", params: { tenant, workspace, runId }, who: WHO.anon, query: `token=${token}&step=0`, body: "paid" });
   const refused = [400, 401, 403, 404, 429];
   const wrong: string[] = [];
   let last = snapshotA();
@@ -381,19 +381,19 @@ test("a share link opens its one file for anyone and nothing else; a revoke by B
   // B (its own `desk`, admin key and owner session) and the operator cannot revoke A's link — by token, by id, under any workspace name.
   for (const who of [WHO.strangerKey, WHO.strangerSession, WHO.operatorSession, WHO.viewerKey, WHO.scopedKey, WHO.anon]) {
     for (const body of [{ token: SHARE.token }, { id: shareId(SHARE.token), token: SHARE.token }]) {
-      await call({ method: "DELETE", path: "/api/workspaces/{workspace}/shares", params: PARAM_A, who, body, query: `token=${SHARE.token}` });
+      await call({ method: "DELETE", path: "/v1/workspaces/{workspace}/shares", params: PARAM_A, who, body, query: `token=${SHARE.token}` });
     }
   }
   assert.equal((await open(SHARE.token)).status, 200, "the link still opens after those");
   // The list: the maker sees the token and its URL, everyone else a masked one.
-  const seen = async (who: Who) => (await call({ method: "GET", path: "/api/workspaces/{workspace}/shares", params: PARAM_A, who }))!.body;
+  const seen = async (who: Who) => (await call({ method: "GET", path: "/v1/workspaces/{workspace}/shares", params: PARAM_A, who }))!.body;
   for (const who of [WHO.ownerSession, WHO.adminKey, WHO.adminSession]) assert.ok((await seen(who)).includes(SHARE.token), `${who.label} sees the link`);
   for (const who of [WHO.viewerKey, WHO.viewerSession, WHO.editorKey, WHO.editorSession]) assert.ok(!(await seen(who)).includes(SHARE.token), `${who.label} sees a masked token`);
   for (const who of [WHO.strangerKey, WHO.anon, WHO.scopedKey]) assert.ok(!(await seen(who)).includes(SHARE.token));
   // A path outside the shareable folders is not shareable by anyone.
   for (const who of [WHO.ownerSession, WHO.adminKey]) {
     for (const p of ["AGENTS.md", "memory/learned.md", "../desk/AGENTS.md", "agents/writer/agent.md", "runs/x.json"]) {
-      const r = await call({ method: "POST", path: "/api/workspaces/{workspace}/shares", params: PARAM_A, who, body: { path: p } });
+      const r = await call({ method: "POST", path: "/v1/workspaces/{workspace}/shares", params: PARAM_A, who, body: { path: p } });
       assert.ok(r!.status >= 400 && r!.status < 500, `${who.label} shares ${p}: ${r!.status}`);
     }
   }
@@ -403,8 +403,8 @@ test("a share link opens its one file for anyone and nothing else; a revoke by B
 // ---- what leaves the account in a file ------------------------------------------------------------
 test("the workspace export a viewer may take, and the account export an owner may, carry no secret value, token or key", async () => {
   const ws = await (async () => {
-    const res = await (await import("../app/api/workspaces/[workspace]/export/route.ts") as { GET: (r: NextRequest, c: { params: Promise<{ workspace: string }> }) => Promise<Response> })
-      .GET(new NextRequest(`http://localhost/api/workspaces/${A.ws}/export`, { headers: WHO.viewerKey.headers }), { params: Promise.resolve({ workspace: A.ws }) });
+    const res = await (await import("../app/v1/workspaces/[workspace]/export/route.ts") as { GET: (r: NextRequest, c: { params: Promise<{ workspace: string }> }) => Promise<Response> })
+      .GET(new NextRequest(`http://localhost/v1/workspaces/${A.ws}/export`, { headers: WHO.viewerKey.headers }), { params: Promise.resolve({ workspace: A.ws }) });
     assert.equal(res.status, 200);
     return unzip(Buffer.from(await res.arrayBuffer()));
   })();
@@ -412,7 +412,7 @@ test("the workspace export a viewer may take, and the account export an owner ma
   assert.ok(all.includes(A.content), "the export has the workspace's files");
   for (const s of [...NEVER_SHOWN, ...Object.values(TOKENS)]) assert.ok(!all.includes(s), `the export holds ${s.slice(0, 18)}…`);
   assert.deepEqual(ws.map((e) => e.path).filter((p) => /^(runs|\.|secrets|hooks\.json|state\/keys)/.test(p) || /secret|\.env|credential/i.test(p)), [], "no run records, secrets or dotfiles");
-  const acct = await call({ method: "GET", path: "/api/account/export", params: PARAM_A, who: WHO.ownerSession });
+  const acct = await call({ method: "GET", path: "/v1/account/export", params: PARAM_A, who: WHO.ownerSession });
   assert.equal(acct!.status, 200);
   for (const s of [...NEVER_SHOWN, ...Object.values(TOKENS)]) assert.ok(!acct!.body.includes(s), `the account export holds ${s.slice(0, 18)}…`);
   assert.ok(!/"(hash|salt)"/.test(acct!.body));
@@ -420,16 +420,16 @@ test("the workspace export a viewer may take, and the account export an owner ma
 
 // ---- who may see whose keys and people ---------------------------------------------------------------
 test("the key list and the team list show each caller only what its role and scope allow, and never a hash", async () => {
-  const keysOf = async (who: Who) => (JSON.parse((await call({ method: "GET", path: "/api/keys", params: PARAM_A, who }))!.body) as { keys: { id: string }[] }).keys.map((k) => k.id).sort();
+  const keysOf = async (who: Who) => (JSON.parse((await call({ method: "GET", path: "/v1/keys", params: PARAM_A, who }))!.body) as { keys: { id: string }[] }).keys.map((k) => k.id).sort();
   const admin = await keysOf(WHO.adminKey);
   assert.ok(admin.includes(IDS.keyViewer) && admin.includes(IDS.keyAdmin) && admin.includes(IDS.keyScoped), "an unlimited admin sees the account's keys");
   assert.ok(!admin.includes(IDS.keyB), "never another account's");
   assert.deepEqual(await keysOf(WHO.scopedKey), [IDS.keyScoped], "an admin limited to one workspace sees only keys inside it");
   assert.deepEqual(await keysOf(WHO.strangerKey), [IDS.keyB]);
-  for (const who of [WHO.viewerKey, WHO.editorKey, WHO.viewerSession, WHO.scopedSession, WHO.anon]) assert.ok([401, 403].includes((await call({ method: "GET", path: "/api/keys", params: PARAM_A, who }))!.status), `${who.label} cannot list keys`);
+  for (const who of [WHO.viewerKey, WHO.editorKey, WHO.viewerSession, WHO.scopedSession, WHO.anon]) assert.ok([401, 403].includes((await call({ method: "GET", path: "/v1/keys", params: PARAM_A, who }))!.status), `${who.label} cannot list keys`);
   // The team list: the people of the caller's own account, no credentials.
-  const team = JSON.parse((await call({ method: "GET", path: "/api/team", params: PARAM_A, who: WHO.viewerSession }))!.body) as { members: Record<string, unknown>[] };
+  const team = JSON.parse((await call({ method: "GET", path: "/v1/team", params: PARAM_A, who: WHO.viewerSession }))!.body) as { members: Record<string, unknown>[] };
   assert.ok(team.members.length >= 5 && team.members.every((m) => !("hash" in m) && !("salt" in m) && !("password" in m) && !("mfa" in m)));
-  const other = JSON.parse((await call({ method: "GET", path: "/api/team", params: PARAM_A, who: WHO.strangerSession }))!.body) as { members: { email: string }[] };
+  const other = JSON.parse((await call({ method: "GET", path: "/v1/team", params: PARAM_A, who: WHO.strangerSession }))!.body) as { members: { email: string }[] };
   assert.deepEqual(other.members.map((m) => m.email), ["owner@" + B.emailDomain]);
 });

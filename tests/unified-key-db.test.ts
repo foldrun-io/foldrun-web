@@ -1,6 +1,6 @@
 // One key (22 Nov 2026): an API key that may also call foldrun's models.
 // Made at `foldrun login` with the person's yes, or by an admin of every
-// workspace with POST /api/keys { modelAccess }. The platform API reads its
+// workspace with POST /v1/keys { modelAccess }. The platform API reads its
 // role and workspaces as ever; the gateway reads its model grant. Every
 // other kind of key keeps exactly its old reach.
 //
@@ -37,10 +37,10 @@ test("one key: issued with model access, it opens the API at its role and the ga
   door.setGatewayKeyLookupForTests((h) => findApiKeyByHashDb(h));
   door.setGatewayTouchForTests(async () => {});
   const tenant = `one${Date.now()}`;
-  const keysRoute = (await import("../app/api/keys/route.ts")) as { POST: (req: InstanceType<typeof NextRequest>) => Promise<Response>; GET: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
+  const keysRoute = (await import("../app/v1/keys/route.ts")) as { POST: (req: InstanceType<typeof NextRequest>) => Promise<Response>; GET: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
   const { key: admin } = await createApiKey(tenant, "admin", undefined, undefined, "admin");
   const post = async (bearer: string, body: object) => {
-    const r = await keysRoute.POST(new NextRequest("https://app.example.test/api/keys", { method: "POST", headers: { authorization: `Bearer ${bearer}`, "content-type": "application/json" }, body: JSON.stringify(body) }));
+    const r = await keysRoute.POST(new NextRequest("https://app.example.test/v1/keys", { method: "POST", headers: { authorization: `Bearer ${bearer}`, "content-type": "application/json" }, body: JSON.stringify(body) }));
     return { status: r.status, body: (await r.json()) as Json };
   };
   const gate = (key: string) => door.authenticate({ authorization: `Bearer ${key}` });
@@ -54,7 +54,7 @@ test("one key: issued with model access, it opens the API at its role and the ga
     const row = (await listApiKeys(tenant)).find((k) => k.id === ci.body.id)!;
     assert.equal(row.purpose, undefined);
     assert.deepEqual(row.gateway, { capUsd: null, dailyUsd: 50, credential: "account", walletUsd: 5, principal: ci.body.id });
-    const api = await resolveTenant(new NextRequest("https://app.example.test/api/workspaces", { headers: { authorization: `Bearer ${ci.body.key}` } }));
+    const api = await resolveTenant(new NextRequest("https://app.example.test/v1/workspaces", { headers: { authorization: `Bearer ${ci.body.key}` } }));
     assert.equal(api.tenant, tenant, "the platform API takes it");
     if (api.tenant !== null) assert.equal(api.actor.role, "editor", "at its own role, never more for having model access");
     const g = await gate(ci.body.key);
@@ -62,15 +62,15 @@ test("one key: issued with model access, it opens the API at its role and the ga
     if ("who" in g) assert.equal(g.who.grant.dailyUsd, 50);
 
     // The list shows its spend like a gateway key's.
-    const list = (await (await keysRoute.GET(new NextRequest("https://app.example.test/api/keys", { headers: { authorization: `Bearer ${admin}` } }))).json()) as { keys: { id: string; gateway?: Json }[] };
+    const list = (await (await keysRoute.GET(new NextRequest("https://app.example.test/v1/keys", { headers: { authorization: `Bearer ${admin}` } }))).json()) as { keys: { id: string; gateway?: Json }[] };
     assert.equal(list.keys.find((k) => k.id === ci.body.id)!.gateway?.spentUsd, 0);
 
-    // /api/me tells the CLI the same key may call models, and where.
-    const me = (await import("../app/api/me/route.ts")) as { GET: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
-    const mine = (await (await me.GET(new NextRequest("https://app.example.test/api/me", { headers: { authorization: `Bearer ${ci.body.key}` } }))).json()) as Json;
+    // /v1/me tells the CLI the same key may call models, and where.
+    const me = (await import("../app/v1/me/route.ts")) as { GET: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
+    const mine = (await (await me.GET(new NextRequest("https://app.example.test/v1/me", { headers: { authorization: `Bearer ${ci.body.key}` } }))).json()) as Json;
     assert.deepEqual(mine.actor.modelAccess, { capUsd: null, dailyUsd: 50, walletUsd: 5 });
     assert.equal(mine.modelsUrl, "https://api.example.test");
-    const theirs = (await (await me.GET(new NextRequest("https://app.example.test/api/me", { headers: { authorization: `Bearer ${admin}` } }))).json()) as Json;
+    const theirs = (await (await me.GET(new NextRequest("https://app.example.test/v1/me", { headers: { authorization: `Bearer ${admin}` } }))).json()) as Json;
     assert.equal(theirs.actor.modelAccess, null, "a platform key has none");
 
     // Who may give it, and how it must be asked: refused, nothing made.
@@ -88,16 +88,16 @@ test("one key: issued with model access, it opens the API at its role and the ga
     assert.equal((await listApiKeys(tenant)).length, before + 2, "only the two keys this test made by hand");
 
     // Every other key keeps its reach: a plain API key opens no model route,
-    // a gateway key no /api route.
+    // a gateway key no /v1 route.
     const plain = await gate(admin);
     assert.ok("status" in plain && plain.status === 403 && plain.reason === "no_model_grant");
     const gw = await post(admin, { purpose: "gateway", capUsd: 5 });
-    const gwApi = await resolveTenant(new NextRequest("https://app.example.test/api/workspaces", { headers: { authorization: `Bearer ${gw.body.key}` } }));
+    const gwApi = await resolveTenant(new NextRequest("https://app.example.test/v1/workspaces", { headers: { authorization: `Bearer ${gw.body.key}` } }));
     assert.equal(gwApi.tenant, null);
 
     // A wallet budget changes on the key itself.
-    const idRoute = (await import("../app/api/keys/[id]/route.ts")) as { PATCH: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ id: string }> }) => Promise<Response> };
-    const patched = await idRoute.PATCH(new NextRequest(`https://app.example.test/api/keys/${ci.body.id}`, { method: "PATCH", headers: { authorization: `Bearer ${admin}`, "content-type": "application/json" }, body: JSON.stringify({ walletUsd: 7 }) }), { params: Promise.resolve({ id: ci.body.id }) });
+    const idRoute = (await import("../app/v1/keys/[id]/route.ts")) as { PATCH: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ id: string }> }) => Promise<Response> };
+    const patched = await idRoute.PATCH(new NextRequest(`https://app.example.test/v1/keys/${ci.body.id}`, { method: "PATCH", headers: { authorization: `Bearer ${admin}`, "content-type": "application/json" }, body: JSON.stringify({ walletUsd: 7 }) }), { params: Promise.resolve({ id: ci.body.id }) });
     assert.equal(patched.status, 200, await patched.clone().text());
     door.resetGatewayKeyCacheForTests();
 
@@ -119,14 +119,14 @@ test("one key: issued with model access, it opens the API at its role and the ga
     door.resetGatewayKeyCacheForTests();
     const gone = await gate(rotatedTwice.key);
     assert.ok("status" in gone && gone.status === 401);
-    const goneApi = await resolveTenant(new NextRequest("https://app.example.test/api/workspaces", { headers: { authorization: `Bearer ${rotatedTwice.key}` } }));
+    const goneApi = await resolveTenant(new NextRequest("https://app.example.test/v1/workspaces", { headers: { authorization: `Bearer ${rotatedTwice.key}` } }));
     assert.equal(goneApi.tenant, null);
 
     // Only an admin of every workspace may rotate a key that may call
     // models; a scoped admin who can see it cannot (Codex review).
-    const rotRoute = (await import("../app/api/keys/[id]/rotate/route.ts")) as { POST: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ id: string }> }) => Promise<Response> };
+    const rotRoute = (await import("../app/v1/keys/[id]/rotate/route.ts")) as { POST: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ id: string }> }) => Promise<Response> };
     const scopedCi = await createApiKey(tenant, "scoped ci", undefined, undefined, "editor", ["one"], { models: { capUsd: null, dailyUsd: 5, walletUsd: 0 } });
-    const r403 = await rotRoute.POST(new NextRequest(`https://app.example.test/api/keys/${scopedCi.record.id}/rotate`, { method: "POST", headers: { authorization: `Bearer ${scopedAdmin}`, "content-type": "application/json" }, body: "{}" }), { params: Promise.resolve({ id: scopedCi.record.id }) });
+    const r403 = await rotRoute.POST(new NextRequest(`https://app.example.test/v1/keys/${scopedCi.record.id}/rotate`, { method: "POST", headers: { authorization: `Bearer ${scopedAdmin}`, "content-type": "application/json" }, body: "{}" }), { params: Promise.resolve({ id: scopedCi.record.id }) });
     assert.equal(r403.status, 403, await r403.clone().text());
 
     // A maker demoted below "admin of every workspace": every key of theirs
@@ -196,9 +196,9 @@ test("one key at foldrun login: the person's yes gives the sign-in model access,
 test("the approval page is told the terms; only a signed-in person who may give model access is offered it", opts, async () => {
   const { NextRequest } = await import("next/server");
   const { beginCliLogin } = await import("../server/cli-login.ts");
-  const route = (await import("../app/api/cli/authorize/route.ts")) as { GET: (req: InstanceType<typeof NextRequest>) => Promise<Response>; POST: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
+  const route = (await import("../app/v1/cli/authorize/route.ts")) as { GET: (req: InstanceType<typeof NextRequest>) => Promise<Response>; POST: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
   const req = await beginCliLogin("laptop");
-  const open = (await (await route.GET(new NextRequest(`https://app.example.test/api/cli/authorize?code=${req.code}`))).json()) as Json;
+  const open = (await (await route.GET(new NextRequest(`https://app.example.test/v1/cli/authorize?code=${req.code}`))).json()) as Json;
   assert.deepEqual(open.modelAccess, { offered: false, capUsd: null, dailyUsd: 100, walletUsd: 20 }, "nobody signed in: the terms, not offered");
 });
 
@@ -215,12 +215,12 @@ test("one key at submission: a run started with it is queued, and the reusable k
   fs.mkdirSync(path.join(ws, "flows"), { recursive: true });
   fs.writeFileSync(path.join(ws, "flows", "nightly.md"), "---\ntrigger: schedule\nschedule: \"0 3 * * *\"\n---\n\n1. [[coder]] — Tidy up.\n");
   const { key } = await createApiKey(tenant, "ci", "ana@one.test", undefined, "editor", null, { models: { capUsd: null, dailyUsd: 5, walletUsd: 0 } });
-  const agentRun = (await import("../app/api/workspaces/[workspace]/agents/[agent]/run/route.ts")) as { POST: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string; agent: string }> }) => Promise<Response> };
-  const flowRun = (await import("../app/api/workspaces/[workspace]/flows/[flow]/run/route.ts")) as { POST: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string; flow: string }> }) => Promise<Response> };
+  const agentRun = (await import("../app/v1/workspaces/[workspace]/agents/[agent]/run/route.ts")) as { POST: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string; agent: string }> }) => Promise<Response> };
+  const flowRun = (await import("../app/v1/workspaces/[workspace]/flows/[flow]/run/route.ts")) as { POST: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string; flow: string }> }) => Promise<Response> };
   const post = (url: string, body: unknown) => new NextRequest(url, { method: "POST", headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify(body) });
-  const a = await agentRun.POST(post(`https://app.example.test/api/workspaces/desk/agents/coder/run`, { task: "add a test" }), { params: Promise.resolve({ workspace: "desk", agent: "coder" }) });
+  const a = await agentRun.POST(post(`https://app.example.test/v1/workspaces/desk/agents/coder/run`, { task: "add a test" }), { params: Promise.resolve({ workspace: "desk", agent: "coder" }) });
   assert.equal(a.status, 200, await a.clone().text());
-  const f = await flowRun.POST(post(`https://app.example.test/api/workspaces/desk/flows/nightly/run`, {}), { params: Promise.resolve({ workspace: "desk", flow: "nightly" }) });
+  const f = await flowRun.POST(post(`https://app.example.test/v1/workspaces/desk/flows/nightly/run`, {}), { params: Promise.resolve({ workspace: "desk", flow: "nightly" }) });
   assert.equal(f.status, 200, await f.clone().text());
 
   const secret = key.slice(7); // the part after fr_api_

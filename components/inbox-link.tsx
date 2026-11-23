@@ -2,7 +2,7 @@
 
 // The bell, beside the person at the foot of the sidebar: a door to the
 // inbox, with a blue dot while something there is unread
-// (GET /api/me/inbox's counts.unread). Asked once a minute and on every
+// (GET /v1/me/inbox's counts.unread). Asked once a minute and on every
 // navigation, by one shared poll; hidden when there is no person to have an
 // inbox (dev mode with nobody signed in).
 
@@ -22,7 +22,7 @@ const listeners = new Set<() => void>();
 let lastKey = "";
 let timer: ReturnType<typeof setInterval> | null = null;
 function load(tenant: string) {
-  fetch("/api/me/inbox", { headers: { "x-foldrun-tenant": tenant } })
+  fetch("/v1/me/inbox", { headers: { "x-foldrun-tenant": tenant } })
     .then((r) => (r.ok ? r.json() : null))
     .then((d: { counts?: { unread?: number } } | null) => {
       unread = d?.counts ? (d.counts.unread ?? 0) : null;

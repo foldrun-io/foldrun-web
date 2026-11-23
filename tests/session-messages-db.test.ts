@@ -35,8 +35,8 @@ test("send, read, include in one turn only; all or none; who may", opts, async (
   await migrate();
   const { NextRequest } = await import("next/server");
   const { createApiKey } = await import("../server/auth.ts");
-  const messages = await import("../app/api/workspaces/[workspace]/sessions/[context]/messages/route.ts");
-  const run = await import("../app/api/workspaces/[workspace]/agents/[agent]/run/route.ts");
+  const messages = await import("../app/v1/workspaces/[workspace]/sessions/[context]/messages/route.ts");
+  const run = await import("../app/v1/workspaces/[workspace]/agents/[agent]/run/route.ts");
   const { readRun } = await import("@/lib/store");
 
   const editor = (await createApiKey(TENANT, "ed", "ana@acme.test", undefined, "editor")).key;
@@ -45,7 +45,7 @@ test("send, read, include in one turn only; all or none; who may", opts, async (
 
   const req = (method: string, key: string, p: string, body?: unknown) =>
     new NextRequest(`https://app.example.test${p}`, { method, headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
-  const M = (ctx: string, q = "") => `/api/workspaces/desk/sessions/${ctx}/messages${q}`;
+  const M = (ctx: string, q = "") => `/v1/workspaces/desk/sessions/${ctx}/messages${q}`;
   const mp = (context: string) => ({ params: Promise.resolve({ workspace: "desk", context }) });
   const rp = { params: Promise.resolve({ workspace: "desk", agent: "coder" }) };
 
@@ -68,13 +68,13 @@ test("send, read, include in one turn only; all or none; who may", opts, async (
   assert.equal((await messages.GET(req("GET", elsewhere, M("code-b")), mp("code-b"))).status, 403);
 
   // A turn includes them: only with a context; all or none.
-  assert.equal((await run.POST(req("POST", editor, "/api/workspaces/desk/agents/coder/run", { task: "go", messages: [m1.id] }), rp)).status, 400, "no context, no messages");
-  assert.equal((await run.POST(req("POST", editor, "/api/workspaces/desk/agents/coder/run", { task: "go", context: "code-b", messages: ["not-an-id"] }), rp)).status, 400);
-  const wrong = await run.POST(req("POST", editor, "/api/workspaces/desk/agents/coder/run", { task: "go", context: "code-c", messages: [m1.id] }), rp);
+  assert.equal((await run.POST(req("POST", editor, "/v1/workspaces/desk/agents/coder/run", { task: "go", messages: [m1.id] }), rp)).status, 400, "no context, no messages");
+  assert.equal((await run.POST(req("POST", editor, "/v1/workspaces/desk/agents/coder/run", { task: "go", context: "code-b", messages: ["not-an-id"] }), rp)).status, 400);
+  const wrong = await run.POST(req("POST", editor, "/v1/workspaces/desk/agents/coder/run", { task: "go", context: "code-c", messages: [m1.id] }), rp);
   assert.equal(wrong.status, 409, "another conversation's message is refused");
   assert.deepEqual((await wrong.json()).refused, [m1.id]);
 
-  const ok = await run.POST(req("POST", editor, "/api/workspaces/desk/agents/coder/run", { task: "go", context: "code-b", messages: [m2.id, m1.id] }), rp);
+  const ok = await run.POST(req("POST", editor, "/v1/workspaces/desk/agents/coder/run", { task: "go", context: "code-b", messages: [m2.id, m1.id] }), rp);
   assert.equal(ok.status, 200, await ok.clone().text());
   const started = await ok.json();
   assert.deepEqual(started.messages, [m1.id, m2.id], "in the order sent");
@@ -88,13 +88,13 @@ test("send, read, include in one turn only; all or none; who may", opts, async (
   assert.deepEqual((await (await messages.GET(req("GET", viewer, M("code-b", "?waiting=1")), mp("code-b"))).json()).messages, []);
   const all = await (await messages.GET(req("GET", viewer, M("code-b")), mp("code-b"))).json();
   assert.ok(all.messages.every((m: { run?: string }) => m.run === started.runId));
-  const again = await run.POST(req("POST", editor, "/api/workspaces/desk/agents/coder/run", { task: "again", context: "code-b", messages: [m1.id] }), rp);
+  const again = await run.POST(req("POST", editor, "/v1/workspaces/desk/agents/coder/run", { task: "again", context: "code-b", messages: [m1.id] }), rp);
   assert.equal(again.status, 409);
   // More than fits in one turn's block: those that fit go in and are the
   // run's; the rest wait again, named in `left` — none marked used unread.
   const big: string[] = [];
   for (let i = 0; i < 6; i++) big.push((await (await messages.POST(req("POST", editor, M("code-z"), { text: String(i).repeat(4000) }), mp("code-z"))).json()).message.id);
-  const part = await run.POST(req("POST", editor, "/api/workspaces/desk/agents/coder/run", { task: "go", context: "code-z", messages: big }), rp);
+  const part = await run.POST(req("POST", editor, "/v1/workspaces/desk/agents/coder/run", { task: "go", context: "code-z", messages: big }), rp);
   assert.equal(part.status, 200);
   const partBody = await part.json();
   assert.ok(partBody.messages.length >= 3 && partBody.messages.length < 6, `fit ${partBody.messages.length}`);

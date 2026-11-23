@@ -21,9 +21,9 @@ process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
-const bulkRoute = await import("../app/api/workspaces/[workspace]/runs/bulk/route.ts");
-const runRoute = await import("../app/api/workspaces/[workspace]/runs/[runId]/route.ts");
-const listRoute = await import("../app/api/workspaces/[workspace]/runs/route.ts");
+const bulkRoute = await import("../app/v1/workspaces/[workspace]/runs/bulk/route.ts");
+const runRoute = await import("../app/v1/workspaces/[workspace]/runs/[runId]/route.ts");
+const listRoute = await import("../app/v1/workspaces/[workspace]/runs/route.ts");
 
 const TENANT = "acme";
 const WS = "desk";
@@ -40,7 +40,7 @@ const { key: editor } = await createApiKey(TENANT, "ed", "owner@acme.test", unde
 const { key: admin } = await createApiKey(TENANT, "ad", "owner@acme.test", undefined, "admin");
 const post = (key: string, body: unknown) =>
   bulkRoute.POST(
-    new NextRequest(`http://localhost/api/workspaces/${WS}/runs/bulk`, {
+    new NextRequest(`http://localhost/v1/workspaces/${WS}/runs/bulk`, {
       method: "POST",
       headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
       body: JSON.stringify(body),
@@ -48,7 +48,7 @@ const post = (key: string, body: unknown) =>
     { params: Promise.resolve({ workspace: WS }) },
   );
 const get = (key: string, id: string) =>
-  runRoute.GET(new NextRequest(`http://localhost/api/workspaces/${WS}/runs/${id}`, { headers: { authorization: `Bearer ${key}` } }), { params: Promise.resolve({ workspace: WS, runId: id }) });
+  runRoute.GET(new NextRequest(`http://localhost/v1/workspaces/${WS}/runs/${id}`, { headers: { authorization: `Bearer ${key}` } }), { params: Promise.resolve({ workspace: WS, runId: id }) });
 
 test("delete everything older than a date: finished runs only, an admin's, record and outputs both", async () => {
   for (let i = 0; i < 105; i++) put(`run-old${String(i).padStart(3, "0")}`, "completed", `2026-07-01T${String(i % 24).padStart(2, "0")}:00:00Z`);
@@ -85,7 +85,7 @@ test("one run's GET says why it failed, as the list does — class, message and 
   assert.equal(one.failure.message, "The step ran out of memory. Memory limit: 4 GiB; last recorded peak: 3.9 GiB.");
   assert.match(one.failure.fix, /size:/);
   assert.equal(one.failure.reason, "sandbox ended: OOMKilled (exit 137)", "the step's own words stay beside it");
-  const list = await (await listRoute.GET(new NextRequest(`http://localhost/api/workspaces/${WS}/runs`, { headers: { authorization: `Bearer ${editor}` } }), { params: Promise.resolve({ workspace: WS }) })).json();
+  const list = await (await listRoute.GET(new NextRequest(`http://localhost/v1/workspaces/${WS}/runs`, { headers: { authorization: `Bearer ${editor}` } }), { params: Promise.resolve({ workspace: WS }) })).json();
   const row = list.runs.find((r: { id: string }) => r.id === "run-oom");
   assert.equal(row.failure.message, one.failure.message, "the list says the same");
   const ok = await (await get(editor, "run-new")).json();

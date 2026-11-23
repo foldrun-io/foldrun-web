@@ -44,12 +44,12 @@ const { createUser, mintSession, findUserById, changePassword, setMfa, SESSION_C
 const { mintToken, CHALLENGE_TTL_MS } = await import("../server/auth-tokens.ts");
 const { totp, hashBackup } = await import("../server/totp.ts");
 const { rateLimitReset } = await import("@/platform/cache");
-const emailRoute = await import("../app/api/auth/email/route.ts");
-const verifyRoute = await import("../app/api/auth/verify/route.ts");
-const mfaVerify = await import("../app/api/auth/mfa/verify/route.ts");
-const login = await import("../app/api/auth/login/route.ts");
-const signup = await import("../app/api/auth/signup/route.ts");
-const nameRoute = await import("../app/api/auth/name/route.ts");
+const emailRoute = await import("../app/v1/auth/email/route.ts");
+const verifyRoute = await import("../app/v1/auth/verify/route.ts");
+const mfaVerify = await import("../app/v1/auth/mfa/verify/route.ts");
+const login = await import("../app/v1/auth/login/route.ts");
+const signup = await import("../app/v1/auth/signup/route.ts");
+const nameRoute = await import("../app/v1/auth/name/route.ts");
 const { refuseNonText } = await import("../server/auth-input.ts");
 
 const PW = "a long enough password 1";
@@ -60,9 +60,9 @@ const json = (body: unknown, headers: Record<string, string> = {}) => ({
 });
 const cookieFor = async (id: string) => `${SESSION_COOKIE}=${(await mintSession((await findUserById(id))!)).value}`;
 const askMove = (cookie: string, email: unknown, password: unknown = PW) =>
-  emailRoute.POST(new NextRequest("http://x/api/auth/email", json({ email, password }, { cookie })));
+  emailRoute.POST(new NextRequest("http://x/v1/auth/email", json({ email, password }, { cookie })));
 const mailTo = (to: string) => mails.filter((m) => m.to === to);
-const linkIn = (text: string) => text.match(/http:\/\/x\/api\/auth\/verify\?token=\S+/)?.[0] ?? null;
+const linkIn = (text: string) => text.match(/http:\/\/x\/v1\/auth\/verify\?token=\S+/)?.[0] ?? null;
 const click = (url: string) => verifyRoute.GET(new NextRequest(url));
 
 test("asking to move: the same answer for a taken and a free address, and nothing moves yet", async () => {
@@ -186,7 +186,7 @@ test("an install that sends no mail refuses the move and says how to set mail up
 
 const SECRET = "JBSWY3DPEHPK3PXP";
 const verifyCode = (userId: string, code: string) =>
-  mfaVerify.POST(new NextRequest("http://x/api/auth/mfa/verify", json({ challenge: mintToken("mfa-challenge", { u: userId }, CHALLENGE_TTL_MS), code })));
+  mfaVerify.POST(new NextRequest("http://x/v1/auth/mfa/verify", json({ challenge: mintToken("mfa-challenge", { u: userId }, CHALLENGE_TTL_MS), code })));
 /** A six-digit code the app would not show now or either side of now. */
 const wrongCode = (i: number) => {
   const near = new Set([-1, 0, 1].map((w) => totp(SECRET, Date.now() + w * 30_000)));
@@ -233,7 +233,7 @@ test("a closed install refuses a sign-up before it looks at the password", async
   process.env.FOLDRUN_OPEN_SIGNUP = "0";
   try {
     // "short" would fail the password policy first if that still ran first.
-    const r = await signup.POST(new NextRequest("http://x/api/auth/signup", json({ email: "stranger@people.test", password: "short", account: "stranger" })));
+    const r = await signup.POST(new NextRequest("http://x/v1/auth/signup", json({ email: "stranger@people.test", password: "short", account: "stranger" })));
     assert.equal(r.status, 400);
     assert.equal((await r.json()).error, "signups are closed on this install");
   } finally {
@@ -242,13 +242,13 @@ test("a closed install refuses a sign-up before it looks at the password", async
 });
 
 test("a field that should be text and is not is a 400, not a 500", async () => {
-  const l = await login.POST(new NextRequest("http://x/api/auth/login", json({ email: 1, password: "x" })));
+  const l = await login.POST(new NextRequest("http://x/v1/auth/login", json({ email: 1, password: "x" })));
   assert.equal(l.status, 400);
   assert.equal((await l.json()).error, "email must be text");
-  const s = await signup.POST(new NextRequest("http://x/api/auth/signup", json({ email: ["a@b.c"], password: PW })));
+  const s = await signup.POST(new NextRequest("http://x/v1/auth/signup", json({ email: ["a@b.c"], password: PW })));
   assert.equal(s.status, 400);
   const me = await createUser("typed@people.test", PW, "people-typed", { request: "free" });
-  const n = await nameRoute.POST(new NextRequest("http://x/api/auth/name", json({ firstName: 5 }, { cookie: await cookieFor(me.id) })));
+  const n = await nameRoute.POST(new NextRequest("http://x/v1/auth/name", json({ firstName: 5 }, { cookie: await cookieFor(me.id) })));
   assert.equal(n.status, 400);
   assert.equal((await askMove(await cookieFor(me.id), { a: 1 })).status, 400);
   // The guard itself: absent and null are left to the route.

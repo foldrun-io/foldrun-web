@@ -58,7 +58,7 @@ export function HookTest({
     setBusy(true);
     setResult(null);
     try {
-      const res = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/hooks/${encodeURIComponent(hook)}/test`, {
+      const res = await fetch(`/v1/workspaces/${encodeURIComponent(workspace)}/hooks/${encodeURIComponent(hook)}/test`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-foldrun-tenant": tenant, "idempotency-key": crypto.randomUUID() },
         body: JSON.stringify({ event: parsed }),

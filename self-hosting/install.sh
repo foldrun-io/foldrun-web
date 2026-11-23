@@ -592,8 +592,8 @@ main() {
     case $setup in ????????????????????????????????) ;; *) die "could not make a setup token" ;; esac
     set_env FOLDRUN_SETUP_TOKEN "$setup"
   fi
-  # /api/healthz tells a stranger only "ok"; whether a worker is alive needs
-  # this token (the scraper's, also what /api/metrics takes). Written once.
+  # /v1/healthz tells a stranger only "ok"; whether a worker is alive needs
+  # this token (the scraper's, also what /v1/metrics takes). Written once.
   if [ -z "$(get_env FOLDRUN_METRICS_TOKEN)" ]; then
     if have openssl; then probe_token=$(openssl rand -hex 16); else probe_token=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n'); fi
     case $probe_token in ????????????????????????????????) ;; *) die "could not make a health token" ;; esac
@@ -660,7 +660,7 @@ main() {
   tries=0
   probe_token=$(get_env FOLDRUN_METRICS_TOKEN)
   # The token goes in on stdin, not in argv, where `ps` would show it.
-  until printf 'header = "Authorization: Bearer %s"\n' "$probe_token" | curl -fsS --max-time 5 -K - "http://$probe:3900/api/healthz" 2>/dev/null | grep -q '"workerAlive":true'; do
+  until printf 'header = "Authorization: Bearer %s"\n' "$probe_token" | curl -fsS --max-time 5 -K - "http://$probe:3900/v1/healthz" 2>/dev/null | grep -q '"workerAlive":true'; do
     tries=$((tries + 1))
     [ "$tries" -lt 60 ] || die "it did not come up in 3 minutes — see: cd $dir && docker compose logs platform"
     sleep 3

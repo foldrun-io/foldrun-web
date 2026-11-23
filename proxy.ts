@@ -21,7 +21,6 @@ import { errorBody } from "@/server/error-shape";
 import { versionHeaders } from "@/server/release";
 import { storeOrigin } from "@/lib/storage";
 import { unsafeApiPath } from "@/server/raw-path";
-import { V1_DIRECT_REFUSAL } from "@/server/v1-path";
 
 /** X-Foldrun-Version (and X-Foldrun-Api, X-Foldrun-Cli) on a response, so any
  *  client — the CLI's update notice, a script, a support ticket's curl -i —
@@ -42,8 +41,8 @@ function stamped(res: NextResponse): NextResponse {
  * 2026) and which set their own headers.
  */
 function selfHardened(pathname: string): boolean {
-  if (pathname.startsWith("/api/avatars/") || pathname.startsWith("/api/approve/") || pathname.startsWith("/s/")) return true;
-  const m = pathname.match(/^\/api\/workspaces\/[^/]+\/(.+)$/);
+  if (pathname.startsWith("/v1/avatars/") || pathname.startsWith("/v1/approve/") || pathname.startsWith("/s/")) return true;
+  const m = pathname.match(/^\/v1\/workspaces\/[^/]+\/(.+)$/);
   if (!m) return false;
   return m[1] === "storage/download" || /^runs\/[^/]+\/(archive|live)$/.test(m[1]);
 }
@@ -129,9 +128,9 @@ function makeNonce(): string {
 }
 
 /**
- * /a2a/… — outside agents (A2A, 1 Nov 2026). The same floor as /api: the
+ * /a2a/… — outside agents (A2A, 1 Nov 2026). The same floor as /v1: the
  * raw-path guard, a body limit, the cross-site rule and the rate gate,
- * before any route runs. Not /api's Foldrun-Version (A2A has its own
+ * before any route runs. Not /v1's Foldrun-Version (A2A has its own
  * A2A-Version, which the route answers) and never a session: the cookie is
  * taken off the request, so nothing behind it can authenticate with one —
  * an /a2a route takes an A2A key, Bearer, and nothing else. Refusals are
@@ -191,19 +190,14 @@ export async function proxy(incoming: NextRequest) {
   let req = incoming;
   const nonce = makeNonce();
   if (/^\/a2a(\/|$)/.test(req.nextUrl.pathname)) return harden(stamped(await a2aIngress(req)), req, nonce);
-  // The platform under /v1 is the API host's: its nginx maps /v1/<route> to
-  // /api/<route> before this app sees it (server/v1-path.ts), so every check
-  // and handler reads one spelling. A /v1 path that reaches the app as it is
-  // came some other way — the dashboard's address, or no nginx at all.
-  if (/^\/v1(\/|$)/.test(req.nextUrl.pathname)) return harden(stamped(await proxyRefusal(req, V1_DIRECT_REFUSAL, 404)), req, nonce);
-  if (!req.nextUrl.pathname.startsWith("/api/") && !/^\/dashboard(\/|$)/.test(req.nextUrl.pathname)) {
+  if (!req.nextUrl.pathname.startsWith("/v1/") && !/^\/dashboard(\/|$)/.test(req.nextUrl.pathname)) {
     // Every other page (sign-in, signup, reset, the home page): no session
     // logic, but the same security headers as the dashboard. Until 27 Oct
     // 2026 they got none — the quality stack's ZAP scan found a frameable
     // sign-in page with no CSP, nosniff or Permissions-Policy.
     return harden(NextResponse.next({ request: { headers: forward(req, nonce) } }), req, nonce);
   }
-  if (req.nextUrl.pathname.startsWith("/api/")) {
+  if (req.nextUrl.pathname.startsWith("/v1/")) {
     // An encoded / \ or NUL, or a . / .. segment, in the raw path: no route
     // takes one, and a decoded %2F turns a name into a path (30 Oct 2026,
     // server/raw-path.ts). Refused before anything else reads the request.

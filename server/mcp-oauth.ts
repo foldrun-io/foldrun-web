@@ -1,16 +1,16 @@
 // MCP over OAuth (1 Nov 2026): the sign-in an AI app such as claude.ai uses
-// to reach POST /api/mcp without a pasted key.
+// to reach POST /v1/mcp without a pasted key.
 //
 // The MCP authorization spec (2025-11-25, and the 2025-06-18 and 2025-03-26
 // revisions claude.ai speaks) on top of OAuth 2.1:
 //
-//   /.well-known/oauth-protected-resource[/api/mcp]   RFC 9728: which server signs in for /api/mcp
+//   /.well-known/oauth-protected-resource[/v1/mcp]   RFC 9728: which server signs in for /v1/mcp
 //   /.well-known/oauth-authorization-server           RFC 8414: the endpoints below, PKCE S256 only
-//   POST /api/mcp/oauth/register                      RFC 7591: an app registers itself
-//   /mcp/authorize  (page) → POST /api/mcp/oauth/authorize   a signed-in person approves
-//   POST /api/mcp/oauth/token                         code → tokens; refresh → new tokens
-//   POST /api/mcp/oauth/revoke                        RFC 7009: the app ends its own connection
-//   POST /api/mcp/clients                             an admin registers a machine client (client credentials)
+//   POST /v1/mcp/oauth/register                      RFC 7591: an app registers itself
+//   /mcp/authorize  (page) → POST /v1/mcp/oauth/authorize   a signed-in person approves
+//   POST /v1/mcp/oauth/token                         code → tokens; refresh → new tokens
+//   POST /v1/mcp/oauth/revoke                        RFC 7009: the app ends its own connection
+//   POST /v1/mcp/clients                             an admin registers a machine client (client credentials)
 //
 // An app may also name itself by an https URL (a Client ID Metadata Document):
 // the document is fetched through the SSRF guard, and its redirect_uris are
@@ -18,8 +18,8 @@
 //
 // What a person approves is a *grant*: one app, one account, the workspaces
 // and the access (read only, or read and act) they chose, never more than
-// their own. Every token is bound to that grant and to /api/mcp (RFC 8707):
-// an access token opens /api/mcp and the routes its tools call, and nothing
+// their own. Every token is bound to that grant and to /v1/mcp (RFC 8707):
+// an access token opens /v1/mcp and the routes its tools call, and nothing
 // else. The grant's role and workspaces are checked against the person's own
 // at every use, so a person removed from the account, or moved to viewer,
 // takes their apps with them. Revoking the grant ends every token it issued (a machine client handing back one token ends that token only).
@@ -154,12 +154,12 @@ export class OAuthError extends Error {
 /** The issuer, and the one resource its tokens are for. */
 export function issuerOf(origin: string): { issuer: string; resource: string } {
   const issuer = origin.replace(/\/+$/, "");
-  return { issuer, resource: `${issuer}/api/mcp` };
+  return { issuer, resource: `${issuer}/v1/mcp` };
 }
 
-export const resourceMetadataUrl = (origin: string) => `${issuerOf(origin).issuer}/.well-known/oauth-protected-resource/api/mcp`;
+export const resourceMetadataUrl = (origin: string) => `${issuerOf(origin).issuer}/.well-known/oauth-protected-resource/v1/mcp`;
 
-/** RFC 9728 — what /api/mcp is, and who signs in for it. */
+/** RFC 9728 — what /v1/mcp is, and who signs in for it. */
 export function protectedResourceMetadata(origin: string) {
   const { issuer, resource } = issuerOf(origin);
   return {
@@ -178,9 +178,9 @@ export function authorizationServerMetadata(origin: string) {
   return {
     issuer,
     authorization_endpoint: `${issuer}/mcp/authorize`,
-    token_endpoint: `${issuer}/api/mcp/oauth/token`,
-    registration_endpoint: `${issuer}/api/mcp/oauth/register`,
-    revocation_endpoint: `${issuer}/api/mcp/oauth/revoke`,
+    token_endpoint: `${issuer}/v1/mcp/oauth/token`,
+    registration_endpoint: `${issuer}/v1/mcp/oauth/register`,
+    revocation_endpoint: `${issuer}/v1/mcp/oauth/revoke`,
     revocation_endpoint_auth_methods_supported: [...AUTH_METHODS],
     revocation_endpoint_auth_signing_alg_values_supported: [...ASSERTION_ALGS],
     scopes_supported: [...SCOPES],
@@ -517,7 +517,7 @@ async function authenticateAssertion(form: URLSearchParams, origin: string): Pro
     verified = verifyClientAssertion(assertion, {
       clientId: client.client_id,
       // The issuer, or the endpoint it was sent to (RFC 7523 §3; its successor names the issuer).
-      audiences: [issuer, `${issuer}/api/mcp/oauth/token`, `${issuer}/api/mcp/oauth/revoke`],
+      audiences: [issuer, `${issuer}/v1/mcp/oauth/token`, `${issuer}/v1/mcp/oauth/revoke`],
       keys: await clientKeys(client, kid),
     });
   } catch (err) {
@@ -585,7 +585,7 @@ async function mint(grant: GrantRecord, clientId: string, accessScope = grant.sc
   return { access_token: access, token_type: "Bearer", expires_in: ACCESS_SECONDS, refresh_token: refresh, scope: accessScope };
 }
 
-/** POST /api/mcp/oauth/token — a code for tokens, or a refresh token for new ones. */
+/** POST /v1/mcp/oauth/token — a code for tokens, or a refresh token for new ones. */
 export async function tokenRequest(form: URLSearchParams, authorization: string | null, origin: string): Promise<TokenAnswer> {
   const client = await authenticateClient(form, authorization, origin);
   const type = form.get("grant_type");
@@ -708,7 +708,7 @@ export async function registerMachineClient(input: {
 }
 
 /**
- * POST /api/mcp/oauth/revoke (RFC 7009): an app hands back one of its tokens.
+ * POST /v1/mcp/oauth/revoke (RFC 7009): an app hands back one of its tokens.
  * The app authenticates as at the token endpoint. Revoking either token of a
  * connection a person made ends the connection — every token its grant
  * issued — since an app that throws away its access token has no use for the
@@ -744,7 +744,7 @@ export interface ResolvedToken {
   grant: GrantRecord;
 }
 
-/** An access token presented to /api/mcp: its grant, or why not. */
+/** An access token presented to /v1/mcp: its grant, or why not. */
 export async function resolveAccessToken(token: string): Promise<{ ok: true; grant: GrantRecord; readOnly: boolean } | { ok: false; message: string }> {
   const t = await tokens.get(INSTALL, sha(token));
   if (!t || t.kind !== "access" || !t.grantId) return { ok: false, message: "invalid access token" };

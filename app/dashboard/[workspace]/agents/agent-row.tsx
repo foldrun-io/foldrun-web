@@ -62,7 +62,7 @@ export function AgentRow({
           </Link>
           <span className="opacity-0 transition-opacity group-hover:opacity-100">
             <DeleteButton
-              endpoint={`/api/workspaces/${workspace}/source`}
+              endpoint={`/v1/workspaces/${workspace}/source`}
               tenant={tenant}
               body={{ path: `agents/${name}` }}
               confirmText={$t("workspace.agents-agent-row.deleteAgent", { name: String(name) })}
@@ -70,7 +70,7 @@ export function AgentRow({
           </span>
           {/* The task is asked for in a dialog, so the row keeps its shape. */}
           <RunButton
-            endpoint={`/api/workspaces/${workspace}/agents/${name}/run`}
+            endpoint={`/v1/workspaces/${workspace}/agents/${name}/run`}
             tenant={tenant}
             label={$t("workspace.agents-agent-row.run")}
             dialog

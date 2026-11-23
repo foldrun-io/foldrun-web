@@ -4,8 +4,8 @@
 //   - POST …/agents/<agent>/run and …/hooks/<name>/test refuse a name that
 //     is a path (Next decodes %2F in a segment);
 //   - a write into a workspace that does not exist is a 404 and makes nothing;
-//   - a deploy to a new name needs workspace:manage, as POST /api/workspaces;
-//   - POST /api/workspaces over an existing name takes the deploy's gate;
+//   - a deploy to a new name needs workspace:manage, as POST /v1/workspaces;
+//   - POST /v1/workspaces over an existing name takes the deploy's gate;
 //   - PATCH { description } cannot add frontmatter keys.
 //
 //   node --import ./tests/register.mjs --test tests/workspace-names-gate.test.ts
@@ -27,12 +27,12 @@ const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 type Req = InstanceType<typeof NextRequest>;
 type Ctx<P> = { params: Promise<P> };
-const agentRun = (await import("../app/api/workspaces/[workspace]/agents/[agent]/run/route.ts")) as unknown as { POST: (r: Req, c: Ctx<{ workspace: string; agent: string }>) => Promise<Response> };
-const hookTest = (await import("../app/api/workspaces/[workspace]/hooks/[flow]/test/route.ts")) as unknown as { POST: (r: Req, c: Ctx<{ workspace: string; flow: string }>) => Promise<Response> };
-const deploy = (await import("../app/api/workspaces/[workspace]/deploy/route.ts")) as unknown as { POST: (r: Req, c: Ctx<{ workspace: string }>) => Promise<Response> };
-const flows = (await import("../app/api/workspaces/[workspace]/flows/route.ts")) as unknown as { POST: (r: Req, c: Ctx<{ workspace: string }>) => Promise<Response> };
-const workspaces = (await import("../app/api/workspaces/route.ts")) as unknown as { POST: (r: Req) => Promise<Response> };
-const workspace = (await import("../app/api/workspaces/[workspace]/route.ts")) as unknown as { PATCH: (r: Req, c: Ctx<{ workspace: string }>) => Promise<Response> };
+const agentRun = (await import("../app/v1/workspaces/[workspace]/agents/[agent]/run/route.ts")) as unknown as { POST: (r: Req, c: Ctx<{ workspace: string; agent: string }>) => Promise<Response> };
+const hookTest = (await import("../app/v1/workspaces/[workspace]/hooks/[flow]/test/route.ts")) as unknown as { POST: (r: Req, c: Ctx<{ workspace: string; flow: string }>) => Promise<Response> };
+const deploy = (await import("../app/v1/workspaces/[workspace]/deploy/route.ts")) as unknown as { POST: (r: Req, c: Ctx<{ workspace: string }>) => Promise<Response> };
+const flows = (await import("../app/v1/workspaces/[workspace]/flows/route.ts")) as unknown as { POST: (r: Req, c: Ctx<{ workspace: string }>) => Promise<Response> };
+const workspaces = (await import("../app/v1/workspaces/route.ts")) as unknown as { POST: (r: Req) => Promise<Response> };
+const workspace = (await import("../app/v1/workspaces/[workspace]/route.ts")) as unknown as { PATCH: (r: Req, c: Ctx<{ workspace: string }>) => Promise<Response> };
 
 const TENANT = "acme";
 const ws = path.join(DATA, TENANT, "workspaces", "desk");
@@ -61,7 +61,7 @@ const p = <T>(v: T) => ({ params: Promise.resolve(v) });
 test("an agent name that is a path is a 400 — the other account's agent is never run", async () => {
   const agent = "../../../../bigcorp/workspaces/w/agents/spy";
   assert.ok(fs.existsSync(path.join(ws, "agents", agent, "agent.md")), "the traversal lands on a real agent");
-  const r = await agentRun.POST(req(`/api/workspaces/desk/agents/x/run`, editor, "POST", { task: "go" }), p({ workspace: "desk", agent }));
+  const r = await agentRun.POST(req(`/v1/workspaces/desk/agents/x/run`, editor, "POST", { task: "go" }), p({ workspace: "desk", agent }));
   assert.equal(r.status, 400, await r.clone().text());
   assert.match(((await r.json()) as { error: string }).error, /invalid agent/);
   assert.ok(!fs.existsSync(path.join(ws, "runs")) || fs.readdirSync(path.join(ws, "runs")).length === 0, "no run was made");
@@ -69,14 +69,14 @@ test("an agent name that is a path is a 400 — the other account's agent is nev
 
 test("a hook name that is a path is a 400, the same answer whether or not it exists", async () => {
   for (const name of ["../../../../bigcorp/workspaces/w/hooks/guard", "../../../../nobody/here"]) {
-    const r = await hookTest.POST(req(`/api/workspaces/desk/hooks/x/test`, editor, "POST", {}), p({ workspace: "desk", flow: name }));
+    const r = await hookTest.POST(req(`/v1/workspaces/desk/hooks/x/test`, editor, "POST", {}), p({ workspace: "desk", flow: name }));
     assert.equal(r.status, 400, `${name}: ${await r.clone().text()}`);
     assert.match(((await r.json()) as { error: string }).error, /invalid hook/);
   }
 });
 
 test("a write into a workspace that does not exist is a 404, and makes nothing", async () => {
-  const r = await flows.POST(req("/api/workspaces/ghost/flows", editor, "POST", { name: "x" }), p({ workspace: "ghost" }));
+  const r = await flows.POST(req("/v1/workspaces/ghost/flows", editor, "POST", { name: "x" }), p({ workspace: "ghost" }));
   assert.equal(r.status, 404, await r.clone().text());
   assert.equal(fs.existsSync(path.join(DATA, TENANT, "workspaces", "ghost")), false);
 });
@@ -86,19 +86,19 @@ test("a deploy that would make a workspace needs an admin; one to a workspace th
     { path: "AGENTS.md", content: "---\nname: new-desk\n---\n\nNew.\n" },
     { path: "agents/writer/agent.md", content: "---\nname: writer\ndescription: writes\n---\n\nWrite.\n" },
   ];
-  const refused = await deploy.POST(req("/api/workspaces/new-desk/deploy", editor, "POST", { files }), p({ workspace: "new-desk" }));
+  const refused = await deploy.POST(req("/v1/workspaces/new-desk/deploy", editor, "POST", { files }), p({ workspace: "new-desk" }));
   assert.equal(refused.status, 403, await refused.clone().text());
   assert.equal(fs.existsSync(path.join(DATA, TENANT, "workspaces", "new-desk")), false, "nothing was made");
 
-  const dry = await deploy.POST(req("/api/workspaces/new-desk/deploy", editor, "POST", { files, dryRun: true }), p({ workspace: "new-desk" }));
+  const dry = await deploy.POST(req("/v1/workspaces/new-desk/deploy", editor, "POST", { files, dryRun: true }), p({ workspace: "new-desk" }));
   assert.equal(dry.status, 200, "a dry run writes nothing and is not asked");
 
-  const made = await deploy.POST(req("/api/workspaces/new-desk/deploy", admin, "POST", { files }), p({ workspace: "new-desk" }));
+  const made = await deploy.POST(req("/v1/workspaces/new-desk/deploy", admin, "POST", { files }), p({ workspace: "new-desk" }));
   assert.equal(made.status, 200, await made.clone().text());
   assert.ok(fs.existsSync(path.join(DATA, TENANT, "workspaces", "new-desk", "AGENTS.md")), "`foldrun deploy` of a new workspace still works for an admin");
 
   const again = await deploy.POST(
-    req("/api/workspaces/new-desk/deploy", editor, "POST", { files: [{ ...files[0], content: "---\nname: new-desk\n---\n\nEdited.\n" }, files[1]] }),
+    req("/v1/workspaces/new-desk/deploy", editor, "POST", { files: [{ ...files[0], content: "---\nname: new-desk\n---\n\nEdited.\n" }, files[1]] }),
     p({ workspace: "new-desk" }),
   );
   assert.equal(again.status, 200, await again.clone().text());
@@ -107,17 +107,17 @@ test("a deploy that would make a workspace needs an admin; one to a workspace th
 test("a deploy's bad commit is a 400 and the live files are untouched", async () => {
   const before = fs.readFileSync(path.join(ws, "AGENTS.md"), "utf8");
   const r = await deploy.POST(
-    req("/api/workspaces/desk/deploy", admin, "POST", { files: [{ path: "AGENTS.md", content: "---\nname: desk\n---\n\nSwapped.\n" }], commit: "../not a commit" }),
+    req("/v1/workspaces/desk/deploy", admin, "POST", { files: [{ path: "AGENTS.md", content: "---\nname: desk\n---\n\nSwapped.\n" }], commit: "../not a commit" }),
     p({ workspace: "desk" }),
   );
   assert.equal(r.status, 400, await r.clone().text());
   assert.equal(fs.readFileSync(path.join(ws, "AGENTS.md"), "utf8"), before);
 });
 
-test("POST /api/workspaces over a name that exists takes the deploy's checks", async () => {
+test("POST /v1/workspaces over a name that exists takes the deploy's checks", async () => {
   const before = fs.readFileSync(path.join(ws, "AGENTS.md"), "utf8");
   const r = await workspaces.POST(
-    req("/api/workspaces", admin, "POST", {
+    req("/v1/workspaces", admin, "POST", {
       name: "desk",
       files: [
         { path: "AGENTS.md", content: "---\nname: desk\n---\n" },
@@ -135,7 +135,7 @@ test("POST /api/workspaces over a name that exists takes the deploy's checks", a
 
 test("PATCH { description } is one value: a newline cannot add a key", async () => {
   const r = await workspace.PATCH(
-    req("/api/workspaces/desk", admin, "PATCH", { description: "fine\nnetwork_enforce: false\nnotify: {url: https://evil.example/x}" }),
+    req("/v1/workspaces/desk", admin, "PATCH", { description: "fine\nnetwork_enforce: false\nnotify: {url: https://evil.example/x}" }),
     p({ workspace: "desk" }),
   );
   assert.equal(r.status, 200, await r.clone().text());

@@ -21,7 +21,7 @@ process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 type Handler = (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string; agent: string }> }) => Promise<Response>;
-const route = (await import("../app/api/workspaces/[workspace]/agents/[agent]/route.ts")) as unknown as { PATCH: Handler };
+const route = (await import("../app/v1/workspaces/[workspace]/agents/[agent]/route.ts")) as unknown as { PATCH: Handler };
 
 const TENANT = "acme";
 const ws = path.join(DATA, TENANT, "workspaces", "desk");
@@ -31,7 +31,7 @@ fs.writeFileSync(path.join(ws, "AGENTS.md"), "---\nname: desk\n---\n");
 const { key } = await createApiKey(TENANT, "admin", "owner@acme.test", undefined, "admin");
 const patch = (body: unknown) =>
   route.PATCH(
-    new NextRequest("http://localhost/api/workspaces/desk/agents/w", { method: "PATCH", headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify(body) }),
+    new NextRequest("http://localhost/v1/workspaces/desk/agents/w", { method: "PATCH", headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify(body) }),
     { params: Promise.resolve({ workspace: "desk", agent: "w" }) },
   );
 

@@ -27,13 +27,13 @@ delete process.env.FOLDRUN_SETUP_TOKEN;
 
 const { NextRequest } = await import("next/server");
 const { proxy } = await import("../proxy.ts");
-const login = await import("../app/api/auth/login/route.ts");
-const cliLogin = await import("../app/api/cli/login/route.ts");
+const login = await import("../app/v1/auth/login/route.ts");
+const cliLogin = await import("../app/v1/cli/login/route.ts");
 const { createUser } = await import("../server/users.ts");
 
 const HOST = "app.foldrun.test";
 const ORIGIN = `https://${HOST}`;
-const ROUTES = ["/api/auth/login", "/api/auth/signup", "/api/auth/reset", "/api/auth/forgot", "/api/auth/mfa/verify", "/api/cli/login", "/api/cli/authorize"];
+const ROUTES = ["/v1/auth/login", "/v1/auth/signup", "/v1/auth/reset", "/v1/auth/forgot", "/v1/auth/mfa/verify", "/v1/cli/login", "/v1/cli/authorize"];
 const CREDS = JSON.stringify({ email: "attacker@example.test", password: "Correct-horse-battery-9", x: "=" });
 
 const request = (p: string, headers: Record<string, string>, body = CREDS) =>
@@ -73,8 +73,8 @@ test("same-origin JSON signs in, end to end: through the proxy, then the route s
   await createUser("owner@example.test", "Correct-horse-battery-9", "acme", { request: "free" });
   const headers = { "content-type": "application/json", origin: ORIGIN, "sec-fetch-site": "same-origin" };
   const body = JSON.stringify({ email: "owner@example.test", password: "Correct-horse-battery-9" });
-  assert.equal((await throughProxy("/api/auth/login", headers, body)).passed, true);
-  const res = await login.POST(request("/api/auth/login", headers, body));
+  assert.equal((await throughProxy("/v1/auth/login", headers, body)).passed, true);
+  const res = await login.POST(request("/v1/auth/login", headers, body));
   assert.equal(res.status, 200);
   assert.match(res.headers.get("set-cookie") ?? "", /foldrun_session=/);
 });
@@ -87,7 +87,7 @@ test("the CLI's own calls still pass: the headers Node's fetch really sends, no 
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", () => r()));
   try {
     const port = (server.address() as { port: number }).port;
-    await fetch(`http://127.0.0.1:${port}/api/cli/login`, {
+    await fetch(`http://127.0.0.1:${port}/v1/cli/login`, {
       method: "POST",
       headers: { "user-agent": "foldrun-cli/5.0.1", "foldrun-version": "2026-10-01", "idempotency-key": crypto.randomUUID(), "content-type": "application/json" },
       body: JSON.stringify({ hostname: "laptop" }),
@@ -100,20 +100,20 @@ test("the CLI's own calls still pass: the headers Node's fetch really sends, no 
   const cliHeaders: Record<string, string> = {};
   for (const [k, v] of Object.entries(seen)) if (typeof v === "string" && k !== "host" && k !== "content-length" && k !== "connection") cliHeaders[k] = v;
   const body = JSON.stringify({ hostname: "laptop" });
-  const passed = await throughProxy("/api/cli/login", cliHeaders, body);
+  const passed = await throughProxy("/v1/cli/login", cliHeaders, body);
   assert.equal(passed.passed, true, `the CLI's sign-in request passes the proxy (${passed.status} ${passed.error})`);
-  const res = await cliLogin.POST(request("/api/cli/login", cliHeaders, body));
+  const res = await cliLogin.POST(request("/v1/cli/login", cliHeaders, body));
   assert.equal(res.status, 200);
   assert.ok(((await res.json()) as { code?: string }).code, "and gets its code");
   // A Bearer client elsewhere is untouched, whatever it sends.
-  assert.notEqual((await throughProxy("/api/workspaces", { authorization: "Bearer mda_x", "content-type": "text/plain" })).status, 403);
+  assert.notEqual((await throughProxy("/v1/workspaces", { authorization: "Bearer mda_x", "content-type": "text/plain" })).status, 403);
 });
 
 test("left alone: the unsubscribe form and a mail client's one-click POST are not JSON and need not be", async () => {
   // RFC 8058: a mail client POSTs List-Unsubscribe=One-Click, urlencoded, with no Origin.
-  const client = await throughProxy("/api/unsubscribe?token=t", { "content-type": "application/x-www-form-urlencoded" }, "List-Unsubscribe=One-Click");
+  const client = await throughProxy("/v1/unsubscribe?token=t", { "content-type": "application/x-www-form-urlencoded" }, "List-Unsubscribe=One-Click");
   assert.equal(client.passed, true);
   // Our own unsubscribe page posts a real HTML form.
-  const page = await throughProxy("/api/unsubscribe", { "content-type": "application/x-www-form-urlencoded", origin: ORIGIN, "sec-fetch-site": "same-origin" }, "token=t");
+  const page = await throughProxy("/v1/unsubscribe", { "content-type": "application/x-www-form-urlencoded", origin: ORIGIN, "sec-fetch-site": "same-origin" }, "token=t");
   assert.equal(page.passed, true);
 });

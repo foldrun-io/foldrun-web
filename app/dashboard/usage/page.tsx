@@ -142,7 +142,7 @@ export default async function UsagePage({
 }) {
   const { tenant = "default", tab: rawTab, from, to } = await searchParams;
   const tab: TabKey = TABS.some((t) => t.key === rawTab) ? (rawTab as TabKey) : "overview";
-  // A member scoped to some workspaces sees those, as GET /api/usage answers.
+  // A member scoped to some workspaces sees those, as GET /v1/account/usage answers.
   const scope = await viewerScope();
   // The period bounds Tokens and Compute, as ?from&to do the API's; a bad day
   // is said, and the month so far shown.

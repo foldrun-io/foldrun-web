@@ -21,11 +21,11 @@ process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 type Ctx<P> = { params: Promise<P> };
-const source = (await import("../app/api/workspaces/[workspace]/source/route.ts")) as {
+const source = (await import("../app/v1/workspaces/[workspace]/source/route.ts")) as {
   GET: (req: InstanceType<typeof NextRequest>, ctx: Ctx<{ workspace: string }>) => Promise<Response>;
   PUT: (req: InstanceType<typeof NextRequest>, ctx: Ctx<{ workspace: string }>) => Promise<Response>;
 };
-const archive = (await import("../app/api/workspaces/[workspace]/runs/[runId]/archive/route.ts")) as {
+const archive = (await import("../app/v1/workspaces/[workspace]/runs/[runId]/archive/route.ts")) as {
   GET: (req: InstanceType<typeof NextRequest>, ctx: Ctx<{ workspace: string; runId: string }>) => Promise<Response>;
 };
 
@@ -51,11 +51,11 @@ fs.symlinkSync(path.join(outside, "secret.md"), path.join(out, "leak.md"));
 const { key } = await createApiKey(TENANT, "test", "owner@acme.test", undefined, "admin");
 const headers = { authorization: `Bearer ${key}`, "content-type": "application/json" };
 const ctx = { params: Promise.resolve({ workspace: WS }) };
-const get = (rel: string) => source.GET(new NextRequest(`http://localhost/api/workspaces/${WS}/source?path=${encodeURIComponent(rel)}`, { headers }), ctx);
+const get = (rel: string) => source.GET(new NextRequest(`http://localhost/v1/workspaces/${WS}/source?path=${encodeURIComponent(rel)}`, { headers }), ctx);
 const put = (rel: string, content: string) =>
-  source.PUT(new NextRequest(`http://localhost/api/workspaces/${WS}/source`, { method: "PUT", headers, body: JSON.stringify({ path: rel, content }) }), ctx);
+  source.PUT(new NextRequest(`http://localhost/v1/workspaces/${WS}/source`, { method: "PUT", headers, body: JSON.stringify({ path: rel, content }) }), ctx);
 const fetchOutput = (rel: string) =>
-  archive.GET(new NextRequest(`http://localhost/api/workspaces/${WS}/runs/${RUN}/archive?agent=writer&path=${encodeURIComponent(rel)}`, { headers }), {
+  archive.GET(new NextRequest(`http://localhost/v1/workspaces/${WS}/runs/${RUN}/archive?agent=writer&path=${encodeURIComponent(rel)}`, { headers }), {
     params: Promise.resolve({ workspace: WS, runId: RUN }),
   });
 

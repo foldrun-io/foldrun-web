@@ -65,7 +65,7 @@ export function AgentNetwork(p: AgentNetworkProps) {
       const setting = level || allow.length || p.own?.defaults === false
         ? { ...(level ? { level } : {}), allow, ...(p.own?.defaults === false ? { defaults: false } : {}) }
         : null;
-      const res = await fetch(`/api/workspaces/${encodeURIComponent(p.workspace)}/agents/${encodeURIComponent(p.agent)}`, {
+      const res = await fetch(`/v1/workspaces/${encodeURIComponent(p.workspace)}/agents/${encodeURIComponent(p.agent)}`, {
         method: "PATCH",
         headers: { "content-type": "application/json", "x-foldrun-tenant": p.tenant },
         body: JSON.stringify({ network: setting }),

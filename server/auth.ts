@@ -107,9 +107,9 @@ export interface ApiKeyRecord {
   /**
    * "a2a": an outside agent's key (1 Nov 2026). It opens
    * /a2a/<account>/<workspace>/… only — the flows its grant names, each
-   * published — and every /api route refuses it (resolveTenant), so it can
+   * published — and every /v1 route refuses it (resolveTenant), so it can
    * never approve a gate, answer a question, read storage or edit a file.
-   * Minted by an admin with POST /api/keys { purpose: "a2a", workspace,
+   * Minted by an admin with POST /v1/keys { purpose: "a2a", workspace,
    * flows }. Absent on every API key.
    */
   purpose?: "a2a" | "gateway";
@@ -118,15 +118,15 @@ export interface ApiKeyRecord {
   /**
    * "gateway" (10 Nov 2026): a key a coding agent (Claude Code) sends to the
    * gateway door — `ANTHROPIC_BASE_URL` + this key — and nowhere else:
-   * every /api route refuses it (resolveTenant), so it can never read a
+   * every /v1 route refuses it (resolveTenant), so it can never read a
    * workspace or mint a key. Its grant is its own spending limits, on top of
-   * the account's balance. Minted by an admin with POST /api/keys
+   * the account's balance. Minted by an admin with POST /v1/keys
    * { purpose: "gateway", capUsd?, dailyUsd? }.
    *
    * On an API key (no purpose; one key, 22 Nov 2026) it is the key's model
    * grant: always `credential: "account"` with its own limits and a
    * `principal`, given when the key was made — by the person at
-   * `foldrun login`, or by an admin of every workspace with POST /api/keys
+   * `foldrun login`, or by an admin of every workspace with POST /v1/keys
    * { models } — so the same key opens the platform API (its role and
    * workspaces, as ever) and the model routes (this grant). Read through
    * modelGrantOf; an API key without one opens no model route.
@@ -628,7 +628,7 @@ export interface Actor {
   /** A person acting through their `foldrun login` key (requirePerson with
    *  cliLogin, personOf): the key's id, for the audit trail. */
   via?: { cliLoginKey: string };
-  /** An AI app's OAuth connection to /api/mcp (server/mcp-oauth.ts): which
+  /** An AI app's OAuth connection to /v1/mcp (server/mcp-oauth.ts): which
    *  grant, which app, and whether the person made it read-only. */
   mcp?: { grant: string; client: string; readOnly: boolean };
 }
@@ -675,16 +675,16 @@ export async function apiKeyFor(
 
 /**
  * An AI app's OAuth access token (server/mcp-oauth.ts). It opens POST
- * /api/mcp, and the routes a tool there calls in-process (marked by
- * server/mcp-inner.ts) — nothing else. Bound to this install's /api/mcp
+ * /v1/mcp, and the routes a tool there calls in-process (marked by
+ * server/mcp-inner.ts) — nothing else. Bound to this install's /v1/mcp
  * (RFC 8707). It acts as the person who approved it, at the lower of the role
  * they chose then and the one they hold now, in the workspaces both allow; a
  * read-only connection is refused every write.
  */
 async function resolveMcpAccessToken(req: NextRequest, presented: string): Promise<AuthResult> {
   const inner = isMcpInnerCall(req.headers);
-  if (req.nextUrl.pathname !== "/api/mcp" && !inner) {
-    return { tenant: null, status: 403, message: "this is an AI app's connection to /api/mcp — it opens no other route; use an API key here" };
+  if (req.nextUrl.pathname !== "/v1/mcp" && !inner) {
+    return { tenant: null, status: 403, message: "this is an AI app's connection to /v1/mcp — it opens no other route; use an API key here" };
   }
   const got = await resolveAccessToken(presented);
   if (!got.ok) return { tenant: null, status: 401, message: got.message };
@@ -740,10 +740,10 @@ export async function resolveTenant(req: NextRequest): Promise<AuthResult> {
     if (record.scope) return keyRefused(req, 403, "this is a deploy key — they went with the platform's own git (17 Oct 2026); mint an account key instead", "deploy_key", record);
     // An A2A key opens /a2a/… and nothing here: not runs, not approvals,
     // not answers, not storage, not source. Refused in the funnel every
-    // /api route goes through, so no route can forget to.
-    if (record.purpose === "a2a") return keyRefused(req, 403, "this is an A2A key — it opens /a2a/<account>/<workspace>/… (the agent card and the A2A endpoint of the flows it names) and no /api route; use an API key here", "a2a_key_here", record);
+    // /v1 route goes through, so no route can forget to.
+    if (record.purpose === "a2a") return keyRefused(req, 403, "this is an A2A key — it opens /a2a/<account>/<workspace>/… (the agent card and the A2A endpoint of the flows it names) and no /v1 route; use an API key here", "a2a_key_here", record);
     // A gateway key opens the gateway door and nothing here, the same way.
-    if (record.purpose === "gateway") return keyRefused(req, 403, "this is a gateway key — it is for a coding agent's ANTHROPIC_BASE_URL (the gateway's /v1/messages) and opens no /api route; use an API key here", "gateway_key_here", record);
+    if (record.purpose === "gateway") return keyRefused(req, 403, "this is a gateway key — it is for a coding agent's ANTHROPIC_BASE_URL (the gateway's /v1/messages) and opens no /v1 route; use an API key here", "gateway_key_here", record);
     await noteKeyUse(record, req.headers);
     return {
       tenant: record.tenant,
@@ -828,7 +828,7 @@ export async function resolveA2aKey(req: Pick<NextRequest, "headers">): Promise<
   if (!record) return { ok: false, status: 401, message: "invalid A2A key" };
   if (record.revokedAt) return { ok: false, status: 401, message: "A2A key revoked" };
   if (keyExpired(record)) return { ok: false, status: 401, message: `A2A key expired on ${record.expiresAt!.slice(0, 10)}` };
-  if (record.purpose !== "a2a" || !record.a2a || record.scope) return { ok: false, status: 403, message: "this is not an A2A key — /a2a takes a key minted for A2A (POST /api/keys { purpose: \"a2a\", workspace, flows })" };
+  if (record.purpose !== "a2a" || !record.a2a || record.scope) return { ok: false, status: 403, message: "this is not an A2A key — /a2a takes a key minted for A2A (POST /v1/keys { purpose: \"a2a\", workspace, flows })" };
   await noteKeyUse(record, req.headers as Headers);
   return { ok: true, caller: { tenant: record.tenant, keyId: record.id, label: record.label, prefix: record.prefix, grant: { ...record.a2a, principal: record.a2a.principal || record.id } } };
 }

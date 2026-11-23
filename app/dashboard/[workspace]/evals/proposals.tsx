@@ -79,10 +79,10 @@ export function Proposals({
   };
   const headers = { "content-type": "application/json", "x-foldrun-tenant": tenant };
   const propose = () =>
-    settle("propose", () => fetch(`/api/workspaces/${encodeURIComponent(workspace)}/evals/${encodeURIComponent(evalName)}/improve`, { method: "POST", headers, body: "{}" }));
+    settle("propose", () => fetch(`/v1/workspaces/${encodeURIComponent(workspace)}/evals/${encodeURIComponent(evalName)}/improve`, { method: "POST", headers, body: "{}" }));
   const decide = (id: string, action: "apply" | "dismiss") =>
     settle(action === "apply" ? id : `${id}-x`, () =>
-      fetch(`/api/workspaces/${encodeURIComponent(workspace)}/proposals/${encodeURIComponent(id)}`, { method: "POST", headers, body: JSON.stringify({ action }) }),
+      fetch(`/v1/workspaces/${encodeURIComponent(workspace)}/proposals/${encodeURIComponent(id)}`, { method: "POST", headers, body: JSON.stringify({ action }) }),
     );
 
   const shown = proposals.filter((p) => p.status !== "dismissed").slice(0, 5);

@@ -97,7 +97,7 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
     setError(null);
     setDraft(null);
     try {
-      const res = await fetch(`/api/workspaces/${workspace}/flows/draft`, {
+      const res = await fetch(`/v1/workspaces/${workspace}/flows/draft`, {
         method: "POST",
         headers,
         body: JSON.stringify({ description, ...(flow ? { flow } : {}) }),
@@ -143,7 +143,7 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
     const done: string[] = [];
     try {
       for (const f of draft.files) {
-        const res = await fetch(`/api/workspaces/${workspace}/source`, {
+        const res = await fetch(`/v1/workspaces/${workspace}/source`, {
           method: "PUT",
           headers,
           // A new file expects none there (ifMatch: null): one created since

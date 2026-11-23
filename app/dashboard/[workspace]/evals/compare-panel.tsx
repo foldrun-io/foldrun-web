@@ -81,7 +81,7 @@ export function ComparePanel({
     };
   }, []);
 
-  const base = `/api/workspaces/${encodeURIComponent(workspace)}/evals/${encodeURIComponent(evalName)}/compare`;
+  const base = `/v1/workspaces/${encodeURIComponent(workspace)}/evals/${encodeURIComponent(evalName)}/compare`;
   const headers = { "content-type": "application/json", "x-foldrun-tenant": tenant };
   const trials = cases * rows.length * repeat;
 

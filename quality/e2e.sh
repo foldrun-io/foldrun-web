@@ -17,7 +17,7 @@ WS=${QUALITY_WS:-quality-load}
 fails=0
 ok()  { echo "ok   $1"; }
 bad() { echo "FAIL $1"; fails=$((fails + 1)); }
-api() { local p=$1; shift; curl -sS -H "authorization: Bearer $QUALITY_TOKEN" -H "content-type: application/json" "$QUALITY_URL/api/$p" "$@"; }
+api() { local p=$1; shift; curl -sS -H "authorization: Bearer $QUALITY_TOKEN" -H "content-type: application/json" "$QUALITY_URL/v1/$p" "$@"; }
 
 cli() {
   docker run --rm --network host \

@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { publicOrigin, installOrigin } from "../server/auth-flows.ts";
 
-const internal = (headers: Record<string, string> = {}) => new NextRequest("http://0.0.0.0:3900/api/auth/verify?token=x", { headers });
+const internal = (headers: Record<string, string> = {}) => new NextRequest("http://0.0.0.0:3900/v1/auth/verify?token=x", { headers });
 
 test("the environment's FOLDRUN_PUBLIC_URL wins over everything the request says", () => {
   process.env.FOLDRUN_PUBLIC_URL = "https://stage.example.test/";

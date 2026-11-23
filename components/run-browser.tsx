@@ -41,7 +41,7 @@ function useLiveFrames(workspace: string, runId: string, agent: string, active: 
     let timer: ReturnType<typeof setTimeout> | null = null;
     const tick = async () => {
       try {
-        const r = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/runs/${encodeURIComponent(runId)}/live?agent=${encodeURIComponent(agent)}`, { cache: "no-store" });
+        const r = await fetch(`/v1/workspaces/${encodeURIComponent(workspace)}/runs/${encodeURIComponent(runId)}/live?agent=${encodeURIComponent(agent)}`, { cache: "no-store" });
         if (r.status === 200) {
           const at = r.headers.get("x-live-at") ?? "";
           const last = kept.current[kept.current.length - 1];

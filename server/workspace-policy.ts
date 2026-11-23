@@ -2,7 +2,7 @@
 // whole workspace: the budget, where to notify, network_enforce, telemetry…
 // — are an admin's to change (workspace:manage), on every way into the file.
 //
-// PATCH /api/workspaces/<ws> always asked for workspace:manage. But an editor
+// PATCH /v1/workspaces/<ws> always asked for workspace:manage. But an editor
 // may write AGENTS.md itself — PUT /source, a deploy, an import, a restore —
 // and until 30 Oct 2026 each of those took the same keys with
 // workspace:write alone: an editor lifted the budget, turned network_enforce
@@ -12,7 +12,7 @@
 // one check, so the rule is the same whichever door is used. The rest of the
 // file — the prose every agent reads, any other key — stays an editor's.
 //
-// The account's AGENTS.md has one writer, PATCH /api/account, which already
+// The account's AGENTS.md has one writer, PATCH /v1/account, which already
 // needs workspace:manage over every workspace (requireAccountWide).
 
 import { opsLog } from "@/lib/ops-log.ts";
@@ -34,7 +34,7 @@ import { readRemotes } from "@/lib/a2a-remotes";
 import { ApiError } from "./api.ts";
 import type { Actor } from "./auth.ts";
 
-/** The keys PATCH /api/workspaces/<ws> writes, all behind workspace:manage —
+/** The keys PATCH /v1/workspaces/<ws> writes, all behind workspace:manage —
  *  and telemetry:, which the settings form does not write but which sends
  *  every run, with header secrets filled from the vault, to the URL it
  *  names: notify:'s risk and more. A key the job blocks group

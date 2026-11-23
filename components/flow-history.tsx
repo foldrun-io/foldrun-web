@@ -125,8 +125,8 @@ export function HistoryDrawer({
     let live = true;
     const q = encodeURIComponent(path);
     Promise.all([
-      fetch(`/api/workspaces/${workspace}/source?path=${q}`, { headers }).then((r) => r.json()),
-      fetch(`/api/workspaces/${workspace}/history?path=${q}&limit=200`, { headers }).then((r) => r.json()),
+      fetch(`/v1/workspaces/${workspace}/source?path=${q}`, { headers }).then((r) => r.json()),
+      fetch(`/v1/workspaces/${workspace}/history?path=${q}&limit=200`, { headers }).then((r) => r.json()),
     ])
       .then(([src, hist]) => {
         if (!live) return;
@@ -145,7 +145,7 @@ export function HistoryDrawer({
   useEffect(() => {
     if (!selected) return;
     let live = true;
-    fetch(`/api/workspaces/${workspace}/history?id=${encodeURIComponent(selected)}&path=${encodeURIComponent(path)}`, { headers })
+    fetch(`/v1/workspaces/${workspace}/history?id=${encodeURIComponent(selected)}&path=${encodeURIComponent(path)}`, { headers })
       .then((r) => r.json())
       .then((d) => live && setDetail({ ...d, requested: selected }))
       .catch(() => live && setError($t("components.flow-history.couldNotLoadThatRevision")));
@@ -183,7 +183,7 @@ export function HistoryDrawer({
     setNotice(null);
     setError(null);
     try {
-      const res = await fetch(`/api/workspaces/${workspace}/source`, {
+      const res = await fetch(`/v1/workspaces/${workspace}/source`, {
         method: "PUT",
         headers: { ...headers, "content-type": "application/json" },
         // A restore is an exact version someone picked: saved unchecked, and

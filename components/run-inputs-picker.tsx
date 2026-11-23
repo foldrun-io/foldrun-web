@@ -17,7 +17,7 @@ export function RunInputsPicker({ workspace, tenant, picked, onChange, active }:
   useEffect(() => {
     if (!active) return;
     let live = true;
-    fetch(`/api/workspaces/${workspace}/storage`, { headers: { "x-foldrun-tenant": tenant } })
+    fetch(`/v1/workspaces/${workspace}/storage`, { headers: { "x-foldrun-tenant": tenant } })
       .then(async (res) => {
         const body = (await res.json().catch(() => ({}))) as { files?: StoredFile[]; error?: string };
         if (!res.ok) throw new Error(body.error ?? $t("components.run-inputs-picker.couldNotListStorage", { status: String(res.status) }));

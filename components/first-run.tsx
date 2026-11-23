@@ -52,7 +52,7 @@ export function FirstRun({ tenant, target, noModel, modelHref, onContinue }: { t
     setBusy(true);
     setRefused(null);
     try {
-      const res = await fetch(`/api/workspaces/${encodeURIComponent(target.workspace)}/flows/${encodeURIComponent(target.flow)}/run`, {
+      const res = await fetch(`/v1/workspaces/${encodeURIComponent(target.workspace)}/flows/${encodeURIComponent(target.flow)}/run`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-foldrun-tenant": tenant, "idempotency-key": crypto.randomUUID() },
         body: "{}",

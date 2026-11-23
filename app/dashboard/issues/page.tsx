@@ -1,5 +1,5 @@
 // Issues (FOL-54 step 3): what went wrong, grouped, and kept open until a
-// person resolves it. Same list as GET /api/issues and `foldrun issues`.
+// person resolves it. Same list as GET /v1/issues and `foldrun issues`.
 
 import { ISSUE_STATUS_LABEL, labelOf } from "@/components/value-labels";
 import { $el, $rich, $t } from "@/i18n";

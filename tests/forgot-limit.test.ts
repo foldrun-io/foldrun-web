@@ -21,7 +21,7 @@ delete process.env.FOLDRUN_REDIS_URL;
 delete process.env.FOLDRUN_TRUST_PROXY;
 
 const { NextRequest } = await import("next/server");
-const forgot = await import("../app/api/auth/forgot/route.ts");
+const forgot = await import("../app/v1/auth/forgot/route.ts");
 const { createUser } = await import("../server/users.ts");
 const { rateLimit, rateLimitReset } = await import("@/platform/cache");
 const { recentAudit } = await import("../server/audit.ts");
@@ -37,7 +37,7 @@ const resets = async (n: number) => {
   throw new Error(`no reset audit line ${n}`);
 };
 const ask = (email: string, headers: Record<string, string> = {}) =>
-  forgot.POST(new NextRequest("http://x/api/auth/forgot", { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify({ email }) }));
+  forgot.POST(new NextRequest("http://x/v1/auth/forgot", { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify({ email }) }));
 
 test("with no caller address, a flood of addresses never locks anyone else out", async () => {
   // The old shared "?" count refused the 21st request of the hour, whoever sent it.

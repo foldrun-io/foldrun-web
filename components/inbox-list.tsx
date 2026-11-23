@@ -2,7 +2,7 @@
 
 // The inbox's rows (server/inbox.ts), with your marks: opening an item marks
 // it read; Set aside hides it from your view only — a gate still waits, an
-// issue stays open for everyone else (POST /api/me/inbox).
+// issue stays open for everyone else (POST /v1/me/inbox).
 
 import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
@@ -37,7 +37,7 @@ export function InboxList({ items, tenant, dismissedView }: { items: InboxItem[]
     try {
       // The route takes at most 200 ids a call: Mark all read on a long tab goes in batches.
       for (let i = 0; i < ids.length; i += 200) {
-        const res = await fetch("/api/me/inbox", {
+        const res = await fetch("/v1/me/inbox", {
           method: "POST",
           headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
           body: JSON.stringify({ ids: ids.slice(i, i + 200), action }),

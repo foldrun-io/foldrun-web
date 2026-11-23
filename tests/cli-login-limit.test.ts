@@ -18,11 +18,11 @@ delete process.env.FOLDRUN_DATABASE_URL;
 delete process.env.FOLDRUN_REDIS_URL;
 
 const { NextRequest } = await import("next/server");
-const login = await import("../app/api/cli/login/route.ts");
+const login = await import("../app/v1/cli/login/route.ts");
 const { clientIp } = await import("../server/limits.ts");
 
 const ask = (headers: Record<string, string>) =>
-  login.POST(new NextRequest("http://x/api/cli/login", { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify({ hostname: "laptop" }) }));
+  login.POST(new NextRequest("http://x/v1/cli/login", { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify({ hostname: "laptop" }) }));
 
 const SECRET = "edge-secret-for-tests";
 

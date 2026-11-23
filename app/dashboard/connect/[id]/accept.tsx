@@ -12,7 +12,7 @@ export function HandoffAccept({ id, tenant }: { id: string; tenant: string }) {
   async function accept() {
     setBusy(true);
     setError(null);
-    const res = await fetch(`/api/oauth/handoff/${id}`, { method: "POST", headers: { "x-foldrun-tenant": tenant } });
+    const res = await fetch(`/v1/oauth/handoff/${id}`, { method: "POST", headers: { "x-foldrun-tenant": tenant } });
     const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
     if (res.ok && data.url) window.location.href = data.url;
     else {

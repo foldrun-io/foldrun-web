@@ -34,7 +34,7 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
   const [theme, setThemeState] = useState<Theme>("system");
 
   useEffect(() => {
-    fetch("/api/auth/session")
+    fetch("/v1/auth/session")
       .then((r) => (r.ok ? r.json() : {}))
       .then((d: { user?: { email?: string; tenant?: string; avatar?: string | null } }) => setWho(d.user ?? {}))
       .catch(() => {});
@@ -47,7 +47,7 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
     if (next === before) return;
     document.documentElement.dataset.theme = next;
     setThemeState(next);
-    const res = await fetch("/api/me/preferences", {
+    const res = await fetch("/v1/me/preferences", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ theme: next }),
@@ -145,7 +145,7 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
         <MenuSeparator />
         <MenuItem
           onSelect={async () => {
-            await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+            await fetch("/v1/auth/logout", { method: "POST" }).catch(() => {});
             router.push("/login");
           }}
         >

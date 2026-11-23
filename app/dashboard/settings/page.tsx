@@ -39,7 +39,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 
-/** The file's sha256 as GET /api/account/agents-md answers it; null: no file. */
+/** The file's sha256 as GET /v1/account/agents-md answers it; null: no file. */
 function accountMdSha(tenant: string): string | null {
   try {
     return crypto.createHash("sha256").update(fs.readFileSync(path.join(accountDir(tenant), "AGENTS.md"), "utf8")).digest("hex");
@@ -48,7 +48,7 @@ function accountMdSha(tenant: string): string | null {
   }
 }
 
-/** The account's own AGENTS.md, as GET /api/account/agents-md answers it. */
+/** The account's own AGENTS.md, as GET /v1/account/agents-md answers it. */
 function accountAgentsMd(tenant: string): string {
   try {
     return fs.readFileSync(path.join(accountDir(tenant), "AGENTS.md"), "utf8");
@@ -157,7 +157,7 @@ export default async function SettingsPage({
   const visibleWorkspaces = listWorkspaces(tenant).filter((w) => scopeAllows(scope, w.name));
   const isOwner = role === null || role === "owner";
   const fm = readAgentsMdKeys(accountDir(tenant));
-  // As GET /api/account answers this person: limited to some workspaces,
+  // As GET /v1/account answers this person: limited to some workspaces,
   // notify's URL and telemetry are "set", never shown (30 Oct 2026).
   const defaults = accountDefaultsFor(defaultsOf(fm), scope);
 
@@ -201,7 +201,7 @@ export default async function SettingsPage({
 type Session = Awaited<ReturnType<typeof verifySession>>;
 
 /** Who is signed in, the account's face, its defaults, the build, and the way out. */
-/** An admin of every workspace (PUT /api/account/beta's rule). */
+/** An admin of every workspace (PUT /v1/account/beta's rule). */
 async function canJoinBeta(): Promise<boolean> {
   const role = await viewerRole();
   return role !== null && can(role, "workspace:manage") && (await viewerScope()) === null;
@@ -246,7 +246,7 @@ async function GeneralTab({ tenant, qs, session, isOwner }: { tenant: string; qs
       </SettingsSection>
 
       <SettingsSection id="defaults">
-        <TimezoneCard endpoint="/api/account" tenant={tenant} initial={defaults.timezone} />
+        <TimezoneCard endpoint="/v1/account" tenant={tenant} initial={defaults.timezone} />
       </SettingsSection>
 
       <SettingsSection id="about">
@@ -306,7 +306,7 @@ async function GeneralTab({ tenant, qs, session, isOwner }: { tenant: string; qs
 async function TeamTab({ session, role, scope, workspaces }: { session: NonNullable<Session>; role: Awaited<ReturnType<typeof viewerRole>>; scope: Awaited<ReturnType<typeof viewerScope>>; workspaces: string[] }) {
   const members = (await listMembers(session.tenant)).map((m) => ({ ...m, avatar: avatarUrl(session.tenant, "user", m.id) }));
   // The links still out, for those who may take one back (GET
-  // /api/team/invites answers the same, through the same function).
+  // /v1/team/invites answers the same, through the same function).
   const invites = role === null || can(role, "team:manage") ? await listInvites(session.tenant, { scope }) : [];
   return (
     <SettingsSection id="team">
@@ -338,18 +338,18 @@ async function PoliciesTab({
           edits elsewhere are kept (Codex review). */}
       <SettingsSection id="governance" title={$t("settings.page.governance")} description={$t("settings.page.whoAnswersForTheAgentsWhat")}>
         {halt.account && pause}
-        <OwnerCard key={JSON.stringify(defaults.owner ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.owner} />
+        <OwnerCard key={JSON.stringify(defaults.owner ?? null)} endpoint="/v1/account" tenant={tenant} initial={defaults.owner} />
         {/* The plan's number, not the install's alone: until 26 Oct 2026 this read only FOLDRUN_PLAN_CONCURRENCY, so a customer on a plan saw the wrong figure. */}
         <ConcurrencyCard
           key={JSON.stringify(defaults.concurrency ?? null)}
-          endpoint="/api/account"
+          endpoint="/v1/account"
           tenant={tenant}
           initial={defaults.concurrency}
           plan={(await billing().plan(tenant))?.concurrency ?? (Number(settingText("FOLDRUN_PLAN_CONCURRENCY")) > 0 ? Number(settingText("FOLDRUN_PLAN_CONCURRENCY")) : null)}
         />
         <ComputeCard
           key={JSON.stringify(defaults.compute ?? null)}
-          endpoint="/api/account"
+          endpoint="/v1/account"
           tenant={tenant}
           initial={defaults.compute}
           pool={await accountCompute(tenant)}
@@ -357,23 +357,23 @@ async function PoliciesTab({
           waiting={roomWaiting(tenant, scope)}
           runsWaiting={{ waiting: scope ? null : waitingRunCount(tenant), limit: (await waitingRunsCap(tenant)).limit }}
         />
-        <DeployBlockCard key={JSON.stringify(defaults.deployBlock ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.deployBlock} />
+        <DeployBlockCard key={JSON.stringify(defaults.deployBlock ?? null)} endpoint="/v1/account" tenant={tenant} initial={defaults.deployBlock} />
         <p className="px-1 text-sm text-fg-muted">{$t("settings.page.alsoGovernanceTheAccountBudgetBilling")}</p>
       </SettingsSection>
 
       <SettingsSection id="guardrail" title={$t("settings.page.guardrail")} description={$t("settings.page.whatTheAgentsMayReachAnd")}>
-        <NetworkEnforceCard key={JSON.stringify(defaults.networkEnforce ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.networkEnforce} />
+        <NetworkEnforceCard key={JSON.stringify(defaults.networkEnforce ?? null)} endpoint="/v1/account" tenant={tenant} initial={defaults.networkEnforce} />
         <p className="px-1 text-sm text-fg-muted">{$t("settings.page.eachAgentSOwnLimitsNetwork")}</p>
       </SettingsSection>
 
       <SettingsSection id="observability" title={$t("settings.page.observability")} description={$t("settings.page.whatRunsRecordAndWhoIs")}>
-        <NotifyCard key={JSON.stringify(defaults.notify ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.notify} scopeNote={$t("settings.page.everyWorkspaceInheritsThisUntilIt")} />
-        <AlertsCard key={JSON.stringify(defaults.alerts ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.alerts} />
+        <NotifyCard key={JSON.stringify(defaults.notify ?? null)} endpoint="/v1/account" tenant={tenant} initial={defaults.notify} scopeNote={$t("settings.page.everyWorkspaceInheritsThisUntilIt")} />
+        <AlertsCard key={JSON.stringify(defaults.alerts ?? null)} endpoint="/v1/account" tenant={tenant} initial={defaults.alerts} />
         <TelemetryCard key={JSON.stringify(defaults.telemetry ?? null)} tenant={tenant} initial={defaults.telemetry} mayEdit={managesWorkspaces && scope === null} />
       </SettingsSection>
 
       <SettingsSection id="evaluation" title={$t("settings.page.evaluation")} description={$t("settings.page.howTheAgentsWorkIsJudged")}>
-        <JudgeCard key={JSON.stringify(defaults.judge ?? null)} endpoint="/api/account" tenant={tenant} initial={defaults.judge} />
+        <JudgeCard key={JSON.stringify(defaults.judge ?? null)} endpoint="/v1/account" tenant={tenant} initial={defaults.judge} />
       </SettingsSection>
 
       <SettingsSection id="agents-md" title="AGENTS.md" description={$t("settings.page.theAccountSOwnAgentsMd")}>
@@ -413,7 +413,7 @@ async function ModelsTab({
   fm: ReturnType<typeof readAgentsMdKeys>;
 }) {
   const provider = parseProvider(fm.provider);
-  // The provider check, as GET /api/account/providers answers it — for a
+  // The provider check, as GET /v1/account/providers answers it — for a
   // scoped member, the account's blocks and its own workspaces' only.
   const { configured: providerConfigured, lastCheck: providerLast } = await providerFactsFor(tenant, scope);
   return (
@@ -501,7 +501,7 @@ export FOLDRUN_URL=${origin}
 foldrun deploy ./my-workspace --to my-workspace
 
 # call an agent and wait for the answer
-curl -X POST "$FOLDRUN_URL/api/workspaces/my-workspace/agents/writer/run?wait=true" \\
+curl -X POST "$FOLDRUN_URL/v1/workspaces/my-workspace/agents/writer/run?wait=true" \\
   -H "Authorization: Bearer $FOLDRUN_TOKEN" \\
   -d '{"task":"draft a reply"}'`}
           </pre>
@@ -523,14 +523,14 @@ curl -X POST "$FOLDRUN_URL/api/workspaces/my-workspace/agents/writer/run?wait=tr
           }
         >
           <div className="space-y-3">
-            <CopyField value={`${origin}/api/mcp`} />
+            <CopyField value={`${origin}/v1/mcp`} />
             <pre className="overflow-x-auto rounded-md border border-line bg-sunken p-3 font-mono text-xs leading-relaxed text-fg-secondary">
               {`# with this machine's foldrun sign-in — no key to paste
 claude mcp add foldrun -- foldrun mcp
 codex mcp add foldrun -- foldrun mcp
 
 # straight to the platform, with a key from above
-claude mcp add --transport http foldrun ${origin}/api/mcp \\
+claude mcp add --transport http foldrun ${origin}/v1/mcp \\
   --header "Authorization: Bearer fr_api_..."
 
 # Claude Desktop, Cursor: in the app's MCP settings
@@ -579,7 +579,7 @@ async function SecretsTab({
   managesWorkspaces: boolean;
   workspaces: string[];
 }) {
-  // With each secret's health, as GET /api/secrets answers it: the vault
+  // With each secret's health, as GET /v1/secrets answers it: the vault
   // knows a name, only the places that used it know whether it still works.
   const health = await secretHealth(tenant);
   const secrets = listSecrets(tenant).map((s) => ({

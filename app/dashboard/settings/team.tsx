@@ -38,7 +38,7 @@ interface Member {
   avatar?: string | null;
 }
 
-/** A pending invite, as GET /api/team/invites answers — never its link. */
+/** A pending invite, as GET /v1/team/invites answers — never its link. */
 interface PendingInvite {
   id: string;
   email: string | null;
@@ -122,7 +122,7 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
   async function invite(send: boolean) {
     setBusy(true);
     setResult(null);
-    const data = await call("/api/team", "POST", { role: inviteRole, workspaces: inviteScope, email: email.trim() || null, send });
+    const data = await call("/v1/team", "POST", { role: inviteRole, workspaces: inviteScope, email: email.trim() || null, send });
     if (data?.path) {
       setResult({ url: `${window.location.origin}${data.path as string}`, sent: (data.sent as boolean | null) ?? null, sendError: (data.sendError as string | null) ?? null, email: (data.email as string | null) ?? null });
       // The new one joins the pending list; one it replaced leaves it.
@@ -133,7 +133,7 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
   async function revokeInvite(inv: PendingInvite) {
     const who = inv.email ?? $t("settings.team.anyoneWithTheLink");
     if (!(await confirm({ title: $t("settings.team.revokeTheInviteFor", { who: String(who) }), body: $t("settings.team.theLinkStopsWorkingAtOnce"), confirmLabel: $t("settings.team.revoke") }))) return;
-    if (await call(`/api/team/invites/${encodeURIComponent(inv.id)}`, "DELETE")) router.refresh();
+    if (await call(`/v1/team/invites/${encodeURIComponent(inv.id)}`, "DELETE")) router.refresh();
   }
   const copy = async (url: string) => {
     try {
@@ -147,17 +147,17 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
 
   async function setRole(m: Member, role: Role) {
     if (role === m.role) return;
-    if (await call(`/api/team/members/${m.id}`, "PATCH", { role })) router.refresh();
+    if (await call(`/v1/team/members/${m.id}`, "PATCH", { role })) router.refresh();
   }
   async function saveScope(m: Member) {
-    if (await call(`/api/team/members/${m.id}`, "PATCH", { workspaces: draftScope })) {
+    if (await call(`/v1/team/members/${m.id}`, "PATCH", { workspaces: draftScope })) {
       setEditing(null);
       router.refresh();
     }
   }
   async function remove(m: Member) {
     if (!(await confirm({ title: $t("settings.team.remove", { email: String(m.email) }), body: $t("settings.team.theirSignInStopsWorkingImmediately"), confirmLabel: $t("settings.team.remove2") }))) return;
-    if (await call(`/api/team/members/${m.id}`, "DELETE")) router.refresh();
+    if (await call(`/v1/team/members/${m.id}`, "DELETE")) router.refresh();
   }
   async function transfer(m: Member) {
     // Handing over the account asks for the owner again (30 Oct 2026): the
@@ -173,7 +173,7 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
       </div>
     );
     if (!(await confirm({ title: $t("settings.team.makeTheOwner", { email: String(m.email) }), body, confirmLabel: $t("settings.team.transferOwnership") }))) return;
-    if (await call("/api/team/transfer", "POST", { to: m.id, password: proof.password, ...(proof.code.trim() ? { code: proof.code.trim() } : {}) })) router.refresh();
+    if (await call("/v1/team/transfer", "POST", { to: m.id, password: proof.password, ...(proof.code.trim() ? { code: proof.code.trim() } : {}) })) router.refresh();
   }
 
   const mayTouch = (m: Member) => manages && !m.owner && m.email !== self && (m.role !== "admin" || managesAdmins);

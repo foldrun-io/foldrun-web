@@ -75,7 +75,7 @@ export function SmartTextarea({
   // One fetch per editor mount; the vocabulary changes far slower than typing.
   useEffect(() => {
     if (!workspace) return;
-    fetch(`/api/workspaces/${workspace}/vocabulary`, { headers: { "x-foldrun-tenant": tenant } })
+    fetch(`/v1/workspaces/${workspace}/vocabulary`, { headers: { "x-foldrun-tenant": tenant } })
       .then((r) => (r.ok ? r.json() : EMPTY))
       .then(setVocab)
       .catch(() => setVocab(EMPTY));

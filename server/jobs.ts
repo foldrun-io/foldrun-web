@@ -40,7 +40,7 @@ export interface JobField {
   /** Present when a workspace was asked about. */
   workspace?: unknown;
   combine: Combine;
-  /** This scope's settings (PATCH /api/account, or the workspace's) write it;
+  /** This scope's settings (PATCH /v1/account, or the workspace's) write it;
    *  otherwise it is written in AGENTS.md itself. */
   writable: boolean;
 }

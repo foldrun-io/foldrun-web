@@ -17,7 +17,7 @@ import { clientIp } from "@/server/limits";
 
 /**
  * Flood control (30 Oct 2026). This is the one route with no credential, and
- * it sits outside the /api gate's limits, so nothing counted it: a public
+ * it sits outside the /v1 gate's limits, so nothing counted it: a public
  * link fetched in a loop cost the pod a read per request. Two counts, either
  * can refuse — per caller, where a trusted proxy names one (clientIp: never
  * a header anyone can send), and per link, which is what bounds a flood when

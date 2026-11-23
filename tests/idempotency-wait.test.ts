@@ -25,7 +25,7 @@ const { createApiKey } = await import("../server/auth.ts");
 const { resetIdempotencyMemory } = await import("../server/idempotency.ts");
 const { readRun, writeRun } = await import("@/lib/store");
 type Handler<P> = (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<P> }) => Promise<Response>;
-const flowRun = (await import("../app/api/workspaces/[workspace]/flows/[flow]/run/route.ts")) as { POST: Handler<{ workspace: string; flow: string }> };
+const flowRun = (await import("../app/v1/workspaces/[workspace]/flows/[flow]/run/route.ts")) as { POST: Handler<{ workspace: string; flow: string }> };
 
 const TENANT = "acme";
 const WS = "desk";
@@ -43,7 +43,7 @@ const runsOnDisk = () => (fs.existsSync(path.join(ws, "runs")) ? fs.readdirSync(
 
 function start(idem: string, query: string, body: Record<string, unknown> = { task: "applicant 7", test: true }) {
   return flowRun.POST(
-    new NextRequest(`http://localhost/api/workspaces/${WS}/flows/screen/run${query}`, {
+    new NextRequest(`http://localhost/v1/workspaces/${WS}/flows/screen/run${query}`, {
       method: "POST",
       headers: { authorization: `Bearer ${key}`, "content-type": "application/json", "idempotency-key": idem },
       body: JSON.stringify(body),
@@ -141,7 +141,7 @@ test("the same key with a different body is still refused (422), and starts noth
 
 test("wait and timeout are ignored only on routes that start a run", async () => {
   const { requestQuery } = await import("../server/idempotency.ts");
-  assert.equal(requestQuery(new URL("http://x/api/workspaces/w/flows/f/run?wait=true&timeout=25")), "");
-  assert.equal(requestQuery(new URL("http://x/api/workspaces/w/runs/r1/rerun?from=2&wait=1")), "?from=2");
-  assert.equal(requestQuery(new URL("http://x/api/workspaces/w/deploy?wait=true")), "?wait=true", "elsewhere the query counts as sent");
+  assert.equal(requestQuery(new URL("http://x/v1/workspaces/w/flows/f/run?wait=true&timeout=25")), "");
+  assert.equal(requestQuery(new URL("http://x/v1/workspaces/w/runs/r1/rerun?from=2&wait=1")), "?from=2");
+  assert.equal(requestQuery(new URL("http://x/v1/workspaces/w/deploy?wait=true")), "?wait=true", "elsewhere the query counts as sent");
 });

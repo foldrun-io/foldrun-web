@@ -3,7 +3,7 @@
 // Settings → General → Beta features (13 Nov 2026): the account joins or
 // leaves the beta — every flag marked beta is on for it before its rollout
 // reaches everyone. The same choice as `foldrun account beta on|off` and
-// PUT /api/account/beta. Only an admin of every workspace may change it; the
+// PUT /v1/account/beta. Only an admin of every workspace may change it; the
 // others see where it stands.
 
 import { $t } from "@/i18n";
@@ -22,7 +22,7 @@ export function BetaFeatures({ initial, flags: initialFlags, canChange }: { init
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/account/beta", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ beta: next }) });
+      const res = await fetch("/v1/account/beta", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ beta: next }) });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) { setError(body.error ?? `HTTP ${res.status}`); return; }
       setBeta(body.beta);

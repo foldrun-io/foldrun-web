@@ -39,16 +39,16 @@ for d in foldrun-core foldrun-platform foldrun-web; do
 done
 [ "$(find "$tmp/app" -type f | wc -l)" -gt 1000 ] || { echo "LEAK-CHECK FAILED: /app holds too few files to be a real image"; exit 1; }
 found=0
-# Directory entries (app/api/billing/, server/admin-api/): the
+# Directory entries (app/v1/billing/, server/admin-api/): the
 # directory must not exist in the image at all (Codex review).
 while read -r d; do
   hit=$(find "$tmp/app" -path '*/node_modules' -prune -o -type d -path "*/foldrun-*/${d%/}" -print 2>/dev/null | head -3 || true)
   [ -n "$hit" ] && { echo "LEAK directory $d → $hit"; found=1; }
 done < <(grep '/$' "$tmp/names" || true)
 # File entries match files only: a public route folder may share a private
-# module's name (app/api/pricing/ is open code; pricing.ts is not), and the
+# module's name (app/v1/pricing/ is open code; pricing.ts is not), and the
 # directory entries above already cover private folders (14 Nov 2026: the
-# public GET /api/pricing failed this check).
+# public GET /v1/pricing failed this check).
 while read -r n; do
   base=${n##*/}
   for ext in "" .ts .tsx .js .mjs; do

@@ -26,12 +26,12 @@ for (const ws of ["desk", "other"]) {
 
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
-const route = await import("../app/api/workspaces/[workspace]/notify/test/route.ts");
+const route = await import("../app/v1/workspaces/[workspace]/notify/test/route.ts");
 const { key } = await createApiKey(TENANT, "ci", "ed@acme.test", undefined, "editor");
 
 const send = (ws: string, n: number) =>
   route.POST(
-    new NextRequest(`http://localhost/api/workspaces/${ws}/notify/test`, {
+    new NextRequest(`http://localhost/v1/workspaces/${ws}/notify/test`, {
       method: "POST",
       headers: { authorization: `Bearer ${key}`, "idempotency-key": `k-${ws}-${n}` },
     }),

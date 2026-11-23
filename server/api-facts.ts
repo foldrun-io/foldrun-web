@@ -1,4 +1,4 @@
-// What GET /api/account/api and Settings → API keys → API show: the account's rate
+// What GET /v1/account/api and Settings → API keys → API show: the account's rate
 // limits, its API version pin, and how it has met the API lately — the
 // versions that answered its requests, and any route on its way out it still
 // calls, with who calls it and when it stops. One function so the page, the
@@ -52,7 +52,7 @@ export async function apiFactsFor(tenant: string, scope: readonly string[] | nul
     limits: limitsFor(profile.tier),
     // Where programs call (the one API: keys, the CLI, Claude Code) and
     // where people sign in; null where the install has no address of its
-    // own for it (21 Nov 2026). /api/version answers the same pair, open.
+    // own for it (21 Nov 2026). /v1/version answers the same pair, open.
     urls: { api: apiOrigin(), app: installOrigin() },
     ...(scope === null ? { usage: await apiUsageFacts(tenant) } : { usage: null, usageHidden: true as const }),
   };

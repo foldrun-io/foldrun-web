@@ -25,8 +25,8 @@ process.env.FOLDRUN_DISABLE_WORKER = "1";
 process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 
 const { NextRequest } = await import("next/server");
-const model = await import("../app/api/account/model/route.ts");
-const draftRoute = (await import("../app/api/workspaces/[workspace]/flows/draft/route.ts")) as {
+const model = await import("../app/v1/account/model/route.ts");
+const draftRoute = (await import("../app/v1/workspaces/[workspace]/flows/draft/route.ts")) as {
   POST: (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string }> }) => Promise<Response>;
 };
 const { createApiKey } = await import("../server/auth.ts");
@@ -36,7 +36,7 @@ const { getSecret } = await import("@/lib/secrets");
 const { key: admin } = await createApiKey("acme", "ci", "ci@acme.test", undefined, "admin", null);
 const h = { authorization: `Bearer ${admin}`, "content-type": "application/json" };
 const put = (baseUrl: string) =>
-  model.PUT(new NextRequest("http://x/api/account/model", { method: "PUT", headers: h, body: JSON.stringify({ provider: "custom", apiKey: "k-123456789", baseUrl }) }));
+  model.PUT(new NextRequest("http://x/v1/account/model", { method: "PUT", headers: h, body: JSON.stringify({ provider: "custom", apiKey: "k-123456789", baseUrl }) }));
 
 /** As a platform binds it: tenant URLs fetched through a guard. Undone after. */
 async function guarded(fn: (asked: string[]) => Promise<void>) {
@@ -71,7 +71,7 @@ test("a draft whose workspace's provider: block is plain http is refused on a pl
     fs.mkdirSync(path.join(ws, "flows"), { recursive: true });
     fs.writeFileSync(path.join(ws, "AGENTS.md"), "---\nname: desk\nprovider:\n  base_url: http://foldrun-web:3000/api\n  format: anthropic\n  token: x\n---\n");
     const res = await draftRoute.POST(
-      new NextRequest("http://localhost/api/workspaces/desk/flows/draft", { method: "POST", headers: h, body: JSON.stringify({ description: "a weekly digest" }) }),
+      new NextRequest("http://localhost/v1/workspaces/desk/flows/draft", { method: "POST", headers: h, body: JSON.stringify({ description: "a weekly digest" }) }),
       { params: Promise.resolve({ workspace: "desk" }) },
     );
     assert.equal(res.status, 422, await res.clone().text());

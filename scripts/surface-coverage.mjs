@@ -4,15 +4,15 @@
 // is in the API, the dashboard, the CLI and the docs. The docs half is held
 // by tests/consistency.test.ts (every route and method has an api.md row);
 // this is the other two. It parses foldrun-cli's commands.mjs and bin, and
-// this repo's app (outside app/api), components, lib and hooks, with the
+// this repo's app (outside app/v1), components, lib and hooks, with the
 // TypeScript compiler, finds every call whose first argument evaluates to an
-// /api/ path — following string variables within their scope, templates and
+// /v1/ path — following string variables within their scope, templates and
 // `new URL(...)` — reads its method from the call (remoteCall's options,
 // fetch's init, …), and matches it to a route file, literal segments beating
 // placeholders.
 //
 // It cannot see a path assembled from a value only known at run time
-// (`/api/workspaces/${ws}/${kind}`); tests/surface-coverage.test.ts lists
+// (`/v1/workspaces/${ws}/${kind}`); tests/surface-coverage.test.ts lists
 // those, and every operation deliberately missing from one side, with why.
 // First written as a one-off audit (13 Oct 2026), which found `hook ls` with
 // no --to and manual credit with no dashboard control.
@@ -54,7 +54,7 @@ function evalPath(node, resolve, depth = 0) {
       let piece = "{}";
       if (ts.isIdentifier(span.expression)) {
         const r = resolve(span.expression);
-        if (r && /^\/api|^\/s\//.test(r.s) && prev === "") { piece = r.s; inferred = inferred || r.inferred; }
+        if (r && /^\/v1|^\/s\//.test(r.s) && prev === "") { piece = r.s; inferred = inferred || r.inferred; }
         else if (r && prev === "" ) { piece = r.s; inferred = inferred || r.inferred; }
       }
       // A substitution not after "/" is a query or suffix: mark it.
@@ -73,8 +73,8 @@ function evalPath(node, resolve, depth = 0) {
   if (ts.isNewExpression(node) && node.expression.getText() === "URL" && node.arguments?.length) return evalPath(node.arguments[0], resolve, depth + 1);
   if (ts.isConditionalExpression(node)) {
     const a = evalPath(node.whenTrue, resolve, depth + 1), b = evalPath(node.whenFalse, resolve, depth + 1);
-    if (a && /\/api\//.test(a.s)) return { s: a.s, inferred: true, alt: b?.s };
-    if (b && /\/api\//.test(b.s)) return { s: b.s, inferred: true };
+    if (a && /\/v1\//.test(a.s)) return { s: a.s, inferred: true, alt: b?.s };
+    if (b && /\/v1\//.test(b.s)) return { s: b.s, inferred: true };
   }
   return null;
 }
@@ -100,7 +100,7 @@ function scanFile(file) {
     const list = (decls.get(id.text) ?? []).filter((d) => d.pos < id.pos && inScope(d, id)).sort((a, b) => b.pos - a.pos);
     for (const d of list) {
       const r = evalPath(d.initializer, (x) => resolve(x, seen));
-      if (r && /\/api\/|^\/s\//.test(r.s)) return r;
+      if (r && /\/v1\/|^\/s\//.test(r.s)) return r;
     }
     return null;
   };
@@ -137,7 +137,7 @@ function scanFile(file) {
       const args = n.arguments ?? [];
       args.forEach((a, idx) => {
         const p = evalPath(a, resolve);
-        if (!p || !/^(\/api\/|\/api$|\/s\/)/.test(p.s)) return;
+        if (!p || !/^(\/v1\/|\/v1$|\/s\/)/.test(p.s)) return;
         if (callee === "URL" ) return; // handled by the enclosing call
         if (/(^|\.)(Error|HttpError|log|warn|error|info|line|bold|dim|includes|indexOf|startsWith|test|match|replace)$/.test(callee)) return;
         let method = null;
@@ -161,15 +161,15 @@ function scanFile(file) {
       let e = n.initializer;
       if (ts.isJsxExpression(e)) e = e.expression;
       const p = e && evalPath(e, resolve);
-      if (p && /^\/api\//.test(p.s)) calls.push({ file, line: lineOf(n), callee: `jsx:${attr}`, path: p.s, inferred: p.inferred, method: attr === "action" ? "POST?" : "GET" });
+      if (p && /^\/v1\//.test(p.s)) calls.push({ file, line: lineOf(n), callee: `jsx:${attr}`, path: p.s, inferred: p.inferred, method: attr === "action" ? "POST?" : "GET" });
     }
     ts.forEachChild(n, visit);
   };
   visit(sf);
-  // Every other /api/ literal in the file, for the record (props, consts).
+  // Every other /v1/ literal in the file, for the record (props, consts).
   const literals = [];
   const lit = (n) => {
-    if ((ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n) || ts.isTemplateHead(n)) && /\/api\//.test(n.text)) literals.push({ file, line: lineOf(n), text: n.text });
+    if ((ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n) || ts.isTemplateHead(n)) && /\/v1\//.test(n.text)) literals.push({ file, line: lineOf(n), text: n.text });
     ts.forEachChild(n, lit);
   };
   lit(sf);
@@ -200,12 +200,12 @@ function matchRoute(p, routeShapes) {
 }
 
 
-/** Every operation, `METHOD /api/…` with dynamic segments as in the route files. */
+/** Every operation, `METHOD /v1/…` with dynamic segments as in the route files. */
 export function operations(web = WEB) {
   return walkRoutes(web).flatMap((r) => r.methods.map((m) => `${m} ${r.path}`));
 }
 
-/** The operations a set of files reaches: `METHOD /api/…` → ["file:line", …]. */
+/** The operations a set of files reaches: `METHOD /v1/…` → ["file:line", …]. */
 function reached(files, web) {
   const routeShapes = walkRoutes(web).map((r) => ({ ...r, shape: r.path.replace(/\[[^\]]+\]/g, "{}"), segs: r.path.replace(/\[[^\]]+\]/g, "{}").split("/") }));
   const byOp = new Map();

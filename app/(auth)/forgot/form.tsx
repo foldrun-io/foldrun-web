@@ -16,7 +16,7 @@ export function ForgotForm() {
         e.preventDefault();
         setBusy(true); setMsg(null);
         const email = String(new FormData(e.currentTarget).get("email") ?? "");
-        const res = await fetch("/api/auth/forgot", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email }) });
+        const res = await fetch("/v1/auth/forgot", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email }) });
         const j = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
         setMsg(j.message ?? j.error ?? `HTTP ${res.status}`);
         setBusy(false);

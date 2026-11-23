@@ -102,7 +102,7 @@ services:
       # The first account needs this (the installer writes it and prints the
       # signup link with it); unset, the first signup is free.
       FOLDRUN_SETUP_TOKEN: ${FOLDRUN_SETUP_TOKEN:-}
-      # What reads /api/healthz's detail (and /api/metrics) without an account;
+      # What reads /v1/healthz's detail (and /v1/metrics) without an account;
       # the installer writes it and its own wait for the worker uses it.
       FOLDRUN_METRICS_TOKEN: ${FOLDRUN_METRICS_TOKEN:-}
       FOLDRUN_CONCURRENCY: ${FOLDRUN_CONCURRENCY:-2}

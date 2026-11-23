@@ -56,7 +56,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
   useEffect(() => {
     if (!shown) return;
     let live = true;
-    fetch(`/api/workspaces/${workspace}/evals`, { headers })
+    fetch(`/v1/workspaces/${workspace}/evals`, { headers })
       .then(async (res) => {
         const body = (await res.json().catch(() => ({}))) as { evals?: EvalLike[]; error?: string };
         if (!res.ok) throw new Error(body.error ?? $t("components.flow-run-with.couldNotReadEvals", { status: String(res.status) }));
@@ -91,7 +91,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
     }
     setBusy("run");
     try {
-      const res = await fetch(`/api/workspaces/${workspace}/flows/${encodeURIComponent(flow)}/run`, {
+      const res = await fetch(`/v1/workspaces/${workspace}/flows/${encodeURIComponent(flow)}/run`, {
         method: "POST",
         headers: { ...headers, "content-type": "application/json" },
         body: JSON.stringify({ ...(task.trim() ? { task: task.trim() } : {}), test: !live, ...(files.length ? { inputs: files } : {}) }),
@@ -122,12 +122,12 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
     setBusy("save");
     const file = inputsFile(flow);
     try {
-      const cur = await fetch(`/api/workspaces/${workspace}/source?path=${encodeURIComponent(file)}`, { headers });
+      const cur = await fetch(`/v1/workspaces/${workspace}/source?path=${encodeURIComponent(file)}`, { headers });
       const curBody = (await cur.json().catch(() => ({}))) as { content?: string; sha256?: string; error?: string };
       const missing = !cur.ok && /not found/i.test(curBody.error ?? "");
       if (!cur.ok && !missing) throw new Error(curBody.error ?? $t("components.flow-run-with.couldNotRead", { file: String(file) }));
       const next = upsertInputSet(missing ? null : (curBody.content ?? ""), flow, name, task);
-      const res = await fetch(`/api/workspaces/${workspace}/source`, {
+      const res = await fetch(`/v1/workspaces/${workspace}/source`, {
         method: "PUT",
         headers: { ...headers, "content-type": "application/json" },
         body: JSON.stringify({

@@ -1,9 +1,9 @@
 // What the Observe pages compute on the server, over HTTP for `foldrun
 // observe` and `foldrun eval trends` (5 Nov 2026):
-//   - GET /api/observe — the account page's analysis (server/account-observe.ts):
+//   - GET /v1/observe — the account page's analysis (server/account-observe.ts):
 //     the window against the one before, why runs went wrong, desks, agents
 //     and tools to watch; 7 days unasked; a scoped caller sees its own;
-//   - GET /api/workspaces/<ws>/evals/trends — evals by change (core
+//   - GET /v1/workspaces/<ws>/evals/trends — evals by change (core
 //     evalTrends): latest run against the last one on a different commit.
 //
 //   node --import ./tests/register.mjs --test tests/observe-routes.test.ts
@@ -33,8 +33,8 @@ for (const ws of ["mine", "other"]) {
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 const { writeRun } = await import("../../foldrun-core/src/store.ts");
-const observeRoute = await import("../app/api/observe/route.ts");
-const trendsRoute = await import("../app/api/workspaces/[workspace]/evals/trends/route.ts");
+const observeRoute = await import("../app/v1/observe/route.ts");
+const trendsRoute = await import("../app/v1/workspaces/[workspace]/evals/trends/route.ts");
 
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
 let n = 0;
@@ -93,8 +93,8 @@ type Obs = {
   daily: { day: string }[];
 };
 
-test("GET /api/observe: the window against the one before, why runs went wrong, desks and agents — 7 days unasked", async () => {
-  const res = await observeRoute.GET(call(every, "/api/observe"));
+test("GET /v1/observe: the window against the one before, why runs went wrong, desks and agents — 7 days unasked", async () => {
+  const res = await observeRoute.GET(call(every, "/v1/observe"));
   assert.equal(res.status, 200, await res.clone().text());
   const o = (await res.json()) as Obs;
   assert.equal(o.days, 7);
@@ -122,16 +122,16 @@ test("GET /api/observe: the window against the one before, why runs went wrong, 
   assert.ok(o.daily.length >= 7);
 });
 
-test("GET /api/observe?days=1 narrows the window, and the window before it to one day", async () => {
-  const o = (await (await observeRoute.GET(call(every, "/api/observe?days=1"))).json()) as Obs;
+test("GET /v1/observe?days=1 narrows the window, and the window before it to one day", async () => {
+  const o = (await (await observeRoute.GET(call(every, "/v1/observe?days=1"))).json()) as Obs;
   assert.equal(o.days, 1);
   assert.equal(o.kpis.runs, 5);
   assert.equal(o.previous.runs, 0);
   assert.equal(o.kpis.prevRate, null);
 });
 
-test("GET /api/observe: a key scoped to one workspace sees that one, nothing of the others", async () => {
-  const res = await observeRoute.GET(call(oneWs, "/api/observe"));
+test("GET /v1/observe: a key scoped to one workspace sees that one, nothing of the others", async () => {
+  const res = await observeRoute.GET(call(oneWs, "/v1/observe"));
   assert.equal(res.status, 200);
   const text = await res.text();
   // ("other" is also a day bucket's field, so the workspace is looked for by name.)
@@ -142,12 +142,12 @@ test("GET /api/observe: a key scoped to one workspace sees that one, nothing of 
   assert.ok(o.causes.every((c) => c.desks.every((d) => d === "mine")));
 });
 
-test("GET /api/observe without a key is refused", async () => {
-  assert.equal((await observeRoute.GET(call(null, "/api/observe"))).status, 401);
+test("GET /v1/observe without a key is refused", async () => {
+  assert.equal((await observeRoute.GET(call(null, "/v1/observe"))).status, 401);
 });
 
 test("GET …/evals/trends: the latest run against the last on a different commit, the drop first", async () => {
-  const res = await trendsRoute.GET(call(every, "/api/workspaces/mine/evals/trends"), ws("mine"));
+  const res = await trendsRoute.GET(call(every, "/v1/workspaces/mine/evals/trends"), ws("mine"));
   assert.equal(res.status, 200, await res.clone().text());
   const t = (await res.json()) as { workspace: string; trends: { eval: string; latest: { commit: string; passed: number }; previous: { commit: string; passed: number } | null; delta: number | null }[] };
   assert.equal(t.workspace, "mine");
@@ -163,9 +163,9 @@ test("GET …/evals/trends: the latest run against the last on a different commi
 });
 
 test("GET …/evals/trends: an empty history is an empty list; no workspace is a 404; another workspace is refused a scoped key", async () => {
-  const empty = (await (await trendsRoute.GET(call(every, "/api/workspaces/other/evals/trends"), ws("other"))).json()) as { trends: unknown[] };
+  const empty = (await (await trendsRoute.GET(call(every, "/v1/workspaces/other/evals/trends"), ws("other"))).json()) as { trends: unknown[] };
   assert.deepEqual(empty.trends, []);
-  assert.equal((await trendsRoute.GET(call(every, "/api/workspaces/nope/evals/trends"), ws("nope"))).status, 404);
-  assert.equal((await trendsRoute.GET(call(oneWs, "/api/workspaces/other/evals/trends"), ws("other"))).status, 403);
-  assert.equal((await trendsRoute.GET(call(oneWs, "/api/workspaces/mine/evals/trends"), ws("mine"))).status, 200);
+  assert.equal((await trendsRoute.GET(call(every, "/v1/workspaces/nope/evals/trends"), ws("nope"))).status, 404);
+  assert.equal((await trendsRoute.GET(call(oneWs, "/v1/workspaces/other/evals/trends"), ws("other"))).status, 403);
+  assert.equal((await trendsRoute.GET(call(oneWs, "/v1/workspaces/mine/evals/trends"), ws("mine"))).status, 200);
 });

@@ -18,8 +18,8 @@ process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 type Handler = (req: InstanceType<typeof NextRequest>, ctx: { params: Promise<{ workspace: string }> }) => Promise<Response>;
-const create = (await import("../app/api/workspaces/route.ts")) as unknown as { POST: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
-const imp = (await import("../app/api/workspaces/[workspace]/agents/import/route.ts")) as unknown as { GET: Handler; POST: Handler };
+const create = (await import("../app/v1/workspaces/route.ts")) as unknown as { POST: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
+const imp = (await import("../app/v1/workspaces/[workspace]/agents/import/route.ts")) as unknown as { GET: Handler; POST: Handler };
 
 const TENANT = "acme";
 const src = path.join(DATA, TENANT, "workspaces", "blog");
@@ -41,7 +41,7 @@ const req = (url: string, key: string, method = "GET", body?: unknown) =>
 const ctx = (workspace: string) => ({ params: Promise.resolve({ workspace }) });
 
 test("the dashboard's create makes a blank workspace", async () => {
-  const r = await create.POST(req("/api/workspaces", admin, "POST", { name: "fresh", template: true }));
+  const r = await create.POST(req("/v1/workspaces", admin, "POST", { name: "fresh", template: true }));
   assert.equal(r.status, 200, await r.clone().text());
   const body = await r.json();
   assert.equal(body.agents, 0);
@@ -51,24 +51,24 @@ test("the dashboard's create makes a blank workspace", async () => {
 });
 
 test("GET lists the other workspaces' agents; POST copies one without its memory", async () => {
-  const list = await (await imp.GET(req("/api/workspaces/fresh/agents/import", admin), ctx("fresh"))).json();
+  const list = await (await imp.GET(req("/v1/workspaces/fresh/agents/import", admin), ctx("fresh"))).json();
   assert.deepEqual(list.workspaces.map((w: { name: string }) => w.name).sort(), ["blog", "secret-desk"]);
 
-  const r = await imp.POST(req("/api/workspaces/fresh/agents/import", admin, "POST", { from: "blog", agent: "reviewer" }), ctx("fresh"));
+  const r = await imp.POST(req("/v1/workspaces/fresh/agents/import", admin, "POST", { from: "blog", agent: "reviewer" }), ctx("fresh"));
   assert.equal(r.status, 200, await r.clone().text());
   const body = await r.json();
   assert.deepEqual(body.files, ["agents/reviewer/agent.md"]);
   assert.ok(body.warnings.some((w: string) => /GITHUB_TOKEN/.test(w)));
   assert.equal(fs.existsSync(path.join(DATA, TENANT, "workspaces", "fresh", "agents/reviewer/memory")), false);
 
-  const again = await imp.POST(req("/api/workspaces/fresh/agents/import", admin, "POST", { from: "blog", agent: "reviewer" }), ctx("fresh"));
+  const again = await imp.POST(req("/v1/workspaces/fresh/agents/import", admin, "POST", { from: "blog", agent: "reviewer" }), ctx("fresh"));
   assert.equal(again.status, 409);
 });
 
 test("a key scoped to some workspaces cannot copy out of another", async () => {
   const { key } = await createApiKey(TENANT, "scoped", "owner@acme.test", undefined, "editor", ["fresh", "blog"]);
-  const list = await (await imp.GET(req("/api/workspaces/fresh/agents/import", key), ctx("fresh"))).json();
+  const list = await (await imp.GET(req("/v1/workspaces/fresh/agents/import", key), ctx("fresh"))).json();
   assert.deepEqual(list.workspaces.map((w: { name: string }) => w.name), ["blog"]);
-  const r = await imp.POST(req("/api/workspaces/fresh/agents/import", key, "POST", { from: "secret-desk", agent: "spy" }), ctx("fresh"));
+  const r = await imp.POST(req("/v1/workspaces/fresh/agents/import", key, "POST", { from: "secret-desk", agent: "spy" }), ctx("fresh"));
   assert.equal(r.status, 403);
 });

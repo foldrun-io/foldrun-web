@@ -12,9 +12,9 @@ test("a task is sent trimmed, a blank one is not, test only when asked; a starte
   assert.deepEqual(runBodyOf("   ", false), {});
   assert.deepEqual(runBodyOf("x", true), { task: "x", test: true });
 
-  const ep = "/api/workspaces/testnov17/agents/summarizer/run";
+  const ep = "/v1/workspaces/testnov17/agents/summarizer/run";
   assert.equal(runPageOf(ep, "run-abc", "default"), "/dashboard/testnov17/runs/run-abc");
   assert.equal(runPageOf(ep, "run-abc", "acme"), "/dashboard/testnov17/runs/run-abc?tenant=acme");
   assert.equal(runPageOf(ep, undefined, "default"), null);
-  assert.equal(runPageOf("/api/other", "run-abc", "default"), null);
+  assert.equal(runPageOf("/v1/other", "run-abc", "default"), null);
 });

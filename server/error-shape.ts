@@ -1,6 +1,6 @@
 // One API, Anthropic's shape (owner, 22 Nov 2026: "one api works with both
 // platform and the llm proxy like how anthropic does itself"). From API
-// version 2026-11-22 an /api refusal is the body /v1 already answers with:
+// version 2026-11-22 an /v1 refusal is the body /v1 already answers with:
 //
 //   { "type": "error", "error": { "type": "not_found_error", "message": "…" } }
 //

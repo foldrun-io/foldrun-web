@@ -13,7 +13,7 @@ process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-hook-f
 process.env.FOLDRUN_DISABLE_WORKER = "1";
 process.env.FOLDRUN_DISABLE_SCHEDULER = "1";
 const { NextRequest } = await import("next/server");
-const { POST } = await import("../app/api/hooks/[tenant]/[workspace]/[flow]/route.ts");
+const { POST } = await import("../app/v1/hooks/[tenant]/[workspace]/[flow]/route.ts");
 const { recordDelivery, readDeliveries, webhookToken } = await import("../../foldrun-core/src/webhook.ts");
 
 const ws = path.join(process.env.FOLDRUN_DATA, "acme/workspaces/desk");
@@ -22,7 +22,7 @@ fs.writeFileSync(path.join(ws, "AGENTS.md"), "---\nname: desk\n---\n");
 
 const hit = (flow: string, token: string, ip?: string) =>
   POST(
-    new NextRequest(`http://x/api/hooks/acme/desk/${flow}?token=${token}`, {
+    new NextRequest(`http://x/v1/hooks/acme/desk/${flow}?token=${token}`, {
       method: "POST",
       headers: { "content-type": "application/json", ...(ip ? { "x-forwarded-for": ip } : {}) },
       body: "{}",

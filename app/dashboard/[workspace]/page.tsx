@@ -119,7 +119,7 @@ export default async function ProjectPage({
         next: f.nextFireAt ? fmtIn(Date.parse(f.nextFireAt) - now) : undefined,
         spend: `${f.runs7d} · ${creditsShort(f.spend7d)}`,
       },
-      action: <RunButton endpoint={`/api/workspaces/${workspace}/flows/${f.name}/run`} tenant={tenant} label={$t("workspace.page.run")} />,
+      action: <RunButton endpoint={`/v1/workspaces/${workspace}/flows/${f.name}/run`} tenant={tenant} label={$t("workspace.page.run")} />,
       card: (
         <ResourceCard
           href={href}

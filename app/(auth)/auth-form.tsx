@@ -37,7 +37,7 @@ export function AuthForm({ mode, invite, setup, link, codeSignIn }: {
   const [canResend, setCanResend] = useState(false);
 
   async function askCode(email: string) {
-    const res = await fetch("/api/auth/login/code", {
+    const res = await fetch("/v1/auth/login/code", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ email }),
@@ -85,7 +85,7 @@ export function AuthForm({ mode, invite, setup, link, codeSignIn }: {
     // and an unhandled throw here left the button stuck on "…" forever with
     // no message — indistinguishable from a hang.
     try {
-      const res = await fetch(challenge ? "/api/auth/mfa/verify" : viaCode ? "/api/auth/login/code/verify" : `/api/auth/${mode}`, {
+      const res = await fetch(challenge ? "/v1/auth/mfa/verify" : viaCode ? "/v1/auth/login/code/verify" : `/v1/auth/${mode}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),

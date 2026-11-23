@@ -53,13 +53,13 @@ async function world() {
   await migrate();
   const { NextRequest } = await import("next/server");
   const users = await import("../server/users.ts");
-  const request = await import("../app/api/auth/login/code/route.ts");
-  const verify = await import("../app/api/auth/login/code/verify/route.ts");
+  const request = await import("../app/v1/auth/login/code/route.ts");
+  const verify = await import("../app/v1/auth/login/code/verify/route.ts");
   const codes = await import("../server/login-codes.ts");
   const sessions = await import("../server/sessions.ts");
   const audit = await import("../server/audit.ts");
-  const loginRoute = await import("../app/api/auth/login/route.ts");
-  const mfaVerify = await import("../app/api/auth/mfa/verify/route.ts");
+  const loginRoute = await import("../app/v1/auth/login/route.ts");
+  const mfaVerify = await import("../app/v1/auth/mfa/verify/route.ts");
   const tokens = await import("../server/auth-tokens.ts");
   const totpMod = await import("../server/totp.ts");
 
@@ -77,12 +77,12 @@ async function world() {
     return { challenge, cookie: `${codes.CHALLENGE_COOKIE}=${challenge}` };
   };
   const ask = async (email: string, b: { cookie: string }) => {
-    const res = await request.POST(new NextRequest("http://x/api/auth/login/code", json({ email }, b.cookie)));
+    const res = await request.POST(new NextRequest("http://x/v1/auth/login/code", json({ email }, b.cookie)));
     await Promise.all([...request.inflight]);
     return res;
   };
   const answer = (email: string, code: string, b: { cookie: string }) =>
-    verify.POST(new NextRequest("http://x/api/auth/login/code/verify", json({ email, code }, b.cookie)));
+    verify.POST(new NextRequest("http://x/v1/auth/login/code/verify", json({ email, code }, b.cookie)));
   const codeFrom = (to: string) => {
     const m = [...mails].reverse().find((x) => x.to === to);
     return m?.text.match(/\b(\d{6})\b/)?.[1] ?? null;
@@ -139,7 +139,7 @@ test("the right code signs in once, only from the browser that asked; the sessio
 test("a password sign-in records its method too", opts, async () => {
   const w = await world();
   const p = await w.person("c");
-  const res = await w.loginRoute.POST(new w.NextRequest("http://x/api/auth/login", json({ email: p.email, password: PASSWORD })));
+  const res = await w.loginRoute.POST(new w.NextRequest("http://x/v1/auth/login", json({ email: p.email, password: PASSWORD })));
   assert.equal(res.status, 200);
   assert.equal((await w.sessions.listSessions(p.user.id))[0].method, "password");
   const entry = (await w.audit.queryAudit({ tenant: p.tenant, limit: 20 })).entries.find((e) => e.action === "login");
@@ -227,7 +227,7 @@ test("100 wrong in a row lock code sign-in for 15 minutes; the password still wo
   assert.deepEqual(await w.codes.verifyCode(p.email, wrong, b.challenge, t0 + 1_000), { ok: false, reason: "locked" });
   assert.deepEqual(await w.codes.verifyCode(p.email, code, b.challenge, t0 + 2_000), { ok: false, reason: "locked" }, "even the right code, while locked");
   assert.equal(await w.codes.requestCode(p.email, b.challenge, t0 + 40_000), "not sent", "and no new code while locked");
-  const pw = await w.loginRoute.POST(new w.NextRequest("http://x/api/auth/login", json({ email: p.email, password: PASSWORD })));
+  const pw = await w.loginRoute.POST(new w.NextRequest("http://x/v1/auth/login", json({ email: p.email, password: PASSWORD })));
   assert.equal(pw.status, 200, "the password is not locked");
   // After the lock, a new code works and clears the run.
   const later = t0 + w.codes.LOCK_MS + 60_000;
@@ -273,7 +273,7 @@ test("one caller spending an address's six mails does not stop the owner's own r
     const p = await w.person("lim");
     const from = async (ip: string) => {
       const b = w.browser();
-      const res = await w.request.POST(new w.NextRequest("http://x/api/auth/login/code", { ...json({ email: p.email }, b.cookie), headers: { "content-type": "application/json", cookie: b.cookie, "x-forwarded-for": ip } }));
+      const res = await w.request.POST(new w.NextRequest("http://x/v1/auth/login/code", { ...json({ email: p.email }, b.cookie), headers: { "content-type": "application/json", cookie: b.cookie, "x-forwarded-for": ip } }));
       await Promise.all([...w.request.inflight]);
       return res.status;
     };
@@ -302,7 +302,7 @@ test("a second factor is still asked after the code, and the session records the
   const body = (await res.json()) as { mfa?: boolean; challenge?: string };
   assert.equal(body.mfa, true);
   assert.equal(w.tokens.readToken("mfa-challenge", body.challenge!)?.m, "email-code");
-  const done = await w.mfaVerify.POST(new w.NextRequest("http://x/api/auth/mfa/verify", json({ challenge: body.challenge, code: w.totpMod.totp(secret) })));
+  const done = await w.mfaVerify.POST(new w.NextRequest("http://x/v1/auth/mfa/verify", json({ challenge: body.challenge, code: w.totpMod.totp(secret) })));
   assert.equal(done.status, 200, await done.clone().text());
   assert.equal((await w.sessions.listSessions(p.user.id))[0].method, "email-code");
   const entry = (await w.audit.queryAudit({ tenant: p.tenant, limit: 20 })).entries.find((e) => e.action === "login");

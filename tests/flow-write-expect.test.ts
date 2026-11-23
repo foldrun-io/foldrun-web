@@ -22,7 +22,7 @@ const { NextRequest } = await import("next/server");
 const { createApiKey } = await import("../server/auth.ts");
 type Ctx = { params: Promise<{ workspace: string; flow: string }> };
 type Handler = (req: InstanceType<typeof NextRequest>, ctx: Ctx) => Promise<Response>;
-const route = (await import("../app/api/workspaces/[workspace]/flows/[flow]/route.ts")) as { PATCH: Handler };
+const route = (await import("../app/v1/workspaces/[workspace]/flows/[flow]/route.ts")) as { PATCH: Handler };
 const { flowWrite, STALE_FLOW } = await import("../components/flow-write.ts");
 
 const TENANT = "acme";
@@ -43,7 +43,7 @@ const viaRoute: typeof fetch = async (input, init) => {
   });
   return route.PATCH(req, { params: Promise.resolve({ workspace: WS, flow: "daily" }) });
 };
-const URL_ = `/api/workspaces/${WS}/flows/daily`;
+const URL_ = `/v1/workspaces/${WS}/flows/daily`;
 
 for (const [name, method, body] of [
   ["groups (board drag)", "PATCH", { groups: [[1], [0], [2]] }],
@@ -90,7 +90,7 @@ for (const file of ["app/dashboard/[workspace]/flows/flow-board.tsx", "app/dashb
     assert.ok(src.includes("flowWrite("), "uses flowWrite");
     // A bare fetch to the flow route itself (not …/run) may only be the
     // add-step POST, which names no index.
-    const bare = [...src.matchAll(/fetch\(`\/api\/workspaces\/\$\{workspace\}\/flows\/\$\{flow\}`,([\s\S]{0,200})/g)];
+    const bare = [...src.matchAll(/fetch\(`\/v1\/workspaces\/\$\{workspace\}\/flows\/\$\{flow\}`,([\s\S]{0,200})/g)];
     for (const m of bare) assert.match(m[1], /method:\s*"POST"/, `a bare flow write: ${m[1].slice(0, 80)}`);
     // The board's ✕ goes through `mutate`, whose DELETE must reach flowWrite.
     if (src.includes('mutate("DELETE"')) assert.match(src, /await write\("DELETE"/);

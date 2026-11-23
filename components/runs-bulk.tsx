@@ -4,7 +4,7 @@
 // bulk-select kit. A selected run is `<workspace>/<runId>`, because the
 // account-wide list spans workspaces and the API is per workspace.
 //
-// Stop, Rerun and Delete go through POST /api/workspaces/<ws>/runs/bulk,
+// Stop, Rerun and Delete go through POST /v1/workspaces/<ws>/runs/bulk,
 // the same route the CLI uses, once per workspace in the selection
 // (runs-bulk-model.ts). Delete looped one DELETE per run until it was a bulk
 // action too (FOL-75, 5 Nov 2026).
@@ -34,7 +34,7 @@ async function bulk(action: "stop" | "rerun" | "delete", runs: RunSelectable[], 
   const refused: string[] = [];
   for (const c of bulkCalls(runs)) {
     try {
-      const res = await fetch(`/api/workspaces/${encodeURIComponent(c.workspace)}/runs/bulk`, {
+      const res = await fetch(`/v1/workspaces/${encodeURIComponent(c.workspace)}/runs/bulk`, {
         method: "POST",
         headers: {
           "content-type": "application/json",

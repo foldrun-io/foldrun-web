@@ -229,7 +229,7 @@ export function LiveRun({
   useEffect(() => {
     if (!subscribe) return;
     const source = new EventSource(
-      `/api/workspaces/${workspace}/runs/${initial.id}/stream`,
+      `/v1/workspaces/${workspace}/runs/${initial.id}/stream`,
     );
     source.onopen = () => setLink("live");
     source.addEventListener("run", (e) => {
@@ -376,7 +376,7 @@ export function LiveRun({
   const rerun = async (step: number, instruction?: string) => {
     setBusy(true);
     try {
-      const res = await fetch(`/api/workspaces/${workspace}/runs/${run.id}/rerun`, {
+      const res = await fetch(`/v1/workspaces/${workspace}/runs/${run.id}/rerun`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
         body: JSON.stringify({ step: step + 1, ...(instruction !== undefined ? { instruction } : {}) }),
@@ -406,7 +406,7 @@ export function LiveRun({
   const promote = async (should?: string) => {
     setBusy(true);
     try {
-      const res = await fetch(`/api/workspaces/${workspace}/runs/${run.id}/promote`, {
+      const res = await fetch(`/v1/workspaces/${workspace}/runs/${run.id}/promote`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
         body: JSON.stringify(should ? { should } : {}),
@@ -430,7 +430,7 @@ export function LiveRun({
   const stop = async () => {
     setBusy(true);
     try {
-      await fetch(`/api/workspaces/${workspace}/runs/${run.id}/stop`, {
+      await fetch(`/v1/workspaces/${workspace}/runs/${run.id}/stop`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
       });
@@ -450,7 +450,7 @@ export function LiveRun({
     }))) return;
     setBusy(true);
     try {
-      const res = await fetch(`/api/workspaces/${workspace}/runs/${run.id}`, {
+      const res = await fetch(`/v1/workspaces/${workspace}/runs/${run.id}`, {
         method: "DELETE",
         headers: { "x-foldrun-tenant": tenant },
       });
@@ -468,7 +468,7 @@ export function LiveRun({
     setBusy(true);
     try {
       const note = (notes[step] ?? "").trim();
-      await fetch(`/api/workspaces/${workspace}/runs/${run.id}/approve`, {
+      await fetch(`/v1/workspaces/${workspace}/runs/${run.id}/approve`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
         body: JSON.stringify({
@@ -588,7 +588,7 @@ export function LiveRun({
         <MenuContent>
           <Tooltip label={$t("workspace.live-run.theRunRecordAsTheRunner")} side="left">
             <MenuItem asChild>
-              <a href={`/api/workspaces/${encodeURIComponent(workspace)}/runs/${run.id}`} target="_blank" rel="noreferrer">
+              <a href={`/v1/workspaces/${encodeURIComponent(workspace)}/runs/${run.id}`} target="_blank" rel="noreferrer">
                 <Code2 aria-hidden />
                 {$t("workspace.live-run.runRecordJson")}
               </a>
@@ -1083,7 +1083,7 @@ export function LiveRun({
                   ...Array.from(named.matchAll(/(?:\.\.\/\.\.\/)?storage\/([\w./-]+?\.(?:mdx?|txt|csv|json))\b/gi), (m) => m[1]),
                 ])).slice(0, 4);
                 const imageSrc = (rel: string) =>
-                  `/api/workspaces/${encodeURIComponent(workspace)}/storage/download?path=${encodeURIComponent(rel)}&inline=1`;
+                  `/v1/workspaces/${encodeURIComponent(workspace)}/storage/download?path=${encodeURIComponent(rel)}&inline=1`;
                 return (
                   <div className="rounded-md border border-line bg-surface p-3">
                     <div className="mb-1.5 text-[13px] font-medium text-fg">{$t("workspace.live-run.whatThisStepWillActOn")}</div>
@@ -1298,7 +1298,7 @@ export function LiveRun({
                         {files.map((f) => (
                           <li key={f.path} className="truncate">
                             <a
-                              href={`/api/workspaces/${workspace}/runs/${run.id}/archive?agent=${encodeURIComponent(f.agent)}&path=${encodeURIComponent(f.path)}`}
+                              href={`/v1/workspaces/${workspace}/runs/${run.id}/archive?agent=${encodeURIComponent(f.agent)}&path=${encodeURIComponent(f.path)}`}
                               target="_blank"
                               rel="noreferrer"
                               className="font-mono text-[11px] text-fg-secondary underline-offset-2 hover:underline"
@@ -1355,7 +1355,7 @@ export function LiveRun({
                   agent={step.agent}
                   active={stepLive}
                   files={files}
-                  hrefOf={(f) => `/api/workspaces/${workspace}/runs/${run.id}/archive?agent=${encodeURIComponent(f.agent)}&path=${encodeURIComponent(f.path)}`}
+                  hrefOf={(f) => `/v1/workspaces/${workspace}/runs/${run.id}/archive?agent=${encodeURIComponent(f.agent)}&path=${encodeURIComponent(f.path)}`}
                 />
               </div>
             );

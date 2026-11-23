@@ -27,7 +27,7 @@ export function PasswordForm() {
         setState({});
         if (next !== again) return setState({ error: $t("profile.password.theTwoNewPasswordsDoNot") });
         setBusy(true);
-        const res = await fetch("/api/auth/password", {
+        const res = await fetch("/v1/auth/password", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ current, next }),

@@ -254,7 +254,7 @@ export function RunsTable({
                 <td className="relative z-10 w-px px-3 text-right align-middle whitespace-nowrap">
                   <span className="opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                     <DeleteButton
-                      endpoint={`/api/workspaces/${r.workspace}/runs/${r.id}`}
+                      endpoint={`/v1/workspaces/${r.workspace}/runs/${r.id}`}
                       tenant={tenant}
                       confirmText={$t("components.runs-table.deleteRunItsRecordAndOutputs", { v0: String(r.id.slice(4)) })}
                       action="workspace:manage"

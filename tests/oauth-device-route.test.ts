@@ -1,4 +1,4 @@
-// POST /api/oauth/device and /api/oauth/device/<id>: a saved app connects
+// POST /v1/oauth/device and /v1/oauth/device/<id>: a saved app connects
 // with a code (RFC 8628) — started for a key with secrets:write, polled until
 // approved, stored as the secret; another account's key cannot poll it.
 //
@@ -15,8 +15,8 @@ process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-device
 delete process.env.FOLDRUN_DEV_NO_AUTH;
 process.env.FOLDRUN_EGRESS_ALLOW_PRIVATE = "1";
 const { NextRequest } = await import("next/server");
-const start = await import("../app/api/oauth/device/route.ts");
-const poll = await import("../app/api/oauth/device/[id]/route.ts");
+const start = await import("../app/v1/oauth/device/route.ts");
+const poll = await import("../app/v1/oauth/device/[id]/route.ts");
 const { createApiKey } = await import("../server/auth.ts");
 const { saveOAuthClient } = await import("../../foldrun-platform/src/oauth-clients.ts");
 const { listSecrets } = await import("../../foldrun-core/src/secrets.ts");
@@ -44,16 +44,16 @@ const req = (url: string, k: string, body?: object) => new NextRequest(`http://x
 
 test("start → pending → approved → stored; another account's key cannot poll it", async () => {
   await saveOAuthClient("acme", "tv", { authorize_url: `${base}/authorize`, token_url: `${base}/token`, client_id: "cid", client_secret: "shh", scopes: "openid", device_url: `${base}/device` });
-  const s = await start.POST(req("/api/oauth/device", key, { client: "tv", secret: "TV_TOKEN", workspace: "desk" }));
+  const s = await start.POST(req("/v1/oauth/device", key, { client: "tv", secret: "TV_TOKEN", workspace: "desk" }));
   assert.equal(s.status, 200, await s.clone().text());
   const started = (await s.json()) as { id: string; user_code: string; interval: number };
   assert.equal(started.user_code, "ABCD-1234");
   const ctx = { params: Promise.resolve({ id: started.id }) };
-  assert.deepEqual(await (await poll.POST(req(`/api/oauth/device/${started.id}`, key), ctx)).json(), { status: "pending" });
-  const foreign = await poll.POST(req(`/api/oauth/device/${started.id}`, otherKey), { params: Promise.resolve({ id: started.id }) });
+  assert.deepEqual(await (await poll.POST(req(`/v1/oauth/device/${started.id}`, key), ctx)).json(), { status: "pending" });
+  const foreign = await poll.POST(req(`/v1/oauth/device/${started.id}`, otherKey), { params: Promise.resolve({ id: started.id }) });
   assert.equal(foreign.status, 400);
   approved = true;
-  const done = (await (await poll.POST(req(`/api/oauth/device/${started.id}`, key), ctx)).json()) as { status: string; name: string; tenant?: string };
+  const done = (await (await poll.POST(req(`/v1/oauth/device/${started.id}`, key), ctx)).json()) as { status: string; name: string; tenant?: string };
   assert.equal(done.status, "connected");
   assert.equal(done.name, "TV_TOKEN");
   assert.equal(done.tenant, undefined, "the account is not echoed");
@@ -61,6 +61,6 @@ test("start → pending → approved → stored; another account's key cannot po
 });
 
 test("an unknown saved app is 404; a bad secret name is refused before any provider is asked", async () => {
-  assert.equal((await start.POST(req("/api/oauth/device", key, { client: "nope", secret: "X" }))).status, 404);
-  assert.equal((await start.POST(req("/api/oauth/device", key, { client: "tv", secret: "lower-case" }))).status, 400);
+  assert.equal((await start.POST(req("/v1/oauth/device", key, { client: "nope", secret: "X" }))).status, 404);
+  assert.equal((await start.POST(req("/v1/oauth/device", key, { client: "tv", secret: "lower-case" }))).status, 400);
 });

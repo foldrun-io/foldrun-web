@@ -28,7 +28,7 @@ export function WorkspaceIdentity({
 }) {
   const router = useRouter();
   const form = useSettingsForm({ name: workspace, description }, async (v) => {
-    const res = await fetch(`/api/workspaces/${workspace}`, {
+    const res = await fetch(`/v1/workspaces/${workspace}`, {
       method: "PATCH",
       headers: { "content-type": "application/json", "x-foldrun-tenant": tenant },
       body: JSON.stringify({ name: v.name, description: v.description }),
