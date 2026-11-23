@@ -37,7 +37,7 @@ export interface FirstRunTarget {
 const STEP_OUTCOME: Record<string, Outcome> = { pending: "queued", skipped: "quiet", completed: "done", expanded: "done" };
 const stepOutcome = (status: string): Outcome => STEP_OUTCOME[status] ?? outcomeOf(status, null);
 
-export function FirstRun({ tenant, target, noModel, modelHref, onContinue }: { tenant: string; target: FirstRunTarget; noModel: boolean; modelHref: string | null; onContinue: () => void }) {
+export function FirstRun({ tenant, target, noModel, needsPlan = false, modelHref, onContinue }: { tenant: string; target: FirstRunTarget; noModel: boolean; /** Own keys are off: the account needs a plan, not a key. */ needsPlan?: boolean; modelHref: string | null; onContinue: () => void }) {
   const router = useRouter();
   const mayRun = useCan("run:start");
   const [runId, setRunId] = useState<string | null>(target.latest?.lite.id ?? null);
@@ -87,12 +87,12 @@ export function FirstRun({ tenant, target, noModel, modelHref, onContinue }: { t
           actions={
             modelHref && (
               <Link href={modelHref} className="font-medium underline underline-offset-2">
-                {$t("components.first-run.addAKey")}
+                {needsPlan ? $t("components.first-run.getAPlan") : $t("components.first-run.addAKey")}
               </Link>
             )
           }
         >
-          {$t("components.first-run.thisAccountHasNoModelKey")}
+          {needsPlan ? $t("components.first-run.thisAccountHasNoPlan") : $t("components.first-run.thisAccountHasNoModelKey")}
         </Callout>
       )}
 
@@ -194,7 +194,7 @@ export function FirstRun({ tenant, target, noModel, modelHref, onContinue }: { t
             <>
               {noModel && modelHref && (
                 <Link href={modelHref} className={buttonVariants({ variant: "primary", size: "md" })}>
-                  {$t("components.first-run.addAModelKey")}
+                  {needsPlan ? $t("components.first-run.getAPlan") : $t("components.first-run.addAModelKey")}
                 </Link>
               )}
               {doctor && (

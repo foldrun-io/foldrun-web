@@ -12,7 +12,7 @@ export interface OnboardingFacts {
   /** Null: the account runs on the platform's credential and has nothing
    *  to bring. Otherwise done once it has its own key or an account-wide
    *  provider: block — until then every run is refused. */
-  model: { done: boolean } | null;
+  model: { done: boolean; /** Own keys are off here: the account needs a plan, not a key. */ needsPlan?: boolean } | null;
   workspaces: string[];
   /** An agent written or changed after a workspace was made, by any route. */
   agentAuthored: boolean;
@@ -82,14 +82,22 @@ export function onboardingSteps(f: OnboardingFacts, hidden: readonly string[] = 
   const raw: Omit<OnboardingStep, "hidden">[] = [
     ...(f.model
       ? [
-          {
-            id: "model" as const,
-            title: $t("components.onboarding-model.addYourModelKey"),
-            why: $t("components.onboarding-model.agentsRunOnYourOwnApi"),
-            href: "/dashboard/settings?tab=models#provider",
-            cli: $t("components.onboarding-model.foldrunAccountModelSetAnthropicKey"),
-            done: f.model.done,
-          },
+          f.model.needsPlan
+            ? {
+                id: "model" as const,
+                title: $t("components.onboarding-model.getAPlan"),
+                why: $t("components.onboarding-model.thisPlatformRunsEveryModelCall"),
+                href: "/dashboard/billing/plans",
+                done: f.model.done,
+              }
+            : {
+                id: "model" as const,
+                title: $t("components.onboarding-model.addYourModelKey"),
+                why: $t("components.onboarding-model.agentsRunOnYourOwnApi"),
+                href: "/dashboard/settings?tab=models#provider",
+                cli: $t("components.onboarding-model.foldrunAccountModelSetAnthropicKey"),
+                done: f.model.done,
+              },
         ]
       : []),
     {

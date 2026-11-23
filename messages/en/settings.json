@@ -619,7 +619,6 @@
     "model": "Model",
     "modelKey": "Model key",
     "noDailyCap": " (no daily cap).",
-    "noKey": "No key",
     "noModelsArePricedForThis": "No models are priced for this provider yet.",
     "noProviderAccountNeededBilledIn": "No provider account needed. Billed in credits at foldrun's price list.",
     "notAvailable": " — not available",
@@ -636,7 +635,6 @@
     "replaceTheCurrentKey": "replace the current key",
     "runningOn": "Running on {v0}",
     "runsAreRefusedUntilThisIs": "{v0}: {v1}. Runs are refused until this is resolved or you switch to your own key.",
-    "runsOnThisAccountAreRefused": "Runs on this account are refused until you add an API key.",
     "saveKey": "Save key",
     "saveKeyAndUseIt": "Save key and use it",
     "spentToday": "Spent today: <span>{usd}</span>",
@@ -658,7 +656,8 @@
     "coveredByPlan": "In your plan",
     "payAsYouGo": "Pay as you go",
     "tierRunsOn": "<code>{tier}</code> runs <code>{id}</code>",
-    "notAvailableNow": "not available now"
+    "notAvailableNow": "not available now",
+    "pickAPlan": "Pick one in <link>Billing → Plans</link>."
   },
   "page": {
     "about": "About",
