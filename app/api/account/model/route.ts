@@ -20,8 +20,8 @@
 //           CLI) are never owners. A key alone never changes the choice.
 //   DELETE  removes the key (the choice stays)
 //
-// A Claude login token (sk-ant-oat…) is refused for any account not allowed
-// the platform's credential: customers bring API keys, not claude.ai logins.
+// An account may set either an API key or a Claude login token (sk-ant-oat…,
+// its own claude.ai subscription) as its model key.
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, errorResponse, requireAccountWide, refuse } from "@/server/api";
@@ -29,7 +29,7 @@ import { audit } from "@/server/audit";
 import { idempotent } from "@/server/idempotency";
 import { setSecret, deleteSecret } from "@/lib/secrets";
 import { describeAccountModel as describe, describeAccountModelNow } from "@/server/account-model";
-import { ACCOUNT_MODEL_SECRETS, isClaudeLoginToken } from "@/lib/model-credential";
+import { ACCOUNT_MODEL_SECRETS } from "@/lib/model-credential";
 import { providerPreset } from "@/lib/providers";
 import { platform, guardsUntrustedUrls } from "@/lib/platform";
 import { refuseInternalUrl } from "@/platform/ssrf";
@@ -81,9 +81,6 @@ async function putOnce(req: NextRequest) {
     // Everything is checked before anything is written.
     let key: { preset: ReturnType<typeof providerPreset> } | null = null;
     if (apiKey) {
-      if (isClaudeLoginToken(apiKey) && !platform.platformKeyAllowed(tenant)) {
-        return bad("that is a Claude login token (sk-ant-oat…), not an API key — create an API key at your provider and use that");
-      }
       const preset = name && name !== "custom" ? providerPreset(name) : null;
       if (name && name !== "custom" && !preset) return bad(`unknown provider "${name}" — use a preset name (anthropic, openrouter, openai, groq, …) or "custom" with a baseUrl`);
       if (!preset && !baseUrl) return bad("a custom provider needs baseUrl — the endpoint your key is for");

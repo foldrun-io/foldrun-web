@@ -1,7 +1,7 @@
 // /api/account/model: an account brings its own model key. The key is
-// stored in the account vault, shown only by its last four characters, and
-// a Claude login token is refused for an account not allowed the platform's
-// credential. Admin only to change.
+// stored in the account vault, shown only by its last four characters. The
+// key may be an API key or a Claude login token (the account's own
+// subscription). Admin only to change.
 //
 //   node --import ./tests/register.mjs --test tests/account-model-route.test.ts
 
@@ -40,11 +40,11 @@ test("a customer with no key: runs are refused until one is set", async () => {
   assert.deepEqual({ set: r.set, runsOn: r.runsOn, platformKeyAllowed: r.platformKeyAllowed }, { set: false, runsOn: "none", platformKeyAllowed: false });
 });
 
-test("a Claude login token is refused; an API key for a preset is stored, shown only by its last four", async () => {
+test("a Claude login token is stored (the account's own subscription); an API key for a preset is stored, shown only by its last four", async () => {
   const login = await put({ provider: "anthropic", apiKey: "sk-ant-oat01-a-login-token-xxxx" });
-  assert.equal(login.status, 400);
-  assert.match((await login.json()).error, /Claude login token/);
-  assert.equal(getSecret("acme", "FOLDRUN_MODEL_API_KEY"), null, "nothing stored");
+  assert.equal(login.status, 200);
+  assert.equal((await login.json()).keyHint, "…xxxx");
+  assert.equal(getSecret("acme", "FOLDRUN_MODEL_API_KEY")?.value, "sk-ant-oat01-a-login-token-xxxx");
 
   const ok = await put({ provider: "openrouter", apiKey: "sk-or-v1-the-customers-key-9876" });
   assert.equal(ok.status, 200);

@@ -610,7 +610,7 @@
     "claudeOnYourClaudeCodePlan": "Claude, on your Claude Code plan · counted in the plan's monthly and weekly limits, like your Claude Code",
     "claudeSubscription": "Claude subscription",
     "customEndpoint": "Custom endpoint…",
-    "everyStepRunsOnThisKey2": "Every step runs on this key unless an agent, {@workspace.one} or the account's AGENTS.md names its own <code>provider:</code>. Use an <strong>API key</strong> from your provider; Claude login tokens are not accepted.",
+    "everyStepRunsOnThisKey2": "Every step runs on this key unless an agent, {@workspace.one} or the account's AGENTS.md names its own <code>provider:</code>. Use an <strong>API key</strong> from your provider, or your own Claude login token.",
     "foldrunSModels": "foldrun's models",
     "foldrunSModelsRefused": "foldrun's models — refused",
     "format": "Format",

@@ -286,7 +286,7 @@ export const SHAPES: Record<string, Shape> = {
   "PUT /api/account/model": {
     body: obj({
       provider: str("a preset name (anthropic, openrouter, openai, groq, …) or custom"),
-      apiKey: str("write-only; required unless source is given; a Claude login token is refused unless the account may use the platform's credential"),
+      apiKey: str("write-only; required unless source is given; may be an API key or a Claude login token (the account's own claude.ai subscription)"),
       baseUrl: str("https://; required for custom and for a preset whose address is per account"),
       format: str("anthropic | openai"),
       source: str("own | foldrun — foldrun runs on foldrun's models, billed in credits; a key alone never changes it"),
