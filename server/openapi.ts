@@ -792,6 +792,7 @@ const EXTRA_STATUSES: Record<string, string[]> = {
   "* /v1/workspaces/{workspace}/runs/{runId}/archive": ["206", "416"],
   "* /v1/workspaces/{workspace}/runs/{runId}/message": ["409", "413"],
   "* /v1/workspaces/{workspace}/sessions/{context}/messages": ["201", "409", "503"],
+  "* /v1/workspaces/{workspace}/sessions/{context}/messages/take": ["503"],
   "* /v1/workspaces/{workspace}/shares": ["409"],
   "* /v1/workspaces/{workspace}/snapshots": ["411", "413"],
   "* /v1/workspaces/{workspace}/source": ["422"],

@@ -106,3 +106,41 @@ test("send, read, include in one turn only; all or none; who may", opts, async (
   const { db } = await import("@/platform/db.ts");
   await db()?.query("DELETE FROM session_messages WHERE tenant=$1", [TENANT]);
 });
+
+test("take (FOL-236): a turn on a computer marks messages used — once, who may, a bad body refused; the project's conversations listed", opts, async () => {
+  const { migrate } = await import("@/platform/db.ts");
+  await migrate();
+  const { NextRequest } = await import("next/server");
+  const { createApiKey } = await import("../server/auth.ts");
+  const messages = await import("../app/v1/workspaces/[workspace]/sessions/[context]/messages/route.ts");
+  const take = await import("../app/v1/workspaces/[workspace]/sessions/[context]/messages/take/route.ts");
+  const sessions = await import("../app/v1/workspaces/[workspace]/sessions/route.ts");
+  const { writeRun } = await import("@/lib/store");
+  const { runContext } = await import("@/lib/conversation");
+
+  const editor = (await createApiKey(TENANT, "ed2", "ana@acme.test", undefined, "editor")).key;
+  const viewer = (await createApiKey(TENANT, "view2", undefined, undefined, "viewer")).key;
+  const req = (method: string, key: string, p: string, body?: unknown) =>
+    new NextRequest(`https://app.example.test${p}`, { method, headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
+  const mp = (context: string) => ({ params: Promise.resolve({ workspace: "desk", context }) });
+  const T = (ctx: string) => `/v1/workspaces/desk/sessions/${ctx}/messages/take`;
+
+  const one = (await (await messages.POST(req("POST", editor, `/v1/workspaces/desk/sessions/code-tk/messages`, { text: "one" }), mp("code-tk"))).json()).message;
+  assert.equal((await take.POST(req("POST", viewer, T("code-tk"), { ids: [one.id] }), mp("code-tk"))).status, 403, "a viewer includes nothing in a turn");
+  assert.equal((await take.POST(req("POST", editor, T("code-tk"), { ids: [] }), mp("code-tk"))).status, 400);
+  assert.equal((await take.POST(req("POST", editor, T("code-tk"), { ids: [42] }), mp("code-tk"))).status, 400);
+  const first = await take.POST(req("POST", editor, T("code-tk"), { ids: [one.id, "sm-none"] }), mp("code-tk"));
+  assert.equal(first.status, 200);
+  const got = await first.json();
+  assert.deepEqual(got.taken.map((m: any) => [m.id, m.usedLocally, m.run]), [[one.id, true, undefined]]);
+  assert.deepEqual(got.refused, ["sm-none"]);
+  assert.deepEqual((await (await take.POST(req("POST", editor, T("code-tk"), { ids: [one.id] }), mp("code-tk"))).json()).refused, [one.id], "used once");
+
+  writeRun(TENANT, "desk", { id: "run-conv-1", flow: "adhoc:coder", status: "completed", startedAt: "2026-11-24T01:00:00.000Z", finishedAt: "2026-11-24T01:01:00.000Z", context: runContext("code-tk"), steps: [{ agent: "coder", instruction: "x", group: 1, optional: false, status: "completed", events: [], costUsd: null }] } as any);
+  const list = await sessions.GET(req("GET", viewer, "/v1/workspaces/desk/sessions"), { params: Promise.resolve({ workspace: "desk" }) });
+  assert.equal(list.status, 200, "any member reads the list");
+  const rows = (await list.json()).sessions;
+  const mine = rows.find((x: any) => x.context === "code-tk");
+  assert.deepEqual([mine.turns, mine.lastRun, mine.agent], [1, "run-conv-1", "coder"]);
+  assert.ok(rows.every((x: any, i: number) => i === 0 || rows[i - 1].lastAt >= x.lastAt), "the most recently used first");
+});

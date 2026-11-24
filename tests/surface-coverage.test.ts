@@ -89,6 +89,8 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   // included, from the run record (no call to these routes).
   "GET /v1/workspaces/[workspace]/sessions/[context]/messages": "read where the conversation is held (foldrun code); the run page shows a turn's included messages from its record",
   "POST /v1/workspaces/[workspace]/sessions/[context]/messages": "sent from foldrun code (/send) or a script (foldrun sessions send); the dashboard has no conversation to send from",
+  "POST /v1/workspaces/[workspace]/sessions/[context]/messages/take": "a turn on a person's own computer (foldrun code) marks the messages it carried used; the dashboard makes no such turn",
+  "GET /v1/workspaces/[workspace]/sessions": SERVER("[workspace]/runs/page.tsx → listSessions (the Conversations panel)"),
   "POST /v1/billing/partner/plans/offer": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",
   "POST /v1/billing/partner/signups": CALLBACK + "foldrun.ir's signed storefront calls (a sign-up link for a customer with no account); the person opens the account on /signup",
   "POST /v1/billing/partner/plans": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",

@@ -22,6 +22,8 @@ import { buttonVariants } from "@foldrun/ui/react/button";
 import { RunFilters, RunStats, RunsTable, whatRan, filterByWindow, pageOf, RUNS_PAGE_SIZE, runSearchText, type RunRow } from "@/components/runs-table";
 import { filterByQuery } from "@foldrun/ui/react/list-search-model";
 import { RunsSelection } from "@/components/runs-bulk";
+import { ConversationsPanel } from "@/components/conversations-panel";
+import { listSessions } from "@/lib/conversation";
 
 export const dynamic = "force-dynamic";
 
@@ -104,6 +106,9 @@ export default async function WorkspaceRunsPage({
       />
 
       <RunStats runs={runs} chargedUsd={runs.reduce((n, r) => n + runCharge(r, charges), 0)} />
+
+      {/* The project's conversations (FOL-236) — hidden while one is open: its turns are the list below. */}
+      {!searchKept.context && <ConversationsPanel sessions={listSessions(tenant, workspace, 10)} workspace={workspace} tenantParam={tenantParam} />}
 
       {/* Search, then the filters. Each control carries the others' choices
           in its links, so picking a window keeps the status and vice versa —

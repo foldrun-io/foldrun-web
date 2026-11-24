@@ -223,6 +223,15 @@
     "everyRule": "Every rule",
     "whatFoldrunCheckSaysAboutThis": "What foldrun check says about this {@workspace.one} as deployed: what a deploy refuses, what it warns about, and the security rules. Offline; no model is called."
   },
+  "conversations-panel": {
+    "title": "Conversations",
+    "description": "Turns that belong to one conversation (foldrun code in the cloud, or a run started with a context), most recently used first. Open one to see its turns.",
+    "conversation": "Conversation",
+    "turns": "Turns",
+    "agent": "Agent",
+    "last": "Last turn",
+    "status": "Status"
+  },
   "edit-new-file": {
     "cancel": "Cancel",
     "create": "Create",
