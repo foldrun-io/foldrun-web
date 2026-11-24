@@ -115,6 +115,43 @@ export const SHAPES: Record<string, Shape> = {
     ),
     response: obj({ ok: bool, message: SessionMessageShape }),
   },
+  "GET /v1/workspaces/{workspace}/sessions": {
+    query: [{ name: "limit", description: "at most this many, 1–200 (default 50)" }],
+    response: obj({
+      sessions: arr(
+        obj({
+          context: str("the conversation's id: what context names on a run, and what foldrun code --context takes"),
+          name: { type: ["string", "null"], description: "what a person named it, else null" },
+          turns: { ...int, description: "its turns that became runs" },
+          turnsMore: { ...bool, description: "true when the count stopped at its cap: turns is a lower bound" },
+          agent: { type: ["string", "null"] },
+          lastAt: str(),
+          lastStatus: str(),
+          lastRun: str(),
+          startedBy: { type: ["string", "null"] },
+          lastSummary: { type: ["string", "null"] },
+        }),
+      ),
+    }),
+  },
+  "PATCH /v1/workspaces/{workspace}/sessions/{context}": {
+    body: obj({ name: { type: ["string", "null"], description: "a few words, at most 80 characters; null takes the name away" } }, ["name"]),
+    response: obj({ context: str(), name: { type: ["string", "null"] } }),
+  },
+  "POST /v1/workspaces/{workspace}/sessions/{context}/messages/take": {
+    body: obj({
+      ids: arr(str(), "the messages a turn on a person's own computer is to carry, 1–100 ids: held for it"),
+      hold: str("the hold this route gave, to settle it"),
+      outcome: { type: "string", enum: ["used", "freed"], description: "with hold: used (the turn reached the model) or freed (it did not)" },
+    }),
+    response: obj({
+      taken: arr(SessionMessageShape),
+      refused: arr(str()),
+      hold: str("lt-…: settle it with {hold, outcome}; it lapses in 10 minutes"),
+      used: { ...int, description: "with outcome used: how many were marked used" },
+      freed: { ...int, description: "with outcome freed: how many wait again" },
+    }),
+  },
   "POST /v1/workspaces/{workspace}/runs/{runId}/message": {
     body: obj(
       {

@@ -259,6 +259,9 @@ export const TABLE: Row[] = [
   ["GET", "/v1/workspaces/{workspace}/runs/{runId}/live", "viewer"],
   ["POST", "/v1/workspaces/{workspace}/runs/{runId}/message", "editor"],
   // Session messages: Postgres only — 503 where the matrix runs without one.
+  ["GET", "/v1/workspaces/{workspace}/sessions", "viewer"],
+  ["PATCH", "/v1/workspaces/{workspace}/sessions/{context}", "editor", { ok: [200, 400] }],
+  ["POST", "/v1/workspaces/{workspace}/sessions/{context}/messages/take", "editor", { ok: [200, 400, 503] }],
   ["GET", "/v1/workspaces/{workspace}/sessions/{context}/messages", "viewer", { ok: [200, 503] }],
   ["POST", "/v1/workspaces/{workspace}/sessions/{context}/messages", "editor", { ok: [201, 400, 409, 503] }],
   ["POST", "/v1/workspaces/{workspace}/runs/{runId}/promote", "editor"],
