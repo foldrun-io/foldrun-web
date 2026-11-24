@@ -132,9 +132,15 @@ test("take (FOL-236): a turn on a computer marks messages used — once, who may
   const first = await take.POST(req("POST", editor, T("code-tk"), { ids: [one.id, "sm-none"] }), mp("code-tk"));
   assert.equal(first.status, 200);
   const got = await first.json();
-  assert.deepEqual(got.taken.map((m: any) => [m.id, m.usedLocally, m.run]), [[one.id, true, undefined]]);
+  assert.deepEqual(got.taken.map((m: any) => m.id), [one.id]);
   assert.deepEqual(got.refused, ["sm-none"]);
-  assert.deepEqual((await (await take.POST(req("POST", editor, T("code-tk"), { ids: [one.id] }), mp("code-tk"))).json()).refused, [one.id], "used once");
+  assert.match(got.hold, /^lt-/);
+  assert.deepEqual((await (await take.POST(req("POST", editor, T("code-tk"), { ids: [one.id] }), mp("code-tk"))).json()).refused, [one.id], "held for one turn only");
+  assert.equal((await take.POST(req("POST", editor, T("code-tk"), { hold: got.hold, outcome: "maybe" }), mp("code-tk"))).status, 400);
+  assert.equal((await take.POST(req("POST", editor, T("code-tk"), { hold: "nope", outcome: "used" }), mp("code-tk"))).status, 400);
+  assert.deepEqual(await (await take.POST(req("POST", editor, T("code-tk"), { hold: got.hold, outcome: "used" }), mp("code-tk"))).json(), { used: 1 });
+  const listed = (await (await messages.GET(req("GET", editor, `/v1/workspaces/desk/sessions/code-tk/messages`), mp("code-tk"))).json()).messages;
+  assert.equal(listed.find((m: any) => m.id === one.id).usedLocally, true);
 
   writeRun(TENANT, "desk", { id: "run-conv-1", flow: "adhoc:coder", status: "completed", startedAt: "2026-11-24T01:00:00.000Z", finishedAt: "2026-11-24T01:01:00.000Z", context: runContext("code-tk"), steps: [{ agent: "coder", instruction: "x", group: 1, optional: false, status: "completed", events: [], costUsd: null }] } as any);
   const list = await sessions.GET(req("GET", viewer, "/v1/workspaces/desk/sessions"), { params: Promise.resolve({ workspace: "desk" }) });
