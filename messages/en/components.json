@@ -1977,5 +1977,13 @@
     "runsOnThisAccountAreRefused": "Runs on this account are refused until you add an API key.",
     "noPlan": "No plan",
     "thisAccountNeedsAPlanRuns": "This account needs a plan: runs are refused until it has one."
+  },
+  "conversation-rename": {
+    "title": "Rename this conversation",
+    "body": "The name shows wherever the conversation is listed — here, and in foldrun code on any computer. Leave it empty to take the name away.",
+    "name": "Name",
+    "save": "Save name",
+    "rename": "Rename",
+    "failed": "Could not rename it ({status})"
   }
 }

@@ -108,7 +108,7 @@ export default async function WorkspaceRunsPage({
       <RunStats runs={runs} chargedUsd={runs.reduce((n, r) => n + runCharge(r, charges), 0)} />
 
       {/* The project's conversations (FOL-236) — hidden while one is open: its turns are the list below. */}
-      {!searchKept.context && <ConversationsPanel sessions={listSessions(tenant, workspace, 10)} workspace={workspace} tenantParam={tenantParam} />}
+      {!searchKept.context && <ConversationsPanel sessions={listSessions(tenant, workspace, 10)} workspace={workspace} tenant={tenant} tenantParam={tenantParam} />}
 
       {/* Search, then the filters. Each control carries the others' choices
           in its links, so picking a window keeps the status and vice versa —

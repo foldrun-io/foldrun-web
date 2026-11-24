@@ -149,4 +149,15 @@ test("take (FOL-236): a turn on a computer marks messages used — once, who may
   const mine = rows.find((x: any) => x.context === "code-tk");
   assert.deepEqual([mine.turns, mine.lastRun, mine.agent], [1, "run-conv-1", "coder"]);
   assert.ok(rows.every((x: any, i: number) => i === 0 || rows[i - 1].lastAt >= x.lastAt), "the most recently used first");
+
+  // FOL-264: a conversation's name.
+  const conv = await import("../app/v1/workspaces/[workspace]/sessions/[context]/route.ts");
+  const P = "/v1/workspaces/desk/sessions/code-tk";
+  assert.equal((await conv.PATCH(req("PATCH", viewer, P, { name: "x" }), mp("code-tk"))).status, 403, "a viewer names nothing");
+  assert.equal((await conv.PATCH(req("PATCH", editor, P, { name: "evil\u202Ename" }), mp("code-tk"))).status, 400);
+  assert.equal((await conv.PATCH(req("PATCH", editor, P, {}), mp("code-tk"))).status, 400);
+  assert.deepEqual(await (await conv.PATCH(req("PATCH", editor, P, { name: " the fix " }), mp("code-tk"))).json(), { context: "code-tk", name: "the fix" });
+  const named = (await (await sessions.GET(req("GET", viewer, "/v1/workspaces/desk/sessions"), { params: Promise.resolve({ workspace: "desk" }) })).json()).sessions;
+  assert.equal(named.find((x: any) => x.context === "code-tk").name, "the fix");
+  assert.deepEqual(await (await conv.PATCH(req("PATCH", editor, P, { name: null }), mp("code-tk"))).json(), { context: "code-tk", name: null });
 });

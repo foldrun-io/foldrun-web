@@ -230,7 +230,8 @@
     "turns": "Turns",
     "agent": "Agent",
     "last": "Last turn",
-    "status": "Status"
+    "status": "Status",
+    "actions": "Actions"
   },
   "edit-new-file": {
     "cancel": "Cancel",
