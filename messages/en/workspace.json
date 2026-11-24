@@ -228,6 +228,7 @@
     "description": "Turns that belong to one conversation (foldrun code in the cloud, or a run started with a context), most recently used first. Open one to see its turns.",
     "conversation": "Conversation",
     "turns": "Turns",
+    "turnsAtLeast": "{n}+",
     "agent": "Agent",
     "last": "Last turn",
     "status": "Status",

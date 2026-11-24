@@ -39,7 +39,7 @@ export function ConversationsPanel({ sessions, workspace, tenant, tenantParam }:
                 </Link>
                 {x.name && <div className="font-mono text-xs text-fg-muted">{x.context}</div>}
               </TD>
-              <TD className="tabular-nums">{x.turns}</TD>
+              <TD className="tabular-nums">{x.turnsMore ? $t("workspace.conversations-panel.turnsAtLeast", { n: x.turns }) : x.turns}</TD>
               <TD>{x.agent ?? "—"}</TD>
               <TD className="whitespace-nowrap tabular-nums text-fg-muted">
                 <LocalTime iso={x.lastAt} options={WHEN} />
