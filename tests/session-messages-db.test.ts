@@ -138,6 +138,7 @@ test("take (FOL-236): a turn on a computer marks messages used — once, who may
   assert.deepEqual((await (await take.POST(req("POST", editor, T("code-tk"), { ids: [one.id] }), mp("code-tk"))).json()).refused, [one.id], "held for one turn only");
   assert.equal((await take.POST(req("POST", editor, T("code-tk"), { hold: got.hold, outcome: "maybe" }), mp("code-tk"))).status, 400);
   assert.equal((await take.POST(req("POST", editor, T("code-tk"), { hold: "nope", outcome: "used" }), mp("code-tk"))).status, 400);
+  assert.deepEqual(await (await take.POST(req("POST", editor, T("code-zz"), { hold: got.hold, outcome: "used" }), mp("code-zz"))).json(), { used: 0 }, "not through another conversation");
   assert.deepEqual(await (await take.POST(req("POST", editor, T("code-tk"), { hold: got.hold, outcome: "used" }), mp("code-tk"))).json(), { used: 1 });
   const listed = (await (await messages.GET(req("GET", editor, `/v1/workspaces/desk/sessions/code-tk/messages`), mp("code-tk"))).json()).messages;
   assert.equal(listed.find((m: any) => m.id === one.id).usedLocally, true);

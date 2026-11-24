@@ -19,7 +19,7 @@ import { requireWorkspace } from "@/lib/storage";
 import { jsonObject } from "@/server/body";
 import { idempotent } from "@/server/idempotency";
 import { contextIdProblem } from "@/lib/conversation";
-import { holdSessionMessages, spendHeldSessionMessages, freeSessionMessages, SessionMessagesUnavailable } from "@/platform/session-messages";
+import { holdSessionMessages, spendHeldSessionMessages, freeHeldSessionMessages, SessionMessagesUnavailable } from "@/platform/session-messages";
 
 type Ctx = { params: Promise<{ workspace: string; context: string }> };
 
@@ -37,11 +37,9 @@ async function postOnce(req: NextRequest, ctx: Ctx) {
     const body = (await jsonObject(req)) as { ids?: unknown; hold?: unknown; outcome?: unknown };
     if (body.hold !== undefined) {
       if (typeof body.hold !== "string" || !HOLD.test(body.hold)) return refuse("hold: the hold this route gave", 400);
-      if (body.outcome === "used") return NextResponse.json({ used: await spendHeldSessionMessages(tenant, body.hold) });
-      if (body.outcome === "freed") {
-        await freeSessionMessages(tenant, body.hold);
-        return NextResponse.json({ freed: true });
-      }
+      // Only this project's and conversation's: a hold is no key to another's messages (Codex).
+      if (body.outcome === "used") return NextResponse.json({ used: await spendHeldSessionMessages(tenant, workspace, context, body.hold) });
+      if (body.outcome === "freed") return NextResponse.json({ freed: await freeHeldSessionMessages(tenant, workspace, context, body.hold) });
       return refuse('outcome: "used" (the turn reached the model) or "freed" (it did not)', 400);
     }
     const ids = body.ids;
