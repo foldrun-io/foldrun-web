@@ -16,7 +16,8 @@
 import { ensureTenantKey } from "@/platform/tenant-keys.ts";
 import { assertPasswordPolicy } from "@/server/password-policy";
 import { allUsersDb, upsertUserDb, importUsersToDatabase } from "@/platform/users-db";
-import { tx, databaseEnabled, users as usersTable, eq, sql, type Db } from "@/platform/orm";
+import { tx, databaseEnabled, users as usersTable, sessions as sessionsTable, and, isNull, eq, sql, type Db } from "@/platform/orm";
+import { hashFingerprint } from "./auth-tokens.ts";
 import { revokeSessions } from "./sessions";
 import fs from "node:fs";
 import {
@@ -284,13 +285,15 @@ function fileInviteStore(): InviteStore & { flush(): void } {
  * invites, in the same transaction. Its throw rolls back both.
  * Keep `fn` quick and local: no network calls while the lock is held.
  */
-async function mutateUsers<T>(fn: (users: UserRecord[], invites: InviteStore) => T | Promise<T>): Promise<T> {
+type UsersTx = Parameters<Parameters<typeof tx>[0]>[0];
+
+async function mutateUsers<T>(fn: (users: UserRecord[], invites: InviteStore, t?: UsersTx) => T | Promise<T>): Promise<T> {
   if (databaseEnabled()) {
     return tx(async (t) => {
       await t.execute(sql`select pg_advisory_xact_lock(${USERS_LOCK})`);
       const users = (await allUsersDb(t)) as UserRecord[];
       const before = new Map(users.map((u) => [u.id, JSON.stringify(u)]));
-      const value = await fn(users, dbInviteStore(t));
+      const value = await fn(users, dbInviteStore(t), t);
       const after = new Set<string>();
       for (const u of users) {
         after.add(u.id);
@@ -1154,6 +1157,35 @@ export async function resetPassword(userId: string, next: string): Promise<void>
     user.hash = hash;
   });
   await revokeSessions(userId);
+}
+
+/**
+ * Use a reset link (FOL-316): everything it does, under the users lock, in
+ * one transaction, or none of it. The link's claims (the person, the
+ * password it was minted against, the address it was mailed to) are checked
+ * again under the lock, so two clicks racing get one reset, and an address
+ * changed since the mail is never the one verified. In the same write: the
+ * new password, the address verified, and every stored session ended.
+ * Null when the link no longer matches.
+ *
+ * Without a database sessions are signed cookies, not rows: there are none
+ * to end, so a reset does not end them (a known limit of file mode).
+ */
+export async function redeemReset(claims: { u: string; h: string; e: string }, next: string): Promise<UserRecord | null> {
+  const known = await findUserById(claims.u);
+  if (!known) return null;
+  await assertPasswordPolicy(next, known.email);
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = scrypt(next, salt);
+  return mutateUsers(async (users, _invites, t) => {
+    const user = users.find((u) => u.id === claims.u);
+    if (!user || hashFingerprint(user.hash) !== claims.h || user.email !== claims.e) return null;
+    user.salt = salt;
+    user.hash = hash;
+    if (!user.emailVerifiedAt) user.emailVerifiedAt = new Date().toISOString();
+    if (t) await t.update(sessionsTable).set({ revokedAt: sql`now()` }).where(and(eq(sessionsTable.userId, user.id), isNull(sessionsTable.revokedAt)));
+    return { ...user };
+  });
 }
 
 export async function findUserById(id: string): Promise<UserRecord | null> {

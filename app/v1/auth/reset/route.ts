@@ -5,31 +5,40 @@
 // a reset link proves only the inbox, so it must not stand in for the code
 // (27 Oct 2026; it used to mint the session either way). They sign in, and
 // the login asks for the code.
+//
+// FOL-316: the link is redeemed in one transaction (server/users.ts
+// redeemReset): two uses at once give one reset, and the password, the
+// verified address and the end of every session land together. A sign-in
+// waiting for its second factor was bound to the old password and must
+// start again (app/v1/auth/mfa/verify).
 
 import { NextRequest, NextResponse } from "next/server";
 import { readToken, hashFingerprint } from "@/server/auth-tokens";
-import { findUserById, resetPassword, mintSession, sessionCookieOptions, setEmailVerified, SESSION_COOKIE } from "@/server/users";
+import { findUserById, redeemReset, mintSession, sessionCookieOptions, SESSION_COOKIE } from "@/server/users";
 import { audit } from "@/server/audit";
 import { errorResponse, ApiError } from "@/server/api";
 import { sendSecurityNotice } from "@/server/email";
 import { clientIp } from "@/server/limits";
 import { jsonObject } from "@/server/body";
 
+const INVALID = "that link is not valid — it may have expired or been used";
+
 export async function POST(req: NextRequest) {
   try {
     const body = (await jsonObject(req, { optional: true })) as { token?: string; password?: string };
     const claims = readToken("reset", String(body.token ?? ""));
-    if (!claims) throw new ApiError("that link is not valid — it may have expired or been used", 400);
+    if (!claims) throw new ApiError(INVALID, 400);
     const user = await findUserById(claims.u);
-    if (!user || hashFingerprint(user.hash) !== claims.h || claims.e !== user.email) {
-      throw new ApiError("that link is not valid — it may have expired or been used", 400);
-    }
-    await resetPassword(user.id, String(body.password ?? ""));
-    // Clicking a link that only that inbox received proves the inbox.
-    await setEmailVerified(user.id);
+    if (!user || hashFingerprint(user.hash) !== claims.h || claims.e !== user.email) throw new ApiError(INVALID, 400);
+    const password = String(body.password ?? "");
+    // Checked again and written in one transaction under the users lock:
+    // the password, the address verified, every session ended.
+    const done = await redeemReset({ u: claims.u, h: claims.h, e: claims.e }, password);
+    if (!done) throw new ApiError(INVALID, 400);
     await audit("password.reset", { actor: user.email, tenant: user.tenant });
     sendSecurityNotice(user.tenant, user.email, "your password was reset", clientIp(req));
-    const fresh = (await findUserById(user.id))!;
+    // Read again, not the snapshot: a second factor turned on meanwhile is still owed.
+    const fresh = (await findUserById(user.id)) ?? done;
     if (fresh.mfaSecret) return NextResponse.json({ ok: true, account: user.tenant, signIn: true });
     const session = await mintSession(fresh, req.headers.get("user-agent"));
     const res = NextResponse.json({ ok: true, account: user.tenant });

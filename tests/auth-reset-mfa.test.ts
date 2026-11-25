@@ -16,7 +16,7 @@ process.env.FOLDRUN_SKIP_BREACH_CHECK = "1";
 const { NextRequest } = await import("next/server");
 // Fixtures: several accounts, each its own owner — signup stays open for them.
 process.env.FOLDRUN_OPEN_SIGNUP = "1";
-const { createUser, setMfa, findUserById, SESSION_COOKIE } = await import("../server/users.ts");
+const { createUser, setMfa, findUserById, setEmailVerified, SESSION_COOKIE } = await import("../server/users.ts");
 const { mintToken, hashFingerprint, RESET_TTL_MS } = await import("../server/auth-tokens.ts");
 const reset = await import("../app/v1/auth/reset/route.ts");
 
@@ -38,12 +38,38 @@ test("a reset link is for the address it was sent to: one without it, or for ano
 
 test("with MFA on, a reset changes the password but sets no session", async () => {
   const u = await createUser("mfa@reset.test", "an old password long enough 1", "reset-mfa", { request: "free" });
+  await setEmailVerified(u.id);
   await setMfa(u.id, { secret: "JBSWY3DPEHPK3PXP", backupHashes: [] });
   const r = await post(await linkFor(u.id), "a brand new password, long 2");
   assert.equal(r.status, 200);
   assert.deepEqual(await r.json(), { ok: true, account: "reset-mfa", signIn: true });
   assert.equal(r.cookies.get(SESSION_COOKIE), undefined, "no session: the second factor is still owed");
   assert.notEqual((await findUserById(u.id))!.hash, u.hash, "the password did change");
+});
+
+test("FOL-316: a sign-in challenge won before a reset is refused after it", async () => {
+  const mfaVerify = await import("../app/v1/auth/mfa/verify/route.ts");
+  const { CHALLENGE_TTL_MS } = await import("../server/auth-tokens.ts");
+  const u = await createUser("challenge@reset.test", "an old password long enough 8", "reset-challenge", { request: "free" });
+  await setEmailVerified(u.id);
+  await setMfa(u.id, { secret: "JBSWY3DPEHPK3PXP", backupHashes: [] });
+  const before = (await findUserById(u.id))!;
+  const challenge = mintToken("mfa-challenge", { u: u.id, h: hashFingerprint(before.hash) }, CHALLENGE_TTL_MS);
+  assert.equal((await post(await linkFor(u.id), "a brand new password, long 9")).status, 200);
+  const { totp } = await import("../server/totp.ts");
+  const r = await mfaVerify.POST(new NextRequest("http://x/v1/auth/mfa/verify", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ challenge, code: totp("JBSWY3DPEHPK3PXP") }) }));
+  assert.equal(r.status, 401, "the challenge named the old password");
+  const unbound = mintToken("mfa-challenge", { u: u.id }, CHALLENGE_TTL_MS);
+  const r2 = await mfaVerify.POST(new NextRequest("http://x/v1/auth/mfa/verify", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ challenge: unbound, code: totp("JBSWY3DPEHPK3PXP") }) }));
+  assert.equal(r2.status, 401, "a challenge bound to no password is refused");
+});
+
+test("FOL-316: two uses of one link at once: one reset, the other refused", async () => {
+  const u = await createUser("race@reset.test", "an old password long enough 7", "reset-race", { request: "free" });
+  await setEmailVerified(u.id);
+  const link = await linkFor(u.id);
+  const [a, b] = await Promise.all([post(link, "first new password, long 10"), post(link, "second new password, long 11")]);
+  assert.deepEqual([a.status, b.status].sort(), [200, 400]);
 });
 
 test("without MFA, a reset still signs the person in", async () => {

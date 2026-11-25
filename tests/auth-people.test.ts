@@ -185,8 +185,13 @@ test("an install that sends no mail refuses the move and says how to set mail up
 // ------------------------------------------------------------------ MFA
 
 const SECRET = "JBSWY3DPEHPK3PXP";
-const verifyCode = (userId: string, code: string) =>
-  mfaVerify.POST(new NextRequest("http://x/v1/auth/mfa/verify", json({ challenge: mintToken("mfa-challenge", { u: userId }, CHALLENGE_TTL_MS), code })));
+/** A challenge as the password sign-in mints it: bound to the password as it is now (FOL-316). */
+const verifyCode = async (userId: string, code: string) => {
+  const { findUserById: byId } = await import("../server/users.ts");
+  const { hashFingerprint: fp } = await import("../server/auth-tokens.ts");
+  const h = fp((await byId(userId))!.hash);
+  return mfaVerify.POST(new NextRequest("http://x/v1/auth/mfa/verify", json({ challenge: mintToken("mfa-challenge", { u: userId, h }, CHALLENGE_TTL_MS), code })));
+};
 /** A six-digit code the app would not show now or either side of now. */
 const wrongCode = (i: number) => {
   const near = new Set([-1, 0, 1].map((w) => totp(SECRET, Date.now() + w * 30_000)));

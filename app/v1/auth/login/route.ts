@@ -9,7 +9,7 @@ import { sendSecurityNotice } from "@/server/email";
 import { listWorkspaces } from "@/lib/store";
 import { rateLimit, rateLimitReset } from "@/platform/cache";
 import { audit } from "@/server/audit";
-import { mintToken, CHALLENGE_TTL_MS } from "@/server/auth-tokens";
+import { mintToken, hashFingerprint, CHALLENGE_TTL_MS } from "@/server/auth-tokens";
 import { errorResponse, refuse } from "@/server/api";
 import { refuseNonText } from "@/server/auth-input";
 import { jsonObject } from "@/server/body";
@@ -123,7 +123,8 @@ export async function POST(req: NextRequest) {
     // The challenge token names the user and lasts five minutes; the code
     // goes to /v1/auth/mfa/verify, which is where the session is minted.
     if (user.mfaSecret) {
-      const challenge = mintToken("mfa-challenge", { u: user.id }, CHALLENGE_TTL_MS);
+      // Bound to the password as it is now (FOL-316): a reset in between ends it.
+      const challenge = mintToken("mfa-challenge", { u: user.id, h: hashFingerprint(user.hash) }, CHALLENGE_TTL_MS);
       return NextResponse.json({ ok: true, mfa: true, challenge });
     }
 

@@ -18,7 +18,7 @@ import { rateLimit } from "@/platform/cache";
 import { audit } from "@/server/audit";
 import { errorResponse, refuse } from "@/server/api";
 import { refuseNonText } from "@/server/auth-input";
-import { mintToken, CHALLENGE_TTL_MS } from "@/server/auth-tokens";
+import { mintToken, hashFingerprint, CHALLENGE_TTL_MS } from "@/server/auth-tokens";
 import { clientIp, tooManyAttempts } from "@/server/limits";
 import { CHALLENGE, CHALLENGE_COOKIE, CODE_FAILED, codeSignInAvailable, holdFloor, verifyCode } from "@/server/login-codes";
 import { codeGateBlocked, codeGateFailed, codeGateKey } from "@/server/code-gate";
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     // challenge remembers how the person got this far, for the audit and the
     // session list.
     if (user.mfaSecret) {
-      const challengeToken = mintToken("mfa-challenge", { u: user.id, m: "email-code" }, CHALLENGE_TTL_MS);
+      const challengeToken = mintToken("mfa-challenge", { u: user.id, m: "email-code", h: hashFingerprint(user.hash) }, CHALLENGE_TTL_MS);
       return done(NextResponse.json({ ok: true, mfa: true, challenge: challengeToken }));
     }
     const session = await mintSession(user, req.headers.get("user-agent"), { method: "email-code" });

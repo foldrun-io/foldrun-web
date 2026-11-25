@@ -12,7 +12,7 @@
 // says to reset the password — whoever typed the codes had it.
 
 import { NextRequest, NextResponse } from "next/server";
-import { readToken } from "@/server/auth-tokens";
+import { readToken, hashFingerprint } from "@/server/auth-tokens";
 import { findUserById, openString, mfaBinding, rebindMfa, consumeBackupCode, mintSession, sessionCookieOptions, SESSION_COOKIE } from "@/server/users";
 import { verifyTotp, hashBackup } from "@/server/totp";
 import { rateLimit, rateLimitReset, cache } from "@/platform/cache";
@@ -35,6 +35,9 @@ export async function POST(req: NextRequest) {
     if (!claims) return refuse("sign in again", 401);
     const user = await findUserById(claims.u);
     if (!user?.mfaSecret) return refuse("sign in again", 401);
+    // A challenge is bound to the password it was won with (FOL-316): after a
+    // reset, one taken out before it is worthless.
+    if (claims.h !== hashFingerprint(user.hash)) return refuse("sign in again", 401);
 
     const limit = await rateLimit(`mfa:${user.id}`, PER_USER.limit, PER_USER.windowSec);
     if (!limit.allowed) {
