@@ -563,9 +563,9 @@
     "apiKeyModelAccessRow": "This API key may also call foldrun's models, within these limits",
     "modelsColon": "models: {spend}",
     "mediaLabel": "Images and PDFs",
-    "mediaAsIs": "sent to the model as they are",
-    "mediaReadIntoText": "read into text by foldrun first — no image tokens",
-    "mediaReadFirst": "read into text first",
+    "mediaAsIs": "as they are",
+    "mediaReadIntoText": "read as text (no image tokens)",
+    "mediaReadFirst": "read as text",
     "mediaSendAsIs": "send as they are"
   },
   "mcp-connections": {
