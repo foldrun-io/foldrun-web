@@ -472,6 +472,13 @@ ensure_docker() {
   have docker || die "Docker is not installed. Install it (https://docs.docker.com/get-docker/), then run this again."
   dk info >/dev/null 2>&1 || die "Docker is installed but not reachable by this user. Start Docker, then run this again."
   dk compose version >/dev/null 2>&1 || die "The Docker Compose plugin is missing (the 'docker compose' command). Install it: https://docs.docker.com/compose/install/"
+  # Docker 28 or later: a step held to its network list runs on a network of
+  # its own with an isolated gateway, which older engines accept and ignore —
+  # foldrun refuses such a step there (FOL-215), so say it now, not at a run.
+  ver=$(dk version --format '{{.Server.Version}}' 2>/dev/null | tr -d '\r' || true)
+  major=$(printf '%s' "$ver" | sed -n 's/^\([0-9][0-9]*\)\.[0-9].*/\1/p')
+  { [ -n "$major" ] && [ "$major" -ge 28 ]; } \
+    || die "foldrun needs Docker 28 or later (this one: ${ver:-version unknown}): a step held to its network list is walled in with a feature Docker 28 added. Upgrade Docker (https://docs.docker.com/engine/install/), then run this again."
   # foldrun goes on THIS machine: the health check, the setup link and any
   # host folder are all here. A remote Docker would run it elsewhere while
   # this machine's port — anyone's, here — answered for it.

@@ -61,6 +61,7 @@ case "$1" in
     fi
     case "$*" in *"info --format"*) cat "${root}/platform-id" 2>/dev/null || echo daemon-1 ;; *exec*) echo 29.5.2 ;; esac
     exit 0 ;;
+  version) [ "\${FAKE_DOCKER_VERSION:-}" = none ] || echo "\${FAKE_DOCKER_VERSION:-29.5.2}"; exit 0 ;;
   info) case "$*" in *SecurityOptions*) echo '["name=seccomp"]' ;; *ID*) echo daemon-1 ;; esac; exit 0 ;;
   context) case "$*" in *remote*) echo ssh://build-server ;; *) echo unix:///var/run/docker.sock ;; esac; exit 0 ;;
   pull) exit 0 ;;
@@ -376,6 +377,7 @@ case "$1" in --version) exit 0 ;; context) case "$2" in inspect) echo unix:///va
 [ -f "${st}/reachable" ] || [ -n "$FAKE_SUDO" ] || { echo "permission denied" >&2; exit 1; }
 case "$1" in
   compose) case "$*" in *"info --format"*) echo daemon-1 ;; *exec*) echo 29.5.2 ;; esac; exit 0 ;;
+  version) [ "\${FAKE_DOCKER_VERSION:-}" = none ] || echo "\${FAKE_DOCKER_VERSION:-29.5.2}"; exit 0 ;;
   info) case "$*" in *SecurityOptions*) echo '["name=seccomp"]' ;; *ID*) echo daemon-1 ;; esac; exit 0 ;;
   image) echo v2026.10.25.16; exit 0 ;;
 esac
@@ -699,6 +701,19 @@ test("a wrong Docker is caught before the platform starts", () => {
   assert.notEqual(r.status, 0);
   assert.match(r.out, /would reach a different Docker/);
   assert.ok(!b.calls().some((c) => c.startsWith("compose up")), "never started");
+});
+
+// FOL-215: a held step is walled in with Docker 28's isolated gateway; an older engine would
+// accept the option and ignore it, so the step is refused there — said at install, not at a run.
+test("Docker older than 28, or one that does not say its version, is refused before anything starts", () => {
+  for (const v of ["27.5.1", "26.1.5", ""]) {
+    const b = box();
+    const r = b.run({ FAKE_DOCKER_VERSION: v || "none" });
+    assert.notEqual(r.status, 0, v);
+    assert.match(r.out, new RegExp(`needs Docker 28 or later \\(this one: ${v ? v.replace(/\./g, "\\.") : "version unknown"}\\)`), v);
+    assert.ok(!b.calls().some((c) => c.startsWith("compose up")), "never started");
+  }
+  assert.equal(box().run({ FAKE_DOCKER_VERSION: "28.0.1" }).status, 0);
 });
 
 test("an install folder whose parent another user could rename entries in is refused", () => {
