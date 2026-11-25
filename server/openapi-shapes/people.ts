@@ -252,11 +252,19 @@ export const SHAPES: Record<string, Shape> = {
     response: obj({ ok: bool, timezone: nstr() }),
   },
   "GET /v1/auth/verify": {
-    query: [{ name: "token", description: "from the confirmation mail, or the link an email change mailed to the new address" }],
-    status: "307",
+    query: [{ name: "token", description: "from a confirmation or email-change link mailed before 25 Nov 2026" }],
+    status: "303",
     media: {
       type: "text/html",
-      description: "A temporary redirect (307): to /dashboard?verified=1 once the address is verified (and, for an email-change link, the login moved), else to /login?verify=invalid",
+      description: "A redirect (303) to /verify?token=…, the page that asks: opening a link changes nothing (FOL-319)",
+    },
+  },
+  "POST /v1/auth/verify": {
+    body: obj({ token: str("from the confirmation mail, or the email-change link mailed to the new address") }, ["token"]),
+    status: "303",
+    media: {
+      type: "text/html",
+      description: "A redirect (303): to /dashboard?verified=1 once the address is verified (and, for an email-change link, the login moved), else to /login?verify=invalid",
     },
   },
   "POST /v1/auth/verify/resend": {

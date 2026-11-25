@@ -1,7 +1,14 @@
-// The verification link lands here. The token names the user and the
-// address it was sent to; if they still match, the address is verified and
-// the person is sent to the dashboard. No session is minted — verifying an
-// address is not signing in.
+// Confirming an address, and moving a login to a new one. The token names
+// the user and the address it was sent to; if they still match, the address
+// is verified and the person is sent to the dashboard. No session is minted —
+// verifying an address is not signing in.
+//
+// Only a POST changes anything (FOL-319). Mail scanners and link previewers
+// open every link in a message; a GET that confirmed handed a working login
+// to whoever had signed up with someone else's address, the moment the real
+// inbox's scanner looked. The mailed link opens the /verify page, which shows
+// the address and posts the token when the person presses Confirm. A GET here
+// (links mailed before) only sends the browser to that page.
 
 import { opsLog } from "@/lib/ops-log.ts";
 import { NextRequest, NextResponse } from "next/server";
@@ -16,14 +23,28 @@ import { isOwner, accountAdmission } from "@/server/users";
 import { trialEligible } from "@/platform/signup";
 import { publicOrigin } from "@/server/auth-flows";
 
+/** A link mailed before FOL-319: to the page that asks, never a change. */
 export async function GET(req: NextRequest) {
-  const token = req.nextUrl.searchParams.get("token") ?? "";
+  const to = new URL("/verify", publicOrigin(req));
+  to.searchParams.set("token", req.nextUrl.searchParams.get("token") ?? "");
+  return NextResponse.redirect(to, 303);
+}
+
+/** The /verify page's Confirm button (a form post), or a program sending { token } as JSON. */
+export async function POST(req: NextRequest) {
+  const type = req.headers.get("content-type") ?? "";
+  let token = "";
+  if (type.includes("application/x-www-form-urlencoded")) token = new URLSearchParams(await req.text()).get("token") ?? "";
+  else if (type.includes("application/json")) {
+    const body = (await req.json().catch(() => null)) as { token?: unknown } | null;
+    token = body && typeof body === "object" && typeof body.token === "string" ? body.token : "";
+  }
   const move = readToken("email-change", token);
   if (move) return moveLogin(req, move);
   const claims = readToken("verify", token);
   const user = claims ? await findUserById(claims.u) : null;
   if (!user || user.email !== claims!.e) {
-    return NextResponse.redirect(new URL("/login?verify=invalid", publicOrigin(req)));
+    return NextResponse.redirect(new URL("/login?verify=invalid", publicOrigin(req)), 303);
   }
   return verified(req, user);
 }
@@ -39,7 +60,7 @@ export async function GET(req: NextRequest) {
  * and the old address is told.
  */
 async function moveLogin(req: NextRequest, claims: Record<string, string>) {
-  const invalid = () => NextResponse.redirect(new URL("/login?verify=invalid", publicOrigin(req)));
+  const invalid = () => NextResponse.redirect(new URL("/login?verify=invalid", publicOrigin(req)), 303);
   const user = await findUserById(claims.u);
   if (!user || user.email !== claims.e || hashFingerprint(user.hash) !== claims.h || !claims.to || !/^\d+$/.test(claims.n ?? "")) return invalid();
   let moved: { from: string; to: string };
@@ -70,5 +91,5 @@ async function verified(req: NextRequest, user: UserRecord) {
   // still waiting to pay must never run on free credit. On top of hosted
   // and owner, never instead of them.
   if (platform.edition() === "hosted" && (await isOwner(user.tenant, user.id)) && trialEligible(await accountAdmission(user.tenant))) await billing().grantTrial(user.tenant);
-  return NextResponse.redirect(new URL("/dashboard?verified=1", publicOrigin(req)));
+  return NextResponse.redirect(new URL("/dashboard?verified=1", publicOrigin(req)), 303);
 }

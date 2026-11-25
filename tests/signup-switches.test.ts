@@ -30,6 +30,7 @@ const { billing } = await import("@/platform/billing");
 const signupApi = await import("../app/v1/signup/route.ts");
 const signupPost = await import("../app/v1/auth/signup/route.ts");
 const verifyRoute = await import("../app/v1/auth/verify/route.ts");
+const confirmLink = (url: string) => verifyRoute.POST(new NextRequest("http://x/v1/auth/verify", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ token: new URL(url).searchParams.get("token") ?? "" }).toString() }));
 const { createUser, accountAdmission, findUser, hasUsers } = await import("../server/users.ts");
 const { signupPageState, signupModesNow, publicSignup } = await import("../server/signup.ts");
 const { verifyLink } = await import("../server/auth-flows.ts");
@@ -254,14 +255,14 @@ test("verifying grants the trial only to an account whose door earns it", async 
     assert.equal(paid.admission, "paid");
     assert.equal(await accountAdmission("tpaid"), "paid");
     for (const u of [boot, free, paid]) {
-      const res = await verifyRoute.GET(new NextRequest(verifyLink("http://x", u)));
-      assert.equal(res.status, 307);
+      const res = await confirmLink(verifyLink("http://x", u));
+      assert.equal(res.status, 303);
     }
     assert.deepEqual(granted.sort(), ["tboot", "tfree"], "a paid sign-up is never handed trial credit");
     // The community edition grants nothing, as before.
     hosted(false);
     const other = await createUser("t-comm@example.test", PW, "tcomm", { request: "free" });
-    await verifyRoute.GET(new NextRequest(verifyLink("http://x", other)));
+    await confirmLink(verifyLink("http://x", other));
     assert.deepEqual(granted.sort(), ["tboot", "tfree"]);
   } finally {
     b.grantTrial = before;

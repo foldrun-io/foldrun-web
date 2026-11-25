@@ -143,7 +143,9 @@ export const TABLE: Row[] = [
   ["DELETE", "/v1/auth/sessions", "session"],
   ["POST", "/v1/auth/signup", "none", { ok: [400, 403, 429] }],
   ["POST", "/v1/auth/timezone", "session"],
-  ["GET", "/v1/auth/verify", "none", { ok: [302, 307, 400] }],
+  ["GET", "/v1/auth/verify", "none", { ok: [303] }],
+  // A bad or missing token goes to /login?verify=invalid: a 303 for every caller (FOL-319).
+  ["POST", "/v1/auth/verify", "none", { ok: [303] }],
   ["POST", "/v1/auth/verify/resend", "session"],
   ["GET", "/v1/cli/authorize", "none", { ok: [404, 400, 307] }],
   ["POST", "/v1/cli/authorize", "session"],

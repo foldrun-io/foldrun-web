@@ -33,7 +33,7 @@ const NOT_IN_CLI: Record<string, string> = {
       "POST /v1/auth/mfa/disable", "POST /v1/auth/mfa/enable", "POST /v1/auth/mfa/setup", "POST /v1/auth/mfa/verify",
       "POST /v1/auth/password", "POST /v1/auth/reset", "GET /v1/auth/session",
       "GET /v1/auth/sessions", "DELETE /v1/auth/sessions", "POST /v1/auth/signup",
-      "GET /v1/auth/verify", "POST /v1/auth/verify/resend",
+      "GET /v1/auth/verify", "POST /v1/auth/verify", "POST /v1/auth/verify/resend",
       "POST /v1/team/transfer",
       "PATCH /v1/me/onboarding",
     ].map((op) => [op, SESSION]),

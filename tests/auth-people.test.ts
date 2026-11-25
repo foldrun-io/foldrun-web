@@ -40,7 +40,7 @@ globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
 }) as typeof fetch;
 
 const { NextRequest } = await import("next/server");
-const { createUser, mintSession, findUserById, changePassword, setMfa, SESSION_COOKIE } = await import("../server/users.ts");
+const { createUser, mintSession, findUserById, changePassword, setMfa, verifySession, SESSION_COOKIE } = await import("../server/users.ts");
 const { mintToken, CHALLENGE_TTL_MS } = await import("../server/auth-tokens.ts");
 const { totp, hashBackup } = await import("../server/totp.ts");
 const { rateLimitReset } = await import("@/platform/cache");
@@ -62,8 +62,9 @@ const cookieFor = async (id: string) => `${SESSION_COOKIE}=${(await mintSession(
 const askMove = (cookie: string, email: unknown, password: unknown = PW) =>
   emailRoute.POST(new NextRequest("http://x/v1/auth/email", json({ email, password }, { cookie })));
 const mailTo = (to: string) => mails.filter((m) => m.to === to);
-const linkIn = (text: string) => text.match(/http:\/\/x\/v1\/auth\/verify\?token=\S+/)?.[0] ?? null;
-const click = (url: string) => verifyRoute.GET(new NextRequest(url));
+const linkIn = (text: string) => text.match(/http:\/\/x\/verify\?token=\S+/)?.[0] ?? null;
+// Opening the link is the /verify page; pressing its button posts the token (FOL-319).
+const click = (url: string) => verifyRoute.POST(new NextRequest("http://x/v1/auth/verify", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ token: new URL(url).searchParams.get("token") ?? "" }).toString() }));
 
 test("asking to move: the same answer for a taken and a free address, and nothing moves yet", async () => {
   await createUser("taken@people.test", PW, "people-taken", { request: "free" });
@@ -260,4 +261,53 @@ test("a field that should be text and is not is a 400, not a 500", async () => {
   assert.equal(refuseNonText({ id: null }, "id"), null);
   assert.equal(refuseNonText({}, "id"), null);
   assert.equal(refuseNonText({ id: 5 }, "id")?.status, 400);
+});
+
+test("opening a confirmation link changes nothing: a mail scanner's GET is sent to the page that asks (FOL-319)", async () => {
+  const { verifyLink } = await import("../server/auth-flows.ts");
+  const u = await createUser(`scan${Date.now().toString(36)}@example.test`, "a password nobody guesses 4", `scan${Date.now().toString(36)}`, { request: "free" });
+  const link = verifyLink("http://x", u);
+  assert.match(link, /^http:\/\/x\/verify\?token=/, "the mail links the page, not the route");
+  const old = await verifyRoute.GET(new NextRequest(`http://x/v1/auth/verify?token=${encodeURIComponent(new URL(link).searchParams.get("token")!)}`));
+  assert.equal(old.status, 303);
+  assert.match(old.headers.get("location") ?? "", /\/verify\?token=/);
+  assert.equal((await findUserById(u.id))!.emailVerifiedAt ?? null, null, "still unconfirmed after the GET");
+  const pressed = await click(link);
+  assert.match(pressed.headers.get("location") ?? "", /verified=1/);
+  assert.ok((await findUserById(u.id))!.emailVerifiedAt);
+});
+
+test("the /verify page's messages show the address it confirms, or both addresses of a move (FOL-319)", async () => {
+  // A plain {email} value with $el() rendered blank ("Confirm that  is yours", Codex): the messages use tags.
+  const React = await import("react");
+  const { renderToStaticMarkup } = await import("react-dom/server");
+  const { $rich, $el } = await import("@/i18n");
+  const html = (n: unknown) => renderToStaticMarkup(React.createElement(React.Fragment, null, n as never)).replace(/<[^>]+>/g, "");
+  assert.equal(html($rich("auth.verify-page.confirmThatIsYours", { email: $el(React.createElement("span", null, "ana@example.test")) })), "Confirm that ana@example.test is yours, to turn your account on.");
+  assert.equal(html($rich("auth.verify-page.moveFromTo", { from: $el(React.createElement("span", null, "a@x.test")), to: $el(React.createElement("span", null, "b@x.test")) })), "Move your foldrun login from a@x.test to b@x.test.");
+  const src = fs.readFileSync(path.join(import.meta.dirname, "../app/(auth)/verify/page.tsx"), "utf8");
+  assert.match(src, /referrer: "strict-origin"/, "the token in the URL goes in no Referer, and the POST keeps its Origin");
+  assert.match(src, /typeof raw === "string"/, "a repeated ?token= is no link, not a 500");
+});
+
+test("a malformed confirm (a null JSON body) is an invalid link, not a 500", async () => {
+  const r = await verifyRoute.POST(new NextRequest("http://x/v1/auth/verify", { method: "POST", headers: { "content-type": "application/json" }, body: "null" }));
+  assert.equal(r.status, 303);
+  assert.match(r.headers.get("location") ?? "", /verify=invalid/);
+});
+
+test("a signed-in browser pressing the button passes the proxy's cross-site check and keeps its session (FOL-319)", async () => {
+  const { crossSiteWrite } = await import("../server/csrf.ts");
+  const stamp = Date.now().toString(36);
+  const u = await createUser(`btn${stamp}@example.test`, "a password nobody guesses 6", `btn${stamp}`, { request: "free" });
+  const cookie = await cookieFor(u.id);
+  const press = (origin: string) => new NextRequest("https://app.example.test/v1/auth/verify", { method: "POST", headers: { host: "app.example.test", origin, "sec-fetch-site": origin === "null" ? "cross-site" : "same-origin", cookie, "content-type": "application/x-www-form-urlencoded" }, body: "token=x" });
+  assert.equal(crossSiteWrite(press("https://app.example.test")), null, "strict-origin: the POST carries our origin and passes");
+  assert.ok(crossSiteWrite(press("null")), "why not no-referrer: Origin null with a cookie is refused");
+  const { emailChangeLink } = await import("../server/auth-flows.ts");
+  const link = emailChangeLink("http://x", (await findUserById(u.id))!, `moved${stamp}@example.test`);
+  const r = await verifyRoute.POST(new NextRequest("http://x/v1/auth/verify", { method: "POST", headers: { cookie, "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ token: new URL(link).searchParams.get("token")! }).toString() }));
+  assert.match(r.headers.get("location") ?? "", /verified=1/);
+  assert.equal((await findUserById(u.id))!.email, `moved${stamp}@example.test`);
+  assert.ok(await verifySession(cookie.split("=")[1]), "the browser that pressed Move keeps its session");
 });

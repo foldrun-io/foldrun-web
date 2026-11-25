@@ -867,13 +867,23 @@ test("the trial lands when the owner verifies their address — once, and not at
   const me = (await (await fetch(`${base}/v1/auth/session`, { headers: { cookie } })).json()) as { user: { id: string; email: string } };
   const before = (await (await fetch(`${base}/v1/billing`, { headers: { cookie } })).json()) as { balanceUsd: number };
   const token = mintToken("verify", { u: me.user.id, e: me.user.email }, VERIFY_TTL_MS);
-  const first = await fetch(`${base}/v1/auth/verify?token=${encodeURIComponent(token)}`, { redirect: "manual" });
-  assert.equal(first.status, 307, await first.text());
+  // The page the mail links shows the address and a button, and changes nothing (FOL-319).
+  const pageHtml = await (await fetch(`${base}/verify?token=${encodeURIComponent(token)}`)).text();
+  assert.ok(pageHtml.replace(/<[^>]+>/g, "").includes(me.user.email), "the address is on the page");
+  assert.match(pageHtml, /action="\/v1\/auth\/verify"/);
+  // Opening the link changes nothing (FOL-319): it is the page that asks.
+  const opened = await fetch(`${base}/v1/auth/verify?token=${encodeURIComponent(token)}`, { redirect: "manual" });
+  assert.equal(opened.status, 303);
+  assert.match(opened.headers.get("location") ?? "", /\/verify\?token=/);
+  assert.equal(((await (await fetch(`${base}/v1/billing`, { headers: { cookie } })).json()) as { balanceUsd: number }).balanceUsd, before.balanceUsd, "no trial from a scanner's GET");
+  const confirm = () => fetch(`${base}/v1/auth/verify`, { method: "POST", redirect: "manual", headers: { "content-type": "application/x-www-form-urlencoded", origin: base }, body: new URLSearchParams({ token }).toString() });
+  const first = await confirm();
+  assert.equal(first.status, 303, await first.text());
   assert.match(first.headers.get("location") ?? "", /verified=1/);
   const after = (await (await fetch(`${base}/v1/billing`, { headers: { cookie } })).json()) as { balanceUsd: number };
   assert.equal(Math.round((after.balanceUsd - before.balanceUsd) * 100), 300, "300 credits, three dollars");
   // Following the link again verifies again and grants nothing.
-  await fetch(`${base}/v1/auth/verify?token=${encodeURIComponent(token)}`, { redirect: "manual" });
+  await confirm();
   const again = (await (await fetch(`${base}/v1/billing`, { headers: { cookie } })).json()) as { balanceUsd: number };
   assert.equal(again.balanceUsd, after.balanceUsd);
 });

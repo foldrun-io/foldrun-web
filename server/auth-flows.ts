@@ -73,7 +73,7 @@ export function resetLink(origin: string, user: Pick<UserRecord, "id" | "hash" |
 
 export function verifyLink(origin: string, user: UserRecord): string {
   const token = mintToken("verify", { u: user.id, e: user.email }, VERIFY_TTL_MS);
-  return `${origin}/v1/auth/verify?token=${encodeURIComponent(token)}`;
+  return `${origin}/verify?token=${encodeURIComponent(token)}`;
 }
 
 /**
@@ -84,9 +84,10 @@ export function verifyLink(origin: string, user: UserRecord): string {
  * this one included, spends it — single use, even after A → B → A), to the
  * address it has now, and to the password as it is now (a password change
  * or reset cancels a move a thief with the old password asked for). Lands
- * on the verify route, which knows the kind.
+ * on the /verify page, which asks before posting it to the verify route
+ * (FOL-319: a mail scanner opening the link moves nothing).
  */
 export function emailChangeLink(origin: string, user: UserRecord, to: string): string {
   const token = mintToken("email-change", { u: user.id, e: user.email, h: hashFingerprint(user.hash), n: String(emailMovesOf(user)), to }, VERIFY_TTL_MS);
-  return `${origin}/v1/auth/verify?token=${encodeURIComponent(token)}`;
+  return `${origin}/verify?token=${encodeURIComponent(token)}`;
 }
