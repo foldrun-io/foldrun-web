@@ -274,13 +274,22 @@ function describe(dir) {
   return JSON.parse(r.stdout.trim().split("\n").at(-1));
 }
 
-/** The tree at `ref`, unpacked: the server/ folder and node_modules beside it. */
+/** The tree at `ref`, unpacked: the server/ folder and node_modules beside it,
+ *  inside a root that holds the sibling repos too. server/ imports some of
+ *  them by relative path (../../foldrun-core), so the unpacked tree must sit
+ *  next to them as the checkout does, or the base's document cannot be built. */
 function treeAt(ref) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "api-guard-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "api-guard-"));
+  const dir = path.join(root, path.basename(webRoot));
+  fs.mkdirSync(dir);
   if (ref.startsWith("-")) throw new Error(`not a commit: ${ref}`);
   const tar = execFileSync("git", ["archive", ref, "--", "server"], { cwd: webRoot, maxBuffer: 256 * 1024 * 1024 });
   execFileSync("tar", ["-x", "-C", dir], { input: tar });
   fs.symlinkSync(path.join(webRoot, "node_modules"), path.join(dir, "node_modules"));
+  const beside = path.dirname(webRoot);
+  for (const name of fs.readdirSync(beside)) {
+    if (name.startsWith("foldrun-") && name !== path.basename(webRoot) && !fs.existsSync(path.join(root, name))) fs.symlinkSync(path.join(beside, name), path.join(root, name));
+  }
   return dir;
 }
 
@@ -324,7 +333,7 @@ a SCHEMA_CORRECTIONS entry saying so.`);
     }
     return 1;
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(path.dirname(dir), { recursive: true, force: true });
   }
 }
 
