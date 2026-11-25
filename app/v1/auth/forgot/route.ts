@@ -14,6 +14,7 @@ import { resetLink, publicOrigin } from "@/server/auth-flows";
 import { sendResetEmail } from "@/server/email";
 import { errorResponse, refuse } from "@/server/api";
 import { jsonObject } from "@/server/body";
+import { resetSendAllowed } from "@/server/reset-sends";
 
 const SAME = { ok: true, message: "If that address has an account, a reset link is on its way." };
 
@@ -23,17 +24,12 @@ const SAME = { ok: true, message: "If that address has an account, a reset link 
 const PER_IP = { limit: 20, windowSec: 60 * 60 };
 /** Per address asked about: the limit every request meets, whoever sends it. */
 const PER_EMAIL = { limit: 3, windowSec: 60 * 60 };
-/** Reset mails the whole install sends in an hour — the ceiling on what a
- *  flood of addresses can cost. Counted only for mail that would go, so made-up
- *  addresses cannot spend it. Past it the answer is the same sentence and no
- *  mail goes: a 429 there would say the address has an account. */
-const INSTALL_SENDS = { key: "forgot:sends", limit: 300, windowSec: 60 * 60 };
-/** One caller's share of that ceiling, when a trusted proxy names the
- *  caller. A caller past it gets the same sentence and no mail — and spends
- *  none of the install's, so one caller asking for 100 known addresses × 3
- *  an hour can no longer use up everyone's resets (30 Oct 2026). Without a
- *  caller address nobody can be told apart: set FOLDRUN_TRUST_PROXY. */
-const CALLER_SENDS = { limit: 10, windowSec: 60 * 60 };
+/** The mail that goes is counted in server/reset-sends.ts, shared with the
+ *  emailed-code request (FOL-315): 3 an hour per address, a caller's share of
+ *  10 when a trusted proxy names it, 300 for the install. Counted only for
+ *  mail that would go, so made-up addresses cannot spend it; past any of them
+ *  the answer is the same sentence and no mail goes (a 429 there would say the
+ *  address has an account). */
 
 const tooMany = () => refuse("too many requests — try again in an hour", 429);
 
@@ -55,15 +51,10 @@ export async function POST(req: NextRequest) {
       // step, so it cannot say it either.
       const link = resetLink(publicOrigin(req), user);
       void (async () => {
-        // The caller's own share first, so a caller past it spends nothing
-        // of the install's. Silent, like the ceiling: a refusal here would
-        // say the address has an account.
-        if (ip && !(await rateLimit(`forgot:sends:ip:${ip}`, CALLER_SENDS.limit, CALLER_SENDS.windowSec)).allowed) {
-          await audit("password.reset_requested", { actor: user.email, tenant: user.tenant, detail: { sent: false, error: "this caller's hourly share of reset mail was reached" } });
-          return;
-        }
-        if (!(await rateLimit(INSTALL_SENDS.key, INSTALL_SENDS.limit, INSTALL_SENDS.windowSec)).allowed) {
-          await audit("password.reset_requested", { actor: user.email, tenant: user.tenant, detail: { sent: false, error: "the install's hourly reset mail limit was reached" } });
+        // Silent, like every send limit: a refusal here would say the address has an account.
+        const allowed = await resetSendAllowed(user.email, ip);
+        if (!allowed.ok) {
+          await audit("password.reset_requested", { actor: user.email, tenant: user.tenant, detail: { sent: false, error: allowed.error } });
           return;
         }
         const sent = await sendResetEmail(user.tenant, user.email, link, ip);

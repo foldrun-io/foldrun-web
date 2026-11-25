@@ -16,10 +16,14 @@ import { clientIp } from "@/server/limits";
 import { errorResponse, refuse } from "@/server/api";
 import { refuseNonText } from "@/server/auth-input";
 import { opsError } from "@/lib/ops-log.ts";
-import { CHALLENGE, CHALLENGE_COOKIE, CODE_MS, codeSignInAvailable, newChallenge, requestCode } from "@/server/login-codes";
+import { CHALLENGE, CHALLENGE_COOKIE, CODE_MS, codeSignInAvailable, newChallenge, requestCode, type UnverifiedUser } from "@/server/login-codes";
 import { sessionCookieOptions } from "@/server/users";
 import { jsonObject } from "@/server/body";
 import { codeGateBlocked, codeGateKey } from "@/server/code-gate";
+import { resetLink, publicOrigin } from "@/server/auth-flows";
+import { sendUnverifiedCodeEmail } from "@/server/email";
+import { audit } from "@/server/audit";
+import { resetSendAllowed } from "@/server/reset-sends";
 
 const EMAIL = /^[^@\s:,]+@[^@\s:,]+\.[^@\s:,]+$/;
 /** Codes mailed per address, per caller, and in all, an hour. Over any of them
@@ -31,6 +35,10 @@ const PER_ADDRESS = { limit: 6, windowSec: 3600 };
 const PER_ADDRESS_ALL_CALLERS = { limit: 30, windowSec: 3600 };
 const PER_IP = { limit: 20, windowSec: 3600 };
 const INSTALL = { limit: 300, windowSec: 3600 };
+/** One caller's share of reset links mailed in place of a code (FOL-315),
+ *  charged on every admitted code request whatever the address, so its state
+ *  says nothing about which addresses are unverified. */
+const RESET_SHARE = { limit: 10, windowSec: 3600 };
 
 /** What the route started after its answer, so a test can wait for it. */
 export const inflight = new Set<Promise<unknown>>();
@@ -58,6 +66,7 @@ export async function POST(req: NextRequest) {
     const challenge = CHALLENGE.test(held) ? held : newChallenge();
     const ip = clientIp(req);
     const gate = codeGateKey(req);
+    const origin = publicOrigin(req);
     later(async () => {
       // A client the code gate has blocked is mailed nothing; the answer above is the same.
       if (gate && (await codeGateBlocked(gate))) return;
@@ -68,7 +77,25 @@ export async function POST(req: NextRequest) {
       // The install-wide cap is charged only for a real account (inside
       // requestCode, after the lookup): an address nobody holds never spends
       // it, so one client cannot use it up with made-up ones.
-      await requestCode(email, challenge, Date.now(), async () => (await rateLimit("login-code:sends", INSTALL.limit, INSTALL.windowSec)).allowed);
+      // Charged now, before anything is looked up, for every address alike.
+      const resetShare = !ip || (await rateLimit(`login-code:reset-share:ip:${ip}`, RESET_SHARE.limit, RESET_SHARE.windowSec)).allowed;
+      // An account whose address is not verified gets the reset link in place
+      // of a code (FOL-315): the link verifies the address, a code must not.
+      // It is counted with /forgot's reset mail, so the two doors together
+      // send one address no more than /forgot alone would.
+      const unverified = async (user: UnverifiedUser) => {
+        const allowed: { ok: true } | { ok: false; error: string } = resetShare
+          ? await resetSendAllowed(user.email, null)
+          : { ok: false, error: "this caller's hourly share of reset links in place of a code was reached" };
+        if (!allowed.ok) {
+          await audit("password.reset_requested", { actor: user.email, tenant: user.tenant, detail: { sent: false, via: "login-code", error: allowed.error } });
+          return false;
+        }
+        const sent = await sendUnverifiedCodeEmail(user.tenant, user.email, resetLink(origin, user), ip);
+        await audit("password.reset_requested", { actor: user.email, tenant: user.tenant, detail: { sent: sent.ok, via: "login-code", ...(sent.ok ? {} : { error: sent.error }) } });
+        return sent.ok;
+      };
+      await requestCode(email, challenge, Date.now(), async () => (await rateLimit("login-code:sends", INSTALL.limit, INSTALL.windowSec)).allowed, unverified);
     });
     const res = NextResponse.json({ ok: true });
     res.cookies.set(CHALLENGE_COOKIE, challenge, {

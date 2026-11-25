@@ -91,7 +91,7 @@ async function world() {
   return { orm, NextRequest, users, request, verify, codes, sessions, audit, loginRoute, mfaVerify, tokens, totpMod, person, browser, ask, answer, codeFrom, row };
 }
 
-test("every address gets the same answer; only a verified one is mailed, and the code is in the body, not the subject", opts, async () => {
+test("every address gets the same answer; a verified one is mailed a code (in the body, not the subject), an unverified one the reset link and no code, a made-up one nothing", opts, async () => {
   const w = await world();
   const known = await w.person("a");
   const unverified = await w.person("u", false);
@@ -105,12 +105,54 @@ test("every address gets the same answer; only a verified one is mailed, and the
   }
   assert.deepEqual(answers, [[200, { ok: true }], [200, { ok: true }], [200, { ok: true }]]);
   const sent = mails.slice(before);
-  assert.equal(sent.length, 1, "one mail: the verified address");
+  assert.equal(sent.length, 2, "two mails: the verified address and the unverified one; the made-up one gets none");
   assert.equal(sent[0].to, known.email);
   assert.match(sent[0].text, /\b\d{6}\b/);
   assert.doesNotMatch(sent[0].subject, /\d{6}/);
   assert.match(sent[0].text, /5 minutes/);
-  assert.ok(!(await w.users.findUser(unverified.email))?.emailVerifiedAt);
+  // FOL-315: the unverified address learns why there is no code and gets the
+  // reset link, which verifies; nothing in the mail is a code to type.
+  assert.equal(sent[1].to, unverified.email);
+  assert.match(sent[1].text, /\/reset\?token=/);
+  assert.match(sent[1].text, /not confirmed/);
+  assert.doesNotMatch(sent[1].text, /sign-in code is/);
+  assert.ok(!(await w.users.findUser(unverified.email))?.emailVerifiedAt, "asking verifies nothing");
+});
+
+test("an unverified address: the mailed reset link verifies it and replaces the password, after which a code signs in; a code never works before (FOL-315)", opts, async () => {
+  const w = await world();
+  const p = await w.person("r", false);
+  const b = w.browser();
+  await w.ask(p.email, b);
+  const mail = [...mails].reverse().find((m) => m.to === p.email)!;
+  const link = mail.text.match(/(\S+\/reset\?token=\S+)/)?.[1];
+  assert.ok(link, "the reset link is in the mail");
+  // No code was made for it: no row exists, any six digits fail, and the address stays unverified.
+  const codeRows = (await w.orm()!.execute(`SELECT count(*)::int AS n FROM login_codes WHERE user_id = '${p.user.id}'`)).rows[0] as { n: number };
+  assert.equal(codeRows.n, 0, "no code row for an unverified address");
+  assert.equal((await w.answer(p.email, "123456", b)).status, 401);
+  // Whoever signed up holds a session from before; the reset must end it.
+  const before = await w.users.mintSession((await w.users.findUser(p.email))!, "the person who signed up");
+  assert.ok(await w.users.verifySession(before.value), "the earlier session works before the reset");
+  assert.ok(!(await w.users.findUser(p.email))?.emailVerifiedAt);
+  const token = decodeURIComponent(new URL(link!).searchParams.get("token")!);
+  const reset = await import("../app/v1/auth/reset/route.ts");
+  const res = await reset.POST(new w.NextRequest("http://x/v1/auth/reset", json({ token, password: "another long password here 2" })));
+  assert.equal(res.status, 200);
+  assert.ok((await w.users.findUser(p.email))?.emailVerifiedAt, "the link verified the address");
+  // Whoever set the old password no longer has it, nor the session from before.
+  assert.equal(await w.users.verifySession(before.value), null, "the earlier session was ended by the reset");
+  const old = await w.loginRoute.POST(new w.NextRequest("http://x/v1/auth/login", json({ email: p.email, password: PASSWORD })));
+  assert.equal(old.status, 401);
+  // And now a code is mailed and signs in.
+  const b2 = w.browser();
+  await w.ask(p.email, b2);
+  const code = w.codeFrom(p.email);
+  assert.ok(code);
+  assert.equal((await w.answer(p.email, code!, b2)).status, 200);
+  // The audit line says the link went by way of a code request.
+  const rows = (await w.orm()!.execute(`SELECT detail FROM audit_log WHERE tenant = '${p.tenant}' AND action = 'password.reset_requested'`)).rows as Array<{ detail: { via?: string; sent?: boolean } }>;
+  assert.ok(rows.some((r) => r.detail?.via === "login-code" && r.detail?.sent === true), "audited as a reset sent by way of a code request");
 });
 
 test("the right code signs in once, only from the browser that asked; the session and the audit line say email-code; the address is not marked verified by it", opts, async () => {
@@ -328,7 +370,27 @@ test("without a mail credential the two routes answer 404 and the page hides the
   assert.equal(w.codes.codeSignInAvailable(), true);
 });
 
-test("the install-wide mail budget is spent by real accounts only: an unknown or unverified address never asks for it, and a refused budget leaves no usable code", opts, async () => {
+test("an unverified address gets at most 3 reset mails an hour across /forgot and the code request together (FOL-315)", opts, async () => {
+  const w = await world();
+  const p = await w.person("c", false);
+  const forgot = await import("../app/v1/auth/forgot/route.ts");
+  const before = mails.length;
+  // Two through /forgot (its own request limit is 3); its mail goes in the background, so wait for both.
+  for (let i = 0; i < 2; i++) {
+    await forgot.POST(new w.NextRequest("http://x/v1/auth/forgot", json({ email: p.email })));
+  }
+  const mine = () => mails.slice(before).filter((m) => m.to === p.email);
+  for (let i = 0; i < 100 && mine().length < 2; i++) await new Promise((r) => setTimeout(r, 20));
+  assert.deepEqual(mine().map((m) => m.subject), ["Reset your foldrun password", "Reset your foldrun password"], "both /forgot mails went");
+  // Then four code requests from fresh browsers: only one more reset link fits in the address's three.
+  for (let i = 0; i < 4; i++) await w.ask(p.email, w.browser());
+  const got = mine();
+  assert.equal(got.length, 3, "three reset mails in all, not 2 + 4");
+  assert.equal(got.filter((m) => m.subject === "Set your foldrun password to sign in").length, 1, "exactly one sent in place of a code");
+  assert.ok(got.every((m) => /\/reset\?token=/.test(m.text)));
+});
+
+test("the install-wide mail budget is spent by real accounts only: an unknown address never asks for it, an unverified one asks before its reset link goes, and a refused budget leaves no usable code", opts, async () => {
   const w = await world();
   const p = await w.person("g");
   const b = w.browser();
@@ -339,8 +401,21 @@ test("the install-wide mail budget is spent by real accounts only: an unknown or
   };
   assert.equal(await w.codes.requestCode("nobody@nowhere.test", b.challenge, Date.now(), budget(true)), "not sent");
   const unverified = await w.person("h", false);
-  assert.equal(await w.codes.requestCode(unverified.email, b.challenge, Date.now(), budget(true)), "not sent");
-  assert.equal(asked, 0, "made-up and unverified addresses do not touch the budget");
+  assert.equal(await w.codes.requestCode(unverified.email, b.challenge, Date.now(), budget(true)), "not sent", "no reset sender given: nothing goes");
+  assert.equal(asked, 0, "made-up addresses, and unverified ones with nothing to send, do not touch the budget");
+  // FOL-315: with a sender, an unverified account gets its reset link, and the
+  // code budget is not touched: the sender counts reset mail (server/reset-sends.ts).
+  let resets = 0;
+  const send = async () => {
+    resets++;
+    return true;
+  };
+  assert.equal(await w.codes.requestCode(unverified.email, b.challenge, Date.now(), budget(true), send), "reset sent");
+  assert.equal(await w.codes.requestCode("nobody@nowhere.test", b.challenge, Date.now(), budget(true), send), "not sent");
+  assert.equal(await w.codes.requestCode(p.email, b.challenge, Date.now() - 60_000, budget(false), send), "not sent", "a verified address never takes the reset path");
+  assert.equal(resets, 1);
+  assert.equal(asked, 1, "only the verified address asked the code budget");
+  asked = 0;
   // Out of budget: nothing mailed, and the code that was made cannot sign anyone in.
   const t0 = Date.now();
   assert.equal(await w.codes.requestCode(p.email, b.challenge, t0, budget(false)), "not sent");
@@ -454,4 +529,28 @@ test("no trustworthy address at all: the gate is off and the per-address limits 
   for (let i = 0; i < 6; i++) await w.answer(`z${i}@nowhere.test`, "000000", b);
   assert.equal(await gate.codeGateBlocked("unknown"), false);
   assert.equal((await w.answer(p.email, code, b)).status, 200, "six strangers' failures do not block the next person");
+});
+
+test("a caller's share of reset links in place of a code is spent by every code request alike, so it says nothing about which addresses are unverified (FOL-315, Codex)", opts, async () => {
+  const w = await world();
+  await edgeEnv(async () => {
+    const ip = "198.51.100.77";
+    const verified = await w.person("sv");
+    const unverified = await w.person("su", false);
+    // Ten code requests for a verified address and a made-up one: the share is ten.
+    for (let i = 0; i < 5; i++) {
+      for (const email of [verified.email, "nobody@nowhere.test"]) {
+        await w.request.POST(new w.NextRequest("http://x/v1/auth/login/code", viaEdge(ip, w.browser(), { email })));
+        await Promise.all([...w.request.inflight]);
+      }
+    }
+    const before = mails.length;
+    await w.request.POST(new w.NextRequest("http://x/v1/auth/login/code", viaEdge(ip, w.browser(), { email: unverified.email })));
+    await Promise.all([...w.request.inflight]);
+    assert.equal(mails.slice(before).filter((m) => m.to === unverified.email).length, 0, "the share was spent by the other requests");
+    // Another caller still gets it.
+    await w.request.POST(new w.NextRequest("http://x/v1/auth/login/code", viaEdge("198.51.100.78", w.browser(), { email: unverified.email })));
+    await Promise.all([...w.request.inflight]);
+    assert.equal(mails.slice(before).filter((m) => m.to === unverified.email).length, 1);
+  });
 });

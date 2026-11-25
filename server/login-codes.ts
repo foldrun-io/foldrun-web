@@ -30,6 +30,17 @@
 // never marks an address verified: someone who signed up with another
 // person's address must not be able to turn that person's code into a
 // verification of their own account.
+//
+// An address that has an account but is not verified yet is mailed the
+// password-reset link instead of a code (FOL-315, 25 Nov 2026): before, it was
+// mailed nothing, and a person made from the operator console who never used
+// the welcome link waited for a code that never came. The reset link is the
+// same way into an unverified account that Forgot password already gives: it
+// proves the inbox, verifies the address, replaces the password and ends the
+// account's sessions. It adds no door that /forgot did not open; how far a
+// reset reaches (keys, a second factor) is the reset route's question. The
+// answer the caller sees is still the same for every address, and the mail
+// is counted against the same reset-mail limits as /forgot's.
 
 import crypto from "node:crypto";
 import { databaseEnabled, tx, users as usersTable, loginCodes, and, eq, lt, sql } from "@/platform/orm";
@@ -76,9 +87,14 @@ export function codeDigest(userId: string, binding: string, code: string): strin
   return crypto.createHmac("sha256", installKey()).update(`foldrun-login-code:${userId}:${binding}:${code}`).digest("hex");
 }
 
+/** Enough of an unverified account to mail it the reset link: the link is
+ *  bound to the password hash and the address as they are now. */
+export type UnverifiedUser = { id: string; tenant: string; email: string; hash: string };
+
 type Issued =
   | { user: { id: string; tenant: string; email: string }; code: string; binding: string }
-  | { why: "no address" | "not verified" | "locked" | "too soon" | "busy" };
+  | { why: "not verified"; user: UnverifiedUser }
+  | { why: "no address" | "locked" | "too soon" | "busy" };
 
 /** Make a code for this address and browser, or say why not. Nothing leaves
  *  this module but the result; the caller mails it and then marks it sent. */
@@ -89,7 +105,7 @@ export async function issueCode(email: string, challenge: string, now = Date.now
   return tx(async (t) => {
     const [u] = await t.select().from(usersTable).where(sql`lower(${usersTable.email}) = ${e}`).for("update").limit(1);
     if (!u) return { why: "no address" as const };
-    if (!u.emailVerifiedAt) return { why: "not verified" as const };
+    if (!u.emailVerifiedAt) return { why: "not verified" as const, user: { id: u.id, tenant: u.tenant, email: u.email, hash: u.hash } };
     if (u.codeLockedUntil && u.codeLockedUntil.getTime() > now) return { why: "locked" as const };
     // What expired more than one throttle ago is of no use to anyone.
     await t.delete(loginCodes).where(and(eq(loginCodes.userId, u.id), lt(loginCodes.expiresAt, new Date(now - RESEND_MS))));
@@ -142,6 +158,12 @@ async function mailCode(tenant: string, to: string, code: string): Promise<boole
 /** Step one, after the answer was given: issue and mail. Never throws; says
  *  nothing back (the route answered the same for every address already).
  *
+ *  `unverified` mails the reset link to an account whose address is not yet
+ *  verified (the route builds the link and applies the reset-mail limits;
+ *  this module has no request), and says whether the mail went. It gets the
+ *  row read under the lock here, so nothing is looked up twice. Without it
+ *  such an address is mailed nothing.
+ *
  *  `budget` is the install-wide cap on mails (the route's `login-code:sends`),
  *  asked only once the address is a real, verified account that may have a
  *  code: an address that is not one is "not sent" before it, so made-up
@@ -149,9 +171,22 @@ async function mailCode(tenant: string, to: string, code: string): Promise<boole
  *  stopped every code mail for an hour). Refused, the code just made is
  *  emptied as a failed mail's is, so nobody holds a code that was never sent.
  *  Nothing differs in what the caller sees: the answer was given already. */
-export async function requestCode(email: string, challenge: string, now = Date.now(), budget?: () => Promise<boolean>): Promise<"sent" | "not sent"> {
+export async function requestCode(
+  email: string,
+  challenge: string,
+  now = Date.now(),
+  budget?: () => Promise<boolean>,
+  unverified?: (user: UnverifiedUser) => Promise<boolean>,
+): Promise<"sent" | "not sent" | "reset sent"> {
   const out = await issueCode(email, challenge, now);
-  if ("why" in out) return "not sent";
+  if ("why" in out) {
+    // A real account whose address is not verified: the reset link, which
+    // verifies, in place of a code, which must not. The sender counts it
+    // against the reset-mail limits (server/reset-sends.ts), not the code
+    // budget; made-up addresses never reach either.
+    if (out.why !== "not verified" || !unverified) return "not sent";
+    return (await unverified(out.user)) ? "reset sent" : "not sent";
+  }
   if (budget && !(await budget())) {
     await markSent(out.user.id, out.binding, false, now);
     return "not sent";

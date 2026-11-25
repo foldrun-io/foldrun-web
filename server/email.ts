@@ -56,6 +56,17 @@ export function sendResetEmail(tenant: string, to: string, url: string, ip: stri
     `If you did not ask, ignore this: your password has not changed and nobody can change it without this link.\n`);
 }
 
+/** Someone asked for a sign-in code for an account whose address is not
+ *  verified yet (FOL-315). A code cannot be used until it is, so this mails
+ *  the reset link instead: setting a password there verifies the address. */
+export function sendUnverifiedCodeEmail(tenant: string, to: string, url: string, ip: string | null) {
+  return platformSend(tenant, to, "Set your foldrun password to sign in",
+    `Someone — hopefully you — asked for a sign-in code for ${to}${ip ? ` (from ${ip})` : ""}.\n\n` +
+    `This address is not confirmed yet, so a code cannot sign you in. Set a password here instead; it also confirms ` +
+    `your address, and after that you can sign in with a password or an emailed code. The link works once and for 30 minutes:\n${url}\n\n` +
+    `If you did not ask, ignore this: nothing has changed and nobody can use this link without this email.\n`);
+}
+
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /**
