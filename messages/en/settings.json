@@ -561,7 +561,12 @@
     "apiKeyModelDaily": "At most $ <input></input> a day",
     "apiKeyModelWallet": "Bought credits it may spend, in all: $ <input></input>",
     "apiKeyModelAccessRow": "This API key may also call foldrun's models, within these limits",
-    "modelsColon": "models: {spend}"
+    "modelsColon": "models: {spend}",
+    "mediaLabel": "Images and PDFs",
+    "mediaAsIs": "sent to the model as they are",
+    "mediaReadIntoText": "read into text by foldrun first — no image tokens",
+    "mediaReadFirst": "read into text first",
+    "mediaSendAsIs": "send as they are"
   },
   "mcp-connections": {
     "aProgramThatSignsInTo": "A program that signs in to /v1/mcp with client credentials — no person approves each token. It acts within your role and {@workspace.other}.",

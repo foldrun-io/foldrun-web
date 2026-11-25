@@ -73,6 +73,8 @@ export type AuditAction =
   // runs on): the new map in detail.
   | "apikey.models"
   | "apikey.wallet_budget"
+  // FOL-268: whether a key's model calls have images and PDFs read into text first.
+  | "apikey.media_to_text"
   // The vault, by NAME only — a value never reaches this table.
   | "secret.set"
   | "secret.deleted"

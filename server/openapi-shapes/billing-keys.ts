@@ -423,10 +423,11 @@ export const SHAPES: Record<string, Shape> = {
         },
         requireCustomer: { ...bool, description: "FOL-168: every run (an API key) or gateway call (a gateway key) with it must name an end customer; not for an A2A key" },
         walletUsd: { type: "number", description: "an account key (credential: account): the most bought credits may pay for its calls, USD, 0 (the plan only) to 100000; sent on its own" },
+        mediaToText: { ...bool, description: "FOL-268: images and PDFs in this key's model calls are read into text by foldrun before the call (no image or document tokens); off by default; sent on its own" },
       },
       [],
     ),
-    response: obj({ ok: bool, id: str(), models: { type: ["object", "null"], properties: { opus: str(), sonnet: str(), haiku: str() } }, requireCustomer: bool, walletUsd: { type: "number" } }, ["ok", "id"]),
+    response: obj({ ok: bool, id: str(), models: { type: ["object", "null"], properties: { opus: str(), sonnet: str(), haiku: str() } }, requireCustomer: bool, walletUsd: { type: "number" }, mediaToText: bool }, ["ok", "id"]),
   },
   "DELETE /v1/keys/{id}": {
     response: obj({ ok: bool, id: str(), revoked: { ...bool, description: "whether this call ended a live key (false: it was already revoked or expired)" } }, ["ok", "id", "revoked"]),

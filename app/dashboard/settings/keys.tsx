@@ -45,7 +45,7 @@ interface KeyRow {
   purpose?: "a2a" | "gateway";
   /** "gateway": a coding agent's key — its own spending limits, and what it
    *  has spent in all and today (UTC), USD. */
-  gateway?: { capUsd: number | null; dailyUsd: number | null; spentUsd?: number; todayUsd?: number; credential?: "login" | "account"; walletUsd?: number; walletSpentUsd?: number; plan?: "pro" | "max"; models?: { opus?: string; sonnet?: string; haiku?: string } };
+  gateway?: { capUsd: number | null; dailyUsd: number | null; spentUsd?: number; todayUsd?: number; credential?: "login" | "account"; mediaToText?: boolean; walletUsd?: number; walletSpentUsd?: number; plan?: "pro" | "max"; models?: { opus?: string; sonnet?: string; haiku?: string } };
   a2a?: { workspace: string; flows: string[]; principal?: string; maxTasks: number };
 }
 
@@ -305,6 +305,23 @@ export function KeyManager({
       } else setRowError({ id: walletEdit.id, message: data.error ?? $t("settings.keys.failedToChangeIt") });
     } catch (err) {
       setRowError({ id: walletEdit.id, message: err instanceof Error ? err.message : $t("settings.keys.failedToChangeIt") });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // FOL-268: images and PDFs in its model calls read into text first (PATCH mediaToText).
+  const toggleMediaToText = async (id: string, on: boolean) => {
+    if (busy) return;
+    setBusy(true);
+    setRowError(null);
+    try {
+      const res = await fetch(`/v1/keys/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ mediaToText: on }) });
+      const data = await res.json();
+      if (res.ok && data.mediaToText === on) router.refresh();
+      else setRowError({ id, message: data.error ?? $t("settings.keys.failedToChangeIt") });
+    } catch (err) {
+      setRowError({ id, message: err instanceof Error ? err.message : $t("settings.keys.failedToChangeIt") });
     } finally {
       setBusy(false);
     }
@@ -776,6 +793,19 @@ export function KeyManager({
                                     </button>
                                   )}
                                 </>
+                              )}
+                            </dd>
+                          </div>
+                        )}
+                        {k.gateway && k.purpose !== "a2a" && !k.revokedAt && (
+                          <div>
+                            <dt className="inline text-fg-subtle">{$t("settings.keys.mediaLabel")}{" "}</dt>
+                            <dd className="inline">
+                              {k.gateway.mediaToText ? $t("settings.keys.mediaReadIntoText") : $t("settings.keys.mediaAsIs")}
+                              {!scoped && (
+                                <button type="button" disabled={busy} onClick={() => void toggleMediaToText(k.id, !k.gateway?.mediaToText)} className="ml-2 text-fg-secondary underline decoration-line underline-offset-2 hover:text-fg">
+                                  {k.gateway.mediaToText ? $t("settings.keys.mediaSendAsIs") : $t("settings.keys.mediaReadFirst")}
+                                </button>
                               )}
                             </dd>
                           </div>

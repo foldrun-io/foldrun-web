@@ -28,11 +28,20 @@ async function patchOnce(req: NextRequest, ctx: { params: Promise<{ id: string }
     } catch {
       throw new ApiError("expected a JSON body { models }", 400);
     }
-    const unknown = Object.keys(body).filter((k) => k !== "models" && k !== "requireCustomer" && k !== "walletUsd");
-    if (unknown.length) return refuse(`only models, requireCustomer and walletUsd may be changed here — not ${unknown.join(", ")}`, 400);
-    if (!("models" in body) && !("requireCustomer" in body) && !("walletUsd" in body)) return refuse("expected { models: { opus?, sonnet?, haiku? } | null }, { requireCustomer: true | false } or { walletUsd }", 400);
+    const unknown = Object.keys(body).filter((k) => k !== "models" && k !== "requireCustomer" && k !== "walletUsd" && k !== "mediaToText");
+    if (unknown.length) return refuse(`only models, requireCustomer, walletUsd and mediaToText may be changed here — not ${unknown.join(", ")}`, 400);
+    if (!("models" in body) && !("requireCustomer" in body) && !("walletUsd" in body) && !("mediaToText" in body)) return refuse("expected { models: { opus?, sonnet?, haiku? } | null }, { requireCustomer: true | false } or { walletUsd }", 400);
     const key = (await listApiKeys(tenant)).find((k) => k.id === id);
     if (!key || key.revokedAt) return refuse("key not found", 404);
+    // Images and PDFs read into text before the call (FOL-268), alone in its request.
+    if ("mediaToText" in body) {
+      if (Object.keys(body).length > 1) return refuse("change mediaToText on its own", 400);
+      if (typeof body.mediaToText !== "boolean") return refuse("mediaToText is true or false", 400);
+      if (!modelGrantOf(key) || !key.gateway) return refuse("only a gateway key, or an API key with model access, makes model calls", 400);
+      if (!(await patchGatewayGrantDb(tenant, id, "mediaToText", body.mediaToText ? true : null))) return refuse("key not found", 404);
+      await audit("apikey.media_to_text", { actor: actor.name, tenant, subject: id, detail: { label: key.label, prefix: key.prefix, mediaToText: body.mediaToText } });
+      return NextResponse.json({ ok: true, id, mediaToText: body.mediaToText });
+    }
     // An account key's wallet budget (FOL-208), alone in its request.
     if ("walletUsd" in body) {
       if (Object.keys(body).length > 1) return refuse("change walletUsd on its own", 400);

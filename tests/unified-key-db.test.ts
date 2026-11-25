@@ -100,6 +100,18 @@ test("one key: issued with model access, it opens the API at its role and the ga
     const patched = await idRoute.PATCH(new NextRequest(`https://app.example.test/v1/keys/${ci.body.id}`, { method: "PATCH", headers: { authorization: `Bearer ${admin}`, "content-type": "application/json" }, body: JSON.stringify({ walletUsd: 7 }) }), { params: Promise.resolve({ id: ci.body.id }) });
     assert.equal(patched.status, 200, await patched.clone().text());
     door.resetGatewayKeyCacheForTests();
+    // FOL-268: images and PDFs read into text first — on, seen by the door, refused beside another field, off again.
+    const media = (body: unknown) => idRoute.PATCH(new NextRequest(`https://app.example.test/v1/keys/${ci.body.id}`, { method: "PATCH", headers: { authorization: `Bearer ${admin}`, "content-type": "application/json" }, body: JSON.stringify(body) }), { params: Promise.resolve({ id: ci.body.id }) });
+    const on = await media({ mediaToText: true });
+    assert.equal(on.status, 200, await on.clone().text());
+    assert.deepEqual(await on.json(), { ok: true, id: ci.body.id, mediaToText: true });
+    door.resetGatewayKeyCacheForTests();
+    const seen = await gate(ci.body.key);
+    assert.ok("who" in seen && seen.who.grant.mediaToText === true);
+    assert.equal((await media({ mediaToText: true, walletUsd: 1 })).status, 400);
+    assert.equal((await media({ mediaToText: "yes" })).status, 400);
+    assert.equal((await media({ mediaToText: false })).status, 200);
+    door.resetGatewayKeyCacheForTests();
 
     // Rotation: the same grant and the same chain, so what it spent still counts.
     const { record: next, key: rotated } = await rotateApiKey(tenant, ci.body.id, 0);
