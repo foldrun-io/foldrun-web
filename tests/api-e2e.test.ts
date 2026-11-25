@@ -475,6 +475,30 @@ test("the first signup needs the install's setup token, and signs you in", opts,
   cookie = set!.split(";")[0];
 });
 
+// The founder confirms their address before anything below mints a key
+// (FOL-317: an unconfirmed login mints nothing). On the hosted build that is
+// also when the trial lands; the balance either side is kept for that test.
+let verifyToken = "";
+let balanceAtSignup: number | null = null;
+let balanceAtVerify: number | null = null;
+test("the founder confirms their address by the button the mailed link opens", opts, async () => {
+  process.env.FOLDRUN_SECRET_KEY = "e2e-install-key";
+  const { mintToken, VERIFY_TTL_MS } = await import("../server/auth-tokens.ts");
+  const me = (await (await fetch(`${base}/v1/auth/session`, { headers: { cookie } })).json()) as { user: { id: string; email: string } };
+  const balance = async () => (billingPresent ? ((await (await fetch(`${base}/v1/billing`, { headers: { cookie } })).json()) as { balanceUsd: number }).balanceUsd : null);
+  balanceAtSignup = await balance();
+  verifyToken = mintToken("verify", { u: me.user.id, e: me.user.email }, VERIFY_TTL_MS);
+  const res = await fetch(`${base}/v1/auth/verify`, { method: "POST", redirect: "manual", headers: { "content-type": "application/x-www-form-urlencoded", origin: base }, body: new URLSearchParams({ token: verifyToken }).toString() });
+  assert.equal(res.status, 303, await res.text());
+  assert.match(res.headers.get("location") ?? "", /verified=1/);
+  // The grant is written just after the answer: read until it shows (a few seconds at most).
+  balanceAtVerify = await balance();
+  for (let i = 0; billingPresent && i < 30 && balanceAtVerify === balanceAtSignup; i++) {
+    await new Promise((r) => setTimeout(r, 100));
+    balanceAtVerify = await balance();
+  }
+});
+
 test("the second signup needs the install to opt in", opts, async () => {
   const res = await fetch(`${base}/v1/auth/signup`, {
     method: "POST",
@@ -712,9 +736,10 @@ test("billing reads empty, and credit by hand is refused (FOL-94)", hosted, asyn
     balanceUsd: number;
   };
   assert.equal(empty.enabled, false);
-  // No trial at signup: it lands when the owner verifies their address,
-  // proven where verification is.
-  assert.equal(empty.balanceUsd, 0);
+  // No trial at signup: it landed when the founder confirmed their address
+  // (right after signup, above) and is all there is.
+  assert.equal(empty.balanceUsd, balanceAtVerify);
+  assert.equal(balanceAtSignup, 0);
 
   // No credit by hand, for anyone (FOL-94): a payment, or the platform
   // team's capped console adjustment.
@@ -725,7 +750,7 @@ test("billing reads empty, and credit by hand is refused (FOL-94)", hosted, asyn
   });
   assert.equal(byHand.status, 404);
   const after = (await (await fetch(`${base}/v1/billing`, { headers: { cookie } })).json()) as { balanceUsd: number };
-  assert.equal(after.balanceUsd, 0, "nothing was credited");
+  assert.equal(after.balanceUsd, empty.balanceUsd, "nothing was credited");
 });
 
 test("a team grows by invite link and refuses to lose its last member", opts, async () => {
@@ -861,12 +886,11 @@ test("a signed Stripe payment credits the ledger exactly once", hosted, async ()
 // console-e2e.test.ts, on the console's own host (28 Oct 2026).
 
 test("the trial lands when the owner verifies their address — once, and not at signup", hosted, async () => {
-  // Mint the link the mail would have carried, with the server's own key.
-  process.env.FOLDRUN_SECRET_KEY = "e2e-install-key";
-  const { mintToken, VERIFY_TTL_MS } = await import("../server/auth-tokens.ts");
+  // The founder confirmed right after signup (above); the trial landed then.
+  assert.equal(Math.round(((balanceAtVerify ?? 0) - (balanceAtSignup ?? 0)) * 100), 300, "300 credits, three dollars, at the confirmation and not at signup");
   const me = (await (await fetch(`${base}/v1/auth/session`, { headers: { cookie } })).json()) as { user: { id: string; email: string } };
   const before = (await (await fetch(`${base}/v1/billing`, { headers: { cookie } })).json()) as { balanceUsd: number };
-  const token = mintToken("verify", { u: me.user.id, e: me.user.email }, VERIFY_TTL_MS);
+  const token = verifyToken;
   // The page the mail links shows the address and a button, and changes nothing (FOL-319).
   const pageHtml = await (await fetch(`${base}/verify?token=${encodeURIComponent(token)}`)).text();
   assert.ok(pageHtml.replace(/<[^>]+>/g, "").includes(me.user.email), "the address is on the page");
@@ -877,15 +901,12 @@ test("the trial lands when the owner verifies their address — once, and not at
   assert.match(opened.headers.get("location") ?? "", /\/verify\?token=/);
   assert.equal(((await (await fetch(`${base}/v1/billing`, { headers: { cookie } })).json()) as { balanceUsd: number }).balanceUsd, before.balanceUsd, "no trial from a scanner's GET");
   const confirm = () => fetch(`${base}/v1/auth/verify`, { method: "POST", redirect: "manual", headers: { "content-type": "application/x-www-form-urlencoded", origin: base }, body: new URLSearchParams({ token }).toString() });
+  // Confirming again verifies again and grants nothing.
   const first = await confirm();
   assert.equal(first.status, 303, await first.text());
   assert.match(first.headers.get("location") ?? "", /verified=1/);
-  const after = (await (await fetch(`${base}/v1/billing`, { headers: { cookie } })).json()) as { balanceUsd: number };
-  assert.equal(Math.round((after.balanceUsd - before.balanceUsd) * 100), 300, "300 credits, three dollars");
-  // Following the link again verifies again and grants nothing.
-  await confirm();
   const again = (await (await fetch(`${base}/v1/billing`, { headers: { cookie } })).json()) as { balanceUsd: number };
-  assert.equal(again.balanceUsd, after.balanceUsd);
+  assert.equal(again.balanceUsd, before.balanceUsd);
 });
 
 // ---------------------------------------------------------------- sign-in security
