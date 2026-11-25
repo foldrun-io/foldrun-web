@@ -16,7 +16,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { readToken, hashFingerprint } from "@/server/auth-tokens";
 import { findUserById, redeemReset, mintSession, sessionCookieOptions, SESSION_COOKIE } from "@/server/users";
 import { assertPasswordPolicy } from "@/server/password-policy";
+import { grantTrialIfEarned } from "@/server/trial";
 import { audit } from "@/server/audit";
+import { opsLog } from "@/lib/ops-log.ts";
 import { errorResponse, ApiError } from "@/server/api";
 import { sendSecurityNotice } from "@/server/email";
 import { clientIp } from "@/server/limits";
@@ -48,6 +50,12 @@ export async function POST(req: NextRequest) {
     // between is caught here, and none can follow (its code carries the old
     // password's fingerprint).
     if (provisional && done.confirmedNow) await provisional(user, done.resetAt);
+    // This reset is what confirmed the address, so the trial lands here as the
+    // Confirm button would have landed it (FOL-315).
+    if (done.confirmedNow) {
+      await audit("email.verified", { actor: user.email, tenant: user.tenant, detail: { via: "reset" } });
+      await grantTrialIfEarned(done).catch((err) => opsLog("warn", "auth.reset_trial_not_granted", { error: err instanceof Error ? err.message : String(err) }));
+    }
     await audit("password.reset", { actor: user.email, tenant: user.tenant });
     sendSecurityNotice(user.tenant, user.email, "your password was reset", clientIp(req));
     // Read again, not the snapshot: a second factor turned on meanwhile is still owed.
