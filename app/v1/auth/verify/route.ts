@@ -17,10 +17,7 @@ import { findUserById, setEmailVerified, changeEmail, sessionIdOf, SESSION_COOKI
 import { revokeSessions } from "@/server/sessions";
 import { sendEmailChangedNotice } from "@/server/email";
 import { audit } from "@/server/audit";
-import { platform } from "@/lib/platform";
-import { billing } from "@/platform/billing";
-import { isOwner, accountAdmission } from "@/server/users";
-import { trialEligible } from "@/platform/signup";
+import { grantTrialIfEarned } from "@/server/trial";
 import { publicOrigin } from "@/server/auth-flows";
 
 /** A link mailed before FOL-319: to the page that asks, never a change. */
@@ -82,14 +79,7 @@ async function moveLogin(req: NextRequest, claims: Record<string, string>) {
 async function verified(req: NextRequest, user: UserRecord) {
   await setEmailVerified(user.id);
   await audit("email.verified", { actor: user.email, tenant: user.tenant });
-  // The trial lands on a VERIFIED owner, once per account, and not a
-  // moment before: credits handed out at signup are credits a script can
-  // farm with throwaway addresses; a working inbox is the cheapest proof
-  // of a person we have. Joiners bring nothing — their team has a wallet.
-  // And only an account that came in by a door that earns it (7 Nov 2026,
-  // core signup.ts trialEligible): a paid sign-up bought a plan, and one
-  // still waiting to pay must never run on free credit. On top of hosted
-  // and owner, never instead of them.
-  if (platform.edition() === "hosted" && (await isOwner(user.tenant, user.id)) && trialEligible(await accountAdmission(user.tenant))) await billing().grantTrial(user.tenant);
+  // The trial lands now, not before (server/trial.ts).
+  await grantTrialIfEarned(user);
   return NextResponse.redirect(new URL("/dashboard?verified=1", publicOrigin(req)), 303);
 }
