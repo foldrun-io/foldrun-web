@@ -1615,5 +1615,16 @@
     "thisTermSWebhookIsSwitched": "This {@workspace.one}'s webhook is <strong>switched off</strong> since <localTime></localTime>: {disabledReason}. New notifications are recorded below but not sent. Fix the receiver, then Redeliver any delivery (or send a test from {@workspace.One} settings) — an accepted one switches it back on. Changing the URL in <code>notify:</code> starts it fresh.",
     "when": "When",
     "xFoldrunDeliveryTo": "X-Foldrun-Delivery: {id} · to {destination}"
+  },
+  "session-messages-panel": {
+    "title": "Messages with other sessions",
+    "description": "What other sessions of this project sent this conversation and what it sent them, oldest first. A message reaches a turn only when that conversation's person includes it.",
+    "sentTo": "Sent to {other}",
+    "from": "From {other} ({who})",
+    "fromPerson": "From {who}",
+    "readThere": "read there in a turn",
+    "waitingThere": "waiting there",
+    "taken": "taken into a turn",
+    "waiting": "waiting"
   }
 }

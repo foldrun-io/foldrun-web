@@ -190,3 +190,10 @@ test("the thread between two conversations, both ways, and what one sent (FOL-30
   assert.equal((await messages.GET(req("GET", viewer, M("t307-x", "?with=bad id")), mp("t307-x"))).status, 400);
   assert.equal((await messages.GET(req("GET", elsewhere, M("t307-x", "?with=t307-y")), mp("t307-x"))).status, 403, "another project's key reads nothing here");
 });
+
+test("the dashboard's panel puts a conversation's messages both ways, oldest first (FOL-307)", async () => {
+  const { threadOf } = await import("../components/session-thread.ts");
+  const row = (id: string, at: string) => ({ id, workspace: "desk", context: "x", from: "a", sender: "user:u", text: id, at });
+  const t = threadOf([row("in2", "2026-11-25T02:00:00Z"), row("in1", "2026-11-25T00:00:00Z")], [row("out1", "2026-11-25T01:00:00Z")]);
+  assert.deepEqual(t.map((m) => [m.id, m.direction]), [["in1", "in"], ["out1", "out"], ["in2", "in"]]);
+});

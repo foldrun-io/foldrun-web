@@ -23,6 +23,7 @@ import { RunFilters, RunStats, RunsTable, whatRan, filterByWindow, pageOf, RUNS_
 import { filterByQuery } from "@foldrun/ui/react/list-search-model";
 import { RunsSelection } from "@/components/runs-bulk";
 import { ConversationsPanel } from "@/components/conversations-panel";
+import { SessionMessagesPanel } from "@/components/session-messages-panel";
 import { listSessions } from "@/lib/conversation";
 
 export const dynamic = "force-dynamic";
@@ -108,6 +109,8 @@ export default async function WorkspaceRunsPage({
       <RunStats runs={runs} chargedUsd={runs.reduce((n, r) => n + runCharge(r, charges), 0)} />
 
       {/* The project's conversations (FOL-236) — hidden while one is open: its turns are the list below. */}
+      {/* One conversation open: its messages with other sessions (FOL-307). */}
+      {searchKept.context && <SessionMessagesPanel tenant={tenant} workspace={workspace} context={searchKept.context} />}
       {!searchKept.context && <ConversationsPanel sessions={listSessions(tenant, workspace, 10)} workspace={workspace} tenant={tenant} tenantParam={tenantParam} />}
 
       {/* Search, then the filters. Each control carries the others' choices

@@ -87,7 +87,7 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   // Session messages (19 Nov 2026): sent and read where the conversation is
   // held — foldrun code, scripts; a run's page lists the ones its turn
   // included, from the run record (no call to these routes).
-  "GET /v1/workspaces/[workspace]/sessions/[context]/messages": "read where the conversation is held (foldrun code); the run page shows a turn's included messages from its record",
+  "GET /v1/workspaces/[workspace]/sessions/[context]/messages": SERVER("[workspace]/runs/page.tsx → SessionMessagesPanel (a conversation's messages with other sessions, FOL-307)"),
   "POST /v1/workspaces/[workspace]/sessions/[context]/messages": "sent from foldrun code (/send) or a script (foldrun sessions send); the dashboard has no conversation to send from",
   "POST /v1/workspaces/[workspace]/sessions/[context]/messages/take": "a turn on a person's own computer (foldrun code) marks the messages it carried used; the dashboard makes no such turn",
   "GET /v1/workspaces/[workspace]/sessions": SERVER("[workspace]/runs/page.tsx → listSessions (the Conversations panel)"),
