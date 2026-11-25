@@ -321,3 +321,43 @@ test("publicSignup and the page read the same switches", async () => {
   assert.equal(publicSignup().free, signupModesNow(true).free);
   delete process.env.FOLDRUN_OPEN_SIGNUP;
 });
+
+test("the reset that first confirms an address lands the trial, once, on the same terms as the Confirm button (FOL-315)", async () => {
+  hosted(true);
+  fresh();
+  process.env.FOLDRUN_OPEN_SIGNUP = "1";
+  const b = billing() as { grantTrial: (tenant: string) => Promise<boolean> };
+  const before = b.grantTrial;
+  const granted: string[] = [];
+  b.grantTrial = async (tenant) => {
+    granted.push(tenant);
+    return true;
+  };
+  const tokens = await import("../server/auth-tokens.ts");
+  const resetRoute = await import("../app/v1/auth/reset/route.ts");
+  const reset = async (u: { id: string; hash: string; email: string }, password: string) =>
+    resetRoute.POST(new NextRequest("http://x/v1/auth/reset", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: tokens.mintToken("reset", { u: u.id, h: tokens.hashFingerprint(u.hash), e: u.email }, tokens.RESET_TTL_MS), password }),
+    }));
+  try {
+    const boot = await createUser("r-boot@example.test", PW, "rboot", { request: "free" });
+    const first = await reset((await findUser("r-boot@example.test"))!, "the rightful holder picks this 7");
+    assert.equal(first.status, 200, await first.clone().text());
+    assert.deepEqual(granted, [boot.tenant], "the reset that confirmed the address landed the trial");
+    assert.ok((await findUser("r-boot@example.test"))!.emailVerifiedAt, "and the address is confirmed");
+    // Already confirmed: a second reset is only a password change, never a second grant.
+    const again = await reset((await findUser("r-boot@example.test"))!, "and picks another one later 8");
+    assert.equal(again.status, 200);
+    assert.deepEqual(granted, [boot.tenant]);
+    // A paid door earns none, reset or not.
+    await withOffer({ paidConfigured: true, paidBlocked: null, plans: [PLAN] }, () => createUser("r-paid@example.test", PW, "rpaid", { request: "paid" }));
+    assert.equal((await reset((await findUser("r-paid@example.test"))!, "the paying holder picks 9")).status, 200);
+    assert.deepEqual(granted, [boot.tenant], "a paid sign-up is never handed trial credit");
+  } finally {
+    b.grantTrial = before;
+    hosted(true);
+    delete process.env.FOLDRUN_OPEN_SIGNUP;
+  }
+});
