@@ -8,6 +8,7 @@ import { requireSession, errorResponse, ApiError } from "@/server/api";
 import { readToken } from "@/server/auth-tokens";
 import { verifyTotp, newBackupCodes, hashBackup } from "@/server/totp";
 import { openString, setMfa, mfaEnrolBinding, sessionIdOf, SESSION_COOKIE } from "@/server/users";
+import { assertConfirmed } from "@/server/email-confirmed";
 import { revokeSessions } from "@/server/sessions";
 import { audit } from "@/server/audit";
 import { sendSecurityNotice } from "@/server/email";
@@ -17,6 +18,7 @@ import { jsonObject } from "@/server/body";
 export async function POST(req: NextRequest) {
   try {
     const me = await requireSession(req);
+    assertConfirmed(me);
     // Replacing a live second factor is turning it off and on again, and
     // turning it off needs the password and a code. Without this, a stolen
     // session swapped in its own secret and backup codes with neither.

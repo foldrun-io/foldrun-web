@@ -4,6 +4,7 @@
 // to a repository and trigger a deploy — publishing bytes is in that family,
 // not below it.
 
+import { assertActorConfirmed } from "@/server/email-confirmed";
 import { NextRequest, NextResponse } from "next/server";
 import { actorOf, errorResponse, requirePermission, refuse } from "@/server/api";
 import { jsonObject } from "@/server/body";
@@ -15,7 +16,9 @@ import { idempotent } from "@/server/idempotency";
 async function postOnce(req: NextRequest, ctx: { params: Promise<{ workspace: string }> }) {
   try {
     const { workspace } = await ctx.params;
-    const tenant = (await requirePermission(req, "workspace:write")).tenant;
+    const { tenant, actor } = await requirePermission(req, "workspace:write");
+    // A link outlives a password reset: an unconfirmed login makes none (FOL-317).
+    await assertActorConfirmed(tenant, actor);
     // A JSON object (an empty body reads as {} and is refused for its path
     // below), its path a string and ttlDays a number or null (FOL-199: a
     // `null` body, a numeric path or a string ttlDays answered 500).
@@ -70,8 +73,10 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ workspace: 
     // see its token and URL; everyone else sees that it exists — path, dates,
     // maker — with the token masked and `id` to revoke it by.
     const reader = { admin: can(actor.role, "workspace:manage"), name: actor.name };
+    // An unconfirmed login sees that links exist, never their tokens (FOL-317).
+    const confirmed = await assertActorConfirmed(tenant, actor).then(() => true, () => false);
     const shares = (await listShares(tenant, workspace)).map((s) => ({
-      ...(readerSeesToken(s, reader)
+      ...(confirmed && readerSeesToken(s, reader)
         ? { token: s.token, masked: false, url: urlOf(s.token) }
         : { token: maskToken(s.token), masked: true, url: null }),
       id: shareId(s.token),

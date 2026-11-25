@@ -10,8 +10,9 @@ import { ApiError, assertWorkspaceScope } from "./api.ts";
 import type { Actor } from "./auth.ts";
 import { ownerOf } from "./users.ts";
 
-/** The account's mail sender: core platformMail sends members' password-reset
- *  and sign-up links through it. */
+/** The account's mail sender: run notifications go through it, and on an
+ *  install with no sender of its own (self-hosted), members' sign-in and
+ *  reset mail too (server/email.ts authMail) — so it stays owner-only. */
 export const MAIL_SENDER: ReadonlySet<string> = new Set(["RESEND_API_KEY", "EMAIL_FROM"]);
 
 /**

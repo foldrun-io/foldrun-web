@@ -259,6 +259,14 @@ export async function createApiKey(
     if (!opts.a2a.flows.length) throw new Error("an A2A key names at least one flow");
     if (!workspaces || workspaces.length !== 1 || workspaces[0] !== opts.a2a.workspace) throw new Error("an A2A key is scoped to its one workspace");
   }
+  // FOL-317: every key is minted for a person (createdBy). One whose address
+  // is not confirmed makes none — the keys route, `foldrun login`, gateway
+  // and A2A keys and rotation all come through here.
+  if (createdBy) {
+    const { findUser } = await import("./users.ts");
+    const person = await findUser(createdBy);
+    if (person && person.tenant === tenant) (await import("./email-confirmed.ts")).assertConfirmed(person);
+  }
   // The prefix says what the key is (FOL-154), so one found in a log, a
   // repository or a config file is recognised — by a person and by the
   // secret scanners — and for what. Only the hash is ever looked up: keys

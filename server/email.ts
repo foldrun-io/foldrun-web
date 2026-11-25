@@ -1,10 +1,33 @@
-// Mail the platform sends on a person's behalf: invites, resets, login
-// changes. Through platformMail — the account's own sender when it set one
-// (RESEND_API_KEY + EMAIL_FROM), the platform's otherwise.
+// Mail the platform sends on a person's behalf: invites, resets, sign-in
+// codes, address confirmation, login changes and security notices.
+//
+// All of it goes through the INSTALL's own sender (FOL-317, 25 Nov 2026),
+// never an account's: every one of these mails carries a secret that signs
+// someone in, or tells a person their login changed. Sent through an
+// account's own Resend key, that account's mail provider (and whoever holds
+// its dashboard) could read a member's reset link and take over the login.
+// Only an install with no sender of its own (a self-hosted box that set no
+// FOLDRUN_RESEND_API_KEY) falls back to the account's sender, where the
+// account's owner is also the one who runs the install. An account's own
+// sender is still used for what is the account's mail: run notifications.
 
 import { opsError } from "@/lib/ops-log.ts";
-import { platformMail } from "@/lib/notify";
+import { accountMail } from "@/lib/notify";
+import { platform } from "@/lib/platform";
+
 import { sendMail, type MailCategory } from "@/lib/mail";
+
+/** The sender for sign-in, recovery and security mail: the install's key and
+ *  address; the account's own only where the install has none. */
+export function authMail(tenant: string): { key: string; from: string } | null {
+  const key = process.env.FOLDRUN_RESEND_API_KEY?.trim();
+  if (key) return { key, from: platform.setting("FOLDRUN_EMAIL_FROM") || "foldrun <hello@foldrun.io>" };
+  // The hosted platform never hands a member's sign-in mail to an account's
+  // provider, even while its own sender is missing (Codex, FOL-317): it fails
+  // closed. Only a self-hosted install with no sender uses the account's.
+  if (platform.edition() === "hosted") return null;
+  return accountMail(tenant);
+}
 
 export async function sendInviteEmail(
   tenant: string,
@@ -12,7 +35,7 @@ export async function sendInviteEmail(
   url: string,
   detail: { from: string; role: string; scope: string; expires: Date },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const mail = platformMail(tenant);
+  const mail = authMail(tenant);
   if (!mail) return { ok: false, error: "the platform has no mail credential (FOLDRUN_RESEND_API_KEY) — copy the link instead" };
   const res = await sendMail({
     tenant,
@@ -40,7 +63,7 @@ export async function platformSend(
   html?: string,
   category: MailCategory = "security",
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const mail = platformMail(tenant);
+  const mail = authMail(tenant);
   if (!mail) return { ok: false, error: "the platform has no mail credential (FOLDRUN_RESEND_API_KEY)" };
   const res = await sendMail({ tenant, mail, to, subject, text, html, category });
   if (!res.ok) return { ok: false, error: res.status ? `the mail service refused it (HTTP ${res.status})` : res.error ?? "not sent" };
@@ -109,16 +132,20 @@ export function sendVerifyEmail(tenant: string, to: string, url: string, opts?: 
   const why = trial
     ? `Confirming turns on your account and puts ${trial} free credits in it — enough to run a desk for a few days. No card needed.`
     : `Confirming turns on your account, so you can be sent run notifications and reset your password later.`;
+  // Someone may have signed up with an address that is not theirs: confirming
+  // would hand them a working login, so the inbox's owner is told what to do
+  // instead (FOL-317) — a reset ends their sessions and what they made.
+  const notYou = "If you did not sign up, do not confirm: use \"Forgot password\" on the sign-in page with this address instead, which takes the login back and ends anything made with it.";
   return platformSend(
     tenant,
     to,
     "Confirm your email for foldrun",
-    `Confirm that ${to} is yours:\n${url}\n\n${why}\n\nThe link is good for 24 hours.\n`,
+    `Confirm that ${to} is yours:\n${url}\n\n${why}\n\nThe link is good for 24 hours.\n\n${notYou}\n`,
     linkEmail({
       lead: `Confirm that <strong>${esc(to)}</strong> is yours.`,
       button: "Confirm this address",
       url,
-      after: `${esc(why)} The link is good for 24 hours.`,
+      after: `${esc(why)} The link is good for 24 hours. ${esc(notYou)}`,
     }),
   );
 }

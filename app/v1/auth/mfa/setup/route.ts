@@ -9,10 +9,13 @@ import { requireSession, errorResponse, ApiError } from "@/server/api";
 import { newSecret, otpauthUri } from "@/server/totp";
 import { mintToken, ENROL_TTL_MS } from "@/server/auth-tokens";
 import { sealString, mfaEnrolBinding } from "@/server/users";
+import { assertConfirmed } from "@/server/email-confirmed";
 
 export async function POST(req: NextRequest) {
   try {
     const me = await requireSession(req);
+    // FOL-317: a second factor is a credential; a provisional login makes none.
+    assertConfirmed(me);
     if (me.mfaSecret) throw new ApiError("the second factor is already on — turn it off first (that needs your password and a code)", 409);
     const secret = newSecret();
     const uri = otpauthUri(secret, me.email);

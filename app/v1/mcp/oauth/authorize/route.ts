@@ -9,6 +9,7 @@
 // person), and a support view never does. The request is checked again on the
 // POST — the page is not trusted to carry it faithfully.
 
+import { hashFingerprint } from "@/server/auth-tokens";
 import { NextRequest, NextResponse } from "next/server";
 import { listWorkspaces } from "@/lib/store";
 import { errorResponse, refuse, sessionUser } from "@/server/api";
@@ -16,6 +17,7 @@ import { publicOrigin } from "@/server/auth-flows";
 import { jsonObject } from "@/server/body";
 import { checkAuthorizeRequest, issuerOf, issueCode, OAuthError, redirectWith } from "@/server/mcp-oauth";
 import { allowedWorkspaces, roleOfUser } from "@/server/users";
+import { mustConfirm, unconfirmedError } from "@/server/email-confirmed";
 import { audit } from "@/server/audit";
 
 export const dynamic = "force-dynamic";
@@ -87,6 +89,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, redirect: redirectWith(r.redirectUri, { error: "access_denied", error_description: "the person said no", state: r.state, iss }) });
     }
     if (body.decision !== "approve") return refuse('expected { decision: "approve" | "deny" }', 400);
+    // FOL-317: a connected app is a credential; a provisional login grants none.
+    if (mustConfirm(p.user)) return errorResponse(unconfirmedError());
     const access = body.access ?? (r.scope.includes("mcp:write") ? "write" : "read");
     if (access !== "read" && access !== "write") return refuse('access is "read" or "write"', 400);
     if (access === "write" && !r.scope.includes("mcp:write")) return refuse("the app asked to read only — it cannot be given more", 400);
@@ -98,7 +102,15 @@ export async function POST(req: NextRequest) {
       if (unknown.length) return refuse(`not a workspace you may open: ${unknown.join(", ")}`, 403);
       workspaces = body.workspaces as string[];
     }
-    const code = await issueCode(r, { tenant: p.user.tenant, userId: p.user.id, email: p.user.email, role: p.role, workspaces, readOnly: access === "read" });
+    // The fingerprint of the password this very session was read with: a reset
+    // after it voids the code, even one landing before the code is written (FOL-317).
+    // Read again: a database session's row and its user are two reads, and a
+    // reset committing between them would pair the old cookie with the new
+    // password. The reset revokes the session in the same write that changes
+    // the hash, so this second read sees the session gone or the same hash.
+    const again = await sessionUser(req);
+    if (!again || again instanceof Response || again.id !== p.user.id || again.hash !== p.user.hash) return refuse("sign in first", 401);
+    const code = await issueCode(r, { tenant: p.user.tenant, userId: p.user.id, email: p.user.email, role: p.role, workspaces, readOnly: access === "read", h: hashFingerprint(p.user.hash) });
     await audit("mcp.connected", {
       actor: p.user.email,
       tenant: p.user.tenant,

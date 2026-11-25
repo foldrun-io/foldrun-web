@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readToken, hashFingerprint } from "@/server/auth-tokens";
 import { findUserById, redeemReset, mintSession, sessionCookieOptions, SESSION_COOKIE } from "@/server/users";
+import { assertPasswordPolicy } from "@/server/password-policy";
 import { audit } from "@/server/audit";
 import { errorResponse, ApiError } from "@/server/api";
 import { sendSecurityNotice } from "@/server/email";
@@ -31,10 +32,22 @@ export async function POST(req: NextRequest) {
     const user = await findUserById(claims.u);
     if (!user || hashFingerprint(user.hash) !== claims.h || claims.e !== user.email) throw new ApiError(INVALID, 400);
     const password = String(body.password ?? "");
+    // An unconfirmed address: whatever the login made before anyone proved the
+    // inbox ends first, so a failure here leaves the link unspent (FOL-317).
+    const started = new Date();
+    const provisional = !user.emailVerifiedAt ? (await import("@/server/provisional")).revokeProvisional : null;
+    if (provisional) {
+      await assertPasswordPolicy(password, user.email);
+      await provisional(user, started);
+    }
     // Checked again and written in one transaction under the users lock:
     // the password, the address verified, every session ended.
     const done = await redeemReset({ u: claims.u, h: claims.h, e: claims.e }, password);
     if (!done) throw new ApiError(INVALID, 400);
+    // Again, now the old password is gone: an app exchange that slipped in
+    // between is caught here, and none can follow (its code carries the old
+    // password's fingerprint).
+    if (provisional && done.confirmedNow) await provisional(user, done.resetAt);
     await audit("password.reset", { actor: user.email, tenant: user.tenant });
     sendSecurityNotice(user.tenant, user.email, "your password was reset", clientIp(req));
     // Read again, not the snapshot: a second factor turned on meanwhile is still owed.

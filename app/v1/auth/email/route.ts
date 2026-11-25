@@ -28,7 +28,7 @@ import { refuseWhenLimited, clearLimit } from "@/server/limits";
 import { refuseNonText } from "@/server/auth-input";
 import { sendEmailChangeConfirm, sendEmailTakenNotice } from "@/server/email";
 import { emailChangeLink, publicOrigin } from "@/server/auth-flows";
-import { platformMail } from "@/lib/notify";
+import { authMail } from "@/server/email";
 import { audit } from "@/server/audit";
 import { jsonObject } from "@/server/body";
 
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     const to = loginAddress(body.email ?? "");
     if (to === user.email) return refuse("that is already your address", 409);
 
-    if (!platformMail(user.tenant)) {
+    if (!authMail(user.tenant)) {
       // No sender, so no inbox can be proven: nothing moves.
       return refuseWith(NO_MAIL, 409, { code: "mail_not_configured" });
     }

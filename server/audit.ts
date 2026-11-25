@@ -45,6 +45,7 @@ export type AuditAction =
   | "password.changed"
   | "password.reset_requested"
   | "password.reset"
+  | "account.provisional-revoked"
   | "email.verified"
   | "email.changed"
   // A move to a new address asked for; it happens when that inbox clicks.

@@ -2,6 +2,7 @@
 // returns; the response carries the new path. Storage is a generation
 // counter, not a token — see core/src/webhook.ts.
 
+import { assertActorConfirmed } from "@/server/email-confirmed";
 import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, requirePermission } from "@/server/api";
 import { rotateWebhook } from "@/lib/webhook";
@@ -13,7 +14,9 @@ async function postOnce(
   ctx: { params: Promise<{ workspace: string; flow: string }> },
 ) {
   try {
-    const tenant = (await requirePermission(req, "workspace:manage")).tenant;
+    const { tenant, actor } = await requirePermission(req, "workspace:manage");
+    // The path carries the token, which outlives a password reset (FOL-317).
+    await assertActorConfirmed(tenant, actor);
     const { workspace, flow } = await ctx.params;
     // 404 for no such flow, 409 for one that is not a webhook — as GET
     // …/hooks/<flow> answers — rather than a URL nothing will ever call.

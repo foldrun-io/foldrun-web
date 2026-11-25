@@ -127,6 +127,16 @@ interface TokenRecord {
   redirectUri?: string;
   codeChallenge?: string;
   pending?: Omit<GrantRecord, "id" | "createdAt" | "tenant">;
+  /** code: the approving person's password fingerprint — a reset in between voids it (FOL-317). */
+  h?: string;
+}
+
+/** The person's password fingerprint now, or null when they are gone. */
+async function fingerprintOf(userId: string): Promise<string | null> {
+  const { findUserById } = await import("./users.ts");
+  const { hashFingerprint } = await import("./auth-tokens.ts");
+  const u = await findUserById(userId);
+  return u ? hashFingerprint(u.hash) : null;
 }
 
 const clients = keyedStore<ClientRecord>(mcpOauthClients, () => path.join(dataRoot(), ".mcp-oauth-clients.json"));
@@ -441,7 +451,7 @@ export function redirectWith(redirectUri: string, params: Record<string, string 
 }
 
 /** The person approved: a one-time code for what they chose. */
-export async function issueCode(req: AuthorizeRequest, who: { tenant: string; userId: string; email: string; role: Role; workspaces: string[] | null; readOnly: boolean }): Promise<string> {
+export async function issueCode(req: AuthorizeRequest, who: { tenant: string; userId: string; email: string; role: Role; workspaces: string[] | null; readOnly: boolean; h: string }): Promise<string> {
   const code = random(CODE_PREFIX);
   if (req.client.kind === "dcr") {
     await clients.update(INSTALL, req.client.client_id, (cur) => (cur ? { ...cur, lastApprovedAt: new Date().toISOString() } : null));
@@ -449,6 +459,7 @@ export async function issueCode(req: AuthorizeRequest, who: { tenant: string; us
   const readOnly = who.readOnly || !req.scope.includes("mcp:write");
   await tokens.put(INSTALL, sha(code), {
     kind: "code",
+    h: who.h,
     tenant: who.tenant,
     clientId: req.client.client_id,
     expiresAt: iso(CODE_SECONDS),
@@ -608,8 +619,19 @@ export async function tokenRequest(form: URLSearchParams, authorization: string 
     if (!resourceMatches(form.get("resource"), origin)) throw new OAuthError("invalid_target", `tokens here are for ${issuerOf(origin).resource} only`);
     const held = Object.values(await grants.all(taken.tenant)).filter((g) => !g.revokedAt).length;
     if (held >= MAX_GRANTS) throw new OAuthError("access_denied", `this account holds ${MAX_GRANTS} connected apps — revoke one in Settings → API keys`);
+    // A password reset between approval and exchange voids the code: it was
+    // approved by whoever held the old password (FOL-317). Checked before the
+    // grant is written and again after, so a reset landing in between still
+    // ends it — the reset's own sweeps cover the grants written before it.
+    const approvedAs = taken.h;
+    const unchanged = async () => Boolean(approvedAs) && (await fingerprintOf(taken.pending!.userId)) === approvedAs;
+    if (!(await unchanged())) throw new OAuthError("invalid_grant", "the code is unknown, used or expired");
     const grant: GrantRecord = { ...taken.pending, id: crypto.randomBytes(9).toString("base64url"), tenant: taken.tenant, createdAt: new Date().toISOString() };
     await grants.put(grant.tenant, grant.id, grant);
+    if (!(await unchanged())) {
+      await revokeGrant(grant.tenant, grant.id, "password reset during the exchange");
+      throw new OAuthError("invalid_grant", "the code is unknown, used or expired");
+    }
     return mint(grant, client.client_id);
   }
   if (type === "refresh_token") {
@@ -827,6 +849,17 @@ export async function revokeGrant(tenant: string, id: string, by: string): Promi
   if (done?.machine) await clients.remove(INSTALL, done.clientId).catch(() => false);
   if (done) await audit("mcp.revoked", { actor: by, tenant, subject: done.clientName, detail: { grant: id, person: done.email } }).catch(() => undefined);
   return done;
+}
+
+/** Drop the authorization codes a person approved and no app has exchanged yet
+ *  (FOL-317: a provisional login's pending approvals end with its other credentials). */
+export async function dropCodesOf(tenant: string, userId: string, oldFingerprint: string): Promise<number> {
+  let n = 0;
+  for (const [key, t] of Object.entries(await tokens.all(INSTALL))) {
+    // Only what the old password approved: a code the new one approved stays.
+    if (t.kind === "code" && t.tenant === tenant && t.pending?.userId === userId && (!t.h || t.h === oldFingerprint)) n += (await tokens.remove(INSTALL, key)) ? 1 : 0;
+  }
+  return n;
 }
 
 /** Drop what has expired: codes, tokens, and rotated refresh tokens past their watch. */

@@ -2,7 +2,7 @@ import { walletAmount } from "@/server/gateway-keys";
 import { NextRequest, NextResponse } from "next/server";
 import { createApiKey, listApiKeys, revokeApiKey, resolveTenant, parseKeyExpiry, type Actor, type ModelGrantInput } from "@/server/auth";
 import { audit } from "@/server/audit";
-import { verifySession, SESSION_COOKIE, hasUsers, setupTokenRequired, setupTokenMatches } from "@/server/users";
+import { hasUsers, setupTokenRequired, setupTokenMatches } from "@/server/users";
 import { sendSecurityNotice } from "@/server/email";
 import { clientIp } from "@/server/limits";
 import { can, isRole, type Role } from "@/platform/permissions";
@@ -33,10 +33,12 @@ async function authorize(req: NextRequest, claimed: () => Promise<string | undef
   const auth = await resolveTenant(req);
   if (auth.tenant !== null) {
     if (!can(auth.actor.role, "keys:manage")) throw new ApiError(`your role (${auth.actor.role}) cannot manage API keys — it needs admin`, 403);
-    // Who is acting: the signed-in person, or the person the key was made
-    // for (auth.ts puts that in the actor's name).
-    const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
-    return { tenant: auth.tenant, minter: { role: auth.actor.role, workspaces: auth.actor.workspaces }, who: session?.email ?? (auth.actor.kind === "key" && !auth.actor.name.startsWith("key:") ? auth.actor.name : undefined), by: session?.email ?? auth.actor.name };
+    // Who is acting: the one principal that authorised the call — the
+    // signed-in person, or the person the bearer key was made for (auth.ts
+    // puts that in the actor's name). Never a cookie beside a bearer key: the
+    // key decides tenant and role, so it decides the maker too (Codex, FOL-317).
+    const who = auth.actor.kind === "user" ? auth.actor.name : !auth.actor.name.startsWith("key:") ? auth.actor.name : undefined;
+    return { tenant: auth.tenant, minter: { role: auth.actor.role, workspaces: auth.actor.workspaces }, who, by: auth.actor.name };
   }
   // Identified and refused (a support view's write): say so, as it is.
   if (auth.status === 403) throw new ApiError(auth.message, 403);

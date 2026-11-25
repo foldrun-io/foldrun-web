@@ -388,6 +388,7 @@ test("private_key_jwt (RFC 7523): an app with a JWKS signs in with assertions; a
   const { privateKey, publicJwk } = generateClientKey();
   const leaked = await postJson(register.POST, `${ORIGIN}/v1/mcp/oauth/register`, { client_name: "x", redirect_uris: [CALLBACK], token_endpoint_auth_method: "private_key_jwt", jwks: { keys: [{ ...publicJwk, d: "secret" }] } });
   assert.equal(leaked.status, 400, "a private key in jwks is refused at registration");
+  process.env.FOLDRUN_TRUST_PROXY = "1";
   const reg = await postJson(register.POST, `${ORIGIN}/v1/mcp/oauth/register`, { client_name: "Signed app", redirect_uris: [CALLBACK], token_endpoint_auth_method: "private_key_jwt", grant_types: ["authorization_code", "refresh_token"], jwks: { keys: [publicJwk] } });
   assert.equal(reg.status, 201);
   const app = (await reg.json()) as { client_id: string; client_secret?: string };
@@ -422,6 +423,7 @@ test("private_key_jwt (RFC 7523): an app with a JWKS signs in with assertions; a
 test("machine clients (client credentials, part G): an admin registers one; it gets access tokens and no refresh token, lists tools, is held to read-only and its role, and a disconnected one is invalid_client", async () => {
   const notAdmin = await postJson(machineClients.POST, `${ORIGIN}/v1/mcp/clients`, { name: "nightly", role: "viewer" }, { cookie: memberCookie });
   assert.equal(notAdmin.status, 403, "an editor cannot register one");
+  process.env.FOLDRUN_TRUST_PROXY = "1";
   const reg = await postJson(machineClients.POST, `${ORIGIN}/v1/mcp/clients`, { name: "Nightly report bot", role: "editor", workspaces: ["desk"], access: "read" }, { cookie: ownerCookie });
   assert.equal(reg.status, 201, await reg.clone().text());
   const m = (await reg.json()) as { client_id: string; client_secret: string; grant: string; token_endpoint: string };
@@ -461,6 +463,7 @@ test("machine clients (client credentials, part G): an admin registers one; it g
 test("a machine client can sign in with private_key_jwt and is capped by its admin's role at every use", async () => {
   const { generateClientKey, signClientAssertion, ASSERTION_TYPE } = await import("../../foldrun-core/src/oauth-assertion.ts");
   const { privateKey, publicJwk } = generateClientKey();
+  process.env.FOLDRUN_TRUST_PROXY = "1";
   const reg = await postJson(machineClients.POST, `${ORIGIN}/v1/mcp/clients`, { name: "Signed bot", role: "owner", access: "write", token_auth: "private_key_jwt", jwks: { keys: [publicJwk] } }, { cookie: ownerCookie });
   assert.equal(reg.status, 201, await reg.clone().text());
   const m = (await reg.json()) as { client_id: string; client_secret?: string };
@@ -485,3 +488,43 @@ test("the open registration endpoint is limited per address", async () => {
   assert.equal(((await last!.json()) as { error: string }).error, "slow_down");
 });
 
+
+test("a code approved before a password reset is not exchanged after it (FOL-317: a reset ends what the old password approved)", async () => {
+  const tokens = await import("../server/auth-tokens.ts");
+  const reset = await import("../app/v1/auth/reset/route.ts");
+  const p = await createUser("rae@acme.test", PW, "acme", { joining: true, role: "editor" });
+  // Confirmed, so the reset's provisional sweep does not run: only the code's fingerprint stops it.
+  await (await import("../server/users.ts")).setEmailVerified(p.id);
+  process.env.FOLDRUN_TRUST_PROXY = "1";
+  const reg = await postJson(register.POST, `${ORIGIN}/v1/mcp/oauth/register`, { client_name: "Claude", redirect_uris: [CALLBACK], token_endpoint_auth_method: "none", grant_types: ["authorization_code"] }, { "x-forwarded-for": "198.51.100.77", "x-real-ip": "198.51.100.77" });
+  delete process.env.FOLDRUN_TRUST_PROXY;
+  assert.equal(reg.status, 201, "registration (another caller's quota)");
+  const client = (await reg.json()) as { client_id: string };
+  const { verifier, challenge } = pkce();
+  const ok = await postJson(authorize.POST, `${ORIGIN}/v1/mcp/oauth/authorize`, { request: requestQuery(client.client_id, challenge), decision: "approve", access: "read", workspaces: null }, { cookie: await cookieFor(p.id) });
+  const code = new URL(((await ok.json()) as { redirect: string }).redirect).searchParams.get("code")!;
+  const u = (await findUserById(p.id))!;
+  const link = tokens.mintToken("reset", { u: u.id, h: tokens.hashFingerprint(u.hash), e: u.email }, tokens.RESET_TTL_MS);
+  const r = await reset.POST(new NextRequest(`${ORIGIN}/v1/auth/reset`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: link, password: "another-Long-Password-88" }) }));
+  assert.equal(r.status, 200, await r.clone().text());
+  const res = await postForm({ grant_type: "authorization_code", code, redirect_uri: CALLBACK, client_id: client.client_id, code_verifier: verifier, resource: `${ORIGIN}/v1/mcp` });
+  assert.equal(res.status, 400);
+  assert.equal(((await res.json()) as { error: string }).error, "invalid_grant");
+
+  // An approval read with the old password but written after the reset (the overlap): its code carries the old
+  // fingerprint and is refused at the exchange.
+  const { issueCode, resolveClient } = await import("../server/mcp-oauth.ts");
+  const stale = pkce();
+  const staleCode = await issueCode({ client: await resolveClient(client.client_id), redirectUri: CALLBACK, state: null, codeChallenge: stale.challenge, scope: ["mcp:read"], resource: `${ORIGIN}/v1/mcp` }, { tenant: "acme", userId: p.id, email: p.email, role: "editor", workspaces: null, readOnly: true, h: tokens.hashFingerprint(u.hash) });
+  const refused = await postForm({ grant_type: "authorization_code", code: staleCode, redirect_uri: CALLBACK, client_id: client.client_id, code_verifier: stale.verifier, resource: `${ORIGIN}/v1/mcp` });
+  assert.equal(refused.status, 400, "the old password's approval, written late");
+
+  // An approval with the new password, made while the reset's sweeps could still run, is kept and works.
+  const fresh = pkce();
+  const ok2 = await postJson(authorize.POST, `${ORIGIN}/v1/mcp/oauth/authorize`, { request: requestQuery(client.client_id, fresh.challenge), decision: "approve", access: "read", workspaces: null }, { cookie: await cookieFor(p.id) });
+  const freshCode = new URL(((await ok2.json()) as { redirect: string }).redirect).searchParams.get("code")!;
+  const { dropCodesOf } = await import("../server/mcp-oauth.ts");
+  assert.equal(await dropCodesOf("acme", p.id, tokens.hashFingerprint(u.hash)), 0, "a late sweep keeps the new password's code");
+  const exchanged = await postForm({ grant_type: "authorization_code", code: freshCode, redirect_uri: CALLBACK, client_id: client.client_id, code_verifier: fresh.verifier, resource: `${ORIGIN}/v1/mcp` });
+  assert.equal(exchanged.status, 200, await exchanged.clone().text());
+});

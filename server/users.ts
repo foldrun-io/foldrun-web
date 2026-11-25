@@ -18,6 +18,7 @@ import { assertPasswordPolicy } from "@/server/password-policy";
 import { allUsersDb, upsertUserDb, importUsersToDatabase } from "@/platform/users-db";
 import { tx, databaseEnabled, users as usersTable, sessions as sessionsTable, and, isNull, eq, sql, type Db } from "@/platform/orm";
 import { hashFingerprint } from "./auth-tokens.ts";
+import { assertConfirmed } from "./email-confirmed.ts";
 import { revokeSessions } from "./sessions";
 import fs from "node:fs";
 import {
@@ -417,6 +418,10 @@ async function addUser(
 ): Promise<UserRecord> {
   const normalized = email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) throw new Error("that is not an email address");
+  // "key:…" is how a key with no person is named (auth.ts): an address
+  // spelled that way would read as personless and escape every per-person
+  // check and sweep (Codex, FOL-317).
+  if (normalized.startsWith("key:")) throw new Error("that is not an email address");
   await assertPasswordPolicy(password, normalized);
   assertSafeName(tenant, "account name");
   const allowed = await decide();
@@ -614,7 +619,10 @@ export async function mintSession(
     const payload = `${id}.${expires.getTime()}`;
     return { value: `v2.${payload}.${sign(payload)}`, expires, sessionId: id };
   }
-  const payload = `${user.id}.${expires.getTime()}`;
+  // The password's fingerprint is in it, so a reset (or a password change)
+  // ends every file-mode session as it ends the rows of a database install
+  // (Codex, FOL-317: an old cookie kept working after the inbox owner's reset).
+  const payload = `${user.id}:${hashFingerprint(user.hash)}.${expires.getTime()}`;
   return { value: `v1.${payload}.${sign(payload)}`, expires, sessionId: null };
 }
 
@@ -730,6 +738,11 @@ export async function mintInvite(
   const email = opts.email ? opts.email.trim().toLowerCase() : null;
   const workspaces = opts.workspaces ? [...new Set(opts.workspaces)] : null;
   const superseded = await mutateUsers(async (users, invites) => {
+    // FOL-317: an invite lets someone in; a maker whose address is not
+    // confirmed makes none (a key acting for them included).
+    const confirmedMaker = users.find((u) => u.tenant === tenant && u.id === opts.by.id);
+    if (!confirmedMaker) throw Object.assign(new Error("an invite is made by a person of this account"), { status: 403 });
+    assertConfirmed(confirmedMaker);
     let gone: InviteRow[] = [];
     if (email) {
       // Only the ones this maker could revoke by hand (DELETE
@@ -802,6 +815,10 @@ export async function acceptInvite(
   if (!parsed) throw invalidInvite();
   const normalized = email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) throw new Error("that is not an email address");
+  // "key:…" is how a key with no person is named (auth.ts): an address
+  // spelled that way would read as personless and escape every per-person
+  // check and sweep (Codex, FOL-317).
+  if (normalized.startsWith("key:")) throw new Error("that is not an email address");
   await assertPasswordPolicy(password, normalized);
 
   const salt = crypto.randomBytes(16).toString("hex");
@@ -922,10 +939,12 @@ export async function revokeInvitesBeyond(
   member: { id: string; email: string },
   now: { role: Role; workspaces: string[] | null } | null,
   by: string,
+  before?: Date,
 ): Promise<string[]> {
   const email = member.email.toLowerCase();
   const beyond = (r: InviteRow) => {
     if (r.createdBy !== member.id) return false;
+    if (before && Date.parse(String(r.createdAt)) >= before.getTime()) return false;
     if (!now) return true;
     if (!can(now.role, "team:manage")) return true;
     if (r.role === "admin" && !can(now.role, "admins:manage")) return true;
@@ -1168,10 +1187,10 @@ export async function resetPassword(userId: string, next: string): Promise<void>
  * new password, the address verified, and every stored session ended.
  * Null when the link no longer matches.
  *
- * Without a database sessions are signed cookies, not rows: there are none
- * to end, so a reset does not end them (a known limit of file mode).
+ * Without a database sessions are signed cookies, not rows: each carries the
+ * password's fingerprint, so the new password ends them all the same (FOL-317).
  */
-export async function redeemReset(claims: { u: string; h: string; e: string }, next: string): Promise<UserRecord | null> {
+export async function redeemReset(claims: { u: string; h: string; e: string }, next: string): Promise<(UserRecord & { confirmedNow: boolean; resetAt: Date }) | null> {
   const known = await findUserById(claims.u);
   if (!known) return null;
   await assertPasswordPolicy(next, known.email);
@@ -1180,11 +1199,18 @@ export async function redeemReset(claims: { u: string; h: string; e: string }, n
   return mutateUsers(async (users, _invites, t) => {
     const user = users.find((u) => u.id === claims.u);
     if (!user || hashFingerprint(user.hash) !== claims.h || user.email !== claims.e) return null;
+    const resetAt = new Date(); // under the lock, before the new password exists
     user.salt = salt;
     user.hash = hash;
-    if (!user.emailVerifiedAt) user.emailVerifiedAt = new Date().toISOString();
+    const confirmedNow = !user.emailVerifiedAt;
+    if (confirmedNow) {
+      user.emailVerifiedAt = new Date().toISOString();
+      // Until now nobody had proved this inbox: a second factor enrolled
+      // before (by whoever signed up with the address) is not the owner's.
+      delete user.mfaSecret; delete user.mfaBackup; delete user.mfaEnabledAt;
+    }
     if (t) await t.update(sessionsTable).set({ revokedAt: sql`now()` }).where(and(eq(sessionsTable.userId, user.id), isNull(sessionsTable.revokedAt)));
-    return { ...user };
+    return { ...user, confirmedNow, resetAt };
   });
 }
 
@@ -1233,7 +1259,7 @@ export function displayName(u: Pick<UserRecord, "email" | "firstName" | "lastNam
  *  the email-change request before it mails anything, and by the move. */
 export function loginAddress(email: string): string {
   const to = email.trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) throw Object.assign(new Error("that is not an email address"), { status: 400 });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to) || to.startsWith("key:")) throw Object.assign(new Error("that is not an email address"), { status: 400 });
   return to;
 }
 
@@ -1395,6 +1421,8 @@ export async function verifySession(token: string | undefined): Promise<UserReco
   // Profile → Sessions, and carries no MFA fact — refused (29 Oct 2026; v2
   // has been minted there for well over the 30-day life of any v1).
   if (databaseEnabled()) return null;
-  const user = (await readUsers()).find((u) => u.id === subject);
-  return user ? { ...user, session: { kind: "v1", audience: null, mfa: false } } : null;
+  const [id, fingerprint] = subject.split(":");
+  const user = (await readUsers()).find((u) => u.id === id);
+  if (!user || !fingerprint || fingerprint !== hashFingerprint(user.hash)) return null;
+  return { ...user, session: { kind: "v1", audience: null, mfa: false } };
 }
