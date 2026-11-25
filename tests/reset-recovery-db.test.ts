@@ -77,3 +77,15 @@ test("one link used twice at once: one reset, one refusal", opts, async () => {
   const results = await Promise.all([w.post(link, "first new password long 6"), w.post(link, "second new password long 7"), w.post(link, "third new password long 8")]);
   assert.deepEqual(results.map((r) => r.status).sort(), [200, 400, 400]);
 });
+
+test("the second look at a session row: live until revoked (FOL-320: verifySession pairs a row and a person only while both hold)", opts, async () => {
+  const w = await world();
+  const { sessionStillLive, revokeSessions } = await import("../server/sessions.ts");
+  const tenant = `look${Date.now().toString(36)}`;
+  const u = await w.users.createUser(`owner@${tenant}.test`, "an old password long enough 9", tenant, { request: "free" });
+  const s = await w.users.mintSession(u, "browser");
+  assert.equal(await sessionStillLive(s.sessionId!), true);
+  await revokeSessions(u.id);
+  assert.equal(await sessionStillLive(s.sessionId!), false);
+  assert.equal(await w.users.verifySession(s.value), null);
+});

@@ -19,7 +19,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { roleOfUser, allowedWorkspaces } from "@/server/users";
 import { describeCliLogin, decideCliLogin, requestOrigin, mayGrantModels } from "@/server/cli-login";
-import { CLI_MODEL_GRANT } from "@/server/auth";
+import { CLI_MODEL_GRANT, sessionCredential } from "@/server/auth";
 import { errorResponse, sessionUser, refuse } from "@/server/api";
 import { jsonObject } from "@/server/body";
 
@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
     const workspaces = await allowedWorkspaces(user.tenant, user.id);
     const outcome = await decideCliLogin(body.code, decision, { tenant: user.tenant, email: user.email, role, workspaces }, {
       models: body.models === true,
+      credential: sessionCredential(user),
       recheck: async () => ({ role: (await roleOfUser(user.tenant, user.id)) ?? "viewer", workspaces: await allowedWorkspaces(user.tenant, user.id) }),
     });
     if (outcome === "too-old") {

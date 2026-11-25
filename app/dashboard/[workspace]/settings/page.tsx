@@ -18,7 +18,7 @@ import { secretHealth, healthKey } from "@/lib/secret-health";
 import { parseCron } from "@/platform/scheduler";
 import { webhookPath, publicUrl } from "@/lib/webhook";
 import { CopyField } from "@/components/copy-field";
-import { viewerRole, viewerScope } from "@/server/users";
+import { viewerSeesTokens, viewerRole, viewerScope } from "@/server/users";
 import { can } from "@/platform/permissions";
 import { workspaceBudgetStanding, accountCompute, computeHeld, roomWaiting, workspaceCompute } from "@/platform/limits";
 import { readAgentsMdKeys } from "@/lib/agents-md";
@@ -71,6 +71,8 @@ export default async function WorkspaceSettingsPage({
   // The URL carries the hook token: shown to workspace:manage, as the API does.
   const role = await viewerRole();
   const managesWorkspace = role === null || can(role, "workspace:manage");
+  // …and to a confirmed login only: the URL outlives a password reset (FOL-320).
+  const seesHookUrls = managesWorkspace && (await viewerSeesTokens());
   const { budget, spentUsd: spent } = await workspaceBudgetStanding(tenant, workspace);
   const own = defaultsOf(readAgentsMdKeys(workspaceDir(tenant, workspace)));
   // The account's, as GET /v1/account answers this person: limited to
@@ -313,7 +315,7 @@ export default async function WorkspaceSettingsPage({
                       </Link>
                       <Tag>{$t("workspace.settings-page.webhook")}</Tag>
                     </div>
-                    {managesWorkspace ? (
+                    {seesHookUrls ? (
                       <CopyField value={`${publicUrl() ?? ""}${webhookPath(tenant, workspace, f.name)}`} className="w-full min-w-0" />
                     ) : (
                       <code className="block min-w-0 truncate font-mono text-xs text-fg-muted">webhook URL — visible to admins</code>

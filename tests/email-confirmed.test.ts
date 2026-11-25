@@ -155,3 +155,73 @@ test("a sweep revokes only what was made before its cutoff: a losing second rese
   await revokeProvisional(p.u, cutoff);
   assert.equal((await auth.listApiKeys(p.tenant)).find((k) => k.id === fresh.record.id)?.revokedAt ?? null, null);
 });
+
+test("dashboard pages show share and webhook tokens to a confirmed login only (FOL-320)", () => {
+  const read = (f: string) => fs.readFileSync(path.join(import.meta.dirname, "..", f), "utf8");
+  for (const f of ["app/dashboard/settings/page.tsx", "app/dashboard/[workspace]/settings/page.tsx"]) {
+    const src = read(f);
+    assert.match(src, /const seesHookUrls = managesWorkspaces? && \(await viewerSeesTokens\(\)\);/, `${f}: the URL needs a confirmed login`);
+    assert.doesNotMatch(src, /managesWorkspaces? \? (webhookPath|\(\s*<CopyField)/, `${f}: no webhook URL decided by role alone`);
+  }
+  assert.match(read("server/storage-browser.ts"), /return viewerShareReader\(\);/, "the storage pages' share links too, from one session read");
+  assert.doesNotMatch(read("server/storage-browser.ts"), /viewerRole\(\)/, "no second read whose null could pass for dev mode");
+});
+
+test("who may be shown a token on a page: a confirmed person; not an unconfirmed one, a support view, or a session that ended (FOL-320)", async () => {
+  const p = await person(false);
+  const q = await person(true);
+  assert.equal(users.seesTokens(q.u), true);
+  assert.equal(users.seesTokens(p.u), false, "unconfirmed");
+  assert.equal(users.seesTokens({ ...q.u, viewAs: { id: "v", by: "support", reason: "r", expiresAt: "" } }), false, "a support view never");
+  assert.equal(users.seesTokens(null), false, "a session that ended mid-request is not dev mode");
+  process.env.FOLDRUN_DEV_NO_AUTH = "1";
+  try { assert.equal(users.seesTokens(null), true, "dev mode, explicitly on"); } finally { delete process.env.FOLDRUN_DEV_NO_AUTH; }
+});
+
+test("removing a member revokes their keys in the same write; a key minted for them afterwards is refused (FOL-320)", async () => {
+  const p = await person(true);
+  const m = await users.createUser(`member${Date.now().toString(36)}@x.test`, PASSWORD, p.tenant, { joining: true, role: "admin" });
+  await users.setEmailVerified(m.id);
+  const k = await auth.createApiKey(p.tenant, "theirs", m.email, undefined, "editor", null, { personBound: {} });
+  const removed = await users.removeMember(p.tenant, m.id, p.u.id, p.u.email, "owner");
+  assert.ok(removed && removed.keysRevoked.includes(k.record.id), "revoked by the removal itself");
+  await assert.rejects(auth.createApiKey(p.tenant, "late", m.email, undefined, "editor", null, { personBound: {} }), (e: unknown) => (e as { status?: number }).status === 403);
+});
+
+test("a key minted for a person is refused when the credential that asked no longer stands for them (FOL-320)", async () => {
+  const p = await person(true);
+  const { hashFingerprint } = await import("../server/auth-tokens.ts");
+  const stale = (e: unknown) => (e as { status?: number }).status === 409;
+  // A key: live and still theirs; revoked (a reset's sweep), it mints nothing.
+  const theirs = await auth.createApiKey(p.tenant, "theirs", p.u.email, undefined, "editor", null, { personBound: {} });
+  assert.ok((await auth.createApiKey(p.tenant, "by key", p.u.email, undefined, "editor", null, { personBound: { credential: { key: theirs.record.id } } })).key);
+  await auth.revokeApiKey(p.tenant, theirs.record.id);
+  await assert.rejects(auth.createApiKey(p.tenant, "by revoked key", p.u.email, undefined, "editor", null, { personBound: { credential: { key: theirs.record.id } } }), stale);
+  // A session that names another person by id: the address moved to someone else meanwhile.
+  await assert.rejects(auth.createApiKey(p.tenant, "other id", p.u.email, undefined, "editor", null, { personBound: { credential: { fingerprint: hashFingerprint(p.u.hash), user: "someone-else" } } }), (e: unknown) => (e as { status?: number }).status === 403, "found by id, and there is no such person");
+  // An MCP grant that is gone: the key minted is taken back.
+  const before = (await auth.listApiKeys(p.tenant)).filter((k) => !k.revokedAt).length;
+  await assert.rejects(auth.createApiKey(p.tenant, "by gone grant", p.u.email, undefined, "editor", null, { personBound: { credential: { grant: "nope", user: p.u.id } } }), stale);
+  assert.equal((await auth.listApiKeys(p.tenant)).filter((k) => !k.revokedAt).length, before, "nothing left standing");
+  // A v1 session carries the password it was minted with: a reset since, and it mints nothing.
+  await assert.rejects(auth.createApiKey(p.tenant, "v1 old", p.u.email, undefined, "editor", null, { personBound: { credential: { fingerprint: "not-the-current-one", user: p.u.id } } }), stale);
+  assert.ok((await auth.createApiKey(p.tenant, "v1 now", p.u.email, undefined, "editor", null, { personBound: { credential: { fingerprint: hashFingerprint(p.u.hash), user: p.u.id } } })).key);
+  assert.deepEqual(auth.sessionCredential({ id: p.u.id, hash: p.u.hash, session: { kind: "v2", id: "row" } }), { session: "row", user: p.u.id });
+  assert.deepEqual(auth.sessionCredential({ id: p.u.id, hash: p.u.hash, session: { kind: "v1" } }), { fingerprint: hashFingerprint(p.u.hash), user: p.u.id });
+});
+
+test("a mint authorized before a demotion is held to what the person may give now; a credential naming its person by id follows their address (FOL-320)", async () => {
+  const p = await person(true);
+  const m = await users.createUser(`demoted${Date.now().toString(36)}@x.test`, PASSWORD, p.tenant, { joining: true, role: "editor" });
+  await users.setEmailVerified(m.id);
+  // The route read them as an admin; they are an editor now: an admin key is refused, an editor's is fine.
+  await assert.rejects(auth.createApiKey(p.tenant, "too high", m.email, undefined, "admin", null, { personBound: {} }), (e: unknown) => (e as { status?: number }).status === 403);
+  assert.ok((await auth.createApiKey(p.tenant, "theirs", m.email, undefined, "editor", null, { personBound: {} })).key);
+  // The keys route asked keys:manage of them (an admin when it looked): an editor's key is refused too.
+  await assert.rejects(auth.createApiKey(p.tenant, "as manager", m.email, undefined, "editor", null, { personBound: { permission: "keys:manage" } }), (e: unknown) => (e as { status?: number }).status === 403);
+  // By id: the key is recorded at the address the person holds now, whatever the request carried.
+  const { hashFingerprint } = await import("../server/auth-tokens.ts");
+  const fresh = (await users.findUserById(m.id))!;
+  const made = await auth.createApiKey(p.tenant, "by id", "an-old-address@x.test", undefined, "editor", null, { personBound: { credential: { fingerprint: hashFingerprint(fresh.hash), user: m.id } } });
+  assert.equal(made.record.createdBy, fresh.email);
+});

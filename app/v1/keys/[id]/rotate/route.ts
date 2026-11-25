@@ -53,7 +53,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ id: string }>
           next?.origin === "cli-login" && !next.revokedAt && !next.replacedBy && !next.lastUsedAt && Date.now() - Date.parse(next.createdAt) >= LOST_AFTER_MS ? next : null;
         const from = retry ?? own;
         const graceMs = retry ? 0 : SELF_GRACE_MS;
-        const { record, key, oldEndsAt } = await rotateApiKey(self.tenant, from.id, graceMs, own.createdBy);
+        const { record, key, oldEndsAt } = await rotateApiKey(self.tenant, from.id, graceMs, own.createdBy, { personBound: { credential: self.actor.credential } });
         await audit("apikey.rotated", {
           actor: self.actor.name,
           tenant: self.tenant,
@@ -83,7 +83,7 @@ async function postOnce(req: NextRequest, ctx: { params: Promise<{ id: string }>
     // signed in; rotated by any key, or by someone else, it becomes an
     // ordinary key (it is no longer anybody's sign-in on their machine).
     const keepCliLogin = actor.kind === "user" && !actor.readOnly && (target.createdBy ?? "").toLowerCase() === actor.name.toLowerCase();
-    const { record, key, oldEndsAt } = await rotateApiKey(tenant, id, graceMs, who, { keepCliLogin });
+    const { record, key, oldEndsAt } = await rotateApiKey(tenant, id, graceMs, who, { keepCliLogin, personBound: { credential: actor.credential, permission: "keys:manage" } });
     await audit("apikey.rotated", {
       actor: actor.name,
       tenant,

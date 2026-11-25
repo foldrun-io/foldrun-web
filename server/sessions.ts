@@ -21,7 +21,7 @@
 // on a laptop gets, and what the platform falls back to if Postgres is down.
 
 import crypto from "node:crypto";
-import { orm, databaseEnabled, sessions, and, desc, eq, gt, isNull, ne, sql } from "@/platform/orm";
+import { orm, databaseEnabled, sessions, and, desc, eq, gt, isNull, ne, sql, type Db } from "@/platform/orm";
 
 const SESSION_DAYS = 30;
 
@@ -82,6 +82,19 @@ export async function sessionAllowed(id: string): Promise<{ userId: string; audi
     .where(and(eq(sessions.id, id), isNull(sessions.revokedAt), gt(sessions.expiresAt, sql`now()`)))
     .returning({ userId: sessions.userId, audience: sessions.audience, mfaAt: sessions.mfaAt });
   return rows[0] ? { userId: rows[0].userId, audience: rows[0].audience ?? null, mfa: rows[0].mfaAt !== null } : null;
+}
+
+/** Is this session still live? A read, no lastSeenAt — for the second look
+ *  verifySession takes after reading the person (FOL-320). */
+export async function sessionStillLive(id: string, on?: Db): Promise<boolean> {
+  const q = on ?? orm();
+  if (!q) return false;
+  const rows = await q
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(and(eq(sessions.id, id), isNull(sessions.revokedAt), gt(sessions.expiresAt, sql`now()`)))
+    .limit(1);
+  return rows.length > 0;
 }
 
 /** Every live session for a person, newest first — what the profile lists. */

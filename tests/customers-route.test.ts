@@ -13,6 +13,8 @@ import path from "node:path";
 process.env.FOLDRUN_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "foldrun-customers-route-"));
 delete process.env.FOLDRUN_DEV_NO_AUTH;
 delete process.env.FOLDRUN_DATABASE_URL;
+// The account first, then its folder (a folder alone reads as a taken name).
+await (await import("./people-fixture.ts")).ensurePeople("acme", [{ email: "ana@acme.test" }]);
 fs.mkdirSync(path.join(process.env.FOLDRUN_DATA, "acme", "workspaces", "desk"), { recursive: true });
 fs.writeFileSync(path.join(process.env.FOLDRUN_DATA, "acme", "workspaces", "desk", "AGENTS.md"), "---\nname: desk\n---\n");
 

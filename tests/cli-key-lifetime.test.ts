@@ -29,6 +29,7 @@ const meRoute = (await import("../app/v1/me/route.ts")) as { GET: (req: Instance
 
 const DAY = 86_400_000;
 const viewer = { tenant: "acme", email: "viewer@acme.test", role: "viewer" as const, workspaces: ["blog"] };
+await (await import("./people-fixture.ts")).ensurePeople("acme", [{ email: "owner@acme.test" }, { email: "viewer@acme.test", role: "viewer", workspaces: ["blog"] }]);
 
 /** Sign a machine in the way `foldrun login` does, as a viewer. */
 async function signIn(host: string) {

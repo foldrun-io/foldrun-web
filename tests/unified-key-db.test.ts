@@ -167,7 +167,8 @@ test("one key at foldrun login: the person's yes gives the sign-in model access,
   const { beginCliLogin, decideCliLogin, pollCliLogin, mayGrantModels } = await import("../server/cli-login.ts");
   const { listApiKeys, CLI_MODEL_GRANT, rotateApiKey } = await import("../server/auth.ts");
   const tenant = `login${Date.now()}`;
-  const owner = { tenant, email: "owner@one.test", role: "owner" as const, workspaces: null };
+  const owner = { tenant, email: `owner@${tenant}.test`, role: "owner" as const, workspaces: null };
+  await (await import("./people-fixture.ts")).ensurePeople(tenant, [{ email: `owner@${tenant}.test` }, { email: `ed@${tenant}.test`, role: "editor" }, { email: `ad@${tenant}.test`, role: "admin", workspaces: ["one"] }]);
   const signIn = async (person: typeof owner | { tenant: string; email: string; role: "editor" | "admin"; workspaces: string[] | null }, models?: boolean) => {
     const req = await beginCliLogin("laptop");
     assert.equal(await decideCliLogin(req.code, "approve", person, models === undefined ? {} : { models }), "approved");
@@ -186,8 +187,8 @@ test("one key at foldrun login: the person's yes gives the sign-in model access,
   assert.deepEqual(yes.gateway, { ...CLI_MODEL_GRANT, credential: "account", principal: yes.id });
   assert.equal((await signIn(owner)).gateway, undefined, "no word from the page: a platform key, as before");
   assert.equal((await signIn(owner, false)).gateway, undefined, "unticked");
-  assert.equal((await signIn({ tenant, email: "ed@one.test", role: "editor", workspaces: null }, true)).gateway, undefined, "an editor cannot let a key spend the account's balance");
-  assert.equal((await signIn({ tenant, email: "ad@one.test", role: "admin", workspaces: ["one"] }, true)).gateway, undefined, "nor a scoped admin");
+  assert.equal((await signIn({ tenant, email: `ed@${tenant}.test`, role: "editor", workspaces: null }, true)).gateway, undefined, "an editor cannot let a key spend the account's balance");
+  assert.equal((await signIn({ tenant, email: `ad@${tenant}.test`, role: "admin", workspaces: ["one"] }, true)).gateway, undefined, "nor a scoped admin");
 
   // Demoted while approving: read again after the insert, the key with the
   // grant is revoked and the person asked to approve again (Codex review).

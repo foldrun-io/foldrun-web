@@ -1,6 +1,6 @@
 import { walletAmount } from "@/server/gateway-keys";
 import { NextRequest, NextResponse } from "next/server";
-import { createApiKey, listApiKeys, revokeApiKey, resolveTenant, parseKeyExpiry, type Actor, type ModelGrantInput } from "@/server/auth";
+import { createApiKey, listApiKeys, revokeApiKey, resolveTenant, parseKeyExpiry, type Actor, type ModelGrantInput, type PersonBound } from "@/server/auth";
 import { audit } from "@/server/audit";
 import { hasUsers, setupTokenRequired, setupTokenMatches } from "@/server/users";
 import { sendSecurityNotice } from "@/server/email";
@@ -29,6 +29,10 @@ import { jsonObject } from "@/server/body";
  */
 // Not requirePermission: that refuses every caller without an identity, and
 // the no-users bootstrap below has none. The role check is the same table.
+/** Each request's caller, for createApiKey's personBound (FOL-320): the session that authenticated it. */
+const BOUND = new WeakMap<NextRequest, PersonBound>();
+const bound = (req: NextRequest) => BOUND.get(req) ?? {};
+
 async function authorize(req: NextRequest, claimed: () => Promise<string | undefined>): Promise<{ tenant: string; minter: Pick<Actor, "role" | "workspaces">; who?: string; by: string }> {
   const auth = await resolveTenant(req);
   if (auth.tenant !== null) {
@@ -38,6 +42,7 @@ async function authorize(req: NextRequest, claimed: () => Promise<string | undef
     // puts that in the actor's name). Never a cookie beside a bearer key: the
     // key decides tenant and role, so it decides the maker too (Codex, FOL-317).
     const who = auth.actor.kind === "user" ? auth.actor.name : !auth.actor.name.startsWith("key:") ? auth.actor.name : undefined;
+    BOUND.set(req, { credential: auth.actor.credential, permission: "keys:manage" });
     return { tenant: auth.tenant, minter: { role: auth.actor.role, workspaces: auth.actor.workspaces }, who, by: auth.actor.name };
   }
   // Identified and refused (a support view's write): say so, as it is.
@@ -145,7 +150,7 @@ async function postOnce(req: NextRequest) {
     const grant = withinMinter(minter, { role, workspaces: asked });
     // Checked before anything is made: a refusal mints nothing.
     const modelAccess = body.modelAccess === undefined ? null : modelAccessOf(body.modelAccess, minter);
-    const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, grant.role, grant.workspaces, { expiresAt, ...requireCustomer, ...(modelAccess ? { models: modelAccess } : {}) });
+    const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, grant.role, grant.workspaces, { personBound: bound(req), expiresAt, ...requireCustomer, ...(modelAccess ? { models: modelAccess } : {}) });
     // Read the caller again once the key exists: a demotion whose sweep ran
     // between the first read and the insert would miss this key, and the
     // secret below would outlive the standing that gave it (Codex review,
@@ -164,7 +169,7 @@ async function postOnce(req: NextRequest) {
       subject: record.id,
       detail: { label: record.label, prefix: record.prefix, role: record.role, workspaces: record.workspaces ?? null, expiresAt: record.expiresAt ?? null, ...access },
     });
-    if (who) sendSecurityNotice(tenant, who, modelAccess ? "a new API key that may also call foldrun's models was created" : "a new API key was created", clientIp(req));
+    if (who && record.createdBy) sendSecurityNotice(tenant, record.createdBy, modelAccess ? "a new API key that may also call foldrun's models was created" : "a new API key was created", clientIp(req));
     return NextResponse.json({ ok: true, key, id: record.id, prefix: record.prefix, role: record.role, workspaces: record.workspaces ?? null, expiresAt: record.expiresAt ?? null, ...access, ...(modelAccess ? { gatewayUrl: gatewayUrl() } : {}) });
   } catch (err) {
     return errorResponse(err);
@@ -225,14 +230,14 @@ async function mintA2aKey(
   const maxTasks = body.maxTasks === undefined ? A2A_DEFAULT_TASKS : Number(body.maxTasks);
   if (!Number.isInteger(maxTasks) || maxTasks < 1 || maxTasks > A2A_MAX_TASKS) return refuse(`maxTasks must be a whole number from 1 to ${A2A_MAX_TASKS}`, 400);
   const expiresAt = parseKeyExpiry(body.expires);
-  const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, grant.role, grant.workspaces, { expiresAt, a2a: { workspace, flows, maxTasks } });
+  const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, grant.role, grant.workspaces, { personBound: bound(req), expiresAt, a2a: { workspace, flows, maxTasks } });
   await audit("apikey.created", {
     actor: by,
     tenant,
     subject: record.id,
     detail: { label: record.label, prefix: record.prefix, purpose: "a2a", workspace, flows, maxTasks, expiresAt: record.expiresAt ?? null },
   });
-  if (who) sendSecurityNotice(tenant, who, "a new A2A key was created", clientIp(req));
+  if (who && record.createdBy) sendSecurityNotice(tenant, record.createdBy, "a new A2A key was created", clientIp(req));
   return NextResponse.json({
     ok: true,
     key,
@@ -330,14 +335,14 @@ async function mintGatewayKey(
     const lm = body.models === undefined ? { models: null } : checkModels(body.models, true);
     if ("error" in lm) return refuse(lm.error, 400);
     const expiresAt = parseKeyExpiry(body.expires);
-    const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, "viewer", null, { expiresAt, ...requireCustomer, gateway: { capUsd: null, dailyUsd: null, credential: "login", ...(plan === "max" ? { plan } : {}), ...(lm.models ? { models: lm.models } : {}) } });
+    const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, "viewer", null, { personBound: bound(req), expiresAt, ...requireCustomer, gateway: { capUsd: null, dailyUsd: null, credential: "login", ...(plan === "max" ? { plan } : {}), ...(lm.models ? { models: lm.models } : {}) } });
     await audit("apikey.created", {
       actor: by,
       tenant,
       subject: record.id,
       detail: { label: record.label, prefix: record.prefix, purpose: "gateway", credential: "login", plan, expiresAt: record.expiresAt ?? null },
     });
-    if (who) sendSecurityNotice(tenant, who, "a new gateway key on this account's plan was created", clientIp(req));
+    if (who && record.createdBy) sendSecurityNotice(tenant, record.createdBy, "a new gateway key on this account's plan was created", clientIp(req));
     return NextResponse.json({ ok: true, key, id: record.id, prefix: record.prefix, purpose: "gateway", credential: "login", plan, capUsd: null, dailyUsd: null, expiresAt: record.expiresAt ?? null, gatewayUrl: gatewayUrl() });
   }
   const capUsd = usdLimit(body.capUsd, "capUsd");
@@ -353,14 +358,14 @@ async function mintGatewayKey(
   // Its role is the lowest, as an A2A key's: only what keeps it in scope
   // checks (who may see and end it).
   const kind = account ? { credential: "account" as const, walletUsd: walletUsd! } : {};
-  const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, "viewer", null, { expiresAt, ...requireCustomer, gateway: { capUsd, dailyUsd, ...kind, ...(m.models ? { models: m.models } : {}) } });
+  const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, "viewer", null, { personBound: bound(req), expiresAt, ...requireCustomer, gateway: { capUsd, dailyUsd, ...kind, ...(m.models ? { models: m.models } : {}) } });
   await audit("apikey.created", {
     actor: by,
     tenant,
     subject: record.id,
     detail: { label: record.label, prefix: record.prefix, purpose: "gateway", capUsd, dailyUsd, ...kind, expiresAt: record.expiresAt ?? null },
   });
-  if (who) sendSecurityNotice(tenant, who, account ? "a new gateway key on this account's plan and credits was created" : "a new gateway key was created", clientIp(req));
+  if (who && record.createdBy) sendSecurityNotice(tenant, record.createdBy, account ? "a new gateway key on this account's plan and credits was created" : "a new gateway key was created", clientIp(req));
   return NextResponse.json({ ok: true, key, id: record.id, prefix: record.prefix, purpose: "gateway", capUsd, dailyUsd, ...kind, expiresAt: record.expiresAt ?? null, gatewayUrl: gatewayUrl() });
 }
 

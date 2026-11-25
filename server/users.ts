@@ -18,7 +18,7 @@ import { assertPasswordPolicy } from "@/server/password-policy";
 import { allUsersDb, upsertUserDb, importUsersToDatabase } from "@/platform/users-db";
 import { tx, databaseEnabled, users as usersTable, sessions as sessionsTable, and, isNull, eq, sql, type Db } from "@/platform/orm";
 import { hashFingerprint } from "./auth-tokens.ts";
-import { assertConfirmed } from "./email-confirmed.ts";
+import { assertConfirmed, mustConfirm } from "./email-confirmed.ts";
 import { revokeSessions } from "./sessions";
 import fs from "node:fs";
 import {
@@ -26,6 +26,7 @@ import {
   recordSession,
   revocable,
   sessionAllowed,
+  sessionStillLive,
   sessionExpiry,
 } from "./sessions";
 import path from "node:path";
@@ -130,7 +131,7 @@ export interface UserRecord {
   /** How the presented token was made (27 Oct 2026): its kind, the surface
    *  it was made for (null = the customer app) and whether a second factor
    *  was completed. Set by verifySession. */
-  session?: { kind: "v1" | "v2" | "s1"; audience: string | null; mfa: boolean };
+  session?: { kind: "v1" | "v2" | "s1"; audience: string | null; mfa: boolean; /** v2: the session row's id */ id?: string };
   /** A person's own small settings: `onboardingDismissedAt`, and the like. */
   prefs?: Record<string, unknown> | null;
   /** The door this person's account came in by, set once when they were
@@ -996,6 +997,38 @@ export async function viewerRole(): Promise<Role | null> {
   return session ? roleOfMembers(await readUsers(), session.tenant, session.id) : null;
 }
 
+/** May this page's viewer be shown a token — a webhook URL, a share link
+ *  (FOL-320)? Decided from one verified session: a confirmed person, not a
+ *  support view. No session is dev mode only where dev mode is on; anywhere
+ *  else a session that ended after the proxy let the request in sees none. */
+export async function viewerSeesTokens(): Promise<boolean> {
+  const { cookies } = await import("next/headers");
+  return seesTokens(await verifySession((await cookies()).get(SESSION_COOKIE)?.value));
+}
+
+/** Who reads a page's share links, from ONE verified session (FOL-320): its
+ *  role and address for readerSeesToken, or nothing for an unconfirmed
+ *  person, a support view or a session that ended; the owner's sight only in
+ *  explicit dev mode. Two reads could disagree, and the second one's null
+ *  read as dev mode handed an ended session admin links (Codex). */
+export async function viewerShareReader(): Promise<{ admin: boolean; name: string | null }> {
+  const { cookies } = await import("next/headers");
+  const session = await verifySession((await cookies()).get(SESSION_COOKIE)?.value);
+  if (!seesTokens(session)) return { admin: false, name: null };
+  if (!session) return { admin: true, name: null }; // dev mode, explicitly on
+  const role = roleOfMembers(await readUsers(), session.tenant, session.id);
+  // Gone from the team between the two reads: their address shows nothing.
+  if (role === null) return { admin: false, name: null };
+  return { admin: can(role, "workspace:manage"), name: session.email.toLowerCase() };
+}
+
+/** viewerSeesTokens' rule, for one verified session (or none). */
+export function seesTokens(session: (UserRecord & { viewAs?: unknown }) | null): boolean {
+  if (!session) return process.env.FOLDRUN_DEV_NO_AUTH === "1";
+  if (session.viewAs) return false;
+  return !mustConfirm(session);
+}
+
 /** The signed-in viewer's email, lower-cased — whose inbox a page shows.
  *  Null when nobody is signed in (dev mode). */
 export async function viewerEmail(): Promise<string | null> {
@@ -1115,8 +1148,8 @@ export async function isOwner(tenant: string, userId: string): Promise<boolean> 
  * future caller forgets to pass and silently skips, which is the shape of the
  * bug this is fixing.
  */
-export async function removeMember(tenant: string, id: string, actorId: string, by: string = actorId, ceiling?: Role): Promise<false | { invitesRevoked: string[] }> {
-  return mutateUsers(async (users, invites) => {
+export async function removeMember(tenant: string, id: string, actorId: string, by: string = actorId, ceiling?: Role): Promise<false | { invitesRevoked: string[]; keysRevoked: string[] }> {
+  return mutateUsers(async (users, invites, t) => {
     const at = users.findIndex((u) => u.tenant === tenant && u.id === id);
     if (at < 0) return false;
     assertCanRemoveMember(users, tenant, id, actorId); // throws with a status
@@ -1130,8 +1163,23 @@ export async function removeMember(tenant: string, id: string, actorId: string, 
       .filter((r) => inviteStatus(r) === "pending" && (r.createdBy === id || r.email === email))
       .map((r) => r.id);
     const revoked = await invites.revoke(ids, by, "its maker or addressee left the team");
-    return { invitesRevoked: revoked.map((r) => r.id) };
+    // Their keys too, under the same lock (FOL-320, Codex): a key minted for
+    // a person takes this lock to check them (createApiKey's makerId), so
+    // none slips in between, and a crash here rolls the removal back with
+    // it — retrying the DELETE then finds the member and does it all again.
+    const { revokeKeysBeyond } = await import("./auth.ts");
+    const keysRevoked = await revokeKeysBeyond(tenant, gone.email, null, t);
+    return { invitesRevoked: revoked.map((r) => r.id), keysRevoked };
   });
+}
+
+/** Run `fn` holding the people lock — for a write elsewhere that must agree
+ *  with who is on the team at that moment (a key minted for a person). */
+export async function withPeople<T>(fn: (users: readonly UserRecord[], t?: UsersTx) => Promise<T>): Promise<T> {
+  // `t` is the lock's own transaction (a database install): a write made
+  // inside must use it, or it waits on a second connection while this one
+  // holds the lock (Codex, FOL-320) and commits apart from the people.
+  return mutateUsers((users, _invites, t) => fn(users, t));
 }
 
 /**
@@ -1414,7 +1462,13 @@ export async function verifySession(token: string | undefined): Promise<UserReco
     const live = await sessionAllowed(subject);
     if (!live) return null;
     const user = (await readUsers()).find((u) => u.id === live.userId);
-    return user ? { ...user, session: { kind: "v2", audience: live.audience, mfa: live.mfa } } : null;
+    if (!user) return null;
+    // The row and the person are two reads. A reset changes the password and
+    // revokes the session in one write, so one landing between them would pair
+    // this old cookie with the new password; a second look at the row catches
+    // it (FOL-320, Codex: an MCP approval took the new fingerprint that way).
+    if (!(await sessionStillLive(subject))) return null;
+    return { ...user, session: { kind: "v2", audience: live.audience, mfa: live.mfa, id: subject } };
   }
   // v1: the pre-database form, minted only where an install has no database.
   // Where there is one, a v1 token cannot be revoked by sign-out, a reset or

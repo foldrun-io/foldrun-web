@@ -31,6 +31,8 @@ import path from "node:path";
 import { dataRoot } from "@/lib/paths.ts";
 import { accountDir } from "@/lib/store.ts";
 import { keyedStore } from "@/platform/keyed-store.ts";
+import { databaseEnabled, type Db } from "@/platform/db.ts";
+import { and, eq } from "@/platform/orm";
 import { mcpOauthClients, mcpOauthGrants, mcpOauthTokens } from "@/platform/schema.ts";
 import { fetchPublic } from "@/platform/ssrf.ts";
 import { ROLES, type Role } from "@/platform/permissions.ts";
@@ -836,6 +838,18 @@ export async function listGrants(tenant: string, opts: { all?: boolean } = {}): 
 
 export async function getGrant(tenant: string, id: string): Promise<GrantRecord | undefined> {
   return grants.get(tenant, id);
+}
+
+/** Does this grant still stand for this person? Read through `on` (a lock's
+ *  own transaction) where there is a database, so a caller holding the people
+ *  lock takes no second connection (createApiKey's personBound, FOL-320). */
+export async function grantStands(tenant: string, id: string, userId: string, on?: Db): Promise<boolean> {
+  let g: GrantRecord | undefined;
+  if (on && databaseEnabled()) {
+    const [r] = await on.select({ record: mcpOauthGrants.record }).from(mcpOauthGrants).where(and(eq(mcpOauthGrants.tenant, tenant), eq(mcpOauthGrants.key, id)));
+    g = r?.record as GrantRecord | undefined;
+  } else g = await grants.get(tenant, id);
+  return Boolean(g && !g.revokedAt && g.userId === userId);
 }
 
 /** End a connection: the grant is marked, and every token it issued is deleted. */

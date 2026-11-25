@@ -74,7 +74,8 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
     if (!removed) return refuse("no such member", 404);
     // Every key they minted here stops with them (FOL-97) — a key is not a
     // way to stay on the team.
-    const revoked = target?.email ? await revokeKeysBeyond(tenant, target.email, null) : [];
+    // Their keys went in the removal's own write (removeMember), FOL-320.
+    const revoked = removed.keysRevoked;
     await audit("member.removed", { actor: actor.name, tenant, subject: target?.email ?? id, detail: { role: target?.role, keysRevoked: revoked, invitesRevoked: removed.invitesRevoked, ...viaDetail(actor) } });
     return NextResponse.json({ ok: true });
   } catch (err) {

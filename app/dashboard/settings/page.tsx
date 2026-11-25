@@ -10,7 +10,7 @@ import { ScheduleInYourTime } from "./schedule-in-your-time";
 import { cookies } from "next/headers";
 import { listApiKeys } from "@/server/auth";
 import { can } from "@/platform/permissions";
-import { verifySession, listMembers, listInvites, SESSION_COOKIE, viewerScope, viewerRole, viewerEmail } from "@/server/users";
+import { verifySession, listMembers, listInvites, SESSION_COOKIE, viewerScope, viewerRole, viewerEmail, viewerSeesTokens } from "@/server/users";
 import { PauseCard } from "@/components/pause-card";
 import { TelemetryCard } from "@/components/telemetry-card";
 import { pauseView } from "@/server/pause";
@@ -586,6 +586,9 @@ async function SecretsTab({
     ...s,
     health: health[healthKey(s.name, s.scope === "workspace" ? "workspace" : "account")] ?? null,
   }));
+  // A webhook URL carries its token, which outlives a password reset: an
+  // unconfirmed login sees that the hook exists, not its URL (FOL-320).
+  const seesHookUrls = managesWorkspaces && (await viewerSeesTokens());
   const hooks = workspaces.flatMap((w) => {
     const deliveries = readDeliveries(tenant, w, 5);
     return listFlows(tenant, w)
@@ -593,7 +596,7 @@ async function SecretsTab({
       .map((f) => ({
         workspace: w,
         flow: f.name,
-        path: managesWorkspaces ? webhookPath(tenant, w, f.name) : null,
+        path: seesHookUrls ? webhookPath(tenant, w, f.name) : null,
         deliveries: deliveries.filter((d) => d.flow === f.name),
       }));
   });

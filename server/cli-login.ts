@@ -34,7 +34,7 @@ import {
   unclaimCliLoginDb,
   pollCliLoginDb,
 } from "@/platform/short-lived-db.ts";
-import { createApiKey, revokeApiKey, coarseIp, CLI_KEY_DAYS, CLI_MODEL_GRANT } from "./auth.ts";
+import { createApiKey, revokeApiKey, coarseIp, CLI_KEY_DAYS, CLI_MODEL_GRANT, type PersonCredential } from "./auth.ts";
 import { gatewayOffered } from "./gateway-keys.ts";
 import { can } from "@/platform/permissions.ts";
 import { clientIp } from "./limits.ts";
@@ -241,7 +241,7 @@ export async function decideCliLogin(
   /** The person's yes to model access on the approval page (one key): the
    *  sign-in may also call foldrun's models, within CLI_MODEL_GRANT. Absent
    *  or false: a platform key, as every sign-in was before. */
-  opts: { models?: boolean; recheck?: () => Promise<{ role: Role; workspaces: string[] | null }> } = {},
+  opts: { models?: boolean; recheck?: () => Promise<{ role: Role; workspaces: string[] | null }>; credential?: PersonCredential } = {},
 ): Promise<"approved" | "denied" | "not-found" | "too-old"> {
   if (databaseEnabled()) {
     const c = normaliseCode(code);
@@ -255,7 +255,7 @@ export async function decideCliLogin(
     const role: Role = person.role === "owner" ? "admin" : person.role;
     let minted: Awaited<ReturnType<typeof createApiKey>>;
     try {
-      minted = await createApiKey(person.tenant, `cli · ${row.hostname}`, person.email, undefined, role, person.workspaces ?? null, { ...cliKeyLife(), ...loginModels(person, opts.models) });
+      minted = await createApiKey(person.tenant, `cli · ${row.hostname}`, person.email, undefined, role, person.workspaces ?? null, { ...cliKeyLife(), ...loginModels(person, opts.models), personBound: { credential: opts.credential } });
     } catch (err) {
       await unclaimCliLoginDb(c).catch(() => {});
       throw err;
@@ -297,7 +297,7 @@ export async function decideCliLogin(
   // gets a CLI that opens those two.
   let minted: Awaited<ReturnType<typeof createApiKey>>;
   try {
-    minted = await createApiKey(person.tenant, `cli · ${row.hostname}`, person.email, undefined, role, person.workspaces ?? null, { ...cliKeyLife(), ...loginModels(person, opts.models) });
+    minted = await createApiKey(person.tenant, `cli · ${row.hostname}`, person.email, undefined, role, person.workspaces ?? null, { ...cliKeyLife(), ...loginModels(person, opts.models), personBound: { credential: opts.credential } });
   } catch (err) {
     updateRow(row.id, (r) => void (r.status = "pending"));
     throw err;

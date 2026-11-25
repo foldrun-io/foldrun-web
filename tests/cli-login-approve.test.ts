@@ -18,6 +18,7 @@ const { beginCliLogin, decideCliLogin, pollCliLogin } = await import("../server/
 const { listApiKeys } = await import("../server/auth.ts");
 
 const person = { tenant: "acme", email: "owner@acme.test", role: "owner" as const, workspaces: null };
+await (await import("./people-fixture.ts")).ensurePeople("acme", [{ email: "owner@acme.test" }]);
 
 test("two approvals at once: one wins, one key is minted, and the CLI collects it once", async () => {
   const req = await beginCliLogin("laptop");

@@ -31,9 +31,9 @@ test("a console session is stored with its surface and its second factor; a plai
   const user = await createUser(`op@${tenant}.test`, "a long enough password here 1", tenant, { request: "free" });
   const consoleToken = await mintSession(user, "test", { audience: "admin", mfa: true });
   assert.match(consoleToken.value, /^v2\./, "revocable: the facts live in the row");
-  assert.deepEqual((await verifySession(consoleToken.value))?.session, { kind: "v2", audience: "admin", mfa: true });
+  assert.deepEqual((await verifySession(consoleToken.value))?.session, { kind: "v2", audience: "admin", mfa: true, id: consoleToken.sessionId });
   const plain = await mintSession(user, "test");
-  assert.deepEqual((await verifySession(plain.value))?.session, { kind: "v2", audience: null, mfa: false });
+  assert.deepEqual((await verifySession(plain.value))?.session, { kind: "v2", audience: null, mfa: false, id: plain.sessionId });
   const appMfa = await mintSession(user, "test", { mfa: true });
-  assert.deepEqual((await verifySession(appMfa.value))?.session, { kind: "v2", audience: null, mfa: true });
+  assert.deepEqual((await verifySession(appMfa.value))?.session, { kind: "v2", audience: null, mfa: true, id: appMfa.sessionId });
 });

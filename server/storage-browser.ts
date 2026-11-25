@@ -5,8 +5,7 @@
 import { listStorage } from "@/lib/storage";
 import { listShares, isLive, shareUrl, shareId, readerSeesToken, type ShareReader } from "@/platform/shares";
 import { publicUrl } from "@/lib/webhook";
-import { can } from "@/platform/permissions";
-import { viewerEmail, viewerRole } from "@/server/users";
+import { viewerShareReader } from "@/server/users";
 import type { BrowserDesk, BrowserShare } from "@/components/file-browser-model";
 
 /**
@@ -16,9 +15,9 @@ import type { BrowserDesk, BrowserShare } from "@/components/file-browser-model"
  * Nobody signed in is dev mode, which every page treats as the owner.
  */
 export async function dashboardShareReader(): Promise<ShareReader> {
-  const role = await viewerRole();
-  if (role === null) return { admin: true, name: null };
-  return { admin: can(role, "workspace:manage"), name: await viewerEmail() };
+  // From one session read (FOL-320): an unconfirmed login, a support view or a
+  // session that ended mid-request sees that a file is shared, never its link.
+  return viewerShareReader();
 }
 
 export async function browserDesks(tenant: string, workspaces: string[], reader: ShareReader): Promise<{ desks: BrowserDesk[]; canShare: boolean }> {

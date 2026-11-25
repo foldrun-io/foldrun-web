@@ -14,12 +14,13 @@ import type { NextRequest } from "next/server";
 import { dataRoot } from "@/lib/paths.ts";
 import { assertSafeName } from "@/lib/store.ts";
 import { verifySession, SESSION_COOKIE, roleOfUser , allowedWorkspaces } from "./users.ts";
-import { isRole, outranks, can, type Role } from "@/platform/permissions.ts";
+import { isRole, outranks, can, roleOf, type Role, type Action } from "@/platform/permissions.ts";
 import { supportViewRefusal } from "./view-as.ts";
 import { ACCESS_PREFIX, resolveAccessToken, resourceMatches, lowerRole, intersectWorkspaces } from "./mcp-oauth.ts";
 import { isMcpInnerCall } from "./mcp-inner.ts";
 import { publicOrigin } from "./auth-flows.ts";
-import { databaseEnabled } from "@/platform/db.ts";
+import { databaseEnabled, type Db } from "@/platform/db.ts";
+import { hashFingerprint } from "./auth-tokens.ts";
 import {
   insertApiKeyDb,
   setRequireCustomerDb,
@@ -245,6 +246,16 @@ export async function createApiKey(
      *  the chain it continues (a rotation hands its predecessor's on). */
     models?: ModelGrantInput & { principal?: string };
     requireCustomer?: boolean;
+    /** The key is for the person `createdBy` names, who must be on this
+     *  account's team when it is written (FOL-320): the routes and `foldrun
+     *  login` say so; a fixture minting for an address with no login does not. */
+    /** The key is for a person of this account (createdBy), checked under
+     *  the people lock; `session` is the revocable session that authenticated
+     *  the caller, which must still be live there. A reset revokes sessions
+     *  in its own write under the same lock, so a request that read the old
+     *  login either finds its session ended, or mints first — before the
+     *  reset's cutoff, so the reset's sweep takes the key (Codex, FOL-320). */
+    personBound?: PersonBound;
   } = {},
 ): Promise<{ record: ApiKeyRecord; key: string }> {
   assertSafeName(tenant, "tenant");
@@ -258,14 +269,6 @@ export async function createApiKey(
     for (const f of opts.a2a.flows) assertSafeName(f, "flow");
     if (!opts.a2a.flows.length) throw new Error("an A2A key names at least one flow");
     if (!workspaces || workspaces.length !== 1 || workspaces[0] !== opts.a2a.workspace) throw new Error("an A2A key is scoped to its one workspace");
-  }
-  // FOL-317: every key is minted for a person (createdBy). One whose address
-  // is not confirmed makes none — the keys route, `foldrun login`, gateway
-  // and A2A keys and rotation all come through here.
-  if (createdBy) {
-    const { findUser } = await import("./users.ts");
-    const person = await findUser(createdBy);
-    if (person && person.tenant === tenant) (await import("./email-confirmed.ts")).assertConfirmed(person);
   }
   // The prefix says what the key is (FOL-154), so one found in a log, a
   // repository or a config file is recognised — by a person and by the
@@ -323,14 +326,64 @@ export async function createApiKey(
       ...(opts.gateway.models ? { models: opts.gateway.models } : {}),
     };
   }
-  if (databaseEnabled()) await insertApiKeyDb(record as ApiKeyRow);
-  else writeKeys([...readKeys(), record]);
+  const write = async (on?: Db) => {
+    if (databaseEnabled()) await insertApiKeyDb(record as ApiKeyRow, on);
+    else writeKeys([...readKeys(), record]);
+  };
+  // A key for a person is written holding the people lock, after looking at
+  // them (FOL-317, FOL-320): one whose address is not confirmed makes none,
+  // and a removal — which revokes their keys under the same lock — cannot
+  // land between the look and the write. The keys route, `foldrun login`,
+  // gateway and A2A keys and rotation all come through here.
+  const c = opts.personBound?.credential;
+  const byId = c && "user" in c ? c.user : null;
+  if (byId || (createdBy && createdBy.includes("@") && !createdBy.startsWith("key:"))) {
+    const { withPeople } = await import("./users.ts");
+    const { assertConfirmed } = await import("./email-confirmed.ts");
+    await withPeople(async (users, t) => {
+      const on = t as Db | undefined;
+      // A credential that names its person by id finds them by id, at the
+      // address they hold now (an email change moves it); else by address.
+      const person = byId
+        ? users.find((u) => u.tenant === tenant && u.id === byId)
+        : users.find((u) => u.tenant === tenant && u.email.toLowerCase() === createdBy!.toLowerCase());
+      if (!person) {
+        if (opts.personBound || byId) throw Object.assign(new Error("a key is minted for a person of this account, and that person is not on its team"), { status: 403 });
+        await write(on);
+        return;
+      }
+      assertConfirmed(person);
+      if (opts.personBound) {
+        record.createdBy = person.email;
+        // What they may give NOW, under the lock a demotion takes too: a
+        // demotion that landed first is not outrun by a request authorized
+        // before it (Codex, FOL-320).
+        const role = roleOf([...users], tenant, person.id);
+        const permission = opts.personBound.permission;
+        if (!role || (permission && !can(role, permission)) || keyBeyond(record, { role, workspaces: person.workspaces ?? null })) {
+          throw Object.assign(new Error("your role or projects changed while the request was on its way — look again and retry"), { status: 403 });
+        }
+      }
+      if (c) {
+        if ("session" in c && !(await (await import("./sessions.ts")).sessionStillLive(c.session, on))) throw staleCredential();
+        if ("fingerprint" in c && hashFingerprint(person.hash) !== c.fingerprint) throw staleCredential();
+        if ("key" in c) {
+          const k = (await keysOf(tenant, on)).find((x) => x.id === c.key);
+          if (!k || k.revokedAt || keyExpired(k) || (k.createdBy ?? "").toLowerCase() !== person.email.toLowerCase()) throw staleCredential();
+        }
+        if ("grant" in c && !(await (await import("./mcp-oauth.ts")).grantStands(tenant, c.grant, c.user, on))) throw staleCredential();
+      }
+      await write(on);
+    });
+  } else await write();
   return { record, key }; // full key is returned exactly once
 }
 
+const staleCredential = () => Object.assign(new Error("the sign-in or key this request came with no longer stands for this person — sign in again and retry"), { status: 409 });
+
 /** Every key record, or one account's: the table with a database, the file without. */
-async function keysOf(tenant: string): Promise<ApiKeyRecord[]> {
-  if (databaseEnabled()) return (await listApiKeysDb(tenant)) as ApiKeyRecord[];
+async function keysOf(tenant: string, on?: Db): Promise<ApiKeyRecord[]> {
+  if (databaseEnabled()) return (await listApiKeysDb(tenant, on)) as ApiKeyRecord[];
   return readKeys().filter((k) => k.tenant === tenant);
 }
 
@@ -339,12 +392,12 @@ async function keyByHash(h: string): Promise<ApiKeyRecord | null> {
   return readKeys().find((k) => k.hash === h) ?? null;
 }
 
-export async function listApiKeys(tenant: string): Promise<Omit<ApiKeyRecord, "hash">[]> {
-  return (await keysOf(tenant)).map(({ hash: _hash, ...rest }) => rest);
+export async function listApiKeys(tenant: string, on?: Db): Promise<Omit<ApiKeyRecord, "hash">[]> {
+  return (await keysOf(tenant, on)).map(({ hash: _hash, ...rest }) => rest);
 }
 
-export async function revokeApiKey(tenant: string, id: string): Promise<boolean> {
-  if (databaseEnabled()) return revokeApiKeyDb(tenant, id);
+export async function revokeApiKey(tenant: string, id: string, on?: Db): Promise<boolean> {
+  if (databaseEnabled()) return revokeApiKeyDb(tenant, id, on);
   const keys = readKeys();
   const key = keys.find((k) => k.id === id && k.tenant === tenant);
   if (!key) return false;
@@ -390,28 +443,32 @@ export async function moveKeysToEmail(tenant: string, from: string, to: string):
  * new one at their new standing. Keys minted by `foldrun login` carry the
  * person's email too. Returns the ids revoked.
  */
+/** Does this key reach further than its maker may now give (a role above
+ *  theirs, a project they no longer open, model spending they cannot grant)? */
+export function keyBeyond(k: Pick<ApiKeyRecord, "role" | "workspaces" | "gateway" | "purpose">, now: { role: Role; workspaces: string[] | null }): boolean {
+  // A key that may call models (a gateway key, or an API key with model
+  // access) was given account-wide spending by an admin of every
+  // workspace: it goes when its maker is no longer one, whatever its own
+  // role and workspaces (Codex review, 22 Nov 2026).
+  if (modelGrantOf(k as ApiKeyRecord) && !(can(now.role, "keys:manage") && now.workspaces === null)) return true;
+  const role = (k.role ?? "admin") as Role;
+  if (outranks(role, now.role)) return true;
+  if (now.workspaces === null) return false;
+  // Narrowed to some workspaces: a key for all of them, or for one not
+  // among them, reaches too far.
+  return !k.workspaces || k.workspaces.some((w) => !now.workspaces!.includes(w));
+}
+
 export async function revokeKeysBeyond(
   tenant: string,
   email: string,
   now: { role: Role; workspaces: string[] | null } | null,
+  on?: Db,
 ): Promise<string[]> {
-  const mine = (await listApiKeys(tenant)).filter((k) => !k.revokedAt && (k.createdBy ?? "").toLowerCase() === email.toLowerCase());
-  const beyond = mine.filter((k) => {
-    if (!now) return true;
-    // A key that may call models (a gateway key, or an API key with model
-    // access) was given account-wide spending by an admin of every
-    // workspace: it goes when its maker is no longer one, whatever its own
-    // role and workspaces (Codex review, 22 Nov 2026).
-    if (modelGrantOf(k) && !(can(now.role, "keys:manage") && now.workspaces === null)) return true;
-    const role = (k.role ?? "admin") as Role;
-    if (outranks(role, now.role)) return true;
-    if (now.workspaces === null) return false;
-    // Narrowed to some workspaces: a key for all of them, or for one not
-    // among them, reaches too far.
-    return !k.workspaces || k.workspaces.some((w) => !now.workspaces!.includes(w));
-  });
+  const mine = (await listApiKeys(tenant, on)).filter((k) => !k.revokedAt && (k.createdBy ?? "").toLowerCase() === email.toLowerCase());
+  const beyond = mine.filter((k) => !now || keyBeyond(k, now));
   const revoked: string[] = [];
-  for (const k of beyond) if (await revokeApiKey(tenant, k.id)) revoked.push(k.id);
+  for (const k of beyond) if (await revokeApiKey(tenant, k.id, on)) revoked.push(k.id);
   return revoked;
 }
 
@@ -468,7 +525,7 @@ export async function rotateApiKey(
   id: string,
   graceMs: number,
   by?: string | null,
-  opts: { keepCliLogin?: boolean } = {},
+  opts: { keepCliLogin?: boolean; personBound?: PersonBound } = {},
 ): Promise<{ record: ApiKeyRecord; key: string; old: Omit<ApiKeyRecord, "hash">; oldEndsAt: string }> {
   const all = await keysOf(tenant);
   const old = all.find((k) => k.id === id);
@@ -488,6 +545,7 @@ export async function rotateApiKey(
     // key, another member — the new key is an ordinary one, or a key made by
     // hand could turn itself into a person by rotating theirs.
     origin: opts.keepCliLogin === false ? undefined : old.origin,
+    ...(opts.personBound ? { personBound: opts.personBound } : {}),
     // FOL-168: a key that required a customer still does (Codex review).
     ...(old.requireCustomer ? { requireCustomer: true } : {}),
     // An A2A key stays one, with the same grant — and the same principal,
@@ -613,6 +671,28 @@ export async function importApiKeys(): Promise<number> {
  * key is an account credential and inventing an actor would be worse than
  * saying so.
  */
+/** The credential behind a request, as createApiKey's personBound checks it
+ *  under the people lock (FOL-320): a v2 session's row (still live), a v1
+ *  session's password fingerprint (unchanged), a key (still live, still that
+ *  person's) or an MCP grant (still live) — and, where it names one, the same
+ *  person by id, not merely whoever holds the address now. A reset that
+ *  confirms a provisional login revokes its keys and grants BEFORE the
+ *  confirmation commits (the reset route sweeps first), so once the person
+ *  reads as confirmed here, a live check is exact. */
+export type PersonCredential = { session: string; user: string } | { fingerprint: string; user: string } | { key: string } | { grant: string; user: string };
+
+/** The credential of a signed-in person, from verifySession's answer. */
+export function sessionCredential(user: { id: string; hash: string; session?: { kind: string; id?: string } }): PersonCredential | undefined {
+  if (user.session?.kind === "v2" && user.session.id) return { session: user.session.id, user: user.id };
+  if (user.session?.kind === "v1") return { fingerprint: hashFingerprint(user.hash), user: user.id };
+  return undefined;
+}
+
+/** createApiKey's personBound: the credential that asked, and the permission
+ *  the route required of its person (the keys route and management rotation:
+ *  keys:manage), both checked again under the people lock (FOL-320). */
+export type PersonBound = { credential?: PersonCredential; permission?: Action };
+
 export interface Actor {
   kind: "user" | "key";
   /** FOL-168: a key whose runs must name an end customer (server/customer-required.ts). */
@@ -627,6 +707,9 @@ export interface Actor {
   workspaces: string[] | null;
   /** A support view: reads as the owner, refused every write. */
   readOnly?: boolean;
+  /** What authenticated this caller, so a write that must still be theirs
+   *  (a key minted for them) can check it under the people lock (FOL-320). */
+  credential?: PersonCredential;
   /** For a key: "cli-login" when `foldrun login` minted it — a person's own
    *  sign-in on their machine, which team and profile routes take as that
    *  person (requirePerson with cliLogin, personOf) — never as the owner:
@@ -712,6 +795,7 @@ async function resolveMcpAccessToken(req: NextRequest, presented: string): Promi
       role: lowerRole(grant.role, now),
       workspaces: intersectWorkspaces(grant.workspaces, await allowedWorkspaces(grant.tenant, grant.userId)),
       mcp: { grant: grant.id, client: grant.clientName, readOnly: got.readOnly },
+      credential: { grant: grant.id, user: grant.userId },
     },
   };
 }
@@ -761,7 +845,7 @@ export async function resolveTenant(req: NextRequest): Promise<AuthResult> {
       // when a signed-in person minted it (the CLI's `foldrun login` key,
       // every key from the Settings page), else the key by its label — a
       // history of "api-key" said nothing about who changed the file.
-      actor: { kind: "key", id: record.id, name: record.createdBy ?? `key:${record.label || record.prefix}`, role: record.role ?? "admin", workspaces: record.workspaces ?? null, ...(record.origin === "cli-login" ? { origin: "cli-login" as const } : {}), ...(record.requireCustomer ? { requireCustomer: true } : {}) },
+      actor: { kind: "key", id: record.id, name: record.createdBy ?? `key:${record.label || record.prefix}`, role: record.role ?? "admin", workspaces: record.workspaces ?? null, ...(record.origin === "cli-login" ? { origin: "cli-login" as const } : {}), ...(record.requireCustomer ? { requireCustomer: true } : {}), credential: { key: record.id } },
     };
   }
   // The dashboard's own fetches carry no Bearer key — they carry the session
@@ -785,7 +869,7 @@ export async function resolveTenant(req: NextRequest): Promise<AuthResult> {
     if (session) {
       return {
         tenant: session.tenant,
-        actor: { kind: "user", id: session.id, name: session.email, role: (await roleOfUser(session.tenant, session.id)) ?? "viewer", workspaces: await allowedWorkspaces(session.tenant, session.id) },
+        actor: { kind: "user", id: session.id, name: session.email, role: (await roleOfUser(session.tenant, session.id)) ?? "viewer", workspaces: await allowedWorkspaces(session.tenant, session.id), credential: sessionCredential(session) },
       };
     }
   }

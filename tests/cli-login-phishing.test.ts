@@ -27,6 +27,7 @@ const loginRoute = await import("../app/v1/cli/login/route.ts");
 const authorizeRoute = await import("../app/v1/cli/authorize/route.ts");
 
 const person = { tenant: "acme", email: "owner@acme.test", role: "owner" as const, workspaces: null };
+await (await import("./people-fixture.ts")).ensurePeople("acme", [{ email: "owner@acme.test" }]);
 const file = () => path.join(process.env.FOLDRUN_DATA!, "cli-logins.json");
 /** Make a request look `ms` old, as if it had waited that long. */
 const age = (code: string, ms: number) => {
