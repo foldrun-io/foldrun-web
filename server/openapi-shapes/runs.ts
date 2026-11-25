@@ -14,7 +14,9 @@ const SessionMessageShape = obj({
   text: str(),
   at: str(),
   run: str("the run that included it; absent while it waits"),
+  usedLocally: bool,
   usedAt: str("when that run took it"),
+  direction: str("in ?with=: in, sent to this conversation by the other; out, sent by this one to the other"),
 });
 
 export const SHAPES: Record<string, Shape> = {
@@ -99,9 +101,12 @@ export const SHAPES: Record<string, Shape> = {
     query: [
       { name: "waiting", description: "1 or true: only those no turn has included yet" },
       { name: "limit", description: "the newest this many, at most 200 (default 100), shown oldest first" },
+      { name: "with", description: "another conversation: the thread between the two, both ways, each with direction in | out (FOL-307)" },
+      { name: "sent", description: "1 or true: what this conversation sent, each with the conversation it went to (context)" },
     ],
     response: obj({
       context: str(),
+      with: str("the other conversation, with ?with="),
       messages: arr(SessionMessageShape),
     }),
   },

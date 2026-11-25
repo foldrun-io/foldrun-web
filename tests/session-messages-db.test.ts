@@ -162,3 +162,30 @@ test("take (FOL-236): a turn on a computer marks messages used — once, who may
   assert.equal(named.find((x: any) => x.context === "code-tk").name, "the fix");
   assert.deepEqual(await (await conv.PATCH(req("PATCH", editor, P, { name: null }), mp("code-tk"))).json(), { context: "code-tk", name: null });
 });
+
+test("the thread between two conversations, both ways, and what one sent (FOL-307)", opts, async () => {
+  const { migrate } = await import("@/platform/db.ts");
+  await migrate();
+  const { NextRequest } = await import("next/server");
+  const { createApiKey } = await import("../server/auth.ts");
+  const messages = await import("../app/v1/workspaces/[workspace]/sessions/[context]/messages/route.ts");
+  const editor = (await createApiKey(TENANT, "ed307", "ana@acme.test", undefined, "editor")).key;
+  const viewer = (await createApiKey(TENANT, "view307", undefined, undefined, "viewer")).key;
+  const elsewhere = (await createApiKey(TENANT, "other307", undefined, undefined, "editor", ["other"])).key;
+  const req = (method: string, key: string, p: string, body?: unknown) =>
+    new NextRequest(`https://app.example.test${p}`, { method, headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
+  const M = (ctx: string, q = "") => `/v1/workspaces/desk/sessions/${ctx}/messages${q}`;
+  const mp = (context: string) => ({ params: Promise.resolve({ workspace: "desk", context }) });
+  const send = async (to: string, from: string, text: string) => (await (await messages.POST(req("POST", editor, M(to), { text, from }), mp(to))).json()).message;
+  const a = await send("t307-y", "t307-x", "x asks y");
+  const b = await send("t307-x", "t307-y", "y answers x");
+  await send("t307-z", "t307-x", "x tells z");
+  const thread = await (await messages.GET(req("GET", viewer, M("t307-x", "?with=t307-y")), mp("t307-x"))).json();
+  assert.equal(thread.with, "t307-y");
+  assert.deepEqual(thread.messages.map((m: any) => [m.id, m.direction]), [[a.id, "out"], [b.id, "in"]]);
+  const sent = await (await messages.GET(req("GET", viewer, M("t307-x", "?sent=1")), mp("t307-x"))).json();
+  assert.deepEqual(sent.messages.map((m: any) => m.context), ["t307-y", "t307-z"]);
+  assert.equal((await messages.GET(req("GET", viewer, M("t307-x", "?with=t307-x")), mp("t307-x"))).status, 400, "not with itself");
+  assert.equal((await messages.GET(req("GET", viewer, M("t307-x", "?with=bad id")), mp("t307-x"))).status, 400);
+  assert.equal((await messages.GET(req("GET", elsewhere, M("t307-x", "?with=t307-y")), mp("t307-x"))).status, 403, "another project's key reads nothing here");
+});

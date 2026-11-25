@@ -16,6 +16,8 @@ import { jsonObject } from "@/server/body";
 import { idempotent } from "@/server/idempotency";
 import { contextIdProblem } from "@/lib/conversation";
 import {
+  listSentSessionMessages,
+  listSessionThread,
   listSessionMessages,
   messageTextProblem,
   sendSessionMessage,
@@ -41,6 +43,16 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     const waiting = req.nextUrl.searchParams.get("waiting");
     const limitRaw = req.nextUrl.searchParams.get("limit");
     const limit = limitRaw && /^\d+$/.test(limitRaw) ? Number(limitRaw) : undefined;
+    // The thread with another conversation, both ways (FOL-307).
+    const other = req.nextUrl.searchParams.get("with");
+    if (other !== null) {
+      const otherProblem = contextIdProblem(other);
+      if (otherProblem) return refuse(`with: ${otherProblem}`, 400);
+      if (other === context) return refuse("with: name another conversation, not this one", 400);
+      return NextResponse.json({ context, with: other, messages: await listSessionThread(tenant, workspace, context, other, { limit }) });
+    }
+    const sent = req.nextUrl.searchParams.get("sent");
+    if (sent === "1" || sent === "true") return NextResponse.json({ context, messages: await listSentSessionMessages(tenant, workspace, context, { limit }) });
     const messages = await listSessionMessages(tenant, workspace, context, { waiting: waiting === "1" || waiting === "true", limit });
     return NextResponse.json({ context, messages });
   } catch (err) {
