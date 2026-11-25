@@ -184,6 +184,7 @@ test("the thread between two conversations, both ways, and what one sent (FOL-30
   assert.equal(thread.with, "t307-y");
   assert.deepEqual(thread.messages.map((m: any) => [m.id, m.direction]), [[a.id, "out"], [b.id, "in"]]);
   const sent = await (await messages.GET(req("GET", viewer, M("t307-x", "?sent=1")), mp("t307-x"))).json();
+  assert.equal(sent.sent, true);
   assert.deepEqual(sent.messages.map((m: any) => m.context), ["t307-y", "t307-z"]);
   assert.equal((await messages.GET(req("GET", viewer, M("t307-x", "?with=t307-x")), mp("t307-x"))).status, 400, "not with itself");
   assert.equal((await messages.GET(req("GET", viewer, M("t307-x", "?with=bad id")), mp("t307-x"))).status, 400);

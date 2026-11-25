@@ -107,6 +107,7 @@ export const SHAPES: Record<string, Shape> = {
     response: obj({
       context: str(),
       with: str("the other conversation, with ?with="),
+      sent: bool,
       messages: arr(SessionMessageShape),
     }),
   },

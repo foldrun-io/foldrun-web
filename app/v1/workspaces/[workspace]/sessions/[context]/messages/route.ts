@@ -52,7 +52,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ context, with: other, messages: await listSessionThread(tenant, workspace, context, other, { limit }) });
     }
     const sent = req.nextUrl.searchParams.get("sent");
-    if (sent === "1" || sent === "true") return NextResponse.json({ context, messages: await listSentSessionMessages(tenant, workspace, context, { limit }) });
+    if (sent === "1" || sent === "true") return NextResponse.json({ context, sent: true, messages: await listSentSessionMessages(tenant, workspace, context, { limit }) });
     const messages = await listSessionMessages(tenant, workspace, context, { waiting: waiting === "1" || waiting === "true", limit });
     return NextResponse.json({ context, messages });
   } catch (err) {
