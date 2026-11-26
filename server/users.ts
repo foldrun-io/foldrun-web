@@ -38,6 +38,7 @@ import { sessionMac } from "./session-mac.ts";
 import { isOwner as isOwnerOf, ownerOf as ownerOfMembers } from "@/platform/ownership.ts";
 import { anyWayIn, assertSignupAllowed, SIGNUP_REQUESTS, type Admission, type SignupRequest } from "@/platform/signup.ts";
 import { signupModesNow } from "./signup";
+import { suggestAccountName } from "./account-names.ts";
 import {
   assertCanChangeRole,
   assertCanRemoveMember,
@@ -463,6 +464,13 @@ async function addUser(
   // across replicas; a no-op without a database.
   await ensureTenantKey(tenant);
   return user;
+}
+
+/** A free account name near the one asked for (account-names.ts), or null. A
+ *  proposal, not a reservation: the sign-up that uses it asks the lock again. */
+export async function freeAccountNameFor(wanted: string, email: string): Promise<string | null> {
+  const taken = new Set((await readUsers()).map((u) => u.tenant));
+  return suggestAccountName(wanted, email, (n) => !taken.has(n) && !fs.existsSync(accountDir(n)));
 }
 
 /** How a sign-up asks to come in: a new account by a named door, or a

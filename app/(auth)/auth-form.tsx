@@ -27,6 +27,8 @@ export function AuthForm({ mode, invite, setup, link, codeSignIn }: {
 }) {
   const next = useSearchParams().get("next") ?? "/dashboard";
   const [error, setError] = useState<string | null>(null);
+  // A free account name the server offered when the one typed was taken.
+  const [suggestion, setSuggestion] = useState<string | null>(null);
   // The second step: the password bought a challenge, not a session.
   const [challenge, setChallenge] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -56,6 +58,7 @@ export function AuthForm({ mode, invite, setup, link, codeSignIn }: {
     e.preventDefault();
     setBusy(true);
     setError(null);
+    setSuggestion(null);
     const data = new FormData(e.currentTarget);
     if (viaCode && !codeAsked && !challenge) {
       try {
@@ -125,8 +128,9 @@ export function AuthForm({ mode, invite, setup, link, codeSignIn }: {
         window.location.assign(safeNext);
         return;
       }
-      const payload = (await res.json().catch(() => ({}))) as { error?: string };
+      const payload = (await res.json().catch(() => ({}))) as { error?: string; code?: string; suggestion?: string };
       setError(payload.error ?? $t("auth.auth-form.somethingWentWrongTryAgain"));
+      if (payload.code === "name_taken" && typeof payload.suggestion === "string") setSuggestion(payload.suggestion);
     } catch (err) {
       setError($t("auth.auth-form.couldNotReachTheServer", { v0: String(err instanceof Error ? err.message : String(err)) }));
     }
@@ -185,6 +189,22 @@ export function AuthForm({ mode, invite, setup, link, codeSignIn }: {
       )}
       {error && (
         <Callout tone="danger">{error}</Callout>
+      )}
+      {error && suggestion && (
+        <button
+          type="button"
+          className={cn(buttonVariants({ variant: "secondary", size: "md" }), "w-full")}
+          onClick={(e) => {
+            // One click: put the free name in the field and send the form again.
+            const form = e.currentTarget.closest("form");
+            const field = form?.elements.namedItem("account");
+            if (!form || !(field instanceof HTMLInputElement)) return;
+            field.value = suggestion;
+            form.requestSubmit();
+          }}
+        >
+          {$t("auth.auth-form.useThisNameInstead", { name: suggestion })}
+        </button>
       )}
       {mode === "login" && codeSignIn && !challenge && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-fg-muted">
