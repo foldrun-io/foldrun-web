@@ -12,6 +12,7 @@
 // sender is still used for what is the account's mail: run notifications.
 
 import { opsError } from "@/lib/ops-log.ts";
+import { RESET_LIFETIME_TEXT, VERIFY_LIFETIME_TEXT, SIGNUP_LINK_LIFETIME_TEXT } from "./lifetimes.ts";
 import { accountMail } from "@/lib/notify";
 import { platform } from "@/lib/platform";
 
@@ -75,7 +76,7 @@ export async function platformSend(
 export function sendResetEmail(tenant: string, to: string, url: string, ip: string | null) {
   return platformSend(tenant, to, "Reset your foldrun password",
     `Someone — hopefully you — asked to reset the password for ${to}${ip ? ` (from ${ip})` : ""}.\n\n` +
-    `Set a new one here. The link works once and for 30 minutes:\n${url}\n\n` +
+    `Set a new one here. The link works once and for ${RESET_LIFETIME_TEXT}:\n${url}\n\n` +
     `If you did not ask, ignore this: your password has not changed and nobody can change it without this link.\n`);
 }
 
@@ -86,7 +87,7 @@ export function sendUnverifiedCodeEmail(tenant: string, to: string, url: string,
   return platformSend(tenant, to, "Set your foldrun password to sign in",
     `Someone — hopefully you — asked for a sign-in code for ${to}${ip ? ` (from ${ip})` : ""}.\n\n` +
     `This address is not confirmed yet, so a code cannot sign you in. Set a password here instead; it also confirms ` +
-    `your address, and after that you can sign in with a password or an emailed code. The link works once and for 30 minutes:\n${url}\n\n` +
+    `your address, and after that you can sign in with a password or an emailed code. The link works once and for ${RESET_LIFETIME_TEXT}:\n${url}\n\n` +
     `If you did not ask, ignore this: nothing has changed and nobody can use this link without this email.\n`);
 }
 
@@ -140,12 +141,12 @@ export function sendVerifyEmail(tenant: string, to: string, url: string, opts?: 
     tenant,
     to,
     "Confirm your email for foldrun",
-    `Confirm that ${to} is yours:\n${url}\n\n${why}\n\nThe link is good for 24 hours.\n\n${notYou}\n`,
+    `Confirm that ${to} is yours:\n${url}\n\n${why}\n\nThe link is good for ${VERIFY_LIFETIME_TEXT}.\n\n${notYou}\n`,
     linkEmail({
       lead: `Confirm that <strong>${esc(to)}</strong> is yours.`,
       button: "Confirm this address",
       url,
-      after: `${esc(why)} The link is good for 24 hours. ${esc(notYou)}`,
+      after: `${esc(why)} The link is good for ${VERIFY_LIFETIME_TEXT}. ${esc(notYou)}`,
     }),
   );
 }
@@ -161,12 +162,12 @@ export function sendSignupLinkEmail(tenant: string, to: string, url: string) {
     tenant,
     to,
     "Create your foldrun account",
-    `Someone — probably you — asked for a foldrun account for ${to}.\n\nCreate it here (choose a name and a password; the link is good for 7 days):\n${url}\n\nIf it was not you, ignore this email: no account is made until the link is opened.\n`,
+    `Someone — probably you — asked for a foldrun account for ${to}.\n\nCreate it here (choose a name and a password; the link is good for ${SIGNUP_LINK_LIFETIME_TEXT}):\n${url}\n\nIf it was not you, ignore this email: no account is made until the link is opened.\n`,
     linkEmail({
       lead: `Someone — probably you — asked for a foldrun account for <strong>${esc(to)}</strong>.`,
       button: "Create my account",
       url,
-      after: "Choose a name and a password and the account is ready. The link is good for 7 days. If it was not you, ignore this email: no account is made until the link is opened.",
+      after: `Choose a name and a password and the account is ready. The link is good for ${SIGNUP_LINK_LIFETIME_TEXT}. If it was not you, ignore this email: no account is made until the link is opened.`,
     }),
     "account",
   );
@@ -190,7 +191,7 @@ export function sendEmailChangedNotice(tenant: string, oldAddress: string, newAd
  */
 export function sendEmailChangeConfirm(tenant: string, to: string, from: string, url: string) {
   const lead = `Someone signed in as ${from} asked to move their foldrun login to ${to}.`;
-  const after = `Nothing changes until you click. The link works once and for 24 hours. If you did not ask for this, ignore it.`;
+  const after = `Nothing changes until you click. The link works once and for ${VERIFY_LIFETIME_TEXT}. If you did not ask for this, ignore it.`;
   return platformSend(
     tenant,
     to,

@@ -43,9 +43,7 @@ export function readToken(kind: Kind, token: string): Record<string, string> | n
  *  password as it was when this was sent". Not the hash itself. */
 export const hashFingerprint = (hash: string) => crypto.createHash("sha256").update(hash).digest("hex").slice(0, 16);
 
-export const RESET_TTL_MS = 30 * 60 * 1000;
-export const VERIFY_TTL_MS = 24 * 60 * 60 * 1000;
+export { RESET_TTL_MS, VERIFY_TTL_MS, SIGNUP_LINK_TTL_MS } from "./lifetimes.ts";
 export const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 export const ENROL_TTL_MS = 10 * 60 * 1000;
-export const SIGNUP_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
