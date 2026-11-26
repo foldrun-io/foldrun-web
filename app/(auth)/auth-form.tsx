@@ -5,6 +5,7 @@
 // errors, redirect, disabled state — from drifting apart.
 
 import { $t } from "@/i18n";
+import { CODE_LIFETIME_TEXT } from "@/server/code-lifetime";
 import { useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -176,7 +177,7 @@ export function AuthForm({ mode, invite, setup, link, codeSignIn }: {
       </Field>}
       {!challenge && viaCode && codeAsked && (
         <>
-          <Callout tone="info">{$t("auth.auth-form.ifThatAddressCanSignIn")}</Callout>
+          <Callout tone="info">{$t("auth.auth-form.ifThatAddressCanSignIn", { lifetime: CODE_LIFETIME_TEXT })}</Callout>
           <Field label={$t("auth.auth-form.codeFromYourEmail")}>
             <Input name="code" inputMode="numeric" autoComplete="one-time-code" autoFocus required pattern="[0-9 ]{6,7}" placeholder="123 456" />
           </Field>
