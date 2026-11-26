@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
     // A scoped admin sees the keys it could have minted, not the account's.
     // A gateway key carries what it has spent; `gatewayUrl` is where a coding
     // agent points ANTHROPIC_BASE_URL (null where this install has none).
-    return NextResponse.json({ keys: await withGatewaySpend((await listApiKeys(tenant)).filter((k) => keyWithin(minter, k))), gatewayUrl: gatewayUrl() });
+    return NextResponse.json({ keys: await withGatewaySpend((await listApiKeys(tenant)).filter((k) => keyWithin(minter, k))), gatewayUrl: gatewayUrl(req) });
   } catch (err) {
     return errorResponse(err);
   }
@@ -170,7 +170,7 @@ async function postOnce(req: NextRequest) {
       detail: { label: record.label, prefix: record.prefix, role: record.role, workspaces: record.workspaces ?? null, expiresAt: record.expiresAt ?? null, ...access },
     });
     if (who && record.createdBy) sendSecurityNotice(tenant, record.createdBy, modelAccess ? "a new API key that may also call foldrun's models was created" : "a new API key was created", clientIp(req));
-    return NextResponse.json({ ok: true, key, id: record.id, prefix: record.prefix, role: record.role, workspaces: record.workspaces ?? null, expiresAt: record.expiresAt ?? null, ...access, ...(modelAccess ? { gatewayUrl: gatewayUrl() } : {}) });
+    return NextResponse.json({ ok: true, key, id: record.id, prefix: record.prefix, role: record.role, workspaces: record.workspaces ?? null, expiresAt: record.expiresAt ?? null, ...access, ...(modelAccess ? { gatewayUrl: gatewayUrl(req) } : {}) });
   } catch (err) {
     return errorResponse(err);
   }
@@ -343,7 +343,7 @@ async function mintGatewayKey(
       detail: { label: record.label, prefix: record.prefix, purpose: "gateway", credential: "login", plan, expiresAt: record.expiresAt ?? null },
     });
     if (who && record.createdBy) sendSecurityNotice(tenant, record.createdBy, "a new gateway key on this account's plan was created", clientIp(req));
-    return NextResponse.json({ ok: true, key, id: record.id, prefix: record.prefix, purpose: "gateway", credential: "login", plan, capUsd: null, dailyUsd: null, expiresAt: record.expiresAt ?? null, gatewayUrl: gatewayUrl() });
+    return NextResponse.json({ ok: true, key, id: record.id, prefix: record.prefix, purpose: "gateway", credential: "login", plan, capUsd: null, dailyUsd: null, expiresAt: record.expiresAt ?? null, gatewayUrl: gatewayUrl(req) });
   }
   const capUsd = usdLimit(body.capUsd, "capUsd");
   const dailyUsd = usdLimit(body.dailyUsd, "dailyUsd");
@@ -366,7 +366,7 @@ async function mintGatewayKey(
     detail: { label: record.label, prefix: record.prefix, purpose: "gateway", capUsd, dailyUsd, ...kind, expiresAt: record.expiresAt ?? null },
   });
   if (who && record.createdBy) sendSecurityNotice(tenant, record.createdBy, account ? "a new gateway key on this account's plan and credits was created" : "a new gateway key was created", clientIp(req));
-  return NextResponse.json({ ok: true, key, id: record.id, prefix: record.prefix, purpose: "gateway", capUsd, dailyUsd, ...kind, expiresAt: record.expiresAt ?? null, gatewayUrl: gatewayUrl() });
+  return NextResponse.json({ ok: true, key, id: record.id, prefix: record.prefix, purpose: "gateway", capUsd, dailyUsd, ...kind, expiresAt: record.expiresAt ?? null, gatewayUrl: gatewayUrl(req) });
 }
 
 export async function DELETE(req: NextRequest) {

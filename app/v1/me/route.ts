@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
             },
       // Where model calls go (the gateway's base, for ANTHROPIC_BASE_URL);
       // null where this install has none.
-      modelsUrl: gatewayUrl(),
+      modelsUrl: gatewayUrl(req),
     });
   } catch (err) {
     return errorResponse(err);

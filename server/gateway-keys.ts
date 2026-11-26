@@ -9,11 +9,14 @@ import { chargeMargin } from "@/platform/model-gateway";
 import { loginAllowedFor, providerOfModel } from "@/platform/gateway-door";
 import { billing } from "@/platform/billing";
 import { meterJobOf, modelGrantOf, type GatewayModels } from "@/platform/api-keys-db";
+import { addressFor } from "@/server/iran-front";
 
 /** The gateway's address, for ANTHROPIC_BASE_URL: FOLDRUN_GATEWAY_URL, or
- *  null where this install has none (infra routes a host to the door). */
-export function gatewayUrl(): string | null {
-  return process.env.FOLDRUN_GATEWAY_URL?.trim().replace(/\/+$/, "") || null;
+ *  null where this install has none (infra routes a host to the door). With
+ *  the request, a caller in Iran gets the install's Iran front instead
+ *  (FOL-398, server/iran-front.ts). */
+export function gatewayUrl(req?: { headers: Headers }): string | null {
+  return addressFor(req, process.env.FOLDRUN_GATEWAY_URL?.trim().replace(/\/+$/, "") || null);
 }
 
 /** Whether a gateway key may be minted here: the door reads its keys from

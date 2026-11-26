@@ -7,7 +7,7 @@ import { CopyField } from "@/components/copy-field";
 import { McpConnections } from "./mcp-connections";
 import { connectionView, listGrants } from "@/server/mcp-oauth";
 import { ScheduleInYourTime } from "./schedule-in-your-time";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { listApiKeys } from "@/server/auth";
 import { can } from "@/platform/permissions";
 import { verifySession, listMembers, listInvites, SESSION_COOKIE, viewerScope, viewerRole, viewerEmail, viewerSeesTokens } from "@/server/users";
@@ -471,7 +471,7 @@ async function ApiTab({
   const seesAllConnections = role === null || can(role, "keys:manage");
   const me = (await viewerEmail())?.toLowerCase() ?? null;
   const connections = (await listGrants(tenant)).filter((g) => seesAllConnections || g.email.toLowerCase() === me).map(connectionView);
-  const apiFacts = await apiFactsFor(tenant, scope);
+  const apiFacts = await apiFactsFor(tenant, scope, { headers: await headers() });
   const origin = installOrigin() ?? $t("settings.page.httpsThisInstall");
   return (
     <>
@@ -485,7 +485,7 @@ async function ApiTab({
           scoped={scope !== null}
           // A gateway key (Claude Code): offered where the door can read it,
           // to an admin of every workspace; the URL it is pointed at.
-          gateway={gatewayOffered() && scope === null ? { url: gatewayUrl(), login: await gatewayLoginOffered(tenant) } : null}
+          gateway={gatewayOffered() && scope === null ? { url: gatewayUrl({ headers: await headers() }), login: await gatewayLoginOffered(tenant) } : null}
           // For an A2A key: each workspace's flows, and which are published.
           a2aFlows={Object.fromEntries(workspaces.map((w) => [w, listFlows(tenant, w).map((f) => ({ name: f.name, published: f.a2a?.publish === true }))]))}
         />

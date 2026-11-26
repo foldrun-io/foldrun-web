@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     const { tenant, actor } = await requireCaller(req);
     // Who calls which route is the whole account's: shown to a caller with
     // every workspace (apiFactsFor).
-    return NextResponse.json(await apiFactsFor(tenant, actor.workspaces));
+    return NextResponse.json(await apiFactsFor(tenant, actor.workspaces, req));
   } catch (err) {
     return errorResponse(err);
   }
@@ -39,7 +39,7 @@ export async function PATCH(req: NextRequest) {
     }
     await updateAdminState(tenant, { apiVersion: version }, actor.name, "api-version", { version: version ?? null });
     forgetAccountProfile(tenant);
-    return NextResponse.json(await apiFactsFor(tenant));
+    return NextResponse.json(await apiFactsFor(tenant, null, req));
   } catch (err) {
     return errorResponse(err);
   }

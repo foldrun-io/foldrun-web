@@ -17,12 +17,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { mayReadProbeDetail } from "@/server/probe-access";
 import { versionInfo } from "@/server/release";
 import { apiOrigin, installOrigin } from "@/server/auth-flows";
+import { addressFor } from "@/server/iran-front";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const info = versionInfo();
-  const urls = { api: apiOrigin(), app: installOrigin() };
+  // A caller in Iran is given the Iran front as its API (FOL-398).
+  const urls = { api: addressFor(req, apiOrigin()), app: installOrigin() };
   // Every route is under /v1, at urls.api for programs (23 Nov 2026,
   // server/v1-path.ts): nothing to discover but the addresses.
   const body = (await mayReadProbeDetail(req)) ? { ...info, urls } : { version: info.version, api: info.api, urls };

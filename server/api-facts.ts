@@ -9,6 +9,7 @@ import { adminState } from "@/platform/admin";
 import { apiUsageFor } from "@/platform/api-usage";
 import { accountProfile, limitsFor } from "./api-limits.ts";
 import { apiOrigin, installOrigin } from "./auth-flows.ts";
+import { addressFor } from "./iran-front.ts";
 import { CURRENT_API_VERSION, DEPRECATIONS, VERSION_SUPPORT_MONTHS, releasedVersions, type Deprecation } from "./api-version.ts";
 
 /** The last 30 days, with each deprecated route's dates beside its use. */
@@ -34,7 +35,7 @@ export async function apiUsageFacts(tenant: string, deprecations: Deprecation[] 
  * caller limited to some gets `usage: null` and `usageHidden: true`, not the
  * account's numbers (30 Oct 2026).
  */
-export async function apiFactsFor(tenant: string, scope: readonly string[] | null = null) {
+export async function apiFactsFor(tenant: string, scope: readonly string[] | null = null, req?: { headers: Headers }) {
   const profile = await accountProfile(tenant);
   let pinned: string | null = null;
   try {
@@ -53,7 +54,7 @@ export async function apiFactsFor(tenant: string, scope: readonly string[] | nul
     // Where programs call (the one API: keys, the CLI, Claude Code) and
     // where people sign in; null where the install has no address of its
     // own for it (21 Nov 2026). /v1/version answers the same pair, open.
-    urls: { api: apiOrigin(), app: installOrigin() },
+    urls: { api: addressFor(req, apiOrigin()), app: installOrigin() },
     ...(scope === null ? { usage: await apiUsageFacts(tenant) } : { usage: null, usageHidden: true as const }),
   };
 }
