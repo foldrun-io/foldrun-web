@@ -10,10 +10,10 @@ import { sendVerifyEmail } from "@/server/email";
 import { billing } from "@/platform/billing";
 import { platform } from "@/lib/platform";
 import { verifyLink, publicOrigin } from "@/server/auth-flows";
-import { errorResponse, refuse } from "@/server/api";
+import { errorResponse, refuse, refuseWith } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
 import { clientIp, tooManyAttempts } from "@/server/limits";
-import { acceptInvite, createLinkedAccount, createUser, hasUsers, setEmailVerified, mintSession, sessionCookieOptions, SESSION_COOKIE, setupTokenRequired, setupTokenMatches } from "@/server/users";
+import { acceptInvite, createLinkedAccount, createUser, freeAccountNameFor, hasUsers, setEmailVerified, mintSession, sessionCookieOptions, SESSION_COOKIE, setupTokenRequired, setupTokenMatches } from "@/server/users";
 import { signupModesNow } from "@/server/signup";
 import { refuseNonText } from "@/server/auth-input";
 import { assertSignupAllowed, trialEligible } from "@/platform/signup";
@@ -22,6 +22,20 @@ import { listWorkspaces, saveWorkspace, templateFiles } from "@/lib/store";
 import { rateLimit } from "@/platform/cache";
 import { readSignupLink } from "@/server/signup-links";
 import { jsonObject } from "@/server/body";
+import { NAME_TAKEN } from "@/server/account-names";
+
+/** A taken account name is refused with a free one beside it (`code:
+ *  name_taken`, `suggestion`), so the form can offer it in one click. The
+ *  suggestion comes from the name and address the caller just sent, and
+ *  which names exist is already what the refusal says. Null for any other
+ *  refusal. */
+async function nameTakenAnswer(err: unknown, account: string, email: string) {
+  if (!(err instanceof Error) || err.message !== NAME_TAKEN) return null;
+  const carried = (err as { status?: unknown }).status;
+  const status = typeof carried === "number" ? carried : 400;
+  const suggestion = await freeAccountNameFor(account, email);
+  return refuseWith(NAME_TAKEN, status, { code: "name_taken", ...(suggestion ? { suggestion } : {}) });
+}
 
 // Signup had no limit at all, so the form could be asked about an unlimited
 // number of addresses as fast as the box would answer. Login has had these
@@ -80,7 +94,9 @@ export async function POST(req: NextRequest) {
       const link = readSignupLink(body.link);
       if (!link) return refuse("that sign-up link is no longer valid — ask for a new one where you got it", 400);
       if ((body.email ?? "").trim().toLowerCase() !== link.email) return refuse(`this link is for ${link.email} — sign up with that address`, 400);
-      const user = await createLinkedAccount(link.email, body.password ?? "", body.account ?? "");
+      const user = await createLinkedAccount(link.email, body.password ?? "", body.account ?? "").catch(async (err) => {
+        throw (await nameTakenAnswer(err, body.account ?? "", link.email)) ?? err;
+      });
       await setEmailVerified(user.id);
       await audit("account.created", { actor: user.email, tenant: user.tenant, subject: user.id, detail: { admission: "link", from: link.from } });
       saveWorkspace(user.tenant, "home", templateFiles("home"));
@@ -114,7 +130,9 @@ export async function POST(req: NextRequest) {
       assertSignupAllowed({ joining: false, request: "free", modes: signupModesNow(await hasUsers()), accountExists: false, emailTaken: false, nameTaken: false });
     }
     const joined = invited ? await acceptInvite(body.invite!, body.email ?? "", body.password ?? "") : null;
-    const user = joined ? joined.user : await createUser(body.email ?? "", body.password ?? "", body.account ?? "", { request: "free", setupToken: setupOk });
+    const user = joined ? joined.user : await createUser(body.email ?? "", body.password ?? "", body.account ?? "", { request: "free", setupToken: setupOk }).catch(async (err) => {
+      throw (await nameTakenAnswer(err, body.account ?? "", body.email ?? "")) ?? err;
+    });
     // The first line of an account's log, or the line where a person joined it.
     await audit(joined ? "member.joined" : "account.created", {
       actor: user.email,
@@ -145,6 +163,8 @@ export async function POST(req: NextRequest) {
     res.cookies.set(SESSION_COOKIE, session.value, sessionCookieOptions(req, session.expires));
     return res;
   } catch (err) {
+    // A refusal already shaped (nameTakenAnswer), thrown out of a .catch.
+    if (err instanceof Response) return err as NextResponse;
     return errorResponse(err);
   }
 }
