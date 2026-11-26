@@ -47,9 +47,10 @@ import { databaseEnabled, tx, users as usersTable, loginCodes, and, eq, lt, sql 
 import { opsError } from "@/lib/ops-log.ts";
 import { installKey } from "../../foldrun-core/src/webhook.ts";
 import { platformSend } from "@/server/email";
+import { CODE_MS, codeMailText } from "@/server/code-lifetime";
 
-/** How long an emailed code works. */
-export const CODE_MS = 5 * 60_000;
+/** How long an emailed code works (code-lifetime.ts, which its mail and page read too). */
+export { CODE_MS };
 /** One code per browser per this long. */
 export const RESEND_MS = 30_000;
 /** Wrong guesses one code survives; the third spends it. */
@@ -147,9 +148,7 @@ async function mailCode(tenant: string, to: string, code: string): Promise<boole
     tenant,
     to,
     "Your foldrun sign-in code",
-    `Your foldrun sign-in code is ${code}\n\n` +
-      `It works for 5 minutes, once, in the browser where you asked for it.\n` +
-      `If you did not ask for it, ignore this email: nobody can sign in with it without being in that browser.\n`,
+    codeMailText(code),
   );
   if (!res.ok) opsError("auth.login_code_not_sent", new Error(res.error));
   return res.ok;
