@@ -1,0 +1,27 @@
+{
+  "api-reference-page": {
+    "200Response": "پاسخ 200",
+    "apiReference": "مرجع API",
+    "docs": "مستندات",
+    "idempotencyKey": "idempotency-key",
+    "noKey": "بدون کلید",
+    "requestBody": "بدنه درخواست",
+    "schema": "اسکیما",
+    "tags": "تگ‌ها",
+    "versionEveryRouteFromApiOpenapi": "نسخه <span>{version}</span> · همه مسیرها، از <a>/v1/openapi.json</a> · <link>استفاده از API</link>"
+  },
+  "doc-page": {
+    "docs": "مستندات"
+  },
+  "page": {
+    "aSubagentAtClaudeAgentsName": "زیرایجنتی که در <code>.claude/agents/'<'name'>'.md</code> باشد اینجا به‌صورت ایجنت مستقر می‌شود و تبدیلی لازم نیست. <code>init</code> یک فایل CLAUDE.md هم می‌نویسد تا ویرایشگر شما قراردادها را بداند و حدس نزند.",
+    "agentsAreJustFoldersAndFlows": "ایجنت‌ها فقط پوشه‌اند و فلوها فهرست‌های شماره‌دار، پس مرحله build در کار نیست: ویرایش، بررسی، اجرا، استقرار. روی دستگاه خودتان شروع کنید؛ هیچ‌کدام به حساب نیاز ندارد.",
+    "also": "همچنین",
+    "checkIsFreeAndCatchesA": "<code>check</code> رایگان است و فلوی خراب را همان هنگام فرستادن پیدا می‌کند، نه ساعت ۳ بامداد که زمان‌بندی‌اش اجرا می‌شود. بعد از هر ویرایش اجرایش کنید، همان‌طور که typecheck را اجرا می‌کنید.",
+    "docs": "مستندات",
+    "howFoldrunReadsYourFiles": "foldrun فایل‌های شما را چطور می‌خواند",
+    "theLoop": "چرخه کار",
+    "theWholeGrammarOnOnePage": "کل دستور زبان در یک صفحه: هر فیلدی که یک ایجنت یا فلو می‌تواند داشته باشد، و کار هر کدام. صفحه‌ای که هنگام ویرایش باز نگه می‌دارید.",
+    "usingClaudeCode": "از Claude Code استفاده می‌کنید؟"
+  }
+}

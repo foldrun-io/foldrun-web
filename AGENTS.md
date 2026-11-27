@@ -84,9 +84,17 @@ what breaks them):
   built on first read. A single
   sentence is a function (`const hint = () => $t("…")`); a title is
   `generateMetadata`, never `export const metadata` with `$t`.
-- **Persian sentences live in `messages/fa/`**, laid over English: a key
-  Persian lacks shows the English sentence. Words come from
-  `foldrun-infra` `docs/persian-glossary.md`.
+- **Persian sentences live in `messages/fa/<area>.json`**, the same keys as
+  `messages/en`, laid over English: a key Persian lacks shows the English
+  sentence. A new English sentence gets its Persian one in the same change.
+  Words come from `foldrun-infra` `docs/persian-glossary.md`; the product's
+  nouns are `messages/fa/terms.json` (`{@workspace.one}` is «پروژه»). A
+  Persian sentence takes the same values, tags and plural argument as the
+  English one (`tests/locale.test.ts`); a counted noun stays singular.
+  Billing's Persian words are foldrun-admin's (`web/messages/fa/billing.json`).
+  An English page downloads none of them: only `i18n/persian.ts` imports
+  the Persian catalog, and the browser fetches it through
+  `i18n/persian-provider.tsx` on a Persian page alone.
 
 Mail, jobs and anything else outside a page render do not have a request:
 they are English until they take the language as an argument.

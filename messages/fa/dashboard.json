@@ -1,0 +1,65 @@
+{
+  "demo-button": {
+    "couldNotCreateTheDemo": "ایجاد نمونه ممکن نشد",
+    "creating": "در حال ایجاد…",
+    "tryTheDemoPipeline": "پایپ‌لاین نمونه را امتحان کنید"
+  },
+  "layout": {
+    "addAKey": "افزودن کلید",
+    "noModelKey": "بدون کلید مدل",
+    "nothingNewStartsInAnyTerm": "در هیچ {@workspace.one}ی اجرای جدیدی شروع نمی‌شود. <withEmails></withEmails>",
+    "onlyAnAdminCanAddIt": "فقط ادمین می‌تواند آن را اضافه کند؛ از یک ادمین بخواهید.",
+    "pausedBy": "{by} آن را موقتاً متوقف کرده است{v1}.",
+    "resume": "ازسرگیری",
+    "runsArePaused": "اجراها موقتاً متوقف شده‌اند",
+    "runsOnThisAccountAreRefused": "تا وقتی یک کلید API از ارائه‌دهنده مدل خود اضافه نکنید، اجراهای این حساب پذیرفته نمی‌شوند.",
+    "runsWillNotStartUntilIt": "{reason}. تا وقتی حساب به حالت عادی برنگردد، اجرایی شروع نمی‌شود؛ همه‌چیز در اینجا همچنان خواندنی می‌ماند. به ایمیلی که دریافت کرده‌اید پاسخ دهید، یا به hello@foldrun.io ایمیل بزنید.",
+    "thisAccountIsSuspended": "این حساب تعلیق شده است",
+    "noPlan": "بدون اشتراک",
+    "runsOnThisAccountAreRefusedNoPlan": "تا وقتی این حساب اشتراک نداشته باشد، اجراهای آن پذیرفته نمی‌شوند. استفاده از کلید مدل خودتان در این پلتفرم خاموش است.",
+    "seePlans": "مشاهده اشتراک‌ها",
+    "networkNotice": "اطلاعیه شبکه",
+    "networkNoticeRun": "<cmd></cmd> را در ترمینال اجرا کنید.",
+    "networkNoticeRestart": "برای گرفتن نشانی جدید، Claude Code را دوباره راه‌اندازی کنید."
+  },
+  "manage": {
+    "delete": "حذف"
+  },
+  "page": {
+    "7Days": "۷ روز",
+    "aWorkspaceHoldsItsOwnAgents": "هر {@workspace.one} ایجنت‌ها، فلوها، سکرت‌ها و اجراهای خودش را دارد. با نمونه شروع کنید: یک پایپ‌لاین چهارمرحله‌ای که در یک دقیقه اجرا می‌شود.",
+    "account": "حساب",
+    "agentFlow": "{agents} {v1, plural, one {ایجنت} other {ایجنت}} · {flows} {v3, plural, one {فلو} other {فلو}}",
+    "agentsFlows": "{agents} ایجنت · {flows} فلو",
+    "ago": "{what} · {label} {fmtSpan} پیش",
+    "itsOwnAgentsFlowsSecretsAnd": "ایجنت‌ها، فلوها، سکرت‌ها و اجراهای خودش را دارد. خالی شروع می‌شود: ایجنت‌ها را از یک {@workspace.one} دیگر درون‌ریزی کنید، یا خودتان بسازید.",
+    "lastRun": "آخرین اجرا",
+    "newWorkspace": "{@workspace.one} جدید",
+    "next": "بعدی",
+    "noRuns": "بدون اجرا",
+    "noRunsYet": "هنوز اجرایی نیست",
+    "noRunsYet2": "هنوز اجرایی نیست",
+    "noWorkspaceYet": "هنوز از {@workspace.other} چیزی نیست",
+    "recentRuns": "اجراهای اخیر",
+    "searchWorkspace": "جست‌وجوی {@workspace.other}…",
+    "setUpStepByStep": "راه‌اندازی گام‌به‌گام",
+    "tryTheDemoPipeline": "پایپ‌لاین نمونه را امتحان کنید",
+    "workspace": "{@workspace.Other}"
+  },
+  "run-button": {
+    "addCredit": "افزایش اعتبار",
+    "cancel": "انصراف",
+    "dismiss": "بستن",
+    "everyStepRunsSendsAreRefused": "همه مرحله‌ها اجرا می‌شوند؛ ارسال‌ها رد یا بی‌اثر می‌شوند، سکرت‌هایی که امکان ارسال می‌دهند داده نمی‌شوند و نوشته‌های state/ و storage/ به‌جای آن زیر خود اجرا نگه داشته می‌شوند",
+    "refused": "پذیرفته نشد ({status})",
+    "run": "اجرا",
+    "runStarted": "اجرا شروع شد",
+    "runWith": "اجرا با…",
+    "start": "شروع",
+    "startTest": "شروع تست",
+    "starting": "در حال شروع…",
+    "taskForThisRunOptional": "وظیفه این اجرا (اختیاری)",
+    "testRun": "<checkbox></checkbox>اجرای آزمایشی",
+    "yourRoleIsViewerRunningNeeds": "نقش شما بیننده است؛ اجرا کردن به نقش ویرایشگر یا بالاتر نیاز دارد"
+  }
+}

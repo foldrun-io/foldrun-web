@@ -15,10 +15,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { $t, MESSAGES, currentDir, currentLocale, localized, localizedList } from "@/i18n";
+import { execFileSync } from "node:child_process";
+import { $t, MESSAGES, currentDir, currentLocale, expandTerms, localized, localizedList } from "@/i18n";
+import { CATALOG_FA, TERMS_FA } from "@/i18n/persian";
 import { localeForHost } from "@/server/locale-host";
-import { CATALOG_FA } from "@/messages/fa";
 import { parse, TYPE, type MessageFormatElement } from "@formatjs/icu-messageformat-parser";
+const ROOT = path.resolve(import.meta.dirname, "..");
 import { importTimeCalls, pagesNotAwaiting } from "../scripts/i18n-import-time.mjs";
 
 /** The browser's side of currentLocale(): the document's own language. */
@@ -131,6 +133,7 @@ test("localized(): a table reads as itself, in the reader's language", () => {
 });
 
 type Tree = { [k: string]: string | Tree };
+const MESSAGES_FA = expandTerms(CATALOG_FA as unknown as Tree, TERMS_FA) as Tree;
 const leaves = (t: Tree, at = ""): [string, string][] =>
   Object.entries(t).flatMap(([k, v]) => (typeof v === "string" ? [[at + k, v] as [string, string]] : leaves(v, `${at}${k}.`)));
 /** The values and tags a message takes, read from its ICU syntax: `{n}`,
@@ -152,11 +155,35 @@ function holes(msg: string): string[] {
 
 test("Persian replaces only sentences English has, with the same values", () => {
   const english = new Map(leaves(MESSAGES as unknown as Tree));
-  for (const [key, fa] of leaves(CATALOG_FA as unknown as Tree)) {
+  for (const [key, fa] of leaves(MESSAGES_FA)) {
     const en = english.get(key);
     assert.ok(en !== undefined, `${key}: Persian for a sentence English does not have`);
     assert.deepEqual(holes(fa), holes(en), `${key}: the Persian sentence takes other values than the English one`);
   }
+});
+
+test("Persian's sentences are in no English page's download", () => {
+  // i18n/index.ts is in every browser bundle; only these may bring
+  // the Persian catalog (see i18n/persian.ts).
+  const allowed = new Set(["i18n/persian.ts", "i18n/persian-provider.tsx", "server/locale.ts", "app/layout.tsx"]);
+  // The provider asks for them with import(), never a static import: the
+  // browser is sent every file a layout names.
+  assert.match(fs.readFileSync(path.join(ROOT, "i18n/persian-provider.tsx"), "utf8"), /import\("\.\/persian"\)/);
+  assert.doesNotMatch(fs.readFileSync(path.join(ROOT, "i18n/persian-provider.tsx"), "utf8"), /^import .*["']\.\/persian["']/m);
+  // …and only for a Persian document (or on the server): every call of the
+  // loader outside its own definition is behind that check or inside the
+  // Persian branch.
+  const provider = fs.readFileSync(path.join(ROOT, "i18n/persian-provider.tsx"), "utf8");
+  const calls = provider.split("\n").filter((l) => /loadPersian\(\)/.test(l) && !/^function loadPersian/.test(l));
+  assert.deepEqual(calls.map((l) => l.trim()), [
+    'if (typeof document === "undefined" || document.documentElement.lang === "fa") void loadPersian();',
+    "if (!ready) use(loadPersian());",
+  ]);
+  assert.match(provider, /if \(locale === "fa"\) return <Persian>/);
+  const files = execFileSync("git", ["ls-files", "app", "components", "i18n", "server", "proxy.ts"], { cwd: ROOT, encoding: "utf8" }).split("\n").filter((f) => /\.tsx?$/.test(f));
+  const bad = files.filter((f) => !allowed.has(f) && /from "@\/messages\/fa|["']@\/i18n\/persian|["']\.\/persian/.test(fs.readFileSync(path.join(ROOT, f), "utf8")));
+  assert.deepEqual(bad, []);
+  assert.doesNotMatch(fs.readFileSync(path.join(ROOT, "i18n/index.ts"), "utf8"), /^import .*messages\/fa/m);
 });
 
 test("parity reads a message's syntax, not its words", () => {
@@ -168,7 +195,7 @@ test("parity reads a message's syntax, not its words", () => {
 test("a sentence Persian lacks is the English one, by English rules", (t) => {
   // Chosen from what is untranslated today, so translating a sentence never
   // breaks this; with everything translated there is nothing left to fall back.
-  const persian = new Set(leaves(CATALOG_FA as unknown as Tree).map(([k]) => k));
+  const persian = new Set(leaves(MESSAGES_FA).map(([k]) => k));
   const untranslated = leaves(MESSAGES as unknown as Tree).filter(([k]) => !persian.has(k));
   const plain = untranslated.find(([, m]) => !/[{<]/.test(m));
   // Persian counts 0 as "one"; an English sentence must still say "0 cases".

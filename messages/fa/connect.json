@@ -1,0 +1,23 @@
+{
+  "id-accept": {
+    "acceptAndContinue": "پذیرفتن و ادامه ←",
+    "cancel": "انصراف",
+    "couldNotStartTheConnection": "شروع اتصال ممکن نشد"
+  },
+  "id-page": {
+    "aConnectionWasStartedFromA": "یک اتصال از ترمینال شروع شده است. پیش از ادامه مطمئن شوید که مال شماست.",
+    "acceptingSendsYouToTheProvider": "با پذیرفتن، برای تأیید به سایت ارائه‌دهنده می‌روید؛ مجوز دسترسی در همین سکرت ذخیره می‌شود.",
+    "app": "برنامه",
+    "connectAnAccount": "اتصال یک حساب",
+    "itExpiredWasAlreadyUsedOr": "منقضی شده، قبلاً استفاده شده یا متعلق به حساب دیگری است. آن را از همان جایی که شروع کرده بودید دوباره شروع کنید.",
+    "scopes": "دامنه‌های دسترسی",
+    "secret": "سکرت",
+    "startedBy": "شروع‌کننده",
+    "storedIn": "محل ذخیره",
+    "theAccount": "حساب",
+    "theAppSDefault": "پیش‌فرض برنامه",
+    "theConnection": "اتصال",
+    "thisLinkNoLongerWorks": "این لینک دیگر کار نمی‌کند",
+    "workspaceNamed": "{@workspace.one} {name}"
+  }
+}

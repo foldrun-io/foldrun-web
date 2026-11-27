@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Vazirmatn } from "next/font/google";
 import "./globals.css";
 import { requestTheme } from "@/server/theme";
 import { $t, currentDir } from "@/i18n";
-import { LocaleProvider } from "@/i18n/locale-context";
+import { PageLocale } from "@/i18n/persian-provider";
 import { DirectionProvider } from "@foldrun/ui/react/direction";
 import { requestLocale } from "@/server/locale";
 
@@ -15,6 +15,15 @@ const sans = Geist({
 const mono = Geist_Mono({
   variable: "--font-mono-ui",
   subsets: ["latin"],
+});
+
+// Persian pages are set in Vazirmatn (owner, 27 Nov 2026). Not preloaded: an
+// English page never asks for it, and a Persian one fetches it by the rule in
+// globals.css. Latin letters inside Persian text stay in Geist.
+const persian = Vazirmatn({
+  variable: "--font-fa-ui",
+  subsets: ["arabic"],
+  preload: false,
 });
 
 // The pitch moved to site/. This title is what a signed-in person sees in a
@@ -39,9 +48,9 @@ export default async function RootLayout({
       lang={locale}
       dir={currentDir()}
       data-theme={theme}
-      className={`${sans.variable} ${mono.variable} h-full antialiased`}
+      className={`${sans.variable} ${mono.variable} ${persian.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col"><LocaleProvider locale={locale}><DirectionProvider dir={currentDir()}>{children}</DirectionProvider></LocaleProvider></body>
+      <body className="min-h-full flex flex-col"><PageLocale locale={locale}><DirectionProvider dir={currentDir()}>{children}</DirectionProvider></PageLocale></body>
     </html>
   );
 }

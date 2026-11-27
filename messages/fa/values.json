@@ -1,0 +1,99 @@
+{
+  "deliveryStatus": {
+    "delivered": "تحویل شد",
+    "failed": "ناموفق",
+    "retrying": "در حال تلاش دوباره",
+    "skipped": "رد شد"
+  },
+  "evalResult": {
+    "error": "خطا",
+    "fail": "ناموفق",
+    "pass": "موفق"
+  },
+  "fileChange": {
+    "added": "افزوده شد",
+    "changed": "تغییر کرد",
+    "created": "ایجاد شد",
+    "deleted": "حذف شد",
+    "edited": "ویرایش شد",
+    "new": "جدید",
+    "removed": "حذف شد",
+    "updated": "به‌روز شد"
+  },
+  "issueStatus": {
+    "acknowledged": "دیده شد",
+    "resolved": "حل شد",
+    "snoozed": "به تعویق افتاد"
+  },
+  "linkKind": {
+    "consult": "مشورت",
+    "subAgent": "زیرایجنت"
+  },
+  "linkState": {
+    "closed": "بسته",
+    "connecting": "در حال اتصال",
+    "last": "آخرین",
+    "live": "زنده",
+    "reconnecting": "در حال اتصال دوباره"
+  },
+  "misc": {
+    "changes": "{n, plural, one {# تغییر} other {# تغییر}}",
+    "hide": "پنهان کردن",
+    "inputOutput": "ورودی / خروجی"
+  },
+  "providerVerdict": {
+    "busy": "مشغول",
+    "credential": "اطلاعات ورود",
+    "notFound": "پیدا نشد",
+    "ok": "سالم",
+    "providerError": "خطای ارائه‌دهنده",
+    "unreachable": "خارج از دسترس"
+  },
+  "role": {
+    "admin": "ادمین",
+    "editor": "ویرایشگر",
+    "owner": "مالک",
+    "viewer": "بیننده"
+  },
+  "runStatus": {
+    "awaitingApproval": "در انتظار تأیید",
+    "completed": "انجام شد",
+    "failed": "ناموفق",
+    "queued": "در صف",
+    "running": "در حال اجرا",
+    "stopped": "متوقف شد"
+  },
+  "size": {
+    "unrecorded": "ثبت‌نشده"
+  },
+  "stepStatus": {
+    "awaitingApproval": "در انتظار تأیید",
+    "completed": "انجام شد",
+    "failed": "ناموفق",
+    "pending": "در انتظار",
+    "running": "در حال اجرا",
+    "skipped": "رد شد"
+  },
+  "switch": {
+    "off": "خاموش",
+    "on": "روشن"
+  },
+  "targetKind": {
+    "agent": "ایجنت",
+    "eval": "ارزیابی",
+    "flow": "فلو"
+  },
+  "trend": {
+    "down": "کاهش",
+    "up": "افزایش"
+  },
+  "webhookOutcome": {
+    "accepted": "پذیرفته شد",
+    "dropped": "نادیده گرفته شد",
+    "error": "خطا",
+    "invalidSignature": "امضای نامعتبر",
+    "invalidToken": "توکن نامعتبر",
+    "noFlow": "فلو پیدا نشد",
+    "notWebhook": "وب‌هوک نیست"
+  }
+}

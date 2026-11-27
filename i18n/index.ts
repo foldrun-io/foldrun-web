@@ -24,7 +24,6 @@ import * as React from "react";
 import type { ReactNode } from "react";
 import { createTranslator } from "use-intl/core";
 import { CATALOG } from "@/messages/en";
-import { CATALOG_FA } from "@/messages/fa";
 import TERMS from "@/messages/en/terms.json" with { type: "json" };
 import { LocaleContext, type Locale } from "./locale-context";
 
@@ -112,7 +111,11 @@ function standIn<T extends object>(shape: T, build: () => T): T {
   const now = (): T => {
     const locale = currentLocale();
     let value = made.get(locale);
-    if (!value) made.set(locale, (value = build()));
+    if (value) return value;
+    value = build();
+    // Persian words not handed over yet: the table is English for now, so it
+    // is not kept as the Persian one.
+    if (locale !== "fa" || PERSIAN) made.set(locale, value);
     return value;
   };
   return new Proxy(shape, {
@@ -182,8 +185,24 @@ function layOver(base: Tree, over: Tree): Tree {
 const ENGLISH = createTranslator({ locale: "en", messages: MESSAGES });
 // Persian holds only its own sentences, laid over English so every key
 // resolves; which keys are really Persian is kept beside it.
-const PERSIAN = createTranslator({ locale: "fa", messages: layOver(MESSAGES as Tree, CATALOG_FA as unknown as Tree) as typeof MESSAGES });
-const IN_PERSIAN = new Set(keysOf(CATALOG_FA as unknown as Tree));
+// Persian holds only its own sentences, laid over English so every key
+// resolves; which keys are really Persian is kept beside it. Its catalog is
+// not imported here: this file is in every page's browser bundle, and an
+// English page must not download Persian. i18n/persian.ts hands it over
+// (registerPersian) where a Persian page is made: on the server for every
+// request (server/locale.ts), in the browser by the provider the root layout
+// renders around a Persian page only (i18n/persian-provider.tsx).
+let PERSIAN: typeof ENGLISH | null = null;
+let IN_PERSIAN = new Set<string>();
+
+/** i18n/persian.ts only: Persian's sentences and nouns. */
+export function registerPersian(catalog: Tree, terms: Record<string, Forms>): void {
+  // Called once per load of persian.ts; a second call (an edited file in
+  // development) replaces the first.
+  const own = expandTerms(catalog, terms);
+  IN_PERSIAN = new Set(keysOf(own));
+  PERSIAN = createTranslator({ locale: "fa", messages: layOver(MESSAGES as Tree, own) as typeof MESSAGES });
+}
 
 function keysOf(t: Tree, at = ""): string[] {
   return Object.entries(t).flatMap(([k, v]) => (typeof v === "string" ? [at + k] : keysOf(v, `${at}${k}.`)));
@@ -193,7 +212,7 @@ function keysOf(t: Tree, at = ""): string[] {
  *  it lacks is written by the English translator, so its plurals and numbers
  *  follow English rules ("0 cases"), not Persian rules on English words. */
 function translatorFor(key: string): typeof ENGLISH {
-  return currentLocale() === "fa" && IN_PERSIAN.has(key) ? PERSIAN : ENGLISH;
+  return currentLocale() === "fa" && PERSIAN && IN_PERSIAN.has(key) ? PERSIAN : ENGLISH;
 }
 
 type Values = Record<string, string | number | Date>;

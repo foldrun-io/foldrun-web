@@ -32,6 +32,26 @@ body {
   letter-spacing: -0.02em;
 }
 
+/* Persian pages (a host in FOLDRUN_FA_HOSTS): Vazirmatn for Persian letters,
+   Geist still for Latin ones. Geist comes first by its own name: it has no
+   Persian letters, so those go on to Vazirmatn. (next/font's variables
+   cannot be used here: each carries a metric-matched system fallback that
+   does have Persian letters, and Vazirmatn's files include Latin ones.
+   The font-sans class is named because Tailwind writes the font into it.)
+   Letter spacing is for Latin type: on joined Persian letters it opens gaps
+   or collides them, so it is off. */
+html[lang="fa"] {
+  --font-sans: "Geist", "Vazirmatn", "Vazirmatn Fallback", system-ui, sans-serif;
+}
+html[lang="fa"] body,
+html[lang="fa"] .font-sans,
+html[lang="fa"] .font-cal {
+  font-family: "Geist", "Vazirmatn", "Vazirmatn Fallback", system-ui, sans-serif;
+}
+html[lang="fa"] * {
+  letter-spacing: 0 !important;
+}
+
 /* React Flow (the flow canvas, the graph): its own variables, pointed at
    ours, so the dots, controls and minimap follow the theme too. */
 .react-flow {
