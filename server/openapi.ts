@@ -112,11 +112,16 @@ const PricingCatalogueSchema: Schema = obj({
     id: str("starter | pro | max"), name: str(), priceUsd: { type: "number", description: "thirty days, USD — the console's gateway.plan_<size>_usd" },
     periodDays: int,
     model: obj({ weekUsd: { type: ["number", "null"], description: "the model allowance in a 7-day window, USD at list prices" }, monthUsd: { type: ["number", "null"], description: "the same for the 30-day period" } }),
+    storageGb: { type: "number", description: "GB of stored files the size includes; beyond it storage is charged by the GB-month" },
     fable: { type: "boolean", description: "Fable models are inside the allowance (Max only)" },
     upgradeTo: { type: ["string", "null"], description: "the size one up; null at the top" },
   }), "the one subscription's sizes on sale, smallest first; a size the console has no price for is not listed"),
   contact: obj({ label: str() }),
   meters: arr(obj({ meter: str("vcpu | ram | disk | storage | network"), unit: str(), usd: { type: "number" }, over: str("what the rate applies over, when it is not every unit") })),
+  tools: arr(obj({
+    tool: str("web_search | web_fetch | web_browse | extract | docs"), unit: str("call, browser-minute, page, …"), usd: { type: "number", description: "USD per unit, the console's pricing.tool_*" },
+    minimum: str("the least charged, e.g. 1 minute"), charged: { type: "boolean", description: "false: listed, not charged yet" },
+  }), "the platform tools' prices; a failed call is free"),
   example: obj({ name: str(), vcpu: { type: "number" }, memGiB: { type: "number" }, creditsPerHour: { type: "number" } }),
   models: obj({
     margin: { type: "number" }, providers: arr(str()), soon: arr(str(), "providers on their way"),

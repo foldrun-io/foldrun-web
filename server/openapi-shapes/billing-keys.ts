@@ -184,6 +184,7 @@ const CodingPlan = obj(
 // the coding agent and the account's automations add to the same totals.
 const PlanAllowance = obj({
   windows: { type: "array", items: obj({ name: { type: "string", enum: ["month", "week"] } as Schema, usedPct: nullable(num), resetsAt: str("ISO time") }) } as Schema,
+  storageGb: { type: "number", description: "GB of stored files the plan includes" } as Schema,
   extraUsage: bool,
   room: { type: "boolean", description: "whether a new automation would run inside the plan now" } as Schema,
   freeAt: nullable(str("ISO time: when there is room again")),
