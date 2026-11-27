@@ -20,7 +20,7 @@
     "cached": "از کش",
     "change": "تغییر",
     "charged": "کسرشده",
-    "chargedSpendFromTheLedgerLast": "هزینه کسرشده طبق دفتر حساب، {length} {bucket}{length, plural, one {} other {}} اخیر",
+    "chargedSpendFromTheLedgerLast": "هزینه کسرشده طبق دفتر حساب، {length} {bucket, select, week {هفته} other {روز}} اخیر",
     "compute": "پردازش",
     "cpuSAndGibSReserved": "{v0} · {v1} CPU·s و {v2} GiB·s رزرو شده",
     "eachWorkspaceWithItsFlowsAnd": "هر {@workspace.one}، با تفکیک فلوها و ایجنت‌هایش.",
@@ -63,7 +63,7 @@
     "tokensInOutColumn": "توکن ورودی/خروجی",
     "total": "جمع کل",
     "usage": "مصرف",
-    "whatItCostsBy": "هزینه به تفکیک {bucket}",
+    "whatItCostsBy": "هزینه به تفکیک {bucket, select, week {هفته} other {روز}}",
     "whereTheMoneyWentThisWindow": "پول در این بازه کجا خرج شد",
     "wholeWorkspace": "کل {@workspace.one}"
   },

@@ -3,7 +3,7 @@ import { Geist, Geist_Mono, Vazirmatn } from "next/font/google";
 import "./globals.css";
 import { requestTheme } from "@/server/theme";
 import { $t, currentDir } from "@/i18n";
-import { LocaleProvider } from "@/i18n/locale-context";
+import { PageLocale } from "@/i18n/persian-provider";
 import { DirectionProvider } from "@foldrun/ui/react/direction";
 import { requestLocale } from "@/server/locale";
 
@@ -50,7 +50,7 @@ export default async function RootLayout({
       data-theme={theme}
       className={`${sans.variable} ${mono.variable} ${persian.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col"><LocaleProvider locale={locale}><DirectionProvider dir={currentDir()}>{children}</DirectionProvider></LocaleProvider></body>
+      <body className="min-h-full flex flex-col"><PageLocale locale={locale}><DirectionProvider dir={currentDir()}>{children}</DirectionProvider></PageLocale></body>
     </html>
   );
 }

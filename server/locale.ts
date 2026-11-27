@@ -8,6 +8,8 @@
 import { cache } from "react";
 import { headers } from "next/headers";
 import { setRequestLocale, type Locale } from "@/i18n";
+// Server components read Persian from here: this file is never in a browser bundle.
+import "@/i18n/persian";
 
 export const LOCALE_HEADER = "x-foldrun-locale";
 

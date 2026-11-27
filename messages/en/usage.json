@@ -20,7 +20,7 @@
     "cached": "Cached",
     "change": "Change",
     "charged": "Charged",
-    "chargedSpendFromTheLedgerLast": "Charged spend from the ledger, last {length} {bucket}{length, plural, one {} other {s}}",
+    "chargedSpendFromTheLedgerLast": "Charged spend from the ledger, last {length} {bucket, select, week {{length, plural, one {week} other {weeks}}} other {{length, plural, one {day} other {days}}}}",
     "compute": "Compute",
     "cpuSAndGibSReserved": "{v0} · {v1} CPU·s and {v2} GiB·s reserved",
     "eachWorkspaceWithItsFlowsAnd": "Each {@workspace.one}, with its flows and agents broken out.",
@@ -63,7 +63,7 @@
     "tokensInOutColumn": "Tokens in/out",
     "total": "Total",
     "usage": "Usage",
-    "whatItCostsBy": "What it costs, by {bucket}",
+    "whatItCostsBy": "What it costs, by {bucket, select, week {week} other {day}}",
     "whereTheMoneyWentThisWindow": "Where the money went, this window",
     "wholeWorkspace": "whole {@workspace.one}"
   },

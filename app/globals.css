@@ -33,15 +33,20 @@ body {
 }
 
 /* Persian pages (a host in FOLDRUN_FA_HOSTS): Vazirmatn for Persian letters,
-   Geist still for Latin ones (Vazirmatn's Arabic subset has none, so the
-   browser goes on to the next face). Letter spacing is for Latin type: on
-   joined Persian letters it opens gaps or collides them, so it is off. */
+   Geist still for Latin ones. Geist comes first by its own name: it has no
+   Persian letters, so those go on to Vazirmatn. (next/font's variables
+   cannot be used here: each carries a metric-matched system fallback that
+   does have Persian letters, and Vazirmatn's files include Latin ones.
+   The font-sans class is named because Tailwind writes the font into it.)
+   Letter spacing is for Latin type: on joined Persian letters it opens gaps
+   or collides them, so it is off. */
 html[lang="fa"] {
-  --font-sans: var(--font-fa-ui), var(--font-sans-ui, system-ui), system-ui, sans-serif;
+  --font-sans: "Geist", "Vazirmatn", "Vazirmatn Fallback", system-ui, sans-serif;
 }
 html[lang="fa"] body,
+html[lang="fa"] .font-sans,
 html[lang="fa"] .font-cal {
-  font-family: var(--font-fa-ui), var(--font-sans-ui), system-ui, sans-serif;
+  font-family: "Geist", "Vazirmatn", "Vazirmatn Fallback", system-ui, sans-serif;
 }
 html[lang="fa"] * {
   letter-spacing: 0 !important;

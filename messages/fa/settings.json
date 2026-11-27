@@ -367,7 +367,7 @@
     "workspace": "{@workspace.Other}",
     "workspaceThatMayUse": "کدام {@workspace.Other} می‌توانند از {name} استفاده کنند",
     "workspaceThatMayUseIt": "کدام {@workspace.Other} می‌توانند از آن استفاده کنند",
-    "workspaces": "پروژه‌ها:"
+    "workspaces": "{@workspace.Other}:"
   },
   "customers": {
     "anAdminWithEveryWorkspaceChanges": "ادمینی که به هر {@workspace.one} دسترسی دارد این‌ها را تغییر می‌دهد.",

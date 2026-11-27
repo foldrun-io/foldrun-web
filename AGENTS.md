@@ -92,6 +92,9 @@ what breaks them):
   Persian sentence takes the same values, tags and plural argument as the
   English one (`tests/locale.test.ts`); a counted noun stays singular.
   Billing's Persian words are foldrun-admin's (`web/messages/fa/billing.json`).
+  An English page downloads none of them: only `i18n/persian.ts` imports
+  the Persian catalog, and the browser fetches it through
+  `i18n/persian-provider.tsx` on a Persian page alone.
 
 Mail, jobs and anything else outside a page render do not have a request:
 they are English until they take the language as an argument.
