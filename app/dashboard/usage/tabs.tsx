@@ -197,19 +197,18 @@ export function RatesTab({ rates, catalogue, planId }: { rates: MeterRates | nul
       )}
       {catalogue && (
         <div className="mt-4">
+          {/* The one subscription's sizes, as Billing → Plan sells them (27 Nov 2026): the same catalogue, every figure the console's. */}
           <DataTable
-            title={$t("usage.tabs.plans")}
-            minWidth="min-w-[720px]"
-            columns={[{ label: $t("usage.tabs.plan") }, { label: $t("usage.tabs.price"), align: "right" }, { label: $t("usage.tabs.creditsAMonth2"), align: "right" }, { label: $t("usage.tabs.storage"), align: "right" }, { label: $t("usage.tabs.computeAtOnce"), align: "right" }, { label: $t("usage.tabs.queue") }]}
-            rows={catalogue.plans.map((p) => ({
+            title={$t("usage.tabs.subscriptionSizes")}
+            minWidth="min-w-[560px]"
+            columns={[{ label: $t("usage.tabs.plan") }, { label: $t("usage.tabs.price"), align: "right" }, { label: $t("usage.tabs.modelAWeek"), align: "right" }, { label: $t("usage.tabs.modelAMonth"), align: "right" }]}
+            rows={(catalogue.subscriptions ?? []).map((p) => ({
               key: p.id,
               cells: [
                 <span key="n" className="font-medium">{p.name}{p.id === planId && <Chip tone="good" className="ml-2">{$t("usage.tabs.yours")}</Chip>}</span>,
-                p.feeUsd === 0 ? $t("usage.tabs.free") : `${usd(p.feeUsd)}/month`,
-                p.creditsPerMonth,
-                `${p.storageGb} GB`,
-                $t("usage.tabs.vcpuGib", { vcpu: String(p.computeAtOnce.vcpu), memGiB: String(p.computeAtOnce.memGiB) }),
-                p.lane === "fast" ? "fast" : "normal",
+                $t("usage.tabs.per30Days", { usd: usd(p.priceUsd) }),
+                p.model.weekUsd === null ? $t("usage.tabs.notLimited") : usd(p.model.weekUsd),
+                p.model.monthUsd === null ? $t("usage.tabs.notLimited") : usd(p.model.monthUsd),
               ],
             }))}
           />

@@ -141,7 +141,7 @@ const PARTNER_TOPUPS: Record<string, Shape> = {
     status: "201",
     body: obj({
       account: str(), usd: num, toman: { ...int, description: "the figure the customer was shown; 409 with a new quote when the rate moved" },
-      plan: obj({ plan: { type: "string", enum: ["pro", "max"] } as Schema, newOnly: bool, maxUsd: num }, ["plan"]),
+      plan: obj({ plan: { type: "string", enum: ["starter", "pro", "max"] } as Schema, newOnly: bool, maxUsd: num }, ["plan"]),
     }, ["account", "usd", "toman"]),
     response: obj({ order: PartnerOrder }),
   },
@@ -155,7 +155,7 @@ const PARTNER_TOPUPS: Record<string, Shape> = {
   "POST /v1/billing/partner/topups/{id}/failed": { body: obj({ reason: str() }), response: obj({ order: PartnerOrder }) },
   "POST /v1/billing/partner/signups": {
     status: "202",
-    body: obj({ email: str("the address to open an account for"), ip: str("the customer's address, for the per-address limit") }, ["email"]),
+    body: obj({ email: str("the address to open an account for"), ip: str("the customer's address, for the per-address limit"), next: str("charge | plans — where the link returns the customer (default charge)"), plan: { type: "string", enum: ["starter", "pro", "max"], description: "with next: plans, the size the customer chose" } as Schema }, ["email"]),
     response: obj({ status: str("sent: the link is mailed; exists: the address already has a login (answered 200)") }),
   },
 };
@@ -163,13 +163,13 @@ const PARTNER_TOPUPS: Record<string, Shape> = {
 // The foldrun subscription (14 Nov 2026, FOL-173; one for every hosted
 // account since 23 Nov 2026): Pro or Max, paid from the wallet for thirty
 // days and renewed from it.
-const PLAN_NAME = { type: "string", enum: ["pro", "max"] } as Schema;
+const PLAN_NAME = { type: "string", enum: ["starter", "pro", "max"] } as Schema;
 const CodingPlan = obj(
   {
     plan: PLAN_NAME,
     // null must be in the enum as well as the type (Codex): a plan with no
     // change waiting answers nextPlan: null.
-    nextPlan: { type: ["string", "null"], enum: ["pro", "max", null], description: "a change that takes effect at the renewal (a downgrade), or null" } as Schema,
+    nextPlan: { type: ["string", "null"], enum: ["starter", "pro", "max", null], description: "a change that takes effect at the renewal (a downgrade), or null" } as Schema,
     status: { type: "string", enum: ["active", "ended"] } as Schema,
     periodStart: str("ISO time"),
     periodEnd: str("ISO time; renewed from the wallet then, unless cancelled"),
@@ -208,8 +208,8 @@ const ExtraUsage = obj(
   ["on", "capUsd", "spentUsd", "heldUsd", "periodStart", "periodEnd"],
 );
 const PlanOffer = obj({
-  prices: obj({ pro: nullable(num), max: nullable(num) }),
-  available: obj({ pro: bool, max: bool }),
+  prices: obj({ starter: nullable(num), pro: nullable(num), max: nullable(num) }),
+  available: obj({ starter: bool, pro: bool, max: bool }),
   plan: nullable(CodingPlan),
   balanceUsd: num,
   allowance: nullable(PlanAllowance),
@@ -238,12 +238,12 @@ const CODING_PLANS: Record<string, Shape> = {
   },
   "DELETE /v1/billing/coding-plan": { noBody: "stops the renewal; the plan runs to the end of its period", response: obj({ plan: nullable(CodingPlan) }) },
   "POST /v1/billing/partner/plans": {
-    body: obj({ account: str("a sign-in email or the account id"), plan: PLAN_NAME }, ["account", "plan"]),
+    body: obj({ account: str("a sign-in email or the account id"), plan: PLAN_NAME, maxUsd: { type: "number", description: "the most this purchase may charge, USD — the price the customer confirmed" } as Schema, newOnly: { type: "boolean", description: "default true: refuse when the account already has a live plan" } as Schema }, ["account", "plan", "maxUsd"]),
     response: obj({ account: obj({ label: str() }), plan: CodingPlan, chargedUsd: num }),
   },
   "POST /v1/billing/partner/plans/offer": {
     body: obj({ account: str("a sign-in email or the account id") }, ["account"]),
-    response: obj({ account: obj({ label: str() }), prices: obj({ pro: nullable(num), max: nullable(num) }), available: obj({ pro: bool, max: bool }), plan: nullable(CodingPlan), balanceUsd: num }),
+    response: obj({ account: obj({ label: str() }), prices: obj({ starter: nullable(num), pro: nullable(num), max: nullable(num) }), available: obj({ starter: bool, pro: bool, max: bool }), plan: nullable(obj({ plan: PLAN_NAME, status: str(), periodEnd: str() })), shortfallUsd: obj({ starter: nullable(num), pro: nullable(num), max: nullable(num) }) }),
   },
 };
 

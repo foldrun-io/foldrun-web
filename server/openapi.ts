@@ -107,7 +107,14 @@ const MeterRatesSchema: Schema = obj({
 const PricingCatalogueSchema: Schema = obj({
   version: { ...int, description: "the settings version the figures were read at" },
   creditUsd: { type: "number" },
-  plans: arr(obj(PlanTermsProps)),
+  plans: arr(obj(PlanTermsProps), "the old platform plans still sold: none since 27 Nov 2026"),
+  subscriptions: arr(obj({
+    id: str("starter | pro | max"), name: str(), priceUsd: { type: "number", description: "thirty days, USD — the console's gateway.plan_<size>_usd" },
+    periodDays: int,
+    model: obj({ weekUsd: { type: ["number", "null"], description: "the model allowance in a 7-day window, USD at list prices" }, monthUsd: { type: ["number", "null"], description: "the same for the 30-day period" } }),
+    fable: { type: "boolean", description: "Fable models are inside the allowance (Max only)" },
+    upgradeTo: { type: ["string", "null"], description: "the size one up; null at the top" },
+  }), "the one subscription's sizes on sale, smallest first; a size the console has no price for is not listed"),
   contact: obj({ label: str() }),
   meters: arr(obj({ meter: str("vcpu | ram | disk | storage | network"), unit: str(), usd: { type: "number" }, over: str("what the rate applies over, when it is not every unit") })),
   example: obj({ name: str(), vcpu: { type: "number" }, memGiB: { type: "number" }, creditsPerHour: { type: "number" } }),

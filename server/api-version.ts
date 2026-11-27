@@ -232,6 +232,16 @@ export const SCHEMA_CORRECTIONS: { method: string; path: string; reason: string 
     path: "/v1/billing",
     reason: "balance was documented but never answered — the field has always been balanceUsd (corrected 30 Oct 2026)",
   },
+  {
+    method: "POST",
+    path: "/v1/billing/partner/plans",
+    reason: "maxUsd was left out of the document; the route has refused a purchase without it (400) since it was built (corrected 27 Nov 2026, FOL-413)",
+  },
+  {
+    method: "POST",
+    path: "/v1/billing/partner/plans/offer",
+    reason: "the document showed the account's whole plan and balanceUsd; the route has only ever answered plan { plan, status, periodEnd } and shortfallUsd per size (corrected 27 Nov 2026, FOL-413)",
+  },
 ];
 
 /** `Deprecation: @<epoch>` (RFC 9745), `Sunset: <HTTP-date>` (RFC 8594) and

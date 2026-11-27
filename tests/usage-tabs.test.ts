@@ -67,13 +67,15 @@ test("Compute shows meters with quantity, rate and credits, the plan fee on its 
   assert.match(tabs, /No compute in this period/);
 });
 
-test("Rates shows the rates, the plans (without a runs-at-once column) and the models; empty says nothing is billed", () => {
+test("Rates shows the rates, the subscription's sizes (price and model allowance, no old plan) and the models; empty says nothing is billed", () => {
   const tabs = read("app/dashboard/usage/tabs.tsx");
   assert.match(tabs, /title="What you are charged"/);
-  assert.match(tabs, /title="Plans"/);
+  assert.match(tabs, /title="The subscription"/);
+  assert.match(tabs, /catalogue\.subscriptions/, "the sizes come from the catalogue, every figure the console's");
+  assert.match(tabs, /Model usage a week/);
   assert.match(tabs, /Nothing is billed here/);
   assert.doesNotMatch(tabs, /runs at once|concurrency/i, "runs at once is not sold");
-  assert.match(tabs, /Compute at once/);
+  assert.doesNotMatch(tabs, /catalogue\.plans/, "the old platform plans are not shown (27 Nov 2026)");
 });
 
 test("the credits block keeps the pots apart and says plan credits never pay for tokens", () => {

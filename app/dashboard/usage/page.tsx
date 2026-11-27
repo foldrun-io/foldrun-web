@@ -163,6 +163,10 @@ export default async function UsagePage({
   // and it survives runs being pruned — which is exactly when a desk's cost
   // history starts being worth having.
   const history = tab === "overview" ? await spendHistory(tenant, 56, { workspaces: scope }) : null;
+  // The "yours" mark on the Rates tab: the subscription size the account is on,
+  // never an old platform plan's id (Codex, 27 Nov 2026).
+  const ent = tab === "rates" ? await billing().entitlement?.(tenant).catch(() => null) : null;
+  const subscriptionSize = ent && ent.kind === "active" && ent.source === "subscription" ? ent.plan : null;
 
   return (
     <Page className="pb-16">
@@ -200,7 +204,7 @@ export default async function UsagePage({
 
       {tab === "tokens" && <TokensTab u={u} />}
       {tab === "compute" && <ComputeTab u={u} />}
-      {tab === "rates" && <RatesTab rates={rates} catalogue={catalogue} planId={u.credits?.plan?.id ?? null} />}
+      {tab === "rates" && <RatesTab rates={rates} catalogue={catalogue} planId={subscriptionSize} />}
       {tab === "overview" && (
         <>
           <CreditsBlock c={u.credits} />
