@@ -703,6 +703,8 @@ const IDEMPOTENT_ROUTES = new Set(ROUTES.flatMap((r) => (r.idempotent ?? []).map
 /** Statuses a route answers by design that the general rules above do not
  *  cover — found by the API fuzz (quality/fuzz.sh, 27 Oct 2026). */
 const EXTRA_STATUSES: Record<string, string[]> = {
+  // Past 64 KiB of upload (FOL-402, the road test).
+  "POST /v1/network/bytes": ["413"],
   // An unknown or spent sign-in code.
   "GET /v1/cli/authorize": ["404"],
   // Nothing to fix, a proposal for that eval already open, or paused.
@@ -950,9 +952,19 @@ export function openapiDocument(origin?: string): Schema {
             error: obj(
               {
                 type: str("Anthropic's error type, by status: invalid_request_error, authentication_error, billing_error, permission_error, not_found_error, request_too_large, rate_limit_error, api_error, overloaded_error"),
-                message: str("The sentence saying why"),
+                message: str("What to do first, then why — enough on its own: a client may show only this"),
                 code: str("Where a caller can act on it — as `code` below"),
                 retry_after: int,
+                foldrun: obj(
+                  {
+                    code: str("The catalogued reason: key_revoked, allowance_used, rate_limited, too_large, model_unavailable, unavailable…"),
+                    fix: str("What to do, one line (the start of message)"),
+                    command: str("An existing foldrun command that diagnoses or fixes it, e.g. `foldrun login`, `foldrun doctor`"),
+                    command_kind: str("diagnose or repair"),
+                    docs: str("Where it is explained"),
+                  },
+                  ["code", "fix"],
+                ),
               },
               ["type", "message"],
             ),

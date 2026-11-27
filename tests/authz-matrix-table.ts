@@ -187,6 +187,8 @@ export const TABLE: Row[] = [
   // ---- public ---------------------------------------------------------------
   ["GET", "/v1/healthz", "none"],
   ["GET", "/v1/metrics", "token", { ok: [404] }],
+  ["GET", "/v1/network/bytes", "none"],
+  ["POST", "/v1/network/bytes", "none"],
   ["GET", "/v1/openapi.json", "none"],
   ["GET", "/v1/pricing", "none", { ok: [200, 404] }],
   ["GET", "/v1/signup", "none"],

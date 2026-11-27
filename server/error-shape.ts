@@ -12,6 +12,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { workUnitAsyncStorage } from "next/dist/server/app-render/work-unit-async-storage.external.js";
 import { ERROR_SHAPE_HEADER, type ErrorShape } from "./api-version.ts";
+import { actionFirst, foldrunError } from "@/platform/error-catalog";
 
 /** A shape set for code that runs outside a request Next started — a test,
  *  or a handler called by another handler. */
@@ -57,10 +58,15 @@ export function errorTypeFor(status: number): string {
 }
 
 /** A refusal's body in a shape. `extra` (a `code`, figures, `known`) goes
- *  inside `error` in Anthropic's shape, beside `error` in the old one. */
+ *  inside `error` in Anthropic's shape, beside `error` in the old one.
+ *  A `code` the shared catalog knows (foldrun-platform error-catalog.ts, the
+ *  same one the gateway answers with) leads the message with what to do and
+ *  adds `error.foldrun` — in Anthropic's shape only: the dashboard reads the
+ *  old one and says its own words. */
 export function errorBody(message: string, status: number, extra: Record<string, unknown> = {}, shape: ErrorShape = currentErrorShape()): Record<string, unknown> {
   if (shape === "legacy") return { error: message, ...extra };
-  return { type: "error", error: { type: errorTypeFor(status), message, ...extra } };
+  const e = typeof extra.code === "string" ? foldrunError(extra.code) : null;
+  return { type: "error", error: { type: errorTypeFor(status), message: actionFirst(message, e), ...extra, ...(e ? { foldrun: e } : {}) } };
 }
 
 /** Anthropic's body back to the old one: the downgrade of the 2026-11-22

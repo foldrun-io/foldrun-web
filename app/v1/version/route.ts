@@ -17,16 +17,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { mayReadProbeDetail } from "@/server/probe-access";
 import { versionInfo } from "@/server/release";
 import { apiOrigin, installOrigin } from "@/server/auth-flows";
-import { addressFor } from "@/server/iran-front";
+import { addressFor, frontsFor, noticeForRequest } from "@/server/iran-front";
+import { gatewayUrl } from "@/server/gateway-keys";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const info = versionInfo();
-  // A caller in Iran is given the Iran front as its API (FOL-398).
-  const urls = { api: addressFor(req, apiOrigin()), app: installOrigin() };
+  // A caller in Iran is given the Iran front as its API (FOL-398), and —
+  // to that caller only — every front and the operator's notice (FOL-402):
+  // what `foldrun doctor` probes, the CLI's route switch checks a front
+  // against, and Claude Code's status line moves its settings to. `gateway`
+  // is where a key's model calls go (ANTHROPIC_BASE_URL), for this caller.
+  const fronts = frontsFor(req);
+  const urls = { api: addressFor(req, apiOrigin()), app: installOrigin(), gateway: gatewayUrl(req), ...(fronts.length ? { fronts } : {}) };
+  const notice = noticeForRequest(req);
   // Every route is under /v1, at urls.api for programs (23 Nov 2026,
   // server/v1-path.ts): nothing to discover but the addresses.
-  const body = (await mayReadProbeDetail(req)) ? { ...info, urls } : { version: info.version, api: info.api, urls };
+  const body = (await mayReadProbeDetail(req)) ? { ...info, urls, ...(notice ? { notice } : {}) } : { version: info.version, api: info.api, urls, ...(notice ? { notice } : {}) };
   return NextResponse.json(body, { headers: { "cache-control": "no-store" } });
 }

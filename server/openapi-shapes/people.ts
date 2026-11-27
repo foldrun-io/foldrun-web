@@ -1,7 +1,7 @@
 // OpenAPI request/response schemas: /v1/auth/*, /v1/cli/*, /v1/me*, /v1/team*, /v1/unsubscribe, /v1/support/*, /v1/avatars/*.
 // Written from what each handler validates and answers (30 Oct 2026).
 
-import { type Shape, type Schema, obj, str, bool, int, arr, OK } from "./kit.ts";
+import { type Shape, type Schema, obj, str, bool, int, arr, OK, Notice } from "./kit.ts";
 
 const nstr = (description?: string): Schema => ({ type: ["string", "null"], ...(description ? { description } : {}) });
 
@@ -360,6 +360,7 @@ export const SHAPES: Record<string, Shape> = {
         },
       }, ["kind"]),
       modelsUrl: nstr("where model calls go (the gateway's base, for ANTHROPIC_BASE_URL); null where this install has none"),
+      notice: Notice,
       person: {
         ...obj({
           email: str(),

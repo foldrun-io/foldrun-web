@@ -145,3 +145,16 @@ export const ExtractResult = obj({
   ms: int,
 }, ["sha256", "kind", "format", "text", "engine", "truncated", "warnings", "cached", "ms"]);
 export const ExtractJobError = obj({ status: int, code: str("unsupported | too_large | unreadable | timeout | worker_stopped | write_failed | …"), message: str() });
+
+/** The operator's notice to a caller in Iran (FOL-402): on /v1/version and
+ *  /v1/me, for that caller only. */
+export const Notice: Schema = obj(
+  {
+    id: str("changes whenever the notice does: show it once per id"),
+    message: str("plain text, set by the operator"),
+    action: { type: ["string", "null"], description: "restart_claude_code | run_doctor | sign_in_again, or null" },
+    command: { type: ["string", "null"], description: "the fixed command that action names (foldrun doctor, foldrun login), or null" },
+    expires: { type: ["string", "null"], description: "ISO time it stops being shown; null: until cleared" },
+  },
+  ["id", "message"],
+);

@@ -232,13 +232,14 @@ test("urls: the install's API and dashboard addresses, open to anyone, null wher
     delete process.env.FOLDRUN_PUBLIC_API_URL;
     delete process.env.FOLDRUN_PUBLIC_URL;
     const none = await (await versionGET(new NextRequest("http://localhost/v1/version"))).json();
-    assert.deepEqual(none.urls, { api: null, app: null }, "one address for everything: the CLI stays where it signed in");
+    assert.deepEqual({ api: none.urls.api, app: none.urls.app }, { api: null, app: null }, "one address for everything: the CLI stays where it signed in");
 
     process.env.FOLDRUN_PUBLIC_API_URL = "https://api.foldrun.dev/";
     process.env.FOLDRUN_PUBLIC_URL = "https://dash.foldrun.dev";
     const open = await (await versionGET(new NextRequest("http://localhost/v1/version"))).json();
     assert.deepEqual(Object.keys(open).sort(), ["api", "urls", "version"], "a stranger still gets only the name, plus the addresses");
-    assert.deepEqual(open.urls, { api: "https://api.foldrun.dev", app: "https://dash.foldrun.dev" });
+    assert.deepEqual({ api: open.urls.api, app: open.urls.app }, { api: "https://api.foldrun.dev", app: "https://dash.foldrun.dev" });
+    assert.equal(open.urls.gateway, process.env.FOLDRUN_GATEWAY_URL?.trim().replace(/\/+$/, "") || null, "FOL-402: where the models are, for Claude Code's status line to find without a key");
     const full = await (await versionGET(authed())).json();
     assert.deepEqual(full.urls, open.urls);
 

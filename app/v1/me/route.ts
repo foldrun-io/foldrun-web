@@ -8,6 +8,7 @@ import { requireCaller, errorResponse, cliLoginPerson } from "@/server/api";
 import { listApiKeys } from "@/server/auth";
 import { modelGrantOf } from "@/platform/api-keys-db";
 import { gatewayUrl } from "@/server/gateway-keys";
+import { noticeForRequest } from "@/server/iran-front";
 import { ownerOf, findUserById } from "@/server/users";
 
 export async function GET(req: NextRequest) {
@@ -48,6 +49,12 @@ export async function GET(req: NextRequest) {
       // Where model calls go (the gateway's base, for ANTHROPIC_BASE_URL);
       // null where this install has none.
       modelsUrl: gatewayUrl(req),
+      // The operator's notice, to a caller in Iran (FOL-402): what `foldrun
+      // whoami`, login and koder show. Absent for everyone else.
+      ...(() => {
+        const notice = noticeForRequest(req);
+        return notice ? { notice } : {};
+      })(),
     });
   } catch (err) {
     return errorResponse(err);

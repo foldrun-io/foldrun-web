@@ -11,35 +11,18 @@
 // moves a machine to), modelsUrl and a key's gatewayUrl (ANTHROPIC_BASE_URL).
 // Sign-in and those answers are small, so they reach us from Iran directly.
 //
-// Who is in Iran: Cloudflare's country for the caller (only behind
-// Cloudflare with the edge stamp, as cli-login's requestOrigin reads it), or
-// the front's own stamp — the CloudFront front sets `x-foldrun-front: ir` on
-// every request it carries, whose country Cloudflare sees as CloudFront's, so
-// a caller already on the front keeps being told the front. Either may be
-// claimed by anyone; it only ever picks between two addresses of the same
-// API, so a false claim gains nothing.
+// Since FOL-402 the front and the notice told with it are console settings
+// (network.iran_api_url, network.iran_notice*: foldrun-platform
+// network-front.ts), FOLDRUN_IRAN_API_URL their fallback: moving to a new
+// front when one is blocked is one change, no deploy.
 
-/** The header the Iran front stamps on what it carries. */
-export const FRONT_HEADER = "x-foldrun-front";
+import { FRONT_HEADER, fromIranHeaders, iranFrontUrl, iranFronts, noticeFor, type Notice } from "@/platform/network-front";
 
-/** The front's address (FOLDRUN_IRAN_API_URL, an https origin), else null:
- *  an install without one answers its own address to everyone. */
-export function iranFrontUrl(): string | null {
-  const v = process.env.FOLDRUN_IRAN_API_URL?.trim();
-  if (!v) return null;
-  try {
-    const u = new URL(v);
-    return u.protocol === "https:" ? u.origin : null;
-  } catch {
-    return null;
-  }
-}
+export { FRONT_HEADER, iranFrontUrl, iranFronts, type Notice };
 
 /** Whether this request is from a caller the front is for. */
 export function fromIran(req: { headers: Headers }): boolean {
-  if (req.headers.get(FRONT_HEADER)?.trim().toLowerCase() === "ir") return true;
-  if (process.env.FOLDRUN_TRUST_PROXY !== "cloudflare") return false;
-  return req.headers.get("cf-ipcountry")?.trim().toUpperCase() === "IR";
+  return fromIranHeaders(req.headers);
 }
 
 /** The address to give this caller for `base` (the install's API or
@@ -50,4 +33,15 @@ export function addressFor(req: { headers: Headers } | undefined, base: string |
   if (!base || !req) return base;
   const front = iranFrontUrl();
   return front && fromIran(req) ? front : base;
+}
+
+/** Every front, for a caller in Iran only (doctor's probes, the CLI's route
+ *  switch): to anyone else, none — the fronts are not advertised. */
+export function frontsFor(req: { headers: Headers } | undefined): string[] {
+  return req && fromIran(req) ? iranFronts() : [];
+}
+
+/** The operator's notice for this caller (FOL-402), or null. */
+export function noticeForRequest(req: { headers: Headers } | undefined): Notice | null {
+  return req ? noticeFor(req.headers) : null;
 }
