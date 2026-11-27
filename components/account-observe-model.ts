@@ -13,7 +13,7 @@
 // Honesty carried over from observe.ts: a median over fewer than five runs is
 // not shown (null), and a trend needs a previous window with runs in it.
 
-import { $t } from "@/i18n";
+import { $t, localized } from "@/i18n";
 import { isLive, isSuccess, needsAttention, tally } from "./outcome-model";
 import { platformCause, type RunLite } from "./mission-model";
 
@@ -47,14 +47,14 @@ export interface Cause {
   platform: boolean;
 }
 
-const CAUSE_LABEL: Record<Exclude<CauseKind, "platform">, string> = {
+const CAUSE_LABEL: Record<Exclude<CauseKind, "platform">, string> = localized(() => ({
   verify: $t("components.account-observe-model.aStepSCheckDidNot"),
   timeout: $t("components.account-observe-model.aStepRanOutOfTime"),
   blocked: $t("components.account-observe-model.finishedReportedBlocked"),
   bad: $t("components.account-observe-model.finishedReportedBad"),
   error: $t("components.account-observe-model.aStepErrored"),
   stopped: $t("components.account-observe-model.stoppedByAPerson"),
-};
+}));
 
 /** Why a run did not succeed, in the words a person would use — or null
  *  when it did, or is still going. Platform causes are named by what broke

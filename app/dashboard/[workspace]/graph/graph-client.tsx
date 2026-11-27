@@ -10,7 +10,7 @@
 // in the side panel; double-click to open it. The highlight is plain CSS
 // keyed on node ids, so hovering a map of hundreds re-renders nothing.
 
-import { $t } from "@/i18n";
+import { $t, localized } from "@/i18n";
 import "@xyflow/react/dist/style.css";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "@foldrun/ui/react/link";
@@ -83,7 +83,7 @@ type AgentWithAssets = AgentInfo & { assets: AgentAssets };
 
 // ---------------------------------------------------------------- words
 
-const KIND_WORD: Record<Kind, string> = {
+const KIND_WORD: Record<Kind, string> = localized(() => ({
   agent: $t("workspace.graph-graph-client.agent"),
   flow: $t("workspace.graph-graph-client.flow"),
   tool: $t("workspace.graph-graph-client.tool"),
@@ -91,7 +91,7 @@ const KIND_WORD: Record<Kind, string> = {
   knowledge: $t("workspace.graph-graph-client.knowledge"),
   memory: $t("workspace.graph-graph-client.memory"),
   scope: $t("workspace.graph-graph-client.workspace"),
-};
+}));
 
 /** A kind's lucide icon — the only thing on a card that says what it is. */
 function KindIcon({ kind, scope, className }: { kind: Kind; scope?: Scope; className?: string }) {
@@ -115,7 +115,7 @@ function KindIcon({ kind, scope, className }: { kind: Kind; scope?: Scope; class
 }
 
 type FilterKey = "scope" | "flow" | "agent" | "tool" | "skill" | "knowledge" | "memory";
-const FILTERS: { key: FilterKey; label: string; icon: LucideIcon }[] = [
+const FILTERS: { key: FilterKey; label: string; icon: LucideIcon }[] = localized(() => [
   { key: "scope", label: $t("workspace.graph-graph-client.accountAndWorkspace"), icon: Boxes },
   { key: "flow", label: $t("workspace.graph-graph-client.flows"), icon: Workflow },
   { key: "agent", label: $t("workspace.graph-graph-client.agents"), icon: Bot },
@@ -123,7 +123,7 @@ const FILTERS: { key: FilterKey; label: string; icon: LucideIcon }[] = [
   { key: "skill", label: $t("workspace.graph-graph-client.skills"), icon: BookOpen },
   { key: "knowledge", label: $t("workspace.graph-graph-client.knowledge"), icon: FileText },
   { key: "memory", label: $t("workspace.graph-graph-client.memory"), icon: Brain },
-];
+]);
 
 /** A run status as the outcome model reads it. The graph's counters carry no
  *  verdict, so a completed run reads "done"; a step that never started has
@@ -893,7 +893,7 @@ function linksFor(n: GNode, tenant: string): { label: string; href: string }[] {
   return out;
 }
 
-const SCOPE_WORD: Record<Scope, string> = { account: $t("workspace.graph-graph-client.accountLibrary"), workspace: $t("workspace.graph-graph-client.workspace"), agent: $t("workspace.graph-graph-client.agentSOwn") };
+const SCOPE_WORD: Record<Scope, string> = localized(() => ({ account: $t("workspace.graph-graph-client.accountLibrary"), workspace: $t("workspace.graph-graph-client.workspace"), agent: $t("workspace.graph-graph-client.agentSOwn") }));
 
 function Details({
   node,

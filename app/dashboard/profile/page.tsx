@@ -28,6 +28,7 @@ import { SessionList } from "./sessions";
 import { NotificationPreferences } from "./notifications";
 import { Email } from "@/components/email";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 export default async function ProfilePage({
@@ -35,6 +36,7 @@ export default async function ProfilePage({
 }: {
   searchParams: Promise<{ tenant?: string; tab?: string }>;
 }) {
+  await requestLocale();
   const { tenant = "default", tab: tabParam } = await searchParams;
   const qs = tenant !== "default" ? `?tenant=${tenant}` : "";
   const session = await verifySession((await cookies()).get(SESSION_COOKIE)?.value);

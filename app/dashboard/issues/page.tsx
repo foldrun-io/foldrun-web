@@ -2,7 +2,7 @@
 // person resolves it. Same list as GET /v1/issues and `foldrun issues`.
 
 import { ISSUE_STATUS_LABEL, labelOf } from "@/components/value-labels";
-import { $el, $rich, $t } from "@/i18n";
+import { $el, $rich, $t, localized } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { AlertTriangle, Ban, CalendarX2, CheckCircle2, ServerCrash, XCircle, X } from "lucide-react";
 import { Page, PageHeader, Chip, Tag, EmptyState, type Tone } from "@foldrun/ui/react/page";
@@ -20,26 +20,28 @@ import { issueDoctor, type Issue } from "@/lib/issues";
 import { Disclosure } from "@foldrun/ui/react/disclosure";
 import { Tooltip } from "@foldrun/ui/react/tooltip";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
-const TABS: { key: IssueFilter; label: string }[] = [
+const TABS: { key: IssueFilter; label: string }[] = localized(() => [
   { key: "active", label: $t("issues.page.open") },
   { key: "snoozed", label: $t("issues.page.snoozed") },
   { key: "resolved", label: $t("issues.page.resolved") },
   { key: "all", label: $t("issues.page.all") },
-];
+]);
 
-const KIND: Record<Issue["kind"], { label: string; tone: Tone; icon: React.ReactNode; box: string }> = {
+const KIND: Record<Issue["kind"], { label: string; tone: Tone; icon: React.ReactNode; box: string }> = localized(() => ({
   platform: { label: "platform", tone: "info", icon: <ServerCrash />, box: "border-info-line bg-info-soft text-info" },
   failed: { label: "failed", tone: "bad", icon: <XCircle />, box: "border-danger-line bg-danger-soft text-danger" },
   blocked: { label: "blocked", tone: "warn", icon: <Ban />, box: "border-warning-line bg-warning-soft text-warning" },
   bad: { label: $t("issues.page.problemFound"), tone: "bad", icon: <AlertTriangle />, box: "border-danger-line bg-danger-soft text-danger" },
   missed: { label: $t("issues.page.missedSchedule"), tone: "warn", icon: <CalendarX2 />, box: "border-warning-line bg-warning-soft text-warning" },
-};
+}));
 
 const ACTED: Record<string, string> = { acknowledge: "acknowledged", snooze: "snoozed", resolve: "resolved", reopen: "reopened" };
 
 export default async function IssuesPage({ searchParams }: { searchParams: Promise<{ tenant?: string; status?: string; workspace?: string }> }) {
+  await requestLocale();
   const { tenant = "default", status: statusParam, workspace } = await searchParams;
   const status: IssueFilter = ISSUE_STATUSES.includes(statusParam as IssueFilter) ? (statusParam as IssueFilter) : "active";
   const now = nowMs();

@@ -39,7 +39,9 @@ import { can } from "@/platform/permissions";
 import { noticeForRequest } from "@/server/iran-front";
 
 
+import { requestLocale } from "@/server/locale";
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  await requestLocale();
   // Read once, here, for every page below: the zone this person chose, or null
   // for automatic. Mounting the provider at the layout is what makes it one
   // clock per session rather than a per-component guess.

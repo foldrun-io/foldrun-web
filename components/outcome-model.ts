@@ -5,11 +5,11 @@
 
 // The words and the counting live in core (outcome.ts), so the API, the CLI
 // and the platform count exactly as the dashboard draws (FOL-54).
-import { $t } from "@/i18n";
+import { $t, localized } from "@/i18n";
 import type { Outcome } from "@/lib/outcome";
 export { outcomeOf, tally, isLive, isCompleted, isFinished, needsAttention, needsAction, isSuccess, OUTCOMES, type Outcome, type Tally } from "@/lib/outcome";
 
-export const OUTCOME: Record<Outcome, { label: string; dot: string; cell: string; pill: string; hint: string }> = {
+export const OUTCOME: Record<Outcome, { label: string; dot: string; cell: string; pill: string; hint: string }> = localized(() => ({
   running: { label: "running", dot: "bg-sky-500 animate-pulse", cell: "bg-sky-400 animate-pulse", pill: "bg-sky-50 text-sky-700 ring-sky-200", hint: $t("components.outcome-model.runningNow") },
   queued: { label: "queued", dot: "bg-gray-400", cell: "bg-gray-300", pill: "bg-sunken text-fg-tertiary ring-line", hint: $t("components.outcome-model.waitingForASlot") },
   waiting: { label: $t("components.outcome-model.needsYou"), dot: "bg-violet-500 animate-pulse", cell: "bg-violet-400", pill: "bg-violet-50 text-violet-700 ring-violet-200", hint: $t("components.outcome-model.waitingForAnApproval") },
@@ -20,4 +20,4 @@ export const OUTCOME: Record<Outcome, { label: string; dot: string; cell: string
   bad: { label: "bad", dot: "bg-rose-500", cell: "bg-rose-400", pill: "bg-rose-50 text-rose-700 ring-rose-200", hint: $t("components.outcome-model.completedReportedBad") },
   failed: { label: "failed", dot: "bg-red-600", cell: "bg-red-500", pill: "bg-red-50 text-red-700 ring-red-200", hint: "failed" },
   stopped: { label: "stopped", dot: "bg-gray-500", cell: "bg-gray-400", pill: "bg-muted text-fg-secondary ring-line-strong", hint: $t("components.outcome-model.stoppedByAPerson") },
-};
+}));

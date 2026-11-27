@@ -9,7 +9,11 @@ import { AuthForm } from "../auth-form";
 import { Email } from "@/components/email";
 import { AuthCard } from "../brand";
 
-export const metadata = { title: $t("auth.signup-page.createAccount") };
+import { requestLocale } from "@/server/locale";
+export async function generateMetadata() {
+  await requestLocale();
+  return { title: $t("auth.signup-page.createAccount") };
+}
 export const dynamic = "force-dynamic";
 
 export default async function SignupPage({
@@ -17,6 +21,7 @@ export default async function SignupPage({
 }: {
   searchParams: Promise<{ invite?: string; setup?: string; link?: string }>;
 }) {
+  await requestLocale();
   const { invite, setup, link } = await searchParams;
 
   // A sign-up link the platform mailed to one address (server/signup-links.ts):

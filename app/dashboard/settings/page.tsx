@@ -1,5 +1,5 @@
 import { WEBHOOK_OUTCOME_LABEL, labelOf } from "@/components/value-labels";
-import { $rich, $t } from "@/i18n";
+import { $rich, $t, localized } from "@/i18n";
 import { scopeAllows } from "@/platform/scope";
 import { platform } from "@/lib/platform";
 import Link from "@foldrun/ui/react/link";
@@ -87,6 +87,7 @@ import { nowMs } from "@/components/overview-model";
 import { installOrigin } from "@/server/auth-flows";
 import { settingText } from "@/platform/settings";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 /**
@@ -120,18 +121,19 @@ function nextFires(expr: string, timeZone: string, count = 2): { iso: string | n
 }
 
 /** Why a flag is what it is, in the words the settings page shows. */
-const FLAG_SOURCE: Record<string, string> = {
+const FLAG_SOURCE: Record<string, string> = localized(() => ({
   account: $t("settings.page.setForThisAccount"),
   global: $t("settings.page.setForEveryAccount"),
   rollout: $t("settings.page.stagedRollout"),
   default: "default",
-};
+}));
 
 export default async function SettingsPage({
   searchParams,
 }: {
   searchParams: Promise<{ tenant?: string; connected?: string; connect_error?: string; tab?: string }>;
 }) {
+  await requestLocale();
   const { tenant = "default", connected, connect_error, tab: tabParam } = await searchParams;
   const qs = tenant !== "default" ? `?tenant=${tenant}` : "";
   const amp = tenant !== "default" ? `&tenant=${tenant}` : "";

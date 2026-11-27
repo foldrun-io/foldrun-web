@@ -4,16 +4,16 @@
 // it follows you to every browser you sign in on; applied at once by setting
 // <html data-theme>, the same attribute the server writes on every page.
 
-import { $t } from "@/i18n";
+import { $t, localized } from "@/i18n";
 import { useState } from "react";
 import { THEMES, THEME_LABELS, type Theme } from "@/components/theme-model";
 import { Segmented } from "@foldrun/ui/react/segmented";
 
-const HINT: Record<Theme, string> = {
+const HINT: Record<Theme, string> = localized(() => ({
   system: $t("profile.appearance.followsYourComputerSLightOr"),
   light: $t("profile.appearance.alwaysLight"),
   dark: $t("profile.appearance.alwaysDark"),
-};
+}));
 
 export function AppearanceForm({ current }: { current: Theme }) {
   const [theme, setTheme] = useState<Theme>(current);

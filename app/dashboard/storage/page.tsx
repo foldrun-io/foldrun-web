@@ -20,9 +20,11 @@ import { HardDrive, Library } from "lucide-react";
 import { FileBrowser } from "@/components/file-browser";
 import { browserDesks, dashboardShareReader } from "@/server/storage-browser";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 export default async function AccountStoragePage({ searchParams }: { searchParams: Promise<{ tenant?: string }> }) {
+  await requestLocale();
   const { tenant = "default" } = await searchParams;
   const qs = tenant !== "default" ? `?tenant=${tenant}` : "";
 

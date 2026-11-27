@@ -118,7 +118,20 @@ function forward(req: NextRequest, nonce: string, from: Headers = req.headers): 
   const h = new Headers(from);
   h.set("x-nonce", nonce);
   h.set("content-security-policy", csp(nonce));
+  // Always written here, so a caller's own header never decides it.
+  h.set("x-foldrun-locale", localeFor(req));
   return h;
+}
+
+/** The language of a page request: English everywhere, except on a host the
+ *  install lists as Persian (FOLDRUN_FA_HOSTS), where it is Persian unless
+ *  the person chose English there. The host is the request's own Host header
+ *  until the second address brings the one trusted resolver (plan, decision 5). */
+function localeFor(req: NextRequest): "en" | "fa" {
+  const hosts = (process.env.FOLDRUN_FA_HOSTS ?? "").split(",").map((h) => h.trim().toLowerCase()).filter(Boolean);
+  const host = (req.headers.get("host") ?? "").toLowerCase();
+  if (!hosts.includes(host)) return "en";
+  return req.cookies.get("foldrun_locale")?.value === "en" ? "en" : "fa";
 }
 
 /** An unpredictable per-request token for the CSP nonce. randomUUID is in

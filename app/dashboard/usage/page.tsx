@@ -4,7 +4,7 @@
 // records and file stores at render time; there is no second counter to
 // drift from the facts.
 
-import { $el, $rich, $t } from "@/i18n";
+import { $el, $rich, $t, localized } from "@/i18n";
 import { Page, PageHeader, SectionTitle, StatGrid, Stat, Callout } from "@foldrun/ui/react/page";
 import { PageTabs } from "@foldrun/ui/react/page-tabs";
 import { Segmented } from "@foldrun/ui/react/segmented";
@@ -23,8 +23,12 @@ import { BillingTabs } from "@/components/billing-tabs";
 import { platform } from "@/lib/platform";
 import { viewerScope } from "@/server/users";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
-export const metadata = { title: $t("usage.page.billingUsage") };
+export async function generateMetadata() {
+  await requestLocale();
+  return { title: $t("usage.page.billingUsage") };
+}
 
 const GB = 1024 * 1024 * 1024;
 const fmtBytes = (b: number) =>
@@ -35,7 +39,7 @@ const fmtMins = (secs: number) => (secs >= 3600 ? `${(secs / 3600).toFixed(1)} h
 
 const dim = <span className="text-fg-subtle">—</span>;
 
-const BUCKET_COLUMNS = [
+const BUCKET_COLUMNS = localized(() => [
   { label: "\u00a0" },
   { label: $t("usage.page.runs"), align: "right" as const },
   { label: $t("usage.page.steps"), align: "right" as const },
@@ -45,7 +49,7 @@ const BUCKET_COLUMNS = [
   { label: $t("usage.page.models"), align: "right" as const },
   { label: $t("usage.page.platform2"), align: "right" as const },
   { label: $t("usage.page.total"), align: "right" as const },
-];
+]);
 
 function bucketCells(b: UsageBucket) {
   return [
@@ -112,21 +116,21 @@ function SpendTable({ title, rows, unit }: { title: string; rows: SpendSeries[];
   );
 }
 
-const TABS = [
+const TABS = localized(() => ([
   { key: "overview", label: $t("usage.page.overview") },
   { key: "tokens", label: $t("usage.page.tokens") },
   { key: "compute", label: $t("usage.page.compute") },
   { key: "rates", label: $t("usage.page.rates") },
-] as const;
+] as const));
 type TabKey = (typeof TABS)[number]["key"];
 
 // Presets for the Tokens and Compute period; the API and CLI take any days.
-const PERIODS = [
+const PERIODS = localized(() => ([
   { key: "month", label: $t("usage.page.thisMonth"), days: 0 },
   { key: "7", label: $t("usage.page.last7Days"), days: 7 },
   { key: "30", label: $t("usage.page.last30Days"), days: 30 },
   { key: "90", label: $t("usage.page.last90Days"), days: 90 },
-] as const;
+] as const));
 const DAY_MS = 86_400_000;
 /** [from, to] as UTC days; 0 is the month so far (the API's default, so no query). */
 function periodDays(days: number): [string | undefined, string | undefined] {
@@ -140,6 +144,7 @@ export default async function UsagePage({
 }: {
   searchParams: Promise<{ tenant?: string; tab?: string; from?: string; to?: string }>;
 }) {
+  await requestLocale();
   const { tenant = "default", tab: rawTab, from, to } = await searchParams;
   const tab: TabKey = TABS.some((t) => t.key === rawTab) ? (rawTab as TabKey) : "overview";
   // A member scoped to some workspaces sees those, as GET /v1/account/usage answers.

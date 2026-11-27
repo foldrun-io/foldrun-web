@@ -20,6 +20,7 @@ import { SearchField } from "@foldrun/ui/react/list";
 import { filterByQuery } from "@foldrun/ui/react/list-search-model";
 import { HistoryList } from "./history-list";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 export default async function HistoryPage({
@@ -29,6 +30,7 @@ export default async function HistoryPage({
   params: Promise<{ workspace: string }>;
   searchParams: Promise<{ tenant?: string; page?: string; q?: string }>;
 }) {
+  await requestLocale();
   const { workspace } = await params;
   const { tenant = "default", page: pageParam, q = "" } = await searchParams;
   if (!fs.existsSync(workspaceDir(tenant, workspace))) notFound();

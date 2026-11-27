@@ -1,7 +1,7 @@
 // The version and the commits behind it, as a table. One rendering for
 // Settings → About and What's new, so the two cannot disagree about what a component is called or where its sha links.
 
-import { $rich, $t } from "@/i18n";
+import { $rich, $t, localized } from "@/i18n";
 import type { VersionInfo } from "@/server/release";
 
 const REPO_OF: Record<string, string> = {
@@ -13,14 +13,14 @@ const REPO_OF: Record<string, string> = {
   cli: "foldrun-cli",
 };
 
-const WHAT: Record<string, string> = {
+const WHAT: Record<string, string> = localized(() => ({
   core: $t("components.version-table.theRuntimeTheFormatTheEngine"),
   platform: $t("components.version-table.theHostedLayerQueueWorkerStorage"),
   web: $t("components.version-table.thisDashboardAndTheHttpApi"),
   docs: $t("components.version-table.theDocumentation"),
   infra: $t("components.version-table.howItIsBuiltAndDeployed"),
   cli: $t("components.version-table.theCliReleasedWithThisVersion"),
-};
+}));
 
 export function VersionFacts({ info }: { info: VersionInfo }) {
   return (

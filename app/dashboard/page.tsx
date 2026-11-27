@@ -49,6 +49,7 @@ import { Status, StatusDot } from "@/components/status";
 import { buttonVariants } from "@foldrun/ui/react/button";
 import type { Row } from "@foldrun/ui/react/list";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 export default async function Dashboard({
@@ -56,6 +57,7 @@ export default async function Dashboard({
 }: {
   searchParams: Promise<{ tenant?: string; create?: string; import?: string }>;
 }) {
+  await requestLocale();
   const { tenant = "default", create, import: importing } = await searchParams;
   const qs = tenant !== "default" ? `?tenant=${tenant}` : "";
   const now = nowMs();

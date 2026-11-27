@@ -519,7 +519,6 @@
     "spendingLimitUsd": "Spending limit, USD",
     "spent": "{spent} spent",
     "spentOfCap": "{spent} of {cap}",
-    "statuslineTypeCommandCommandFoldrunGateway": "\"statusLine\": '{' \"type\": \"command\", \"command\": \"foldrun gateway status-line\" '}'",
     "stopRequiring": "stop requiring",
     "theFlowsThisKeyMayCall": "The flows this key may call in {workspace}, each also published; at most {maxTasks} tasks open at once",
     "theKeySSize": "The key's size",

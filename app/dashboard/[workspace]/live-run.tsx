@@ -52,7 +52,7 @@ import { cn } from "@foldrun/ui/react/cn";
 import { AlertTriangle, ChevronRight, CircleHelp, Code2, Ellipsis, FlaskConical, Hand, Pencil, RotateCcw, Square, Trash2, Webhook, XCircle } from "lucide-react";
 import { Disclosure } from "@foldrun/ui/react/disclosure";
 import { Tooltip } from "@foldrun/ui/react/tooltip";
-const TEST_RUN = $t("workspace.live-run.aTestRunEveryStepRan");
+const testRunHint = () => $t("workspace.live-run.aTestRunEveryStepRan");
 // Mirrored from store.ts#runVerdict, for the same reason.
 const runVerdict = (r: Pick<RunRecord, "verdict" | "summary">) => {
   if (r.verdict !== undefined) return r.verdict;
@@ -622,7 +622,7 @@ export function LiveRun({
               <>
                 <Status outcome={outcome} className="text-sm" />
                 {run.test && (
-                  <Tag hint={TEST_RUN}>{$t("workspace.live-run.test")}</Tag>
+                  <Tag hint={testRunHint()}>{$t("workspace.live-run.test")}</Tag>
                 )}
                 {page.tags}
                 {liveDot}
@@ -709,7 +709,7 @@ export function LiveRun({
           <span className="font-medium text-fg-secondary">{run.flow}</span>
           <Status outcome={outcome} />
         </>)}
-        {run.test && <Tag hint={TEST_RUN}>{$t("workspace.live-run.test")}</Tag>}
+        {run.test && <Tag hint={testRunHint()}>{$t("workspace.live-run.test")}</Tag>}
         {liveDot}
         {(!compactHeader || live) && <span className="tabular-nums">{run.finishedAt || hydrated ? `${elapsed(run, clock).toFixed(1)}s` : "…"}</span>}
         {!compactHeader && totalCost > 0 && <span className="tabular-nums">${totalCost.toFixed(4)}</span>}

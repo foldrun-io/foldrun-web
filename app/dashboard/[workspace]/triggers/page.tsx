@@ -18,7 +18,7 @@
 // call over A2A.
 
 import { WEBHOOK_OUTCOME_LABEL, labelOf } from "@/components/value-labels";
-import { $rich, $t } from "@/i18n";
+import { $rich, $t, localized } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
 import { notFound } from "next/navigation";
@@ -42,17 +42,18 @@ import { FilterTest } from "./filter-test";
 import { A2aPanel } from "./a2a-panel";
 import { HashTab } from "./hash-tab";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
-const WINDOWS = [
+const WINDOWS = localized(() => [
   { days: 1, label: "24h" },
   { days: 7, label: $t("workspace.triggers-page.7Days") },
   { days: 30, label: $t("workspace.triggers-page.30Days") },
-];
+]);
 
 /** What each outcome means in one phrase, and the key that caused it. The
  *  point of the page is that a person can go and change that key. */
-const REASON: Record<TriggerOutcome, { label: string; key: string; tone: Tone }> = {
+const REASON: Record<TriggerOutcome, { label: string; key: string; tone: Tone }> = localized(() => ({
   started: { label: $t("workspace.triggers-page.startedARun"), key: "", tone: "good" },
   duplicate: { label: $t("workspace.triggers-page.duplicateDelivery"), key: "idempotency:", tone: "default" },
   throttled: { label: $t("workspace.triggers-page.insideTheWindow"), key: "throttle:", tone: "warn" },
@@ -65,7 +66,7 @@ const REASON: Record<TriggerOutcome, { label: string; key: string; tone: Tone }>
   filtered: { label: $t("workspace.triggers-page.didNotMatchTheFilter"), key: "filter:", tone: "default" },
   "queue-full": { label: $t("workspace.triggers-page.tooManyRunsWaiting"), key: $t("workspace.triggers-page.settingsPoliciesGovernance"), tone: "warn" },
   failed: { label: "could not start", key: "", tone: "bad" },
-};
+}));
 
 function Outcome({ outcome }: { outcome: TriggerOutcome }) {
   const r = REASON[outcome] ?? REASON.failed;
@@ -93,6 +94,7 @@ export default async function TriggersPage({
   params: Promise<{ workspace: string }>;
   searchParams: Promise<{ tenant?: string; since?: string; tab?: string }>;
 }) {
+  await requestLocale();
   const { workspace } = await params;
   const { tenant = "default", since, tab = "triggers" } = await searchParams;
   if (!fs.existsSync(workspaceDir(tenant, workspace))) notFound();

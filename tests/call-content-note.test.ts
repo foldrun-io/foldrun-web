@@ -3,11 +3,11 @@
 // that ends in a bare "403"; the server's refusal stays the only gate.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { callContentError, CALL_CONTENT_NEEDS } from "../components/trace-model.ts";
+import { callContentError, callContentNeeds } from "../components/trace-model.ts";
 
 test("a refused read (403) reads as who may see call content, never a raw status", () => {
-  assert.equal(callContentError(403, "your role cannot do this"), CALL_CONTENT_NEEDS);
-  assert.match(CALL_CONTENT_NEEDS, /editors and above/);
+  assert.equal(callContentError(403, "your role cannot do this"), callContentNeeds());
+  assert.match(callContentNeeds(), /editors and above/);
 });
 
 test("the other failures keep their words", () => {

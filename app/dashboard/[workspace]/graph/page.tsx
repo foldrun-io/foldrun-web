@@ -5,6 +5,7 @@ import { GraphClient } from "./graph-client";
 import { buildWorkspaceGraph } from "@/server/graph";
 import { isLayout } from "@/components/graph-layout-model";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 export default async function GraphPage({
@@ -14,6 +15,7 @@ export default async function GraphPage({
   params: Promise<{ workspace: string }>;
   searchParams: Promise<{ tenant?: string; layout?: string }>;
 }) {
+  await requestLocale();
   const { workspace } = await params;
   const { tenant = "default", layout } = await searchParams;
   if (!fs.existsSync(workspaceDir(tenant, workspace))) notFound();

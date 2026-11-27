@@ -5,7 +5,7 @@
 // installer's own error when it failed. A workspace whose agents declare no
 // `runtime:` renders nothing.
 
-import { $rich, $t } from "@/i18n";
+import { $rich, $t, localized } from "@/i18n";
 import { Chip, Panel, type Tone } from "@foldrun/ui/react/page";
 import { LocalTime } from "./local-time";
 
@@ -31,13 +31,13 @@ const VARIANT: Record<string, Tone> = {
   pending: "default",
 };
 
-const SAYS: Record<string, string> = {
+const SAYS: Record<string, string> = localized(() => ({
   ready: $t("components.workspace-runtimes.builtRunsStartWithTheseInstalled"),
   failed: $t("components.workspace-runtimes.theLastBuildFailedARun"),
   building: $t("components.workspace-runtimes.buildingNow"),
   pending: $t("components.workspace-runtimes.waitingForTheWorkerToBuild"),
   "on first run": $t("components.workspace-runtimes.installedWhenARunFirstNeeds"),
-};
+}));
 
 export function RuntimesPanel({ runtimes }: { runtimes: RuntimeRow[] }) {
   if (runtimes.length === 0) return null;

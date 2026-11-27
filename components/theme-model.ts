@@ -1,4 +1,4 @@
-import { $t } from "@/i18n";
+import { $t, localized } from "@/i18n";
 // Light or dark: one person's choice, and what it comes to on a given screen.
 //
 // Three choices, "system" the default: follow the operating system's
@@ -12,11 +12,11 @@ export const THEMES = ["system", "light", "dark"] as const;
 export type Theme = (typeof THEMES)[number];
 export const THEME_PREF = "theme";
 
-export const THEME_LABELS: Record<Theme, string> = {
+export const THEME_LABELS: Record<Theme, string> = localized(() => ({
   system: $t("components.theme-model.system"),
   light: $t("components.theme-model.light"),
   dark: $t("components.theme-model.dark"),
-};
+}));
 
 export function isTheme(value: unknown): value is Theme {
   return typeof value === "string" && (THEMES as readonly string[]).includes(value);

@@ -8,7 +8,7 @@
 // store. The one thing kept is that this person has seen it, so the home
 // page stops sending them here.
 
-import { $rich, $t } from "@/i18n";
+import { $rich, $t, localized } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -325,11 +325,11 @@ function NoRights() {
 
 // ---- Next ----
 
-const NEXT: { id: OnboardingStepId; title: string }[] = [
+const NEXT: { id: OnboardingStepId; title: string }[] = localized(() => [
   { id: "teammate", title: $t("components.welcome-flow.inviteATeammate") },
   { id: "trigger", title: $t("components.welcome-flow.scheduleAFlowOrGiveIt") },
   { id: "secret", title: $t("components.welcome-flow.addASecret") },
-];
+]);
 
 function NextStep({ kicker, onboarding, qs, firstWorkspace }: { kicker: string; onboarding: Onboarding; qs: string; firstWorkspace: string | null }) {
   const rows = NEXT.map((n) => {

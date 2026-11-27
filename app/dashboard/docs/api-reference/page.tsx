@@ -4,11 +4,13 @@
 // and response schema.
 
 import { $rich, $t } from "@/i18n";
+import { GENERIC } from "@/server/openapi-shapes/kit";
 import Link from "@foldrun/ui/react/link";
 import { Chip, Page, PageHeader, Panel, Tag } from "@foldrun/ui/react/page";
 import { openapiDocument } from "@/server/openapi";
 import { Disclosure } from "@foldrun/ui/react/disclosure";
 
+import { requestLocale } from "@/server/locale";
 // Per request, not prerendered (28 Oct 2026): the enforced CSP's nonce is
 // minted per request, and a static page cannot carry one. The markdown ships
 // in the image beside the app for this (foldrun-infra Dockerfile).
@@ -32,9 +34,11 @@ const METHOD_TONE: Record<string, string> = {
   delete: "bg-danger-soft text-danger",
 };
 
-const GENERIC_DESC = $t("docs.api-reference-page.jsonSeeDocsApiMdFor");
+// The schema's own placeholder sentence (not a translated one): what is compared is what the OpenAPI document says.
+const GENERIC_DESC = GENERIC.description;
 
-export default function ApiReference() {
+export default async function ApiReference() {
+  await requestLocale();
   const doc = openapiDocument() as { info: { version: string; description: string }; paths: Record<string, Record<string, Op>> };
   const byTag = new Map<string, { path: string; method: string; op: Op }[]>();
   for (const [p, item] of Object.entries(doc.paths)) {

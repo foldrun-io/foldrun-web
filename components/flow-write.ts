@@ -6,7 +6,7 @@ import { $t } from "@/i18n";
 // the canvas, the editor, a deploy) instead of editing whichever step has
 // that index now. The canvas does the same through its own `send`.
 
-export const STALE_FLOW = $t("components.flow-write.thisFlowChangedSinceYouOpened");
+export const staleFlow = () => $t("components.flow-write.thisFlowChangedSinceYouOpened");
 
 export type FlowWriteResult =
   | { ok: true; before?: string; text?: string }
@@ -36,7 +36,7 @@ export async function flowWrite({
     body: JSON.stringify(typeof expect === "string" ? { ...body, expect } : body),
   });
   const data = (await res.json().catch(() => ({}))) as { error?: unknown; before?: unknown; text?: unknown };
-  if (res.status === 409) return { ok: false, stale: true, error: STALE_FLOW };
+  if (res.status === 409) return { ok: false, stale: true, error: staleFlow() };
   if (!res.ok) return { ok: false, stale: false, error: typeof data.error === "string" ? data.error : `${res.status}` };
   return {
     ok: true,

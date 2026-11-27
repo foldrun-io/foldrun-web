@@ -15,7 +15,9 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { verifySession, SESSION_COOKIE, hasUsers } from "@/server/users";
 
+import { requestLocale } from "@/server/locale";
 export default async function Root() {
+  await requestLocale();
   // Local development trusts the URL, exactly as proxy.ts does — `next dev`
   // sets this and nothing else does.
   if (process.env.FOLDRUN_DEV_NO_AUTH === "1") redirect("/dashboard");

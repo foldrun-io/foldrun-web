@@ -4,7 +4,7 @@
 // changes, a test box for a tool. One directory can be scoped in (state/,
 // from the sidebar), which narrows the tree and titles the page.
 
-import { $t } from "@/i18n";
+import { $t, localized } from "@/i18n";
 import fs from "node:fs";
 import path from "node:path";
 import Link from "@foldrun/ui/react/link";
@@ -29,9 +29,10 @@ import { filesTabs } from "@/components/nav-model";
 import { FileText, LayoutGrid, Library } from "lucide-react";
 import { NewFile } from "./new-file";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
-const SCOPES: Record<string, { title: string; blurb: string; empty?: string; list?: string }> = {
+const SCOPES: Record<string, { title: string; blurb: string; empty?: string; list?: string }> = localized(() => ({
   state: {
     title: $t("workspace.edit-page.state"),
     blurb: $t("workspace.edit-page.whatThisWorkspaceCarriesBetweenRuns"),
@@ -61,7 +62,7 @@ const SCOPES: Record<string, { title: string; blurb: string; empty?: string; lis
     empty: $t("workspace.edit-page.noSkillsInThisWorkspaceYet"),
     list: "skills",
   },
-};
+}));
 // Knowledge, memory and skills live at the workspace root and inside each
 // agent's folder; the scoped tree shows both, as the cards page does.
 const AGENT_SCOPED = new Set(Object.keys(SCOPES).filter((k) => SCOPES[k].list));
@@ -94,6 +95,7 @@ export default async function EditPage({
   params: Promise<{ workspace: string }>;
   searchParams: Promise<{ tenant?: string; path?: string; scope?: string }>;
 }) {
+  await requestLocale();
   const { workspace } = await params;
   const { tenant = "default", path: filePath, scope: rawScope } = await searchParams;
   const dir = workspaceDir(tenant, workspace);

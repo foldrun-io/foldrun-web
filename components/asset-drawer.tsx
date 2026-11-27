@@ -16,7 +16,7 @@
 // and Back closes it. Opening is a history push the router hears without a
 // server round trip, so the drawer is instant.
 
-import { $rich, $t } from "@/i18n";
+import { $rich, $t, localized } from "@/i18n";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -75,7 +75,7 @@ import { Combobox } from "@foldrun/ui/react/combobox";
 const KIND_ICON: Record<string, LucideIcon> = { tools: Wrench, hooks: Webhook, skills: Sparkles, memory: Brain, knowledge: BookOpen, scripts: FileCode };
 
 type TabId = "overview" | "test" | "source" | "usage";
-const TAB_LABEL: Record<TabId, string> = { overview: $t("components.asset-drawer.overview"), test: $t("components.asset-drawer.test"), source: $t("components.asset-drawer.source"), usage: $t("components.asset-drawer.usedBy") };
+const TAB_LABEL: Record<TabId, string> = localized(() => ({ overview: $t("components.asset-drawer.overview"), test: $t("components.asset-drawer.test"), source: $t("components.asset-drawer.source"), usage: $t("components.asset-drawer.usedBy") }));
 
 function tabsOf(item: AssetItem): TabId[] {
   if (item.kind === "scripts") return ["source", "usage"];

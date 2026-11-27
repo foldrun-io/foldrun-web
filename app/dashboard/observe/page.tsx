@@ -7,7 +7,7 @@
 // run outcomes through server/run-lite.ts, steps and tools through
 // platform/observe.ts, shaped by components/account-observe-model.ts.
 
-import { $t } from "@/i18n";
+import { $t, localized } from "@/i18n";
 import { cachedAccountInsights } from "@/server/insights";
 import { creditsShort } from "@/components/money";
 import Link from "@foldrun/ui/react/link";
@@ -24,13 +24,14 @@ import { ChartLegend } from "@foldrun/ui/react/chart";
 import { Segmented } from "@foldrun/ui/react/segmented";
 import { Tooltip } from "@foldrun/ui/react/tooltip";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
-const WINDOWS = [
+const WINDOWS = localized(() => [
   { days: 1, label: $t("observe.page.24Hours") },
   { days: 7, label: $t("observe.page.7Days") },
   { days: 30, label: $t("observe.page.30Days") },
-];
+]);
 
 // Credits charged (FOL-54): the ledger's figure, list price for a run not
 // settled yet — what the account pays, never token cost.
@@ -62,12 +63,12 @@ function Delta({ now, before, upIsGood, as }: { now: number | null; before: numb
 
 // The outcome series, in a fixed order from the baseline up. Status colours,
 // always beside their label in the legend and the hover text, never alone.
-const SERIES = [
+const SERIES = localized(() => ([
   { key: "good", label: "succeeded", cls: "bg-emerald-500" },
   { key: "attention", label: "blocked / bad", cls: "bg-orange-400" },
   { key: "desk", label: $t("observe.page.failedDesk"), cls: "bg-red-500" },
   { key: "platform", label: $t("observe.page.failedPlatform"), cls: "bg-slate-700" },
-] as const;
+] as const));
 
 function OutcomeChart({ days, tz }: { days: DayBucket[]; tz: string }) {
   const max = Math.max(1, ...days.map((d) => d.good + d.attention + d.failed + d.other));
@@ -134,6 +135,7 @@ function causeOwner(c: CauseRow): { label: string; tone: Tone } {
 }
 
 export default async function AccountObservePage({ searchParams }: { searchParams: Promise<{ tenant?: string; days?: string }> }) {
+  await requestLocale();
   const { tenant = "default", days: daysParam } = await searchParams;
   const days = WINDOWS.some((w) => String(w.days) === daysParam) ? Number(daysParam) : 7;
   const qs = tenant !== "default" ? `?tenant=${tenant}` : "";

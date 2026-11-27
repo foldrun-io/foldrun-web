@@ -53,6 +53,7 @@ import { TriggerEditor } from "./trigger-editor";
 import { FlowHashRedirect, FlowMoreMenu } from "./flow-actions";
 import { triggerLine, triggerWord } from "./trigger-line";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 export default async function FlowsPage({
@@ -62,6 +63,7 @@ export default async function FlowsPage({
   params: Promise<{ workspace: string }>;
   searchParams: Promise<{ tenant?: string; flow?: string; tab?: string }>;
 }) {
+  await requestLocale();
   const { workspace } = await params;
   const { tenant = "default", flow: chosen, tab = "steps" } = await searchParams;
   if (!fs.existsSync(workspaceDir(tenant, workspace))) notFound();

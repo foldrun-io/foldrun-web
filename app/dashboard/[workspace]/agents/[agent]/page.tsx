@@ -35,6 +35,7 @@ import type { Outcome } from "@/components/outcome-model";
 import { RunButton } from "../../../run-button";
 import { DeleteButton } from "../../../manage";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 const money = (n: number) => (n < 0.01 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}`);
@@ -62,6 +63,7 @@ export default async function AgentPage({
   params: Promise<{ workspace: string; agent: string }>;
   searchParams: Promise<{ tenant?: string; page?: string; tab?: string }>;
 }) {
+  await requestLocale();
   const { workspace, agent } = await params;
   const { tenant = "default", page: pageParam, tab = "overview" } = await searchParams;
   if (!fs.existsSync(workspaceDir(tenant, workspace))) notFound();

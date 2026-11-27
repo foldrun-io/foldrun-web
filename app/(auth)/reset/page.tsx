@@ -4,9 +4,14 @@ import { ResetForm } from "./form";
 import { AuthCard } from "../brand";
 import { Callout } from "@foldrun/ui/react/page";
 
-export const metadata = { title: $t("auth.reset-page.chooseANewPasswordFoldrun") };
+import { requestLocale } from "@/server/locale";
+export async function generateMetadata() {
+  await requestLocale();
+  return { title: $t("auth.reset-page.chooseANewPasswordFoldrun") };
+}
 
 export default async function ResetPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
+  await requestLocale();
   const { token = "" } = await searchParams;
   return (
     <AuthCard title={$t("auth.reset-page.chooseANewPassword")} hint={$t("auth.reset-page.atLeast10CharactersEveryOther")}>

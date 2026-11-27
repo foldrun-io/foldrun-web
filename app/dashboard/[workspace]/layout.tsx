@@ -7,7 +7,9 @@ import { notFound } from "next/navigation";
 import { verifySession, allowedWorkspaces, SESSION_COOKIE } from "@/server/users";
 import { scopeAllows } from "@/platform/scope";
 
+import { requestLocale } from "@/server/locale";
 export default async function WorkspaceGate({ params, children }: { params: Promise<{ workspace: string }>; children: React.ReactNode }) {
+  await requestLocale();
   const { workspace } = await params;
   const session = await verifySession((await cookies()).get(SESSION_COOKIE)?.value);
   if (session && !scopeAllows(await allowedWorkspaces(session.tenant, session.id), workspace)) notFound();

@@ -5,7 +5,7 @@
 // The same reader as GET /v1/audit, with the same gate: the owner and
 // admins who can see the whole account.
 
-import { $el, $rich, $t } from "@/i18n";
+import { $el, $rich, $t, localized } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { Input } from "@foldrun/ui/react/input";
 import { Select } from "@foldrun/ui/react/select";
@@ -24,17 +24,21 @@ import { queryAudit, parseWhen, type AuditEntry } from "@/server/audit";
 import { WithEmails } from "@/components/email";
 import { Tooltip } from "@foldrun/ui/react/tooltip";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
-export const metadata = { title: $t("settings.audit-page.auditLogSettings") };
+export async function generateMetadata() {
+  await requestLocale();
+  return { title: $t("settings.audit-page.auditLogSettings") };
+}
 
 const FAMILIES = ["login", "logout", "session", "password", "mfa", "email", "apikey", "member", "owner", "secret", "workspace", "support", "account", "plan", "billing"];
-const WINDOWS = [
+const WINDOWS = localized(() => [
   { v: "24h", label: $t("settings.audit-page.last24Hours") },
   { v: "7d", label: $t("settings.audit-page.last7Days") },
   { v: "30d", label: $t("settings.audit-page.last30Days") },
   { v: "90d", label: $t("settings.audit-page.last90Days") },
   { v: "", label: $t("settings.audit-page.allTime") },
-];
+]);
 
 const toneOf = (action: string): Tone =>
   action.startsWith("support.") ? "warn" : /refused|revoked|deleted|removed|disabled|close/.test(action) ? "bad" : /created|enabled|joined|invited/.test(action) ? "good" : "default";
@@ -92,6 +96,7 @@ export default async function AuditLogPage({
 }: {
   searchParams: Promise<{ tenant?: string; since?: string; action?: string; actor?: string; workspace?: string; cursor?: string }>;
 }) {
+  await requestLocale();
   const sp = await searchParams;
   const { tenant = "default" } = sp;
   const since = sp.since ?? "30d";

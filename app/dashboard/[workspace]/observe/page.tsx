@@ -13,7 +13,7 @@
 // built-in's gap-to-next-event includes the model thinking, so inventing a
 // latency from it would be worse than not showing one.
 
-import { $el, $rich, $t } from "@/i18n";
+import { $el, $rich, $t, localized } from "@/i18n";
 import { creditsShort } from "@/components/money";
 import { runCharges } from "@/server/run-charges";
 import Link from "@foldrun/ui/react/link";
@@ -30,13 +30,14 @@ import { ChartLegend } from "@foldrun/ui/react/chart";
 import { Segmented } from "@foldrun/ui/react/segmented";
 import { Tooltip } from "@foldrun/ui/react/tooltip";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
-const WINDOWS = [
+const WINDOWS = localized(() => [
   { days: 7, label: $t("workspace.observe-page.7Days") },
   { days: 30, label: $t("workspace.observe-page.30Days") },
   { days: 90, label: $t("workspace.observe-page.90Days") },
-];
+]);
 
 const secs = (v: number | null) => (v === null ? "—" : v >= 100 ? `${Math.round(v)}s` : `${v.toFixed(1)}s`);
 const ms = (v: number | null) => (v === null ? "—" : v >= 1000 ? `${(v / 1000).toFixed(1)}s` : `${Math.round(v)}ms`);
@@ -86,6 +87,7 @@ export default async function ObservePage({
   params: Promise<{ workspace: string }>;
   searchParams: Promise<{ tenant?: string; since?: string }>;
 }) {
+  await requestLocale();
   const { workspace } = await params;
   const { tenant = "default", since } = await searchParams;
   if (!fs.existsSync(workspaceDir(tenant, workspace))) notFound();

@@ -4,7 +4,6 @@
     "apiReference": "API reference",
     "docs": "Docs",
     "idempotencyKey": "idempotency-key",
-    "jsonSeeDocsApiMdFor": "JSON — see docs/api.md for this route's fields",
     "noKey": "no key",
     "requestBody": "Request body",
     "schema": "Schema",
