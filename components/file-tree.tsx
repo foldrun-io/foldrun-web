@@ -197,7 +197,7 @@ function Node({
         <Tooltip label={node.path} side="right">
           <Link
             href={hrefFor(node.path!)}
-            style={{ paddingLeft: indent + 6 }}
+            style={{ paddingInlineStart: indent + 6 }}
             className={`flex min-h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md pe-2 text-[13px] transition-colors ${
               active ? "bg-muted font-medium text-fg" : "text-fg-secondary hover:bg-muted hover:text-fg"
             }`}
@@ -250,7 +250,7 @@ function Node({
   return (
     <>
       <div
-        style={{ paddingLeft: indent + 6 }}
+        style={{ paddingInlineStart: indent + 6 }}
         onDragOver={(e) => {
           if (!e.dataTransfer.types.includes("text/foldrun-path")) return;
           e.preventDefault();
@@ -323,7 +323,7 @@ function Node({
           <span
             aria-hidden
             className="absolute inset-y-0 border-s border-line"
-            style={{ left: indent + 13 }}
+            style={{ insetInlineStart: indent + 13 }}
           />
           <div>
             {draft?.parent === node.id && (
@@ -377,7 +377,7 @@ function DraftRow({
 }) {
   const [name, setName] = useState("");
   return (
-    <div style={{ paddingLeft: depth * 14 + 6 }} className="py-[3px] pe-2">
+    <div style={{ paddingInlineStart: depth * 14 + 6 }} className="py-[3px] pe-2">
       <div className="flex items-center gap-1">
         <span className="w-3.5 shrink-0" />
         <input
@@ -409,7 +409,7 @@ function RenameRow({
 }) {
   const [name, setName] = useState(initial);
   return (
-    <div style={{ paddingLeft: depth * 14 + 6 }} className="py-[3px] pe-2">
+    <div style={{ paddingInlineStart: depth * 14 + 6 }} className="py-[3px] pe-2">
       <div className="flex items-center gap-1">
         <span className="w-3.5 shrink-0" />
         <input

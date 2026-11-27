@@ -173,8 +173,9 @@ export function RunTimeline({
   const glide = win === null ? "transition-[width,left] duration-500 ease-linear" : "";
 
   return (
-    // Time runs left to right in every language: the axis is placed by percent from the left.
-    <div data-ltr className="overflow-hidden rounded-lg border border-line bg-surface">
+    // Time runs left to right in every language: ticks and bars are placed by
+    // percent from the left edge of the plot, whichever side the plot is on.
+    <div className="overflow-hidden rounded-lg border border-line bg-surface">
       <style>{`
         @keyframes timeline-slide { from { background-position: 0 0 } to { background-position: 28px 0 } }
         .timeline-live {

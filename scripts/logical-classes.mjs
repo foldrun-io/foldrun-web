@@ -18,6 +18,8 @@ const VALUE = String.raw`(?:\[[^\]\s]+\]|\d+(?:\.\d+)?(?:\/\d+)?|px|auto|full)`;
 const VARIANTS = String.raw`(?:(?:[a-z0-9-]+|\[[^\]\s]+\]|[a-z-]+-\[[^\]\s]+\])(?:\/[a-z]+)?:)*`;
 const EDGE = String.raw`(?<=^|[\s"'\`])`;
 const END = String.raw`(?=$|[\s"'\`])`;
+/** A word the code compares or switches on is a value, not a class: `x === "text-left"`. */
+const COMPARED = /(?:[=!]==?|\bcase)\s*["'`]$/;
 
 /** [pattern, replacement of the utility's name]. `!` and `-` prefixes and variants are kept. */
 const RULES = [
@@ -34,7 +36,7 @@ const RULES = [
   [String.raw`(rounded-l)(?:-[a-z0-9]+|-\[[^\]\s]+\])?`, "rounded-s"], [String.raw`(rounded-r)(?:-[a-z0-9]+|-\[[^\]\s]+\])?`, "rounded-e"],
   [String.raw`(rounded-tl)(?:-[a-z0-9]+|-\[[^\]\s]+\])?`, "rounded-ss"], [String.raw`(rounded-tr)(?:-[a-z0-9]+|-\[[^\]\s]+\])?`, "rounded-se"],
   [String.raw`(rounded-bl)(?:-[a-z0-9]+|-\[[^\]\s]+\])?`, "rounded-es"], [String.raw`(rounded-br)(?:-[a-z0-9]+|-\[[^\]\s]+\])?`, "rounded-ee"],
-].map(([p, to]) => [new RegExp(`${EDGE}(${VARIANTS}!?-?)${p}${END}`, "g"), to]);
+].map(([p, to]) => [new RegExp(`${EDGE}(${VARIANTS}!?-?)${p}!?${END}`, "g"), to]);
 
 /** Lines that keep a physical class on purpose: `// physical: <why>` at the end of the line or on the line above. */
 const KEPT = /\/[/*]\s*physical:/;
@@ -47,7 +49,8 @@ export function files(roots = ["app", "components"]) {
       if (e.name === "node_modules" || e.name.startsWith(".")) continue;
       const p = path.join(dir, e.name);
       if (e.isDirectory()) walk(p);
-      else if (/\.(ts|tsx|css)$/.test(e.name) && !/\.test\./.test(e.name)) out.push(p);
+      // A route handler draws nothing: its strings are values an API caller sends.
+      else if (/\.(ts|tsx|css)$/.test(e.name) && !/\.test\./.test(e.name) && e.name !== "route.ts") out.push(p);
     }
   };
   for (const r of roots) walk(path.join(WEB, r));
@@ -62,7 +65,8 @@ export function scan(text) {
     if (KEPT.test(line) || (i > 0 && KEPT.test(lines[i - 1]))) return line;
     let next = line;
     for (const [re, to] of RULES) {
-      next = next.replace(re, (whole, prefix, name) => {
+      next = next.replace(re, (whole, prefix, name, at, all) => {
+        if (COMPARED.test(all.slice(0, at))) return whole;
         const becomes = prefix + to + whole.slice(prefix.length + name.length);
         found.push({ line: i + 1, found: whole, becomes });
         return becomes;

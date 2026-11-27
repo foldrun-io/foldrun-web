@@ -22,4 +22,11 @@ test("the rewrite knows a class from a word", () => {
     assert.equal(scan(same).text, same);
   }
   assert.equal(scan('className="left-0" // physical: a canvas placed by pixel').found.length, 0);
+  // Tailwind 4 writes "important" at the end.
+  assert.equal(scan('"ml-auto! md:text-right!"').text, '"ms-auto! md:text-end!"');
+  // A word the code compares is a value an API caller may send, not a class.
+  for (const value of ['if (align === "text-left") return;', "case 'text-right':", 'x !== "ml-2"']) {
+    assert.equal(scan(value).text, value);
+  }
+  assert.equal(files().some((f) => path.basename(f) === "route.ts"), false, "route handlers are never rewritten");
 });

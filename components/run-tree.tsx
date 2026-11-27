@@ -81,7 +81,7 @@ function Row({
         ref={ref}
         className={`group grid grid-cols-[minmax(0,1fr)_minmax(4rem,30%)] items-center gap-3 rounded px-1.5 py-1 text-[13px] ${failing ? "bg-danger-soft" : "hover:bg-sunken"}`}
       >
-        <div className="flex min-w-0 items-center gap-1.5" style={{ paddingLeft: `${depth * 14}px` }}>
+        <div className="flex min-w-0 items-center gap-1.5" style={{ paddingInlineStart: `${depth * 14}px` }}>
           {span.children.length > 0 ? (
             <button type="button" aria-expanded={isOpen} aria-label={isOpen ? $t("components.run-tree.fold") : $t("components.run-tree.unfold")} onClick={() => toggle(span.id)} className="flex size-4 shrink-0 items-center justify-center text-fg-muted hover:text-fg">
               <ChevronRight className={`size-3.5 transition-transform ${isOpen ? "rotate-90" : ""}`} aria-hidden />
@@ -108,7 +108,7 @@ function Row({
         </div>
       </div>
       {io && mayReadCalls && span.call && (
-        <div style={{ paddingLeft: `${depth * 14 + 40}px` }} className="pe-2 pb-1">
+        <div style={{ paddingInlineStart: `${depth * 14 + 40}px` }} className="pe-2 pb-1">
           <CallContent run={callRun} call={span.call} tenant={tenant} />
         </div>
       )}
