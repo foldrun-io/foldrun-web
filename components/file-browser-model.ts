@@ -1,4 +1,4 @@
-import { $t, localized } from "@/i18n";
+import { $t, localizedList } from "@/i18n";
 // The storage browser's rules, apart from React: what kind a file is, how
 // old, where it came from, whether it is shared, and what a search keeps.
 
@@ -139,7 +139,7 @@ export function shareState(share: BrowserShare | null, now: number): { state: "p
 }
 
 export type BrowserFilter = "all" | "shared" | "image" | "video" | "pdf" | "doc";
-export const FILTERS: { key: BrowserFilter; label: string }[] = localized(() => [
+export const FILTERS: { key: BrowserFilter; label: string }[] = localizedList(() => [
   { key: "all", label: $t("components.file-browser-model.all") },
   { key: "shared", label: $t("components.file-browser-model.shared") },
   { key: "image", label: $t("components.file-browser-model.images") },

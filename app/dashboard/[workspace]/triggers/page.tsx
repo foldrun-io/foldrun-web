@@ -18,7 +18,7 @@
 // call over A2A.
 
 import { WEBHOOK_OUTCOME_LABEL, labelOf } from "@/components/value-labels";
-import { $rich, $t, localized } from "@/i18n";
+import { $rich, $t, localized, localizedList } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
 import { notFound } from "next/navigation";
@@ -45,7 +45,7 @@ import { HashTab } from "./hash-tab";
 import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
-const WINDOWS = localized(() => [
+const WINDOWS = localizedList(() => [
   { days: 1, label: "24h" },
   { days: 7, label: $t("workspace.triggers-page.7Days") },
   { days: 30, label: $t("workspace.triggers-page.30Days") },

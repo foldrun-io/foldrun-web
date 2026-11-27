@@ -13,7 +13,7 @@
 // built-in's gap-to-next-event includes the model thinking, so inventing a
 // latency from it would be worse than not showing one.
 
-import { $el, $rich, $t, localized } from "@/i18n";
+import { $el, $rich, $t, localizedList } from "@/i18n";
 import { creditsShort } from "@/components/money";
 import { runCharges } from "@/server/run-charges";
 import Link from "@foldrun/ui/react/link";
@@ -33,7 +33,7 @@ import { Tooltip } from "@foldrun/ui/react/tooltip";
 import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
-const WINDOWS = localized(() => [
+const WINDOWS = localizedList(() => [
   { days: 7, label: $t("workspace.observe-page.7Days") },
   { days: 30, label: $t("workspace.observe-page.30Days") },
   { days: 90, label: $t("workspace.observe-page.90Days") },

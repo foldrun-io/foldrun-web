@@ -5,7 +5,7 @@
 // The same reader as GET /v1/audit, with the same gate: the owner and
 // admins who can see the whole account.
 
-import { $el, $rich, $t, localized } from "@/i18n";
+import { $el, $rich, $t, localizedList } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { Input } from "@foldrun/ui/react/input";
 import { Select } from "@foldrun/ui/react/select";
@@ -32,7 +32,7 @@ export async function generateMetadata() {
 }
 
 const FAMILIES = ["login", "logout", "session", "password", "mfa", "email", "apikey", "member", "owner", "secret", "workspace", "support", "account", "plan", "billing"];
-const WINDOWS = localized(() => [
+const WINDOWS = localizedList(() => [
   { v: "24h", label: $t("settings.audit-page.last24Hours") },
   { v: "7d", label: $t("settings.audit-page.last7Days") },
   { v: "30d", label: $t("settings.audit-page.last30Days") },

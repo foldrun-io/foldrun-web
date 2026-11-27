@@ -10,7 +10,7 @@
 // in the side panel; double-click to open it. The highlight is plain CSS
 // keyed on node ids, so hovering a map of hundreds re-renders nothing.
 
-import { $t, localized } from "@/i18n";
+import { $t, localized, localizedList } from "@/i18n";
 import "@xyflow/react/dist/style.css";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "@foldrun/ui/react/link";
@@ -115,7 +115,7 @@ function KindIcon({ kind, scope, className }: { kind: Kind; scope?: Scope; class
 }
 
 type FilterKey = "scope" | "flow" | "agent" | "tool" | "skill" | "knowledge" | "memory";
-const FILTERS: { key: FilterKey; label: string; icon: LucideIcon }[] = localized(() => [
+const FILTERS: { key: FilterKey; label: string; icon: LucideIcon }[] = localizedList(() => [
   { key: "scope", label: $t("workspace.graph-graph-client.accountAndWorkspace"), icon: Boxes },
   { key: "flow", label: $t("workspace.graph-graph-client.flows"), icon: Workflow },
   { key: "agent", label: $t("workspace.graph-graph-client.agents"), icon: Bot },

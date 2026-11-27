@@ -4,7 +4,7 @@
 // called or erroring, an agent, a model, tokens, time — and keep a search
 // as a named view. The same filters as GET …/runs and `foldrun runs`.
 
-import { $rich, $t, $el, localized } from "@/i18n";
+import { $rich, $t, $el, localizedList } from "@/i18n";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { SlidersHorizontal } from "lucide-react";
@@ -25,7 +25,7 @@ export function RunQuery({ value, placeholder, className }: { value: string; pla
   return <SearchField url value={value} placeholder={placeholder} className={className} />;
 }
 
-const FIELDS: { key: string; label: string; placeholder: string; width: string }[] = localized(() => [
+const FIELDS: { key: string; label: string; placeholder: string; width: string }[] = localizedList(() => [
   { key: "tool", label: $t("components.run-search.tool"), placeholder: $t("components.run-search.webCrm"), width: "sm:w-32" },
   { key: "agent", label: $t("components.run-search.agent"), placeholder: "writer", width: "sm:w-32" },
   { key: "model", label: $t("components.run-search.model"), placeholder: "haiku", width: "sm:w-28" },

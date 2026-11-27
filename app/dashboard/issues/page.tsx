@@ -2,7 +2,7 @@
 // person resolves it. Same list as GET /v1/issues and `foldrun issues`.
 
 import { ISSUE_STATUS_LABEL, labelOf } from "@/components/value-labels";
-import { $el, $rich, $t, localized } from "@/i18n";
+import { $el, $rich, $t, localized, localizedList } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { AlertTriangle, Ban, CalendarX2, CheckCircle2, ServerCrash, XCircle, X } from "lucide-react";
 import { Page, PageHeader, Chip, Tag, EmptyState, type Tone } from "@foldrun/ui/react/page";
@@ -23,7 +23,7 @@ import { Tooltip } from "@foldrun/ui/react/tooltip";
 import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
-const TABS: { key: IssueFilter; label: string }[] = localized(() => [
+const TABS: { key: IssueFilter; label: string }[] = localizedList(() => [
   { key: "active", label: $t("issues.page.open") },
   { key: "snoozed", label: $t("issues.page.snoozed") },
   { key: "resolved", label: $t("issues.page.resolved") },

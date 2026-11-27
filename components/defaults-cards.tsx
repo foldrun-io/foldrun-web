@@ -5,7 +5,7 @@
 // same SettingsForm, posting to the scope's PATCH. A workspace shows what
 // it would inherit from the account beside each empty field.
 
-import { $rich, $t, localized } from "@/i18n";
+import { $rich, $t, localized, localizedList } from "@/i18n";
 import { useEffect, useState } from "react";
 import { SettingsForm, useSettingsForm } from "./settings-form";
 import { useHydrated } from "./browser-value";
@@ -68,7 +68,7 @@ export function TimezoneCard({ endpoint, tenant, initial, inherited }: { endpoin
   );
 }
 
-const PERIODS = localized(() => ([
+const PERIODS = localizedList(() => ([
   { value: "day", label: $t("components.defaults-cards.aDay"), window: "today" },
   { value: "week", label: $t("components.defaults-cards.aWeek"), window: $t("components.defaults-cards.thisWeek") },
   { value: "month", label: $t("components.defaults-cards.aMonth"), window: $t("components.defaults-cards.thisMonth") },
@@ -333,7 +333,7 @@ export function OwnerCard({ endpoint, tenant, initial, inherited }: { endpoint: 
   );
 }
 
-const ALERT_FIELDS: { key: Exclude<keyof Alerts, "new_host">; label: string; placeholder: string; help: string }[] = localized(() => [
+const ALERT_FIELDS: { key: Exclude<keyof Alerts, "new_host">; label: string; placeholder: string; help: string }[] = localizedList(() => [
   { key: "failure_rate", label: $t("components.defaults-cards.failureRate"), placeholder: "30%", help: $t("components.defaults-cards.ofTheRunsThatFinishedIn") },
   { key: "min_runs", label: $t("components.defaults-cards.onceAtLeast"), placeholder: "5", help: $t("components.defaults-cards.runsHaveFinished") },
   { key: "credits_day", label: $t("components.defaults-cards.creditsInADay"), placeholder: "2000", help: $t("components.defaults-cards.chargedInTheLast24Hours") },

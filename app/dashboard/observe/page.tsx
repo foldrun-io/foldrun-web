@@ -7,7 +7,7 @@
 // run outcomes through server/run-lite.ts, steps and tools through
 // platform/observe.ts, shaped by components/account-observe-model.ts.
 
-import { $t, localized } from "@/i18n";
+import { $t, localizedList } from "@/i18n";
 import { cachedAccountInsights } from "@/server/insights";
 import { creditsShort } from "@/components/money";
 import Link from "@foldrun/ui/react/link";
@@ -27,7 +27,7 @@ import { Tooltip } from "@foldrun/ui/react/tooltip";
 import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
-const WINDOWS = localized(() => [
+const WINDOWS = localizedList(() => [
   { days: 1, label: $t("observe.page.24Hours") },
   { days: 7, label: $t("observe.page.7Days") },
   { days: 30, label: $t("observe.page.30Days") },
@@ -63,7 +63,7 @@ function Delta({ now, before, upIsGood, as }: { now: number | null; before: numb
 
 // The outcome series, in a fixed order from the baseline up. Status colours,
 // always beside their label in the legend and the hover text, never alone.
-const SERIES = localized(() => ([
+const SERIES = localizedList(() => ([
   { key: "good", label: "succeeded", cls: "bg-emerald-500" },
   { key: "attention", label: "blocked / bad", cls: "bg-orange-400" },
   { key: "desk", label: $t("observe.page.failedDesk"), cls: "bg-red-500" },

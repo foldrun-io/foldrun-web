@@ -3,7 +3,7 @@
 // Three tabs that never mix: assigned to you, runs you started, and the rest
 // of what waits in your workspaces; a fourth for what you set aside.
 
-import { $t, localized } from "@/i18n";
+import { $t, localizedList } from "@/i18n";
 import { Inbox as InboxIcon, LogIn } from "lucide-react";
 import { Page, PageHeader, EmptyState } from "@foldrun/ui/react/page";
 import { PageTabs } from "@foldrun/ui/react/page-tabs";
@@ -15,7 +15,7 @@ import { InboxList } from "@/components/inbox-list";
 import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
-const TABS = localized(() => ([
+const TABS = localizedList(() => ([
   { key: "mine", label: $t("inbox.page.forMe"), hint: $t("inbox.page.youAreNamedAsAnApprover") },
   { key: "started", label: $t("inbox.page.startedByMe"), hint: $t("inbox.page.runsYouStartedAFailureOr") },
   { key: "team", label: $t("inbox.page.team"), hint: $t("inbox.page.everythingElseWaitingInYourWorkspace") },
@@ -23,7 +23,7 @@ const TABS = localized(() => ([
 ] as const));
 type Tab = (typeof TABS)[number]["key"];
 
-const KINDS: { key: InboxKind; label: string }[] = localized(() => [
+const KINDS: { key: InboxKind; label: string }[] = localizedList(() => [
   { key: "approval", label: $t("inbox.page.approvals") },
   { key: "question", label: $t("inbox.page.questions") },
   { key: "issue", label: $t("inbox.page.issues") },

@@ -8,7 +8,7 @@
 // other line (comments, key order, keys the form does not know, the body) is
 // left exactly as it was. Nothing re-serialises the whole frontmatter.
 
-import { $t, localized } from "@/i18n";
+import { $t, localized, localizedList } from "@/i18n";
 import { load, dump, CORE_SCHEMA } from "js-yaml";
 import type { ReactNode } from "react";
 import { FRONTMATTER, type FieldSpec } from "@/lib/frontmatter-fields";
@@ -253,7 +253,7 @@ const PRIMARY: Record<string, string[]> = {
 const FLAT_MAPS = new Set(["headers", "query", "env", "args"]);
 
 /** memory/ and knowledge/ are OKF documents, not a schema kind of foldrun's own. */
-const DOC_FIELDS: FieldSpec[] = localized(() => [
+const DOC_FIELDS: FieldSpec[] = localizedList(() => [
   { key: "title", type: "string", help: $t("components.asset-fields.theNameAReaderSees") },
   { key: "description", type: "string", help: $t("components.asset-fields.oneLineWhatThisIsAnd") },
   { key: "type", type: "string", help: $t("components.asset-fields.theConceptTypeEGPrice") },

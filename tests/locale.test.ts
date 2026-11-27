@@ -15,7 +15,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { $t, MESSAGES, currentDir, currentLocale, localized } from "@/i18n";
+import { $t, MESSAGES, currentDir, currentLocale, localized, localizedList } from "@/i18n";
+import { localeForHost } from "@/server/locale-host";
 import { CATALOG_FA } from "@/messages/fa";
 import { parse, TYPE, type MessageFormatElement } from "@formatjs/icu-messageformat-parser";
 import { importTimeCalls, pagesNotAwaiting } from "../scripts/i18n-import-time.mjs";
@@ -72,8 +73,6 @@ test("in the browser the language is the document's", () => {
     assert.equal(currentLocale(), "fa");
     assert.equal(currentDir(), "rtl");
     assert.equal($t("auth.login-page.signIn"), "ورود");
-    // A sentence Persian does not have yet stays English, never a bare key.
-    assert.equal($t("auth.signup-page.createAccount"), "Create account");
   });
   asBrowser("en", () => assert.equal($t("auth.login-page.signIn"), "Sign in"));
   asBrowser("de", () => assert.equal(currentLocale(), "en"));
@@ -81,7 +80,10 @@ test("in the browser the language is the document's", () => {
 
 test("localized(): a table reads as itself, in the reader's language", () => {
   let built = 0;
-  const TABS = localized(() => {
+  const NEVER_READ = localizedList(() => { built++; return [$t("auth.login-page.signIn")]; });
+  assert.equal(built, 0, "nothing is built until it is read");
+  void NEVER_READ;
+  const TABS = localizedList(() => {
     built++;
     return [{ key: "in", label: $t("auth.login-page.signIn") }, { key: "up", label: $t("auth.signup-page.createAccount") }];
   });
@@ -108,7 +110,8 @@ test("localized(): a table reads as itself, in the reader's language", () => {
   });
   assert.equal(TABS[0].label, "Sign in");
 
-  // Built once per language (and once to learn its kind), and the same table each time.
+  // Built on first read, once per language, and the same table each time.
+  assert.equal(built, 2);
   const before = built;
   assert.equal(TABS[0], TABS[0]);
   asBrowser("fa", () => assert.equal(TABS[1], TABS[1]));
@@ -162,10 +165,35 @@ test("parity reads a message's syntax, not its words", () => {
   assert.throws(() => holes("{n, plural, one {x}"));
 });
 
-test("a sentence Persian lacks keeps English plural rules on a Persian page", () => {
+test("a sentence Persian lacks is the English one, by English rules", (t) => {
+  // Chosen from what is untranslated today, so translating a sentence never
+  // breaks this; with everything translated there is nothing left to fall back.
+  const persian = new Set(leaves(CATALOG_FA as unknown as Tree).map(([k]) => k));
+  const untranslated = leaves(MESSAGES as unknown as Tree).filter(([k]) => !persian.has(k));
+  const plain = untranslated.find(([, m]) => !/[{<]/.test(m));
   // Persian counts 0 as "one"; an English sentence must still say "0 cases".
-  const key = "workspace.evals-page.nCases";
-  const english = $t(key, { n: 0 });
-  asBrowser("fa", () => assert.equal($t(key, { n: 0 }), english));
-  assert.match(english, /^0 /);
+  const plural = untranslated.find(([, m]) => /^\{n, plural, one \{[^{}]*\} other \{[^{}]*\}\}$/.test(m));
+  if (!plain && !plural) return t.skip("every sentence is translated");
+  if (plain) asBrowser("fa", () => assert.equal($t(plain[0]), plain[1]));
+  if (plural) {
+    const english = $t(plural[0], { n: 0 });
+    asBrowser("fa", () => assert.equal($t(plural[0], { n: 0 }), english));
+    assert.notEqual(english, $t(plural[0], { n: 1 }));
+  }
+});
+
+test("the language follows the host's name, and the choice only on a Persian host", () => {
+  const fa = "dash.foldrun.ir, fa.localhost:3977";
+  assert.equal(localeForHost("dash.foldrun.ir", undefined, fa), "fa");
+  assert.equal(localeForHost("dash.foldrun.ir:8443", undefined, fa), "fa");
+  assert.equal(localeForHost("DASH.Foldrun.IR.", undefined, fa), "fa");
+  assert.equal(localeForHost("fa.localhost", undefined, fa), "fa");
+  assert.equal(localeForHost("dash.foldrun.ir", "en", fa), "en");
+  assert.equal(localeForHost("dash.foldrun.ir", "de", fa), "fa");
+  assert.equal(localeForHost("dash.foldrun.io", undefined, fa), "en");
+  assert.equal(localeForHost("dash.foldrun.io", "fa", fa), "en");
+  assert.equal(localeForHost("evil-dash.foldrun.ir.example.com", undefined, fa), "en");
+  assert.equal(localeForHost(null, undefined, fa), "en");
+  assert.equal(localeForHost("dash.foldrun.ir", undefined, ""), "en");
+  assert.equal(localeForHost("dash.foldrun.ir", undefined, undefined), "en");
 });

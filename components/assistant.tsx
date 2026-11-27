@@ -14,7 +14,7 @@
 // Opened by the button at the bottom right, or by any control that
 // dispatches `foldrun:assistant` with an optional `{ prompt }` to start from.
 
-import { $rich, $t, localized } from "@/i18n";
+import { $rich, $t, localizedList } from "@/i18n";
 import { Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -778,7 +778,7 @@ function History({ headers, current, onOpen }: { headers: Record<string, string>
   );
 }
 
-const EXAMPLES = localized(() => [
+const EXAMPLES = localizedList(() => [
   $t("components.assistant.howDoIRunAStep"),
   $t("components.assistant.writeAnAgentThatSummarisesA"),
   $t("components.assistant.makeAFlowThatRunsEvery"),

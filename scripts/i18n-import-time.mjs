@@ -41,7 +41,7 @@ const isTranslate = (n) => ts.isCallExpression(n) && ts.isIdentifier(n.expressio
 // A function written at the top of a file is kept for later, except one
 // handed straight to a call that runs it there and then: `rows.map(() =>
 // $t("…"))`, or `(() => $t("…"))()`. These calls keep theirs for later:
-const KEEPS = new Set(["localized", "cache", "memo", "forwardRef", "lazy", "dynamic", "createContext"]);
+const KEEPS = new Set(["localized", "localizedList", "cache", "memo", "forwardRef", "lazy", "dynamic", "createContext"]);
 function runsAtImport(fn) {
   let node = fn;
   let parent = node.parent;

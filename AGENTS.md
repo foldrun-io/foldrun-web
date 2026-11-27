@@ -78,8 +78,10 @@ what breaks them):
   layout, so each one asks. A `"use client"` page needs nothing.
 - **No `$t` outside a function.** A file is read once, before any request.
   A table of words at the top of a file is
-  `const TABS = localized(() => [{ key: "mine", label: $t("…") }])`: it reads
-  as the table (`TABS.map`, `LABEL[key]`) in the reader's language. A single
+  `const LABEL = localized(() => ({ open: $t("…") }))`, or for a list
+  `const TABS = localizedList(() => [{ key: "mine", label: $t("…") }])`: it
+  reads as the table (`TABS.map`, `LABEL[key]`) in the reader's language,
+  built on first read. A single
   sentence is a function (`const hint = () => $t("…")`); a title is
   `generateMetadata`, never `export const metadata` with `$t`.
 - **Persian sentences live in `messages/fa/`**, laid over English: a key

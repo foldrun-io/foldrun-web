@@ -5,7 +5,7 @@
 // the API's own changelog: its dated versions, what each one broke, and the
 // routes on their way out, from server/api-version.ts.
 
-import { $rich, $t, localized } from "@/i18n";
+import { $rich, $t, localizedList } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { Page, PageHeader, Card, Chip, EmptyState, Panel } from "@foldrun/ui/react/page";
 import { Sparkles } from "lucide-react";
@@ -21,7 +21,7 @@ export async function generateMetadata() {
   return { title: $t("whats-new.page.whatSNew") };
 }
 
-const GROUPS: { key: keyof NonNullable<Release["notes"]>; title: string }[] = localized(() => [
+const GROUPS: { key: keyof NonNullable<Release["notes"]>; title: string }[] = localizedList(() => [
   { key: "features", title: $t("whats-new.page.features") },
   { key: "fixes", title: $t("whats-new.page.fixes") },
   { key: "docs", title: $t("whats-new.page.docs") },

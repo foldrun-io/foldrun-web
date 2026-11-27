@@ -4,7 +4,7 @@
 // records and file stores at render time; there is no second counter to
 // drift from the facts.
 
-import { $el, $rich, $t, localized } from "@/i18n";
+import { $el, $rich, $t, localizedList } from "@/i18n";
 import { Page, PageHeader, SectionTitle, StatGrid, Stat, Callout } from "@foldrun/ui/react/page";
 import { PageTabs } from "@foldrun/ui/react/page-tabs";
 import { Segmented } from "@foldrun/ui/react/segmented";
@@ -39,7 +39,7 @@ const fmtMins = (secs: number) => (secs >= 3600 ? `${(secs / 3600).toFixed(1)} h
 
 const dim = <span className="text-fg-subtle">—</span>;
 
-const BUCKET_COLUMNS = localized(() => [
+const BUCKET_COLUMNS = localizedList(() => [
   { label: "\u00a0" },
   { label: $t("usage.page.runs"), align: "right" as const },
   { label: $t("usage.page.steps"), align: "right" as const },
@@ -116,7 +116,7 @@ function SpendTable({ title, rows, unit }: { title: string; rows: SpendSeries[];
   );
 }
 
-const TABS = localized(() => ([
+const TABS = localizedList(() => ([
   { key: "overview", label: $t("usage.page.overview") },
   { key: "tokens", label: $t("usage.page.tokens") },
   { key: "compute", label: $t("usage.page.compute") },
@@ -125,7 +125,7 @@ const TABS = localized(() => ([
 type TabKey = (typeof TABS)[number]["key"];
 
 // Presets for the Tokens and Compute period; the API and CLI take any days.
-const PERIODS = localized(() => ([
+const PERIODS = localizedList(() => ([
   { key: "month", label: $t("usage.page.thisMonth"), days: 0 },
   { key: "7", label: $t("usage.page.last7Days"), days: 7 },
   { key: "30", label: $t("usage.page.last30Days"), days: 30 },

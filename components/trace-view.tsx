@@ -4,7 +4,7 @@
 // kind you are looking for, verify as a verdict, long lines one click from
 // whole, and the whole trace one click from full height.
 
-import { $t, localized } from "@/i18n";
+import { $t, localizedList } from "@/i18n";
 import { useEffect, useMemo, useState, type Ref, type UIEvent } from "react";
 import { Markdown } from "@/components/markdown";
 import { callContentNeeds, callContentError, classify, counts, type TraceKind, type TraceLine } from "@/components/trace-model";
@@ -16,7 +16,7 @@ import { Tooltip } from "@foldrun/ui/react/tooltip";
 import { Segmented } from "@foldrun/ui/react/segmented";
 import { Chip, Tag } from "@foldrun/ui/react/page";
 
-const FILTERS: { key: TraceKind | "all"; label: string }[] = localized(() => [
+const FILTERS: { key: TraceKind | "all"; label: string }[] = localizedList(() => [
   { key: "all", label: $t("components.trace-view.all") },
   { key: "agent", label: $t("components.trace-view.agent") },
   { key: "tool", label: $t("components.trace-view.tools") },

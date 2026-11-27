@@ -5,7 +5,7 @@
 // held to, and the block list. Reading is everyone's; changing is an admin's
 // over every workspace (the routes refuse anyone else).
 
-import { $t, localized } from "@/i18n";
+import { $t, localizedList } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@foldrun/ui/react/button";
@@ -38,7 +38,7 @@ interface Blocked {
   at: string;
 }
 
-const LABELS: { key: WholeKey; label: string; hint: string }[] = localized(() => [
+const LABELS: { key: WholeKey; label: string; hint: string }[] = localizedList(() => [
   { key: "startsPerMinute", label: $t("settings.customers.runStartsAMinute"), hint: $t("settings.customers.perCustomer") },
   { key: "maxOpenRuns", label: $t("settings.customers.runsOpenAtOnce"), hint: $t("settings.customers.queuedRunningOrWaiting") },
   { key: "gatewayRpm", label: $t("settings.customers.gatewayCallsAMinute"), hint: $t("settings.customers.perCustomer") },

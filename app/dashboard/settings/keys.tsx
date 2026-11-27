@@ -1,7 +1,7 @@
 "use client";
 
 import { labelOf, ROLE_LABEL } from "@/components/value-labels";
-import { $el, $rich, $t, localized } from "@/i18n";
+import { $el, $rich, $t, localized, localizedList } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
 import { WithEmails } from "@/components/email";
@@ -52,13 +52,13 @@ interface KeyRow {
 /** The most tasks an A2A key may have open at once (the keys route's bound). */
 const A2A_MAX_TASKS = 100;
 
-const EXPIRY = localized(() => [
+const EXPIRY = localizedList(() => [
   { v: "30d", label: $t("settings.keys.30Days") },
   { v: "90d", label: $t("settings.keys.90Days") },
   { v: "365d", label: $t("settings.keys.1Year") },
   { v: "never", label: $t("settings.keys.neverExpires") },
 ]);
-const GRACE = localized(() => [
+const GRACE = localizedList(() => [
   { v: "0", label: $t("settings.keys.revokeTheOldKeyNow") },
   { v: "1h", label: $t("settings.keys.keepTheOldKey1Hour") },
   { v: "24h", label: $t("settings.keys.keepTheOldKey24Hours") },

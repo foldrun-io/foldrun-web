@@ -88,15 +88,26 @@ export function currentDir(): "ltr" | "rtl" {
 }
 
 /**
- * A table of words written at the top of a file: `const TABS = localized(()
- * => [{ key: "mine", label: $t("…") }])`. A file is read once, before any
+ * A table of words written at the top of a file: `const LABEL = localized(()
+ * => ({ open: $t("…") }))`, or for a list `const TABS = localizedList(() =>
+ * [{ key: "mine", label: $t("…") }])`. A file is read once, before any
  * request, so a sentence translated there would be English for everybody.
- * This builds the table once per language, the first time it is read, and
- * hands back something that reads as the table itself: `TABS.map(…)`,
- * `LABEL[key]`, `Object.entries(LABEL)` all see the current language's copy.
- * For objects and arrays only; a single sentence is a function.
+ * These build the table once per language, the first time it is read (never
+ * at import), and hand back something that reads as the table itself:
+ * `TABS.map(…)`, `LABEL[key]`, `Object.entries(LABEL)` all see the current
+ * language's copy. A single sentence is a function instead.
  */
 export function localized<T extends object>(build: () => T): T {
+  return standIn({} as T, build);
+}
+
+/** localized() for a list: the stand-in is an array, so Array.isArray and
+ *  React's check of what may cross to the browser answer as for the list. */
+export function localizedList<T extends readonly unknown[]>(build: () => T): T {
+  return standIn([] as unknown as T, build);
+}
+
+function standIn<T extends object>(shape: T, build: () => T): T {
   const made = new Map<Locale, T>();
   const now = (): T => {
     const locale = currentLocale();
@@ -104,10 +115,7 @@ export function localized<T extends object>(build: () => T): T {
     if (!value) made.set(locale, (value = build()));
     return value;
   };
-  // The stand-in has the table's own kind (array or object), so Array.isArray
-  // and React's check of what may cross to the browser answer as for the table.
-  const standIn = (Array.isArray(build()) ? [] : {}) as T;
-  return new Proxy(standIn, {
+  return new Proxy(shape, {
     // Methods (`map`, `find`) come back as they are and run on the stand-in,
     // reading each element through here: nothing is bound, so a component or
     // function kept in a table is the same one on every read.

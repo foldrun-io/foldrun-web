@@ -23,7 +23,7 @@ import { labelOf, RUN_STATUS_LABEL } from "@/components/value-labels";
 // Every one of those either writes the markdown or is a view choice that is
 // never saved; none keeps positions or a side file.
 
-import { $rich, $t, localized } from "@/i18n";
+import { $rich, $t, localized, localizedList } from "@/i18n";
 import "@xyflow/react/dist/style.css";
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -104,7 +104,7 @@ type Pattern =
 
 type Payload = { kind: "agent"; name: string } | { kind: "pattern"; pattern: Pattern };
 
-const PATTERNS: { pattern: Pattern; label: string; hint: string; where: "gap" | "column" | "step" | "dock" }[] = localized(() => [
+const PATTERNS: { pattern: Pattern; label: string; hint: string; where: "gap" | "column" | "step" | "dock" }[] = localizedList(() => [
   { pattern: "chain", label: $t("workspace.flows-flow-canvas.chain"), hint: $t("workspace.flows-flow-canvas.aNewStepAfterTheOne"), where: "gap" },
   { pattern: "parallel", label: $t("workspace.flows-flow-canvas.parallel"), hint: $t("workspace.flows-flow-canvas.runBesideAStepDropOnto"), where: "column" },
   { pattern: "router", label: $t("workspace.flows-flow-canvas.router"), hint: $t("workspace.flows-flow-canvas.aTriageStepThenCaseElse"), where: "gap" },
@@ -657,7 +657,7 @@ function typing(t: EventTarget | null): boolean {
 
 const MOD = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
 
-const SHORTCUTS: [string, string][] = localized(() => [
+const SHORTCUTS: [string, string][] = localizedList(() => [
   [`${MOD}K`, $t("workspace.flows-flow-canvas.commandPaletteAddAStepOr")],
   [`${MOD}Z`, $t("workspace.flows-flow-canvas.undoTheLastEditMadeOn")],
   [`Shift+${MOD}Z`, "redo"],
