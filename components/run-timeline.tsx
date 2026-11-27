@@ -190,7 +190,8 @@ export function RunTimeline({
       {/* axis */}
       <div className="grid grid-cols-[8rem_1fr] border-b border-line bg-sunken text-xs text-fg-muted sm:grid-cols-[11rem_1fr]">
         <div className="px-3 py-2 text-[13px]">{$t("components.run-timeline.step")}</div>
-        <div className="relative h-8 pe-3">
+        {/* physical: the time axis ends at the right in every language, so its gutter is on the right */}
+        <div className="relative h-8 pr-3">
           {/* A label within a few percent of either edge would clip; the
               grid line still marks the tick. The run's own zero always shows. */}
           {ticks.filter((t) => tickPos(t) < 96 && (tickPos(t) > 3 || t === 0)).map((t) => (
@@ -248,7 +249,8 @@ export function RunTimeline({
 
         <div
           ref={chartRef}
-          className="relative touch-pan-y pe-3"
+          // physical: the same gutter as the axis above, on the right in every language
+          className="relative touch-pan-y pr-3"
           onPointerDown={(e) => {
             if (e.button !== 0) return;
             brushRef.current = { x0: e.clientX, moved: false };

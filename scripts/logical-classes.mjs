@@ -66,7 +66,9 @@ export function scan(text) {
     let next = line;
     for (const [re, to] of RULES) {
       next = next.replace(re, (whole, prefix, name, at, all) => {
-        if (COMPARED.test(all.slice(0, at))) return whole;
+        // The string this word sits in: back to its opening quote (no quote in between).
+        const open = Math.max(all.lastIndexOf('"', at - 1), all.lastIndexOf("'", at - 1), all.lastIndexOf("`", at - 1));
+        if (open >= 0 && COMPARED.test(all.slice(0, open + 1))) return whole;
         const becomes = prefix + to + whole.slice(prefix.length + name.length);
         found.push({ line: i + 1, found: whole, becomes });
         return becomes;
