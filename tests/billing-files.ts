@@ -146,6 +146,8 @@ export const STUBS: Record<string, string> = {
   "server/hosted-services.ts": HOSTED_SERVICES_STUB,
   "server/view-as.ts": VIEW_AS_STUB,
   "messages/en/billing.json": BILLING_MESSAGES_STUB,
+  // The Persian billing words are foldrun-admin's too (27 Nov 2026).
+  "messages/fa/billing.json": BILLING_MESSAGES_STUB,
 };
 
 /** The billing files that draw words a person reads, as this checkout has

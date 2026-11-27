@@ -26,6 +26,7 @@ import { createTranslator } from "use-intl/core";
 import { CATALOG } from "@/messages/en";
 import { CATALOG_FA } from "@/messages/fa";
 import TERMS from "@/messages/en/terms.json" with { type: "json" };
+import TERMS_FA from "@/messages/fa/terms.json" with { type: "json" };
 import { LocaleContext, type Locale } from "./locale-context";
 
 export type { Locale };
@@ -182,8 +183,10 @@ function layOver(base: Tree, over: Tree): Tree {
 const ENGLISH = createTranslator({ locale: "en", messages: MESSAGES });
 // Persian holds only its own sentences, laid over English so every key
 // resolves; which keys are really Persian is kept beside it.
-const PERSIAN = createTranslator({ locale: "fa", messages: layOver(MESSAGES as Tree, CATALOG_FA as unknown as Tree) as typeof MESSAGES });
-const IN_PERSIAN = new Set(keysOf(CATALOG_FA as unknown as Tree));
+/** Persian's own sentences, with Persian's own nouns (messages/fa/terms.json). */
+export const MESSAGES_FA = expandTerms(CATALOG_FA as unknown as Tree, TERMS_FA as Record<string, Forms>);
+const PERSIAN = createTranslator({ locale: "fa", messages: layOver(MESSAGES as Tree, MESSAGES_FA) as typeof MESSAGES });
+const IN_PERSIAN = new Set(keysOf(MESSAGES_FA));
 
 function keysOf(t: Tree, at = ""): string[] {
   return Object.entries(t).flatMap(([k, v]) => (typeof v === "string" ? [at + k] : keysOf(v, `${at}${k}.`)));

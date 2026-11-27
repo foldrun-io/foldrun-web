@@ -1,0 +1,23 @@
+{
+  "page": {
+    "aWarningHasBeenSent": " · هشدار فرستاده شده است",
+    "accountCap": "سقف حساب",
+    "acrossEveryWorkspaceAtTheCap": "در مجموع برای هر {@workspace.one}. با رسیدن به سقف، تا شروع بازه بعدی هیچ‌چیز شروع نمی‌شود.",
+    "atTheCapNewRunsAre": " · به سقف رسیده است؛ اجراهای جدید تا {turns} پذیرفته نمی‌شوند",
+    "billing": "مالی",
+    "billingSpendLimits": "مالی · سقف‌های هزینه",
+    "everyCapHereIsTheBudget": "هر سقف در اینجا همان خط <code>budget:</code> در <code>AGENTS.md</code> آن {@workspace.one} است و از هر دو جا ویرایش می‌شود. فلو هم می‌تواند <code>budget:</code> خودش را برای هر اجرا داشته باشد، و ایجنت نیز: بیشترین مبلغی که در یک اجرا می‌تواند خرج کند. هر دو سقف قطعی‌اند و مرحله را وسط نوبت متوقف می‌کنند، و هر دو در فایل خودشان هستند.",
+    "howMuchMayBeSpentIn": "در یک روز، یک هفته یا یک ماه چقدر می‌توان هزینه کرد تا شروع اجراهای تازه متوقف شود، و هشدارها کجا قرار دارند. تنظیم‌نشده یعنی بدون محدودیت.",
+    "nextWeek": "هفته آینده",
+    "noWorkspaceYet": "فهرست {@workspace.other} هنوز خالی است",
+    "of": "{spent} از {label} {window} · {pct}٪",
+    "perWorkspace": "به‌ازای هر {@workspace.one}",
+    "spentThisMonth": "{spent} هزینه در این ماه",
+    "theNewMonth": "ماه جدید",
+    "unknownAccount": "حساب ناشناخته",
+    "usage": "مصرف",
+    "warningsAt80And95": " · هشدار در ۸۰٪ و ۹۵٪",
+    "warningsHaveNowhereToGoThe": "هشدارها جایی برای رفتن ندارند: حساب مقصدی برای notify: ندارد. <link>یکی تنظیم کنید</link>.",
+    "wholeAccount": "کل حساب"
+  }
+}

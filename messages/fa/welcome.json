@@ -1,0 +1,10 @@
+{
+  "page": {
+    "aFewStepsToADesk": "چند قدم تا پروژهی که کار می‌کند. از هرکدام می‌توانید بگذرید؛ این صفحه از همان جایی که حسابتان هست ادامه می‌دهد.",
+    "foldrunLoginUrl": "foldrun login --url {origin}",
+    "httpsThisInstall": "https://'<'نشانی این نصب'>'",
+    "skipSetup": "رد کردن راه‌اندازی",
+    "welcome": "خوش آمدید",
+    "welcomeToFoldrun": "به foldrun خوش آمدید"
+  }
+}

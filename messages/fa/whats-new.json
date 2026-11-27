@@ -1,0 +1,28 @@
+{
+  "page": {
+    "api": "API <span>{current}</span>",
+    "breakingChangesByVersion": "تغییرات ناسازگار، به تفکیک نسخه",
+    "current": "فعلی",
+    "deprecated": "منسوخ",
+    "docs": "مستندات",
+    "features": "قابلیت‌ها",
+    "fixes": "رفع اشکال‌ها",
+    "noChangesSinceTheSameCode": "از {previous} تغییری نکرده است: همان کد دوباره مستقر شده است.",
+    "noEndDateYet": "، هنوز تاریخ پایانی ندارد",
+    "noNotesForThisReleaseThe": "برای این انتشار یادداشتی وجود ندارد: استقرار نتوانست تغییرها را بخواند.",
+    "noReleaseNotesOnThisInstall": "این نصب یادداشت انتشار ندارد",
+    "nothingHasChangedInAWay": "از {version} تاکنون هیچ تغییری که کد موجود را از کار بیندازد رخ نداده و چیزی هم منسوخ نشده است.",
+    "other": "سایر",
+    "pinAVersionInSettingsApi": "در <link>تنظیمات ← کلیدهای API ← API</link> یک نسخه را ثابت کنید · هر نسخه دست‌کم {supportMonths} ماه پس از نسخه بعدی کار می‌کند · <link2>نسخه‌ها چگونه کار می‌کنند</link2>",
+    "running": "در حال اجرا",
+    "since": "· از <a>{previous}</a>",
+    "since2": "<span>{route}</span>، از {deprecatedAt}",
+    "stopsAnswering": "، از {sunsetAt} دیگر پاسخ نمی‌دهد",
+    "theDeployWritesThemALocal": "این یادداشت‌ها را استقرار می‌نویسد؛ نصب محلی یا نصبی که خودتان ساخته‌اید بدون آن‌ها اجرا می‌شود. نسخه و کامیت‌هایش در زیر آمده است.",
+    "theFirstReleaseOnRecord": "نخستین انتشار ثبت‌شده.",
+    "thisInstallRunsAVersionIs": "این نصب نسخه <span>{version}</span> را اجرا می‌کند. هر نسخه یک استقرار است: تاریخ انتشار و شمارنده همان روز. <link>نسخه‌ها چگونه کار می‌کنند</link>.",
+    "thisVersion": "این نسخه",
+    "whatReplacesIt": "جایگزین آن",
+    "whatSNew": "تازه‌ها"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "page": {
+    "all": "همه",
+    "anInboxIsAPersonS": "صندوق ورودی مال یک شخص است: آنچه تأیید می‌کنید، آنچه مالکش هستید و آنچه شروع کرده‌اید. اینجا کسی وارد نشده است.",
+    "approvals": "تأییدها",
+    "everythingElseWaitingInYourWorkspace": "هر چیز دیگری که در {@workspace.other} شما منتظر است، برای هر کسی که آن را بردارد.",
+    "forMe": "برای من",
+    "inbox": "صندوق ورودی",
+    "issues": "مشکل‌ها",
+    "kind": "نوع",
+    "nothingSetAside": "چیزی کنار گذاشته نشده",
+    "nothingWaitingHere": "اینجا چیزی منتظر نیست",
+    "proposedFixes": "اصلاح‌های پیشنهادی",
+    "questions": "پرسش‌ها",
+    "runsYouStartedAFailureOr": "اجراهایی که شما شروع کرده‌اید: شکست یا BLOCKED در این هفته، یا نقطه تأیید یا پرسشی روی یکی از آن‌ها.",
+    "setAside": "کنار گذاشته‌شده",
+    "signInToSeeYourInbox": "برای دیدن صندوق ورودی وارد شوید",
+    "startedByMe": "شروع‌شده توسط من",
+    "team": "تیم",
+    "whatIsWaitingOnYouAcross": "آنچه در {@workspace.other} شما منتظر شماست.",
+    "whatIsWaitingOnYouAcross2": "آنچه در {@workspace.other} شما منتظر شماست. هر مورد وقتی در جای خودش انجام شود، خودش از اینجا می‌رود.",
+    "whatYouHidFromYourView": "آنچه از نمای خودتان پنهان کرده‌اید. هر کدام هنوز در جای خودش منتظر است.",
+    "youAreAllCaughtUp": "کار عقب‌افتاده‌ای ندارید.",
+    "youAreNamedAsAnApprover": "نام شما به‌عنوان تأییدکننده آمده، مالک فلو یا ایجنت هستید، یا خودتان آن را خواسته‌اید.",
+    "yourRuns": "اجراهای شما"
+  }
+}

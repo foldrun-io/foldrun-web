@@ -15,9 +15,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { $t, MESSAGES, currentDir, currentLocale, localized, localizedList } from "@/i18n";
+import { $t, MESSAGES, MESSAGES_FA, currentDir, currentLocale, localized, localizedList } from "@/i18n";
 import { localeForHost } from "@/server/locale-host";
-import { CATALOG_FA } from "@/messages/fa";
 import { parse, TYPE, type MessageFormatElement } from "@formatjs/icu-messageformat-parser";
 import { importTimeCalls, pagesNotAwaiting } from "../scripts/i18n-import-time.mjs";
 
@@ -152,7 +151,7 @@ function holes(msg: string): string[] {
 
 test("Persian replaces only sentences English has, with the same values", () => {
   const english = new Map(leaves(MESSAGES as unknown as Tree));
-  for (const [key, fa] of leaves(CATALOG_FA as unknown as Tree)) {
+  for (const [key, fa] of leaves(MESSAGES_FA)) {
     const en = english.get(key);
     assert.ok(en !== undefined, `${key}: Persian for a sentence English does not have`);
     assert.deepEqual(holes(fa), holes(en), `${key}: the Persian sentence takes other values than the English one`);
@@ -168,7 +167,7 @@ test("parity reads a message's syntax, not its words", () => {
 test("a sentence Persian lacks is the English one, by English rules", (t) => {
   // Chosen from what is untranslated today, so translating a sentence never
   // breaks this; with everything translated there is nothing left to fall back.
-  const persian = new Set(leaves(CATALOG_FA as unknown as Tree).map(([k]) => k));
+  const persian = new Set(leaves(MESSAGES_FA).map(([k]) => k));
   const untranslated = leaves(MESSAGES as unknown as Tree).filter(([k]) => !persian.has(k));
   const plain = untranslated.find(([, m]) => !/[{<]/.test(m));
   // Persian counts 0 as "one"; an English sentence must still say "0 cases".

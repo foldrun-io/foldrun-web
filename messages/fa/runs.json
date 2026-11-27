@@ -1,0 +1,11 @@
+{
+  "page": {
+    "aRunIsAFlowS": "اجرا یعنی مرحله‌های یک فلو به ترتیب، که هر کدام به ایجنتی که نام برده سپرده می‌شود. پایپ‌لاین نمونه در یک دقیقه اجرا می‌شود.",
+    "allRuns": "همه اجراها",
+    "everyRunAcrossEveryWorkspaceIn": "همه اجراهای هر {@workspace.one} این حساب.",
+    "noRunsYet": "هنوز اجرایی نیست",
+    "nothingMatchesTheseFiltersClearOne": "چیزی با این فیلترها جور نیست. یکی را بردارید، یا از صفحه یک {@workspace.one} اجرایی شروع کنید.",
+    "runYourFirstFlow": "اولین فلوی خود را اجرا کنید",
+    "searchRunsIdFlowWorkspaceHeadline": "جست‌وجوی اجراها: شناسه، فلو، {@workspace.one}، عنوان، خطا…"
+  }
+}
