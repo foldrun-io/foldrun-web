@@ -18,6 +18,7 @@ export const V1_MODEL_ROUTES: readonly string[] = [
   "/v1/usage",
   "/v1/foldrun/transcribe",
   "/v1/foldrun/browse",
+  "/v1/foldrun/review",
 ];
 
 /** Names under /v1 that belong to the gateway as a whole (anything below
