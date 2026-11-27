@@ -23,7 +23,7 @@ import { labelOf, RUN_STATUS_LABEL } from "@/components/value-labels";
 // Every one of those either writes the markdown or is a view choice that is
 // never saved; none keeps positions or a side file.
 
-import { $rich, $t } from "@/i18n";
+import { $rich, $t, localized, localizedList } from "@/i18n";
 import "@xyflow/react/dist/style.css";
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -89,7 +89,7 @@ import {
 import { useRunOverlay } from "./use-run-overlay";
 import { FIND_EVENT } from "@/components/find";
 import { StepOptionsEditor } from "./step-options";
-import { STALE_FLOW } from "@/components/flow-write";
+import { staleFlow } from "@/components/flow-write";
 import { removalImpact } from "@/lib/step-removal";
 import { TriggerEditor } from "./trigger-editor";
 import { InstructionEditor } from "./flow-board";
@@ -104,7 +104,7 @@ type Pattern =
 
 type Payload = { kind: "agent"; name: string } | { kind: "pattern"; pattern: Pattern };
 
-const PATTERNS: { pattern: Pattern; label: string; hint: string; where: "gap" | "column" | "step" | "dock" }[] = [
+const PATTERNS: { pattern: Pattern; label: string; hint: string; where: "gap" | "column" | "step" | "dock" }[] = localizedList(() => [
   { pattern: "chain", label: $t("workspace.flows-flow-canvas.chain"), hint: $t("workspace.flows-flow-canvas.aNewStepAfterTheOne"), where: "gap" },
   { pattern: "parallel", label: $t("workspace.flows-flow-canvas.parallel"), hint: $t("workspace.flows-flow-canvas.runBesideAStepDropOnto"), where: "column" },
   { pattern: "router", label: $t("workspace.flows-flow-canvas.router"), hint: $t("workspace.flows-flow-canvas.aTriageStepThenCaseElse"), where: "gap" },
@@ -116,7 +116,7 @@ const PATTERNS: { pattern: Pattern; label: string; hint: string; where: "gap" | 
   { pattern: "rescue", label: $t("workspace.flows-flow-canvas.rescue"), hint: $t("workspace.flows-flow-canvas.onFailAnotherAgentTakesOver"), where: "step" },
   { pattern: "workers", label: $t("workspace.flows-flow-canvas.orchestratorWorkers"), hint: $t("workspace.flows-flow-canvas.ontoAStepSSubAgents"), where: "dock" },
   { pattern: "consult", label: $t("workspace.flows-flow-canvas.consult"), hint: $t("workspace.flows-flow-canvas.ontoAStepSConsultsDock"), where: "dock" },
-];
+]);
 
 // ---------- node components ----------
 
@@ -150,14 +150,14 @@ const CHIP_TONE: Record<Chip["tone"], string> = {
 
 type RunMode = "watch" | "last";
 
-const STATUS_WORD: Record<StepRunStatus, string> = {
+const STATUS_WORD: Record<StepRunStatus, string> = localized(() => ({
   pending: "pending",
   running: "running",
   completed: "done",
   failed: "failed",
   skipped: "skipped",
   "awaiting-approval": $t("workspace.flows-flow-canvas.waitingForYou"),
-};
+}));
 const STATUS_DOT: Record<StepRunStatus, string> = {
   pending: "bg-gray-300",
   running: "bg-sky-500 animate-pulse",
@@ -657,7 +657,7 @@ function typing(t: EventTarget | null): boolean {
 
 const MOD = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
 
-const SHORTCUTS: [string, string][] = [
+const SHORTCUTS: [string, string][] = localizedList(() => [
   [`${MOD}K`, $t("workspace.flows-flow-canvas.commandPaletteAddAStepOr")],
   [`${MOD}Z`, $t("workspace.flows-flow-canvas.undoTheLastEditMadeOn")],
   [`Shift+${MOD}Z`, "redo"],
@@ -668,7 +668,7 @@ const SHORTCUTS: [string, string][] = [
   ["M", $t("workspace.flows-flow-canvas.showOrHideTheMinimap")],
   ["Esc", $t("workspace.flows-flow-canvas.clearTheSelectionCloseAMenu")],
   ["?", "this sheet"],
-];
+]);
 
 // ---------- the canvas ----------
 
@@ -861,7 +861,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
         body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));
-      if (res.status === 409 && url === flowUrl) throw new Error(STALE_FLOW);
+      if (res.status === 409 && url === flowUrl) throw new Error(staleFlow());
       if (!res.ok) throw new Error(data.error ?? `${res.status}`);
       // A flow write answers with the file either side of it: undo's record.
       if (typeof data.before === "string" && typeof data.text === "string") setHistory((h) => recordEdit(h, data.before, data.text));

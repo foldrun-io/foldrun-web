@@ -6,7 +6,7 @@
 // setNetworkSetting, so the file stays the program: the CLI's
 // `foldrun agent network` writes the same line.
 
-import { $rich, $t } from "@/i18n";
+import { $rich, $t, localized } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { buttonVariants } from "@foldrun/ui/react/button";
@@ -42,11 +42,11 @@ export interface AgentNetworkProps {
   editable: boolean;
 }
 
-const LEVEL_HELP: Record<NetworkLevel, string> = {
+const LEVEL_HELP: Record<NetworkLevel, string> = localized(() => ({
   open: $t("workspace.agents-agent-agent-network.anyPublicSite"),
   trusted: $t("workspace.agents-agent-agent-network.packageRegistriesSourceHostsAndCloud"),
   none: $t("workspace.agents-agent-agent-network.onlyTheSitesBelowAndWhat"),
-};
+}));
 
 export function AgentNetwork(p: AgentNetworkProps) {
   const router = useRouter();

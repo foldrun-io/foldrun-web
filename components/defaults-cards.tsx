@@ -5,7 +5,7 @@
 // same SettingsForm, posting to the scope's PATCH. A workspace shows what
 // it would inherit from the account beside each empty field.
 
-import { $rich, $t } from "@/i18n";
+import { $rich, $t, localized, localizedList } from "@/i18n";
 import { useEffect, useState } from "react";
 import { SettingsForm, useSettingsForm } from "./settings-form";
 import { useHydrated } from "./browser-value";
@@ -68,11 +68,11 @@ export function TimezoneCard({ endpoint, tenant, initial, inherited }: { endpoin
   );
 }
 
-const PERIODS = [
+const PERIODS = localizedList(() => ([
   { value: "day", label: $t("components.defaults-cards.aDay"), window: "today" },
   { value: "week", label: $t("components.defaults-cards.aWeek"), window: $t("components.defaults-cards.thisWeek") },
   { value: "month", label: $t("components.defaults-cards.aMonth"), window: $t("components.defaults-cards.thisMonth") },
-] as const;
+] as const));
 
 /** An amount and a period. Empty is no limit — the key is removed, not
  *  written as zero — and the file keeps its old shape for a month (`60`)
@@ -174,11 +174,11 @@ export type PoolRow = { vcpu: number | null; memGiB: number | null; diskGiB?: nu
  *  is refused (GET /v1/account/usage/compute `runsWaiting`, FOL-100). */
 export type RunsWaitingRow = { waiting: number | null; limit: number | null };
 
-const LEVEL_WORDS = {
+const LEVEL_WORDS = localized(() => ({
   account: { own: $t("components.defaults-cards.yourOwnCap"), help: $t("components.defaults-cards.coresGibAndDiskAllYour") },
   workspace: { own: $t("components.defaults-cards.thisWorkspaceSCap"), help: $t("components.defaults-cards.coresGibAndDiskTheSteps") },
   flow: { own: $t("components.defaults-cards.eachRunSCap"), help: $t("components.defaults-cards.coresGibAndDiskOneRun") },
-} as const;
+} as const));
 
 /** compute: at one level (27 Oct 2026) — the account's pool (the plan's,
  *  the install's, or its own lower `compute:`), a workspace's, or each
@@ -333,7 +333,7 @@ export function OwnerCard({ endpoint, tenant, initial, inherited }: { endpoint: 
   );
 }
 
-const ALERT_FIELDS: { key: Exclude<keyof Alerts, "new_host">; label: string; placeholder: string; help: string }[] = [
+const ALERT_FIELDS: { key: Exclude<keyof Alerts, "new_host">; label: string; placeholder: string; help: string }[] = localizedList(() => [
   { key: "failure_rate", label: $t("components.defaults-cards.failureRate"), placeholder: "30%", help: $t("components.defaults-cards.ofTheRunsThatFinishedIn") },
   { key: "min_runs", label: $t("components.defaults-cards.onceAtLeast"), placeholder: "5", help: $t("components.defaults-cards.runsHaveFinished") },
   { key: "credits_day", label: $t("components.defaults-cards.creditsInADay"), placeholder: "2000", help: $t("components.defaults-cards.chargedInTheLast24Hours") },
@@ -341,7 +341,7 @@ const ALERT_FIELDS: { key: Exclude<keyof Alerts, "new_host">; label: string; pla
   { key: "stale_days", label: $t("components.defaults-cards.anAgentIdleFor"), placeholder: "30", help: "days" },
   { key: "cost_spike", label: $t("components.defaults-cards.aRunCosting"), placeholder: "3", help: $t("components.defaults-cards.itsFlowSAverageThisWeek") },
   { key: "runs_per_hour", label: $t("components.defaults-cards.oneFlowStarted"), placeholder: "20", help: $t("components.defaults-cards.timesInAnHour") },
-];
+]);
 
 /**
  * alerts: — observability. The thresholds that tell notify:, each optional.
@@ -451,11 +451,11 @@ export function JudgeCard({ endpoint, tenant, initial, inherited }: { endpoint: 
   );
 }
 
-const BLOCK_HELP: Record<(typeof DEPLOY_BLOCKS)[number], string> = {
+const BLOCK_HELP: Record<(typeof DEPLOY_BLOCKS)[number], string> = localized(() => ({
   none: $t("components.defaults-cards.securityFindingsAreWarningsTheDeploy"),
   secrets: $t("components.defaults-cards.aDeployThatCarriesAKey"),
   security: $t("components.defaults-cards.aDeployWithAnySecurityFinding"),
-};
+}));
 
 /** deploy_block: (FOL-58). A foldrun-ignore with a reason still accepts one finding. */
 export function DeployBlockCard({ endpoint, tenant, initial }: { endpoint: string; tenant: string; initial: (typeof DEPLOY_BLOCKS)[number] | null }) {
@@ -509,11 +509,11 @@ export function NetworkEnforceCard({ endpoint, tenant, initial, inherited }: { e
   );
 }
 
-const EVENT_LABEL: Record<(typeof NOTIFY_EVENTS)[number], string> = {
+const EVENT_LABEL: Record<(typeof NOTIFY_EVENTS)[number], string> = localized(() => ({
   failed: $t("components.defaults-cards.aRunFails"),
   "awaiting-approval": $t("components.defaults-cards.aRunWaitsForApproval"),
   completed: $t("components.defaults-cards.aRunCompletes"),
-};
+}));
 
 export function NotifyCard({
   endpoint,

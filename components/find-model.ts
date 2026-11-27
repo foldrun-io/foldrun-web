@@ -1,4 +1,4 @@
-import { $t } from "@/i18n";
+import { $t, localized } from "@/i18n";
 // The Find palette's reading of a query: what matches, how well, in what
 // order, under which heading. Pure, shared by the search API (server) and
 // the palette (client) so both rank the same way; tests/find.test.ts pins it.
@@ -31,7 +31,7 @@ export interface FindHit {
 /** Heading order in the palette — what you most often jump to first. */
 export const KIND_ORDER: FindKind[] = ["workspace", "agent", "flow", "run", "tool", "hook", "skill", "knowledge", "memory", "page"];
 
-export const KIND_LABEL: Record<FindKind, string> = {
+export const KIND_LABEL: Record<FindKind, string> = localized(() => ({
   workspace: $t("components.find-model.workspace"),
   agent: $t("components.find-model.agents"),
   flow: $t("components.find-model.flows"),
@@ -42,7 +42,7 @@ export const KIND_LABEL: Record<FindKind, string> = {
   knowledge: $t("components.find-model.knowledge"),
   memory: $t("components.find-model.memory"),
   page: $t("components.find-model.pages"),
-};
+}));
 
 const norm = (s: string) => s.trim().toLowerCase();
 

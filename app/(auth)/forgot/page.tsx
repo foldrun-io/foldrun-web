@@ -5,9 +5,14 @@ import { RESET_LIFETIME_TEXT } from "@/server/lifetimes";
 import { ForgotForm } from "./form";
 import { AuthCard } from "../brand";
 
-export const metadata = { title: $t("auth.forgot-page.resetYourPasswordFoldrun") };
+import { requestLocale } from "@/server/locale";
+export async function generateMetadata() {
+  await requestLocale();
+  return { title: $t("auth.forgot-page.resetYourPasswordFoldrun") };
+}
 
-export default function ForgotPage() {
+export default async function ForgotPage() {
+  await requestLocale();
   return (
     <AuthCard
       title={$t("auth.forgot-page.resetYourPassword")}

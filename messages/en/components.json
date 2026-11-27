@@ -266,12 +266,6 @@
     "selected": "{length} {noun} selected",
     "useselectionNeedsASelectionproviderAboveIt": "useSelection needs a SelectionProvider above it"
   },
-  "code-editor": {
-    "1pxSolid": "1px solid {v0}",
-    "8px0": "8px 0",
-    "uiMonospaceSfmonoRegularMenloMonospace": "ui-monospace, SFMono-Regular, Menlo, monospace",
-    "varColor": "var(--color-{name})"
-  },
   "code-view": {
     "moreLinesNotShown": "{length} more lines not shown."
   },

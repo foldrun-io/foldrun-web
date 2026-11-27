@@ -12,7 +12,7 @@
 // the editor the source of truth instead of the file, and every diff would be
 // noise.
 
-import { $rich, $t } from "@/i18n";
+import { $rich, $t, localizedList } from "@/i18n";
 import { useEffect, useMemo, useState } from "react";
 import { Input } from "@foldrun/ui/react/input";
 import { Select } from "@foldrun/ui/react/select";
@@ -32,11 +32,11 @@ export interface Field {
 }
 
 /** Servers people reach for first, so an MCP tool isn't a blank command box. */
-const KNOWN_MCP = [
+const KNOWN_MCP = localizedList(() => [
   { value: "npx", label: $t("components.frontmatter-form.npxRunAPublishedServer") },
   { value: "uvx", label: $t("components.frontmatter-form.uvxRunAPythonServer") },
   { value: "docker", label: $t("components.frontmatter-form.dockerRunAContainerisedServer") },
-];
+]);
 
 const INTERPRETERS = [
   { value: "python3", label: "python3" },
@@ -190,7 +190,7 @@ export function FrontmatterForm({
 }
 
 /** The fields a tool file has, and which `type:` each belongs to. */
-export const TOOL_FIELDS: Field[] = [
+export const TOOL_FIELDS: Field[] = localizedList(() => [
   { key: "name", label: "name", hint: $t("components.frontmatter-form.howAgentsReferToIt") },
   { key: "description", label: "description", hint: $t("components.frontmatter-form.whatItDoesAndWhenTo") },
   {
@@ -229,4 +229,4 @@ export const TOOL_FIELDS: Field[] = [
   },
   { key: "args", label: "args", when: ["mcp"], placeholder: '["-y", "@scope/server"]' },
   { key: "url", label: "url", hint: $t("components.frontmatter-form.insteadOfCommandForARemote"), when: ["mcp"], placeholder: "https://…/sse" },
-];
+]);

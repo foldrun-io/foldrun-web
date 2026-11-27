@@ -40,6 +40,7 @@ import { conversationNote } from "@/components/conversation-model";
 import { fileSize } from "@/components/run-inputs-model";
 import { RUN_INPUTS_PREFIX } from "@/lib/storage";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 export default async function RunPage({
@@ -49,6 +50,7 @@ export default async function RunPage({
   params: Promise<{ workspace: string; runId: string }>;
   searchParams: Promise<{ tenant?: string }>;
 }) {
+  await requestLocale();
   const { workspace, runId } = await params;
   const { tenant = "default" } = await searchParams;
   if (!fs.existsSync(workspaceDir(tenant, workspace))) notFound();

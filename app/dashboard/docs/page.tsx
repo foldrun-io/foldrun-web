@@ -14,12 +14,14 @@ import { Page, PageHeader, Panel, SectionTitle, IconBox } from "@foldrun/ui/reac
 import { BookOpen, FileText, Bot } from "lucide-react";
 import { docsDir, groupedDocs, docTitle, docSummary } from "@/docs-index";
 
+import { requestLocale } from "@/server/locale";
 // Per request, not prerendered (28 Oct 2026): the enforced CSP's nonce is
 // minted per request, and a static page cannot carry one. The markdown ships
 // in the image beside the app for this (foldrun-infra Dockerfile).
 export const dynamic = "force-dynamic";
 
-export default function DocsPage() {
+export default async function DocsPage() {
+  await requestLocale();
   // Read per request: the docs ship in the image and change with a deploy.
   const groups = groupedDocs().map((g) => ({
     ...g,

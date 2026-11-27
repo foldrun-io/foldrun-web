@@ -5,7 +5,7 @@
 // the API's own changelog: its dated versions, what each one broke, and the
 // routes on their way out, from server/api-version.ts.
 
-import { $rich, $t } from "@/i18n";
+import { $rich, $t, localizedList } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { Page, PageHeader, Card, Chip, EmptyState, Panel } from "@foldrun/ui/react/page";
 import { Sparkles } from "lucide-react";
@@ -14,15 +14,19 @@ import { ComponentTable, VersionFacts } from "@/components/version-table";
 import { apiChangelog, type ApiChangelog } from "@/server/api-version";
 import { Tooltip } from "@foldrun/ui/react/tooltip";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
-export const metadata = { title: $t("whats-new.page.whatSNew") };
+export async function generateMetadata() {
+  await requestLocale();
+  return { title: $t("whats-new.page.whatSNew") };
+}
 
-const GROUPS: { key: keyof NonNullable<Release["notes"]>; title: string }[] = [
+const GROUPS: { key: keyof NonNullable<Release["notes"]>; title: string }[] = localizedList(() => [
   { key: "features", title: $t("whats-new.page.features") },
   { key: "fixes", title: $t("whats-new.page.fixes") },
   { key: "docs", title: $t("whats-new.page.docs") },
   { key: "other", title: $t("whats-new.page.other") },
-];
+]);
 
 const day = (iso: string | null) => (iso ? new Date(iso).toISOString().slice(0, 16).replace("T", " ") + " UTC" : null);
 
@@ -137,6 +141,7 @@ function ApiCard({ api }: { api: ApiChangelog }) {
 }
 
 export default async function WhatsNewPage() {
+  await requestLocale();
   const info = versionInfo();
   const list = releases(30);
   return (

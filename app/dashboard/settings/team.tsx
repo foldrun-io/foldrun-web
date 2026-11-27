@@ -9,7 +9,7 @@
 // account on.
 
 import { ROLE_LABEL, labelOf } from "@/components/value-labels";
-import { $el, $rich, $t } from "@/i18n";
+import { $el, $rich, $t, localized } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
@@ -50,12 +50,12 @@ interface PendingInvite {
   status: string;
 }
 
-const DESCRIBE: Record<Role, string> = {
+const DESCRIBE: Record<Role, string> = localized(() => ({
   viewer: $t("settings.team.readsEverythingChangesNothing"),
   editor: $t("settings.team.editsDeploysRunsAndApproves"),
   admin: $t("settings.team.plusWorkspaceSecretsKeysAndThe"),
   owner: $t("settings.team.plusBillingAndTheAdmins"),
-};
+}));
 
 /** All workspaces, or a chosen few: the same picker for an invite and for a member. */
 function ScopePicker({ all, value, onChange, disabled = false }: { all: string[]; value: string[] | null; onChange: (v: string[] | null) => void; disabled?: boolean }) {

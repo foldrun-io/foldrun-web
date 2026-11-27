@@ -8,7 +8,7 @@
 // other line (comments, key order, keys the form does not know, the body) is
 // left exactly as it was. Nothing re-serialises the whole frontmatter.
 
-import { $t } from "@/i18n";
+import { $t, localized, localizedList } from "@/i18n";
 import { load, dump, CORE_SCHEMA } from "js-yaml";
 import type { ReactNode } from "react";
 import { FRONTMATTER, type FieldSpec } from "@/lib/frontmatter-fields";
@@ -177,7 +177,7 @@ export interface UiField {
   numeric?: boolean;
 }
 
-const LABEL: Record<string, string> = {
+const LABEL: Record<string, string> = localized(() => ({
   base: $t("components.asset-fields.baseUrl"),
   url: $t("components.asset-fields.serverUrl"),
   run: $t("components.asset-fields.program"),
@@ -190,9 +190,9 @@ const LABEL: Record<string, string> = {
   timeout: $t("components.asset-fields.timeoutSeconds"),
   stale_after: $t("components.asset-fields.staleAfter"),
   when: $t("components.asset-fields.loadsOnRunTags"),
-};
+}));
 
-const OPTION_LABEL: Record<string, string> = {
+const OPTION_LABEL: Record<string, string> = localized(() => ({
   http: $t("components.asset-fields.httpSomeoneElseSApi"),
   script: $t("components.asset-fields.scriptCodeInYourContainer"),
   mcp: $t("components.asset-fields.mcpAnMcpServer"),
@@ -204,7 +204,7 @@ const OPTION_LABEL: Record<string, string> = {
   draft: "draft",
   stable: "stable",
   deprecated: "deprecated",
-};
+}));
 
 const PLACEHOLDER: Record<string, string> = {
   base: "https://api.example.com/v1",
@@ -234,10 +234,10 @@ function helpFor(help: string, transport: string): string {
 }
 
 /** Where a schema help line is only the list of values the select shows. */
-const HELP: Record<string, string> = {
+const HELP: Record<string, string> = localized(() => ({
   transport: $t("components.asset-fields.whereTheWorkHappens"),
   on: $t("components.asset-fields.theMomentInAStepIt"),
-};
+}));
 
 const PRIMARY: Record<string, string[]> = {
   tools: ["name", "description", "transport"],
@@ -253,14 +253,14 @@ const PRIMARY: Record<string, string[]> = {
 const FLAT_MAPS = new Set(["headers", "query", "env", "args"]);
 
 /** memory/ and knowledge/ are OKF documents, not a schema kind of foldrun's own. */
-const DOC_FIELDS: FieldSpec[] = [
+const DOC_FIELDS: FieldSpec[] = localizedList(() => [
   { key: "title", type: "string", help: $t("components.asset-fields.theNameAReaderSees") },
   { key: "description", type: "string", help: $t("components.asset-fields.oneLineWhatThisIsAnd") },
   { key: "type", type: "string", help: $t("components.asset-fields.theConceptTypeEGPrice") },
   { key: "status", type: "string", values: ["draft", "stable", "deprecated"], help: $t("components.asset-fields.stableUnlessSaidOtherwise") },
   { key: "tags", type: "list", help: $t("components.asset-fields.wordsToFindItBy") },
   { key: "stale_after", type: "string", help: $t("components.asset-fields.theDayItShouldBeChecked") },
-];
+]);
 
 function toUi(f: FieldSpec, kind: AssetKind, transport: string, value: unknown): UiField {
   const types = Array.isArray(f.type) ? f.type : [f.type];
@@ -349,12 +349,12 @@ export function asMap(v: unknown): [string, string][] {
 }
 
 /** What a kind is called in a drawer's header. */
-export const KIND_LABEL: Record<AssetKind, string> = {
+export const KIND_LABEL: Record<AssetKind, string> = localized(() => ({
   tools: $t("components.asset-fields.tool"),
   hooks: $t("components.asset-fields.hook"),
   skills: $t("components.asset-fields.skill"),
   memory: $t("components.asset-fields.memory"),
   knowledge: $t("components.asset-fields.knowledge"),
   scripts: $t("components.asset-fields.code"),
-};
+}));
 export const TRANSPORT_LABEL: Record<Transport, string> = { http: "API", script: "script", mcp: "MCP" };

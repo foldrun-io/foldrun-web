@@ -26,6 +26,7 @@ import { ConversationsPanel } from "@/components/conversations-panel";
 import { SessionMessagesPanel } from "@/components/session-messages-panel";
 import { listSessions } from "@/lib/conversation";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 export default async function WorkspaceRunsPage({
@@ -35,6 +36,7 @@ export default async function WorkspaceRunsPage({
   params: Promise<{ workspace: string }>;
   searchParams: Promise<{ tenant?: string; flow?: string; status?: string; run?: string; since?: string; page?: string; q?: string; tool?: string; tool_error?: string; agent?: string; model?: string; min_tokens?: string; min_secs?: string; context?: string }>;
 }) {
+  await requestLocale();
   const { workspace } = await params;
   const { tenant = "default", flow: flowFilter, status: statusFilter, run: selectedRunId, since, page: pageParam, q = "" } = await searchParams;
   if (!fs.existsSync(workspaceDir(tenant, workspace))) notFound();

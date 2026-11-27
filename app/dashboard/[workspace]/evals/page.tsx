@@ -24,6 +24,7 @@ import { nowMs } from "@/components/overview-model";
 import { Proposals } from "./proposals";
 import { listProposals, settleProposal, unreviewedGrades, type Proposal } from "@/platform/improve";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 const pct = (r: number | null) => (r === null ? "—" : `${Math.round(r * 100)}%`);
@@ -36,6 +37,7 @@ export default async function EvalsPage({
   params: Promise<{ workspace: string }>;
   searchParams: Promise<{ tenant?: string; eval?: string }>;
 }) {
+  await requestLocale();
   const { workspace } = await params;
   const { tenant = "default", eval: open } = await searchParams;
   if (!fs.existsSync(workspaceDir(tenant, workspace))) notFound();

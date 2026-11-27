@@ -9,7 +9,7 @@
 // what it cost.
 
 import { TARGET_KIND_LABEL, labelOf } from "@/components/value-labels";
-import { $t } from "@/i18n";
+import { $t, localized } from "@/i18n";
 import { creditsShort } from "@/components/money";
 import Link from "@foldrun/ui/react/link";
 import { paginate, PAGE_SIZE } from "@foldrun/ui/react/paging";
@@ -280,11 +280,11 @@ export function runSearchText(r: RunRow): string {
 /** The windows people actually reach for. Buckets, not a date-picker: a
  *  runs list is answering "what happened recently", and four chips answer
  *  it faster than two calendars. */
-export const DATE_WINDOWS: Record<string, { label: string; ms: number }> = {
+export const DATE_WINDOWS: Record<string, { label: string; ms: number }> = localized(() => ({
   today: { label: $t("components.runs-table.today"), ms: 24 * 60 * 60 * 1000 },
   "7d": { label: $t("components.runs-table.7Days"), ms: 7 * 24 * 60 * 60 * 1000 },
   "30d": { label: $t("components.runs-table.30Days"), ms: 30 * 24 * 60 * 60 * 1000 },
-};
+}));
 
 export function filterByWindow(runs: RunRow[], since?: string): RunRow[] {
   const w = since ? DATE_WINDOWS[since] : undefined;
@@ -312,14 +312,14 @@ export function whatRan(flow: string): string {
  *  badge in the row agree (a stopped run is `failed` on disk). */
 export const RUN_STATUSES = ["completed", "failed", "stopped", "running", "queued", "awaiting-approval"] as const;
 
-const STATUS_LABEL: Record<(typeof RUN_STATUSES)[number], string> = {
+const STATUS_LABEL: Record<(typeof RUN_STATUSES)[number], string> = localized(() => ({
   completed: $t("components.runs-table.completed"),
   failed: $t("components.runs-table.failed"),
   stopped: $t("components.runs-table.stopped"),
   running: $t("components.runs-table.running"),
   queued: $t("components.runs-table.queued"),
   "awaiting-approval": $t("components.runs-table.awaitingApproval"),
-};
+}));
 
 /**
  * The runs list's filters, as dimensions for the shared FilterBar: workspace

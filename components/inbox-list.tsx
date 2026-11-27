@@ -4,7 +4,7 @@
 // it read; Set aside hides it from your view only — a gate still waits, an
 // issue stays open for everyone else (POST /v1/me/inbox).
 
-import { $t } from "@/i18n";
+import { $t, localized } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -18,13 +18,13 @@ import { Chip, type Tone, IconBox, Callout } from "@foldrun/ui/react/page";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "@foldrun/ui/react/menu";
 import { cn } from "@foldrun/ui/react/cn";
 
-const KIND: Record<InboxItem["kind"], { label: string; tone: Tone; icon: React.ReactNode; open: string }> = {
+const KIND: Record<InboxItem["kind"], { label: string; tone: Tone; icon: React.ReactNode; open: string }> = localized(() => ({
   approval: { label: "approval", tone: "warn", icon: <ShieldCheck />, open: $t("components.inbox-list.review") },
   question: { label: "question", tone: "info", icon: <MessageCircleQuestion />, open: $t("components.inbox-list.answer") },
   issue: { label: "issue", tone: "bad", icon: <AlertTriangle />, open: $t("components.inbox-list.open") },
   proposal: { label: $t("components.inbox-list.proposedFix"), tone: "info", icon: <Wand2 />, open: $t("components.inbox-list.review") },
   run: { label: $t("components.inbox-list.yourRun"), tone: "default", icon: <Play />, open: $t("components.inbox-list.open") },
-};
+}));
 
 export function InboxList({ items, tenant, dismissedView }: { items: InboxItem[]; tenant: string; dismissedView: boolean }) {
   const router = useRouter();

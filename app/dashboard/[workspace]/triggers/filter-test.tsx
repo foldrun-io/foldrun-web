@@ -6,19 +6,19 @@
 // and if not, which condition held it back. Nothing is started or recorded
 // (POST …/flows/<flow>/filter).
 
-import { $t } from "@/i18n";
+import { $t, localized } from "@/i18n";
 import { useState } from "react";
 import { buttonVariants } from "@foldrun/ui/react/button";
 import { labelClass, Textarea } from "@foldrun/ui/react/input";
 import { WithEmails } from "@/components/email";
 
 /** What the trigger delivers, as a starting point for the box. */
-const SAMPLE: Record<string, unknown> = {
+const SAMPLE: Record<string, unknown> = localized(() => ({
   webhook: { action: "opened", sender: { type: "User" } },
   email: { from: "ana@example.com", to: "desk@example.com", subject: $t("workspace.triggers-filter-test.invoice42"), text: "…" },
   flow: { run: "run-abc", flow: "research", status: "completed", ending: "completed", verdict: "GOOD", summary: $t("workspace.triggers-filter-test.good") },
   storage: { by: "upload", paths: ["leads/2026-10-24.csv"] },
-};
+}));
 
 export function FilterTest({
   workspace,

@@ -1,4 +1,4 @@
-import { $t } from "@/i18n";
+import { $t, localized } from "@/i18n";
 // How the Usage page writes its figures, so the tabs agree (FOL-125).
 
 export const fmtTokens = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
@@ -20,7 +20,7 @@ export function fmtQuantity(n: number | null): string {
 /** What a meter's rate is per: stored files are priced over a month. */
 export const rateUnit = (meter: string, unit: string) => (meter === "storage" ? $t("components.usage-format.gbMonth") : unit);
 
-export const METER_NAMES: Record<string, string> = {
+export const METER_NAMES: Record<string, string> = localized(() => ({
   vcpu: "vCPU",
   ram: "RAM",
   disk: $t("components.usage-format.stepDisk"),
@@ -29,13 +29,13 @@ export const METER_NAMES: Record<string, string> = {
   search: $t("components.usage-format.searchPods"),
   browser: $t("components.usage-format.browserPods"),
   warm: $t("components.usage-format.warmBuilds"),
-};
+}));
 
-export const SUPPLY_NAMES: Record<string, string> = {
+export const SUPPLY_NAMES: Record<string, string> = localized(() => ({
   foldrun: $t("components.usage-format.foldrunSModels"),
   operator: $t("components.usage-format.operatorSKey"),
   own: $t("components.usage-format.yourOwnKey"),
-};
+}));
 
 /** "2026-11-01" → the query the tabs share. */
 export function periodQuery(tenant: string, tab: string, from?: string, to?: string): string {

@@ -18,6 +18,7 @@ import { Page, PageHeader, ResourceCard, EmptyState, Tag, Chip } from "@foldrun/
 import { ResourceList, type Row } from "@foldrun/ui/react/list";
 import { Tooltip } from "@foldrun/ui/react/tooltip";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 export default async function AgentsPage({
@@ -27,6 +28,7 @@ export default async function AgentsPage({
   params: Promise<{ workspace: string }>;
   searchParams: Promise<{ tenant?: string }>;
 }) {
+  await requestLocale();
   const { workspace } = await params;
   const { tenant = "default" } = await searchParams;
   if (!fs.existsSync(workspaceDir(tenant, workspace))) notFound();

@@ -12,10 +12,15 @@ import { buttonVariants } from "@foldrun/ui/react/button";
 import { cn } from "@foldrun/ui/react/cn";
 import { AuthCard } from "../brand";
 
-export const metadata = { title: $t("auth.unsubscribe-page.unsubscribeFoldrun") };
+import { requestLocale } from "@/server/locale";
+export async function generateMetadata() {
+  await requestLocale();
+  return { title: $t("auth.unsubscribe-page.unsubscribeFoldrun") };
+}
 export const dynamic = "force-dynamic";
 
 export default async function UnsubscribePage({ searchParams }: { searchParams: Promise<{ token?: string; done?: string }> }) {
+  await requestLocale();
   const { token = "", done } = await searchParams;
   const read = readUnsubscribeToken(token);
   const body = (() => {

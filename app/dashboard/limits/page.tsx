@@ -18,8 +18,12 @@ import { scopeAllows } from "@/platform/scope";
 import { BillingTabs } from "@/components/billing-tabs";
 import { platform } from "@/lib/platform";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
-export const metadata = { title: $t("limits.page.billingSpendLimits") };
+export async function generateMetadata() {
+  await requestLocale();
+  return { title: $t("limits.page.billingSpendLimits") };
+}
 
 /** One cap: the bar, the sentence under it, the form beside it. */
 function CapRow({ title, note, standing, endpoint, tenant }: { title: string; note?: string; standing: BudgetStanding; endpoint: string; tenant: string }) {
@@ -51,6 +55,7 @@ function CapRow({ title, note, standing, endpoint, tenant }: { title: string; no
 }
 
 export default async function LimitsPage({ searchParams }: { searchParams: Promise<{ tenant?: string }> }) {
+  await requestLocale();
   const { tenant = "default" } = await searchParams;
   if (!fs.existsSync(accountDir(tenant))) return (
       <Page>

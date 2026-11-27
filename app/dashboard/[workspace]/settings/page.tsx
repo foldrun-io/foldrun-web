@@ -39,6 +39,7 @@ import { Connections } from "../../settings/connections";
 import { PauseCard } from "@/components/pause-card";
 import { pauseView } from "@/server/pause";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 const TABS = ["general", "policies", "secrets", "triggers"] as const;
@@ -51,6 +52,7 @@ export default async function WorkspaceSettingsPage({
   params: Promise<{ workspace: string }>;
   searchParams: Promise<{ tenant?: string; tab?: string }>;
 }) {
+  await requestLocale();
   const { workspace } = await params;
   const { tenant = "default", tab: tabParam } = await searchParams;
   const tab: Tab = TABS.includes(tabParam as Tab) ? (tabParam as Tab) : "general";

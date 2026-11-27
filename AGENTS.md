@@ -44,8 +44,7 @@ TypeScript 7, move `typescript` to 7 and drop the alias.
 ## Words on a page: language files
 
 Every word the dashboard shows lives in `messages/en/<area>.json`, not in the
-code (owner, 17 Nov 2026: no language hard-coded; English only, no other
-locale until the owner asks). Write
+code (owner, 17 Nov 2026: no language hard-coded). Write
 `$t("area.file.key")`, or `$t("…", { n })` for an ICU message with values and
 plurals. A sentence with markup inside is one message with tags:
 `$rich("…", { link: (chunks) => <Link href=…>{chunks}</Link> })`, and an
@@ -64,3 +63,30 @@ message ("Project" today), so renaming a noun is one edit.
   by type (`scripts/i18n-values.mjs`).
 - Never translate code samples, paths, permissions, protocol values or
   anything code compares; route handlers (`route.ts`) are never touched.
+
+### The language is chosen per request
+
+One install serves English and, on a host listed in `FOLDRUN_FA_HOSTS`,
+Persian (owner, 27 Nov 2026; the plan is `foldrun-infra`
+`docs/persian-ir-plan.md`). The proxy decides the language from the host and
+the person's choice; `$t` finds it by itself (`i18n/index.ts`). Three rules,
+held by `tests/locale.test.ts` (`node scripts/i18n-import-time.mjs` prints
+what breaks them):
+
+- **A page, layout or `generateMetadata` starts with `await
+  requestLocale();`** (`server/locale.ts`). A page does not wait for its
+  layout, so each one asks. A `"use client"` page needs nothing.
+- **No `$t` outside a function.** A file is read once, before any request.
+  A table of words at the top of a file is
+  `const LABEL = localized(() => ({ open: $t("…") }))`, or for a list
+  `const TABS = localizedList(() => [{ key: "mine", label: $t("…") }])`: it
+  reads as the table (`TABS.map`, `LABEL[key]`) in the reader's language,
+  built on first read. A single
+  sentence is a function (`const hint = () => $t("…")`); a title is
+  `generateMetadata`, never `export const metadata` with `$t`.
+- **Persian sentences live in `messages/fa/`**, laid over English: a key
+  Persian lacks shows the English sentence. Words come from
+  `foldrun-infra` `docs/persian-glossary.md`.
+
+Mail, jobs and anything else outside a page render do not have a request:
+they are English until they take the language as an argument.

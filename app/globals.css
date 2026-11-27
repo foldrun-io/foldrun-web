@@ -55,3 +55,14 @@ body {
   --xy-minimap-node-background-color: var(--color-gray-200);
   --xy-attribution-background-color: transparent;
 }
+
+/* Source text keeps its own direction on a right-to-left page: code, keys,
+   paths and editors read left to right in every language, so what a person
+   sees is what they would copy. English pages are untouched by this. */
+[dir="rtl"] :is(pre, code, kbd, samp, .cm-editor, [data-ltr]) {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+[dir="rtl"] :is(pre, .cm-editor, [data-ltr]) {
+  text-align: left;
+}

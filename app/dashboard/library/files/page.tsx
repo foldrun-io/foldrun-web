@@ -23,6 +23,7 @@ import { PageTabs } from "@foldrun/ui/react/page-tabs";
 import { libraryTabs } from "@/components/nav-model";
 import { FileText, Lock } from "lucide-react";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 export default async function AccountFilesPage({
@@ -30,6 +31,7 @@ export default async function AccountFilesPage({
 }: {
   searchParams: Promise<{ tenant?: string; path?: string }>;
 }) {
+  await requestLocale();
   const { tenant = "default", path: filePath } = await searchParams;
   const now = nowMs();
   const qs = tenant !== "default" ? `?tenant=${tenant}` : "";

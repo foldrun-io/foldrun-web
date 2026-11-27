@@ -152,6 +152,7 @@ export function SmartTextarea({
 
       <div className="relative" style={{ marginLeft: `${gutterWidth}px` }}>
       <textarea
+        data-ltr
         ref={ref}
         autoFocus={autoFocus}
         placeholder={placeholder}

@@ -1,4 +1,4 @@
-import { $rich, $t } from "@/i18n";
+import { $rich, $t, localized } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import fs from "node:fs";
 import path from "node:path";
@@ -25,6 +25,7 @@ import { AssetMenu } from "../[workspace]/assets/asset-row";
 import { AssetBrowser } from "@/components/asset-drawer";
 import { assetOpenId, type AssetItem } from "@/components/asset-fields";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 /**
@@ -109,14 +110,14 @@ function UsedByPanel({ uses, kind, tenant }: { uses: LibraryUse[]; kind: Library
 // agent is granted; a script is code one kind of tool points at, and is not
 // a capability on its own. Saying that on both pages is cheaper than
 // letting people discover it by granting a script that never runs.
-const BLURB: Record<LibraryKind, string> = {
+const BLURB: Record<LibraryKind, string> = localized(() => ({
   skills: $t("library.page.capabilitiesInTheOpenAgentSkills"),
   scripts: $t("library.page.codeThatScriptToolsRunMounted"),
   memory: $t("library.page.whatAgentsHaveLearnedSharedAcross"),
   knowledge: $t("library.page.referenceMaterialYouGiveAgentsSpecs"),
   tools: $t("library.page.whatAnAgentCanDoAn"),
   hooks: $t("library.page.yourOwnCodeAtEveryTool"),
-};
+}));
 
 const KIND_ICON = { tools: Wrench, hooks: Webhook, skills: Sparkles, memory: Brain, knowledge: BookOpen, scripts: FileCode } as const;
 
@@ -137,6 +138,7 @@ export default async function LibraryPage({
 }: {
   searchParams: Promise<{ tenant?: string; kind?: string }>;
 }) {
+  await requestLocale();
   const { tenant = "default", kind: rawKind } = await searchParams;
   const kind = (LIBRARY_KINDS.includes(rawKind as LibraryKind) ? rawKind : "skills") as LibraryKind;
   const entries = listLibrary(tenant, kind);

@@ -19,6 +19,7 @@ import { listShares, shareUrl, shareId, maskToken, readerSeesToken } from "@/pla
 import { can } from "@/platform/permissions";
 import { viewerRole } from "@/server/users";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 export default async function WorkspaceFilesPage({
@@ -28,6 +29,7 @@ export default async function WorkspaceFilesPage({
   params: Promise<{ workspace: string }>;
   searchParams: Promise<{ tenant?: string }>;
 }) {
+  await requestLocale();
   const { workspace } = await params;
   const { tenant = "default" } = await searchParams;
   if (!fs.existsSync(workspaceDir(tenant, workspace))) notFound();

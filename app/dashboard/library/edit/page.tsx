@@ -16,6 +16,7 @@ import { PageTabs } from "@foldrun/ui/react/page-tabs";
 import { libraryTabs } from "@/components/nav-model";
 import { FileText } from "lucide-react";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 const KIND_OF_SHELF: Record<string, FileKind> = { tools: "tool", skills: "skill", knowledge: "knowledge", memory: "memory", scripts: "script" };
@@ -25,6 +26,7 @@ export default async function LibraryEditPage({
 }: {
   searchParams: Promise<{ tenant?: string; kind?: string; path?: string }>;
 }) {
+  await requestLocale();
   const { tenant = "default", kind: rawKind, path: rel } = await searchParams;
   if (!LIBRARY_KINDS.includes(rawKind as LibraryKind)) notFound();
   const kind = rawKind as LibraryKind;

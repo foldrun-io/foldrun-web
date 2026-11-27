@@ -12,12 +12,14 @@ import { Page, PageHeader, Card } from "@foldrun/ui/react/page";
 import { Markdown } from "@/components/markdown";
 import { allDocs, docsDir, docTitle, docSummary } from "@/docs-index";
 
+import { requestLocale } from "@/server/locale";
 // Per request, not prerendered (28 Oct 2026): the enforced CSP's nonce is
 // minted per request, and a static page cannot carry one. The markdown ships
 // in the image beside the app for this (foldrun-infra Dockerfile).
 export const dynamic = "force-dynamic";
 
 export default async function DocPage({ params }: { params: Promise<{ doc: string }> }) {
+  await requestLocale();
   const { doc } = await params;
   // The slug indexes a known list and is never joined from the request, so a
   // crafted `doc` cannot walk out of docs/.

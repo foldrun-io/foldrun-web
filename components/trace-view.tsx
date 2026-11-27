@@ -4,10 +4,10 @@
 // kind you are looking for, verify as a verdict, long lines one click from
 // whole, and the whole trace one click from full height.
 
-import { $t } from "@/i18n";
+import { $t, localizedList } from "@/i18n";
 import { useEffect, useMemo, useState, type Ref, type UIEvent } from "react";
 import { Markdown } from "@/components/markdown";
-import { CALL_CONTENT_NEEDS, callContentError, classify, counts, type TraceKind, type TraceLine } from "@/components/trace-model";
+import { callContentNeeds, callContentError, classify, counts, type TraceKind, type TraceLine } from "@/components/trace-model";
 import { useCan } from "@/components/role";
 import { fmtDur } from "@/components/run-timeline";
 import { hookBadge, HOOK_TONE } from "@/components/hooks-model";
@@ -16,14 +16,14 @@ import { Tooltip } from "@foldrun/ui/react/tooltip";
 import { Segmented } from "@foldrun/ui/react/segmented";
 import { Chip, Tag } from "@foldrun/ui/react/page";
 
-const FILTERS: { key: TraceKind | "all"; label: string }[] = [
+const FILTERS: { key: TraceKind | "all"; label: string }[] = localizedList(() => [
   { key: "all", label: $t("components.trace-view.all") },
   { key: "agent", label: $t("components.trace-view.agent") },
   { key: "tool", label: $t("components.trace-view.tools") },
   { key: "verify", label: $t("components.trace-view.verify") },
   { key: "error", label: $t("components.trace-view.errors") },
   { key: "system", label: $t("components.trace-view.system") },
-];
+]);
 
 const MARK: Record<TraceKind, { icon: string; tone: string }> = {
   agent: { icon: "◆", tone: "text-fg-subtle" },
@@ -118,7 +118,7 @@ function Row({ line, callRun, tenant }: { line: TraceLine; callRun?: CallRun; te
             </button>
             {line.call && callRun && (
               <>
-                <Tooltip label={mayReadCalls ? "" : CALL_CONTENT_NEEDS}><span className="inline-flex"><button type="button" aria-expanded={io} disabled={!mayReadCalls} onClick={() => setIo((v) => !v)} className="text-xs font-medium text-fg-muted hover:text-fg hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-60">
+                <Tooltip label={mayReadCalls ? "" : callContentNeeds()}><span className="inline-flex"><button type="button" aria-expanded={io} disabled={!mayReadCalls} onClick={() => setIo((v) => !v)} className="text-xs font-medium text-fg-muted hover:text-fg hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-60">
                   {io ? $t("components.trace-view.hideInputOutput") : "input / output"}
                 </button></span></Tooltip>
                 {io && mayReadCalls && <CallContent run={callRun} call={line.call} tenant={tenant} />}

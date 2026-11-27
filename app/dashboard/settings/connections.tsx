@@ -6,7 +6,7 @@
 // secret under the hood; the type only decides which fields to ask for and
 // how the value is used at run time.
 
-import { $el, $rich, $t } from "@/i18n";
+import { $el, $rich, $t, localized } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useBrowserValue } from "@/components/browser-value";
@@ -21,7 +21,7 @@ import { Checkbox, RadioGroup, RadioGroupItem } from "@foldrun/ui/react/choice";
 
 type Kind = "key" | "api" | "ssh" | "oauth" | "oauth_m2m" | "service_account" | "file" | "client_cert" | "identity" | "token_exchange";
 
-const KIND_LABEL: Record<string, string> = {
+const KIND_LABEL: Record<string, string> = localized(() => ({
   key: $t("settings.connections.apiKey"),
   api: $t("settings.connections.apiHeaders"),
   ssh: "SSH",
@@ -31,7 +31,7 @@ const KIND_LABEL: Record<string, string> = {
   oauth2: $t("settings.connections.oauthAutoRefresh"),
   "service-account": $t("settings.connections.serviceAccount"),
   file: $t("settings.connections.file"),
-};
+}));
 
 export interface ConnectionRow {
   name: string;

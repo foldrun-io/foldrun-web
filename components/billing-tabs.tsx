@@ -3,10 +3,10 @@
 // entries behind the avatar; a customer's money is one subject and every
 // serious SaaS treats it as one section with tabs.
 
-import { $t } from "@/i18n";
+import { $t, localizedList } from "@/i18n";
 import { PageTabs } from "@foldrun/ui/react/page-tabs";
 
-export const BILLING_TABS = [
+export const BILLING_TABS = localizedList(() => ([
   { key: "balance", name: $t("components.billing-tabs.balance"), href: "/dashboard/billing" },
   { key: "plans", name: $t("components.billing-tabs.plan"), href: "/dashboard/billing/plans" },
   { key: "usage", name: $t("components.billing-tabs.usage"), href: "/dashboard/usage" },
@@ -15,7 +15,7 @@ export const BILLING_TABS = [
   { key: "payment", name: $t("components.billing-tabs.payment"), href: "/dashboard/billing/payment" },
   { key: "details", name: $t("components.billing-tabs.details"), href: "/dashboard/billing/details" },
   { key: "limits", name: $t("components.billing-tabs.spendLimits"), href: "/dashboard/limits" },
-] as const;
+] as const));
 
 export type BillingTab = (typeof BILLING_TABS)[number]["key"];
 

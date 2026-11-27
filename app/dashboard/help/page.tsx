@@ -13,6 +13,7 @@ import { Page, PageHeader, Panel } from "@foldrun/ui/react/page";
 import { ChevronRight } from "lucide-react";
 import { designNotes, docsDir, noteTitle, noteSummary } from "./design-notes";
 
+import { requestLocale } from "@/server/locale";
 // Per request, not prerendered (28 Oct 2026): the enforced CSP's nonce is
 // minted per request, and a static page cannot carry one. The markdown ships
 // in the image beside the app for this (foldrun-infra Dockerfile).
@@ -49,7 +50,8 @@ function Table({ rows, head }: { head: [string, string]; rows: [string, string][
   );
 }
 
-export default function HelpPage() {
+export default async function HelpPage() {
+  await requestLocale();
   // Read per request — the notes ship in the image and change with a deploy.
   const notes = designNotes().map((slug) => {
     const raw = fs.readFileSync(path.join(docsDir(), `${slug}.md`), "utf8");

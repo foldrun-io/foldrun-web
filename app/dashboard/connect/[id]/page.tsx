@@ -13,7 +13,9 @@ import { Link2Off } from "lucide-react";
 import { HandoffAccept } from "./accept";
 import { WithEmails } from "@/components/email";
 
+import { requestLocale } from "@/server/locale";
 export default async function ConnectHandoffPage({ params }: { params: Promise<{ id: string }> }) {
+  await requestLocale();
   const { id } = await params;
   const session = await verifySession((await cookies()).get(SESSION_COOKIE)?.value);
   const tenant = session?.tenant ?? (process.env.FOLDRUN_DEV_NO_AUTH === "1" ? "default" : null);

@@ -4,6 +4,7 @@ import { viewerScope } from "@/server/users";
 import { GraphClient } from "@/app/dashboard/[workspace]/graph/graph-client";
 import { isLayout } from "@/components/graph-layout-model";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 /**
@@ -22,6 +23,7 @@ export default async function AccountGraphPage({
 }: {
   searchParams: Promise<{ tenant?: string; layout?: string }>;
 }) {
+  await requestLocale();
   const { tenant = "default", layout } = await searchParams;
   // A member scoped to some workspaces sees only those, here as everywhere.
   const graph = buildAccountGraph(tenant, await viewerScope());

@@ -21,6 +21,7 @@ import { errorBody } from "@/server/error-shape";
 import { versionHeaders } from "@/server/release";
 import { storeOrigin } from "@/lib/storage";
 import { unsafeApiPath } from "@/server/raw-path";
+import { LOCALE_COOKIE, localeForHost } from "@/server/locale-host";
 
 /** X-Foldrun-Version (and X-Foldrun-Api, X-Foldrun-Cli) on a response, so any
  *  client — the CLI's update notice, a script, a support ticket's curl -i —
@@ -118,7 +119,16 @@ function forward(req: NextRequest, nonce: string, from: Headers = req.headers): 
   const h = new Headers(from);
   h.set("x-nonce", nonce);
   h.set("content-security-policy", csp(nonce));
+  // Always written here, so a caller's own header never decides it.
+  h.set("x-foldrun-locale", localeFor(req));
   return h;
+}
+
+/** The language of a page request (server/locale-host.ts). The host is the
+ *  request's own Host header until the second address brings the one trusted
+ *  resolver (foldrun-infra docs/persian-ir-plan.md, decision 5). */
+function localeFor(req: NextRequest): "en" | "fa" {
+  return localeForHost(req.headers.get("host"), req.cookies.get(LOCALE_COOKIE)?.value);
 }
 
 /** An unpredictable per-request token for the CSP nonce. randomUUID is in

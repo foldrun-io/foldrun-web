@@ -31,6 +31,7 @@ import {
 import { RunsSelection } from "@/components/runs-bulk";
 import { filterByQuery } from "@foldrun/ui/react/list-search-model";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 export default async function RunsPage({
@@ -53,6 +54,7 @@ export default async function RunsPage({
     context?: string;
   }>;
 }) {
+  await requestLocale();
   const {
     tenant = "default",
     workspace: workspaceFilter,

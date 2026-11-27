@@ -5,7 +5,7 @@
 // Apply writes those files (each a revision by you), Dismiss sets it aside.
 // Nothing is written before Apply. "Propose a fix" asks for one now.
 
-import { $el, $rich, $t } from "@/i18n";
+import { $el, $rich, $t, localized } from "@/i18n";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "@foldrun/ui/react/link";
@@ -31,7 +31,7 @@ const TONE: Record<Proposal["status"], Tone> = {
   dismissed: "default",
 };
 
-const LABEL: Record<Proposal["status"], string> = {
+const LABEL: Record<Proposal["status"], string> = localized(() => ({
   drafting: $t("workspace.evals-proposals.beingDrafted"),
   ready: $t("workspace.evals-proposals.readyToReview"),
   applying: "applying",
@@ -39,7 +39,7 @@ const LABEL: Record<Proposal["status"], string> = {
   partial: $t("workspace.evals-proposals.partlyApplied"),
   failed: $t("workspace.evals-proposals.draftFailed"),
   dismissed: "dismissed",
-};
+}));
 
 export function Proposals({
   workspace,

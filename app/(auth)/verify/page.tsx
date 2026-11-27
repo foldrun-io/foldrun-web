@@ -13,13 +13,18 @@ import { Email } from "@/components/email";
 import { readToken } from "@/server/auth-tokens";
 import { AuthCard } from "../brand";
 
+import { requestLocale } from "@/server/locale";
 // The token is in this page's URL: a Referer carries only our origin, never the
 // path and query (Codex). Not no-referrer: that makes the button's POST send
 // Origin: null, which the proxy refuses as cross-site for a signed-in browser.
-export const metadata = { title: $t("auth.verify-page.confirmYourEmailFoldrun"), referrer: "strict-origin" as const };
+export async function generateMetadata() {
+  await requestLocale();
+  return { title: $t("auth.verify-page.confirmYourEmailFoldrun"), referrer: "strict-origin" as const };
+}
 export const dynamic = "force-dynamic";
 
 export default async function VerifyPage({ searchParams }: { searchParams: Promise<{ token?: string | string[] }> }) {
+  await requestLocale();
   const raw = (await searchParams).token;
   const token = typeof raw === "string" ? raw : ""; // a repeated ?token= is no link
   const move = readToken("email-change", token);

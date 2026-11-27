@@ -21,9 +21,11 @@ import { LocalTime } from "@/components/local-time";
 import { Tooltip } from "@foldrun/ui/react/tooltip";
 import { RestoreWorkspace, RequestRestore } from "./controls";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 export default async function BackupsPage({ searchParams }: { searchParams: Promise<{ tenant?: string }> }) {
+  await requestLocale();
   const { tenant = "default" } = await searchParams;
   const scope = await viewerScope();
   const role = await viewerRole();

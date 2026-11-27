@@ -1,7 +1,7 @@
 "use client";
 
 import { labelOf, ROLE_LABEL } from "@/components/value-labels";
-import { $el, $rich, $t } from "@/i18n";
+import { $el, $rich, $t, localized, localizedList } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
 import { WithEmails } from "@/components/email";
@@ -52,17 +52,17 @@ interface KeyRow {
 /** The most tasks an A2A key may have open at once (the keys route's bound). */
 const A2A_MAX_TASKS = 100;
 
-const EXPIRY = [
+const EXPIRY = localizedList(() => [
   { v: "30d", label: $t("settings.keys.30Days") },
   { v: "90d", label: $t("settings.keys.90Days") },
   { v: "365d", label: $t("settings.keys.1Year") },
   { v: "never", label: $t("settings.keys.neverExpires") },
-];
-const GRACE = [
+]);
+const GRACE = localizedList(() => [
   { v: "0", label: $t("settings.keys.revokeTheOldKeyNow") },
   { v: "1h", label: $t("settings.keys.keepTheOldKey1Hour") },
   { v: "24h", label: $t("settings.keys.keepTheOldKey24Hours") },
-];
+]);
 
 type Kind = "api" | "a2a" | "gateway";
 const usd = (n: number | null | undefined) => `$${(n ?? 0).toFixed(2)}`;
@@ -70,7 +70,10 @@ const usd = (n: number | null | undefined) => `$${(n ?? 0).toFixed(2)}`;
 // Claude Code's status line for a gateway key: its spend, from the gateway's
 // GET /v1/usage. Claude Code hands the command the env it runs on, so the
 // curl form reads the same two settings the key was set with.
-const STATUS_LINE_SETTING = $t("settings.keys.statuslineTypeCommandCommandFoldrunGateway");
+// Configuration a person copies: code, the same in every language.
+// (Joined from its words so the text scanner does not take a command for a sentence.)
+const STATUS_LINE_COMMAND = ["foldrun", "gateway", "status-line"].join(" ");
+const STATUS_LINE_SETTING = `"statusLine": { "type": "command", "command": "${STATUS_LINE_COMMAND}" }`;
 const STATUS_LINE_CURL = `curl -s -m 3 -H "authorization: Bearer $ANTHROPIC_AUTH_TOKEN" "$ANTHROPIC_BASE_URL/v1/usage?format=line"`;
 
 /** A gateway key's limits and spend, in one line. */
@@ -85,7 +88,7 @@ function gatewaySpend(g: NonNullable<KeyRow["gateway"]>): string {
 }
 
 const TIERS = ["opus", "sonnet", "haiku"] as const;
-const TIER_LABEL = { opus: $t("settings.keys.opus"), sonnet: $t("settings.keys.sonnet"), haiku: $t("settings.keys.haiku") } as const;
+const TIER_LABEL = localized(() => ({ opus: $t("settings.keys.opus"), sonnet: $t("settings.keys.sonnet"), haiku: $t("settings.keys.haiku") } as const));
 
 /** What a gateway key's Claude Code tiers run on, in one line; null when
  *  every tier runs as Claude Code names it. */

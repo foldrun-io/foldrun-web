@@ -79,11 +79,11 @@ export function counts(lines: TraceLine[]): Record<TraceKind | "all", number> {
 /** What a viewer reads in place of a recorded call's input/output: the calls
  *  route needs workspace:write (they can hold what a tool read — customer data,
  *  fragments a mask missed). Courtesy only; the server is what refuses. */
-export const CALL_CONTENT_NEEDS = $t("components.trace-model.callContentIsForEditorsAnd");
+export const callContentNeeds = () => $t("components.trace-model.callContentIsForEditorsAnd");
 
 /** The line shown when reading a recorded call fails. */
 export function callContentError(status: number, serverMessage: string | undefined): string {
-  if (status === 403) return CALL_CONTENT_NEEDS;
+  if (status === 403) return callContentNeeds();
   if (status === 502) return $t("components.trace-model.capturedCallUnavailable");
   return serverMessage ?? `${status}`;
 }

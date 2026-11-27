@@ -38,6 +38,7 @@ import { OUTCOME } from "@/components/outcome-model";
 import { humanSchedule } from "@/components/schedule-human";
 import { BarChart3, Bot, CircleDashed, Clock3, FolderTree, GitCommitHorizontal, Settings, Workflow } from "lucide-react";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 export default async function ProjectPage({
@@ -47,6 +48,7 @@ export default async function ProjectPage({
   params: Promise<{ workspace: string }>;
   searchParams: Promise<{ tenant?: string }>;
 }) {
+  await requestLocale();
   const { workspace } = await params;
   const { tenant = "default" } = await searchParams;
   if (!fs.existsSync(workspaceDir(tenant, workspace))) notFound();

@@ -12,7 +12,7 @@
 // attention, a Recent runs list that repeated the heartbeat, and an Up next
 // card that repeated the empty Running panel's "Next:" line.
 
-import { $t } from "@/i18n";
+import { $t, localized } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { CheckCircle2, Clock3, Coins } from "lucide-react";
 import { OUTCOME, type Outcome } from "@/components/outcome-model";
@@ -29,7 +29,7 @@ import { Chip, EmptyState, Panel, PanelLink, Stat, StatGrid, UsageRows, type Rin
 import { StatusDot } from "@/components/status";
 import { Tooltip } from "@foldrun/ui/react/tooltip";
 
-const KIND: Record<AttentionItem["kind"], { label: string; tone: Tone }> = {
+const KIND: Record<AttentionItem["kind"], { label: string; tone: Tone }> = localized(() => ({
   platform: { label: $t("components.mission-control.platform"), tone: "default" },
   waiting: { label: $t("components.mission-control.needsYou"), tone: "info" },
   stuck: { label: $t("components.mission-control.stuck"), tone: "warn" },
@@ -37,7 +37,7 @@ const KIND: Record<AttentionItem["kind"], { label: string; tone: Tone }> = {
   bad: { label: $t("components.mission-control.bad"), tone: "bad" },
   blocked: { label: $t("components.mission-control.blocked"), tone: "warn" },
   missed: { label: $t("components.mission-control.missed"), tone: "warn" },
-};
+}));
 
 /** A run's outcome as a card's ring — the outcome's own word as its label,
  *  unchanged (the refactor keeps every outcome distinct). */

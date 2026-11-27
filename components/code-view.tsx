@@ -33,7 +33,7 @@ export function CodeView({ path, text, maxLines = 4000 }: { path: string; text: 
   const lines = pretty.split("\n");
   const shown = lines.slice(0, maxLines);
   return (
-    <div className="overflow-auto rounded-lg border border-line bg-surface">
+    <div data-ltr className="overflow-auto rounded-lg border border-line bg-surface">
       <table className="w-full border-collapse font-mono text-xs leading-relaxed">
         <tbody>
           {shown.map((l, i) => (

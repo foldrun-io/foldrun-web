@@ -1,4 +1,4 @@
-import { $rich, $t } from "@/i18n";
+import { $rich, $t, localized } from "@/i18n";
 import fs from "node:fs";
 import path from "node:path";
 import { notFound } from "next/navigation";
@@ -22,6 +22,7 @@ import { LIBRARY_KINDS, listLibrary, libraryDir } from "@/lib/library";
 import { HooksPanel } from "@/components/hooks-panel";
 import { listWorkspaceHooks, HOOK_SAMPLE } from "@/server/hooks";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
 
 // The nouns this page lists. Derived, not retyped — a hand-kept copy is how
@@ -31,26 +32,26 @@ type Kind = (typeof KINDS)[number];
 
 // See the note on the account library's BLURB: a tool is the capability, a
 // script is material one kind of tool points at.
-const BLURB: Record<Kind, string> = {
+const BLURB: Record<Kind, string> = localized(() => ({
   skills: $t("workspace.assets-page.capabilitiesEveryAgentInThisWorkspace"),
   memory: $t("workspace.assets-page.whatAgentsInThisWorkspaceHave"),
   knowledge: $t("workspace.assets-page.referenceMaterialYouGiveAgentsSpecs"),
   tools: $t("workspace.assets-page.whatAnAgentHereCanDo"),
   hooks: $t("workspace.assets-page.yourOwnCodeAtEveryTool"),
   scripts: $t("workspace.assets-page.codeThatScriptToolsRunReferenced"),
-};
+}));
 
-const PAGE_TITLE: Partial<Record<Kind, string>> = { scripts: $t("workspace.assets-page.code") };
+const PAGE_TITLE: Partial<Record<Kind, string>> = localized(() => ({ scripts: $t("workspace.assets-page.code") }));
 
 // The header's one line, where the page has tabs: short, the rest is in the
 // empty state and the docs.
-const LINE: Partial<Record<Kind, string>> = {
+const LINE: Partial<Record<Kind, string>> = localized(() => ({
   tools: $t("workspace.assets-page.whatAnAgentHereCanDo2"),
   hooks: $t("workspace.assets-page.yourOwnCodeAtEveryTool2"),
   knowledge: $t("workspace.assets-page.referenceMaterialYouGiveAgentsThey"),
   memory: $t("workspace.assets-page.whatAgentsInThisWorkspaceHave2"),
   skills: $t("workspace.assets-page.proceduresEveryAgentHereCanLoad"),
-};
+}));
 
 interface Entry {
   path: string; // relative to the workspace root, or to the library kind dir
@@ -387,6 +388,7 @@ export default async function ProjectAssetsPage({
   params: Promise<{ workspace: string }>;
   searchParams: Promise<{ tenant?: string; kind?: string }>;
 }) {
+  await requestLocale();
   const { workspace } = await params;
   const { tenant = "default", kind: rawKind } = await searchParams;
   const dir = workspaceDir(tenant, workspace);

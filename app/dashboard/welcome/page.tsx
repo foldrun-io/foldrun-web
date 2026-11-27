@@ -29,8 +29,12 @@ import { ModelKey } from "../settings/model-key";
 import { Page, PageHeader } from "@foldrun/ui/react/page";
 import { buttonVariants } from "@foldrun/ui/react/button";
 
+import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
-export const metadata = { title: $t("welcome.page.welcome") };
+export async function generateMetadata() {
+  await requestLocale();
+  return { title: $t("welcome.page.welcome") };
+}
 
 /** What the First run step runs: the demo's flow when there is a demo, else
  *  the first workspace's first flow; and that flow's newest run. */
@@ -58,6 +62,7 @@ function firstRunTarget(tenant: string, workspaces: string[], chosen?: string): 
 }
 
 export default async function Welcome({ searchParams }: { searchParams: Promise<{ tenant?: string; step?: string; workspace?: string }> }) {
+  await requestLocale();
   const { tenant = "default", step, workspace: chosen } = await searchParams;
   const qs = tenant !== "default" ? `?tenant=${tenant}` : "";
   const scope = await viewerScope();

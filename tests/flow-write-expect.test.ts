@@ -23,7 +23,7 @@ const { createApiKey } = await import("../server/auth.ts");
 type Ctx = { params: Promise<{ workspace: string; flow: string }> };
 type Handler = (req: InstanceType<typeof NextRequest>, ctx: Ctx) => Promise<Response>;
 const route = (await import("../app/v1/workspaces/[workspace]/flows/[flow]/route.ts")) as { PATCH: Handler };
-const { flowWrite, STALE_FLOW } = await import("../components/flow-write.ts");
+const { flowWrite, staleFlow } = await import("../components/flow-write.ts");
 
 const TENANT = "acme";
 const WS = "desk";
@@ -60,7 +60,7 @@ for (const [name, method, body] of [
     const r = await flowWrite({ url: URL_, method, tenant: TENANT, body, expect: seen, fetch: viaRoute });
     assert.equal(r.ok, false);
     assert.equal(r.ok === false && r.stale, true);
-    assert.equal(r.ok === false && r.error, STALE_FLOW);
+    assert.equal(r.ok === false && r.error, staleFlow());
     assert.equal(fs.readFileSync(FILE, "utf8"), moved);
   });
 
