@@ -63,7 +63,7 @@ export function FlowView({ canvas, list, toolbar }: { canvas: ReactNode; list: R
             { key: "list", label: $t("workspace.flows-flow-view.list"), icon: <ListOrdered aria-hidden /> },
           ]}
         />
-        {toolbar && <div className="ml-auto flex flex-wrap items-center gap-2">{toolbar}</div>}
+        {toolbar && <div className="ms-auto flex flex-wrap items-center gap-2">{toolbar}</div>}
       </div>
       {view === null ? <div className="h-[300px]" /> : view === "canvas" ? canvas : list}
     </div>

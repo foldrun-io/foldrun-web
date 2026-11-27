@@ -44,7 +44,7 @@ export function RunCompare({ workspace, runId, tenant }: { workspace: string; ru
         <span className="font-medium text-fg">{$t("components.run-compare.comparedWith")}</span>
         <Link href={runHref(workspace, c.base.id, tenant)} className="font-mono text-fg hover:underline">{c.base.id}</Link>
         <span className="text-fg-muted">({state.chosen}, {c.base.status})</span>
-        <Button size="icon-xs" variant="ghost" onClick={() => setState(null)} aria-label={$t("components.run-compare.close")} className="ml-auto">
+        <Button size="icon-xs" variant="ghost" onClick={() => setState(null)} aria-label={$t("components.run-compare.close")} className="ms-auto">
           <X aria-hidden />
         </Button>
       </header>
@@ -64,7 +64,7 @@ export function RunCompare({ workspace, runId, tenant }: { workspace: string; ru
           {changed.map((s) => (
             <li key={`${s.step}/${s.agent}`}>
               <span className="font-medium text-fg">{$t("components.run-compare.step", { step: String(s.step), agent: s.agent })}</span>
-              <ul className="ml-4 mt-0.5 list-disc text-fg-secondary">
+              <ul className="ms-4 mt-0.5 list-disc text-fg-secondary">
                 {s.changes.map((ch) => (
                   <li key={ch} className={/^(status|new error|tool errors)/.test(ch) ? "text-danger" : ""}>{ch}</li>
                 ))}

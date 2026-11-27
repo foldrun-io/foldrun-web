@@ -676,7 +676,7 @@ export function KeyManager({
                     </IconBox>
                     <div className="min-w-0 flex-1">
                       <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-fg">
-                        <span className="mr-0.5 truncate">{k.label}</span>
+                        <span className="me-0.5 truncate">{k.label}</span>
                         {k.purpose === "a2a" ? (
                           <Tag>
                             <Tooltip label={$t("settings.keys.anOutsideAgentSKeyIt")}><span>A2A</span></Tooltip>
@@ -791,7 +791,7 @@ export function KeyManager({
                                 <>
                                   {k.gateway.walletUsd ? usd(k.gateway.walletUsd) : $t("settings.keys.walletBudgetPlanOnly", { amount: usd(0) })}
                                   {!scoped && (
-                                    <button type="button" disabled={busy} onClick={() => setWalletEdit({ id: k.id, value: String(k.gateway?.walletUsd ?? 0) })} className="ml-2 text-fg-secondary underline decoration-line underline-offset-2 hover:text-fg">
+                                    <button type="button" disabled={busy} onClick={() => setWalletEdit({ id: k.id, value: String(k.gateway?.walletUsd ?? 0) })} className="ms-2 text-fg-secondary underline decoration-line underline-offset-2 hover:text-fg">
                                       {$t("settings.keys.changeWalletBudget")}
                                     </button>
                                   )}
@@ -806,7 +806,7 @@ export function KeyManager({
                             <dd className="inline">
                               {k.gateway.mediaToText ? $t("settings.keys.mediaReadIntoText") : $t("settings.keys.mediaAsIs")}
                               {!scoped && (
-                                <button type="button" disabled={busy} onClick={() => void toggleMediaToText(k.id, !k.gateway?.mediaToText)} className="ml-2 text-fg-secondary underline decoration-line underline-offset-2 hover:text-fg">
+                                <button type="button" disabled={busy} onClick={() => void toggleMediaToText(k.id, !k.gateway?.mediaToText)} className="ms-2 text-fg-secondary underline decoration-line underline-offset-2 hover:text-fg">
                                   {k.gateway.mediaToText ? $t("settings.keys.mediaSendAsIs") : $t("settings.keys.mediaReadFirst")}
                                 </button>
                               )}
@@ -819,7 +819,7 @@ export function KeyManager({
                             <dd className="inline">
                               {k.requireCustomer ? "required" : $t("settings.keys.notRequired")}
                               {!scoped && (
-                                <button type="button" disabled={busy} onClick={() => void toggleRequireCustomer(k.id, !k.requireCustomer)} className="ml-2 text-fg-secondary underline decoration-line underline-offset-2 hover:text-fg">
+                                <button type="button" disabled={busy} onClick={() => void toggleRequireCustomer(k.id, !k.requireCustomer)} className="ms-2 text-fg-secondary underline decoration-line underline-offset-2 hover:text-fg">
                                   {k.requireCustomer ? $t("settings.keys.stopRequiring") : "require"}
                                 </button>
                               )}
@@ -894,7 +894,7 @@ export function KeyManager({
                       )}
                     </div>
                     {manages && (
-                      <div className="flex shrink-0 items-center gap-1 max-sm:-ml-2.5">
+                      <div className="flex shrink-0 items-center gap-1 max-sm:-ms-2.5">
                         {!k.revokedAt && k.purpose === "gateway" && !expired && !k.replacedBy && (
                           <Button
                             variant="ghost"

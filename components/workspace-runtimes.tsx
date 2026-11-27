@@ -64,7 +64,7 @@ export function RuntimesPanel({ runtimes }: { runtimes: RuntimeRow[] }) {
                   .filter(Boolean)
                   .join(" · ") || $t("components.workspace-runtimes.noPackages")}
               </span>
-              <span className="ml-auto shrink-0 text-xs text-fg-muted">
+              <span className="ms-auto shrink-0 text-xs text-fg-muted">
                 {r.agents.join(", ")}
                 {r.at && <> · <LocalTime iso={r.at} /></>}
               </span>

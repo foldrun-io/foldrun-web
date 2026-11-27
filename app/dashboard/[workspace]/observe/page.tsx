@@ -169,7 +169,7 @@ export default async function ObservePage({
                         {t.previous ? (
                           <>
                             {t.previous.passed}/{t.previous.passed + t.previous.failed}
-                            <span className="ml-1.5 font-mono text-xs text-fg-subtle">{t.previous.commit ? shortRev(t.previous.commit) : "—"}</span>
+                            <span className="ms-1.5 font-mono text-xs text-fg-subtle">{t.previous.commit ? shortRev(t.previous.commit) : "—"}</span>
                           </>
                         ) : (
                           <span className="text-fg-subtle">{$t("workspace.observe-page.firstCommitWithARun")}</span>
@@ -251,15 +251,15 @@ export default async function ObservePage({
                 <THead>
                   <tr>
                     <TH>{$t("workspace.observe-page.agent")}</TH>
-                    <TH className="text-right">{$t("workspace.observe-page.steps")}</TH>
-                    <TH className="text-right">{$t("workspace.observe-page.failed")}</TH>
-                    <TH className="text-right">{$t("workspace.observe-page.retried")}</TH>
-                    <TH className="text-right">{$t("workspace.observe-page.skipped")}</TH>
+                    <TH className="text-end">{$t("workspace.observe-page.steps")}</TH>
+                    <TH className="text-end">{$t("workspace.observe-page.failed")}</TH>
+                    <TH className="text-end">{$t("workspace.observe-page.retried")}</TH>
+                    <TH className="text-end">{$t("workspace.observe-page.skipped")}</TH>
                     <TH>{$t("workspace.observe-page.stepTime")}</TH>
                     <Tooltip label={$t("workspace.observe-page.modelTurnsPerStepTheAgent")}><TH>{$t("workspace.observe-page.turns")}</TH></Tooltip>
                     <TH>{$t("workspace.observe-page.tokensInOut")}</TH>
-                    <TH className="text-right">{$t("workspace.observe-page.cached")}</TH>
-                    <TH className="text-right">{$t("workspace.observe-page.credits")}</TH>
+                    <TH className="text-end">{$t("workspace.observe-page.cached")}</TH>
+                    <TH className="text-end">{$t("workspace.observe-page.credits")}</TH>
                   </tr>
                 </THead>
                 <TBody>
@@ -270,10 +270,10 @@ export default async function ObservePage({
                           {a.agent}
                         </Link>
                       </TD>
-                      <TD className="text-right tabular-nums">{a.steps}</TD>
-                      <TD className={`text-right tabular-nums ${a.failed ? "font-medium text-danger" : "text-fg-subtle"}`}>{a.failed || "—"}</TD>
-                      <TD className={`text-right tabular-nums ${a.retried ? "font-medium text-warning" : "text-fg-subtle"}`}>{a.retried || "—"}</TD>
-                      <TD className="text-right tabular-nums text-fg-muted">{a.skipped || "—"}</TD>
+                      <TD className="text-end tabular-nums">{a.steps}</TD>
+                      <TD className={`text-end tabular-nums ${a.failed ? "font-medium text-danger" : "text-fg-subtle"}`}>{a.failed || "—"}</TD>
+                      <TD className={`text-end tabular-nums ${a.retried ? "font-medium text-warning" : "text-fg-subtle"}`}>{a.retried || "—"}</TD>
+                      <TD className="text-end tabular-nums text-fg-muted">{a.skipped || "—"}</TD>
                       <TD>
                         <Spread s={a.seconds} unit={secs} />
                       </TD>
@@ -286,11 +286,11 @@ export default async function ObservePage({
                         {num(a.inputTokens)} / {num(a.outputTokens)}
                       </TD>
                       <Tooltip label={a.cacheHitRate == null ? $t("workspace.observe-page.noStepReportsCacheReadsYet") : $t("workspace.observe-page.inputTokensReadFromThePrompt", { v0: String(num(a.cacheReadTokens)) })}>
-                        <TD className="text-right tabular-nums text-fg-muted">
+                        <TD className="text-end tabular-nums text-fg-muted">
                           {a.cacheHitRate == null ? "—" : `${Math.round(a.cacheHitRate * 100)}%`}
                         </TD>
                       </Tooltip>
-                      <TD className="text-right tabular-nums text-fg">{usd(a.chargedUsd)}</TD>
+                      <TD className="text-end tabular-nums text-fg">{usd(a.chargedUsd)}</TD>
                     </TR>
                   ))}
                 </TBody>
@@ -305,8 +305,8 @@ export default async function ObservePage({
                   <THead>
                     <tr>
                       <TH>{$t("workspace.observe-page.tool")}</TH>
-                      <TH className="text-right">{$t("workspace.observe-page.calls")}</TH>
-                      <TH className="text-right">{$t("workspace.observe-page.errors")}</TH>
+                      <TH className="text-end">{$t("workspace.observe-page.calls")}</TH>
+                      <TH className="text-end">{$t("workspace.observe-page.errors")}</TH>
                       <TH>{$t("workspace.observe-page.latency")}</TH>
                       <Tooltip label={$t("workspace.observe-page.charactersEachResultPutIntoThe")}><TH>{$t("workspace.observe-page.resultSize")}</TH></Tooltip>
                       <TH>{$t("workspace.observe-page.calledBy")}</TH>
@@ -316,8 +316,8 @@ export default async function ObservePage({
                     {o.tools.map((t) => (
                       <TR key={t.name}>
                         <TD className="font-mono text-xs text-fg">{t.name}</TD>
-                        <TD className="text-right tabular-nums">{t.calls}</TD>
-                        <TD className={`text-right tabular-nums ${t.errors ? "font-medium text-danger" : "text-fg-subtle"}`}>{t.errors || "—"}</TD>
+                        <TD className="text-end tabular-nums">{t.calls}</TD>
+                        <TD className={`text-end tabular-nums ${t.errors ? "font-medium text-danger" : "text-fg-subtle"}`}>{t.errors || "—"}</TD>
                         <TD>
                           {t.measured === 0 ? (
                             <Tooltip label={$t("workspace.observe-page.thisToolDoesNotReportIts")}>
@@ -372,14 +372,14 @@ export default async function ObservePage({
                           <span className="font-mono text-xs text-fg">{p.phase}</span>
                           {p.parallel > 0 && (
                             <Tooltip label={$t("workspace.observe-page.bootedAlongsideTheStepPodNot")}>
-                              <span className="ml-2 text-xs text-fg-muted">
+                              <span className="ms-2 text-xs text-fg-muted">
                                 {$t("workspace.observe-page.inParallel2", { part: p.parallel < p.took.n ? $t("workspace.observe-page.onOf", { parallel: String(p.parallel), n: String(p.took.n) }) : "" })}
                               </span>
                             </Tooltip>
                           )}
                           {(p.waited.max ?? 0) > 0 && (
                             <Tooltip label={$t("workspace.observe-page.howLongItWasHeldFor")} side="bottom">
-                              <span className="ml-2 text-xs text-fg-muted">
+                              <span className="ms-2 text-xs text-fg-muted">
                                 {$rich("workspace.observe-page.heldForServices", { spread: $el(<Spread s={p.waited} unit={fine} />) })}
                               </span>
                             </Tooltip>
@@ -407,22 +407,22 @@ export default async function ObservePage({
                 <THead>
                   <tr>
                     <TH>{$t("workspace.observe-page.flow")}</TH>
-                    <TH className="text-right">{$t("workspace.observe-page.runs")}</TH>
-                    <TH className="text-right">{$t("workspace.observe-page.failed")}</TH>
+                    <TH className="text-end">{$t("workspace.observe-page.runs")}</TH>
+                    <TH className="text-end">{$t("workspace.observe-page.failed")}</TH>
                     <TH>{$t("workspace.observe-page.duration")}</TH>
-                    <TH className="text-right">{$t("workspace.observe-page.credits")}</TH>
+                    <TH className="text-end">{$t("workspace.observe-page.credits")}</TH>
                   </tr>
                 </THead>
                 <TBody>
                   {o.flows.map((f) => (
                     <TR key={f.flow}>
                       <TD className="font-medium text-fg">{f.flow}</TD>
-                      <TD className="text-right tabular-nums">{f.runs}</TD>
-                      <TD className={`text-right tabular-nums ${f.failed ? "font-medium text-danger" : "text-fg-subtle"}`}>{f.failed || "—"}</TD>
+                      <TD className="text-end tabular-nums">{f.runs}</TD>
+                      <TD className={`text-end tabular-nums ${f.failed ? "font-medium text-danger" : "text-fg-subtle"}`}>{f.failed || "—"}</TD>
                       <TD>
                         <Spread s={f.seconds} unit={secs} />
                       </TD>
-                      <TD className="text-right tabular-nums text-fg">{usd(f.chargedUsd)}</TD>
+                      <TD className="text-end tabular-nums text-fg">{usd(f.chargedUsd)}</TD>
                     </TR>
                   ))}
                 </TBody>

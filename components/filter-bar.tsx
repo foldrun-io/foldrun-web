@@ -158,7 +158,7 @@ export function FilterBar({
         );
       })}
       {(active.length > 0 || total !== undefined) && (
-        <div className="ml-auto flex items-center gap-3 text-[13px] text-fg-muted">
+        <div className="ms-auto flex items-center gap-3 text-[13px] text-fg-muted">
           {total !== undefined && (
             <span className="tabular-nums">
               {total} {noun}

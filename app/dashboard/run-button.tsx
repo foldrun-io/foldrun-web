@@ -85,7 +85,7 @@ export function RunButton({
 
   const billingHref = `/dashboard/billing${tenant !== "default" ? `?tenant=${tenant}` : ""}`;
   const refusal = refused && (
-    <span role="alert" className="ml-2 inline-flex flex-wrap items-center gap-2 text-xs text-red-600">
+    <span role="alert" className="ms-2 inline-flex flex-wrap items-center gap-2 text-xs text-red-600">
       <span>{refused.text}</span>
       {refused.status === 402 && (
         <a href={billingHref} className="rounded border border-red-200 bg-red-50 px-2 py-0.5 font-medium hover:bg-red-100">

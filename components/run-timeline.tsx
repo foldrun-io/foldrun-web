@@ -173,7 +173,8 @@ export function RunTimeline({
   const glide = win === null ? "transition-[width,left] duration-500 ease-linear" : "";
 
   return (
-    <div className="overflow-hidden rounded-lg border border-line bg-surface">
+    // Time runs left to right in every language: the axis is placed by percent from the left.
+    <div data-ltr className="overflow-hidden rounded-lg border border-line bg-surface">
       <style>{`
         @keyframes timeline-slide { from { background-position: 0 0 } to { background-position: 28px 0 } }
         .timeline-live {
@@ -188,7 +189,7 @@ export function RunTimeline({
       {/* axis */}
       <div className="grid grid-cols-[8rem_1fr] border-b border-line bg-sunken text-xs text-fg-muted sm:grid-cols-[11rem_1fr]">
         <div className="px-3 py-2 text-[13px]">{$t("components.run-timeline.step")}</div>
-        <div className="relative h-8 pr-3">
+        <div className="relative h-8 pe-3">
           {/* A label within a few percent of either edge would clip; the
               grid line still marks the tick. The run's own zero always shows. */}
           {ticks.filter((t) => tickPos(t) < 96 && (tickPos(t) > 3 || t === 0)).map((t) => (
@@ -205,7 +206,7 @@ export function RunTimeline({
 
       {/* rows */}
       <div className={`grid grid-cols-[8rem_1fr] sm:grid-cols-[11rem_1fr] ${tall ? "max-h-[28rem] overflow-y-auto" : ""}`}>
-        <div className="border-r border-line">
+        <div className="border-e border-line">
           {run.steps.map((step, i) => {
             const firstOfGroup = i === 0 || run.steps[i - 1].group !== step.group;
             const parallel = !firstOfGroup;
@@ -227,7 +228,7 @@ export function RunTimeline({
                 onMouseEnter={() => setHover({ step: i })}
                 onMouseLeave={() => setHover(null)}
                 onClick={() => onSelect?.(i)}
-                className={`flex h-8 w-full items-center gap-1.5 px-3 text-left text-[13px] transition-colors hover:bg-sunken ${
+                className={`flex h-8 w-full items-center gap-1.5 px-3 text-start text-[13px] transition-colors hover:bg-sunken ${
                   hover?.step === i ? "bg-sunken" : ""
                 }`}
               >
@@ -246,7 +247,7 @@ export function RunTimeline({
 
         <div
           ref={chartRef}
-          className="relative touch-pan-y pr-3"
+          className="relative touch-pan-y pe-3"
           onPointerDown={(e) => {
             if (e.button !== 0) return;
             brushRef.current = { x0: e.clientX, moved: false };
@@ -288,13 +289,13 @@ export function RunTimeline({
           {ticks.map((t) => (
             <span
               key={t}
-              className="pointer-events-none absolute inset-y-0 border-l border-line-faint"
+              className="pointer-events-none absolute inset-y-0 border-s border-line-faint"
               style={{ left: `${tickPos(t)}%` }}
             />
           ))}
           {/* the live edge */}
           {runLive && now - t0 >= wFrom && now - t0 <= wTo && (
-            <span className="pointer-events-none absolute inset-y-0 z-10 border-l border-orange-400/70" style={{ left: pct(now) }} />
+            <span className="pointer-events-none absolute inset-y-0 z-10 border-s border-orange-400/70" style={{ left: pct(now) }} />
           )}
           {/* the window being chosen */}
           {brush && (
@@ -361,7 +362,7 @@ export function RunTimeline({
                     })}
                   </>
                 ) : (
-                  <span className="absolute top-2 right-0 text-xs text-fg-subtle">{status}</span>
+                  <span className="absolute top-2 end-0 text-xs text-fg-subtle">{status}</span>
                 )}
               </div>
             );
@@ -398,7 +399,7 @@ export function RunTimeline({
               <button
                 type="button"
                 onClick={() => setWin(null)}
-                className="ml-0.5 rounded px-1.5 hover:bg-muted hover:text-fg-secondary"
+                className="ms-0.5 rounded px-1.5 hover:bg-muted hover:text-fg-secondary"
               >
                 {$t("components.run-timeline.wholeRun")}
               </button>

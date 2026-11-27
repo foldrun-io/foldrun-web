@@ -134,7 +134,7 @@ export function ToolTest({
           {result.ok ? <Check className="mt-0.5 size-4 shrink-0" aria-hidden /> : <X className="mt-0.5 size-4 shrink-0" aria-hidden />}
           <span className="min-w-0 break-words">
             {result.summary}
-            <span className="ml-1.5 font-normal text-fg-subtle">{$t("components.tool-test.ms", { ms: String(result.ms) })}</span>
+            <span className="ms-1.5 font-normal text-fg-subtle">{$t("components.tool-test.ms", { ms: String(result.ms) })}</span>
           </span>
         </p>
       )}

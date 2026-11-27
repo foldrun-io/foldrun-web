@@ -169,7 +169,7 @@ export function CustomersCard({ tenant, limits, defaults, blocked, spend, canMan
                 </span>
                 <span className="shrink-0 tabular-nums text-xs text-fg-subtle">{$t("settings.customers.calls", { calls: String(x.calls) })}</span>
                 <span className="shrink-0 tabular-nums text-xs text-fg-muted">{$t("settings.customers.today", { usd: usd(x.todayUsd) })}</span>
-                <span className="w-20 shrink-0 text-right font-medium tabular-nums text-fg">{usd(x.chargedUsd)}</span>
+                <span className="w-20 shrink-0 text-end font-medium tabular-nums text-fg">{usd(x.chargedUsd)}</span>
               </li>
             ))}
           </ul>
@@ -192,7 +192,7 @@ export function CustomersCard({ tenant, limits, defaults, blocked, spend, canMan
                     <WithEmails text={b.reason} />
                   </span>
                 )}
-                <span className="ml-auto text-xs text-fg-subtle">
+                <span className="ms-auto text-xs text-fg-subtle">
                   <WithEmails text={b.by} /> · <LocalTime iso={b.at} options={{ day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }} />
                 </span>
                 {canManage && (

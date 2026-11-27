@@ -335,9 +335,9 @@ export default async function FlowsPage({
                             </Link>
                             <p className="mt-0.5 truncate font-mono text-xs text-fg-muted">{r.id}</p>
                           </div>
-                          <span className="hidden w-16 shrink-0 text-right text-sm tabular-nums text-fg-muted sm:block">{ms != null ? fmtSpan(ms) : "—"}</span>
-                          <span className="hidden w-20 shrink-0 text-right text-sm tabular-nums text-fg-muted md:block">{r.costUsd ? creditsShort(r.costUsd) : "—"}</span>
-                          <LocalTime iso={r.startedAt} options={{ day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }} className="w-28 shrink-0 text-right text-sm tabular-nums text-fg-muted" />
+                          <span className="hidden w-16 shrink-0 text-end text-sm tabular-nums text-fg-muted sm:block">{ms != null ? fmtSpan(ms) : "—"}</span>
+                          <span className="hidden w-20 shrink-0 text-end text-sm tabular-nums text-fg-muted md:block">{r.costUsd ? creditsShort(r.costUsd) : "—"}</span>
+                          <LocalTime iso={r.startedAt} options={{ day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }} className="w-28 shrink-0 text-end text-sm tabular-nums text-fg-muted" />
                         </li>
                       );
                     })}

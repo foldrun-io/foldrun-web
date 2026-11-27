@@ -713,7 +713,7 @@ export function LiveRun({
         {liveDot}
         {(!compactHeader || live) && <span className="tabular-nums">{run.finishedAt || hydrated ? `${elapsed(run, clock).toFixed(1)}s` : "…"}</span>}
         {!compactHeader && totalCost > 0 && <span className="tabular-nums">${totalCost.toFixed(4)}</span>}
-        <span className="ml-auto flex items-center gap-2">{actions}</span>
+        <span className="ms-auto flex items-center gap-2">{actions}</span>
       </div>
       )}
       {shouldOpen && wentWrong && (
@@ -863,7 +863,7 @@ export function LiveRun({
               type="button"
               onClick={() => toggleFold(i)}
               aria-expanded={unfolded}
-              className="flex min-w-0 flex-1 items-center gap-2.5 rounded text-left text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              className="flex min-w-0 flex-1 items-center gap-2.5 rounded text-start text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
               <ChevronRight className={cn("size-4 shrink-0 text-fg-muted transition-transform", unfolded && "rotate-90")} aria-hidden />
               <StatusDot outcome={STEP_OUTCOME[shownStatus] ?? "quiet"} label={shownStatus} />
@@ -1264,7 +1264,7 @@ export function LiveRun({
                         <button
                           type="button"
                           onClick={() => toggle(`${i}:answer`)}
-                          className="ml-2 text-[11px] font-medium text-fg-muted underline-offset-2 hover:underline"
+                          className="ms-2 text-[11px] font-medium text-fg-muted underline-offset-2 hover:underline"
                         >
                           {answerOpen ? $t("workspace.live-run.hideFullAnswer") : $t("workspace.live-run.fullAnswer")}
                         </button>
@@ -1305,7 +1305,7 @@ export function LiveRun({
                             >
                               {f.path}
                             </a>
-                            <span className="ml-1.5 text-xs tabular-nums text-fg-muted">{fmtBytes(f.bytes)}</span>
+                            <span className="ms-1.5 text-xs tabular-nums text-fg-muted">{fmtBytes(f.bytes)}</span>
                           </li>
                         ))}
                       </ul>
@@ -1442,7 +1442,7 @@ function GateDocument({ workspace, tenant, rel, src }: { workspace: string; tena
     <div className="mb-3">
       <button type="button" onClick={() => setOpen((o) => !o)} className="mb-1 inline-flex items-center gap-1 font-mono text-xs text-fg-muted hover:text-fg">
         <ChevronRight className={cn("size-3.5 transition-transform", open && "rotate-90")} aria-hidden /> {rel}
-        {failed && <span className="ml-2 text-warning">({failed})</span>}
+        {failed && <span className="ms-2 text-warning">({failed})</span>}
       </button>
       {open && text !== null && (
         <div className="max-h-[32rem] overflow-y-auto rounded-md border border-line bg-sunken px-3 py-2">

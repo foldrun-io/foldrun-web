@@ -470,7 +470,7 @@ export function InlineEditor({
                 </Button>
               </Tooltip>
             )}
-            {!toolbarTarget && <span className="ml-auto font-mono text-xs text-fg-subtle">{path}</span>}
+            {!toolbarTarget && <span className="ms-auto font-mono text-xs text-fg-subtle">{path}</span>}
           </div>
         );
         return toolbarTarget ? createPortal(bar, toolbarTarget) : bar;

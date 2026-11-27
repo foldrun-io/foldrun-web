@@ -118,8 +118,8 @@ export function NavList({ nav, onPick }: { nav: Nav; onPick?: () => void }) {
                 <Link href={it.href} onClick={onPick} aria-current={it.on ? "page" : undefined} className={rowClass(it.on)}>
                   <Icon className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
                   <span className="min-w-0 truncate">{it.name}</span>
-                  {!!it.badge && <Count tone="warn" className="ml-auto min-w-0 text-[11px] leading-4">{it.badge > 99 ? "99+" : it.badge}</Count>}
-                  {it.more && !it.badge && <ChevronRight className="ml-auto size-4 shrink-0 text-fg-subtle" aria-hidden />}
+                  {!!it.badge && <Count tone="warn" className="ms-auto min-w-0 text-[11px] leading-4">{it.badge > 99 ? "99+" : it.badge}</Count>}
+                  {it.more && !it.badge && <ChevronRight className="ms-auto size-4 shrink-0 text-fg-subtle" aria-hidden />}
                 </Link>
               </li>
             );
@@ -148,7 +148,7 @@ export function Sidebar() {
 
   if (hidden) return null;
   return (
-    <aside aria-label={$t("components.sidebar.main")} className="sticky top-0 hidden h-svh w-[260px] shrink-0 flex-col border-r border-line bg-paper md:flex">
+    <aside aria-label={$t("components.sidebar.main")} className="sticky top-0 hidden h-svh w-[260px] shrink-0 flex-col border-e border-line bg-paper md:flex">
       <div className="px-2 pb-2 pt-2">
         <AccountSwitcher />
       </div>

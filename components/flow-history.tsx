@@ -60,9 +60,9 @@ export function DiffView({ rows, empty }: { rows: DiffRow[]; empty: string }) {
               r.kind === "add" ? "bg-green-50 text-green-900" : r.kind === "del" ? "bg-red-50 text-red-900" : "text-fg-tertiary"
             }
           >
-            <span className="inline-block w-8 select-none pr-1 text-right text-fg-subtle">{r.oldNo ?? ""}</span>
-            <span className="inline-block w-8 select-none pr-1 text-right text-fg-subtle">{r.newNo ?? ""}</span>
-            <span className="mr-2 inline-block w-3 select-none text-fg-subtle">
+            <span className="inline-block w-8 select-none pe-1 text-end text-fg-subtle">{r.oldNo ?? ""}</span>
+            <span className="inline-block w-8 select-none pe-1 text-end text-fg-subtle">{r.newNo ?? ""}</span>
+            <span className="me-2 inline-block w-3 select-none text-fg-subtle">
               {r.kind === "add" ? "+" : r.kind === "del" ? "−" : " "}
             </span>
             {r.text || " "}
@@ -228,7 +228,7 @@ export function HistoryDrawer({
             <h2 className="text-base font-semibold text-fg">{$t("components.flow-history.history")}</h2>
             <p className="truncate font-mono text-[11px] text-fg-muted">{path}</p>
           </div>
-          <button type="button" onClick={onClose} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ml-auto")} aria-label={$t("components.flow-history.closeHistory")}>
+          <button type="button" onClick={onClose} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ms-auto")} aria-label={$t("components.flow-history.closeHistory")}>
             {$t("components.flow-history.close")}
           </button>
         </header>
@@ -241,7 +241,7 @@ export function HistoryDrawer({
         {notice && <p className="border-b border-success-line bg-success-soft px-4 py-2 text-xs text-success">{notice}</p>}
 
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          <ul className="max-h-48 shrink-0 divide-y divide-line-faint overflow-y-auto border-b border-line-faint md:max-h-none md:w-64 md:border-b-0 md:border-r">
+          <ul className="max-h-48 shrink-0 divide-y divide-line-faint overflow-y-auto border-b border-line-faint md:max-h-none md:w-64 md:border-b-0 md:border-e">
             {revisions === null && !error && <li className="px-3 py-2 text-xs text-fg-subtle">{$t("components.flow-history.loading")}</li>}
             {revisions?.length === 0 && (
               <li className="px-3 py-2 text-xs text-fg-subtle">{$t("components.flow-history.noRevisionsYetTheNextSave")}</li>
@@ -255,14 +255,14 @@ export function HistoryDrawer({
                     setNotice(null);
                   }}
                   aria-current={selected === r.id}
-                  className={`block w-full px-3 py-2 text-left text-xs hover:bg-sunken ${selected === r.id ? "bg-muted" : ""}`}
+                  className={`block w-full px-3 py-2 text-start text-xs hover:bg-sunken ${selected === r.id ? "bg-muted" : ""}`}
                 >
                   <span className="block truncate font-medium text-fg">{r.message || $t("components.flow-history.noMessage")}</span>
                   <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-fg-muted">
                     <span className="truncate">{r.by}</span>
                     <span>·</span>
                     <LocalTime iso={r.at} options={{ dateStyle: "medium", timeStyle: "short" }} />
-                    {i === 0 && <Tag className="ml-auto h-5 px-1.5 text-[11px]">{$t("components.flow-history.latest")}</Tag>}
+                    {i === 0 && <Tag className="ms-auto h-5 px-1.5 text-[11px]">{$t("components.flow-history.latest")}</Tag>}
                   </span>
                 </button>
               </li>
@@ -289,7 +289,7 @@ export function HistoryDrawer({
                   </span>
                 )}
                 {mode === "current" && <span className="text-[11px] text-fg-muted">{$t("components.flow-history.thisVersionTheFileNow")}</span>}
-                <span className="ml-auto" />
+                <span className="ms-auto" />
                 {after === null && revFile ? (
                   <span className="text-[11px] text-fg-muted">{$t("components.flow-history.thisRevisionDeletedTheFile")}</span>
                 ) : isCurrent ? (

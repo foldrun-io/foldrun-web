@@ -91,7 +91,7 @@ export function AgentNetwork(p: AgentNetworkProps) {
           {LEVEL_HELP[r.level]}
         </span>
         {p.editable && !editing && (
-          <button type="button" onClick={() => setEditing(true)} className={`ml-auto ${buttonVariants({ variant: "secondary", size: "md" })}`}>{$t("workspace.agents-agent-agent-network.change")}</button>
+          <button type="button" onClick={() => setEditing(true)} className={`ms-auto ${buttonVariants({ variant: "secondary", size: "md" })}`}>{$t("workspace.agents-agent-agent-network.change")}</button>
         )}
       </div>
       {r.level !== "open" && (

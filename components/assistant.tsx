@@ -202,7 +202,7 @@ export function AssistantDock({ tenant }: { tenant: string }) {
         // (why it is off) while the button is disabled. On a phone it sat
         // over page buttons; there it is in the bottom bar (PhoneBar).
         <Tooltip label={mayWrite ? $t("components.assistant.askHowFoldrunWorksOrHave") : needs("workspace:write")}>
-          <span className="fixed bottom-5 right-5 z-30 inline-flex max-md:hidden">
+          <span className="fixed bottom-5 end-5 z-30 inline-flex max-md:hidden">
             <button
               type="button"
               disabled={!mayWrite}
@@ -235,10 +235,10 @@ export function AssistantDock({ tenant }: { tenant: string }) {
             }}
           />
         ) : (
-          <aside role="dialog" aria-label={$t("components.assistant.assistant")} className="fixed inset-y-0 right-0 z-40 flex w-full flex-col border-l border-line bg-surface shadow-xl sm:w-[440px]">
+          <aside role="dialog" aria-label={$t("components.assistant.assistant")} className="fixed inset-y-0 end-0 z-40 flex w-full flex-col border-s border-line bg-surface shadow-xl sm:w-[440px]">
             <header className="flex items-center gap-2 border-b border-line px-4 py-3">
               <h2 className="text-sm font-semibold text-fg">{$t("components.assistant.assistant")}</h2>
-              <button type="button" onClick={() => setOpen(false)} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ml-auto")}>
+              <button type="button" onClick={() => setOpen(false)} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ms-auto")}>
                 {$t("components.assistant.close")}
               </button>
             </header>
@@ -555,7 +555,7 @@ function AssistantPanel({
     <aside
       role="dialog"
       aria-label={$t("components.assistant.assistant")}
-      className="fixed inset-y-0 right-0 z-40 flex w-full flex-col border-l border-line bg-surface shadow-xl sm:w-[440px]"
+      className="fixed inset-y-0 end-0 z-40 flex w-full flex-col border-s border-line bg-surface shadow-xl sm:w-[440px]"
     >
       <header className="flex items-center gap-2 border-b border-line px-4 py-3">
         <div className="min-w-0">
@@ -569,7 +569,7 @@ function AssistantPanel({
                 disabled={busy}
                 onChange={(e) => onPick(e.target.value)}
                 className="max-w-[12rem]"
-                selectClassName="h-6 truncate pl-1.5 pr-7 text-xs font-medium"
+                selectClassName="h-6 truncate ps-1.5 pe-7 text-xs font-medium"
               >
                 {workspaces.map((w) => (
                   <option key={w} value={w}>
@@ -588,7 +588,7 @@ function AssistantPanel({
           onClick={() => setShowHistory((v) => !v)}
           disabled={busy}
           aria-pressed={showHistory}
-          className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ml-auto")}
+          className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ms-auto")}
         >
           {$t("components.assistant.history")}
         </button>
@@ -625,7 +625,7 @@ function AssistantPanel({
                   type="button"
                   disabled={busy || saving !== null}
                   onClick={() => void save(files)}
-                  className={cn(buttonVariants({ variant: "primary", size: "xs" }), "ml-auto")}
+                  className={cn(buttonVariants({ variant: "primary", size: "xs" }), "ms-auto")}
                 >
                   {saving === "all" ? $t("components.assistant.saving") : $t("components.assistant.saveAll", { length: String(files.length) })}
                 </button>
@@ -683,11 +683,11 @@ function AssistantPanel({
         <div className="mt-1 flex items-center gap-2">
           <span className="text-[11px] text-fg-subtle">{$t("components.assistant.enterToSendShiftEnterFor")}</span>
           {busy ? (
-            <button type="button" onClick={() => abort.current?.abort()} className={cn(buttonVariants({ variant: "secondary", size: "xs" }), "ml-auto")}>
+            <button type="button" onClick={() => abort.current?.abort()} className={cn(buttonVariants({ variant: "secondary", size: "xs" }), "ms-auto")}>
               {$t("components.assistant.stop")}
             </button>
           ) : (
-            <button type="submit" disabled={!input.trim()} className={cn(buttonVariants({ variant: "primary", size: "xs" }), "ml-auto")}>
+            <button type="submit" disabled={!input.trim()} className={cn(buttonVariants({ variant: "primary", size: "xs" }), "ms-auto")}>
               {$t("components.assistant.send")}
             </button>
           )}
@@ -754,7 +754,7 @@ function History({ headers, current, onOpen }: { headers: Record<string, string>
             <ul className="space-y-0.5">
               {g.items.map((c) => (
                 <li key={c.id} className={`group flex items-center gap-2 rounded-md px-2 py-1 hover:bg-sunken ${c.id === current ? "bg-sunken" : ""}`}>
-                  <button type="button" onClick={() => onOpen(c.id)} className="min-w-0 flex-1 text-left">
+                  <button type="button" onClick={() => onOpen(c.id)} className="min-w-0 flex-1 text-start">
                     <span className="block truncate text-sm text-fg">{c.title}</span>
                     <span className="block text-[11px] text-fg-muted">
                       {$rich("components.assistant.message2", { workspace: c.workspace, span: (chunks) => <span className="font-mono">{chunks}</span>, messages: c.messages })}
@@ -795,7 +795,7 @@ function Welcome({ onPick }: { onPick: (text: string) => void }) {
       <ul className="space-y-1">
         {EXAMPLES.map((e) => (
           <li key={e}>
-            <button type="button" onClick={() => onPick(e)} className="text-left text-xs text-fg-muted underline-offset-2 hover:text-fg hover:underline">
+            <button type="button" onClick={() => onPick(e)} className="text-start text-xs text-fg-muted underline-offset-2 hover:text-fg hover:underline">
               {e}
             </button>
           </li>
@@ -819,7 +819,7 @@ function Message({
   onCreate: (ws: ProposedWorkspace) => void;
 }) {
   if (message.role === "user") {
-    return <div className="ml-8 whitespace-pre-wrap rounded-lg bg-sunken px-3 py-2 text-sm text-fg">{message.content}</div>;
+    return <div className="ms-8 whitespace-pre-wrap rounded-lg bg-sunken px-3 py-2 text-sm text-fg">{message.content}</div>;
   }
   if (message.error) {
     return (
@@ -833,7 +833,7 @@ function Message({
       <Markdown text={linkCitations(message.content)} className="text-sm text-fg" />
       {message.sources && message.sources.length > 0 && (
         <Disclosure className="text-[11px] text-fg-muted" summaryClassName="select-none" summary={<>{$t("components.assistant.readDocSection", { length: message.sources.length })}</>}>
-          <ul className="mt-1 space-y-0.5 pl-3">
+          <ul className="mt-1 space-y-0.5 ps-3">
             {message.sources.map((s) => (
               <li key={s.url}>
                 <a href={s.url} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-fg">
@@ -886,10 +886,10 @@ function WorkspaceCard({
         <span className="font-medium text-fg">{$t("components.assistant.newWorkspace")}</span>
         <span className="font-mono text-fg">{proposal.name}</span>
         {exists ? (
-          <span className="ml-auto text-fg-muted">{$t("components.assistant.exists")}</span>
+          <span className="ms-auto text-fg-muted">{$t("components.assistant.exists")}</span>
         ) : (
           <Tooltip label={mayManage ? undefined : needs("workspace:manage")}>
-            <span className="ml-auto inline-flex">
+            <span className="ms-auto inline-flex">
               <button
                 type="button"
                 disabled={busy || state === "creating" || !mayManage}
@@ -974,11 +974,11 @@ function ProposedFile({
   return (
     <section className="overflow-hidden rounded-lg border border-line">
       <header className="flex items-center gap-2 border-b border-line-faint bg-sunken px-3 py-1.5">
-        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="min-w-0 truncate text-left font-mono text-xs text-fg">
+        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="min-w-0 truncate text-start font-mono text-xs text-fg">
           {file.path}
         </button>
         <Chip tone={file.before === null ? "good" : "warn"}>{file.before === null ? $t("values.fileChange.new") : $t("values.fileChange.changed")}</Chip>
-        <button type="button" disabled={busy} onClick={onDiscard} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ml-auto")}>
+        <button type="button" disabled={busy} onClick={onDiscard} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ms-auto")}>
           {$t("components.assistant.discard")}
         </button>
         <button type="button" disabled={busy} onClick={onSave} className={buttonVariants({ variant: "secondary", size: "xs" })}>

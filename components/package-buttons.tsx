@@ -191,7 +191,7 @@ export function ImportPackageButton({
                   <div className="space-y-3 text-sm">
                     <p className="text-fg">
                       {what(plan)} → <span className="font-mono">{plan.workspace}</span>
-                      {plan.creates && <span className="ml-1 text-xs text-fg-muted">{$t("components.package-buttons.aNewWorkspace")}</span>}
+                      {plan.creates && <span className="ms-1 text-xs text-fg-muted">{$t("components.package-buttons.aNewWorkspace")}</span>}
                     </p>
                     <ul className="space-y-1 text-xs text-fg-secondary">
                       <li>
@@ -208,7 +208,7 @@ export function ImportPackageButton({
                       {plan.overwritten.length > 0 && (
                         <li className="text-amber-700 dark:text-amber-400">
                           {$t("components.package-buttons.fileHereWouldBeReplaced", { length: plan.overwritten.length })}
-                          <ul className="mt-1 list-disc pl-5 font-mono">
+                          <ul className="mt-1 list-disc ps-5 font-mono">
                             {plan.overwritten.slice(0, 12).map((p) => (
                               <li key={p}>{p}</li>
                             ))}

@@ -95,7 +95,7 @@ export function BudgetCard({ endpoint, tenant, initial, spent, compact = false }
   const control = (
     <div className="flex flex-wrap items-center gap-2">
           <div className="relative max-w-[10rem]">
-            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-fg-subtle">$</span>
+            <span className="pointer-events-none absolute inset-y-0 start-3 flex items-center text-sm text-fg-subtle">$</span>
             <Input
               type="number"
               min={0}
@@ -103,7 +103,7 @@ export function BudgetCard({ endpoint, tenant, initial, spent, compact = false }
               value={form.value.usd}
               onChange={(e) => form.setValue({ ...form.value, usd: e.target.value })}
               placeholder={$t("components.defaults-cards.noLimit")}
-              className="w-full pl-6"
+              className="w-full ps-6"
             />
           </div>
           <span className="text-sm text-fg-muted">{$t("components.defaults-cards.per")}</span>

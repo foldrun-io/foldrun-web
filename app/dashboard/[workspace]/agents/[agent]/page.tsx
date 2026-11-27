@@ -227,7 +227,7 @@ export default async function AgentPage({
                       </p>
                     </div>
                     <span className="hidden shrink-0 text-sm tabular-nums text-fg-muted sm:block">{s.costUsd ? money(s.costUsd) : "—"}</span>
-                    <LocalTime iso={s.startedAt} options={WHEN} className="w-28 shrink-0 text-right text-sm tabular-nums text-fg-muted" />
+                    <LocalTime iso={s.startedAt} options={WHEN} className="w-28 shrink-0 text-end text-sm tabular-nums text-fg-muted" />
                   </li>
                 ))}
               </ul>

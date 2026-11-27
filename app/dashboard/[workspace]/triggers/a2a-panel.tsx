@@ -134,7 +134,7 @@ export function A2aPanel({ workspace, tenant }: { workspace: string; tenant: str
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
-              <thead className="border-b border-line bg-sunken text-left text-[13px] text-fg-muted">
+              <thead className="border-b border-line bg-sunken text-start text-[13px] text-fg-muted">
                 <tr>
                   <th className="h-10 px-4 font-medium">{$t("workspace.triggers-a2a-panel.changed")}</th>
                   <th className="h-10 px-4 font-medium">{$t("workspace.triggers-a2a-panel.flow")}</th>
@@ -155,7 +155,7 @@ export function A2aPanel({ workspace, tenant }: { workspace: string; tenant: str
                     </td>
                     <td className="px-4 py-3 text-fg-secondary">
                       {t.key.label || (t.key.prefix ? `${t.key.prefix}…` : $t("workspace.triggers-a2a-panel.aKey"))}
-                      {t.key.revoked && <span className="ml-1 text-fg-muted">{$t("workspace.triggers-a2a-panel.revoked")}</span>}
+                      {t.key.revoked && <span className="ms-1 text-fg-muted">{$t("workspace.triggers-a2a-panel.revoked")}</span>}
                     </td>
                     <td className="px-4 py-3">
                       {t.runId ? (

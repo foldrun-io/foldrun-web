@@ -281,7 +281,7 @@ export default async function TriggersPage({
                     {REASON[d.outcome]?.key && <Tag mono>{REASON[d.outcome].key}</Tag>}
                     {d.detail && (
                       <Tooltip label={d.detail}>
-                        <span className="w-full min-w-0 truncate text-sm text-fg-muted sm:ml-auto sm:w-auto sm:max-w-md">{d.detail}</span>
+                        <span className="w-full min-w-0 truncate text-sm text-fg-muted sm:ms-auto sm:w-auto sm:max-w-md">{d.detail}</span>
                       </Tooltip>
                     )}
                   </li>
@@ -362,7 +362,7 @@ export default async function TriggersPage({
                         <Chip tone={d.outcome === "accepted" ? "good" : d.outcome === "dropped" ? "default" : "bad"}>{labelOf(WEBHOOK_OUTCOME_LABEL, d.outcome)}</Chip>
                         {d.count && d.count > 1 ? (
                           <Tooltip label={d.first ? `first ${d.first}` : undefined}>
-                            <span className="ml-1.5 text-fg-muted">
+                            <span className="ms-1.5 text-fg-muted">
                               ×{d.count}
                             </span>
                           </Tooltip>

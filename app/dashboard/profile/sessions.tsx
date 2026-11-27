@@ -96,7 +96,7 @@ export function SessionList() {
               <p className="truncate text-fg">
                 {describe(s.userAgent)}
                 {s.isCurrent && (
-                  <Tag className="ml-2">{$t("profile.sessions.thisDevice")}</Tag>
+                  <Tag className="ms-2">{$t("profile.sessions.thisDevice")}</Tag>
                 )}
               </p>
               <p className="text-xs text-fg-muted">

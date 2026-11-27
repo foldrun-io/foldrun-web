@@ -205,7 +205,7 @@ export function AssetBrowser({
           <SheetContent
             side="right"
             aria-describedby={undefined}
-            className="w-screen max-w-none max-sm:border-l-0 sm:w-[40rem] sm:max-w-[calc(100vw-3rem)]"
+            className="w-screen max-w-none max-sm:border-s-0 sm:w-[40rem] sm:max-w-[calc(100vw-3rem)]"
             onEscapeKeyDown={(e) => guard.current?.asking() && e.preventDefault()}
             // Focus the drawer itself, not its first button: a ring on Test
             // reads as "this was chosen for you".
@@ -391,7 +391,7 @@ function AssetDetail({
     <div className="flex h-full min-h-0 flex-col">
       {actions.confirmDialog}
       <header className="border-b border-line px-5 pt-5 sm:px-6">
-        <div className="flex items-start gap-3 pr-8">
+        <div className="flex items-start gap-3 pe-8">
           <IconBox>
             <Icon />
           </IconBox>

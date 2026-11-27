@@ -80,7 +80,7 @@ export function InboxList({ items, tenant, dismissedView }: { items: InboxItem[]
             <li key={i.id} className={cn("relative flex min-w-0 items-center gap-3 px-3 py-3 transition-colors hover:bg-sunken sm:px-4", !i.read && "bg-accent-soft/30")}>
               <IconBox className="relative" aria-hidden>
                 {k.icon}
-                {!i.read && <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-surface bg-info" />}
+                {!i.read && <span className="absolute -end-0.5 -top-0.5 size-2.5 rounded-full border-2 border-surface bg-info" />}
               </IconBox>
               <div className="min-w-0 flex-1">
                 <Link

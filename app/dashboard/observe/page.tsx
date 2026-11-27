@@ -213,7 +213,7 @@ export default async function AccountObservePage({ searchParams }: { searchParam
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <span className="font-medium text-fg">{i.title}</span>
                     <Tag>{i.workspace}</Tag>
-                    <span className="ml-auto shrink-0 text-[13px] tabular-nums text-fg-muted">
+                    <span className="ms-auto shrink-0 text-[13px] tabular-nums text-fg-muted">
                       {i.credits !== null && i.credits > 0 ? $t("observe.page.about", { v0: String(creditsShort(i.credits / 100)) }) : ""}
                       {$t("observe.page.step", { steps: i.steps })}
                     </span>
@@ -243,7 +243,7 @@ export default async function AccountObservePage({ searchParams }: { searchParam
               <THead>
                 <tr>
                   <TH>{$t("observe.page.cause")}</TH>
-                  <TH className="text-right">{$t("observe.page.runs")}</TH>
+                  <TH className="text-end">{$t("observe.page.runs")}</TH>
                   <TH>{$t("observe.page.desks")}</TH>
                   <TH>{$t("observe.page.latestInItsOwnWords")}</TH>
                 </tr>
@@ -259,7 +259,7 @@ export default async function AccountObservePage({ searchParams }: { searchParam
                           <span className="font-medium text-fg">{c.label}</span>
                         </span>
                       </TD>
-                      <TD className="text-right align-top tabular-nums text-fg">{c.count}</TD>
+                      <TD className="text-end align-top tabular-nums text-fg">{c.count}</TD>
                       <TD className="align-top">
                         <div className="flex max-w-[16rem] flex-wrap gap-1">
                           {c.desks.map((d) => (
@@ -292,16 +292,16 @@ export default async function AccountObservePage({ searchParams }: { searchParam
             <THead>
               <tr>
                 <TH>{$t("observe.page.desk")}</TH>
-                <TH className="text-right">{$t("observe.page.runs")}</TH>
+                <TH className="text-end">{$t("observe.page.runs")}</TH>
                 <Tooltip label={$t("observe.page.ranToTheEndWithoutFailing")}>
-                  <TH className="text-right">{$t("observe.page.completed")}</TH>
+                  <TH className="text-end">{$t("observe.page.completed")}</TH>
                 </Tooltip>
                 <TH>{$t("observe.page.trend")}</TH>
-                <TH className="text-right">{$t("observe.page.wentWrong")}</TH>
+                <TH className="text-end">{$t("observe.page.wentWrong")}</TH>
                 <TH>{$t("observe.page.worstFlow")}</TH>
-                <TH className="text-right">{$t("observe.page.medianRun")}</TH>
+                <TH className="text-end">{$t("observe.page.medianRun")}</TH>
                 <Tooltip label={$t("observe.page.creditsCharged")}>
-                  <TH className="text-right">{$t("observe.page.credits")}</TH>
+                  <TH className="text-end">{$t("observe.page.credits")}</TH>
                 </Tooltip>
               </tr>
             </THead>
@@ -315,8 +315,8 @@ export default async function AccountObservePage({ searchParams }: { searchParam
                         {d.workspace}
                       </Link>
                     </TD>
-                    <TD className="text-right tabular-nums">{d.runs || "—"}</TD>
-                    <TD className={`text-right tabular-nums ${d.rate === null ? "" : d.rate >= 0.8 ? "text-success" : d.rate >= 0.5 ? "text-warning" : "text-danger"}`}>{pctOf(d.rate)}</TD>
+                    <TD className="text-end tabular-nums">{d.runs || "—"}</TD>
+                    <TD className={`text-end tabular-nums ${d.rate === null ? "" : d.rate >= 0.8 ? "text-success" : d.rate >= 0.5 ? "text-warning" : "text-danger"}`}>{pctOf(d.rate)}</TD>
                     <TD className="whitespace-nowrap">
                       {trend === null ? (
                         none
@@ -329,7 +329,7 @@ export default async function AccountObservePage({ searchParams }: { searchParam
                         </span>
                       )}
                     </TD>
-                    <TD className="whitespace-nowrap text-right tabular-nums">
+                    <TD className="whitespace-nowrap text-end tabular-nums">
                       {wrongOf(d) === 0 ? (
                         <span className="text-fg-subtle">0</span>
                       ) : (
@@ -348,8 +348,8 @@ export default async function AccountObservePage({ searchParams }: { searchParam
                         none
                       )}
                     </TD>
-                    <TD className="text-right tabular-nums text-fg-muted">{secs(d.medianSecs)}</TD>
-                    <TD className="text-right tabular-nums text-fg-muted">{d.spendUsd ? money(d.spendUsd) : "—"}</TD>
+                    <TD className="text-end tabular-nums text-fg-muted">{secs(d.medianSecs)}</TD>
+                    <TD className="text-end tabular-nums text-fg-muted">{d.spendUsd ? money(d.spendUsd) : "—"}</TD>
                   </TR>
                 );
               })}
@@ -366,11 +366,11 @@ export default async function AccountObservePage({ searchParams }: { searchParam
                 <THead>
                   <tr>
                     <TH>{$t("observe.page.agent")}</TH>
-                    <TH className="text-right">{$t("observe.page.failed")}</TH>
-                    <TH className="text-right">{$t("observe.page.retried")}</TH>
-                    <TH className="text-right">p50</TH>
+                    <TH className="text-end">{$t("observe.page.failed")}</TH>
+                    <TH className="text-end">{$t("observe.page.retried")}</TH>
+                    <TH className="text-end">p50</TH>
                     <Tooltip label={$t("observe.page.creditsCharged")}>
-                      <TH className="text-right">{$t("observe.page.credits")}</TH>
+                      <TH className="text-end">{$t("observe.page.credits")}</TH>
                     </Tooltip>
                   </tr>
                 </THead>
@@ -383,13 +383,13 @@ export default async function AccountObservePage({ searchParams }: { searchParam
                         </Link>
                         <span className="block text-xs text-fg-subtle">{a.workspace}</span>
                       </TD>
-                      <TD className={`text-right tabular-nums ${a.failed ? "font-medium text-danger" : "text-fg-subtle"}`}>
+                      <TD className={`text-end tabular-nums ${a.failed ? "font-medium text-danger" : "text-fg-subtle"}`}>
                         {a.failed}
                         <span className="font-normal text-fg-subtle">/{a.steps}</span>
                       </TD>
-                      <TD className={`text-right tabular-nums ${a.retried ? "text-warning" : "text-fg-subtle"}`}>{a.retried}</TD>
-                      <TD className="text-right tabular-nums text-fg-muted">{secs(a.seconds.p50)}</TD>
-                      <TD className="text-right tabular-nums text-fg-muted">{money(a.chargedUsd ?? 0)}</TD>
+                      <TD className={`text-end tabular-nums ${a.retried ? "text-warning" : "text-fg-subtle"}`}>{a.retried}</TD>
+                      <TD className="text-end tabular-nums text-fg-muted">{secs(a.seconds.p50)}</TD>
+                      <TD className="text-end tabular-nums text-fg-muted">{money(a.chargedUsd ?? 0)}</TD>
                     </TR>
                   ))}
                 </TBody>
@@ -404,9 +404,9 @@ export default async function AccountObservePage({ searchParams }: { searchParam
                 <THead>
                   <tr>
                     <TH>{$t("observe.page.tool")}</TH>
-                    <TH className="text-right">{$t("observe.page.calls")}</TH>
-                    <TH className="text-right">{$t("observe.page.errors")}</TH>
-                    <TH className="text-right">{$t("observe.page.slowestP95")}</TH>
+                    <TH className="text-end">{$t("observe.page.calls")}</TH>
+                    <TH className="text-end">{$t("observe.page.errors")}</TH>
+                    <TH className="text-end">{$t("observe.page.slowestP95")}</TH>
                     <TH>{$t("observe.page.usedBy")}</TH>
                   </tr>
                 </THead>
@@ -414,13 +414,13 @@ export default async function AccountObservePage({ searchParams }: { searchParam
                   {tools.map((t) => (
                     <TR key={t.name}>
                       <TD className="font-mono text-xs text-fg">{t.name}</TD>
-                      <TD className="text-right tabular-nums">{t.calls}</TD>
-                      <TD className={`whitespace-nowrap text-right tabular-nums ${t.errors ? "font-medium text-danger" : "text-fg-subtle"}`}>
+                      <TD className="text-end tabular-nums">{t.calls}</TD>
+                      <TD className={`whitespace-nowrap text-end tabular-nums ${t.errors ? "font-medium text-danger" : "text-fg-subtle"}`}>
                         {t.errors}
                         {t.errors > 0 && <span className="font-normal text-fg-subtle"> · {Math.round((t.errors / t.calls) * 100)}%</span>}
                       </TD>
                       <Tooltip label={$t("observe.page.onlyToolsThatTimeThemselvesReport")}>
-                        <TD className="text-right tabular-nums text-fg-muted">
+                        <TD className="text-end tabular-nums text-fg-muted">
                           {t.p95ms === null ? "—" : t.p95ms >= 1000 ? `${(t.p95ms / 1000).toFixed(1)}s` : `${Math.round(t.p95ms)}ms`}
                         </TD>
                       </Tooltip>

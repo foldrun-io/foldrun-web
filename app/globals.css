@@ -66,3 +66,18 @@ body {
 [dir="rtl"] :is(pre, .cm-editor, [data-ltr]) {
   text-align: left;
 }
+/* A canvas places its nodes by pixel from the left; the words inside a node
+   still read in their own direction. */
+[dir="rtl"] .react-flow {
+  direction: ltr;
+}
+
+/* A header cell centres itself unless an ancestor chose an alignment, and to
+   a browser `start` is no choice at all (it is the initial value): a row
+   aligned left by class aligned its headers too, the same row aligned to
+   the start did not. So under start/end a header cell takes its parent's alignment. */
+@layer base {
+  :is(.text-start, .text-end) th {
+    text-align: inherit;
+  }
+}

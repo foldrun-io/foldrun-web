@@ -110,7 +110,7 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
     <div className="w-full rounded-lg border border-line bg-sunken p-4">
       <p className="text-xs text-fg-muted">
         {$t("components.a2a-publish.aPublishedFlowCanBeCalled")}
-        {!mayManage && <span className="ml-1 font-medium text-fg-secondary">{$t("components.a2a-publish.publishingNeedsTheAdminRole")}</span>}
+        {!mayManage && <span className="ms-1 font-medium text-fg-secondary">{$t("components.a2a-publish.publishingNeedsTheAdminRole")}</span>}
       </p>
       <fieldset disabled={!mayManage || busy} className="mt-3 grid gap-3 sm:grid-cols-2">
         <label className="flex items-center gap-2 text-sm text-fg-secondary sm:col-span-2">
@@ -177,7 +177,7 @@ export function A2aPublish({ workspace, tenant, flow, initial }: { workspace: st
           {$t("components.a2a-publish.close")}
         </button>
         {error && <span role="alert" className="text-xs text-danger">{error}</span>}
-        <span className="ml-auto text-xs text-fg-subtle">{$t("components.a2a-publish.a2aInTheFlow")}</span>
+        <span className="ms-auto text-xs text-fg-subtle">{$t("components.a2a-publish.a2aInTheFlow")}</span>
       </div>
       {where && saved.publish && (
         <div className="mt-3 space-y-2 border-t border-line-faint pt-3">

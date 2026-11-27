@@ -131,7 +131,7 @@ export function HistoryList({
                   type="button"
                   onClick={() => void toggle(r.id)}
                   aria-expanded={on}
-                  className="min-w-0 flex-1 text-left after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-focus"
+                  className="min-w-0 flex-1 text-start after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-focus"
                 >
                   <span className="flex min-w-0 items-center gap-2">
                     <span className="truncate text-sm font-medium text-fg">{r.message}</span>
@@ -212,7 +212,7 @@ export function HistoryList({
                                   }
                                   acc.rows.push(
                                     <div key={i} className={`px-3 ${op.kind === "add" ? "bg-success-soft text-success" : op.kind === "del" ? "bg-danger-soft text-danger" : "text-fg-muted"}`}>
-                                      <span className="mr-2 inline-block w-3 select-none text-fg-subtle">{op.kind === "add" ? "+" : op.kind === "del" ? "−" : " "}</span>
+                                      <span className="me-2 inline-block w-3 select-none text-fg-subtle">{op.kind === "add" ? "+" : op.kind === "del" ? "−" : " "}</span>
                                       {op.text || " "}
                                     </div>,
                                   );

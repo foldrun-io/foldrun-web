@@ -138,7 +138,7 @@ export function BrowserTheater({
         <img src={hrefOf(file)} alt={file.path} className="absolute inset-0 h-full w-full object-contain" />
       )}
       {current.kind === "live" && frame && (
-        <div className="pointer-events-none absolute left-3 top-3 flex items-center gap-2">
+        <div className="pointer-events-none absolute start-3 top-3 flex items-center gap-2">
           <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider shadow ${live && rewind === null ? "bg-red-600 text-white" : "bg-black/70 text-gray-200"}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${live && rewind === null ? "animate-pulse bg-surface" : "bg-gray-400"}`} />
             {live ? (rewind === null ? "live" : $t("components.run-browser.sBehind", { behind: String(behind) })) : $t("components.run-browser.lastSeen")}
@@ -160,7 +160,7 @@ export function BrowserTheater({
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- live frame thumbnail */}
           <img src={latest.src} alt="" className="h-full w-full object-cover object-top opacity-80 group-hover:opacity-100" />
-          <span className={`absolute bottom-1 left-1 rounded px-1 text-[9px] font-semibold uppercase ${live ? "bg-red-600 text-white" : "bg-black/70 text-gray-200"}`}>{live ? $t("values.linkState.live") : $t("values.linkState.last")}</span>
+          <span className={`absolute bottom-1 start-1 rounded px-1 text-[9px] font-semibold uppercase ${live ? "bg-red-600 text-white" : "bg-black/70 text-gray-200"}`}>{live ? $t("values.linkState.live") : $t("values.linkState.last")}</span>
         </button>
         </Tooltip>
       )}
@@ -181,7 +181,7 @@ export function BrowserTheater({
               // eslint-disable-next-line @next/next/no-img-element -- archived screenshot thumbnail
               <img src={hrefOf(f)} alt="" loading="lazy" className="h-full w-full object-cover object-top opacity-80 group-hover:opacity-100" />
             )}
-            <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent px-1.5 pb-1 pt-4 text-left leading-tight">
+            <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent px-1.5 pb-1 pt-4 text-start leading-tight">
               <span className="block truncate text-[10px] font-medium text-gray-100">{isVideo ? `▶ ${label!.site}` : `▣ ${f.path.split("/").pop()}`}</span>
               {isVideo && label!.at && <RecTime at={label!.at} />}
             </span>
@@ -205,7 +205,7 @@ export function BrowserTheater({
         <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md bg-neutral-900 px-2.5 py-1 font-mono text-[11px] text-gray-300">
           <span className="text-fg-muted">{address.startsWith("https://") ? "🔒" : current.kind === "file" ? "▶" : "○"}</span>
           <span className="truncate">{current.kind === "live" ? address : `${agent} · ${address}`}</span>
-          {current.kind === "live" && address && <span className="ml-auto hidden shrink-0 text-fg-muted sm:inline">{hostOf(address)}</span>}
+          {current.kind === "live" && address && <span className="ms-auto hidden shrink-0 text-fg-muted sm:inline">{hostOf(address)}</span>}
         </div>
         </Tooltip>
         {latest?.engine && <span className="hidden rounded bg-neutral-700 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-gray-300 sm:inline">{latest.engine}</span>}
@@ -239,7 +239,7 @@ export function BrowserTheater({
             className="flex-1"
             aria-label={$t("components.run-browser.rewindTheLiveView")}
           />
-          <span className="w-24 shrink-0 text-right tabular-nums">{rewind === null ? `${frames.length} frames` : $t("components.run-browser.sBehind", { behind: String(behind) })}</span>
+          <span className="w-24 shrink-0 text-end tabular-nums">{rewind === null ? `${frames.length} frames` : $t("components.run-browser.sBehind", { behind: String(behind) })}</span>
           {rewind !== null && (
             <button type="button" onClick={() => setRewind(null)} className="shrink-0 rounded bg-red-600 px-2 py-0.5 font-medium text-white hover:bg-red-500">
               {live ? $t("components.run-browser.backToLive") : "latest"}

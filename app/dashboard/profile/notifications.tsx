@@ -71,7 +71,7 @@ export function NotificationPreferences({ workspaces }: { workspaces: string[] }
             <div className="min-w-0">
               <p className="text-sm font-medium text-fg">
                 {c.label}
-                {c.required && <Tag className="ml-2">{$t("profile.notifications.alwaysSent")}</Tag>}
+                {c.required && <Tag className="ms-2">{$t("profile.notifications.alwaysSent")}</Tag>}
               </p>
               <p className="mt-0.5 text-xs text-fg-muted">{c.description}</p>
               {c.required && c.why && <p className="mt-1 text-xs text-fg-subtle">{$t("profile.notifications.cannotBeTurnedOff", { why: c.why })}</p>}
@@ -85,7 +85,7 @@ export function NotificationPreferences({ workspaces }: { workspaces: string[] }
                   const on = c.workspaces[w] ?? c.enabled;
                   return (
                     <li key={w} className="flex items-center justify-between gap-4 text-xs">
-                      <span className="font-mono text-fg-secondary">{w}{w in c.workspaces ? "" : <span className="ml-1 font-sans text-fg-subtle">{$t("profile.notifications.asAbove")}</span>}</span>
+                      <span className="font-mono text-fg-secondary">{w}{w in c.workspaces ? "" : <span className="ms-1 font-sans text-fg-subtle">{$t("profile.notifications.asAbove")}</span>}</span>
                       <Switch aria-label={$t("profile.notifications.categoryFrom", { category: c.label, workspace: w })} checked={on} disabled={busy} onCheckedChange={(v) => void set(c.category, v, w)} />
                     </li>
                   );

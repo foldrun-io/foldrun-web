@@ -78,7 +78,7 @@ export function AgentRow({
         </span>
       </div>
 
-      <div className="px-5 pb-3 pl-10 text-xs text-fg-muted">{footer}</div>
+      <div className="px-5 pb-3 ps-10 text-xs text-fg-muted">{footer}</div>
 
       {open && (
         <div className="border-t border-line-faint bg-sunken/60 px-5 py-4">

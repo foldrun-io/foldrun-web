@@ -88,7 +88,7 @@ function Row({ line, callRun, tenant }: { line: TraceLine; callRun?: CallRun; te
       {line.subagent && (
         // A sub-agent's call, made on this step's behalf: indented under the
         // step and named, so its work reads apart from the parent's.
-        <Tag className="ml-3 h-5 self-start" hint={$t("components.trace-view.madeByASubAgentSubagents")}>
+        <Tag className="ms-3 h-5 self-start" hint={$t("components.trace-view.madeByASubAgentSubagents")}>
           ↳ {line.subagent}
         </Tag>
       )}
@@ -107,14 +107,14 @@ function Row({ line, callRun, tenant }: { line: TraceLine; callRun?: CallRun; te
           <Markdown text={line.text} className="text-sm text-fg" />
         ) : line.kind === "verify" ? (
           <p className="text-[13px] leading-5">
-            <Chip tone={line.ok ? "good" : "bad"} className="mr-2 h-5">{line.ok ? "verified" : $t("components.trace-view.verifyFailed")}</Chip>
+            <Chip tone={line.ok ? "good" : "bad"} className="me-2 h-5">{line.ok ? "verified" : $t("components.trace-view.verifyFailed")}</Chip>
             <span className="font-mono text-[12px] text-fg-tertiary">{line.text.replace(/^verify\s*/i, "")}</span>
           </p>
         ) : line.tool ? (
           <>
-            <button type="button" onClick={() => setOpen((v) => !v)} className="block w-full text-left">
+            <button type="button" onClick={() => setOpen((v) => !v)} className="block w-full text-start">
               <span className={`text-[13px] font-medium ${line.kind === "error" ? "text-danger" : "text-info"}`}>{line.tool.name}</span>
-              {line.tool.args && <span className={`ml-1.5 font-mono text-[11.5px] text-fg-muted ${open ? "whitespace-pre-wrap break-all" : "line-clamp-1 break-all"}`}>{line.tool.args}</span>}
+              {line.tool.args && <span className={`ms-1.5 font-mono text-[11.5px] text-fg-muted ${open ? "whitespace-pre-wrap break-all" : "line-clamp-1 break-all"}`}>{line.tool.args}</span>}
             </button>
             {line.call && callRun && (
               <>
@@ -126,7 +126,7 @@ function Row({ line, callRun, tenant }: { line: TraceLine; callRun?: CallRun; te
             )}
           </>
         ) : (
-          <button type="button" onClick={() => long && setOpen((v) => !v)} className={`block w-full text-left font-mono text-[11.5px] leading-5 ${line.kind === "error" ? "text-danger" : "text-fg-muted"} ${long ? "cursor-pointer" : "cursor-text"}`}>
+          <button type="button" onClick={() => long && setOpen((v) => !v)} className={`block w-full text-start font-mono text-[11.5px] leading-5 ${line.kind === "error" ? "text-danger" : "text-fg-muted"} ${long ? "cursor-pointer" : "cursor-text"}`}>
             <span className={open || !long ? "whitespace-pre-wrap break-words" : "line-clamp-2 break-words"}>{line.text}</span>
           </button>
         )}
@@ -162,7 +162,7 @@ export function TraceView({
   return (
     <div>
       <div className="mb-1.5 flex flex-wrap items-center gap-1">
-        <span className="mr-1 text-[13px] font-medium text-fg-secondary">{$t("components.trace-view.trace")}</span>
+        <span className="me-1 text-[13px] font-medium text-fg-secondary">{$t("components.trace-view.trace")}</span>
         <Segmented
           size="sm"
           label={$t("components.trace-view.show")}
@@ -170,7 +170,7 @@ export function TraceView({
           onChange={(k) => setFilter(k as TraceKind | "all")}
           items={FILTERS.filter((f) => f.key === "all" || n[f.key] > 0).map((f) => ({ key: f.key, label: f.label, count: n[f.key] }))}
         />
-        <button type="button" onClick={() => setTall((v) => !v)} className="ml-auto rounded px-1.5 py-0.5 text-xs text-fg-muted hover:bg-muted hover:text-fg">
+        <button type="button" onClick={() => setTall((v) => !v)} className="ms-auto rounded px-1.5 py-0.5 text-xs text-fg-muted hover:bg-muted hover:text-fg">
           {tall ? $t("components.trace-view.compact") : $t("components.trace-view.fullHeight")}
         </button>
       </div>

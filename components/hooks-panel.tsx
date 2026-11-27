@@ -47,7 +47,7 @@ export function HooksPanel({ tenant, workspace }: { tenant: string; workspace: s
                 <TH>{$t("components.hooks-panel.where")}</TH>
                 <TH>{$t("components.hooks-panel.turnedOnBy")}</TH>
                 <TH>{$t("components.hooks-panel.lastRuns", { HOOK_RUNS_READ: String(HOOK_RUNS_READ) })}</TH>
-                <TH className="text-right">{$t("components.hooks-panel.test")}</TH>
+                <TH className="text-end">{$t("components.hooks-panel.test")}</TH>
               </tr>
             </THead>
             <TBody>
@@ -73,7 +73,7 @@ export function HooksPanel({ tenant, workspace }: { tenant: string; workspace: s
                       {h.scope === "workspace" ? workspace : $t("components.hooks-panel.shared")}
                       {h.shadowed && (
                         <Tooltip label={$t("components.hooks-panel.aWorkspaceHookOfTheSame")}>
-                          <span className="ml-1 text-xs text-fg-subtle">{$t("components.hooks-panel.shadowed")}</span>
+                          <span className="ms-1 text-xs text-fg-subtle">{$t("components.hooks-panel.shadowed")}</span>
                         </Tooltip>
                       )}
                     </TD>
@@ -95,7 +95,7 @@ export function HooksPanel({ tenant, workspace }: { tenant: string; workspace: s
                         </span>
                       )}
                     </TD>
-                    <TD className="align-top text-right">
+                    <TD className="align-top text-end">
                       {!h.error && !h.shadowed && h.on ? (
                         <HookTest workspace={workspace} tenant={tenant} hook={h.name} sample={JSON.stringify(HOOK_SAMPLE[h.on], null, 2)} />
                       ) : null}

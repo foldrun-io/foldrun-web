@@ -125,7 +125,8 @@ export function SmartTextarea({
   const gutterWidth = Math.max(2, String(lineCount).length) * CHAR_WIDTH + 20;
 
   return (
-    <div className="relative overflow-hidden rounded-lg border border-line bg-surface shadow-sm focus-within:border-line-strong focus-within:ring-2 focus-within:ring-line">
+    // Source text: the gutter, the textarea and the completion popup measure from the left.
+    <div data-ltr className="relative overflow-hidden rounded-lg border border-line bg-surface shadow-sm focus-within:border-line-strong focus-within:ring-2 focus-within:ring-line">
       {/* A YAML error names a line — "bad indentation … at line 12" — which is
           unusable against a bare textarea. The gutter is what makes the message
           actionable, so it marks the offending line rather than only counting.
@@ -141,7 +142,7 @@ export function SmartTextarea({
         ref={gutterRef}
         aria-hidden="true"
         style={{ lineHeight: `${LINE_HEIGHT}px`, width: `${gutterWidth}px` }}
-        className="absolute inset-y-0 left-0 select-none overflow-hidden border-r border-line-faint bg-sunken/70 py-3 pr-2 text-right font-mono text-xs tabular-nums text-fg-subtle"
+        className="absolute inset-y-0 start-0 select-none overflow-hidden border-e border-line-faint bg-sunken/70 py-3 pe-2 text-end font-mono text-xs tabular-nums text-fg-subtle"
       >
         {Array.from({ length: lineCount }, (_, i) => i + 1).map((n) => (
           <div key={n} className={n === errorLine ? "font-semibold text-danger" : undefined}>
@@ -152,7 +153,6 @@ export function SmartTextarea({
 
       <div className="relative" style={{ marginLeft: `${gutterWidth}px` }}>
       <textarea
-        data-ltr
         ref={ref}
         autoFocus={autoFocus}
         placeholder={placeholder}
@@ -238,7 +238,7 @@ export function SmartTextarea({
                     accept(i);
                   }}
                   onMouseEnter={() => setActive(i)}
-                  className={`flex w-full items-baseline gap-2 px-3 py-1.5 text-left text-xs ${
+                  className={`flex w-full items-baseline gap-2 px-3 py-1.5 text-start text-xs ${
                     i === active ? "bg-muted" : "hover:bg-sunken"
                   }`}
                 >

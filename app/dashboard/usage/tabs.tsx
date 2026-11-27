@@ -205,7 +205,7 @@ export function RatesTab({ rates, catalogue, planId }: { rates: MeterRates | nul
             rows={(catalogue.subscriptions ?? []).map((p) => ({
               key: p.id,
               cells: [
-                <span key="n" className="font-medium">{p.name}{p.id === planId && <Chip tone="good" className="ml-2">{$t("usage.tabs.yours")}</Chip>}</span>,
+                <span key="n" className="font-medium">{p.name}{p.id === planId && <Chip tone="good" className="ms-2">{$t("usage.tabs.yours")}</Chip>}</span>,
                 $t("usage.tabs.per30Days", { usd: usd(p.priceUsd) }),
                 p.model.weekUsd === null ? $t("usage.tabs.notLimited") : usd(p.model.weekUsd),
                 p.model.monthUsd === null ? $t("usage.tabs.notLimited") : usd(p.model.monthUsd),

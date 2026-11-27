@@ -62,7 +62,7 @@ function ApiUsage({ usage, hidden }: { usage: ApiFacts["usage"]; hidden?: boolea
                     · <a href={d.link} className="text-link hover:underline">{$t("settings.api-settings.whatReplacesIt")}</a>
                   </>
                 )}
-                <ul className="mt-0.5 pl-3 text-fg-muted">
+                <ul className="mt-0.5 ps-3 text-fg-muted">
                   {d.callers.map((c) => (
                     <li key={c.credential}>
                       {c.credential || $t("settings.api-settings.anUnknownCaller")}{$t("settings.api-settings.last", { requests: String(c.requests), day: day(c.lastSeen) })}
@@ -79,17 +79,17 @@ function ApiUsage({ usage, hidden }: { usage: ApiFacts["usage"]; hidden?: boolea
       ) : (
         <table className="mt-2 text-sm text-fg-secondary">
           <thead>
-            <tr className="text-left text-fg-muted">
-              <th className="pr-6 font-normal">{$t("settings.api-settings.version")}</th>
-              <th className="pr-6 font-normal">{$t("settings.api-settings.requestsDays", { days: String(usage.days) })}</th>
+            <tr className="text-start text-fg-muted">
+              <th className="pe-6 font-normal">{$t("settings.api-settings.version")}</th>
+              <th className="pe-6 font-normal">{$t("settings.api-settings.requestsDays", { days: String(usage.days) })}</th>
               <th className="font-normal">{$t("settings.api-settings.last2")}</th>
             </tr>
           </thead>
           <tbody>
             {usage.versions.map((v) => (
               <tr key={v.version}>
-                <td className="py-0.5 pr-6 font-mono">{v.version}</td>
-                <td className="py-0.5 pr-6 font-mono">{v.requests}</td>
+                <td className="py-0.5 pe-6 font-mono">{v.version}</td>
+                <td className="py-0.5 pe-6 font-mono">{v.requests}</td>
                 <td className="py-0.5 font-mono">{day(v.lastSeen)}</td>
               </tr>
             ))}
@@ -174,7 +174,7 @@ export function ApiSettings({ facts, qs }: { facts: ApiFacts; qs: string }) {
       >
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-line text-left text-fg-muted">
+            <tr className="border-b border-line text-start text-fg-muted">
               <th className="px-5 py-2.5 font-normal sm:px-6" />
               <th className="px-3 py-2.5 font-normal">{$t("settings.api-settings.reads")}</th>
               <th className="px-5 py-2.5 font-normal sm:px-6">{$t("settings.api-settings.writes")}</th>

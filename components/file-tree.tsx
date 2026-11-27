@@ -198,7 +198,7 @@ function Node({
           <Link
             href={hrefFor(node.path!)}
             style={{ paddingLeft: indent + 6 }}
-            className={`flex min-h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md pr-2 text-[13px] transition-colors ${
+            className={`flex min-h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md pe-2 text-[13px] transition-colors ${
               active ? "bg-muted font-medium text-fg" : "text-fg-secondary hover:bg-muted hover:text-fg"
             }`}
           >
@@ -217,7 +217,7 @@ function Node({
                 if (why) return onAnchored(why);
                 setRenaming(node.path!);
               }}
-              className={`mr-1 shrink-0 rounded p-0.5 opacity-0 transition-opacity group-hover/file:opacity-100 ${
+              className={`me-1 shrink-0 rounded p-0.5 opacity-0 transition-opacity group-hover/file:opacity-100 ${
                 "text-fg-subtle hover:bg-muted-strong hover:text-fg"
               }`}
             >
@@ -235,7 +235,7 @@ function Node({
                 if (why) return onAnchored(why);
                 remove(node.path!, false);
               }}
-              className={`mr-1 shrink-0 rounded p-0.5 opacity-0 transition-opacity group-hover/file:opacity-100 ${
+              className={`me-1 shrink-0 rounded p-0.5 opacity-0 transition-opacity group-hover/file:opacity-100 ${
                 "text-fg-subtle hover:bg-muted-strong hover:text-danger"
               }`}
             >
@@ -263,14 +263,14 @@ function Node({
           setDropTarget(null);
           if (from) move(from, node.id);
         }}
-        className={`group flex min-h-7 items-center gap-1 rounded-md pr-1 text-[13px] text-fg-secondary hover:bg-muted ${
+        className={`group flex min-h-7 items-center gap-1 rounded-md pe-1 text-[13px] text-fg-secondary hover:bg-muted ${
           dropTarget === node.id ? "bg-muted-strong/80 ring-1 ring-inset ring-line-strong" : ""
         }`}
       >
         <button
           type="button"
           onClick={() => toggle(node.id)}
-          className="flex min-h-7 min-w-0 flex-1 items-center gap-1.5 text-left hover:text-fg"
+          className="flex min-h-7 min-w-0 flex-1 items-center gap-1.5 text-start hover:text-fg"
         >
           <Chevron open={open} />
           {open ? <FolderOpen aria-hidden className="size-3.5 shrink-0 text-fg-muted" /> : <Folder aria-hidden className="size-3.5 shrink-0 text-fg-muted" />}
@@ -322,7 +322,7 @@ function Node({
         <div className="relative">
           <span
             aria-hidden
-            className="absolute inset-y-0 border-l border-line"
+            className="absolute inset-y-0 border-s border-line"
             style={{ left: indent + 13 }}
           />
           <div>
@@ -377,7 +377,7 @@ function DraftRow({
 }) {
   const [name, setName] = useState("");
   return (
-    <div style={{ paddingLeft: depth * 14 + 6 }} className="py-[3px] pr-2">
+    <div style={{ paddingLeft: depth * 14 + 6 }} className="py-[3px] pe-2">
       <div className="flex items-center gap-1">
         <span className="w-3.5 shrink-0" />
         <input
@@ -393,7 +393,7 @@ function DraftRow({
           className="w-full min-w-0 rounded border border-line-strong bg-surface px-1 py-0.5 font-mono text-xs text-fg focus:border-line-strong focus:outline-none focus:ring-2 focus:ring-focus"
         />
       </div>
-      {error && <p className="mt-1 pl-7 text-xs leading-tight text-danger">{error}</p>}
+      {error && <p className="mt-1 ps-7 text-xs leading-tight text-danger">{error}</p>}
     </div>
   );
 }
@@ -409,7 +409,7 @@ function RenameRow({
 }) {
   const [name, setName] = useState(initial);
   return (
-    <div style={{ paddingLeft: depth * 14 + 6 }} className="py-[3px] pr-2">
+    <div style={{ paddingLeft: depth * 14 + 6 }} className="py-[3px] pe-2">
       <div className="flex items-center gap-1">
         <span className="w-3.5 shrink-0" />
         <input
@@ -429,7 +429,7 @@ function RenameRow({
           className="w-full min-w-0 rounded border border-line-strong bg-surface px-1 py-0.5 font-mono text-xs text-fg focus:border-line-strong focus:outline-none focus:ring-2 focus:ring-focus"
         />
       </div>
-      {error && <p className="mt-1 pl-7 text-xs leading-tight text-danger">{error}</p>}
+      {error && <p className="mt-1 ps-7 text-xs leading-tight text-danger">{error}</p>}
     </div>
   );
 }

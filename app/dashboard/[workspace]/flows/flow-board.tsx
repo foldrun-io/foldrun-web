@@ -408,7 +408,7 @@ export function FlowBoard({
 
                         {/* Drag is not reachable by keyboard, so the same two
                             moves are available as buttons. */}
-                        <span className="ml-auto flex shrink-0 items-center gap-1">
+                        <span className="ms-auto flex shrink-0 items-center gap-1">
                           <IconButton
                             label={$t("workspace.flows-flow-board.moveUp")}
                             disabled={g === 0 && group.length === 1}
@@ -469,7 +469,7 @@ export function FlowBoard({
                           <button
                             type="button"
                             onClick={() => setInstructionFor(index)}
-                            className="mt-1 block w-full rounded-md px-5 py-1 text-left text-[13px] leading-relaxed text-fg-muted hover:bg-sunken hover:text-fg"
+                            className="mt-1 block w-full rounded-md px-5 py-1 text-start text-[13px] leading-relaxed text-fg-muted hover:bg-sunken hover:text-fg"
                           >
                             {s.instruction || (
                               <span className="text-fg-subtle">{$t("workspace.flows-flow-board.noInstructionClickToWriteOne")}</span>
@@ -571,7 +571,7 @@ export function InstructionEditor({
 }) {
   const [text, setText] = useState(value);
   return (
-    <div className="mt-1 pl-4">
+    <div className="mt-1 ps-4">
       <SmartTextarea
         autoFocus
         workspace={workspace}

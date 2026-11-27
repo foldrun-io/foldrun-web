@@ -323,7 +323,7 @@ export default async function UsagePage({
                 .map(([agent, b]) => ({
                   key: `a-${agent}`,
                   cells: [
-                    <span key="a" className="pl-3 text-fg-muted">
+                    <span key="a" className="ps-3 text-fg-muted">
                       <span className="text-fg-subtle">{$t("usage.page.agent")}{" "}</span>
                       {agent}
                     </span>,

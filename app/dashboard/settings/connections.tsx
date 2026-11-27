@@ -1051,7 +1051,7 @@ export function Connections({
                 <IconBox className="mt-0.5 max-sm:hidden"><KeyRound /></IconBox>
                 <div className="min-w-0 flex-1">
                   <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-fg">
-                    <span className="mr-0.5 break-all font-mono">{s.name}</span>
+                    <span className="me-0.5 break-all font-mono">{s.name}</span>
                     <Tag>{KIND_LABEL[s.kind ?? "key"]}</Tag>
                     {workspace && s.scope === "account" && <Chip>{$t("settings.connections.inherited")}</Chip>}
                     {s.shadowed && <Chip tone="warn">{$t("settings.connections.overridesAccount")}</Chip>}

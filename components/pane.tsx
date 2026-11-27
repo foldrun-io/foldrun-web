@@ -36,7 +36,7 @@ export function Pane({
   className?: string;
   onClickCapture?: (e: React.MouseEvent) => void;
 }) {
-  const edge = side === "left" ? "max-md:max-h-[35vh] max-md:w-full max-md:border-b md:border-r" : "border-l";
+  const edge = side === "left" ? "max-md:max-h-[35vh] max-md:w-full max-md:border-b md:border-e" : "border-s";
   return (
     <aside className={`flex ${PANE_WIDTH[side]} shrink-0 flex-col ${edge} border-line bg-paper-deep ${className}`} onClickCapture={onClickCapture}>
       {head && <div className="shrink-0 border-b border-line">{head}</div>}

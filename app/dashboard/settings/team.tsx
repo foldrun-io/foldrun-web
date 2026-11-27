@@ -292,7 +292,7 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm text-fg">
                     <Email value={m.email} />
-                    {m.email === self && <span className="ml-2 text-xs text-fg-muted">{$t("settings.team.you")}</span>}
+                    {m.email === self && <span className="ms-2 text-xs text-fg-muted">{$t("settings.team.you")}</span>}
                   </p>
                   <p className="text-xs text-fg-muted">
                     {$rich("settings.team.since", { localTime: $el(<LocalTime iso={m.createdAt} options={{ dateStyle: "medium" }} />), part: m.owner ? $t("settings.team.allWorkspace2") : describeScope(m.workspaces) })}
@@ -303,7 +303,7 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
                           setEditing(editing === m.id ? null : m.id);
                           setDraftScope(m.workspaces);
                         }}
-                        className="ml-2 font-medium text-link underline-offset-2 hover:underline"
+                        className="ms-2 font-medium text-link underline-offset-2 hover:underline"
                       >
                         {editing === m.id ? "cancel" : $t("settings.team.changeAccess")}
                       </button>
