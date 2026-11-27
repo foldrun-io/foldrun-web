@@ -885,9 +885,9 @@ test("a signed Stripe payment credits the ledger exactly once", hosted, async ()
 // The operator console's levers are driven in foldrun-admin's
 // console-e2e.test.ts, on the console's own host (28 Oct 2026).
 
-test("the trial lands when the owner verifies their address — once, and not at signup", hosted, async () => {
-  // The founder confirmed right after signup (above); the trial landed then.
-  assert.equal(Math.round(((balanceAtVerify ?? 0) - (balanceAtSignup ?? 0)) * 100), 300, "300 credits, three dollars, at the confirmation and not at signup");
+test("no trial: confirming the address grants nothing, then or later (FOL-384)", hosted, async () => {
+  // The founder confirmed right after signup (above); no credits landed.
+  assert.equal(Math.round(((balanceAtVerify ?? 0) - (balanceAtSignup ?? 0)) * 100), 0, "no free credits (owner, 27 Nov 2026)");
   const me = (await (await fetch(`${base}/v1/auth/session`, { headers: { cookie } })).json()) as { user: { id: string; email: string } };
   const before = (await (await fetch(`${base}/v1/billing`, { headers: { cookie } })).json()) as { balanceUsd: number };
   const token = verifyToken;

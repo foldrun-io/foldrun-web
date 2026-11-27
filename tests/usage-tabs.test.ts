@@ -78,11 +78,13 @@ test("Rates shows the rates, the subscription's sizes (price and model allowance
   assert.doesNotMatch(tabs, /catalogue\.plans/, "the old platform plans are not shown (27 Nov 2026)");
 });
 
-test("the credits block keeps the pots apart and says plan credits never pay for tokens", () => {
+test("the credits block shows both parts of one wallet: plan credits first, on anything, tokens included (FOL-384)", () => {
   const tabs = read("app/dashboard/usage/tabs.tsx");
   assert.match(tabs, /label="Plan credits"/);
   assert.match(tabs, /label="Bought credits"/);
-  assert.match(tabs, /tokens on foldrun's models/);
+  // The sentence follows the account's terms: one wallet once it is on, the two pots before.
+  assert.match(tabs, /plan\?\.paysForTokens \? "One credit is one cent\. One wallet: plan credits are spent first, on anything/);
+  assert.match(tabs, /plan\?\.paysForTokens \? "Tokens on foldrun's models are the provider's price with the platform's margin, paid from the wallet/);
 });
 
 test("Compute lists the pods and storage as meters of their own: sessions, GB moved, who pays, and where storage was measured (8 Nov 2026)", () => {

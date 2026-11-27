@@ -95,7 +95,7 @@ const PlanTermsProps: Record<string, Schema> = {
   storageGb: int,
   computeAtOnce: obj({ vcpu: { type: "number" }, memGiB: { type: "number" } }),
   lane: str("normal | fast"),
-  paysForTokens: { ...bool, description: "always false: plan credits never pay for tokens on foldrun's models" },
+  paysForTokens: { ...bool, description: "whether plan credits pay for tokens on foldrun's models: true once one wallet is on (FOL-384), false before" },
 };
 
 const MeterRatesSchema: Schema = obj({

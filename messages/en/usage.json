@@ -69,7 +69,7 @@
   },
   "tabs": {
     "0Credits": "0 credits",
-    "aDefaultStepVcpuGibCosts": "A default step ({vcpu} vCPU, {memGiB} GiB) costs about {fmtCredits} credits an hour. Plan credits roll over up to twice the monthly amount on paid plans and are lost at month end on Free. They never pay for tokens on foldrun's models; bought credits do.",
+    "aDefaultStepVcpuGibCosts": "A default step ({vcpu} vCPU, {memGiB} GiB) costs about {fmtCredits} credits an hour. Plan credits roll over up to twice the monthly amount on paid plans.",
     "billed": "Billed",
     "boughtCredits": "Bought credits",
     "byMeter": "By meter",
@@ -145,6 +145,8 @@
     "modelAMonth": "Model usage a month",
     "per30Days": "{usd} / 30 days",
     "notLimited": "not limited",
-    "subscriptionSizes": "The subscription"
+    "subscriptionSizes": "The subscription",
+    "oneCreditOneWallet": "One credit is one cent. One wallet: plan credits are spent first, on anything — tokens, compute, storage and network — then bought credits.",
+    "tokensFromTheWallet": "Tokens on foldrun's models are the provider's price with the platform's margin, paid from the wallet like everything else. On your own key the provider bills you directly; the rows are here so you can see what was used."
   }
 }

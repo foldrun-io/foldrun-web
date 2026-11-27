@@ -1260,7 +1260,7 @@
     "aDeskEarnsItsKeepWhen": "A desk earns its keep when it runs without you pressing the button.",
     "aFlowIsTheStepsIn": "A flow is the steps in order; running one is how you see the agents work.",
     "aRunThatCompletesEndTo": "A run that completes end to end is the proof the desk works.",
-    "aSavedCardOrAPlan": "A saved card or a plan keeps runs going once the free credits are spent.",
+    "aSavedCardOrAPlan": "A plan pays for runs.",
     "aWorkspaceHoldsOneDeskS": "A {@workspace.one} holds one desk's agents, flows, secrets and runs.",
     "addASecret": "Add a secret",
     "addYourModelKey": "Add your model key",

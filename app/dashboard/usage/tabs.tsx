@@ -22,7 +22,7 @@ export function CreditsBlock({ c }: { c: UsageBreakdowns["credits"] }) {
   const plan = c.plan;
   return (
     <section className="mb-10">
-      <SectionTitle title={$t("usage.tabs.yourCredits")} description={$t("usage.tabs.oneCreditIsOneCentTwo")} />
+      <SectionTitle title={$t("usage.tabs.yourCredits")} description={plan?.paysForTokens ? $t("usage.tabs.oneCreditOneWallet") : $t("usage.tabs.oneCreditIsOneCentTwo")} />
       <StatGrid className="md:grid-cols-3 xl:grid-cols-3">
         <Stat
           label={$t("usage.tabs.planCredits")}
@@ -94,7 +94,7 @@ export function TokensTab({ u }: { u: UsageBreakdowns }) {
         }))}
       />
       <p className="mt-3 max-w-3xl px-1 text-sm leading-relaxed text-fg-muted">
-        {$t("usage.tabs.tokensOnFoldrunSPriceWith")}
+        {u.credits?.plan?.paysForTokens ? $t("usage.tabs.tokensFromTheWallet") : $t("usage.tabs.tokensOnFoldrunSPriceWith")}
       </p>
     </>
   );
