@@ -1979,5 +1979,10 @@
     "save": "Save name",
     "rename": "Rename",
     "failed": "Could not rename it ({status})"
+  },
+  "language-switch": {
+    "language": "Language",
+    "persian": "فارسی",
+    "english": "English"
   }
 }

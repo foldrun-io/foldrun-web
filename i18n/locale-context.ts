@@ -11,6 +11,9 @@ export type Locale = "en" | "fa";
 
 export const LocaleContext = createContext<Locale>("en");
 
+/** True on a host that offers both languages: the switch is drawn from it. */
+export const LocaleChoiceContext = createContext(false);
+
 export function LocaleProvider({ locale, children }: { locale: Locale; children: ReactNode }) {
   return createElement(LocaleContext, { value: locale }, children);
 }

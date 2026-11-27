@@ -18,7 +18,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { $t, MESSAGES, currentDir, currentLocale, expandTerms, localized, localizedList } from "@/i18n";
 import { CATALOG_FA, TERMS_FA } from "@/i18n/persian";
-import { localeForHost } from "@/server/locale-host";
+import { localeForHost, offersPersian } from "@/server/locale-host";
 import { parse, TYPE, type MessageFormatElement } from "@formatjs/icu-messageformat-parser";
 const ROOT = path.resolve(import.meta.dirname, "..");
 import { importTimeCalls, pagesNotAwaiting } from "../scripts/i18n-import-time.mjs";
@@ -179,7 +179,7 @@ test("Persian's sentences are in no English page's download", () => {
     'if (typeof document === "undefined" || document.documentElement.lang === "fa") void loadPersian();',
     "if (!ready) use(loadPersian());",
   ]);
-  assert.match(provider, /if \(locale === "fa"\) return <Persian>/);
+  assert.match(provider, /locale === "fa" \? <Persian>/);
   const files = execFileSync("git", ["ls-files", "app", "components", "i18n", "server", "proxy.ts"], { cwd: ROOT, encoding: "utf8" }).split("\n").filter((f) => /\.tsx?$/.test(f));
   const bad = files.filter((f) => !allowed.has(f) && /from "@\/messages\/fa|["']@\/i18n\/persian|["']\.\/persian/.test(fs.readFileSync(path.join(ROOT, f), "utf8")));
   assert.deepEqual(bad, []);
@@ -221,6 +221,11 @@ test("the language follows the host's name, and the choice only on a Persian hos
   assert.equal(localeForHost("dash.foldrun.io", "fa", fa), "en");
   assert.equal(localeForHost("evil-dash.foldrun.ir.example.com", undefined, fa), "en");
   assert.equal(localeForHost(null, undefined, fa), "en");
+  // The switch is offered where Persian is, and nowhere else.
+  assert.equal(offersPersian("dash.foldrun.ir:8443", fa), true);
+  assert.equal(offersPersian("dash.foldrun.io", fa), false);
+  assert.equal(offersPersian("dash.foldrun.ir", ""), false);
+  assert.equal(offersPersian(null, fa), false);
   assert.equal(localeForHost("dash.foldrun.ir", undefined, ""), "en");
   assert.equal(localeForHost("dash.foldrun.ir", undefined, undefined), "en");
 });

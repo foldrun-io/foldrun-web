@@ -21,7 +21,7 @@ import { errorBody } from "@/server/error-shape";
 import { versionHeaders } from "@/server/release";
 import { storeOrigin } from "@/lib/storage";
 import { unsafeApiPath } from "@/server/raw-path";
-import { LOCALE_COOKIE, localeForHost } from "@/server/locale-host";
+import { LOCALE_COOKIE, localeForHost, offersPersian } from "@/server/locale-host";
 
 /** X-Foldrun-Version (and X-Foldrun-Api, X-Foldrun-Cli) on a response, so any
  *  client — the CLI's update notice, a script, a support ticket's curl -i —
@@ -121,6 +121,10 @@ function forward(req: NextRequest, nonce: string, from: Headers = req.headers): 
   h.set("content-security-policy", csp(nonce));
   // Always written here, so a caller's own header never decides it.
   h.set("x-foldrun-locale", localeFor(req));
+  // Whether this host lets a person choose a language (a Persian host): the
+  // switch is drawn from this, so an English site never shows one.
+  if (offersPersian(req.headers.get("host"))) h.set("x-foldrun-locale-choice", "1");
+  else h.delete("x-foldrun-locale-choice");
   return h;
 }
 

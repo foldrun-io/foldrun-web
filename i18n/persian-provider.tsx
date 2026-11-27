@@ -8,7 +8,7 @@
 // is sent every file a layout names, whichever branch it renders.
 
 import { use, type ReactNode } from "react";
-import { LocaleContext, type Locale } from "./locale-context";
+import { LocaleChoiceContext, LocaleContext, type Locale } from "./locale-context";
 
 let persian: Promise<unknown> | null = null;
 let ready = false;
@@ -26,7 +26,7 @@ function Persian({ children }: { children: ReactNode }) {
   return <LocaleContext value="fa">{children}</LocaleContext>;
 }
 
-export function PageLocale({ locale, children }: { locale: Locale; children: ReactNode }) {
-  if (locale === "fa") return <Persian>{children}</Persian>;
-  return <LocaleContext value="en">{children}</LocaleContext>;
+export function PageLocale({ locale, choice = false, children }: { locale: Locale; choice?: boolean; children: ReactNode }) {
+  const page = locale === "fa" ? <Persian>{children}</Persian> : <LocaleContext value="en">{children}</LocaleContext>;
+  return <LocaleChoiceContext value={choice}>{page}</LocaleChoiceContext>;
 }

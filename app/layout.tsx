@@ -5,7 +5,7 @@ import { requestTheme } from "@/server/theme";
 import { $t, currentDir } from "@/i18n";
 import { PageLocale } from "@/i18n/persian-provider";
 import { DirectionProvider } from "@foldrun/ui/react/direction";
-import { requestLocale } from "@/server/locale";
+import { requestLocale, requestLocaleChoice } from "@/server/locale";
 
 const sans = Geist({
   variable: "--font-sans-ui",
@@ -43,6 +43,7 @@ export default async function RootLayout({
   // the first paint is already in it (components/theme-model.ts).
   const theme = await requestTheme();
   const locale = await requestLocale();
+  const choice = await requestLocaleChoice();
   return (
     <html
       lang={locale}
@@ -50,7 +51,7 @@ export default async function RootLayout({
       data-theme={theme}
       className={`${sans.variable} ${mono.variable} ${persian.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col"><PageLocale locale={locale}><DirectionProvider dir={currentDir()}>{children}</DirectionProvider></PageLocale></body>
+      <body className="min-h-full flex flex-col"><PageLocale locale={locale} choice={choice}><DirectionProvider dir={currentDir()}>{children}</DirectionProvider></PageLocale></body>
     </html>
   );
 }

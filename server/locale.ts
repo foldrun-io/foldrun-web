@@ -23,3 +23,14 @@ export const requestLocale = cache(async (): Promise<Locale> => {
   setRequestLocale(locale);
   return locale;
 });
+
+export const LOCALE_CHOICE_HEADER = "x-foldrun-locale-choice";
+
+/** True when this request's host offers both languages (a Persian host). */
+export const requestLocaleChoice = cache(async (): Promise<boolean> => {
+  try {
+    return (await headers()).get(LOCALE_CHOICE_HEADER) === "1";
+  } catch {
+    return false;
+  }
+});
