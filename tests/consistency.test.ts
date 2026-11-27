@@ -1492,7 +1492,8 @@ test("every deploy sets the runner image in the same rollout as the platform ima
     "../foldrun-infra/scripts/deploy.sh",
     "../foldrun-infra/dev/ci/staging-pin.sh",
   ]) {
-    const src = read(f);
+    // deploy.sh builds the patch with scripts/runner-env-patch.sh (FOL-405), so the two are read as one.
+    const src = f.endsWith("scripts/deploy.sh") ? `${read(f)}\n${read("../foldrun-infra/scripts/runner-env-patch.sh")}` : read(f);
     assert.doesNotMatch(src, /set env[^\n]*FOLDRUN_RUNNER_IMAGE/, `${f}: FOLDRUN_RUNNER_IMAGE set in a separate rollout`);
     assert.match(src, /FOLDRUN_RUNNER_IMAGE/, `${f}: never sets FOLDRUN_RUNNER_IMAGE at all`);
   }
