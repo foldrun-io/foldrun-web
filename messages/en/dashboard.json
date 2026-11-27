@@ -17,7 +17,10 @@
     "thisAccountIsSuspended": "This account is suspended",
     "noPlan": "No plan",
     "runsOnThisAccountAreRefusedNoPlan": "Runs on this account are refused until it has a plan. Bringing your own model key is turned off on this platform.",
-    "seePlans": "See plans"
+    "seePlans": "See plans",
+    "networkNotice": "Network notice",
+    "networkNoticeRun": "Run <cmd></cmd> in a terminal.",
+    "networkNoticeRestart": "Restart Claude Code to pick up the new address."
   },
   "manage": {
     "delete": "Delete"

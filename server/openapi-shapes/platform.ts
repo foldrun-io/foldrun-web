@@ -1,7 +1,7 @@
 // OpenAPI request/response schemas: everything else outside /v1/workspaces: hooks, inbox, events, changelog, healthz, version, status, metrics, usage, issues, insights, schedule, search, openapi.json, mcp, extract, /s/{token}.
 // Written from what each handler validates and answers (30 Oct 2026).
 
-import { type Schema, type Shape, obj, str, bool, int, arr, nullable, Failure, ExtractResult, ExtractJobError } from "./kit.ts";
+import { type Schema, type Shape, obj, str, bool, int, arr, nullable, Failure, ExtractResult, ExtractJobError, Notice } from "./kit.ts";
 
 const num: Schema = { type: "number" };
 const nstr = (description?: string): Schema => nullable(str(description));
@@ -137,6 +137,18 @@ export const SHAPES: Record<string, Shape> = {
     },
     response: TriggerAnswer,
   },
+  "GET /v1/network/bytes": {
+    query: [{ name: "size", description: "how many bytes, 1 to 65536 (default 65536)" }],
+    media: {
+      type: "application/octet-stream",
+      schema: { type: "string", format: "binary", description: "that many random bytes, made for the call" },
+      description: "Bytes to time a download with (`foldrun doctor`), no credential; never cached. 400 for a size out of range; 429 with Retry-After past 30 a minute from one address",
+    },
+  },
+  "POST /v1/network/bytes": {
+    noBody: "The request body is up to 65536 raw bytes (any content type), not JSON: an upload to time, read and counted, never kept.",
+    response: { ...obj({ received: { ...int, description: "how many bytes arrived" } }, ["received"]), description: "413 past 65536 bytes; 400 when the upload broke off or took over 30 s; 429 with Retry-After past 30 a minute from one address" },
+  },
   "GET /v1/metrics": {
     media: {
       type: "text/plain",
@@ -244,7 +256,10 @@ export const SHAPES: Record<string, Shape> = {
       urls: obj({
         api: { ...nstr(), description: "where programs call — keys, the CLI, Claude Code, for the platform and models (FOLDRUN_PUBLIC_API_URL); null: the address this was asked at answers them" },
         app: { ...nstr(), description: "the dashboard's address, where people sign in (FOLDRUN_PUBLIC_URL); null when unset" },
+        gateway: { ...nstr(), description: "where a key's model calls go for this caller (ANTHROPIC_BASE_URL); null when unset" },
+        fronts: { type: "array", items: str(), description: "to a caller in Iran only: every front of this API (exact https origins), the first being urls.api" },
       }),
+      notice: Notice,
     }),
   },
   "POST /v1/mcp": {

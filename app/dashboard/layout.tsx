@@ -8,7 +8,7 @@
 import { $el, $rich, $t } from "@/i18n";
 import { Suspense } from "react";
 import Link from "@foldrun/ui/react/link";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { Sidebar } from "@/components/sidebar";
 import { PendingApprovals } from "@/components/pending-approvals";
 import { ViewerTimeZoneProvider } from "@/components/viewer-time";
@@ -36,6 +36,7 @@ import { AssistantDock } from "@/components/assistant";
 import { accountModelSupply } from "@/server/account-model";
 import { onSubscriptionNow, ownModelKeysOn } from "@/platform/model-choice";
 import { can } from "@/platform/permissions";
+import { noticeForRequest } from "@/server/iran-front";
 
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -74,6 +75,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const noModelKey = accountModelSupply(tenant) === "none" && !(await onSubscriptionNow(tenant));
   // With own keys off there is no key to add: the account needs a plan.
   const needsPlan = noModelKey && !ownModelKeysOn();
+
+  // The operator's notice to a signed-in person in Iran (FOL-402): the same
+  // one /v1/version, /v1/me, the CLI and Claude Code's status line show —
+  // the filter blocked an address and what to do. Their words, set in the
+  // console; only the frame and the fixed command are ours.
+  const notice = session ? noticeForRequest({ headers: new Headers(await headers()) }) : null;
 
   // The version this page was rendered with: the sidebar shows it, and the
   // update notice compares /v1/version against it.
@@ -126,6 +133,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
         {/* An incident or maintenance the operator posted: on every page
             while it is live, gone when it is resolved. */}
         <StatusBanner statusPage={statusPageUrl()} />
+        {notice && (
+          <Banner tone="warning" title={$t("dashboard.layout.networkNotice")}>
+            {notice.message}
+            {notice.action === "restart_claude_code" && <span className="ml-1">{$t("dashboard.layout.networkNoticeRestart")}</span>}
+            {notice.command && <span className="ml-1">{$rich("dashboard.layout.networkNoticeRun", { cmd: $el(<code className="font-mono">{notice.command}</code>) })}</span>}
+          </Banner>
+        )}
         {needsPlan && (
           <Banner tone="warning" title={$t("dashboard.layout.noPlan")} action={<Link href="/dashboard/billing/plans">{$t("dashboard.layout.seePlans")}</Link>}>
             {$t("dashboard.layout.runsOnThisAccountAreRefusedNoPlan")}

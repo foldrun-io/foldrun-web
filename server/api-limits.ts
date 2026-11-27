@@ -256,7 +256,7 @@ export async function apiGate(req: NextRequest): Promise<Gate> {
   const limited = await overLimit(req, caller, profile, headers);
   if (limited) {
     return {
-      refuse: NextResponse.json(errorBody(limited.message, 429, { retry_after: limited.retryAfter }, shape), { status: 429 }),
+      refuse: NextResponse.json(errorBody(limited.message, 429, { code: "rate_limited", retry_after: limited.retryAfter }, shape), { status: 429 }),
       headers,
       requestHeaders: {},
     };

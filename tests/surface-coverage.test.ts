@@ -19,6 +19,9 @@ const CALLBACK = "called by something else holding its own proof, not by a perso
 
 /** Operations the CLI does not call, and why. */
 const NOT_IN_CLI: Record<string, string> = {
+  // FOL-402: called by `foldrun doctor` from src/road-probe.mjs, which this scan (commands.mjs) does not read.
+  "GET /v1/network/bytes": "`foldrun doctor`'s road test downloads it, from src/road-probe.mjs (credential-free, timed by phase)",
+  "POST /v1/network/bytes": "`foldrun doctor`'s road test uploads to it, from src/road-probe.mjs (credential-free, timed by phase)",
   "GET /v1/pricing": "the public catalogue for foldrun.io and foldrun.ir, which read it from a browser; `foldrun usage rates` shows the same figures through the account's own /v1/account/usage/rates",
   "POST /v1/billing/partner/plans/offer": CALLBACK + "foldrun.ir's signed storefront calls (coding plans); people buy at foldrun.ir",
   "POST /v1/billing/partner/signups": CALLBACK + "foldrun.ir's signed storefront calls (a sign-up link for a customer with no account); the person opens the account on /signup",
@@ -151,6 +154,8 @@ const NOT_IN_DASHBOARD: Record<string, string> = {
   "GET /v1/cli/login/[id]": "the CLI's half of `foldrun login`",
   "POST /v1/events/[tenant]/[workspace]/[runId]": CALLBACK + "a run's event URL, for `wait: event`",
   "GET /v1/healthz": "for monitors and load balancers",
+  "GET /v1/network/bytes": "bytes for `foldrun doctor` to time a download with (FOL-402): a test of the terminal's road to the API, which a browser tab has no use for",
+  "POST /v1/network/bytes": "bytes for `foldrun doctor` to time an upload with (FOL-402): a test of the terminal's road to the API, which a browser tab has no use for",
   "GET /v1/metrics": CALLBACK + "a Prometheus scrape",
   "GET /v1/status/history": "the public status page's, served with CORS",
   "GET /v1/signup": SERVER("(auth)/signup/page.tsx → signupModesNow, the same resolver (server/signup.ts); the route is the public site's, served with CORS"),
