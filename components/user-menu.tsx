@@ -14,6 +14,7 @@ import { useHosted } from "./edition";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@foldrun/ui/react/menu";
 import { Segmented } from "@foldrun/ui/react/segmented";
 import { THEMES, type Theme } from "./theme-model";
+import { LanguageRow } from "./language-switch";
 
 const THEME_ICON = { system: Monitor, light: Sun, dark: Moon } as const;
 
@@ -142,6 +143,7 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
             })}
           />
         </div>
+        <LanguageRow />
         <MenuSeparator />
         <MenuItem
           onSelect={async () => {

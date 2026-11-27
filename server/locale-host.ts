@@ -11,8 +11,14 @@ export const LOCALE_COOKIE = "foldrun_locale";
 
 const name = (host: string) => host.trim().toLowerCase().replace(/:\d+$/, "").replace(/\.$/, "");
 
-export function localeForHost(host: string | null | undefined, choice: string | null | undefined, setting = process.env.FOLDRUN_FA_HOSTS): "en" | "fa" {
+/** True on a host the install lists as Persian: there, and only there, a
+ *  person may choose between Persian and English. */
+export function offersPersian(host: string | null | undefined, setting = process.env.FOLDRUN_FA_HOSTS): boolean {
   const persian = (setting ?? "").split(",").map(name).filter(Boolean);
-  if (!host || !persian.includes(name(host))) return "en";
+  return !!host && persian.includes(name(host));
+}
+
+export function localeForHost(host: string | null | undefined, choice: string | null | undefined, setting = process.env.FOLDRUN_FA_HOSTS): "en" | "fa" {
+  if (!offersPersian(host, setting)) return "en";
   return choice === "en" ? "en" : "fa";
 }

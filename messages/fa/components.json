@@ -1979,5 +1979,10 @@
     "save": "ذخیره نام",
     "rename": "تغییر نام",
     "failed": "تغییر نام ممکن نشد ({status})"
+  },
+  "language-switch": {
+    "language": "زبان",
+    "persian": "فارسی",
+    "english": "English"
   }
 }
