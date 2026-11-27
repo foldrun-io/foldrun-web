@@ -165,7 +165,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
                 setOpen((o) => !o);
                 setMenu(false);
               }}
-              className={buttonVariants({ variant: "secondary", className: "rounded-r-none" })}
+              className={buttonVariants({ variant: "secondary", className: "rounded-e-none" })}
             >
               {$t("components.flow-run-with.runWith")}
             </button>
@@ -177,7 +177,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
               type="button"
               disabled={!mayRun}
               aria-label={$t("components.flow-run-with.pickASavedInputSet")}
-              className={buttonVariants({ variant: "secondary", size: "icon-sm", className: "-ml-px rounded-l-none" })}
+              className={buttonVariants({ variant: "secondary", size: "icon-sm", className: "-ms-px rounded-s-none" })}
             >
               <ChevronDown aria-hidden />
             </button>
@@ -209,7 +209,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
         aria-label={$t("components.flow-run-with.runWithSavedInputs", { flow: String(flow) })}
         onInteractOutside={(e) => e.preventDefault()}
         onOpenAutoFocus={(e) => e.preventDefault()}
-        className="w-[min(28rem,calc(100vw-2rem))] p-4 text-left"
+        className="w-[min(28rem,calc(100vw-2rem))] p-4 text-start"
       >
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-fg">{$t("components.flow-run-with.runWith2", { flow: flow })}</h3>
@@ -274,7 +274,7 @@ export function FlowRunWith({ workspace, tenant, flow }: { workspace: string; te
               type="button"
               disabled={busy !== null || !mayRun}
               onClick={() => void run()}
-              className={cn(buttonVariants({ variant: live ? "danger-outline" : "primary", size: "xs" }), "ml-auto")}
+              className={cn(buttonVariants({ variant: live ? "danger-outline" : "primary", size: "xs" }), "ms-auto")}
             >
               {busy === "run" ? $t("components.flow-run-with.starting") : live ? $t("components.flow-run-with.startLiveRun") : $t("components.flow-run-with.startTestRun")}
             </button>

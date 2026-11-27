@@ -70,7 +70,7 @@ function KindIcon({ flow }: { flow: string }) {
   return <Workflow aria-label="flow" />;
 }
 
-const TH = "h-10 px-3 text-left align-middle text-[13px] font-medium whitespace-nowrap text-fg-muted";
+const TH = "h-10 px-3 text-start align-middle text-[13px] font-medium whitespace-nowrap text-fg-muted";
 const TD = "h-16 px-3 py-2 align-middle whitespace-nowrap text-fg-secondary";
 
 export function RunsTable({
@@ -109,7 +109,7 @@ export function RunsTable({
           <tr className="border-b border-line">
             {/* Selection, when the page mounts a RunsSelection around this
                 table; a viewer sees an empty column. */}
-            <th className="w-10 pl-4 pr-0 align-middle">
+            <th className="w-10 ps-4 pe-0 align-middle">
               <SelectAllCheckbox label={$t("components.runs-table.selectEveryRunOnThisPage")} />
             </th>
             <th className={TH}>{$t("components.runs-table.run")}</th>
@@ -117,7 +117,7 @@ export function RunsTable({
             <th className={TH}>{$t("components.runs-table.status")}</th>
             <th className={cn(TH, "max-sm:hidden")}>{$t("components.runs-table.started")}</th>
             <th className={cn(TH, "max-md:hidden")}>{$t("components.runs-table.duration")}</th>
-            <th className={cn(TH, "text-right max-md:hidden")}>{money ? $t("components.runs-table.credits") : $t("components.runs-table.cost")}</th>
+            <th className={cn(TH, "text-end max-md:hidden")}>{money ? $t("components.runs-table.credits") : $t("components.runs-table.cost")}</th>
             <th className="w-px px-3" aria-label={$t("components.runs-table.actions")} />
           </tr>
         </thead>
@@ -151,7 +151,7 @@ export function RunsTable({
               <tr key={`${r.workspace}/${r.id}`} className="group relative border-b border-line transition-colors hover:bg-sunken">
                 {/* Above the row's stretched link, like the delete cell — or
                     ticking the box opens the run. */}
-                <td className="relative z-10 w-10 pl-4 pr-0 align-middle">
+                <td className="relative z-10 w-10 ps-4 pe-0 align-middle">
                   <RowCheckbox id={runKey(r)} label={$t("components.runs-table.selectRun", { v0: String(r.id.slice(4)) })} />
                 </td>
                 <td className={cn(TD, "w-full max-w-0")}>
@@ -237,7 +237,7 @@ export function RunsTable({
                     {$t("components.runs-table.steps", { done: String(done), length: String(r.steps.length) })}
                   </span>
                 </td>
-                <td className={cn(TD, "text-right tabular-nums max-md:hidden")}>
+                <td className={cn(TD, "text-end tabular-nums max-md:hidden")}>
                   {money?.[r.id] ? (
                     <Tooltip label={money[r.id].charged ? $t("components.runs-table.charged") : $t("components.runs-table.estimatedListPriceUntilTheRun")}>
                       <span>
@@ -251,7 +251,7 @@ export function RunsTable({
                 </td>
                 {/* Above the row's stretched link, or the overlay swallows
                     the click and "delete" quietly opens the run instead. */}
-                <td className="relative z-10 w-px px-3 text-right align-middle whitespace-nowrap">
+                <td className="relative z-10 w-px px-3 text-end align-middle whitespace-nowrap">
                   <span className="opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                     <DeleteButton
                       endpoint={`/v1/workspaces/${r.workspace}/runs/${r.id}`}

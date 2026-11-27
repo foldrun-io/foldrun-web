@@ -38,7 +38,7 @@ export function CodeView({ path, text, maxLines = 4000 }: { path: string; text: 
         <tbody>
           {shown.map((l, i) => (
             <tr key={i}>
-              <td className="select-none border-r border-line-faint bg-sunken px-3 text-right text-gray-300">{i + 1}</td>
+              <td className="select-none border-e border-line-faint bg-sunken px-3 text-end text-gray-300">{i + 1}</td>
               <td className="whitespace-pre px-3 text-gray-800">{l || " "}</td>
             </tr>
           ))}

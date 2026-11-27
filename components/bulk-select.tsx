@@ -198,7 +198,7 @@ export function BulkActionBar({ actions, noun = "items" }: { actions: BulkAction
                 )}
               </button>
             ))}
-          <button type="button" onClick={clear} className="ml-auto font-medium text-fg-muted hover:text-fg">
+          <button type="button" onClick={clear} className="ms-auto font-medium text-fg-muted hover:text-fg">
             {$t("components.bulk-select.clear")}
           </button>
         </>

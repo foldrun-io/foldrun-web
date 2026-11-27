@@ -194,7 +194,7 @@ const Card = memo(function Card({ data }: NodeProps<CardNode>) {
         <span className="block truncate text-[13px] font-medium text-fg">{data.label}</span>
         <span className="mt-0.5 block truncate text-xs text-fg-muted">{data.meta}</span>
       </span>
-      {data.outcome && <StatusDot outcome={data.outcome} className="mr-0.5" />}
+      {data.outcome && <StatusDot outcome={data.outcome} className="me-0.5" />}
     </div>
     </Tooltip>
   );
@@ -601,12 +601,12 @@ function GraphView({
                         return next;
                       })
                     }
-                    className={cn(menuItemClass, "pr-8")}
+                    className={cn(menuItemClass, "pe-8")}
                   >
                     <f.icon aria-hidden />
                     {f.label}
-                    <span className="ml-auto pl-3 text-xs tabular-nums text-fg-subtle">{counts.get(f.key) ?? 0}</span>
-                    <M.ItemIndicator className="absolute right-2 inline-flex">
+                    <span className="ms-auto ps-3 text-xs tabular-nums text-fg-subtle">{counts.get(f.key) ?? 0}</span>
+                    <M.ItemIndicator className="absolute end-2 inline-flex">
                       <Check />
                     </M.ItemIndicator>
                   </M.CheckboxItem>
@@ -736,7 +736,7 @@ function GraphView({
         {panel && (
           <aside
             aria-label={panel === "edit" ? $t("workspace.graph-graph-client.flowEditor") : $t("workspace.graph-graph-client.details")}
-            className="z-10 flex flex-col overflow-hidden bg-surface max-md:absolute max-md:inset-x-0 max-md:bottom-0 max-md:max-h-[72%] max-md:rounded-t-lg max-md:border-t max-md:border-line max-md:shadow-overlay md:w-[22rem] md:shrink-0 md:border-l md:border-line"
+            className="z-10 flex flex-col overflow-hidden bg-surface max-md:absolute max-md:inset-x-0 max-md:bottom-0 max-md:max-h-[72%] max-md:rounded-t-lg max-md:border-t max-md:border-line max-md:shadow-overlay md:w-[22rem] md:shrink-0 md:border-s md:border-line"
           >
             {panel === "edit" && workspace ? (
               <>
@@ -855,7 +855,7 @@ function PanelHead({ icon, title, sub, onClose }: { icon: React.ReactNode; title
         <p className="truncate text-sm font-medium text-fg">{title}</p>
         {sub && <p className="truncate text-[13px] text-fg-muted">{sub}</p>}
       </div>
-      <Button size="icon-sm" variant="ghost" onClick={onClose} aria-label={$t("workspace.graph-graph-client.closePanel")} className="-mr-1.5">
+      <Button size="icon-sm" variant="ghost" onClick={onClose} aria-label={$t("workspace.graph-graph-client.closePanel")} className="-me-1.5">
         <X />
       </Button>
     </div>
@@ -980,7 +980,7 @@ function Details({
                       <button
                         type="button"
                         onClick={() => onPick(id)}
-                        className="flex w-full items-center gap-2.5 px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none"
+                        className="flex w-full items-center gap-2.5 px-2.5 py-2 text-start text-[13px] transition-colors hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none"
                       >
                         <KindIcon kind={n.kind} scope={n.scope} className="size-4 shrink-0 text-fg-muted" />
                         <span className="min-w-0 flex-1 truncate text-fg">{n.label}</span>

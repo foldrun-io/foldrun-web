@@ -213,7 +213,7 @@ export function NowNext({ board, upcoming, now, tenant, showWorkspace = true, ru
                       <StatusDot outcome={r.outcome} label="" />
                       <span className="truncate font-medium text-fg group-hover:underline">{r.what}</span>
                       {showWorkspace && <span className="shrink-0 text-fg-muted">{r.workspace}</span>}
-                      <span className="ml-auto shrink-0 text-xs tabular-nums text-fg-muted">{fmtSpan(r.elapsedMs)}</span>
+                      <span className="ms-auto shrink-0 text-xs tabular-nums text-fg-muted">{fmtSpan(r.elapsedMs)}</span>
                     </div>
                     <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
                       <div className={`h-full rounded-full ${r.outcome === "waiting" ? "bg-violet-500" : "bg-sky-500"}`} style={{ width: `${Math.max(pct, 4)}%` }} />
@@ -240,7 +240,7 @@ export function NowNext({ board, upcoming, now, tenant, showWorkspace = true, ru
                   <Clock3 className="size-4 shrink-0 text-fg-muted" aria-hidden />
                   <span className="min-w-0 flex-1 truncate text-sm">
                     <span className="font-medium text-fg group-hover:underline">{u.flow}</span>
-                    {showWorkspace && <span className="ml-1.5 text-fg-muted">{u.workspace}</span>}
+                    {showWorkspace && <span className="ms-1.5 text-fg-muted">{u.workspace}</span>}
                   </span>
                   <Tooltip label={u.at}>
                     <span className="shrink-0 text-xs tabular-nums text-fg-muted">

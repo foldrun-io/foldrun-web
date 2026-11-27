@@ -113,7 +113,7 @@ export function HookTest({
         <Callout tone={!a.ok ? "danger" : a.decision === "deny" ? "warning" : "neutral"} className="p-2 text-xs">
           <p className="font-medium">
             {!a.ok ? $t("components.hook-test.failedWith", { failure: a.failure ?? "" }) : $t("components.hook-test.decision", { decision: a.decision === "deny" || a.decision === "allow" ? a.decision : "ok" })}
-            <span className="ml-2 font-normal text-fg-muted">{$t("components.hook-test.ms", { ms: String(a.ms) })}</span>
+            <span className="ms-2 font-normal text-fg-muted">{$t("components.hook-test.ms", { ms: String(a.ms) })}</span>
           </p>
           {a.reason && <p>{$t("components.hook-test.reason", { reason: a.reason })}</p>}
           {a.input && <p className="break-all font-mono">{$t("components.hook-test.input", { stringify: JSON.stringify(a.input) })}</p>}

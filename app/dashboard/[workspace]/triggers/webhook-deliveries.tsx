@@ -138,7 +138,7 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
       ) : (
         <div className="overflow-x-auto rounded-lg border border-line bg-surface">
           <table className="w-full min-w-[720px] text-sm">
-            <thead className="border-b border-line bg-sunken text-left text-[13px] text-fg-muted">
+            <thead className="border-b border-line bg-sunken text-start text-[13px] text-fg-muted">
               <tr>
                 <th className="h-10 px-3 font-medium">{$t("workspace.triggers-webhook-deliveries.when")}</th>
                 <th className="h-10 px-3 font-medium">{$t("workspace.triggers-webhook-deliveries.event")}</th>
@@ -164,7 +164,7 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
                           e.stopPropagation();
                           setOpen(open === d.id ? null : d.id);
                         }}
-                        className="inline-flex items-center gap-1 rounded text-left hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+                        className="inline-flex items-center gap-1 rounded text-start hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
                       >
                         {open === d.id ? <ChevronDown aria-hidden className="size-4 text-fg-subtle" /> : <ChevronRight aria-hidden className="size-4 text-fg-subtle" />}
                         {d.event}
@@ -173,12 +173,12 @@ export function WebhookDeliveries({ workspace }: { workspace: string }) {
                     <td className="px-3 py-3">
                       <Chip tone={TONE[d.status]}>{labelOf(DELIVERY_STATUS_LABEL, d.status === "pending" ? "retrying" : d.status)}</Chip>
                       {d.status === "pending" && d.nextAttemptAt && (
-                        <span className="ml-1 text-xs text-fg-subtle">{$rich("workspace.triggers-webhook-deliveries.next", { localTime: $el(<LocalTime iso={d.nextAttemptAt} />) })}</span>
+                        <span className="ms-1 text-xs text-fg-subtle">{$rich("workspace.triggers-webhook-deliveries.next", { localTime: $el(<LocalTime iso={d.nextAttemptAt} />) })}</span>
                       )}
                     </td>
                     <td className="px-3 py-3 text-fg-tertiary">{d.attempts}</td>
                     <td className="px-3 py-3 text-fg-tertiary">{d.lastStatusCode ? `HTTP ${d.lastStatusCode}` : d.lastError ?? "—"}</td>
-                    <td className="px-3 py-3 text-right">
+                    <td className="px-3 py-3 text-end">
                       {runs && (
                         <button
                           className={buttonVariants({ variant: "secondary" })}

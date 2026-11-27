@@ -45,7 +45,7 @@ export function ConversationsPanel({ sessions, workspace, tenant, tenantParam }:
                 <LocalTime iso={x.lastAt} options={WHEN} />
               </TD>
               <TD>{labelOf(RUN_STATUS_LABEL, x.lastStatus)}</TD>
-              <TD className="text-right">
+              <TD className="text-end">
                 <ConversationRename workspace={workspace} tenant={tenant} context={x.context} name={x.name} />
               </TD>
             </TR>

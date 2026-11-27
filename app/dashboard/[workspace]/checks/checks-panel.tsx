@@ -161,7 +161,7 @@ export function ChecksPanel({ workspace, tenantQuery, canOnline = true }: { work
       {online && (data.online?.problems.length ?? 0) > 0 && (
         <Callout tone="warning" className="px-4 py-3 text-sm" role="alert">
           <p className="font-medium">{$t("workspace.checks-checks-panel.notCheckedThisIsNotA")}</p>
-          <ul className="mt-1 list-disc pl-5">
+          <ul className="mt-1 list-disc ps-5">
             {data.online!.problems.map((p) => (
               <li key={p}>{p}</li>
             ))}
@@ -178,14 +178,14 @@ export function ChecksPanel({ workspace, tenantQuery, canOnline = true }: { work
       ) : (
         <section className="min-w-0 space-y-3">
           <h2 className="px-1 text-base font-medium text-fg">
-            {$t("workspace.checks-checks-panel.findings")}{" "}<Count className="ml-1">{data.findings.length}</Count>
+            {$t("workspace.checks-checks-panel.findings")}{" "}<Count className="ms-1">{data.findings.length}</Count>
           </h2>
           <div className="overflow-hidden rounded-lg border border-line bg-surface">
             <table className="w-full text-sm">
               <thead className="border-b border-line bg-sunken max-sm:hidden">
                 <tr>
-                  <th className="h-10 w-28 px-4 text-left text-[13px] font-medium text-fg-muted">{$t("workspace.checks-checks-panel.level")}</th>
-                  <th className="h-10 px-4 text-left text-[13px] font-medium text-fg-muted">{$t("workspace.checks-checks-panel.fileAndMessage")}</th>
+                  <th className="h-10 w-28 px-4 text-start text-[13px] font-medium text-fg-muted">{$t("workspace.checks-checks-panel.level")}</th>
+                  <th className="h-10 px-4 text-start text-[13px] font-medium text-fg-muted">{$t("workspace.checks-checks-panel.fileAndMessage")}</th>
                 </tr>
               </thead>
               {groups.map(([id, list]) => {
@@ -204,7 +204,7 @@ export function ChecksPanel({ workspace, tenantQuery, canOnline = true }: { work
                               </span>
                             </Tooltip>
                           ))}
-                          <span className="ml-auto text-[13px] tabular-nums text-fg-muted">{list.length}</span>
+                          <span className="ms-auto text-[13px] tabular-nums text-fg-muted">{list.length}</span>
                         </div>
                         {rule?.help && (
                           <p className="mt-1 max-w-3xl text-[13px] leading-relaxed text-fg-muted">
@@ -215,7 +215,7 @@ export function ChecksPanel({ workspace, tenantQuery, canOnline = true }: { work
                     </tr>
                     {list.map((f) => (
                       <tr key={`${f.fingerprint}-${f.line ?? 0}`} className="border-t border-line-faint align-top transition-colors hover:bg-sunken">
-                        <td className="w-28 px-4 py-3 max-sm:pr-0">
+                        <td className="w-28 px-4 py-3 max-sm:pe-0">
                           <Chip tone={LEVEL[f.level].tone} dot>
                             {LEVEL[f.level].label}
                           </Chip>

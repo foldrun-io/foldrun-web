@@ -69,7 +69,7 @@ export function InboxLink({ className }: { className?: string }) {
       )}
     >
       <Bell className="size-4" strokeWidth={1.75} aria-hidden />
-      {n > 0 && <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-blue-600 ring-2 ring-paper" aria-hidden />}
+      {n > 0 && <span className="absolute end-1.5 top-1.5 size-2 rounded-full bg-blue-600 ring-2 ring-paper" aria-hidden />}
     </Link>
     </Tooltip>
   );

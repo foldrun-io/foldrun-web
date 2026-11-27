@@ -4,6 +4,7 @@ import "./globals.css";
 import { requestTheme } from "@/server/theme";
 import { $t, currentDir } from "@/i18n";
 import { LocaleProvider } from "@/i18n/locale-context";
+import { DirectionProvider } from "@foldrun/ui/react/direction";
 import { requestLocale } from "@/server/locale";
 
 const sans = Geist({
@@ -40,7 +41,7 @@ export default async function RootLayout({
       data-theme={theme}
       className={`${sans.variable} ${mono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col"><LocaleProvider locale={locale}>{children}</LocaleProvider></body>
+      <body className="min-h-full flex flex-col"><LocaleProvider locale={locale}><DirectionProvider dir={currentDir()}>{children}</DirectionProvider></LocaleProvider></body>
     </html>
   );
 }

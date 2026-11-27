@@ -130,7 +130,7 @@ export function McpAuthorize() {
         </label>
         </RadioGroup>
         {scope === "some" && (
-          <div className="ml-6 mt-1 space-y-1">
+          <div className="ms-6 mt-1 space-y-1">
             {ask.workspaces.map((w) => (
               <label key={w} className="flex items-center gap-2 font-mono text-xs">
                 <Checkbox

@@ -91,7 +91,7 @@ export function UpdateToast({ pollMs = POLL_MS }: { pollMs?: number }) {
   return (
     <div
       role="status"
-      className="fixed bottom-4 right-4 z-50 flex max-w-sm items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-fg-secondary shadow-lg"
+      className="fixed bottom-4 end-4 z-50 flex max-w-sm items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-fg-secondary shadow-lg"
     >
       <span>
         {$rich("components.version.aNewVersionOfFoldrunIs", { newer: newer, span: (chunks) => <span className="font-mono text-xs text-fg">{chunks}</span>, link: (chunks) => <Link href="/dashboard/whats-new" className="text-accent hover:underline">{chunks}</Link> })}

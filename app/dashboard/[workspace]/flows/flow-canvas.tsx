@@ -202,7 +202,7 @@ function RunStrip({ v, mode, now }: { v: StepRunView; mode: RunMode; now: number
   }`;
   return (
     <Tooltip label={tip}>
-    <div className="pointer-events-auto absolute bottom-full left-0 mb-1 flex max-w-full items-center gap-1" data-run-strip={v.status}>
+    <div className="pointer-events-auto absolute bottom-full start-0 mb-1 flex max-w-full items-center gap-1" data-run-strip={v.status}>
       <span className={chip}>
         <span aria-hidden className={`inline-block h-1.5 w-1.5 rounded-full ${STATUS_DOT[v.status]}`} />
         {mode === "last" ? `last: ${STATUS_WORD[v.status]}` : STATUS_WORD[v.status]}
@@ -265,7 +265,7 @@ function StepNode({ id, data, selected }: NodeProps<StepRF>) {
       style={{ width: NODE_W, height: data.h }}
       data-step={data.index}
       data-run-status={data.run?.status ?? undefined}
-      className={`group/step relative rounded-lg border bg-surface px-2.5 py-1.5 text-left shadow-sm transition-shadow ${
+      className={`group/step relative rounded-lg border bg-surface px-2.5 py-1.5 text-start shadow-sm transition-shadow ${
         s.subflow ? "border-dashed border-emerald-500" : errors ? "border-red-400" : "border-line-strong"
       } ${paint} ${selected ? "!ring-2 !ring-gray-900" : ""} ${lit("body") ? "ring-2 ring-sky-500" : ""}`}
     >
@@ -292,7 +292,7 @@ function StepNode({ id, data, selected }: NodeProps<StepRF>) {
         </Tooltip>
         {data.missing && <KitChip tone="bad" className="h-4 px-1 text-[10px]">{$t("workspace.flows-flow-canvas.notFound")}</KitChip>}
         {data.model && !s.subflow && (
-          <Tag className="ml-auto h-4 px-1 text-[10px]" hint={s.model ? $t("workspace.flows-flow-canvas.thisStepSModel") : $t("workspace.flows-flow-canvas.theAgentSModel")}>
+          <Tag className="ms-auto h-4 px-1 text-[10px]" hint={s.model ? $t("workspace.flows-flow-canvas.thisStepSModel") : $t("workspace.flows-flow-canvas.theAgentSModel")}>
             {data.model}
           </Tag>
         )}
@@ -309,7 +309,7 @@ function StepNode({ id, data, selected }: NodeProps<StepRF>) {
           aria-label={$t("workspace.flows-flow-canvas.actionsForStep", { v0: String(data.column + 1), name: String(name) })}
           aria-haspopup="menu"
           className={`nodrag shrink-0 rounded px-1 text-sm leading-none text-fg-subtle hover:bg-muted hover:text-fg focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-gray-500 group-hover/step:opacity-100 ${
-            data.model && !s.subflow ? "" : "ml-auto"
+            data.model && !s.subflow ? "" : "ms-auto"
           } ${selected ? "opacity-100" : "opacity-0"}`}
         >
           ⋯
@@ -360,7 +360,7 @@ function StepNode({ id, data, selected }: NodeProps<StepRF>) {
             type="button"
             onClick={() => ctx.toggleAsk(data.index)}
             disabled={!data.agent}
-            className={`nodrag ml-auto rounded px-1.5 py-px font-medium ${
+            className={`nodrag ms-auto rounded px-1.5 py-px font-medium ${
               data.mayAsk ? "bg-amber-100 text-amber-900 hover:bg-amber-200" : "border border-dashed border-line-strong text-fg-subtle hover:text-fg-secondary"
             }`}
           >
@@ -418,12 +418,12 @@ function SummaryNode({ data, selected }: NodeProps<SummaryRF>) {
     <div
       style={{ width: NODE_W, height: data.h }}
       data-summary={data.group}
-      className={`relative flex flex-col rounded-lg border-2 border-double bg-surface px-2.5 py-1.5 text-left shadow-sm ${
+      className={`relative flex flex-col rounded-lg border-2 border-double bg-surface px-2.5 py-1.5 text-start shadow-sm ${
         data.errors ? "border-red-400" : "border-gray-400"
       } ${status && data.runMode === "watch" ? STATUS_NODE[status] : ""} ${selected ? "ring-2 ring-gray-900" : ""}`}
     >
       {status && data.runMode && (
-        <div className="absolute bottom-full left-0 mb-1 flex gap-1">
+        <div className="absolute bottom-full start-0 mb-1 flex gap-1">
           <Tag className="h-4 bg-surface px-1 text-[10px] font-medium shadow-sm">
             <span aria-hidden className={`inline-block h-1.5 w-1.5 rounded-full ${STATUS_DOT[status]}`} />
             {data.runMode === "last" ? `last: ${STATUS_WORD[status]}` : STATUS_WORD[status]}
@@ -442,7 +442,7 @@ function SummaryNode({ data, selected }: NodeProps<SummaryRF>) {
           <button
             type="button"
             onClick={() => ctx.unfold(data.group)}
-            className="nodrag ml-auto rounded border border-line-strong px-1.5 text-[10.5px] text-fg-tertiary hover:bg-sunken hover:text-fg"
+            className="nodrag ms-auto rounded border border-line-strong px-1.5 text-[10.5px] text-fg-tertiary hover:bg-sunken hover:text-fg"
           >
             {$t("workspace.flows-flow-canvas.unfold")}
           </button>
@@ -503,7 +503,7 @@ function TriggerNode({ data, selected }: NodeProps<TriggerRF>) {
       type="button"
       onClick={ctx.openTrigger}
       style={{ width: 150, height: 56 }}
-      className={`nodrag flex flex-col items-start justify-center rounded-full border border-line-strong bg-sunken px-4 text-left shadow-sm hover:border-gray-500 ${selected ? "ring-2 ring-gray-900" : ""}`}
+      className={`nodrag flex flex-col items-start justify-center rounded-full border border-line-strong bg-sunken px-4 text-start shadow-sm hover:border-gray-500 ${selected ? "ring-2 ring-gray-900" : ""}`}
     >
       <Handle type="source" position={Position.Right} id="out" style={HIDDEN_HANDLE} />
       <span className="text-[10px] uppercase tracking-wide text-fg-subtle">{$t("workspace.flows-flow-canvas.starts")}</span>
@@ -1089,7 +1089,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
     const ok = await confirm({
       title: $t("workspace.flows-flow-canvas.deleteFrom", { label: String(impact.label), flow: String(flow) }),
       body: (
-        <ul className="list-disc space-y-1 pl-4">
+        <ul className="list-disc space-y-1 ps-4">
           {impact.notes.map((n) => (
             <li key={n}>{n}</li>
           ))}
@@ -1113,7 +1113,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
       title: $t("workspace.flows-flow-canvas.deleteStepsFrom", { length: String(indices.length), flow: String(flow) }),
       body: (
         <>
-          <ul className="list-disc space-y-0.5 pl-4">
+          <ul className="list-disc space-y-0.5 ps-4">
             {names.map((n) => (
               <li key={n}>{$t("workspace.flows-flow-canvas.step", { n: n })}</li>
             ))}
@@ -1561,7 +1561,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
     setTarget(null);
     setHovered(null);
   };
-  const paletteItem = "cursor-grab select-none rounded-md border bg-surface px-2 py-1 text-left text-xs transition-colors hover:bg-sunken active:cursor-grabbing";
+  const paletteItem = "cursor-grab select-none rounded-md border bg-surface px-2 py-1 text-start text-xs transition-colors hover:bg-sunken active:cursor-grabbing";
 
   const sel = selectedStep != null ? steps[selectedStep] : null;
   const tool = buttonVariants({ variant: "ghost", size: "icon-sm" });
@@ -1637,7 +1637,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
               <Tooltip label={$t("workspace.flows-flow-canvas.createAgentFile")}>
               <button
                 type="button"
-                className="rounded-md border border-dashed border-line-strong px-2 py-1 text-left text-xs text-fg-muted hover:border-fg-subtle hover:text-fg"
+                className="rounded-md border border-dashed border-line-strong px-2 py-1 text-start text-xs text-fg-muted hover:border-fg-subtle hover:text-fg"
                 onClick={async () => {
                   const v = await prompt({
                     title: $t("workspace.flows-flow-canvas.newAgent"),
@@ -1705,7 +1705,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
               onPick={(id) => setPicked(id)}
               onClear={() => setPicked("none")}
             />
-            <span className="ml-auto flex items-center gap-0.5 rounded-md border border-line bg-surface p-0.5">
+            <span className="ms-auto flex items-center gap-0.5 rounded-md border border-line bg-surface p-0.5">
               <Tooltip label={$t("workspace.flows-flow-canvas.undoTheLastEditMadeHere", { MOD: String(MOD) })}>
                 <button type="button" className={tool} onClick={() => void travel(false)} disabled={!history.past.length} aria-label={$t("workspace.flows-flow-canvas.undo")}>
                   <Undo2 />
@@ -1864,7 +1864,7 @@ function Canvas({ workspace, tenant, flow, file, trigger, schedule, timezone, st
                 <span className="text-sm font-medium text-fg">
                   {$t("workspace.flows-flow-canvas.step2", { selectedStep: String(nodeColumn(selectedStep) + 1) })}{" "}{sel.subflow ? `flow: ${sel.subflow}` : sel.agent}
                 </span>
-                <span className="ml-auto flex flex-wrap gap-1">
+                <span className="ms-auto flex flex-wrap gap-1">
                   <button type="button" className={buttonVariants({ variant: "secondary", size: "xs" })} aria-pressed={panel === "options"} onClick={() => setPanel(panel === "options" ? null : "options")}><Settings2 aria-hidden />{$t("workspace.flows-flow-canvas.options")}</button>
                   <button type="button" className={buttonVariants({ variant: "secondary", size: "xs" })} onClick={() => setPanel(panel === "instruction" ? null : "instruction")}>{$t("workspace.flows-flow-canvas.instruction")}</button>
                   {!sel.subflow && (
@@ -2084,7 +2084,7 @@ function NodeMenu({
           role="menuitem"
           disabled={!!o.disabled}
           onClick={() => act(a)}
-          className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] disabled:cursor-not-allowed disabled:opacity-45 ${
+          className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-[13px] disabled:cursor-not-allowed disabled:opacity-45 ${
             o.danger ? "text-danger hover:bg-danger-soft" : "text-fg-secondary hover:bg-muted hover:text-fg"
           }`}
         >
@@ -2108,12 +2108,12 @@ function NodeMenu({
       {item("test", $t("workspace.flows-flow-canvas.testThisStepAlone"), { disabled: testAlone, hint: $t("workspace.flows-flow-canvas.runsThisAgentOnceWithThis") })}
       {item("pause", <>{$t("workspace.flows-flow-canvas.pauseBefore", { value: step.approve ? "✓ " : "" })}</>, { hint: step.approve ? $t("workspace.flows-flow-canvas.removeTheApprovalGateTheApprove") : $t("workspace.flows-flow-canvas.aPersonApprovesBeforeThisStep") })}
       <div className="-mx-1 my-1 h-px bg-line-faint" />
-      {item("duplicate", <>{$rich("workspace.flows-flow-canvas.duplicateD", { MOD: MOD, span: (chunks) => <span className="ml-auto text-fg-subtle">{chunks}</span> })}</>, { hint: $t("workspace.flows-flow-canvas.aCopyBesideItInThe") })}
-      {item("copy", <>{$rich("workspace.flows-flow-canvas.copyC", { MOD: MOD, span: (chunks) => <span className="ml-auto text-fg-subtle">{chunks}</span> })}</>, { hint: $t("workspace.flows-flow-canvas.theStepSMarkdownOptionsAnd") })}
-      {item("paste", <>{$rich("workspace.flows-flow-canvas.pasteAfterV", { MOD: MOD, span: (chunks) => <span className="ml-auto text-fg-subtle">{chunks}</span> })}</>, { hint: $t("workspace.flows-flow-canvas.copiedStepsAsTheNextStep") })}
+      {item("duplicate", <>{$rich("workspace.flows-flow-canvas.duplicateD", { MOD: MOD, span: (chunks) => <span className="ms-auto text-fg-subtle">{chunks}</span> })}</>, { hint: $t("workspace.flows-flow-canvas.aCopyBesideItInThe") })}
+      {item("copy", <>{$rich("workspace.flows-flow-canvas.copyC", { MOD: MOD, span: (chunks) => <span className="ms-auto text-fg-subtle">{chunks}</span> })}</>, { hint: $t("workspace.flows-flow-canvas.theStepSMarkdownOptionsAnd") })}
+      {item("paste", <>{$rich("workspace.flows-flow-canvas.pasteAfterV", { MOD: MOD, span: (chunks) => <span className="ms-auto text-fg-subtle">{chunks}</span> })}</>, { hint: $t("workspace.flows-flow-canvas.copiedStepsAsTheNextStep") })}
       {folded != null && item("fold", $t("workspace.flows-flow-canvas.foldThisParallelGroup"), { hint: $t("workspace.flows-flow-canvas.drawTheGroupAsOneNode") })}
       <div className="-mx-1 my-1 h-px bg-line-faint" />
-      {item("delete", <>{$rich("workspace.flows-flow-canvas.deleteDel", { span: (chunks) => <span className="ml-auto opacity-70">{chunks}</span> })}</>, { danger: true, hint: $t("workspace.flows-flow-canvas.asksFirstTheAgentFileStays") })}
+      {item("delete", <>{$rich("workspace.flows-flow-canvas.deleteDel", { span: (chunks) => <span className="ms-auto opacity-70">{chunks}</span> })}</>, { danger: true, hint: $t("workspace.flows-flow-canvas.asksFirstTheAgentFileStays") })}
     </div>
   );
 }
@@ -2178,7 +2178,7 @@ function CommandPalette({ commands, onClose }: { commands: Command[]; onClose: (
                 onMouseEnter={() => setAt(i)}
                 onClick={() => run(c)}
                 disabled={!!c.disabled}
-                className={`flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm disabled:cursor-not-allowed disabled:opacity-45 ${i === pick ? "bg-muted text-fg" : "text-fg-secondary"}`}
+                className={`flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-start text-sm disabled:cursor-not-allowed disabled:opacity-45 ${i === pick ? "bg-muted text-fg" : "text-fg-secondary"}`}
               >
                 <span className="min-w-0 flex-1 truncate">{c.label}</span>
                 {c.disabled ? <span className="shrink-0 text-[11px] text-fg-subtle">{c.disabled}</span> : c.hint && <span className="shrink-0 text-[11px] text-fg-subtle">{c.hint}</span>}

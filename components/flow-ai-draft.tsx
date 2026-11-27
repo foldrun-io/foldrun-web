@@ -121,7 +121,7 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
       title: $t("components.flow-ai-draft.saveFileTo", { length: String(draft.files.length), v1: draft.files.length, workspace: String(workspace) }),
       body: (
         <>
-          <ul className="mb-2 list-disc pl-5 font-mono text-xs">
+          <ul className="mb-2 list-disc ps-5 font-mono text-xs">
             {draft.files.map((f) => (
               <li key={f.path}>
                 {f.path} {f.before === null ? $t("components.flow-ai-draft.new") : $t("components.flow-ai-draft.replacesWhatIsThere")}
@@ -171,13 +171,13 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
   return (
     <>
       <Dialog open onOpenChange={(o) => !o && onClose()}>
-        <DialogContent hideClose aria-describedby={undefined} size="xl" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()} className="top-[5vh] max-h-[90dvh] max-w-3xl translate-y-0 overflow-y-auto rounded-lg text-left">
+        <DialogContent hideClose aria-describedby={undefined} size="xl" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()} className="top-[5vh] max-h-[90dvh] max-w-3xl translate-y-0 overflow-y-auto rounded-lg text-start">
           <header className="flex items-center gap-3 border-b border-line px-4 py-3">
             <div>
               <DialogTitle className="text-sm font-semibold text-fg">{flow ? $t("components.flow-ai-draft.redraftWithAi2", { flow: String(flow) }) : $t("components.flow-ai-draft.draftAFlowWithAi")}</DialogTitle>
               <p className="text-[11px] text-fg-muted">{$t("components.flow-ai-draft.aProposalOnlyNothingIsWritten")}</p>
             </div>
-            <button type="button" onClick={onClose} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ml-auto")}>
+            <button type="button" onClick={onClose} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ms-auto")}>
               {$t("components.flow-ai-draft.close")}
             </button>
           </header>
@@ -208,7 +208,7 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
                   type="button"
                   disabled={busy !== null || !description.trim()}
                   onClick={() => void request()}
-                  className={cn(buttonVariants({ variant: "primary", size: "xs" }), "ml-auto")}
+                  className={cn(buttonVariants({ variant: "primary", size: "xs" }), "ms-auto")}
                 >
                   {busy === "draft" ? $t("components.flow-ai-draft.drafting") : draft ? $t("components.flow-ai-draft.draftAgain") : $t("components.flow-ai-draft.draft")}
                 </button>
@@ -269,7 +269,7 @@ function DraftDialog({ workspace, tenant, flow, onClose }: { workspace: string; 
           {draft && draft.files.length > 0 && (
             <footer className="flex items-center gap-2 border-t border-line px-4 py-3">
               <span className="text-[11px] text-fg-muted">{$t("components.flow-ai-draft.savingWritesTheseFilesAsOne")}</span>
-              <button type="button" onClick={() => setDraft(null)} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ml-auto")}>
+              <button type="button" onClick={() => setDraft(null)} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "ms-auto")}>
                 {$t("components.flow-ai-draft.discard")}
               </button>
               <button type="button" disabled={busy !== null} onClick={() => void save()} className={buttonVariants({ variant: "primary", size: "xs" })}>

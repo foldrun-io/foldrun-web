@@ -81,7 +81,7 @@ export default async function BackupsPage({ searchParams }: { searchParams: Prom
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
                 <p className="mb-1.5 font-medium text-fg">{$t("settings.backups-page.included")}</p>
-                <ul className="list-disc space-y-0.5 pl-5">
+                <ul className="list-disc space-y-0.5 ps-5">
                   {policy.covers.map((c) => (
                     <li key={c}>{c}</li>
                   ))}
@@ -89,7 +89,7 @@ export default async function BackupsPage({ searchParams }: { searchParams: Prom
               </div>
               <div>
                 <p className="mb-1.5 font-medium text-fg">{$t("settings.backups-page.notIncluded")}</p>
-                <ul className="list-disc space-y-0.5 pl-5">
+                <ul className="list-disc space-y-0.5 ps-5">
                   {policy.excludes.map((c) => (
                     <li key={c}>{c}</li>
                   ))}

@@ -193,7 +193,7 @@ export function CollapsibleCard({
               onClick={toggle}
               aria-expanded={open}
               aria-controls={bodyId}
-              className="flex min-w-0 max-w-full items-start gap-2 rounded text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+              className="flex min-w-0 max-w-full items-start gap-2 rounded text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
             >
               <Chevron open={open} />
               <span className="min-w-0">
@@ -201,7 +201,7 @@ export function CollapsibleCard({
                 {subtitle && <span className="mt-0.5 block truncate text-xs text-fg-muted">{subtitle}</span>}
               </span>
             </button>
-            {meta && <div className={`flex flex-wrap items-center gap-1 ${inline ? "" : "mt-1.5 pl-5"}`}>{meta}</div>}
+            {meta && <div className={`flex flex-wrap items-center gap-1 ${inline ? "" : "mt-1.5 ps-5"}`}>{meta}</div>}
           </div>
           {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
         </header>

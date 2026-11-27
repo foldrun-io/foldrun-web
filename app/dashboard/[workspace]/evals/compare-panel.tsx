@@ -267,17 +267,17 @@ export function ComparisonTable({ workspace, tenant, result }: { workspace: stri
   return (
     <div className="mt-3 overflow-x-auto">
       {result.stopped && <p className="mb-2 text-xs text-warning">{$t("workspace.evals-compare-panel.stoppedEarlyTheSettingsThatRan", { stopped: result.stopped })}</p>}
-      <table className="w-full min-w-[560px] text-left text-xs">
+      <table className="w-full min-w-[560px] text-start text-xs">
         <thead className="text-[13px] text-fg-muted">
           <tr>
-            <th className="py-1 pr-3 font-medium">{$t("workspace.evals-compare-panel.setting2")}</th>
-            <th className="py-1 pr-3 font-medium">{$t("workspace.evals-compare-panel.passing")}</th>
-            <th className="py-1 pr-3 font-medium">{$t("workspace.evals-compare-panel.cost")}</th>
-            <th className="py-1 pr-3 font-medium">{$t("workspace.evals-compare-panel.perRun")}</th>
-            <th className="py-1 pr-3 font-medium">{$t("workspace.evals-compare-panel.timePerRun")}</th>
+            <th className="py-1 pe-3 font-medium">{$t("workspace.evals-compare-panel.setting2")}</th>
+            <th className="py-1 pe-3 font-medium">{$t("workspace.evals-compare-panel.passing")}</th>
+            <th className="py-1 pe-3 font-medium">{$t("workspace.evals-compare-panel.cost")}</th>
+            <th className="py-1 pe-3 font-medium">{$t("workspace.evals-compare-panel.perRun")}</th>
+            <th className="py-1 pe-3 font-medium">{$t("workspace.evals-compare-panel.timePerRun")}</th>
             {result.cases.map((c) => (
               <Tooltip key={c.case} label={c.case.length > 18 ? c.case : undefined}>
-                <th className="py-1 pr-3 font-medium normal-case">{c.case.length > 18 ? `${c.case.slice(0, 17)}…` : c.case}</th>
+                <th className="py-1 pe-3 font-medium normal-case">{c.case.length > 18 ? `${c.case.slice(0, 17)}…` : c.case}</th>
               </Tooltip>
             ))}
           </tr>
@@ -285,16 +285,16 @@ export function ComparisonTable({ workspace, tenant, result }: { workspace: stri
         <tbody>
           {result.configs.map((c, i) => (
             <tr key={c.label} className="border-t border-line-faint">
-              <td className="py-1.5 pr-3 font-mono text-fg">{c.label}</td>
-              <td className="py-1.5 pr-3">
+              <td className="py-1.5 pe-3 font-mono text-fg">{c.label}</td>
+              <td className="py-1.5 pe-3">
                 <Chip tone={c.rate !== null && c.rate === best ? "good" : "default"}>{pct(c.rate)}</Chip>{" "}
                 <span className="text-fg-muted">{c.passed}/{c.trials - c.notRun}{c.notRun ? $t("workspace.evals-compare-panel.notRun", { notRun: String(c.notRun) }) : ""}</span>
               </td>
-              <td className="py-1.5 pr-3 tabular-nums">{usd(c.costUsd)}</td>
-              <td className="py-1.5 pr-3 tabular-nums">{usd(c.avgCostUsd)}</td>
-              <td className="py-1.5 pr-3 tabular-nums">{c.avgSecs === null ? "—" : `${c.avgSecs}s`}</td>
+              <td className="py-1.5 pe-3 tabular-nums">{usd(c.costUsd)}</td>
+              <td className="py-1.5 pe-3 tabular-nums">{usd(c.avgCostUsd)}</td>
+              <td className="py-1.5 pe-3 tabular-nums">{c.avgSecs === null ? "—" : `${c.avgSecs}s`}</td>
               {result.cases.map((row) => (
-                <td key={row.case} className={`py-1.5 pr-3 tabular-nums ${row.passed[i] < row.trials[i] ? "text-danger" : "text-fg-secondary"}`}>
+                <td key={row.case} className={`py-1.5 pe-3 tabular-nums ${row.passed[i] < row.trials[i] ? "text-danger" : "text-fg-secondary"}`}>
                   {row.passed[i]}/{row.trials[i]}
                 </td>
               ))}

@@ -39,7 +39,7 @@ export async function SessionMessagesPanel({ tenant, workspace, context }: { ten
                 ? $t("workspace.session-messages-panel.taken")
                 : $t("workspace.session-messages-panel.waiting");
           return (
-            <li key={`${m.direction}-${m.id}`} className="border-l-2 border-border pl-3">
+            <li key={`${m.direction}-${m.id}`} className="border-s-2 border-border ps-3">
               <div className="flex flex-wrap items-baseline gap-x-2 text-xs text-fg-muted">
                 <span className="font-medium text-fg">
                   {m.direction === "out"

@@ -100,7 +100,7 @@ export function OperatorPanel({
         return (
           <Callout key={q.id} tone={open && !given ? "info" : "neutral"} className={`p-3 text-[13px] text-fg ${open && !given ? "" : "bg-surface"}`} bodyClassName="space-y-2.5">
             <div className="font-medium text-fg">
-              <span className="mr-1.5 font-normal text-fg-muted">{$t("components.operator-panel.asks", { agent: step.agent })}</span>
+              <span className="me-1.5 font-normal text-fg-muted">{$t("components.operator-panel.asks", { agent: step.agent })}</span>
               {q.question}
             </div>
             {q.answer !== undefined ? (

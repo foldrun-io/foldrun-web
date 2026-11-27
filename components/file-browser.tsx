@@ -123,7 +123,7 @@ function SharePill({ share, now }: { share: BrowserShare | null; now: number }) 
   );
 }
 
-const th = "h-10 px-3 text-left align-middle text-[13px] font-medium whitespace-nowrap text-fg-muted";
+const th = "h-10 px-3 text-start align-middle text-[13px] font-medium whitespace-nowrap text-fg-muted";
 const td = "h-16 px-3 py-2 align-middle whitespace-nowrap text-fg-secondary";
 
 /** One row of the table: the mark, a name that is the row's button, a line
@@ -167,7 +167,7 @@ function Row({
             <button
               type="button"
               onClick={onOpen}
-              className="block max-w-[14rem] truncate text-left font-medium text-fg after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-focus sm:max-w-[22rem] xl:max-w-[32rem]"
+              className="block max-w-[14rem] truncate text-start font-medium text-fg after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-focus sm:max-w-[22rem] xl:max-w-[32rem]"
             >
               {name}
             </button>
@@ -179,10 +179,10 @@ function Row({
           </span>
         </span>
       </td>
-      <td className={cn(td, "text-right tabular-nums max-sm:hidden")}>{size}</td>
+      <td className={cn(td, "text-end tabular-nums max-sm:hidden")}>{size}</td>
       <Tooltip label={ageTitle}><td className={cn(td, "max-sm:hidden")}>{age}</td></Tooltip>
       <td className={cn(td, "max-md:hidden")}>{sharing}</td>
-      <td className="relative z-10 w-px px-3 py-2 text-right align-middle whitespace-nowrap">{action}</td>
+      <td className="relative z-10 w-px px-3 py-2 text-end align-middle whitespace-nowrap">{action}</td>
     </tr>
   );
 }
@@ -650,7 +650,7 @@ export function FileBrowser({
             <thead className="bg-sunken">
               <tr className="border-b border-line">
                 <th className={th}>{at.desk || searching ? $t("components.file-browser.name") : $t("components.file-browser.desk")}</th>
-                <th className={cn(th, "text-right max-sm:hidden")}>{$t("components.file-browser.size")}</th>
+                <th className={cn(th, "text-end max-sm:hidden")}>{$t("components.file-browser.size")}</th>
                 <th className={cn(th, "max-sm:hidden")}>{$t("components.file-browser.modified")}</th>
                 <th className={cn(th, "max-md:hidden")}>{$t("components.file-browser.sharing")}</th>
                 <th className="w-px px-3" aria-label={$t("components.file-browser.actions")} />
@@ -730,7 +730,7 @@ export function FileBrowser({
       {/* The preview: the file as itself, and what is known about it. */}
       {current && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={() => setPreviewKey(null)}>
-          <aside data-preview className="flex h-full w-full max-w-3xl flex-col border-l border-line bg-surface shadow-menu" onClick={(e) => e.stopPropagation()} aria-label={$t("components.file-browser.filePreview")}>
+          <aside data-preview className="flex h-full w-full max-w-3xl flex-col border-s border-line bg-surface shadow-menu" onClick={(e) => e.stopPropagation()} aria-label={$t("components.file-browser.filePreview")}>
             <header className="flex items-start gap-3 border-b border-line px-5 py-4">
               <Thumb f={current} size="size-10" />
               <div className="min-w-0 flex-1">
@@ -780,10 +780,10 @@ export function FileBrowser({
                   </Button>
                 </span>
               </Tooltip>
-              <span className="ml-auto hidden text-xs text-fg-subtle sm:inline">
+              <span className="ms-auto hidden text-xs text-fg-subtle sm:inline">
                 {$rich("components.file-browser.nextFileEscClose", { kbd: (chunks) => <kbd className="rounded border border-line px-1">{chunks}</kbd> })}
               </span>
-              <Button variant="danger-outline" size="md" onClick={() => void remove(current)} className="max-sm:ml-auto">
+              <Button variant="danger-outline" size="md" onClick={() => void remove(current)} className="max-sm:ms-auto">
                 <Trash2 />{" "}{$t("components.file-browser.delete2")}
               </Button>
             </footer>
@@ -855,7 +855,7 @@ function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
         <Paper wide>
           <div className="flex items-center gap-2 border-b border-line-faint px-4 py-1.5 text-[11px] text-fg-subtle">
             <span>{p.format === "code" ? p.language : p.format === "markdown" ? $t("components.file-browser.markdownSource") : p.format === "json" ? "JSON" : "text"}</span>
-            {p.format === "markdown" && <button type="button" onClick={() => setSource(false)} className="ml-auto hover:text-fg-secondary">{$t("components.file-browser.rendered")}</button>}
+            {p.format === "markdown" && <button type="button" onClick={() => setSource(false)} className="ms-auto hover:text-fg-secondary">{$t("components.file-browser.rendered")}</button>}
           </div>
           <pre className="overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-[12px] leading-relaxed text-fg">{p.text || $t("components.file-browser.empty")}</pre>
           <Cut show={p.truncated} />
@@ -880,16 +880,16 @@ function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
               {head && (
                 <thead className="sticky top-0 bg-sunken">
                   <tr>
-                    <th className="border-b border-r border-line px-2 py-1.5 text-right font-normal text-fg-subtle">#</th>
-                    {Array.from({ length: cols }, (_, c) => <th key={c} className="whitespace-nowrap border-b border-r border-line px-3 py-1.5 text-left font-semibold text-fg">{head[c] ?? ""}</th>)}
+                    <th className="border-b border-e border-line px-2 py-1.5 text-end font-normal text-fg-subtle">#</th>
+                    {Array.from({ length: cols }, (_, c) => <th key={c} className="whitespace-nowrap border-b border-e border-line px-3 py-1.5 text-start font-semibold text-fg">{head[c] ?? ""}</th>)}
                   </tr>
                 </thead>
               )}
               <tbody>
                 {body.map((r, i) => (
                   <tr key={i} className="odd:bg-surface even:bg-sunken/60 hover:bg-muted">
-                    <td className="border-r border-line-faint px-2 py-1 text-right tabular-nums text-fg-subtle">{i + 2}</td>
-                    {Array.from({ length: cols }, (_, c) => <Tooltip key={c} label={r[c] ?? ""}><td className="max-w-[24rem] truncate border-r border-line-faint px-3 py-1 text-fg-secondary">{r[c] ?? ""}</td></Tooltip>)}
+                    <td className="border-e border-line-faint px-2 py-1 text-end tabular-nums text-fg-subtle">{i + 2}</td>
+                    {Array.from({ length: cols }, (_, c) => <Tooltip key={c} label={r[c] ?? ""}><td className="max-w-[24rem] truncate border-e border-line-faint px-3 py-1 text-fg-secondary">{r[c] ?? ""}</td></Tooltip>)}
                   </tr>
                 ))}
               </tbody>
@@ -909,7 +909,7 @@ function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
               b.style === "h1" ? <h2 key={i} className="pt-2 font-sans text-xl font-semibold text-fg">{b.text}</h2>
               : b.style === "h2" ? <h3 key={i} className="pt-1 font-sans text-lg font-semibold text-fg">{b.text}</h3>
               : b.style === "h3" ? <h4 key={i} className="font-sans text-base font-semibold text-fg">{b.text}</h4>
-              : b.style === "li" ? <p key={i} className="flex gap-2 pl-2"><span className="text-fg-subtle">•</span><span className="whitespace-pre-wrap">{b.text}</span></p>
+              : b.style === "li" ? <p key={i} className="flex gap-2 ps-2"><span className="text-fg-subtle">•</span><span className="whitespace-pre-wrap">{b.text}</span></p>
               : <p key={i} className="whitespace-pre-wrap">{b.text}</p>,
             )}
           </article>
@@ -947,7 +947,7 @@ function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
           <div className="flex items-center gap-1 border-b border-line-faint px-3 py-1.5 text-[11px]">
             <button type="button" onClick={() => setSource(false)} className={`rounded px-2 py-0.5 ${!source ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`}>{$t("components.file-browser.page")}</button>
             <button type="button" onClick={() => setSource(true)} className={`rounded px-2 py-0.5 ${source ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`}>{$t("components.file-browser.source")}</button>
-            <span className="ml-auto text-fg-subtle">{$t("components.file-browser.scriptsOffShownInASealed")}</span>
+            <span className="ms-auto text-fg-subtle">{$t("components.file-browser.scriptsOffShownInASealed")}</span>
           </div>
           {source ? (
             <pre className="overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-[12px] leading-relaxed text-fg">{p.html}</pre>
@@ -1015,7 +1015,7 @@ function ServerView({ f, p }: { f: BrowserFile; p: ServerPreview }) {
                 <div className="px-6 py-4"><Markdown text={c.source} className="text-sm text-fg" /></div>
               ) : (
                 <>
-                  <pre className="overflow-auto bg-sunken px-4 py-3 font-mono text-[12px] text-fg"><span className="mr-2 select-none text-info">{$t("components.file-browser.in", { i: String(i + 1) })}</span>{c.source}</pre>
+                  <pre className="overflow-auto bg-sunken px-4 py-3 font-mono text-[12px] text-fg"><span className="me-2 select-none text-info">{$t("components.file-browser.in", { i: String(i + 1) })}</span>{c.source}</pre>
                   {c.outputs.map((o, j) => <pre key={j} className="overflow-auto border-t border-line-faint px-4 py-2 font-mono text-[12px] text-fg-tertiary">{o}</pre>)}
                 </>
               )}

@@ -60,7 +60,7 @@ export function ExpandableTitle({
     <button
       type="button"
       onClick={onToggle}
-      className="block w-full min-w-0 flex-1 text-left"
+      className="block w-full min-w-0 flex-1 text-start"
     >
       <span className="flex flex-wrap items-center gap-2">
         <Chevron open={open} />
@@ -68,9 +68,9 @@ export function ExpandableTitle({
         {badges}
       </span>
       {subtitle && (
-        <span className="mt-0.5 block truncate pl-5 text-sm text-fg-muted">{subtitle}</span>
+        <span className="mt-0.5 block truncate ps-5 text-sm text-fg-muted">{subtitle}</span>
       )}
-      {meta && <span className="mt-1 block pl-5 font-mono text-xs text-fg-subtle">{meta}</span>}
+      {meta && <span className="mt-1 block ps-5 font-mono text-xs text-fg-subtle">{meta}</span>}
     </button>
     </Tooltip>
   );

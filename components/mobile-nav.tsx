@@ -77,7 +77,7 @@ export function PhoneBar({ actions }: { actions?: ReactNode }) {
     <>
       <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center md:hidden">
         <div className="flex h-12 items-center rounded-2xl border border-line bg-surface/95 shadow-overlay backdrop-blur">
-          <button type="button" onClick={() => openFind()} className="flex h-full items-center gap-2 pl-4 pr-5 text-sm text-fg-muted">
+          <button type="button" onClick={() => openFind()} className="flex h-full items-center gap-2 ps-4 pe-5 text-sm text-fg-muted">
             <Search className="size-4" />
             {$t("components.mobile-nav.find")}
           </button>
@@ -120,7 +120,7 @@ export function PhoneBar({ actions }: { actions?: ReactNode }) {
 export function StatusFooter({ statusPage }: { statusPage?: string | null }) {
   const version = useVersion();
   return (
-    <footer className="mx-auto flex w-full max-w-[calc(var(--container-page)+3rem)] items-center gap-4 border-t border-line px-4 py-3 pb-24 text-xs text-fg-muted sm:px-6 md:pb-3 md:pr-36">
+    <footer className="mx-auto flex w-full max-w-[calc(var(--container-page)+3rem)] items-center gap-4 border-t border-line px-4 py-3 pb-24 text-xs text-fg-muted sm:px-6 md:pb-3 md:pe-36">
       {statusPage ? (
         <a href={statusPage} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:text-fg">
           <span className="size-2 rounded-full bg-emerald-500" aria-hidden />
@@ -132,7 +132,7 @@ export function StatusFooter({ statusPage }: { statusPage?: string | null }) {
           {$t("components.mobile-nav.systemStatus")}
         </span>
       )}
-      <Link href="/dashboard/whats-new" className={cn("ml-auto font-mono hover:text-fg")}>
+      <Link href="/dashboard/whats-new" className={cn("ms-auto font-mono hover:text-fg")}>
         {$t("components.mobile-nav.foldrun", { version: version })}
       </Link>
     </footer>

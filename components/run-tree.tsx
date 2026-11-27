@@ -81,7 +81,7 @@ function Row({
         ref={ref}
         className={`group grid grid-cols-[minmax(0,1fr)_minmax(4rem,30%)] items-center gap-3 rounded px-1.5 py-1 text-[13px] ${failing ? "bg-danger-soft" : "hover:bg-sunken"}`}
       >
-        <div className="flex min-w-0 items-center gap-1.5" style={{ paddingLeft: `${depth * 14}px` }}>
+        <div className="flex min-w-0 items-center gap-1.5" style={{ paddingInlineStart: `${depth * 14}px` }}>
           {span.children.length > 0 ? (
             <button type="button" aria-expanded={isOpen} aria-label={isOpen ? $t("components.run-tree.fold") : $t("components.run-tree.unfold")} onClick={() => toggle(span.id)} className="flex size-4 shrink-0 items-center justify-center text-fg-muted hover:text-fg">
               <ChevronRight className={`size-3.5 transition-transform ${isOpen ? "rotate-90" : ""}`} aria-hidden />
@@ -101,14 +101,14 @@ function Row({
               {io ? $t("values.misc.hide") : $t("values.misc.inputOutput")}
             </button></span></Tooltip>
           )}
-          {dur !== null && span.kind !== "error" && <span className="ml-auto shrink-0 tabular-nums text-xs text-fg-subtle">{fmtDur(dur)}</span>}
+          {dur !== null && span.kind !== "error" && <span className="ms-auto shrink-0 tabular-nums text-xs text-fg-subtle">{fmtDur(dur)}</span>}
         </div>
         <div className="relative h-2.5 rounded-sm bg-sunken">
           {span.start !== null && <div className={`absolute inset-y-0 rounded-sm ${TONE[span.status]}`} style={{ left: `${Math.min(99.4, left)}%`, width: `${Math.min(100 - Math.min(99.4, left), width)}%` }} />}
         </div>
       </div>
       {io && mayReadCalls && span.call && (
-        <div style={{ paddingLeft: `${depth * 14 + 40}px` }} className="pr-2 pb-1">
+        <div style={{ paddingInlineStart: `${depth * 14 + 40}px` }} className="pe-2 pb-1">
           <CallContent run={callRun} call={span.call} tenant={tenant} />
         </div>
       )}
@@ -151,7 +151,7 @@ export function RunTree({ run, workspace, tenant, now }: { run: RunRecord; works
           {$t("components.run-tree.stepModelCall", { length: tree.children.length, calls: calls })}
           {path.length > 0 ? $t("components.run-tree.openedOnWhatWentWrong") : ""}
         </span>
-        <span className="ml-auto flex items-center gap-3">
+        <span className="ms-auto flex items-center gap-3">
           <button type="button" onClick={() => setTouched(new Map(allIds.map((id) => [id, true])))} className="text-fg-muted hover:text-fg hover:underline">
             {$t("components.run-tree.expandAll")}
           </button>

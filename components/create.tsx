@@ -263,7 +263,7 @@ export function CreateForm({
                             type="button"
                             aria-pressed={on}
                             onClick={() => pick(c)}
-                            className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                            className={`rounded-lg border px-3 py-2.5 text-start transition-colors ${
                               on
                                 ? "border-gray-900 bg-sunken ring-1 ring-gray-900"
                                 : "border-line hover:border-line-strong hover:bg-sunken"

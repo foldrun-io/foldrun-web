@@ -65,7 +65,7 @@ function Table({ rows, k }: { rows: string[][]; k: string }) {
         <thead>
           <tr className="border-b border-line-strong">
             {head.map((cell, i) => (
-              <th key={i} className="px-2 py-1 text-left font-semibold text-fg-secondary">
+              <th key={i} className="px-2 py-1 text-start font-semibold text-fg-secondary">
                 {inline(cell, `h${i}`)}
               </th>
             ))}
@@ -217,7 +217,7 @@ export function Markdown({
       blocks.push(
         <List
           key={blocks.length}
-          className={`my-1.5 space-y-0.5 pl-5 ${ordered ? "list-decimal" : "list-disc"}`}
+          className={`my-1.5 space-y-0.5 ps-5 ${ordered ? "list-decimal" : "list-disc"}`}
         >
           {items.map((item, n) => (
             <li key={n}>{inline(item, `l${blocks.length}-${n}`)}</li>
@@ -229,7 +229,7 @@ export function Markdown({
 
     if (line.startsWith(">")) {
       blocks.push(
-        <blockquote key={blocks.length} className="my-2 border-l-2 border-line-strong pl-3 text-fg-tertiary">
+        <blockquote key={blocks.length} className="my-2 border-s-2 border-line-strong ps-3 text-fg-tertiary">
           {inline(line.replace(/^>\s?/, ""), `q${blocks.length}`)}
         </blockquote>,
       );

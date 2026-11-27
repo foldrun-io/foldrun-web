@@ -120,7 +120,7 @@ export function Proposals({
                   {$rich("workspace.evals-proposals.by", { status: p.status, withEmails: $el(<WithEmails text={p.decidedBy} />) })}
                 </span>
               )}
-              <span className="ml-auto flex gap-2">
+              <span className="ms-auto flex gap-2">
                 {write && p.status === "ready" && (
                   <button onClick={() => decide(p.id, "apply")} disabled={!!busy} className={buttonVariants({ variant: "primary" })}>
                     {busy === p.id ? $t("workspace.evals-proposals.applying") : $t("workspace.evals-proposals.apply")}

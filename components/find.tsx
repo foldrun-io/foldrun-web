@@ -74,7 +74,7 @@ export function FindTrigger({ compact = false }: { compact?: boolean } = {}) {
     <button
       type="button"
       onClick={openFind}
-      className="flex h-9 w-full items-center gap-2 rounded-md border border-line bg-surface px-2.5 text-left text-sm text-fg-muted transition-colors hover:border-line-strong"
+      className="flex h-9 w-full items-center gap-2 rounded-md border border-line bg-surface px-2.5 text-start text-sm text-fg-muted transition-colors hover:border-line-strong"
     >
       <Search className="size-3.5" aria-hidden />
       <span className="flex-1">{$t("components.find.find2")}</span>
@@ -234,7 +234,7 @@ export function Find() {
                     data-index={i}
                     onMouseEnter={() => setActive(i)}
                     onClick={() => go(h)}
-                    className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left ${on ? "bg-muted" : "hover:bg-sunken"}`}
+                    className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-start ${on ? "bg-muted" : "hover:bg-sunken"}`}
                   >
                     <span
                       className="inline-block h-2 w-2 shrink-0 rounded-full"
@@ -260,7 +260,7 @@ export function Find() {
           <span>{$rich("components.find.move", { kbd: (chunks) => <kbd className="font-mono">{chunks}</kbd> })}</span>
           <span>{$rich("components.find.open", { kbd: (chunks) => <kbd className="font-mono">{chunks}</kbd> })}</span>
           <span>{$rich("components.find.escClose", { kbd: (chunks) => <kbd className="font-mono">{chunks}</kbd> })}</span>
-          <span className="ml-auto">{$rich("components.find.fOrKFromAnywhere", { kbd: (chunks) => <kbd className="font-mono">{chunks}</kbd> })}</span>
+          <span className="ms-auto">{$rich("components.find.fOrKFromAnywhere", { kbd: (chunks) => <kbd className="font-mono">{chunks}</kbd> })}</span>
         </div>
       </DialogContent>
     </Dialog>

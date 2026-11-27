@@ -79,11 +79,11 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
         {wide ? (
           <button
             aria-label={$t("components.user-menu.accountMenu")}
-            className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus data-[state=open]:bg-muted"
+            className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-start transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus data-[state=open]:bg-muted"
           >
             <Avatar name={who.email ?? name} src={who.avatar} size="sm" />
             <span className="min-w-0 truncate text-sm text-fg">{who.email ?? name}</span>
-            <Ellipsis className="ml-auto size-4 shrink-0 text-fg-muted" aria-hidden />
+            <Ellipsis className="ms-auto size-4 shrink-0 text-fg-muted" aria-hidden />
           </button>
         ) : (
           <button
@@ -123,7 +123,7 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
             <a href="/status" target="_blank" rel="noreferrer">
               <Activity />
               {$t("components.user-menu.status")}
-              <ExternalLink className="ml-auto size-3.5!" />
+              <ExternalLink className="ms-auto size-3.5!" />
             </a>
           </MenuItem>
         )}

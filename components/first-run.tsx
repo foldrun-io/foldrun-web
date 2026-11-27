@@ -123,7 +123,7 @@ export function FirstRun({ tenant, target, noModel, needsPlan = false, modelHref
         <ol className="border-t border-line">
           {steps.map((s, i) => (
             <li key={`${i}-${s.agent}-${s.item ?? ""}`} className={cn("flex min-w-0 items-center gap-3 px-5 py-2.5 text-sm", i % 2 === 1 && "bg-sunken/60")}>
-              <span className="w-5 shrink-0 text-right text-xs tabular-nums text-fg-subtle">{s.group}</span>
+              <span className="w-5 shrink-0 text-end text-xs tabular-nums text-fg-subtle">{s.group}</span>
               <StatusDot outcome={stepOutcome(s.status)} label={s.status} />
               <span className={cn("min-w-0 flex-1 truncate", i === at ? "font-medium text-fg" : "text-fg-secondary")}>{s.agent}</span>
               <span className="shrink-0 text-xs text-fg-muted">{run ? s.status.replace("awaiting-approval", $t("components.first-run.waitingForYou")) : ""}</span>

@@ -28,15 +28,15 @@ function Table({ rows, head }: { head: [string, string]; rows: [string, string][
     <div className="overflow-x-auto">
       <table className="mt-2 w-full text-sm">
         <thead>
-          <tr className="text-left text-[13px] text-fg-muted">
-            <th className="py-1 pr-4 font-medium">{head[0]}</th>
+          <tr className="text-start text-[13px] text-fg-muted">
+            <th className="py-1 pe-4 font-medium">{head[0]}</th>
             <th className="py-1 font-medium">{head[1]}</th>
           </tr>
         </thead>
         <tbody>
           {rows.map(([a, b]) => (
             <tr key={a} className="border-t border-line align-top">
-              <td className="whitespace-nowrap py-1.5 pr-4">
+              <td className="whitespace-nowrap py-1.5 pe-4">
                 <Code>
                   <WithEmails text={a} />
                 </Code>

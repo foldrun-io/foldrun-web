@@ -161,7 +161,7 @@ export function EditorShell({
       <div className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-line bg-surface md:h-[calc(100svh-17rem)] md:min-h-[30rem] md:flex-row">
         <aside
           onClickCapture={guard}
-          className="flex shrink-0 flex-col border-line bg-sunken max-md:max-h-[40vh] max-md:border-b md:w-64 md:border-r"
+          className="flex shrink-0 flex-col border-line bg-sunken max-md:max-h-[40vh] max-md:border-b md:w-64 md:border-e"
         >
           <div className="shrink-0 p-2">
             <SearchField id="editor-tree-filter" size="sm" value={filter} onChange={setFilter} placeholder={$t("components.editor-shell.findAFile")} autoFocusKey={false} slashHint />
@@ -281,7 +281,7 @@ export function EditorShell({
 
         {/* What the file relates to. */}
         {showContext && (sections.length > 0 || (test && workspace)) && (
-          <aside className="w-72 shrink-0 overflow-y-auto border-l border-line max-lg:hidden">
+          <aside className="w-72 shrink-0 overflow-y-auto border-s border-line max-lg:hidden">
             {sections.map((s) => (
               <div key={s.title} className="border-b border-line px-4 py-3.5 last:border-b-0">
                 <p className="mb-2 text-[13px] font-medium text-fg">{s.title}</p>

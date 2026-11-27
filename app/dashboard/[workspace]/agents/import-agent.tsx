@@ -100,7 +100,7 @@ export function ImportAgentButton({
               {warnings ? (
                 <div className="space-y-3 px-5 py-4">
                   <p className="text-sm text-fg">{$t("workspace.agents-import-agent.importedItStillNeeds")}</p>
-                  <ul className="list-disc space-y-1 pl-5 text-xs text-fg-secondary">
+                  <ul className="list-disc space-y-1 ps-5 text-xs text-fg-secondary">
                     {warnings.map((w) => (
                       <li key={w}>{w}</li>
                     ))}
@@ -147,7 +147,7 @@ export function ImportAgentButton({
               )}
 
               <footer className="flex items-center justify-end gap-2 border-t border-line-faint px-5 py-3">
-                {error && <p className="mr-auto text-xs text-red-600">{error}</p>}
+                {error && <p className="me-auto text-xs text-red-600">{error}</p>}
                 {warnings ? (
                   <button type="button" onClick={close} className={buttonVariants({ variant: "primary", size: "md" })}>
                     {$t("workspace.agents-import-agent.done")}

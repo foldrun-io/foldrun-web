@@ -114,7 +114,7 @@ export function RunSearch({ tenant }: { tenant: string }) {
             <label className="flex h-9 items-center gap-2 text-[13px] text-fg-secondary">
               {$rich("components.run-search.aToolErrored", { checkbox: $el(<Checkbox checked={errors} onCheckedChange={(checked: boolean) => setErrors(checked)} />) })}
             </label>
-            <span className="flex items-center gap-2 sm:ml-auto">
+            <span className="flex items-center gap-2 sm:ms-auto">
               {active && (
                 <Button size="md" variant="secondary" onClick={() => void save()}>
                   {$t("components.run-search.saveView")}

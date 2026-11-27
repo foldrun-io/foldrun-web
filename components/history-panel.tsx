@@ -108,15 +108,15 @@ export function HistoryPanel({
                   setOpen(on ? null : r.id);
                   if (on) setDetail(null);
                 }}
-                className={`flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left text-xs transition-colors hover:bg-sunken ${on ? "bg-sunken" : ""}`}
+                className={`flex w-full items-baseline justify-between gap-3 px-3 py-2 text-start text-xs transition-colors hover:bg-sunken ${on ? "bg-sunken" : ""}`}
               >
                 <span className="min-w-0 truncate text-fg">
                   {r.message}
-                  <span className="ml-2 text-fg-subtle">{r.by}</span>
+                  <span className="ms-2 text-fg-subtle">{r.by}</span>
                 </span>
                 <span className="shrink-0 font-mono text-[11px] text-fg-subtle">
                   {r.commit ? r.commit.slice(0, 7) : r.id.slice(0, 12)}
-                  <span className="ml-2 font-sans">
+                  <span className="ms-2 font-sans">
                     <LocalTime iso={r.at} options={{ dateStyle: "medium", timeStyle: "short" }} />
                   </span>
                 </span>
@@ -147,7 +147,7 @@ export function HistoryPanel({
                           : "text-fg-muted"
                     }
                   >
-                    <span className="mr-2 inline-block w-3 select-none text-fg-subtle">
+                    <span className="me-2 inline-block w-3 select-none text-fg-subtle">
                       {op.kind === "add" ? "+" : op.kind === "del" ? "−" : " "}
                     </span>
                     {op.text || " "}
@@ -169,7 +169,7 @@ export function HistoryPanel({
                     </Button>
                   </Tooltip>
                 )}
-                <span className="ml-auto text-xs text-fg-muted">
+                <span className="ms-auto text-xs text-fg-muted">
                   {$t("components.history-panel.loadsIntoTheEditorNothingChanges")}
                 </span>
               </div>

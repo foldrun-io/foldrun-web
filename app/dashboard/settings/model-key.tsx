@@ -134,11 +134,11 @@ export function ModelKey({
               role="radio"
               aria-checked={mode === o.id}
               onClick={() => setMode(o.id)}
-              className={`rounded-lg border p-3 text-left transition-colors ${mode === o.id ? "border-fg bg-sunken" : "border-line bg-surface hover:border-line-strong"}`}
+              className={`rounded-lg border p-3 text-start transition-colors ${mode === o.id ? "border-fg bg-sunken" : "border-line bg-surface hover:border-line-strong"}`}
             >
               <span className="block text-sm font-medium text-fg">
                 {o.title}
-                {(o.id === "foldrun" ? model.runsOn === "foldrun" : model.runsOn === "account") && <span className="ml-2 text-xs font-normal text-success">{$t("settings.model-key.inUse")}</span>}
+                {(o.id === "foldrun" ? model.runsOn === "foldrun" : model.runsOn === "account") && <span className="ms-2 text-xs font-normal text-success">{$t("settings.model-key.inUse")}</span>}
               </span>
               <span className="mt-0.5 block text-xs text-fg-muted">{o.text}</span>
             </button>
@@ -236,31 +236,31 @@ function ProxyModels({ fm }: { fm: FoldrunModelsView }) {
         </p>
       )}
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs">
+        <table className="w-full text-start text-xs">
           <thead className="text-fg-subtle">
             <tr>
-              <th className="py-1 pr-3 font-medium">{$t("settings.model-key.model")}</th>
-              <th className="py-1 pr-3 font-medium">{$t("settings.model-key.provider2")}</th>
-              <th className="py-1 pr-3 font-medium">{$t("settings.model-key.in")}</th>
-              <th className="py-1 pr-3 font-medium">{$t("settings.model-key.out")}</th>
+              <th className="py-1 pe-3 font-medium">{$t("settings.model-key.model")}</th>
+              <th className="py-1 pe-3 font-medium">{$t("settings.model-key.provider2")}</th>
+              <th className="py-1 pe-3 font-medium">{$t("settings.model-key.in")}</th>
+              <th className="py-1 pe-3 font-medium">{$t("settings.model-key.out")}</th>
               <th className="py-1 font-medium" />
             </tr>
           </thead>
           <tbody className="text-fg-secondary">
             {fm.catalog.map((m) => (
               <tr key={m.id} className={`border-t border-line-faint ${m.available ? "" : "opacity-60"}`}>
-                <td className="py-1 pr-3">
+                <td className="py-1 pe-3">
                   <span className="flex items-center gap-2">
                     <code className="font-mono text-fg">{m.id}</code>
                     <CopyButton value={m.id} label={m.id} />
                   </span>
                 </td>
-                <td className="py-1 pr-3">
+                <td className="py-1 pe-3">
                   {m.providerTitle}
-                  {!m.available && <span className="ml-1 text-fg-subtle">({$t("settings.model-key.notAvailableNow")})</span>}
+                  {!m.available && <span className="ms-1 text-fg-subtle">({$t("settings.model-key.notAvailableNow")})</span>}
                 </td>
-                <td className="py-1 pr-3 font-mono">{usd(m.inputPerMTok)}</td>
-                <td className="py-1 pr-3 font-mono">{usd(m.outputPerMTok)}</td>
+                <td className="py-1 pe-3 font-mono">{usd(m.inputPerMTok)}</td>
+                <td className="py-1 pe-3 font-mono">{usd(m.outputPerMTok)}</td>
                 <td className="py-1">
                   <Chip tone={m.covered ? "good" : "default"}>{m.covered ? $t("settings.model-key.coveredByPlan") : $t("settings.model-key.payAsYouGo")}</Chip>
                 </td>
@@ -311,26 +311,26 @@ function FoldrunPanel({
       </Field>
       {tiers.length > 0 && (
         <p className="text-xs text-fg-muted">
-          <span className="mr-1.5">{$rich("settings.model-key.anAgentSModel", { code: (chunks) => <code className="font-mono">{chunks}</code> })}</span>
+          <span className="me-1.5">{$rich("settings.model-key.anAgentSModel", { code: (chunks) => <code className="font-mono">{chunks}</code> })}</span>
           {tiers.map(([tier, m], i) => (
             <span key={tier}>
               {i > 0 && <span className="mx-1.5 text-fg-subtle">·</span>}
               <code className="font-mono">{tier}</code> → <code className="font-mono">{m}</code>
-              {!priced.has(m) && <span className="ml-1 text-danger">{$t("settings.model-key.notPricedRefused")}</span>}
+              {!priced.has(m) && <span className="ms-1 text-danger">{$t("settings.model-key.notPricedRefused")}</span>}
             </span>
           ))}
         </p>
       )}
       {prices.length > 0 ? (
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-start text-xs">
             <thead className="text-fg-subtle">
               <tr>
-                <th className="py-1 pr-3 font-medium">{$t("settings.model-key.model")}</th>
-                <th className="py-1 pr-3 font-medium">{$t("settings.model-key.in")}</th>
-                <th className="py-1 pr-3 font-medium">{$t("settings.model-key.out")}</th>
+                <th className="py-1 pe-3 font-medium">{$t("settings.model-key.model")}</th>
+                <th className="py-1 pe-3 font-medium">{$t("settings.model-key.in")}</th>
+                <th className="py-1 pe-3 font-medium">{$t("settings.model-key.out")}</th>
                 <Tooltip label={$t("settings.model-key.cacheRead")}>
-                  <th className="py-1 pr-3 font-medium">{$t("settings.model-key.cachedIn")}</th>
+                  <th className="py-1 pe-3 font-medium">{$t("settings.model-key.cachedIn")}</th>
                 </Tooltip>
                 <th className="py-1 font-medium">{$t("settings.model-key.cacheWrite")}</th>
               </tr>
@@ -338,10 +338,10 @@ function FoldrunPanel({
             <tbody className="font-mono text-fg-secondary">
               {prices.map((x) => (
                 <tr key={x.model} className="border-t border-line-faint">
-                  <td className="py-1 pr-3 text-fg">{x.model}</td>
-                  <td className="py-1 pr-3">{usd(x.inputPerMTok)}</td>
-                  <td className="py-1 pr-3">{usd(x.outputPerMTok)}</td>
-                  <td className="py-1 pr-3">{x.cacheReadPerMTok === null ? "—" : usd(x.cacheReadPerMTok)}</td>
+                  <td className="py-1 pe-3 text-fg">{x.model}</td>
+                  <td className="py-1 pe-3">{usd(x.inputPerMTok)}</td>
+                  <td className="py-1 pe-3">{usd(x.outputPerMTok)}</td>
+                  <td className="py-1 pe-3">{x.cacheReadPerMTok === null ? "—" : usd(x.cacheReadPerMTok)}</td>
                   <td className="py-1">{x.cacheWritePerMTok === null ? "—" : usd(x.cacheWritePerMTok)}</td>
                 </tr>
               ))}

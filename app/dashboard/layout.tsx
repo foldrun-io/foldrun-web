@@ -138,8 +138,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
         {notice && (
           <Banner tone="warning" title={$t("dashboard.layout.networkNotice")}>
             {notice.message}
-            {notice.action === "restart_claude_code" && <span className="ml-1">{$t("dashboard.layout.networkNoticeRestart")}</span>}
-            {notice.command && <span className="ml-1">{$rich("dashboard.layout.networkNoticeRun", { cmd: $el(<code className="font-mono">{notice.command}</code>) })}</span>}
+            {notice.action === "restart_claude_code" && <span className="ms-1">{$t("dashboard.layout.networkNoticeRestart")}</span>}
+            {notice.command && <span className="ms-1">{$rich("dashboard.layout.networkNoticeRun", { cmd: $el(<code className="font-mono">{notice.command}</code>) })}</span>}
           </Banner>
         )}
         {needsPlan && (
@@ -150,7 +150,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         {noModelKey && !needsPlan && (
           <Banner tone="warning" title={$t("dashboard.layout.noModelKey")} action={can(role, "secrets:write") ? <Link href="/dashboard/settings#provider">{$t("dashboard.layout.addAKey")}</Link> : undefined}>
             {$t("dashboard.layout.runsOnThisAccountAreRefused")}
-            {!can(role, "secrets:write") && <span className="ml-1 opacity-80">{$t("dashboard.layout.onlyAnAdminCanAddIt")}</span>}
+            {!can(role, "secrets:write") && <span className="ms-1 opacity-80">{$t("dashboard.layout.onlyAnAdminCanAddIt")}</span>}
           </Banner>
         )}
         <Suspense>
