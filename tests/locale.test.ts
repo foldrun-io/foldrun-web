@@ -170,6 +170,16 @@ test("Persian's sentences are in no English page's download", () => {
   // browser is sent every file a layout names.
   assert.match(fs.readFileSync(path.join(ROOT, "i18n/persian-provider.tsx"), "utf8"), /import\("\.\/persian"\)/);
   assert.doesNotMatch(fs.readFileSync(path.join(ROOT, "i18n/persian-provider.tsx"), "utf8"), /^import .*["']\.\/persian["']/m);
+  // …and only for a Persian document (or on the server): every call of the
+  // loader outside its own definition is behind that check or inside the
+  // Persian branch.
+  const provider = fs.readFileSync(path.join(ROOT, "i18n/persian-provider.tsx"), "utf8");
+  const calls = provider.split("\n").filter((l) => /loadPersian\(\)/.test(l) && !/^function loadPersian/.test(l));
+  assert.deepEqual(calls.map((l) => l.trim()), [
+    'if (typeof document === "undefined" || document.documentElement.lang === "fa") void loadPersian();',
+    "if (!ready) use(loadPersian());",
+  ]);
+  assert.match(provider, /if \(locale === "fa"\) return <Persian>/);
   const files = execFileSync("git", ["ls-files", "app", "components", "i18n", "server", "proxy.ts"], { cwd: ROOT, encoding: "utf8" }).split("\n").filter((f) => /\.tsx?$/.test(f));
   const bad = files.filter((f) => !allowed.has(f) && /from "@\/messages\/fa|["']@\/i18n\/persian|["']\.\/persian/.test(fs.readFileSync(path.join(ROOT, f), "utf8")));
   assert.deepEqual(bad, []);

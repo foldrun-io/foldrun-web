@@ -197,7 +197,8 @@ let IN_PERSIAN = new Set<string>();
 
 /** i18n/persian.ts only: Persian's sentences and nouns. */
 export function registerPersian(catalog: Tree, terms: Record<string, Forms>): void {
-  if (PERSIAN) return;
+  // Called once per load of persian.ts; a second call (an edited file in
+  // development) replaces the first.
   const own = expandTerms(catalog, terms);
   IN_PERSIAN = new Set(keysOf(own));
   PERSIAN = createTranslator({ locale: "fa", messages: layOver(MESSAGES as Tree, own) as typeof MESSAGES });
