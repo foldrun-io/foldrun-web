@@ -10,6 +10,7 @@
 import { use } from "react";
 import { $t, currentLocale, type Locale } from "@/i18n";
 import { LocaleChoiceContext } from "@/i18n/locale-context";
+import { MenuLabel, MenuRadioGroup, MenuRadioItem, MenuSeparator } from "@foldrun/ui/react/menu";
 import { Segmented } from "@foldrun/ui/react/segmented";
 
 const COOKIE = "foldrun_locale";
@@ -41,15 +42,22 @@ export function LanguageSwitch() {
   );
 }
 
-/** The row in the user menu: nothing on an English site. */
-export function LanguageRow() {
+/** In the user menu: the two languages as the menu's own radio items, so
+ *  the arrow keys reach them like every other item. Nothing on an English
+ *  site. */
+export function LanguageMenuItems() {
   const offered = use(LocaleChoiceContext);
   if (!offered) return null;
+  const now = currentLocale();
   return (
-    <div className="flex items-center justify-between px-2 py-1.5">
-      <span className="text-sm text-fg-secondary">{$t("components.language-switch.language")}</span>
-      <LanguageSwitch />
-    </div>
+    <>
+      <MenuSeparator />
+      <MenuLabel>{$t("components.language-switch.language")}</MenuLabel>
+      <MenuRadioGroup value={now} onValueChange={(l) => l !== now && choose(l as Locale)}>
+        <MenuRadioItem value="fa">{$t("components.language-switch.persian")}</MenuRadioItem>
+        <MenuRadioItem value="en">{$t("components.language-switch.english")}</MenuRadioItem>
+      </MenuRadioGroup>
+    </>
   );
 }
 
