@@ -221,7 +221,7 @@ export function HistoryDrawer({
   return (
     <>
     <Sheet open onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="right" hideClose aria-label={$t("components.flow-history.historyOf", { flow: String(flow) })} aria-describedby={undefined} className="w-full max-w-3xl">
+      <SheetContent side="end" hideClose aria-label={$t("components.flow-history.historyOf", { flow: String(flow) })} aria-describedby={undefined} className="w-full max-w-3xl">
         <SheetTitle className="sr-only">{$t("components.flow-history.historyOf", { flow: flow })}</SheetTitle>
         <header className="flex items-center gap-3 border-b border-line px-4 py-3">
           <div className="min-w-0">

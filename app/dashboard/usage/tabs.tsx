@@ -66,8 +66,8 @@ export function TokensTab({ u }: { u: UsageBreakdowns }) {
         minWidth="min-w-[760px]"
         columns={[
           { label: $t("usage.tabs.provider") }, { label: $t("usage.tabs.model") }, { label: $t("usage.tabs.key") },
-          { label: $t("usage.tabs.calls"), align: "right" }, { label: $t("usage.tabs.in"), align: "right" }, { label: $t("usage.tabs.cached"), align: "right" },
-          { label: $t("usage.tabs.out"), align: "right" }, { label: $t("usage.tabs.billed"), align: "right" },
+          { label: $t("usage.tabs.calls"), align: "end" }, { label: $t("usage.tabs.in"), align: "end" }, { label: $t("usage.tabs.cached"), align: "end" },
+          { label: $t("usage.tabs.out"), align: "end" }, { label: $t("usage.tabs.billed"), align: "end" },
         ]}
         rows={t.byModel.map((r) => ({
           key: `${r.supply}:${r.provider}:${r.model}`,
@@ -111,7 +111,7 @@ export function ComputeTab({ u }: { u: UsageBreakdowns }) {
       <DataTable
         title={$t("usage.tabs.byMeter")}
         minWidth="min-w-[640px]"
-        columns={[{ label: $t("usage.tabs.meter") }, { label: $t("usage.tabs.quantity"), align: "right" }, { label: $t("usage.tabs.rate"), align: "right" }, { label: $t("usage.tabs.credits2"), align: "right" }]}
+        columns={[{ label: $t("usage.tabs.meter") }, { label: $t("usage.tabs.quantity"), align: "end" }, { label: $t("usage.tabs.rate"), align: "end" }, { label: $t("usage.tabs.credits2"), align: "end" }]}
         rows={c.meters.map((m) => ({
           key: m.meter,
           cells: [
@@ -141,7 +141,7 @@ export function ComputeTab({ u }: { u: UsageBreakdowns }) {
           <DataTable
             title={$t("usage.tabs.planFee")}
             minWidth="min-w-[480px]"
-            columns={[{ label: $t("usage.tabs.line") }, { label: $t("usage.tabs.fee"), align: "right" }, { label: $t("usage.tabs.creditsItGives"), align: "right" }]}
+            columns={[{ label: $t("usage.tabs.line") }, { label: $t("usage.tabs.fee"), align: "end" }, { label: $t("usage.tabs.creditsItGives"), align: "end" }]}
             rows={[{ key: "fee", cells: [<span key="l" className="font-medium">{c.planFee.label}</span>, usd(c.planFee.usd), fmtCredits(c.planFee.includedCredits)] }]}
           />
         </div>
@@ -151,7 +151,7 @@ export function ComputeTab({ u }: { u: UsageBreakdowns }) {
           <DataTable
             title={$t("usage.tabs.byStepSize")}
             minWidth="min-w-[640px]"
-            columns={[{ label: $t("usage.tabs.size") }, { label: $t("usage.tabs.steps"), align: "right" }, { label: $t("usage.tabs.hours"), align: "right" }, { label: $t("usage.tabs.reserved"), align: "right" }, { label: $t("usage.tabs.creditsPerHour"), align: "right" }]}
+            columns={[{ label: $t("usage.tabs.size") }, { label: $t("usage.tabs.steps"), align: "end" }, { label: $t("usage.tabs.hours"), align: "end" }, { label: $t("usage.tabs.reserved"), align: "end" }, { label: $t("usage.tabs.creditsPerHour"), align: "end" }]}
             rows={c.bySize.map((s) => ({
               key: s.size,
               cells: [
@@ -182,7 +182,7 @@ export function RatesTab({ rates, catalogue, planId }: { rates: MeterRates | nul
         <DataTable
           title={$t("usage.tabs.whatYouAreCharged")}
           minWidth="min-w-[520px]"
-          columns={[{ label: $t("usage.tabs.meter") }, { label: $t("usage.tabs.rate"), align: "right" }, { label: $t("usage.tabs.inCredits"), align: "right" }]}
+          columns={[{ label: $t("usage.tabs.meter") }, { label: $t("usage.tabs.rate"), align: "end" }, { label: $t("usage.tabs.inCredits"), align: "end" }]}
           rows={[
             ["vCPU", rates.vcpuUsdPerHour, "per vCPU-hour"],
             ["RAM", rates.ramUsdPerGibHour, "per GiB-hour"],
@@ -201,7 +201,7 @@ export function RatesTab({ rates, catalogue, planId }: { rates: MeterRates | nul
           <DataTable
             title={$t("usage.tabs.subscriptionSizes")}
             minWidth="min-w-[560px]"
-            columns={[{ label: $t("usage.tabs.plan") }, { label: $t("usage.tabs.price"), align: "right" }, { label: $t("usage.tabs.modelAWeek"), align: "right" }, { label: $t("usage.tabs.modelAMonth"), align: "right" }]}
+            columns={[{ label: $t("usage.tabs.plan") }, { label: $t("usage.tabs.price"), align: "end" }, { label: $t("usage.tabs.modelAWeek"), align: "end" }, { label: $t("usage.tabs.modelAMonth"), align: "end" }]}
             rows={(catalogue.subscriptions ?? []).map((p) => ({
               key: p.id,
               cells: [
@@ -224,7 +224,7 @@ export function RatesTab({ rates, catalogue, planId }: { rates: MeterRates | nul
           <DataTable
             title={$t("usage.tabs.tokensOnFoldrunSModelsProvider", { margin: String(catalogue.models.margin) })}
             minWidth="min-w-[640px]"
-            columns={[{ label: $t("usage.tabs.provider") }, { label: $t("usage.tabs.model") }, { label: $t("usage.tabs.input1m"), align: "right" }, { label: $t("usage.tabs.output1m"), align: "right" }, { label: $t("usage.tabs.cacheRead1m"), align: "right" }]}
+            columns={[{ label: $t("usage.tabs.provider") }, { label: $t("usage.tabs.model") }, { label: $t("usage.tabs.input1m"), align: "end" }, { label: $t("usage.tabs.output1m"), align: "end" }, { label: $t("usage.tabs.cacheRead1m"), align: "end" }]}
             rows={catalogue.models.prices.map((m) => ({
               key: `${m.provider}:${m.model}`,
               cells: [m.provider, <span key="m" className="font-mono text-[13px]">{m.model}</span>, usd(m.inputPerMTok), usd(m.outputPerMTok), m.cacheReadPerMTok === null ? dim : usd(m.cacheReadPerMTok)],

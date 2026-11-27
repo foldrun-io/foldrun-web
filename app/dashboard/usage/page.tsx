@@ -41,14 +41,14 @@ const dim = <span className="text-fg-subtle">—</span>;
 
 const BUCKET_COLUMNS = localizedList(() => [
   { label: "\u00a0" },
-  { label: $t("usage.page.runs"), align: "right" as const },
-  { label: $t("usage.page.steps"), align: "right" as const },
-  { label: $t("usage.page.tokensInOutColumn"), align: "right" as const },
-  { label: $t("usage.page.cached"), align: "right" as const },
-  { label: $t("usage.page.sandbox"), align: "right" as const },
-  { label: $t("usage.page.models"), align: "right" as const },
-  { label: $t("usage.page.platform2"), align: "right" as const },
-  { label: $t("usage.page.total"), align: "right" as const },
+  { label: $t("usage.page.runs"), align: "end" as const },
+  { label: $t("usage.page.steps"), align: "end" as const },
+  { label: $t("usage.page.tokensInOutColumn"), align: "end" as const },
+  { label: $t("usage.page.cached"), align: "end" as const },
+  { label: $t("usage.page.sandbox"), align: "end" as const },
+  { label: $t("usage.page.models"), align: "end" as const },
+  { label: $t("usage.page.platform2"), align: "end" as const },
+  { label: $t("usage.page.total"), align: "end" as const },
 ]);
 
 function bucketCells(b: UsageBucket) {
@@ -88,7 +88,7 @@ function SpendTable({ title, rows, unit }: { title: string; rows: SpendSeries[];
     <DataTable
       title={title}
       minWidth="min-w-[480px]"
-      columns={[{ label: unit }, { label: $t("usage.page.runs"), align: "right" }, { label: $t("usage.page.overTime") }, { label: $t("usage.page.change"), align: "right" }, { label: $t("usage.page.charged"), align: "right" }]}
+      columns={[{ label: unit }, { label: $t("usage.page.runs"), align: "end" }, { label: $t("usage.page.overTime") }, { label: $t("usage.page.change"), align: "end" }, { label: $t("usage.page.charged"), align: "end" }]}
       rows={rows.slice(0, 20).map((s) => ({
         key: s.name,
         cells: [

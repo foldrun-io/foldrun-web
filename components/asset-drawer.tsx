@@ -203,7 +203,7 @@ export function AssetBrowser({
       <Sheet open={Boolean(item)} onOpenChange={(o) => !o && setTimeout(() => void requestClose(), 0)}>
         {item && (
           <SheetContent
-            side="right"
+            side="end"
             aria-describedby={undefined}
             className="w-screen max-w-none max-sm:border-s-0 sm:w-[40rem] sm:max-w-[calc(100vw-3rem)]"
             onEscapeKeyDown={(e) => guard.current?.asking() && e.preventDefault()}
