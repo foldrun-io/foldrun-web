@@ -15,7 +15,8 @@
 
 import { ensureTenantKey } from "@/platform/tenant-keys.ts";
 import { assertPasswordPolicy } from "@/server/password-policy";
-import { allUsersDb, upsertUserDb, importUsersToDatabase } from "@/platform/users-db";
+import { allUsersDb, upsertUserDb, setMembershipsDb, importUsersToDatabase } from "@/platform/users-db";
+import { expandPeople, collapsePeople, snapshotPeople, type Stored } from "@/platform/people.ts";
 import { tx, databaseEnabled, users as usersTable, sessions as sessionsTable, and, isNull, eq, sql, type Db } from "@/platform/orm";
 import { hashFingerprint } from "./auth-tokens.ts";
 import { assertConfirmed, mustConfirm } from "./email-confirmed.ts";
@@ -67,7 +68,15 @@ const usersFile = () => path.join(dataRoot(), "users.json");
 export interface UserRecord {
   id: string;
   email: string;
+  /** The account this record is the person's membership of. One login may be
+   *  in several accounts (FOL-464): the store hands out one record per account
+   *  a person is in (@/platform/people.ts), so everything that asks "this
+   *  person, in this account" reads the role, workspaces and ownership of
+   *  THAT account, never of their first one. */
   tenant: string;
+  /** Set on the record of an account they joined after their first: when
+   *  (and `createdAt` is that moment too). Absent on their first account's. */
+  joined?: string;
   salt: string;
   hash: string; // scrypt(password, salt)
   createdAt: string;
@@ -202,10 +211,13 @@ export function readUsersFile(): UserRecord[] {
   return JSON.parse(fs.readFileSync(usersFile(), "utf8"));
 }
 
+/** Everyone, one record per account they are in (people.ts). */
 async function readUsers(): Promise<UserRecord[]> {
-  if (databaseEnabled()) return (await allUsersDb()) as UserRecord[];
-  return readUsersFile();
+  return expandPeople((databaseEnabled() ? await allUsersDb() : readUsersFile()) as Stored<UserRecord>[]);
 }
+
+/** A stored person as collapsePeople writes one, to compare before and after. */
+const collapseOne = (u: Stored<UserRecord>): Stored<UserRecord> => collapsePeople(expandPeople([u]))[0];
 
 // Any constant every web pod agrees on; it names the users table's lock.
 const USERS_LOCK = 0x666f6c75;
@@ -294,29 +306,38 @@ async function mutateUsers<T>(fn: (users: UserRecord[], invites: InviteStore, t?
   if (databaseEnabled()) {
     return tx(async (t) => {
       await t.execute(sql`select pg_advisory_xact_lock(${USERS_LOCK})`);
-      const users = (await allUsersDb(t)) as UserRecord[];
-      const before = new Map(users.map((u) => [u.id, JSON.stringify(u)]));
+      const stored = (await allUsersDb(t)) as Stored<UserRecord>[];
+      const before = new Map(stored.map((u) => [u.id, JSON.stringify(collapseOne(u))]));
+      const users = expandPeople(stored);
+      const handed = snapshotPeople(users);
       const value = await fn(users, dbInviteStore(t), t);
       const after = new Set<string>();
-      for (const u of users) {
+      for (const u of collapsePeople(users, handed)) {
         after.add(u.id);
-        if (before.get(u.id) !== JSON.stringify(u)) await upsertUserDb(u, t);
+        if (before.get(u.id) === JSON.stringify(u)) continue;
+        const { also, ...person } = u;
+        await upsertUserDb(person, t);
+        await setMembershipsDb(u.id, also ?? [], t);
       }
       for (const id of before.keys()) {
-        if (!after.has(id)) await t.delete(usersTable).where(eq(usersTable.id, id));
+        if (after.has(id)) continue;
+        await setMembershipsDb(id, [], t);
+        await t.delete(usersTable).where(eq(usersTable.id, id));
       }
       return value;
     });
   }
   const run = fileQueue.then(async () => {
-    const users = readUsersFile();
+    const users = expandPeople(readUsersFile() as Stored<UserRecord>[]);
+    const handed = snapshotPeople(users);
     const invites = fileInviteStore();
     const value = await fn(users, invites);
+    const stored = collapsePeople(users, handed);
     // The invites first: a crash between the two writes then leaves an
     // invite used and no member — refused, never a link that works twice.
     invites.flush();
     fs.mkdirSync(path.dirname(usersFile()), { recursive: true });
-    fs.writeFileSync(usersFile(), JSON.stringify(users, null, 2), { mode: 0o600 });
+    fs.writeFileSync(usersFile(), JSON.stringify(stored, null, 2), { mode: 0o600 });
     return value;
   });
   fileQueue = run.catch(() => undefined);
@@ -626,21 +647,32 @@ export async function mintSession(
     const id = newSessionId();
     await recordSession(id, user.id, user.tenant, expires, userAgent ?? null, how);
     const payload = `${id}.${expires.getTime()}`;
-    return { value: `v2.${payload}.${sign(payload)}`, expires, sessionId: id };
+    // v3: a session for an account they joined (FOL-464). The row names the
+    // account either way; the new mark is so a release from before joined
+    // accounts, which would read any session as the person's first account,
+    // refuses it instead.
+    return { value: `${user.joined ? "v3" : "v2"}.${payload}.${sign(payload)}`, expires, sessionId: id };
   }
   // The password's fingerprint is in it, so a reset (or a password change)
   // ends every file-mode session as it ends the rows of a database install
   // (Codex, FOL-317: an old cookie kept working after the inbox owner's reset).
-  const payload = `${user.id}:${hashFingerprint(user.hash)}.${expires.getTime()}`;
-  return { value: `v1.${payload}.${sign(payload)}`, expires, sessionId: null };
+  // It names its account and when they came into it (FOL-464): a session is
+  // for one account, ends when they leave it, and does not come back to life
+  // if they are let in again later.
+  const payload = `${user.id}:${hashFingerprint(user.hash)}:${accountMark(user)}.${expires.getTime()}`;
+  return { value: `${user.joined ? "v3" : "v1"}.${payload}.${sign(payload)}`, expires, sessionId: null };
 }
+
+/** A file-mode session's account: which, and the membership's date. */
+const accountMark = (u: Pick<UserRecord, "tenant" | "createdAt">) => Buffer.from(`${u.tenant}\n${u.createdAt}`).toString("base64url");
 
 /** The session id inside a token, without deciding whether it is still live.
  *  For "which of these rows is the one I am using". */
 export function sessionIdOf(token: string | undefined): string | null {
   if (!token) return null;
   const parts = token.split(".");
-  return parts.length === 4 && parts[0] === "v2" ? parts[1] : null;
+  // v3 with a database is a row's id too; without one it names the person, not a row.
+  return parts.length === 4 && (parts[0] === "v2" || parts[0] === "v3") && !parts[1].includes(":") ? parts[1] : null;
 }
 
 /** Cookie attributes for the session, derived from how the request actually
@@ -807,6 +839,60 @@ export async function peekInvite(token: string | undefined): Promise<InvitePrevi
   return { tenant: row.tenant, role: row.role, workspaces: row.workspaces, email: row.email };
 }
 
+/** This person as a member of this account: by id, or by address. Null
+ *  when they are not in it, whatever else they are in (FOL-464). The record
+ *  holds their role, workspaces and ownership THERE. */
+export async function findMember(tenant: string, who: { id: string } | { email: string }): Promise<UserRecord | null> {
+  const users = await readUsers();
+  const email = "email" in who ? who.email.trim().toLowerCase() : null;
+  return users.find((u) => u.tenant === tenant && (email === null ? u.id === (who as { id: string }).id : u.email === email)) ?? null;
+}
+
+/** The accounts a person is in, their first one first, then as they joined. */
+export async function accountsOf(userId: string): Promise<{ tenant: string; role: Role; owner: boolean; joined: string | null }[]> {
+  const users = await readUsers();
+  return users
+    .filter((u) => u.id === userId)
+    .map((u) => ({ tenant: u.tenant, role: roleOfMembers(users, u.tenant, u.id) ?? "viewer", owner: ownerOfMembers(users, u.tenant)?.id === u.id, joined: u.joined ?? null }));
+}
+
+/**
+ * A person who already has a login joins another account on an invite
+ * (FOL-464). Like acceptInvite, in one transaction: the invite is used up,
+ * its maker's standing checked again, and the membership made with the role
+ * and workspaces the ROW holds; any refusal rolls it all back and the invite
+ * stays pending. What differs is who comes in: the signed-in person, who
+ * must hold the invited address, confirmed, at this moment. Nothing of
+ * their first account comes along: not its role, not its ownership.
+ */
+export async function joinAccount(token: string, userId: string): Promise<{ user: UserRecord; invite: InviteRow }> {
+  const parsed = parseInviteToken(token);
+  if (!parsed) throw invalidInvite();
+  return mutateUsers(async (users, invites) => {
+    const person = users.find((u) => u.id === userId && !u.joined);
+    if (!person) throw Object.assign(new Error("sign in first"), { status: 401 });
+    const row = await invites.claim(parsed.id, userId);
+    if (!row || !isRole(row.role) || row.role === "owner") throw invalidInvite();
+    if (row.email && row.email !== person.email.toLowerCase()) {
+      throw Object.assign(new Error(`this invite was sent to ${row.email} — sign in with that address`), { status: 403 });
+    }
+    // The address is theirs only once confirmed: an unconfirmed login at
+    // the invited address proves nothing about who holds that inbox.
+    assertConfirmed(person);
+    if (!minterStillMay(users, row)) throw invalidInvite();
+    if (users.some((u) => u.id === userId && u.tenant === row.tenant)) {
+      throw Object.assign(new Error(`you are already in ${row.tenant}`), { status: 409 });
+    }
+    const at = new Date().toISOString();
+    const member: UserRecord = { ...person, tenant: row.tenant, createdAt: at, joined: at, role: row.role, admission: "invite" };
+    delete member.owner;
+    delete member.workspaces;
+    if (row.workspaces) member.workspaces = row.workspaces;
+    users.push(member);
+    return { user: member, invite: row };
+  });
+}
+
 /** Where an invite's address stands (FOL-464). A login is one account today,
  *  so an address that already has one cannot take the sign-up form the link
  *  opens: the page says which case it is. `elsewhere` ends when one login can
@@ -817,9 +903,8 @@ export type InviteDoor = "signup" | "member" | "elsewhere";
 
 export async function inviteDoor(invite: Pick<InvitePreview, "tenant" | "email">): Promise<InviteDoor> {
   if (!invite.email) return "signup";
-  const known = await findUser(invite.email);
-  if (!known) return "signup";
-  return known.tenant === invite.tenant ? "member" : "elsewhere";
+  if (await findMember(invite.tenant, { email: invite.email })) return "member";
+  return (await findUser(invite.email)) ? "elsewhere" : "signup";
 }
 
 /**
@@ -1172,7 +1257,7 @@ export async function isOwner(tenant: string, userId: string): Promise<boolean> 
  * bug this is fixing.
  */
 export async function removeMember(tenant: string, id: string, actorId: string, by: string = actorId, ceiling?: Role): Promise<false | { invitesRevoked: string[]; keysRevoked: string[] }> {
-  return mutateUsers(async (users, invites, t) => {
+  const removed = await mutateUsers(async (users, invites, t) => {
     const at = users.findIndex((u) => u.tenant === tenant && u.id === id);
     if (at < 0) return false;
     assertCanRemoveMember(users, tenant, id, actorId); // throws with a status
@@ -1192,8 +1277,21 @@ export async function removeMember(tenant: string, id: string, actorId: string, 
     // it — retrying the DELETE then finds the member and does it all again.
     const { revokeKeysBeyond } = await import("./auth.ts");
     const keysRevoked = await revokeKeysBeyond(tenant, gone.email, null, t);
+    // Their sessions for THIS account end with the membership (FOL-464): the
+    // login may live on in another account, and a session left live here
+    // would work again the day they were let back in.
+    if (t) await t.update(sessionsTable).set({ revokedAt: sql`now()` }).where(and(eq(sessionsTable.userId, id), eq(sessionsTable.tenant, tenant), isNull(sessionsTable.revokedAt)));
     return { invitesRevoked: revoked.map((r) => r.id), keysRevoked };
   });
+  // And the apps they connected to this account, for the same reason: a
+  // grant is checked against "still a member", which a return would satisfy.
+  if (removed) {
+    const { listGrants, revokeGrant } = await import("./mcp-oauth.ts");
+    for (const g of await listGrants(tenant)) {
+      if (g.userId === id) await revokeGrant(tenant, g.id, `removed:${by}`);
+    }
+  }
+  return removed;
 }
 
 /** Run `fn` holding the people lock — for a write elsewhere that must agree
@@ -1350,7 +1448,7 @@ export function emailMovesOf(u: Pick<UserRecord, "prefs">): number {
  *  it once, and two clicks racing get one move. */
 export async function changeEmail(userId: string, newEmail: string, opts: { ifMoves?: number } = {}): Promise<{ from: string; to: string }> {
   const to = loginAddress(newEmail);
-  const { from, tenant } = await mutateUsers((users) => {
+  const { from } = await mutateUsers(async (users, _invites, t) => {
     const user = users.find((u) => u.id === userId);
     if (!user) throw Object.assign(new Error("no such user"), { status: 404 });
     if (opts.ifMoves !== undefined && emailMovesOf(user) !== opts.ifMoves) {
@@ -1362,11 +1460,15 @@ export async function changeEmail(userId: string, newEmail: string, opts: { ifMo
     user.email = to;
     user.emailVerifiedAt = null;
     user.prefs = { ...(user.prefs ?? {}), [EMAIL_MOVES]: emailMovesOf(user) + 1 };
-    return { from: was, tenant: user.tenant };
+    // Their API keys name them by address: they move too (FOL-97), in every
+    // account they are in (FOL-464), and under this lock: a removal, which
+    // finds their keys by address and takes the same lock, never runs between
+    // the address moving and the keys following it (Codex). Imported here,
+    // not at the top — auth.ts imports this file.
+    const { moveKeysToEmail } = await import("./auth.ts");
+    for (const u of users) if (u.id === userId) await moveKeysToEmail(u.tenant, was, to, t);
+    return { from: was };
   });
-  // Their API keys name them by address: they move too (FOL-97). Imported
-  // here, not at the top — auth.ts imports this file.
-  await (await import("./auth.ts")).moveKeysToEmail(tenant, from, to);
   return { from, to };
 }
 
@@ -1455,7 +1557,7 @@ export async function verifySession(token: string | undefined): Promise<UserReco
   const parts = token.split(".");
   if (parts.length !== 4) return null;
   const [version, subject, expires, mac] = parts;
-  if (version !== "v1" && version !== "v2" && version !== "s1") return null;
+  if (version !== "v1" && version !== "v2" && version !== "v3" && version !== "s1") return null;
   if (!/^\d+$/.test(expires) || Number(expires) < Date.now()) return null;
 
   const expected = sign(`${subject}.${expires}`);
@@ -1477,14 +1579,17 @@ export async function verifySession(token: string | undefined): Promise<UserReco
     if (!owner) return null;
     return { ...owner, viewAs: { id: view.id, by: view.by, reason: view.reason, expiresAt: view.expiresAt }, session: { kind: "s1", audience: null, mfa: false } };
   }
-  if (version === "v2") {
+  if (version === "v2" || (version === "v3" && databaseEnabled())) {
     // The signature proves nobody forged the id. The row decides whether it is
     // still live — and refuses if there is no database to ask, because a token
     // that claims to be revocable and is checked against nothing is worse than
     // one that never claimed it.
     const live = await sessionAllowed(subject);
     if (!live) return null;
-    const user = (await readUsers()).find((u) => u.id === live.userId);
+    // The person AS A MEMBER OF THE ACCOUNT THE SESSION WAS MADE FOR (FOL-464):
+    // its role, workspaces and ownership there. No longer in that account
+    // (removed, or left): the session is nobody's, whatever else they are in.
+    const user = (await readUsers()).find((u) => u.id === live.userId && u.tenant === live.tenant);
     if (!user) return null;
     // The row and the person are two reads. A reset changes the password and
     // revokes the session in one write, so one landing between them would pair
@@ -1498,8 +1603,12 @@ export async function verifySession(token: string | undefined): Promise<UserReco
   // Profile → Sessions, and carries no MFA fact — refused (29 Oct 2026; v2
   // has been minted there for well over the 30-day life of any v1).
   if (databaseEnabled()) return null;
-  const [id, fingerprint] = subject.split(":");
-  const user = (await readUsers()).find((u) => u.id === id);
+  const [id, fingerprint, account] = subject.split(":");
+  const people = (await readUsers()).filter((u) => u.id === id);
+  // The account it names, while they are still in it as they were then. One
+  // from before sessions named an account: good only for a person in one
+  // account, where there is nothing to confuse it with.
+  const user = account === undefined ? (people.length === 1 ? people[0] : undefined) : people.find((u) => accountMark(u) === account);
   if (!user || !fingerprint || fingerprint !== hashFingerprint(user.hash)) return null;
   return { ...user, session: { kind: "v1", audience: null, mfa: false } };
 }

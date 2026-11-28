@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError, errorResponse, requireCaller, sessionUser } from "@/server/api";
 import { jsonObject } from "@/server/body";
-import { findUser, findUserById, setUserPrefs, type UserRecord } from "@/server/users";
+import { findUserById, setUserPrefs, type UserRecord, findMember } from "@/server/users";
 import { isTheme, themePreference, THEME_PREF, THEMES } from "@/components/theme-model";
 import { checkRunViews, runViewsOf, RUN_VIEWS_PREF } from "@/components/run-views-model";
 
@@ -24,8 +24,8 @@ async function person(req: NextRequest): Promise<UserRecord | NextResponse> {
   if (session) return session;
   const { tenant, actor } = await requireCaller(req);
   const email = actor.name?.includes("@") ? actor.name : null;
-  const user = email ? await findUser(email) : null;
-  if (!user || user.tenant !== tenant) throw new ApiError("this key was not minted by a person — sign in, or use a key you made yourself", 400);
+  const user = email ? await findMember(tenant, { email }) : null;
+  if (!user) throw new ApiError("this key was not minted by a person — sign in, or use a key you made yourself", 400);
   return user;
 }
 

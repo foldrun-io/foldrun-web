@@ -421,8 +421,8 @@ export async function deleteApiKey(tenant: string, id: string): Promise<boolean>
 
 /** A member's address changed: their keys move with them, so a later
  *  removal or downgrade still finds every one (FOL-97). */
-export async function moveKeysToEmail(tenant: string, from: string, to: string): Promise<number> {
-  if (databaseEnabled()) return renameKeyOwnerDb(tenant, from, to);
+export async function moveKeysToEmail(tenant: string, from: string, to: string, on?: Db): Promise<number> {
+  if (databaseEnabled()) return renameKeyOwnerDb(tenant, from, to, on);
   const keys = readKeys();
   let n = 0;
   for (const k of keys) {

@@ -73,15 +73,15 @@ export async function recordSession(
  * the database disappears after v2 tokens were minted, where refusing means a
  * re-login and accepting would mean revocation silently stopped working.
  */
-export async function sessionAllowed(id: string): Promise<{ userId: string; audience: string | null; mfa: boolean } | null> {
+export async function sessionAllowed(id: string): Promise<{ userId: string; tenant: string; audience: string | null; mfa: boolean } | null> {
   const q = orm();
   if (!q) return null;
   const rows = await q
     .update(sessions)
     .set({ lastSeenAt: sql`now()` })
     .where(and(eq(sessions.id, id), isNull(sessions.revokedAt), gt(sessions.expiresAt, sql`now()`)))
-    .returning({ userId: sessions.userId, audience: sessions.audience, mfaAt: sessions.mfaAt });
-  return rows[0] ? { userId: rows[0].userId, audience: rows[0].audience ?? null, mfa: rows[0].mfaAt !== null } : null;
+    .returning({ userId: sessions.userId, tenant: sessions.tenant, audience: sessions.audience, mfaAt: sessions.mfaAt });
+  return rows[0] ? { userId: rows[0].userId, tenant: rows[0].tenant, audience: rows[0].audience ?? null, mfa: rows[0].mfaAt !== null } : null;
 }
 
 /** Is this session still live? A read, no lastSeenAt — for the second look

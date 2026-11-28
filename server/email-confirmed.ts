@@ -41,9 +41,11 @@ export function confirmationRequired(): boolean {
 /** The person behind an actor, when there is one, refused when unconfirmed:
  *  a signed-in person by id; a key by the person it was minted for. */
 export async function assertActorConfirmed(tenant: string, actor: { kind: string; id: string; name: string }): Promise<void> {
-  const { findUser, findUserById } = await import("./users.ts");
-  const person = actor.kind === "user" ? await findUserById(actor.id) : actor.name.includes("@") ? await findUser(actor.name) : null;
-  if (person && person.tenant === tenant) assertConfirmed(person);
+  // As a member of THIS account (FOL-464): found by their first account, a
+  // person acting in a joined one was never checked.
+  const { findMember } = await import("./users.ts");
+  const person = actor.kind === "user" ? await findMember(tenant, { id: actor.id }) : actor.name.includes("@") ? await findMember(tenant, { email: actor.name }) : null;
+  if (person) assertConfirmed(person);
 }
 
 /** Refuse, with a 403 the routes pass on, when the person must confirm first. */

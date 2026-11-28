@@ -7,7 +7,7 @@ import { errorBody } from "./error-shape.ts";
 import { platform } from "@/lib/platform";
 import { NextResponse, type NextRequest } from "next/server";
 import { resolveTenant, listApiKeys, type Actor } from "./auth.ts";
-import { isOwner, verifySession, findUser, roleOfUser, allowedWorkspaces, SESSION_COOKIE, type UserRecord } from "./users.ts";
+import { isOwner, verifySession, findMember, roleOfUser, allowedWorkspaces, SESSION_COOKIE, type UserRecord } from "./users.ts";
 import { lowerRole, intersectWorkspaces } from "./mcp-oauth.ts";
 import { can, ACTIONS, type Action } from "@/platform/permissions.ts";
 import { scopeAllows } from "@/platform/scope.ts";
@@ -175,8 +175,9 @@ export async function cliLoginPerson(tenant: string, actor: Actor): Promise<(Act
   if (actor.kind !== "key" || actor.origin !== "cli-login" || actor.readOnly || actor.mcp) return null;
   const key = (await listApiKeys(tenant)).find((k) => k.id === actor.id);
   if (!key?.createdBy || key.origin !== "cli-login") return null;
-  const user = await findUser(key.createdBy);
-  if (!user || user.tenant !== tenant) return null;
+  // As a member of THIS account (FOL-464): a person in several is found here.
+  const user = await findMember(tenant, { email: key.createdBy });
+  if (!user) return null;
   if (Date.parse(key.createdAt) < Date.parse(user.createdAt)) return null;
   const now = await roleOfUser(tenant, user.id);
   if (!now) return null;
@@ -209,7 +210,7 @@ export async function personOf(req: NextRequest): Promise<UserRecord | null | Ne
     if (auth.tenant === null) return refuse(auth.message, auth.status);
     const person = await cliLoginPerson(auth.tenant, auth.actor);
     if (!person) return refuse("a key cannot change a person's profile — their own `foldrun login` can, or Profile in the browser", 401);
-    return findUser(person.name);
+    return findMember(auth.tenant, { email: person.name });
   }
   return sessionUser(req);
 }

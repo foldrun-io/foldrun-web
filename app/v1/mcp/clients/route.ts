@@ -16,7 +16,7 @@ import { publicOrigin } from "@/server/auth-flows";
 import { OAuthError, issuerOf, registerMachineClient } from "@/server/mcp-oauth";
 import { withinMinter } from "@/server/key-scope";
 import { can, ROLES, type Role } from "@/platform/permissions";
-import { findUser, findUserById } from "@/server/users";
+import { findMember } from "@/server/users";
 import { assertConfirmed } from "@/server/email-confirmed";
 import { idempotent } from "@/server/idempotency";
 import { jsonObject } from "@/server/body";
@@ -27,10 +27,10 @@ async function postOnce(req: NextRequest) {
     if (!can(actor.role, "keys:manage")) return refuse(`your role (${actor.role}) cannot register machine clients — it needs admin`, 403);
     // The grant speaks for a person, checked at every use: the admin's
     // session, or the person a key was minted for.
-    const userId = actor.kind === "user" ? actor.id : (await findUser(actor.name))?.id;
+    const userId = actor.kind === "user" ? actor.id : (await findMember(tenant, { email: actor.name }))?.id;
     if (!userId) return refuse("a machine client is registered by a person — sign in, or use a key minted by one (`foldrun login`)", 403);
-    const person = await findUserById(userId);
-    if (!person || person.tenant !== tenant) return refuse("a machine client is registered by a person of this account", 403);
+    const person = await findMember(tenant, { id: userId });
+    if (!person) return refuse("a machine client is registered by a person of this account", 403);
     assertConfirmed(person);
     const body = (await jsonObject(req, { optional: true })) as { name?: unknown; role?: unknown; workspaces?: unknown; access?: unknown; token_auth?: unknown; jwks?: unknown; jwks_uri?: unknown };
     if (typeof body.name !== "string" || !body.name.trim()) return refuse("expected { name } — what the machine client is, as people will read it", 400);

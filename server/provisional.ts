@@ -22,6 +22,21 @@ import { hashFingerprint } from "./auth-tokens.ts";
 // which the inbox's owner cannot have made anything), for an app exchange that
 // landed between.
 export async function revokeProvisional(person: { id: string; tenant: string; email: string; hash: string }, before: Date): Promise<{ keys: number; grants: number; invites: number }> {
+  // In every account they are in (FOL-464): what was made in their name
+  // before the inbox's owner took the login back is not theirs anywhere.
+  const { accountsOf } = await import("./users.ts");
+  const tenants = new Set([person.tenant, ...(await accountsOf(person.id)).map((a) => a.tenant)]);
+  const total = { keys: 0, grants: 0, invites: 0 };
+  for (const tenant of tenants) {
+    const r = await revokeProvisionalIn({ ...person, tenant }, before);
+    total.keys += r.keys;
+    total.grants += r.grants;
+    total.invites += r.invites;
+  }
+  return total;
+}
+
+async function revokeProvisionalIn(person: { id: string; tenant: string; email: string; hash: string }, before: Date): Promise<{ keys: number; grants: number; invites: number }> {
   const older = (at: string | undefined) => !at || Date.parse(at) < before.getTime();
   const by = `reset:${person.email}`;
   const email = person.email.toLowerCase();
