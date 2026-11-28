@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
   try {
     // A browser session's own request. A key beside the cookie would be what
     // the proxy checked and metered, and the cookie what moved: refused.
-    if (req.headers.get("authorization") || req.headers.get("x-api-key")) return refuse("a session moves by its own cookie alone: send no key with this request", 400);
+    if (req.headers.get("authorization") || req.headers.get("x-api-key")) return refuse("a session moves by its own cookie alone: send no key with this request", 401);
     // A person's own session; a support view moves nowhere (sessionUser refuses its writes).
     const me = await sessionUser(req);
     if (me instanceof Response) return me;

@@ -139,6 +139,8 @@ export const TABLE: Row[] = [
   ["POST", "/v1/auth/password", "session"],
   ["POST", "/v1/auth/reset", "none", { ok: [400, 401, 429] }],
   ["GET", "/v1/auth/session", "none"],
+  // The session moves to another account of its login (FOL-464): the cookie alone.
+  ["POST", "/v1/auth/session", "session"],
   ["GET", "/v1/auth/sessions", "session"],
   ["DELETE", "/v1/auth/sessions", "session"],
   ["POST", "/v1/auth/signup", "none", { ok: [400, 403, 429] }],
