@@ -134,7 +134,7 @@ export default async function SignupPage({
         }
       >
         <Suspense>
-          <AuthForm mode="signup" invite={invite} />
+          <AuthForm mode="signup" invite={invite} {...(invited.email ? { inviteEmail: invited.email } : {})} />
         </Suspense>
       </AuthCard>
     );

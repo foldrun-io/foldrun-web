@@ -16,11 +16,13 @@ import { cn } from "@foldrun/ui/react/cn";
 import { Field, Callout } from "@foldrun/ui/react/page";
 
 
-export function AuthForm({ mode, invite, setup, link, codeSignIn }: {
+export function AuthForm({ mode, invite, inviteEmail, setup, link, codeSignIn }: {
   mode: "login" | "signup";
   /** Offer "email me a code" beside the password (FOL-185); set by the sign-in page when the install can send one. */
   codeSignIn?: boolean;
   invite?: string;
+  /** The one address the invite is for (FOL-464): filled in and fixed, as a sign-up link's is. */
+  inviteEmail?: string;
   setup?: string;
   /** A sign-up link the platform mailed: its token, and the one address it is for. */
   link?: { token: string; email: string };
@@ -164,7 +166,7 @@ export function AuthForm({ mode, invite, setup, link, codeSignIn }: {
           type="email"
           required
           placeholder="you@example.com"
-          {...(link ? { defaultValue: link.email, readOnly: true, "aria-readonly": true } : {})}
+          {...(link || inviteEmail ? { defaultValue: link?.email ?? inviteEmail, readOnly: true, "aria-readonly": true } : {})}
         />
       </Field>}
       {!challenge && !viaCode && <Field label={$t("auth.auth-form.password")}>
