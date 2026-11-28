@@ -1,7 +1,7 @@
 import { $el, $rich, $t } from "@/i18n";
 import { Suspense } from "react";
 import Link from "@foldrun/ui/react/link";
-import { findUser, hasUsers, peekInvite, setupTokenRequired } from "@/server/users";
+import { findUser, hasUsers, inviteDoor, peekInvite, setupTokenRequired } from "@/server/users";
 import { readSignupLink } from "@/server/signup-links";
 import { signupModesNow, signupPageState, SIGNUP_CONTACT } from "@/server/signup";
 import { platform } from "@/lib/platform";
@@ -88,6 +88,31 @@ export default async function SignupPage({
   // A valid invite is its own permission: someone on the team sent it, so
   // the install's open-signup setting does not apply.
   if (state === "invite" && invited) {
+    // The address already has a login (FOL-464): the form below would be
+    // refused, so the page says where the person stands, and does not offer it.
+    const door = await inviteDoor(invited);
+    if (door !== "signup" && invited.email) {
+      const signIn = (
+        <Link href="/login" className="font-medium text-fg hover:underline">
+          {$t("auth.signup-page.signIn")}
+        </Link>
+      );
+      return door === "member" ? (
+        <AuthCard
+          center
+          title={<>{$rich("auth.signup-page.youAreAlreadyIn", { tenant: invited.tenant, span: (chunks) => <span className="font-mono">{chunks}</span> })}</>}
+          hint={<>{$rich("auth.signup-page.isAlreadyAMemberSignIn", { email: $el(<Email value={invited.email} />) })}</>}
+          footer={signIn}
+        />
+      ) : (
+        <AuthCard
+          center
+          title={$t("auth.signup-page.thisAddressAlreadyHasALogin")}
+          hint={<>{$rich("auth.signup-page.oneLoginOneAccountForNow", { email: $el(<Email value={invited.email} />), tenant: invited.tenant, span: (chunks) => <span className="font-mono">{chunks}</span> })}</>}
+          footer={signIn}
+        />
+      );
+    }
     return (
       <AuthCard
         title={

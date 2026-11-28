@@ -807,6 +807,21 @@ export async function peekInvite(token: string | undefined): Promise<InvitePrevi
   return { tenant: row.tenant, role: row.role, workspaces: row.workspaces, email: row.email };
 }
 
+/** Where an invite's address stands (FOL-464). A login is one account today,
+ *  so an address that already has one cannot take the sign-up form the link
+ *  opens: the page says which case it is. `elsewhere` ends when one login can
+ *  be in several accounts (foldrun-infra docs/invite-plan.md, step 2). Told
+ *  only to the link's holder, who learns no more than the form's refusal
+ *  already said. */
+export type InviteDoor = "signup" | "member" | "elsewhere";
+
+export async function inviteDoor(invite: Pick<InvitePreview, "tenant" | "email">): Promise<InviteDoor> {
+  if (!invite.email) return "signup";
+  const known = await findUser(invite.email);
+  if (!known) return "signup";
+  return known.tenant === invite.tenant ? "member" : "elsewhere";
+}
+
 /**
  * Join an account on an invite. The link's MAC and expiry, the address and
  * the password are checked first, outside the lock; then, in one

@@ -25,7 +25,7 @@ delete process.env.FOLDRUN_REDIS_URL;
 delete process.env.FOLDRUN_TRUST_PROXY;
 
 const { createApiKey } = await import("../server/auth.ts");
-const { createUser, mintSession, SESSION_COOKIE, peekInvite, listMembers } = await import("../server/users.ts");
+const { createUser, mintSession, SESSION_COOKIE, peekInvite, inviteDoor, listMembers } = await import("../server/users.ts");
 const { installKey } = await import("@/lib/webhook.ts");
 const { saveWorkspace, templateFiles } = await import("@/lib/store.ts");
 const { readInvitesFile, writeInvitesFile } = await import("@/platform/invites.ts");
@@ -343,4 +343,13 @@ test("keys: an admin key may list and revoke, an editor key may not, and no key 
   assert.equal((await del(inv.id, { key: adminKey })).status, 200);
   const minted = await teamRoute.POST(req("POST", "/v1/team", { key: adminKey }, { role: "viewer" }));
   assert.equal(minted.status, 401, "inviting is a person's");
+});
+
+test("where an invite's address stands (FOL-464): no login takes the form; a member and a login in another account are told so", async () => {
+  const other = await createUser("has-own@inv.test", PW, "inv-other-co", { request: "free" });
+  assert.equal(await inviteDoor({ tenant, email: "nobody-yet@inv.test" }), "signup");
+  assert.equal(await inviteDoor({ tenant, email: null }), "signup", "a link for no address: the form asks");
+  assert.equal(await inviteDoor({ tenant, email: owner.email }), "member");
+  assert.equal(await inviteDoor({ tenant, email: other.email }), "elsewhere");
+  assert.equal(await inviteDoor({ tenant, email: "HAS-OWN@inv.test" }), "elsewhere", "the address is compared as a login is");
 });
