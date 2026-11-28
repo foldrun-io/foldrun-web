@@ -62,12 +62,14 @@ export function browserHost(req: NextRequest): string {
   return new URL(publicOrigin(req)).host;
 }
 
-export function resetLink(origin: string, user: Pick<UserRecord, "id" | "hash" | "email">): string {
+export function resetLink(origin: string, user: Pick<UserRecord, "id" | "hash" | "email" | "recoveryGen">): string {
   // Bound to the password as it is now: using the link changes the hash,
   // and the same link then no longer verifies. Single-use without a table.
   // And to the address it was sent to: after an email change, a link still
   // sitting in the OLD inbox must stop working.
-  const token = mintToken("reset", { u: user.id, h: hashFingerprint(user.hash), e: user.email }, RESET_TTL_MS);
+  // And to how many accounts the login had opened (users.ts joinIn): one
+  // mailed before it joined another is spent by the join.
+  const token = mintToken("reset", { u: user.id, h: hashFingerprint(user.hash), e: user.email, g: String(user.recoveryGen ?? 0) }, RESET_TTL_MS);
   return `${origin}/reset?token=${encodeURIComponent(token)}`;
 }
 

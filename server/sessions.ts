@@ -45,9 +45,10 @@ export async function recordSession(
   tenant: string,
   expires: Date,
   userAgent: string | null,
-  how: { audience?: string | null; mfa?: boolean; method?: "password" | "email-code" } = {},
+  how: { audience?: string | null; mfa?: boolean; /** when the second factor was done, for a session that continues another's */ mfaAt?: Date | null; method?: "password" | "email-code"; membership?: string | null } = {},
+  on?: Db,
 ): Promise<void> {
-  const q = orm();
+  const q = on ?? orm();
   if (!q) return;
   await q
     .insert(sessions)
@@ -55,10 +56,11 @@ export async function recordSession(
       id,
       userId,
       tenant,
+      membershipId: how.membership ?? null,
       expiresAt: expires,
       userAgent: userAgent?.slice(0, 300) ?? null,
       audience: how.audience ?? null,
-      mfaAt: how.mfa ? new Date() : null,
+      mfaAt: how.mfaAt ?? (how.mfa ? new Date() : null),
       method: how.method ?? "password",
     })
     .onConflictDoNothing({ target: sessions.id });
@@ -73,15 +75,15 @@ export async function recordSession(
  * the database disappears after v2 tokens were minted, where refusing means a
  * re-login and accepting would mean revocation silently stopped working.
  */
-export async function sessionAllowed(id: string): Promise<{ userId: string; tenant: string; audience: string | null; mfa: boolean } | null> {
+export async function sessionAllowed(id: string): Promise<{ userId: string; tenant: string; membership: string | null; audience: string | null; mfa: boolean; mfaAt: Date | null; method: "password" | "email-code" } | null> {
   const q = orm();
   if (!q) return null;
   const rows = await q
     .update(sessions)
     .set({ lastSeenAt: sql`now()` })
     .where(and(eq(sessions.id, id), isNull(sessions.revokedAt), gt(sessions.expiresAt, sql`now()`)))
-    .returning({ userId: sessions.userId, tenant: sessions.tenant, audience: sessions.audience, mfaAt: sessions.mfaAt });
-  return rows[0] ? { userId: rows[0].userId, tenant: rows[0].tenant, audience: rows[0].audience ?? null, mfa: rows[0].mfaAt !== null } : null;
+    .returning({ userId: sessions.userId, tenant: sessions.tenant, membership: sessions.membershipId, audience: sessions.audience, mfaAt: sessions.mfaAt, method: sessions.method });
+  return rows[0] ? { userId: rows[0].userId, tenant: rows[0].tenant, membership: rows[0].membership ?? null, audience: rows[0].audience ?? null, mfa: rows[0].mfaAt !== null, mfaAt: rows[0].mfaAt, method: rows[0].method === "email-code" ? "email-code" : "password" } : null;
 }
 
 /** Is this session still live? A read, no lastSeenAt — for the second look
@@ -125,8 +127,8 @@ export async function listSessions(userId: string): Promise<SessionRow[]> {
  * Revoked rather than deleted: a session that ended is a fact an audit answer
  * may need, and DELETE would take the evidence with it.
  */
-export async function revokeSessions(userId: string, keep?: string): Promise<number> {
-  const q = orm();
+export async function revokeSessions(userId: string, keep?: string, on?: Db): Promise<number> {
+  const q = on ?? orm();
   if (!q) return 0;
   const rows = await q
     .update(sessions)
@@ -137,8 +139,8 @@ export async function revokeSessions(userId: string, keep?: string): Promise<num
 }
 
 /** End one session by id, only if it belongs to this person. */
-export async function revokeSession(userId: string, id: string): Promise<boolean> {
-  const q = orm();
+export async function revokeSession(userId: string, id: string, on?: Db): Promise<boolean> {
+  const q = on ?? orm();
   if (!q) return false;
   const rows = await q
     .update(sessions)

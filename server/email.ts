@@ -63,9 +63,22 @@ export async function platformSend(
   text: string,
   html?: string,
   category: MailCategory = "security",
+  /** The login the mail is about, when it is not the one it is sent to (a
+   *  move to a new address is confirmed at the new one). */
+  about?: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const mail = authMail(tenant);
   if (!mail) return { ok: false, error: "the platform has no mail credential (FOLDRUN_RESEND_API_KEY)" };
+  // A login in several accounts (FOL-464) gets its sign-in and recovery mail
+  // from the install's own sender or not at all: one account's provider,
+  // which that account's admins can read, must never carry the way into the
+  // others. Joining asks for the sender (users.ts joinAccount); this holds it
+  // when the sender is taken away afterwards.
+  if (!process.env.FOLDRUN_RESEND_API_KEY?.trim()) {
+    const { findUser, accountsOf } = await import("./users.ts");
+    const person = about ? { id: about } : await findUser(to);
+    if (person && (await accountsOf(person.id)).length > 1) return { ok: false, error: "the platform has no mail credential (FOLDRUN_RESEND_API_KEY)" };
+  }
   const res = await sendMail({ tenant, mail, to, subject, text, html, category });
   if (!res.ok) return { ok: false, error: res.status ? `the mail service refused it (HTTP ${res.status})` : res.error ?? "not sent" };
   return { ok: true };
@@ -189,7 +202,7 @@ export function sendEmailChangedNotice(tenant: string, oldAddress: string, newAd
  * address is free: the link that makes the move (emailChangeLink). Nothing
  * has moved yet, and nothing does unless this inbox clicks.
  */
-export function sendEmailChangeConfirm(tenant: string, to: string, from: string, url: string) {
+export function sendEmailChangeConfirm(tenant: string, to: string, from: string, url: string, about?: string) {
   const lead = `Someone signed in as ${from} asked to move their foldrun login to ${to}.`;
   const after = `Nothing changes until you click. The link works once and for ${VERIFY_LIFETIME_TEXT}. If you did not ask for this, ignore it.`;
   return platformSend(
@@ -198,6 +211,8 @@ export function sendEmailChangeConfirm(tenant: string, to: string, from: string,
     "Confirm your new foldrun login address",
     `${lead}\n\nMove it here:\n${url}\n\n${after}\n`,
     linkEmail({ lead: esc(lead), button: "Move my login here", url, after: esc(after) }),
+    "security",
+    about,
   );
 }
 

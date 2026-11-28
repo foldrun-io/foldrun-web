@@ -1,7 +1,11 @@
 import { $el, $rich, $t } from "@/i18n";
 import { Suspense } from "react";
 import Link from "@foldrun/ui/react/link";
-import { findUser, hasUsers, inviteDoor, peekInvite, setupTokenRequired } from "@/server/users";
+import { cookies } from "next/headers";
+import { cn } from "@foldrun/ui/react/cn";
+import { buttonVariants } from "@foldrun/ui/react/button";
+import { findMember, findUser, hasUsers, inviteDoor, peekInvite, setupTokenRequired, verifySession, SESSION_COOKIE } from "@/server/users";
+import { JoinAccount, SignOutHere } from "../join-account";
 import { readSignupLink } from "@/server/signup-links";
 import { signupModesNow, signupPageState, SIGNUP_CONTACT } from "@/server/signup";
 import { platform } from "@/lib/platform";
@@ -91,26 +95,67 @@ export default async function SignupPage({
     // The address already has a login (FOL-464): the form below would be
     // refused, so the page says where the person stands, and does not offer it.
     const door = await inviteDoor(invited);
-    if (door !== "signup" && invited.email) {
-      const signIn = (
-        <Link href="/login" className="font-medium text-fg hover:underline">
-          {$t("auth.signup-page.signIn")}
-        </Link>
+    // Who is looking: a signed-in person joins with the login they have
+    // (FOL-464), one login in several accounts.
+    const me = await verifySession((await cookies()).get(SESSION_COOKIE)?.value).catch(() => null);
+    const account = <span className="font-mono">{invited.tenant}</span>;
+    const invitedAs = $t("auth.signup-page.youWereInvitedAsWithAccess", { role: invited.role, part: invited.workspaces === null ? $t("auth.signup-page.everyWorkspace") : invited.workspaces.length ? invited.workspaces.join(", ") : $t("auth.signup-page.noWorkspaceYet") });
+    const signInHere = `/login?next=${encodeURIComponent(`/signup?invite=${encodeURIComponent(invite!)}`)}`;
+    if (me && !me.viewAs) {
+      // Signed in with another address than the one invited: the link is not theirs to use.
+      if (invited.email && invited.email !== me.email.toLowerCase()) {
+        return (
+          <AuthCard
+            title={$t("auth.signup-page.thisInviteIsForAnotherAddress")}
+            hint={<>{$rich("auth.signup-page.itWasSentToAndYouAre", { email: $el(<Email value={invited.email} />), me: $el(<Email value={me.email} />) })}</>}
+          >
+            <SignOutHere />
+          </AuthCard>
+        );
+      }
+      if (await findMember(invited.tenant, { id: me.id })) {
+        return (
+          <AuthCard
+            title={<>{$rich("auth.signup-page.youAreAlreadyIn", { tenant: invited.tenant, span: () => account })}</>}
+            hint={<>{$rich("auth.signup-page.youAreSignedInAs", { email: $el(<Email value={me.email} />) })}</>}
+          >
+            <JoinAccount from={me.tenant} as={me.id} account={invited.tenant} label={$t("auth.signup-page.open", { tenant: invited.tenant })} />
+          </AuthCard>
+        );
+      }
+      return (
+        <AuthCard
+          title={<>{$rich("auth.signup-page.join", { tenant: invited.tenant, span: () => account })}</>}
+          hint={
+            <>
+              {invitedAs} {$rich("auth.signup-page.youAreSignedInAsJoin", { email: $el(<Email value={me.email} />) })}
+            </>
+          }
+        >
+          <JoinAccount from={me.tenant} as={me.id} invite={invite!} label={$t("auth.signup-page.joinButton", { tenant: invited.tenant })} />
+        </AuthCard>
       );
-      return door === "member" ? (
+    }
+    // Not signed in, and the address already has a login: the form below
+    // would be refused, so the page sends them to sign in and come back.
+    if (door !== "signup" && invited.email) {
+      return (
         <AuthCard
-          center
-          title={<>{$rich("auth.signup-page.youAreAlreadyIn", { tenant: invited.tenant, span: (chunks) => <span className="font-mono">{chunks}</span> })}</>}
-          hint={<>{$rich("auth.signup-page.isAlreadyAMemberSignIn", { email: $el(<Email value={invited.email} />) })}</>}
-          footer={signIn}
-        />
-      ) : (
-        <AuthCard
-          center
-          title={$t("auth.signup-page.thisAddressAlreadyHasALogin")}
-          hint={<>{$rich("auth.signup-page.oneLoginOneAccountForNow", { email: $el(<Email value={invited.email} />), tenant: invited.tenant, span: (chunks) => <span className="font-mono">{chunks}</span> })}</>}
-          footer={signIn}
-        />
+          title={<>{door === "member" ? $rich("auth.signup-page.youAreAlreadyIn", { tenant: invited.tenant, span: () => account }) : $rich("auth.signup-page.signInToJoin", { tenant: invited.tenant, span: () => account })}</>}
+          hint={
+            door === "member" ? (
+              <>{$rich("auth.signup-page.isAlreadyAMemberSignIn", { email: $el(<Email value={invited.email} />) })}</>
+            ) : (
+              <>
+                {$rich("auth.signup-page.alreadyHasALoginSignIn", { email: $el(<Email value={invited.email} />) })} {invitedAs}
+              </>
+            )
+          }
+        >
+          <Link href={signInHere} className={cn(buttonVariants({ variant: "primary" }), "w-full")}>
+            {$t("auth.signup-page.signIn")}
+          </Link>
+        </AuthCard>
       );
     }
     return (
@@ -132,6 +177,7 @@ export default async function SignupPage({
             )}
           </>
         }
+        footer={<>{$rich("auth.signup-page.alreadyHaveALoginSignInToJoin", { link: (chunks) => <Link href={signInHere} className="font-medium text-fg hover:underline">{chunks}</Link> })}</>}
       >
         <Suspense>
           <AuthForm mode="signup" invite={invite} {...(invited.email ? { inviteEmail: invited.email } : {})} />

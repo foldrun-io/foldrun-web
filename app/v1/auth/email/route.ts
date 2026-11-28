@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
     const taken = Boolean(await findUser(to));
     const sent = taken
       ? await sendEmailTakenNotice(user.tenant, to, user.email)
-      : await sendEmailChangeConfirm(user.tenant, to, user.email, emailChangeLink(publicOrigin(req), fresh, to));
+      : await sendEmailChangeConfirm(user.tenant, to, user.email, emailChangeLink(publicOrigin(req), fresh, to), user.id);
     if (sent.ok) await clearLimit(`email:${user.id}`);
     // Whether the address was taken is not recorded: this log is read back
     // by the account's admins, and it would be the same oracle.

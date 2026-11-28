@@ -17,7 +17,7 @@ import { ensureTenantKey } from "@/platform/tenant-keys.ts";
 import { assertPasswordPolicy } from "@/server/password-policy";
 import { allUsersDb, upsertUserDb, setMembershipsDb, importUsersToDatabase } from "@/platform/users-db";
 import { expandPeople, collapsePeople, snapshotPeople, type Stored } from "@/platform/people.ts";
-import { tx, databaseEnabled, users as usersTable, sessions as sessionsTable, and, isNull, eq, sql, type Db } from "@/platform/orm";
+import { tx, databaseEnabled, users as usersTable, sessions as sessionsTable, loginCodes as loginCodesTable, and, isNull, eq, gt, sql, type Db } from "@/platform/orm";
 import { hashFingerprint } from "./auth-tokens.ts";
 import { assertConfirmed, mustConfirm } from "./email-confirmed.ts";
 import { revokeSessions } from "./sessions";
@@ -77,6 +77,14 @@ export interface UserRecord {
   /** Set on the record of an account they joined after their first: when
    *  (and `createdAt` is that moment too). Absent on their first account's. */
   joined?: string;
+  /** The id of this stay in the account (@/platform/people.ts): random, new
+   *  each time they join. Absent on the account they signed up into and never
+   *  left. Sessions and connected apps are bound to it, so nothing made
+   *  during one stay works in a later one. */
+  membership?: string;
+  /** Counts the times this login opened another account. A reset link names
+   *  the count it was mailed at and is good only while it stands. */
+  recoveryGen?: number;
   salt: string;
   hash: string; // scrypt(password, salt)
   createdAt: string;
@@ -141,7 +149,7 @@ export interface UserRecord {
   /** How the presented token was made (27 Oct 2026): its kind, the surface
    *  it was made for (null = the customer app) and whether a second factor
    *  was completed. Set by verifySession. */
-  session?: { kind: "v1" | "v2" | "s1"; audience: string | null; mfa: boolean; /** v2: the session row's id */ id?: string };
+  session?: { kind: "v1" | "v2" | "s1"; audience: string | null; mfa: boolean; /** v2: the session row's id */ id?: string; /** v2: how they proved who they were */ method?: "password" | "email-code"; /** when it ends, whatever is done with it (ms) */ expires?: number; /** v2: when the second factor was done */ mfaAt?: Date | null };
   /** A person's own small settings: `onboardingDismissedAt`, and the like. */
   prefs?: Record<string, unknown> | null;
   /** The door this person's account came in by, set once when they were
@@ -640,31 +648,33 @@ const sign = sessionMac;
 export async function mintSession(
   user: UserRecord,
   userAgent?: string | null,
-  how: { audience?: string | null; mfa?: boolean; method?: "password" | "email-code" } = {},
+  how: { audience?: string | null; mfa?: boolean; method?: "password" | "email-code"; /** a session that continues another (moving to another account): it ends when that one would have, with the second factor as old as it was */ continues?: { expires: number; mfaAt?: Date | null }; /** the transaction to write the row in (moveSession) */ on?: UsersTx } = {},
 ): Promise<{ value: string; expires: Date; sessionId: string | null }> {
-  const expires = sessionExpiry();
+  const expires = how.continues ? new Date(how.continues.expires) : sessionExpiry();
   if (revocable()) {
     const id = newSessionId();
-    await recordSession(id, user.id, user.tenant, expires, userAgent ?? null, how);
+    await recordSession(id, user.id, user.tenant, expires, userAgent ?? null, { audience: how.audience, mfa: how.mfa, method: how.method, mfaAt: how.continues?.mfaAt ?? null, membership: user.membership ?? null }, how.on);
     const payload = `${id}.${expires.getTime()}`;
-    // v3: a session for an account they joined (FOL-464). The row names the
-    // account either way; the new mark is so a release from before joined
-    // accounts, which would read any session as the person's first account,
-    // refuses it instead.
-    return { value: `${user.joined ? "v3" : "v2"}.${payload}.${sign(payload)}`, expires, sessionId: id };
+    // v3: a session for a stay with an id, an account they joined (FOL-464).
+    // Signed as v3, so a release from before joined accounts, which would
+    // read any session as the person's first account, cannot be handed it
+    // under an older name: the signature is over the name too.
+    return { value: user.membership ? `v3.${payload}.${sign(`v3.${payload}`)}` : `v2.${payload}.${sign(payload)}`, expires, sessionId: id };
   }
   // The password's fingerprint is in it, so a reset (or a password change)
   // ends every file-mode session as it ends the rows of a database install
   // (Codex, FOL-317: an old cookie kept working after the inbox owner's reset).
-  // It names its account and when they came into it (FOL-464): a session is
-  // for one account, ends when they leave it, and does not come back to life
-  // if they are let in again later.
-  const payload = `${user.id}:${hashFingerprint(user.hash)}:${accountMark(user)}.${expires.getTime()}`;
-  return { value: `${user.joined ? "v3" : "v1"}.${payload}.${sign(payload)}`, expires, sessionId: null };
+  // A stay with an id (an account they joined, FOL-464) is named in it: the
+  // session is for that stay, ends when they leave, and does not come back to
+  // life if they are let in again, which is a new stay with a new id. The
+  // account they signed up into has no id and keeps the form it always had.
+  if (user.membership) {
+    const payload = `${user.id}:${hashFingerprint(user.hash)}:${user.membership}.${expires.getTime()}`;
+    return { value: `v3.${payload}.${sign(`v3.${payload}`)}`, expires, sessionId: null };
+  }
+  const payload = `${user.id}:${hashFingerprint(user.hash)}.${expires.getTime()}`;
+  return { value: `v1.${payload}.${sign(payload)}`, expires, sessionId: null };
 }
-
-/** A file-mode session's account: which, and the membership's date. */
-const accountMark = (u: Pick<UserRecord, "tenant" | "createdAt">) => Buffer.from(`${u.tenant}\n${u.createdAt}`).toString("base64url");
 
 /** The session id inside a token, without deciding whether it is still live.
  *  For "which of these rows is the one I am using". */
@@ -673,6 +683,25 @@ export function sessionIdOf(token: string | undefined): string | null {
   const parts = token.split(".");
   // v3 with a database is a row's id too; without one it names the person, not a row.
   return parts.length === 4 && (parts[0] === "v2" || parts[0] === "v3") && !parts[1].includes(":") ? parts[1] : null;
+}
+
+/** Their stay in an account now: its id, null for the account they signed up
+ *  into and never left, undefined when they are not in it. What a connected
+ *  app's approval is bound to (mcp-oauth.ts). */
+export async function stayOf(tenant: string, userId: string): Promise<string | null | undefined> {
+  const m = await findMember(tenant, { id: userId });
+  return m ? (m.membership ?? null) : undefined;
+}
+
+/** A member's standing in an account at one moment: their stay, role and
+ *  workspaces from ONE read, for a caller that must not pair one stay's
+ *  authority with another's id. */
+export async function standingOf(tenant: string, userId: string): Promise<{ person: UserRecord; stay: string | null; role: Role; workspaces: string[] | null } | null> {
+  const users = await readUsers();
+  const person = users.find((u) => u.tenant === tenant && u.id === userId);
+  const role = person ? roleOfMembers(users, tenant, userId) : null;
+  if (!person || !role) return null;
+  return { person, stay: person.membership ?? null, role, workspaces: person.workspaces ?? null };
 }
 
 /** Cookie attributes for the session, derived from how the request actually
@@ -868,30 +897,116 @@ export async function accountsOf(userId: string): Promise<{ tenant: string; role
 export async function joinAccount(token: string, userId: string): Promise<{ user: UserRecord; invite: InviteRow }> {
   const parsed = parseInviteToken(token);
   if (!parsed) throw invalidInvite();
-  return mutateUsers(async (users, invites) => {
-    const person = users.find((u) => u.id === userId && !u.joined);
-    if (!person) throw Object.assign(new Error("sign in first"), { status: 401 });
-    const row = await invites.claim(parsed.id, userId);
-    if (!row || !isRole(row.role) || row.role === "owner") throw invalidInvite();
-    if (row.email && row.email !== person.email.toLowerCase()) {
-      throw Object.assign(new Error(`this invite was sent to ${row.email} — sign in with that address`), { status: 403 });
+  return mutateUsers((users, invites, t) => joinIn(users, invites, t, parsed.id, userId));
+}
+
+/** joinAccount's work, inside a people lock the caller holds. */
+async function joinIn(users: UserRecord[], invites: InviteStore, t: UsersTx | undefined, inviteId: string, userId: string): Promise<{ user: UserRecord; invite: InviteRow }> {
+  const person = users.find((u) => u.id === userId && !u.joined);
+  if (!person) throw signInFirst();
+  const row = await invites.claim(inviteId, userId);
+  if (!row || !isRole(row.role) || row.role === "owner") throw invalidInvite();
+  if (row.email && row.email !== person.email.toLowerCase()) {
+    throw Object.assign(new Error(`this invite was sent to ${row.email} — sign in with that address`), { status: 403 });
+  }
+  // The address is theirs only once confirmed: an unconfirmed login at
+  // the invited address proves nothing about who holds that inbox.
+  assertConfirmed(person);
+  // Recovery mail for a login is the install's to send. Without a sender
+  // of its own, a self-hosted install sends it through the person's first
+  // account's provider (email.ts authMail), and that account's admins,
+  // who can read what their provider sent, would hold the way into every
+  // other account the login is in.
+  if (!installSendsMail()) throw Object.assign(new Error("this install has no mail sender of its own (FOLDRUN_RESEND_API_KEY): one login in several accounts needs it, for recovery mail no account's own provider handles"), { status: 409 });
+  if (!minterStillMay(users, row)) throw invalidInvite();
+  if (users.some((u) => u.id === userId && u.tenant === row.tenant)) {
+    throw Object.assign(new Error(`you are already in ${row.tenant}`), { status: 409 });
+  }
+  // What was mailed to recover or sign in to this login BEFORE it opened
+  // another account is spent here, under the lock a reset takes: a reset
+  // link names the count it was made at (auth-flows.ts resetLink), and
+  // sign-in codes still waiting are dropped.
+  person.recoveryGen = (person.recoveryGen ?? 0) + 1;
+  if (t) {
+    // The person's row first, as issuing a code takes it (login-codes.ts): a
+    // code being written at this moment is waited for, then dropped with the rest.
+    await t.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.id, userId)).for("update");
+    await t.delete(loginCodesTable).where(eq(loginCodesTable.userId, userId));
+  }
+  const at = new Date().toISOString();
+  const member: UserRecord = { ...person, tenant: row.tenant, createdAt: at, joined: at, role: row.role, admission: "invite", membership: crypto.randomBytes(12).toString("base64url") };
+  delete member.owner;
+  delete member.workspaces;
+  if (row.workspaces) member.workspaces = row.workspaces;
+  users.push(member);
+  return { user: member, invite: row };
+}
+
+const signInFirst = () => Object.assign(new Error("sign in first"), { status: 401 });
+
+/**
+ * End a person's sessions (all but `keep`), or one of them, under the people
+ * lock. A session that moves to another account (moveSession) is one row
+ * ended and another written, under this same lock: ended outside it, "sign
+ * out my other devices" could run while a move was half done, pass over the
+ * old row as already ended, never see the new one, and leave that device
+ * signed in.
+ */
+export async function endSessions(userId: string, keep?: string): Promise<number> {
+  return withPeople((_users, t) => revokeSessions(userId, keep, t));
+}
+export async function endSession(userId: string, id: string): Promise<boolean> {
+  return withPeople(async (_users, t) => (await import("./sessions.ts")).revokeSession(userId, id, t));
+}
+
+/**
+ * A session moves to another account its person is in, or joins the account
+ * an invite is for and moves there (FOL-464). All of it is one write under
+ * the people lock, the one a reset, a removal and "sign out everywhere"
+ * take: the old session is spent, the person is read again as that session
+ * knew them (same stay, same password), the invite is claimed and the
+ * membership made, and the new session is written, or none of it is. So a
+ * session ended a moment ago buys nothing; of two moves at once one wins; a
+ * join that is refused leaves the session where it was; and a reset can
+ * never land between the old session and the new.
+ *
+ * The new session continues the old: it ends when that one would have, with
+ * the second factor as old as it was. Moving never renews a sign-in.
+ */
+export async function moveSession(
+  me: UserRecord,
+  target: { account: string } | { invite: string },
+  userAgent: string | null,
+): Promise<{ user: UserRecord; invite?: InviteRow; session: { value: string; expires: Date; sessionId: string | null } }> {
+  const from = me.session;
+  if (!from || from.kind === "s1" || from.audience || !from.expires) throw signInFirst();
+  const parsed = "invite" in target ? parseInviteToken(target.invite) : null;
+  if ("invite" in target && !parsed) throw invalidInvite();
+  return mutateUsers(async (users, invites, t) => {
+    // Who the session knew, still: in that account, in that stay, with that password.
+    const src = users.find((u) => u.id === me.id && u.tenant === me.tenant && (u.membership ?? null) === (me.membership ?? null));
+    if (!src || src.hash !== me.hash || from.expires! <= Date.now()) throw signInFirst();
+    if (from.id) {
+      if (!t) throw signInFirst();
+      const spent = await t
+        .update(sessionsTable)
+        .set({ revokedAt: sql`now()` })
+        .where(and(eq(sessionsTable.id, from.id), eq(sessionsTable.userId, me.id), isNull(sessionsTable.revokedAt), gt(sessionsTable.expiresAt, sql`now()`)))
+        .returning({ id: sessionsTable.id });
+      if (!spent.length) throw signInFirst();
     }
-    // The address is theirs only once confirmed: an unconfirmed login at
-    // the invited address proves nothing about who holds that inbox.
-    assertConfirmed(person);
-    if (!minterStillMay(users, row)) throw invalidInvite();
-    if (users.some((u) => u.id === userId && u.tenant === row.tenant)) {
-      throw Object.assign(new Error(`you are already in ${row.tenant}`), { status: 409 });
-    }
-    const at = new Date().toISOString();
-    const member: UserRecord = { ...person, tenant: row.tenant, createdAt: at, joined: at, role: row.role, admission: "invite" };
-    delete member.owner;
-    delete member.workspaces;
-    if (row.workspaces) member.workspaces = row.workspaces;
-    users.push(member);
-    return { user: member, invite: row };
+    let to: UserRecord | undefined;
+    let invite: InviteRow | undefined;
+    if (parsed) ({ user: to, invite } = await joinIn(users, invites, t, parsed.id, me.id));
+    // Never "no such account": one they are not in and one that does not exist read the same.
+    else to = users.find((u) => u.id === me.id && u.tenant === (target as { account: string }).account);
+    if (!to) throw Object.assign(new Error("you are not in that account"), { status: 404 });
+    const session = await mintSession(to, userAgent, { mfa: from.mfa, ...(from.method ? { method: from.method } : {}), continues: { expires: from.expires!, mfaAt: from.mfaAt ?? null }, on: t });
+    return { user: to, ...(invite ? { invite } : {}), session };
   });
 }
+
+const installSendsMail = () => Boolean(process.env.FOLDRUN_RESEND_API_KEY?.trim());
 
 /** Where an invite's address stands (FOL-464). A login is one account today,
  *  so an address that already has one cannot take the sign-up form the link
@@ -1257,12 +1372,14 @@ export async function isOwner(tenant: string, userId: string): Promise<boolean> 
  * bug this is fixing.
  */
 export async function removeMember(tenant: string, id: string, actorId: string, by: string = actorId, ceiling?: Role): Promise<false | { invitesRevoked: string[]; keysRevoked: string[] }> {
+  let stay: string | null = null;
   const removed = await mutateUsers(async (users, invites, t) => {
     const at = users.findIndex((u) => u.tenant === tenant && u.id === id);
     if (at < 0) return false;
     assertCanRemoveMember(users, tenant, id, actorId); // throws with a status
     assertWithinCeiling(users, tenant, id, actorId, ceiling);
     const [gone] = users.splice(at, 1);
+    stay = gone.membership ?? null;
     // In the same transaction: every pending invite they made, and every
     // one still pending to their address. Done after, a removed person
     // could accept one addressed to them in between and be back.
@@ -1283,12 +1400,21 @@ export async function removeMember(tenant: string, id: string, actorId: string, 
     if (t) await t.update(sessionsTable).set({ revokedAt: sql`now()` }).where(and(eq(sessionsTable.userId, id), eq(sessionsTable.tenant, tenant), isNull(sessionsTable.revokedAt)));
     return { invitesRevoked: revoked.map((r) => r.id), keysRevoked };
   });
-  // And the apps they connected to this account, for the same reason: a
-  // grant is checked against "still a member", which a return would satisfy.
+  // And the apps they connected during that stay. Tidying only: a grant
+  // names the stay it was approved in and is refused outside it, so one
+  // missed here (a crash, an approval still in flight) is dead all the same,
+  // and one from a later stay is not touched.
+  // The removal is done by now: a failure here is logged, never the answer
+  // to a removal that happened (its caller writes the audit line after this).
   if (removed) {
-    const { listGrants, revokeGrant } = await import("./mcp-oauth.ts");
-    for (const g of await listGrants(tenant)) {
-      if (g.userId === id) await revokeGrant(tenant, g.id, `removed:${by}`);
+    try {
+      const { listGrants, revokeGrant } = await import("./mcp-oauth.ts");
+      for (const g of await listGrants(tenant)) {
+        if (g.userId === id && (g.stay ?? null) === stay) await revokeGrant(tenant, g.id, `removed:${by}`);
+      }
+    } catch (err) {
+      const { opsError } = await import("@/lib/ops-log.ts");
+      opsError("team.removed_grants_sweep_failed", err, { tenant, user: id });
     }
   }
   return removed;
@@ -1344,7 +1470,7 @@ export async function resetPassword(userId: string, next: string): Promise<void>
     user.salt = salt;
     user.hash = hash;
   });
-  await revokeSessions(userId);
+  await endSessions(userId);
 }
 
 /**
@@ -1359,7 +1485,7 @@ export async function resetPassword(userId: string, next: string): Promise<void>
  * Without a database sessions are signed cookies, not rows: each carries the
  * password's fingerprint, so the new password ends them all the same (FOL-317).
  */
-export async function redeemReset(claims: { u: string; h: string; e: string }, next: string): Promise<(UserRecord & { confirmedNow: boolean; resetAt: Date }) | null> {
+export async function redeemReset(claims: { u: string; h: string; e: string; g?: string }, next: string): Promise<(UserRecord & { confirmedNow: boolean; resetAt: Date }) | null> {
   const known = await findUserById(claims.u);
   if (!known) return null;
   await assertPasswordPolicy(next, known.email);
@@ -1368,6 +1494,8 @@ export async function redeemReset(claims: { u: string; h: string; e: string }, n
   return mutateUsers(async (users, _invites, t) => {
     const user = users.find((u) => u.id === claims.u);
     if (!user || hashFingerprint(user.hash) !== claims.h || user.email !== claims.e) return null;
+    // Mailed before the login opened another account (joinIn): spent.
+    if (Number(claims.g ?? 0) !== (user.recoveryGen ?? 0)) return null;
     const resetAt = new Date(); // under the lock, before the new password exists
     user.salt = salt;
     user.hash = hash;
@@ -1560,7 +1688,7 @@ export async function verifySession(token: string | undefined): Promise<UserReco
   if (version !== "v1" && version !== "v2" && version !== "v3" && version !== "s1") return null;
   if (!/^\d+$/.test(expires) || Number(expires) < Date.now()) return null;
 
-  const expected = sign(`${subject}.${expires}`);
+  const expected = sign(version === "v3" ? `v3.${subject}.${expires}` : `${subject}.${expires}`);
   const presented = Buffer.from(mac, "latin1");
   const wanted = Buffer.from(expected, "latin1");
   if (presented.length !== wanted.length || !crypto.timingSafeEqual(presented, wanted)) return null;
@@ -1589,26 +1717,30 @@ export async function verifySession(token: string | undefined): Promise<UserReco
     // The person AS A MEMBER OF THE ACCOUNT THE SESSION WAS MADE FOR (FOL-464):
     // its role, workspaces and ownership there. No longer in that account
     // (removed, or left): the session is nobody's, whatever else they are in.
-    const user = (await readUsers()).find((u) => u.id === live.userId && u.tenant === live.tenant);
+    // And in the SAME STAY: a row made in an earlier one (even by a sign-in
+    // that raced their removal and wrote its row after the sweep) names an id
+    // no later stay has.
+    const user = (await readUsers()).find((u) => u.id === live.userId && u.tenant === live.tenant && (u.membership ?? null) === live.membership);
     if (!user) return null;
     // The row and the person are two reads. A reset changes the password and
     // revokes the session in one write, so one landing between them would pair
     // this old cookie with the new password; a second look at the row catches
     // it (FOL-320, Codex: an MCP approval took the new fingerprint that way).
     if (!(await sessionStillLive(subject))) return null;
-    return { ...user, session: { kind: "v2", audience: live.audience, mfa: live.mfa, id: subject } };
+    return { ...user, session: { kind: "v2", audience: live.audience, mfa: live.mfa, id: subject, method: live.method, expires: Number(expires), mfaAt: live.mfaAt } };
   }
   // v1: the pre-database form, minted only where an install has no database.
   // Where there is one, a v1 token cannot be revoked by sign-out, a reset or
   // Profile → Sessions, and carries no MFA fact — refused (29 Oct 2026; v2
   // has been minted there for well over the 30-day life of any v1).
   if (databaseEnabled()) return null;
-  const [id, fingerprint, account] = subject.split(":");
+  const [id, fingerprint, stay] = subject.split(":");
+  if ((version === "v3") !== (stay !== undefined)) return null;
   const people = (await readUsers()).filter((u) => u.id === id);
-  // The account it names, while they are still in it as they were then. One
-  // from before sessions named an account: good only for a person in one
-  // account, where there is nothing to confuse it with.
-  const user = account === undefined ? (people.length === 1 ? people[0] : undefined) : people.find((u) => accountMark(u) === account);
+  // v3 names its stay. v1 names none: it is the account they signed up into,
+  // for as long as they have never left it. Gone from there, the account that
+  // became their first has an id, and a v1 cookie is nobody's.
+  const user = stay === undefined ? people.find((u) => !u.membership) : people.find((u) => u.membership === stay);
   if (!user || !fingerprint || fingerprint !== hashFingerprint(user.hash)) return null;
-  return { ...user, session: { kind: "v1", audience: null, mfa: false } };
+  return { ...user, session: { kind: "v1", audience: null, mfa: false, expires: Number(expires) } };
 }

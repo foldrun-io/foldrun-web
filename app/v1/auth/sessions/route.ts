@@ -6,8 +6,8 @@
 //        a surprise, not a security feature.
 
 import { NextRequest, NextResponse } from "next/server";
-import { verifySession, sessionIdOf, SESSION_COOKIE } from "@/server/users";
-import { listSessions, revokeSession, revokeSessions, revocable } from "@/server/sessions";
+import { verifySession, sessionIdOf, SESSION_COOKIE, endSessions, endSession } from "@/server/users";
+import { listSessions, revocable } from "@/server/sessions";
 import { audit } from "@/server/audit";
 import { sessionUser, errorResponse, refuse } from "@/server/api";
 import { refuseNonText } from "@/server/auth-input";
@@ -24,7 +24,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ revocable: false, current: null, sessions: [] });
     }
     const current = sessionIdOf(token);
-    const sessions = await listSessions(user.id);
+    // A support view is of one account (FOL-464): the owner's devices in the
+    // other accounts they are in are not that account's to show.
+    const sessions = (await listSessions(user.id)).filter((s) => !user.viewAs || s.tenant === user.tenant);
     return NextResponse.json({
       revocable: true,
       current,
@@ -51,7 +53,7 @@ export async function DELETE(req: NextRequest) {
     if (notText) return notText;
 
     if (body.others) {
-      const n = await revokeSessions(user.id, current ?? undefined);
+      const n = await endSessions(user.id, current ?? undefined);
       await audit("session.revoked", {
         actor: user.email,
         tenant: user.tenant,
@@ -64,7 +66,7 @@ export async function DELETE(req: NextRequest) {
     if (body.id === current) {
       return refuse("that is this device — use sign out instead", 400);
     }
-    const done = await revokeSession(user.id, body.id);
+    const done = await endSession(user.id, body.id);
     if (done) {
       await audit("session.revoked", {
         actor: user.email,

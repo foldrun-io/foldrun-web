@@ -10,6 +10,7 @@ import { Suspense } from "react";
 import Link from "@foldrun/ui/react/link";
 import { cookies, headers } from "next/headers";
 import { Sidebar } from "@/components/sidebar";
+import { AccountGuard } from "@/components/account-guard";
 import { PendingApprovals } from "@/components/pending-approvals";
 import { ViewerTimeZoneProvider } from "@/components/viewer-time";
 import { RoleProvider } from "@/components/role";
@@ -93,6 +94,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <EditionProvider edition={edition}>
     <RoleProvider role={role}>
     <ViewerTimeZoneProvider timezone={session?.timezone ?? null}>
+    {session && !session.viewAs && <AccountGuard account={tenant} as={session.id} />}
     {session?.viewAs && <SupportBanner account={tenant} expiresAt={session.viewAs.expiresAt} reason={session.viewAs.reason} />}
     <TooltipProvider delayDuration={250}>
     <ShellDataProvider account={tenant} plan={plan} accountAvatar={avatarUrl(tenant, "account", tenant)}>

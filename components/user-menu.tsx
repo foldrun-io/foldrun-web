@@ -8,13 +8,18 @@ import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BookOpen, CircleHelp, CreditCard, Ellipsis, ExternalLink, LogOut, Monitor, Moon, Settings, Sparkles, Sun, User, BarChart3, Activity } from "lucide-react";
+import { Check, BookOpen, CircleHelp, CreditCard, Ellipsis, ExternalLink, LogOut, Monitor, Moon, Settings, Sparkles, Sun, User, BarChart3, Activity } from "lucide-react";
 import { Avatar } from "./avatar";
 import { useHosted } from "./edition";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@foldrun/ui/react/menu";
 import { Segmented } from "@foldrun/ui/react/segmented";
 import { THEMES, type Theme } from "./theme-model";
 import { LanguageMenuItems } from "./language-switch";
+import { ROLE_LABEL } from "./value-labels";
+import { Toast } from "@foldrun/ui/react/toast";
+
+/** Tabs of one browser tell each other when the session moved to another account. */
+const ACCOUNT_CHANNEL = "foldrun-account";
 
 const THEME_ICON = { system: Monitor, light: Sun, dark: Moon } as const;
 
@@ -31,14 +36,35 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
   const qs = tenantParam !== "default" ? `?tenant=${tenantParam}` : "";
   const hosted = useHosted();
 
-  const [who, setWho] = useState<{ email?: string; tenant?: string; avatar?: string | null }>({});
+  const [who, setWho] = useState<{ email?: string; tenant?: string; avatar?: string | null; accounts?: { tenant: string; role: string; current: boolean }[] }>({});
   const [theme, setThemeState] = useState<Theme>("system");
+  const [switchFailed, setSwitchFailed] = useState(false);
 
   useEffect(() => {
-    fetch("/v1/auth/session")
-      .then((r) => (r.ok ? r.json() : {}))
-      .then((d: { user?: { email?: string; tenant?: string; avatar?: string | null } }) => setWho(d.user ?? {}))
-      .catch(() => {});
+    // The cookie is every tab's, and a session is for one account (FOL-464).
+    // When another tab moves it, this page is showing an account its next
+    // click would no longer act in: it reloads, at once when the other tab
+    // says so, and when it is looked at again otherwise.
+    let shown: string | undefined;
+    const look = (first: boolean) =>
+      fetch("/v1/auth/session")
+        .then((r) => (r.ok ? r.json() : {}))
+        .then((d: { user?: typeof who }) => {
+          if (first) {
+            shown = d.user?.tenant;
+            setWho(d.user ?? {});
+          } else if (shown && d.user?.tenant && d.user.tenant !== shown) window.location.reload();
+        })
+        .catch(() => {});
+    void look(true);
+    const onFocus = () => document.visibilityState === "visible" && void look(false);
+    document.addEventListener("visibilitychange", onFocus);
+    const channel = typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel(ACCOUNT_CHANNEL);
+    if (channel) channel.onmessage = () => window.location.reload();
+    return () => {
+      document.removeEventListener("visibilitychange", onFocus);
+      channel?.close();
+    };
   }, []);
 
   // The same save the Appearance card makes: paint at once, keep it with
@@ -60,6 +86,16 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
   };
 
   const name = who.tenant ?? tenantParam;
+  // One login may be in several accounts (FOL-464): the session is for one,
+  // and choosing another makes a new session there and loads the dashboard.
+  const accounts = (who.accounts?.length ?? 0) > 1 ? who.accounts! : [];
+  const openAccount = async (account: string) => {
+    const res = await fetch("/v1/auth/session", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ account }) }).catch(() => null);
+    if (res?.ok) {
+      if (typeof BroadcastChannel !== "undefined") new BroadcastChannel(ACCOUNT_CHANNEL).postMessage("moved");
+      window.location.assign(new URL("/dashboard", window.location.origin).href);
+    } else setSwitchFailed(true);
+  };
   const items = [
     { name: $t("components.user-menu.profile"), href: `/dashboard/profile${qs}`, icon: User },
     hosted ? { name: $t("components.user-menu.billing"), href: `/dashboard/billing${qs}`, icon: CreditCard } : { name: $t("components.user-menu.usage"), href: `/dashboard/usage${qs}`, icon: BarChart3 },
@@ -75,6 +111,8 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
   ];
 
   return (
+    <>
+    {switchFailed && <Toast onDone={() => setSwitchFailed(false)}>{$t("components.user-menu.switchFailed")}</Toast>}
     <Menu onOpenChange={(o) => o && setThemeState(currentTheme())}>
       <MenuTrigger asChild>
         {wide ? (
@@ -100,6 +138,19 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
           <p className="text-xs text-fg-muted">{$t("components.user-menu.signedInAs")}</p>
           <p className="truncate text-sm text-fg">{who.email ?? name}</p>
         </div>
+        {accounts.length > 0 && (
+          <>
+            <MenuSeparator />
+            <MenuLabel>{$t("components.user-menu.accounts")}</MenuLabel>
+            {accounts.map((a) => (
+              <MenuItem key={a.tenant} disabled={a.current} onSelect={() => void openAccount(a.tenant)}>
+                <span className="min-w-0 flex-1 truncate font-mono text-xs">{a.tenant}</span>
+                <span className="text-xs text-fg-muted">{ROLE_LABEL[a.role] ?? a.role}</span>
+                {a.current && <Check className="size-3.5!" aria-hidden />}
+              </MenuItem>
+            ))}
+          </>
+        )}
         <MenuSeparator />
         {items.map((i) => (
           <MenuItem key={i.name} asChild>
@@ -157,5 +208,6 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
         <MenuLabel className="sr-only">{$t("components.user-menu.account")}</MenuLabel>
       </MenuContent>
     </Menu>
+    </>
   );
 }

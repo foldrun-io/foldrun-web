@@ -6,7 +6,7 @@ import { opsLog, opsError, errorFields } from "@/lib/ops-log.ts";
 import { errorBody } from "./error-shape.ts";
 import { platform } from "@/lib/platform";
 import { NextResponse, type NextRequest } from "next/server";
-import { resolveTenant, listApiKeys, type Actor } from "./auth.ts";
+import { resolveTenant, listApiKeys, accountMoved, ACCOUNT_MOVED, type Actor } from "./auth.ts";
 import { isOwner, verifySession, findMember, roleOfUser, allowedWorkspaces, SESSION_COOKIE, type UserRecord } from "./users.ts";
 import { lowerRole, intersectWorkspaces } from "./mcp-oauth.ts";
 import { can, ACTIONS, type Action } from "@/platform/permissions.ts";
@@ -254,6 +254,9 @@ export async function sessionUser(req: NextRequest): Promise<UserRecord | null |
   const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
   const refused = session?.viewAs ? supportViewRefusal(req.method, req.nextUrl.pathname) : null;
   if (refused) return refuseWith(refused, 403);
+  // A page that showed another account than the session is in now (auth.ts accountMoved).
+  const moved = session ? accountMoved(req, session.tenant, session.id) : null;
+  if (moved) return refuseWith(moved, ACCOUNT_MOVED, { code: "account_moved" });
   return session;
 }
 

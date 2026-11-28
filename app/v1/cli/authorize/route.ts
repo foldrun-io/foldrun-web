@@ -20,7 +20,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { roleOfUser, allowedWorkspaces } from "@/server/users";
 import { describeCliLogin, decideCliLogin, requestOrigin, mayGrantModels } from "@/server/cli-login";
 import { CLI_MODEL_GRANT, sessionCredential } from "@/server/auth";
-import { errorResponse, sessionUser, refuse } from "@/server/api";
+import { errorResponse, sessionUser, refuse, refuseWith } from "@/server/api";
+import { ACCOUNT_MOVED } from "@/server/auth";
 import { jsonObject } from "@/server/body";
 
 export async function GET(req: NextRequest) {
@@ -64,6 +65,12 @@ export async function POST(req: NextRequest) {
     if (body.models !== undefined && typeof body.models !== "boolean") return refuse("models is true or false", 400);
     const role = (await roleOfUser(user.tenant, user.id)) ?? "viewer";
     const workspaces = await allowedWorkspaces(user.tenant, user.id);
+    // What the page said the terminal would get (`shown.role`): a yes is to
+    // that, never to a role the person was given since (FOL-464, Codex).
+    const shown = (body.shown ?? null) as { role?: unknown } | null;
+    if (decision === "approve" && shown && typeof shown === "object" && typeof shown.role === "string" && shown.role !== role) {
+      return refuseWith("your role or projects here changed since this page was drawn — reload it to see what you would be granting", ACCOUNT_MOVED, { code: "account_moved" });
+    }
     const outcome = await decideCliLogin(body.code, decision, { tenant: user.tenant, email: user.email, role, workspaces }, {
       models: body.models === true,
       credential: sessionCredential(user),

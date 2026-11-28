@@ -7,9 +7,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession, errorResponse, ApiError } from "@/server/api";
 import { readToken } from "@/server/auth-tokens";
 import { verifyTotp, newBackupCodes, hashBackup } from "@/server/totp";
-import { openString, setMfa, mfaEnrolBinding, sessionIdOf, SESSION_COOKIE } from "@/server/users";
+import { openString, setMfa, mfaEnrolBinding, sessionIdOf, SESSION_COOKIE, endSessions } from "@/server/users";
 import { assertConfirmed } from "@/server/email-confirmed";
-import { revokeSessions } from "@/server/sessions";
 import { audit } from "@/server/audit";
 import { sendSecurityNotice } from "@/server/email";
 import { clientIp } from "@/server/limits";
@@ -34,7 +33,7 @@ export async function POST(req: NextRequest) {
     // (30 Oct 2026): someone who turns on a second factor because they fear
     // a stolen session must not leave that session signed in for its month.
     // This browser keeps its own.
-    const ended = await revokeSessions(me.id, sessionIdOf(req.cookies.get(SESSION_COOKIE)?.value) ?? undefined);
+    const ended = await endSessions(me.id, sessionIdOf(req.cookies.get(SESSION_COOKIE)?.value) ?? undefined);
     await audit("mfa.enabled", { actor: me.email, tenant: me.tenant, detail: { otherSessionsEnded: ended } });
     sendSecurityNotice(me.tenant, me.email, "two-step sign-in was turned on", clientIp(req));
     return NextResponse.json({ ok: true, backup, otherSessionsEnded: ended });

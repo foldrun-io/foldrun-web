@@ -28,7 +28,7 @@ type Request = {
 };
 
 const CLOCK: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit" };
-type Me = { user: { email: string; tenant: string; role: string } | null };
+type Me = { user: { id: string; email: string; tenant: string; role: string } | null };
 
 export function CliAuthorize() {
   const router = useRouter();
@@ -84,8 +84,9 @@ export function CliAuthorize() {
     try {
       const res = await fetch("/v1/cli/authorize", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ code, decision, ...(decision === "approve" && request?.modelAccess?.offered ? { models } : {}) }),
+        // The account and the person this page named: refused if the browser has since become another.
+        headers: { "content-type": "application/json", ...(me ? { "x-foldrun-account": me.tenant, "x-foldrun-as": me.id } : {}) },
+        body: JSON.stringify({ code, decision, ...(me ? { shown: { role: me.role } } : {}), ...(decision === "approve" && request?.modelAccess?.offered ? { models } : {}) }),
       });
       const body = (await res.json().catch(() => ({}))) as { error?: string; status?: string };
       if (!res.ok) setError(body.error ?? $t("auth.cli-authorize-authorize.somethingWentWrong"));

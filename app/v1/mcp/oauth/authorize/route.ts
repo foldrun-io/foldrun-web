@@ -12,7 +12,8 @@
 import { hashFingerprint } from "@/server/auth-tokens";
 import { NextRequest, NextResponse } from "next/server";
 import { listWorkspaces } from "@/lib/store";
-import { errorResponse, refuse, sessionUser } from "@/server/api";
+import { errorResponse, refuse, refuseWith, sessionUser } from "@/server/api";
+import { ACCOUNT_MOVED } from "@/server/auth";
 import { publicOrigin } from "@/server/auth-flows";
 import { jsonObject } from "@/server/body";
 import { checkAuthorizeRequest, issuerOf, issueCode, OAuthError, redirectWith } from "@/server/mcp-oauth";
@@ -65,7 +66,7 @@ export async function GET(req: NextRequest) {
       loopback: redirect.protocol === "http:",
       scopes: r.scope,
       account: p.user.tenant,
-      person: { email: p.user.email, role: p.role },
+      person: { id: p.user.id, email: p.user.email, role: p.role },
       workspaces: p.workspaces,
       allWorkspaces: p.allowed === null,
     });
@@ -94,6 +95,14 @@ export async function POST(req: NextRequest) {
     const access = body.access ?? (r.scope.includes("mcp:write") ? "write" : "read");
     if (access !== "read" && access !== "write") return refuse('access is "read" or "write"', 400);
     if (access === "write" && !r.scope.includes("mcp:write")) return refuse("the app asked to read only — it cannot be given more", 400);
+    // What the page showed the person they hold (`shown`): a yes is to that,
+    // never to a role or projects they were given since (FOL-464, Codex).
+    const shown = (body.shown ?? null) as { role?: unknown; workspaces?: unknown; allWorkspaces?: unknown } | null;
+    if (shown && typeof shown === "object") {
+      const list = Array.isArray(shown.workspaces) ? shown.workspaces.filter((w): w is string => typeof w === "string") : null;
+      const same = (typeof shown.role !== "string" || shown.role === p.role) && (typeof shown.allWorkspaces !== "boolean" || shown.allWorkspaces === (p.allowed === null)) && (!list || (list.length === p.workspaces.length && p.workspaces.every((w) => list.includes(w))));
+      if (!same) return refuseWith("your role or projects here changed since this page was drawn — reload it to see what you would be granting", ACCOUNT_MOVED, { code: "account_moved" });
+    }
     // Never wider than the person: a list is checked against what they may open.
     let workspaces: string[] | null = p.allowed;
     if (body.workspaces !== undefined && body.workspaces !== null) {
@@ -110,7 +119,7 @@ export async function POST(req: NextRequest) {
     // the hash, so this second read sees the session gone or the same hash.
     const again = await sessionUser(req);
     if (!again || again instanceof Response || again.id !== p.user.id || again.hash !== p.user.hash) return refuse("sign in first", 401);
-    const code = await issueCode(r, { tenant: p.user.tenant, userId: p.user.id, email: p.user.email, role: p.role, workspaces, readOnly: access === "read", h: hashFingerprint(p.user.hash) });
+    const code = await issueCode(r, { tenant: p.user.tenant, userId: p.user.id, stay: p.user.membership ?? null, email: p.user.email, role: p.role, workspaces, readOnly: access === "read", h: hashFingerprint(p.user.hash) });
     await audit("mcp.connected", {
       actor: p.user.email,
       tenant: p.user.tenant,

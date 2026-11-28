@@ -5,8 +5,7 @@
 // parked session with it: server/view-as.ts supportSignOut.
 
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE, verifySession, sessionIdOf } from "@/server/users";
-import { revokeSession } from "@/server/sessions";
+import { SESSION_COOKIE, verifySession, sessionIdOf, endSession } from "@/server/users";
 import { supportSignOut } from "@/server/view-as";
 import { audit } from "@/server/audit";
 
@@ -18,7 +17,7 @@ export async function POST(req: NextRequest) {
   // to end; it is never the owner's.
   if (!(await supportSignOut(session, res)) && session) {
     const id = sessionIdOf(token);
-    if (id) await revokeSession(session.id, id).catch(() => false);
+    if (id) await endSession(session.id, id).catch(() => false);
     await audit("logout", { actor: session.email, tenant: session.tenant });
   }
   res.cookies.set(SESSION_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });

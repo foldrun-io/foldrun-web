@@ -21,6 +21,7 @@ delete process.env.FOLDRUN_DEV_NO_AUTH;
 delete process.env.FOLDRUN_REDIS_URL;
 delete process.env.FOLDRUN_TRUST_PROXY;
 
+process.env.FOLDRUN_RESEND_API_KEY = "re_test"; // the install sends its own sign-in mail (joinAccount asks)
 const U = await import("../server/users.ts");
 const { createApiKey } = await import("../server/auth.ts");
 const { saveWorkspace, templateFiles } = await import("@/lib/store.ts");
@@ -231,4 +232,156 @@ test("an address still to be confirmed is held back in a joined account as in th
   } finally {
     delete process.env.FOLDRUN_REQUIRE_EMAIL_CONFIRMATION;
   }
+});
+
+test("a joined account's session is signed under its own name: relabelled as an older kind, it is nothing", async () => {
+  const kim = await U.createUser("kim@several.test", PW, "kim-co", { request: "free" });
+  await U.setEmailVerified(kim.id);
+  await U.joinAccount(await inviteTo("shop", bo, kim.email, "viewer"), kim.id);
+  const shop = (await U.mintSession((await U.findMember("shop", { id: kim.id }))!)).value;
+  assert.equal((await U.verifySession(shop))?.tenant, "shop");
+  // What a release from before joined accounts would be handed: the same bytes, called v1.
+  const [, subject, expires, mac] = shop.split(".");
+  assert.equal(await U.verifySession(`v1.${subject}.${expires}.${mac}`), null);
+  assert.equal(await U.verifySession(`v2.${subject}.${expires}.${mac}`), null);
+  // And a first-account cookie from before any of this (no stay named) is the first account's only.
+  const home = (await U.mintSession((await U.findMember("kim-co", { id: kim.id }))!)).value;
+  assert.equal(home.split(".")[1].split(":").length, 2, "the form it always had");
+  assert.equal((await U.verifySession(home))?.tenant, "kim-co");
+});
+
+test("with no mail sender of the install's own, nobody joins a second account", async () => {
+  const lee = await U.createUser("lee@several.test", PW, "lee-co", { request: "free" });
+  await U.setEmailVerified(lee.id);
+  const token = await inviteTo("shop", bo, lee.email, "viewer");
+  delete process.env.FOLDRUN_RESEND_API_KEY;
+  try {
+    await assert.rejects(U.joinAccount(token, lee.id), /mail sender/);
+  } finally {
+    process.env.FOLDRUN_RESEND_API_KEY = "re_test";
+  }
+  assert.equal((await U.joinAccount(token, lee.id)).user.tenant, "shop", "the refusal left the invite pending");
+});
+
+// ---- the door (step 3): POST /v1/auth/session moves a session, or joins and moves
+
+const sessionRoute = await import("../app/v1/auth/session/route.ts");
+const setCookieOf = (res: Response) => /foldrun_session=([^;]+)/.exec(res.headers.get("set-cookie") ?? "")?.[1] ?? null;
+const sessionPost = (cookie: string, body: unknown) =>
+  sessionRoute.POST(new NextRequest(`${BASE}/v1/auth/session`, { method: "POST", headers: { "content-type": "application/json", origin: BASE, cookie: `${U.SESSION_COOKIE}=${cookie}` }, body: JSON.stringify(body) }));
+const whoAmI = async (cookie: string) =>
+  ((await (await sessionRoute.GET(new NextRequest(`${BASE}/v1/auth/session`, { headers: { cookie: `${U.SESSION_COOKIE}=${cookie}` } }))).json()) as { user: { tenant: string; role: string; accounts: { tenant: string; role: string; current: boolean }[] } | null }).user;
+
+test("a signed-in person joins from an invite with the login they have, and the session moves there", async () => {
+  const mia = await U.createUser("mia@several.test", PW, "mia-co", { request: "free" });
+  await U.setEmailVerified(mia.id);
+  const home = (await U.mintSession(mia)).value;
+  assert.deepEqual((await whoAmI(home))!.accounts, [{ tenant: "mia-co", role: "owner", current: true }]);
+
+  const res = await sessionPost(home, { invite: await inviteTo("shop", bo, mia.email, "editor", ["desk"]) });
+  assert.equal(res.status, 200, await res.clone().text());
+  assert.equal(((await res.json()) as { tenant: string }).tenant, "shop");
+  const inShop = setCookieOf(res)!;
+  assert.ok(inShop && inShop !== home);
+  const me = (await whoAmI(inShop))!;
+  assert.equal(me.tenant, "shop");
+  assert.equal(me.role, "editor", "the invite's role, not the owner they are at home");
+  assert.deepEqual(me.accounts, [{ tenant: "mia-co", role: "owner", current: false }, { tenant: "shop", role: "editor", current: true }]);
+
+  // And back: to an account they are in.
+  const back = await sessionPost(inShop, { account: "mia-co" });
+  assert.equal(back.status, 200);
+  assert.equal((await whoAmI(setCookieOf(back)!))!.tenant, "mia-co");
+
+  // Not theirs: an account they are not in reads as one that does not exist.
+  assert.equal((await sessionPost(inShop, { account: "ana-co" })).status, 404);
+  assert.equal((await sessionPost(inShop, { account: "no-such-account" })).status, 404);
+  // Neither, both, or not text: refused before anything is read.
+  assert.equal((await sessionPost(inShop, {})).status, 400);
+  assert.equal((await sessionPost(inShop, { account: "mia-co", invite: "x" })).status, 400);
+  assert.equal((await sessionPost(inShop, { account: { $ne: "" } })).status, 400);
+  // No session, no move.
+  assert.equal((await sessionPost("not-a-session", { account: "shop" })).status, 401);
+});
+
+test("an invite for another address, a used one, or one for an account they are in: refused, and the session stays where it was", async () => {
+  const ned = await U.createUser("ned@several.test", PW, "ned-co", { request: "free" });
+  await U.setEmailVerified(ned.id);
+  const home = (await U.mintSession(ned)).value;
+  const others = await sessionPost(home, { invite: await inviteTo("shop", bo, "someone-else@several.test", "admin") });
+  assert.equal(others.status, 403);
+  assert.equal(setCookieOf(others), null, "no new session on a refusal");
+  const token = await inviteTo("shop", bo, ned.email, "viewer");
+  assert.equal((await sessionPost(home, { invite: token })).status, 200);
+  assert.ok([400, 404, 409, 410].includes((await sessionPost(home, { invite: token })).status), "the link works once");
+  assert.equal((await sessionPost(home, { invite: await inviteTo("shop", bo, ned.email, "admin") })).status, 409, "already in: no second membership, no raised role");
+  assert.equal(await U.roleOfUser("shop", ned.id), "viewer");
+  assert.equal((await whoAmI(home))!.tenant, "ned-co");
+});
+
+test("a page showing one account cannot write into another the session has since moved to", async () => {
+  const oli = await U.createUser("oli@several.test", PW, "oli-co", { request: "free" });
+  await U.setEmailVerified(oli.id);
+  await U.joinAccount(await inviteTo("shop", bo, oli.email, "admin"), oli.id);
+  const inShop = (await U.mintSession((await U.findMember("shop", { id: oli.id }))!)).value;
+  const { resolveTenant: resolveCaller } = await import("../server/auth.ts");
+  const ask = (method: string, shown?: string) =>
+    resolveCaller(new NextRequest(`${BASE}/v1/account/pause`, { method, headers: { cookie: `${U.SESSION_COOKIE}=${inShop}`, origin: BASE, ...(shown ? { "x-foldrun-tenant": shown } : {}) } }));
+  const stale = await ask("POST", "oli-co");
+  assert.equal(stale.tenant, null);
+  assert.equal((stale as { status: number }).status, 412, "the tab still shows oli-co; the session is in shop");
+  const exact = (shown: string) => resolveCaller(new NextRequest(`${BASE}/v1/account/pause`, { method: "POST", headers: { cookie: `${U.SESSION_COOKIE}=${inShop}`, origin: BASE, "x-foldrun-account": shown } }));
+  assert.equal((await exact("default") as { status: number }).status, 412, "the exact header is literal: a page of the default account is refused too");
+  assert.equal((await exact("shop")).tenant, "shop");
+  assert.equal((await ask("POST", "shop")).tenant, "shop");
+  assert.equal((await ask("POST")).tenant, "shop", "a request that names no account is the session's");
+  assert.equal((await ask("GET", "oli-co")).tenant, "shop", "a read is only a read");
+});
+
+test("a consent or a join pressed on a page that showed another account, or another person, is refused", async () => {
+  const pia = await U.createUser("pia@several.test", PW, "pia-co", { request: "free" });
+  await U.setEmailVerified(pia.id);
+  await U.joinAccount(await inviteTo("shop", bo, pia.email, "admin"), pia.id);
+  const inShop = (await U.mintSession((await U.findMember("shop", { id: pia.id }))!)).value;
+  const post = async (route: { POST: (r: NextRequest) => Promise<Response | undefined> }, p: string, body: unknown, headers: Record<string, string>) =>
+    (await route.POST(new NextRequest(`${BASE}${p}`, { method: "POST", headers: { "content-type": "application/json", origin: BASE, cookie: `${U.SESSION_COOKIE}=${inShop}`, ...headers }, body: JSON.stringify(body) })))!;
+  // The page asked "let this CLI into pia-co"; the browser is in shop now.
+  const cli = await import("../app/v1/cli/authorize/route.ts");
+  const mcp = await import("../app/v1/mcp/oauth/authorize/route.ts");
+  for (const res of [
+    await post(cli, "/v1/cli/authorize", { code: "ABCD-EFGH", decision: "approve" }, { "x-foldrun-account": "pia-co" }),
+    await post(mcp, "/v1/mcp/oauth/authorize", { request: "x", decision: "approve", access: "read", workspaces: null }, { "x-foldrun-account": "pia-co" }),
+    await post(sessionRoute, "/v1/auth/session", { account: "pia-co" }, { "x-foldrun-account": "pia-co" }),
+    await post(sessionRoute, "/v1/auth/session", { account: "pia-co", as: bo.id }, { "x-foldrun-account": "shop" }),
+    // The right account, but the page showed another person of it (bo, signed in on this tab before).
+    await post(cli, "/v1/cli/authorize", { code: "ABCD-EFGH", decision: "approve" }, { "x-foldrun-account": "shop", "x-foldrun-as": bo.id }),
+    await post(mcp, "/v1/mcp/oauth/authorize", { request: "x", decision: "approve", access: "read", workspaces: null }, { "x-foldrun-account": "shop", "x-foldrun-as": bo.id }),
+    // The right account and person, but the page was drawn when they were a viewer here; they are an admin now.
+    await post(cli, "/v1/cli/authorize", { code: "ABCD-EFGH", decision: "approve", shown: { role: "viewer" } }, { "x-foldrun-account": "shop", "x-foldrun-as": pia.id }),
+  ]) {
+    assert.equal(res.status, 412);
+    assert.equal(((await res.json()) as { code?: string }).code, "account_moved");
+  }
+  assert.equal((await whoAmI(inShop))?.tenant, "shop", "nothing moved");
+  // Named as it is, the move goes through.
+  assert.equal((await post(sessionRoute, "/v1/auth/session", { account: "pia-co", as: pia.id }, { "x-foldrun-account": "shop" })).status, 200);
+});
+
+test("a reset link mailed before they joined another account is spent by the join", async () => {
+  const { resetLink } = await import("../server/auth-flows.ts");
+  const reset = await import("../app/v1/auth/reset/route.ts");
+  const pat = await U.createUser("pat@several.test", PW, "pat-co", { request: "free" });
+  await U.setEmailVerified(pat.id);
+  const tokenOf = (u: Parameters<typeof resetLink>[1]) => new URL(resetLink(BASE, u)).searchParams.get("token")!;
+  const before = tokenOf((await U.findUser(pat.email))!);
+  // Joined in the same millisecond or a later one: the link names how many accounts the login had opened, not a time.
+  await U.joinAccount(await inviteTo("shop", bo, pat.email, "viewer"), pat.id);
+  const post = (token: string) => reset.POST(new NextRequest(`${BASE}/v1/auth/reset`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, password: "another-Long-Passphrase-77!" }) }));
+  assert.equal((await post(before)).status, 400, "mailed before the join");
+  // Their first account goes and the joined one becomes their first: the old link stays spent.
+  const quin = (await U.acceptInvite(await inviteTo("pat-co", pat, "quin@several.test", "admin"), "quin@several.test", PW)).user;
+  await U.transferOwnership("pat-co", quin.id, pat.id);
+  assert.ok(await U.removeMember("pat-co", pat.id, quin.id));
+  assert.equal((await post(before)).status, 400, "and after the first account is gone");
+  assert.equal((await post(tokenOf((await U.findUser(pat.email))!))).status, 200, "one asked for since works");
 });

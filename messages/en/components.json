@@ -282,6 +282,14 @@
     "itsFirstStepReadsTheEarlier": "Its first step reads the earlier runs when it starts.",
     "olderDidNotFit": " ({omitted} older did not fit)"
   },
+  "conversation-rename": {
+    "title": "Rename this conversation",
+    "body": "The name shows wherever the conversation is listed — here, and in foldrun code on any computer. Leave it empty to take the name away.",
+    "name": "Name",
+    "save": "Save name",
+    "rename": "Rename",
+    "failed": "Could not rename it ({status})"
+  },
   "copy-field": {
     "copied": "Copied",
     "copy": "Copy"
@@ -1107,6 +1115,11 @@
     "snoozeForADay": "Snooze for a day",
     "theAssistantReadsTheLatestRun": "The assistant reads the latest run, says why and proposes the fix — nothing changes until you save it"
   },
+  "language-switch": {
+    "language": "Language",
+    "persian": "فارسی",
+    "english": "English"
+  },
   "live-run-model": {
     "notValidJson": "not valid JSON: {v0}",
     "step": "step {v0}/{total}"
@@ -1174,6 +1187,12 @@
     "showSidebar": "Show sidebar",
     "sidebarCtrlB": "{v0} sidebar (Ctrl B)",
     "systemStatus": "System status"
+  },
+  "model-key-status": {
+    "noKey": "No key",
+    "runsOnThisAccountAreRefused": "Runs on this account are refused until you add an API key.",
+    "noPlan": "No plan",
+    "thisAccountNeedsAPlanRuns": "This account needs a plan: runs are refused until it has one."
   },
   "money": {
     "credits": "{amount} {n, plural, one {credit} other {credits}}",
@@ -1810,7 +1829,9 @@
     "status": "Status",
     "theme": "Theme",
     "usage": "Usage",
-    "whatSNew": "What's new"
+    "whatSNew": "What's new",
+    "accounts": "Accounts",
+    "switchFailed": "Could not open that account. Try again."
   },
   "verify-banner": {
     "confirmIsYoursCheckYourInbox": "Confirm <email></email> is yours — check your inbox for the link.",
@@ -1965,24 +1986,5 @@
     "runtimes": "Runtimes",
     "theLastBuildFailedARun": "the last build failed — a run using it will fail the same way",
     "waitingForTheWorkerToBuild": "waiting for the worker to build it"
-  },
-  "model-key-status": {
-    "noKey": "No key",
-    "runsOnThisAccountAreRefused": "Runs on this account are refused until you add an API key.",
-    "noPlan": "No plan",
-    "thisAccountNeedsAPlanRuns": "This account needs a plan: runs are refused until it has one."
-  },
-  "conversation-rename": {
-    "title": "Rename this conversation",
-    "body": "The name shows wherever the conversation is listed — here, and in foldrun code on any computer. Leave it empty to take the name away.",
-    "name": "Name",
-    "save": "Save name",
-    "rename": "Rename",
-    "failed": "Could not rename it ({status})"
-  },
-  "language-switch": {
-    "language": "Language",
-    "persian": "فارسی",
-    "english": "English"
   }
 }

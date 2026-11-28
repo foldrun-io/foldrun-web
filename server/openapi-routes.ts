@@ -49,7 +49,7 @@ export const ROUTES: RouteEntry[] = [
   {"path":"/v1/auth/name","methods":["POST"],"summary":"firstName, lastName — optional halves, null clears one; shown by email when empty. A session, or the person's own foldrun login key"},
   {"path":"/v1/auth/password","methods":["POST"],"summary":"current, next — at least 10 characters, not your email, not in a known breach"},
   {"path":"/v1/auth/reset","methods":["POST"],"summary":"token (from the link), password. Works once and for 30 minutes, also when used twice at once (one 200, the other 400); the sessions open at that moment end in the same write, and a sign-in waiting for its two-step code must start again; …"},
-  {"path":"/v1/auth/session","methods":["GET"],"summary":"who am I"},
+  {"path":"/v1/auth/session","methods":["GET","POST"],"summary":"who am I: { user: { id, email, tenant, role, accounts: [{ tenant, role, current }], … } }. One login may be in several accounts; a session is for one of them, and accounts lists them all. POST moves the session (a browser session only, n…"},
   {"path":"/v1/auth/sessions","methods":["GET","DELETE"],"summary":"list (each with method: password or email-code); revoke one (id) or the rest (others)"},
   {"path":"/v1/auth/signup","methods":["POST"],"summary":"email, password, account, invite, setup, link. A link is a sign-up link the platform mailed (today: for a foldrun.ir customer, POST /v1/billing/partner/signups): it opens a new account for the one address it was sent to even while sign-u…"},
   {"path":"/v1/auth/timezone","methods":["POST"],"summary":"timezone — what a cron expression means; null goes back to the browser's. A session, or the person's own foldrun login key"},

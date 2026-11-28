@@ -13,7 +13,7 @@ type Ask = {
   loopback: boolean;
   scopes: string[];
   account: string;
-  person: { email: string; role: string };
+  person: { id: string; email: string; role: string };
   workspaces: string[];
   allWorkspaces: boolean;
 };
@@ -61,8 +61,9 @@ export function McpAuthorize() {
     try {
       const res = await fetch("/v1/mcp/oauth/authorize", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ request, decision, access, workspaces: scope === "all" ? null : chosen }),
+        // The account and the person this page named: refused if the browser has since become another.
+        headers: { "content-type": "application/json", ...(ask ? { "x-foldrun-account": ask.account, "x-foldrun-as": ask.person.id } : {}) },
+        body: JSON.stringify({ request, decision, access, workspaces: scope === "all" ? null : chosen, ...(ask ? { shown: { role: ask.person.role, workspaces: ask.workspaces, allWorkspaces: ask.allWorkspaces } } : {}) }),
       });
       const body = (await res.json().catch(() => ({}))) as { error?: string; redirect?: string };
       if (body.redirect) {

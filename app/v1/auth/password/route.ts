@@ -9,8 +9,8 @@
 
 import { errorResponse, sessionUser, refuse } from "@/server/api";
 import { NextRequest, NextResponse } from "next/server";
-import { changePassword, sessionIdOf, SESSION_COOKIE } from "@/server/users";
-import { revokeSessions, revocable } from "@/server/sessions";
+import { changePassword, sessionIdOf, SESSION_COOKIE, endSessions } from "@/server/users";
+import { revocable } from "@/server/sessions";
 import { refuseWhenLimited, clearLimit, clientIp } from "@/server/limits";
 import { audit } from "@/server/audit";
 import { sendSecurityNotice } from "@/server/email";
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     await changePassword(user.id, body.current ?? "", body.next ?? "");
     await clearLimit(`password:${user.id}`);
     // All but this one — the browser that asked keeps its session.
-    const ended = await revokeSessions(user.id, sessionIdOf(cookie) ?? undefined);
+    const ended = await endSessions(user.id, sessionIdOf(cookie) ?? undefined);
     await audit("password.changed", { actor: user.email, tenant: user.tenant, detail: { otherSessionsEnded: ended } });
     sendSecurityNotice(user.tenant, user.email, "your password was changed", clientIp(req));
     return NextResponse.json({

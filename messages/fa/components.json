@@ -282,6 +282,14 @@
     "itsFirstStepReadsTheEarlier": "اولین مرحله آن هنگام شروع، اجراهای قبلی را می‌خواند.",
     "olderDidNotFit": " ({omitted} مورد قدیمی‌تر جا نشد)"
   },
+  "conversation-rename": {
+    "title": "تغییر نام این گفت‌وگو",
+    "body": "نام هر جا که گفت‌وگو فهرست می‌شود دیده می‌شود: اینجا، و در foldrun code روی هر رایانه‌ای. برای برداشتن نام، آن را خالی بگذارید.",
+    "name": "نام",
+    "save": "ذخیره نام",
+    "rename": "تغییر نام",
+    "failed": "تغییر نام ممکن نشد ({status})"
+  },
   "copy-field": {
     "copied": "کپی شد",
     "copy": "کپی"
@@ -1107,6 +1115,11 @@
     "snoozeForADay": "تعویق یک‌روزه",
     "theAssistantReadsTheLatestRun": "دستیار آخرین اجرا را می‌خواند، دلیل را می‌گوید و اصلاح را پیشنهاد می‌دهد؛ تا وقتی ذخیره نکنید چیزی تغییر نمی‌کند"
   },
+  "language-switch": {
+    "language": "زبان",
+    "persian": "فارسی",
+    "english": "English"
+  },
   "live-run-model": {
     "notValidJson": "JSON معتبر نیست: {v0}",
     "step": "مرحله {v0}/{total}"
@@ -1174,6 +1187,12 @@
     "showSidebar": "نمایش نوار کناری",
     "sidebarCtrlB": "{v0} نوار کناری (Ctrl B)",
     "systemStatus": "وضعیت سیستم"
+  },
+  "model-key-status": {
+    "noKey": "بدون کلید",
+    "runsOnThisAccountAreRefused": "تا وقتی کلید API اضافه نکنید، اجراهای این حساب پذیرفته نمی‌شوند.",
+    "noPlan": "بدون اشتراک",
+    "thisAccountNeedsAPlanRuns": "این حساب به اشتراک نیاز دارد: تا وقتی اشتراک نداشته باشد، اجراها پذیرفته نمی‌شوند."
   },
   "money": {
     "credits": "{amount} {n, plural, one {اعتبار} other {اعتبار}}",
@@ -1810,7 +1829,9 @@
     "status": "وضعیت",
     "theme": "پوسته",
     "usage": "مصرف",
-    "whatSNew": "تازه‌ها"
+    "whatSNew": "تازه‌ها",
+    "accounts": "حساب‌ها",
+    "switchFailed": "آن حساب باز نشد. دوباره تلاش کنید."
   },
   "verify-banner": {
     "confirmIsYoursCheckYourInbox": "تأیید کنید که <email></email> مال شماست؛ لینک را در صندوق ورودی ایمیلتان پیدا کنید.",
@@ -1965,24 +1986,5 @@
     "runtimes": "ران‌تایم‌ها",
     "theLastBuildFailedARun": "آخرین ساخت ناموفق بود؛ اجرایی که از آن استفاده کند به همان شکل ناموفق می‌شود",
     "waitingForTheWorkerToBuild": "در انتظار ورکر برای ساخت آن"
-  },
-  "model-key-status": {
-    "noKey": "بدون کلید",
-    "runsOnThisAccountAreRefused": "تا وقتی کلید API اضافه نکنید، اجراهای این حساب پذیرفته نمی‌شوند.",
-    "noPlan": "بدون اشتراک",
-    "thisAccountNeedsAPlanRuns": "این حساب به اشتراک نیاز دارد: تا وقتی اشتراک نداشته باشد، اجراها پذیرفته نمی‌شوند."
-  },
-  "conversation-rename": {
-    "title": "تغییر نام این گفت‌وگو",
-    "body": "نام هر جا که گفت‌وگو فهرست می‌شود دیده می‌شود: اینجا، و در foldrun code روی هر رایانه‌ای. برای برداشتن نام، آن را خالی بگذارید.",
-    "name": "نام",
-    "save": "ذخیره نام",
-    "rename": "تغییر نام",
-    "failed": "تغییر نام ممکن نشد ({status})"
-  },
-  "language-switch": {
-    "language": "زبان",
-    "persian": "فارسی",
-    "english": "English"
   }
 }

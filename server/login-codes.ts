@@ -106,7 +106,7 @@ export async function issueCode(email: string, challenge: string, now = Date.now
   return tx(async (t) => {
     const [u] = await t.select().from(usersTable).where(sql`lower(${usersTable.email}) = ${e}`).for("update").limit(1);
     if (!u) return { why: "no address" as const };
-    if (!u.emailVerifiedAt) return { why: "not verified" as const, user: { id: u.id, tenant: u.tenant, email: u.email, hash: u.hash } };
+    if (!u.emailVerifiedAt) return { why: "not verified" as const, user: { id: u.id, tenant: u.tenant, email: u.email, hash: u.hash, recoveryGen: u.recoveryGen } };
     if (u.codeLockedUntil && u.codeLockedUntil.getTime() > now) return { why: "locked" as const };
     // What expired more than one throttle ago is of no use to anyone.
     await t.delete(loginCodes).where(and(eq(loginCodes.userId, u.id), lt(loginCodes.expiresAt, new Date(now - RESEND_MS))));

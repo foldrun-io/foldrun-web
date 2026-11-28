@@ -92,6 +92,10 @@ export interface GrantRecord {
   id: string;
   tenant: string;
   userId: string;
+  /** The person's stay in the account when they approved it (users.ts
+   *  stayOf; absent for the account they signed up into). The grant is good
+   *  in that stay only: leaving ends it for good, a return is another stay. */
+  stay?: string;
   email: string;
   clientId: string;
   clientName: string;
@@ -131,6 +135,17 @@ interface TokenRecord {
   pending?: Omit<GrantRecord, "id" | "createdAt" | "tenant">;
   /** code: the approving person's password fingerprint — a reset in between voids it (FOL-317). */
   h?: string;
+}
+
+/** Does the grant stand: not revoked, and its person still in the stay they
+ *  approved it in (FOL-464)? Removed and let back in is another stay, and
+ *  what they connected before does not come back with them. One check for
+ *  issuing a token, metering a call and opening the door, so a grant the
+ *  removal's sweep missed gets nothing anywhere. */
+async function grantLive(g: GrantRecord): Promise<boolean> {
+  if (g.revokedAt) return false;
+  const { stayOf } = await import("./users.ts");
+  return (await stayOf(g.tenant, g.userId)) === (g.stay ?? null);
 }
 
 /** The person's password fingerprint now, or null when they are gone. */
@@ -453,7 +468,7 @@ export function redirectWith(redirectUri: string, params: Record<string, string 
 }
 
 /** The person approved: a one-time code for what they chose. */
-export async function issueCode(req: AuthorizeRequest, who: { tenant: string; userId: string; email: string; role: Role; workspaces: string[] | null; readOnly: boolean; h: string }): Promise<string> {
+export async function issueCode(req: AuthorizeRequest, who: { tenant: string; userId: string; stay: string | null; email: string; role: Role; workspaces: string[] | null; readOnly: boolean; h: string }): Promise<string> {
   const code = random(CODE_PREFIX);
   if (req.client.kind === "dcr") {
     await clients.update(INSTALL, req.client.client_id, (cur) => (cur ? { ...cur, lastApprovedAt: new Date().toISOString() } : null));
@@ -469,6 +484,7 @@ export async function issueCode(req: AuthorizeRequest, who: { tenant: string; us
     codeChallenge: req.codeChallenge,
     pending: {
       userId: who.userId,
+      ...(who.stay ? { stay: who.stay } : {}),
       email: who.email,
       clientId: req.client.client_id,
       clientName: req.client.client_name,
@@ -626,7 +642,11 @@ export async function tokenRequest(form: URLSearchParams, authorization: string 
     // grant is written and again after, so a reset landing in between still
     // ends it — the reset's own sweeps cover the grants written before it.
     const approvedAs = taken.h;
-    const unchanged = async () => Boolean(approvedAs) && (await fingerprintOf(taken.pending!.userId)) === approvedAs;
+    // And leaving the account voids it (FOL-464): the code was approved in a
+    // stay that is over, even when the same login lives on in another account.
+    const { stayOf } = await import("./users.ts");
+    const unchanged = async () =>
+      Boolean(approvedAs) && (await fingerprintOf(taken.pending!.userId)) === approvedAs && (await stayOf(taken.tenant, taken.pending!.userId)) === (taken.pending!.stay ?? null);
     if (!(await unchanged())) throw new OAuthError("invalid_grant", "the code is unknown, used or expired");
     const grant: GrantRecord = { ...taken.pending, id: crypto.randomBytes(9).toString("base64url"), tenant: taken.tenant, createdAt: new Date().toISOString() };
     await grants.put(grant.tenant, grant.id, grant);
@@ -650,7 +670,7 @@ export async function tokenRequest(form: URLSearchParams, authorization: string 
     }
     if (expired(t.expiresAt)) throw new OAuthError("invalid_grant", "the refresh token has expired — connect the app again");
     const grant = await grants.get(t.tenant, t.grantId);
-    if (!grant || grant.revokedAt) throw new OAuthError("invalid_grant", "the connection was revoked — connect the app again");
+    if (!grant || !(await grantLive(grant))) throw new OAuthError("invalid_grant", "the connection was revoked — connect the app again");
     if (!resourceMatches(form.get("resource"), origin)) throw new OAuthError("invalid_target", `tokens here are for ${issuerOf(origin).resource} only`);
     // RFC 6749 §6: a refresh may ask for less than the connection holds, never more.
     const held = grant.scope.split(" ");
@@ -673,7 +693,7 @@ export async function tokenRequest(form: URLSearchParams, authorization: string 
     // A machine client's standing grant (part G): no person, no refresh token.
     if (client.kind !== "machine" || !client.tenant || !client.grantId) throw new OAuthError("unauthorized_client", "client credentials are for machine clients an admin registers in Settings → API keys");
     const grant = await grants.get(client.tenant, client.grantId);
-    if (!grant || grant.revokedAt) throw new OAuthError("invalid_client", "this machine client was disconnected", 401);
+    if (!grant || !(await grantLive(grant))) throw new OAuthError("invalid_client", "this machine client was disconnected", 401);
     if (!resourceMatches(form.get("resource"), origin)) throw new OAuthError("invalid_target", `tokens here are for ${issuerOf(origin).resource} only`);
     const held = grant.scope.split(" ");
     const asked = (form.get("scope") ?? "").split(/\s+/).filter(Boolean);
@@ -693,7 +713,7 @@ export async function tokenRequest(form: URLSearchParams, authorization: string 
  * request is invalid_client.
  */
 export async function registerMachineClient(input: {
-  tenant: string; userId: string; email: string; origin: string;
+  tenant: string; userId: string; stay: string | null; email: string; origin: string;
   name: string; role: Role; workspaces: string[] | null; readOnly: boolean;
   auth: "client_secret_basic" | "client_secret_post" | "private_key_jwt";
   jwks?: unknown; jwks_uri?: unknown;
@@ -709,6 +729,7 @@ export async function registerMachineClient(input: {
     id: crypto.randomBytes(9).toString("base64url"),
     tenant: input.tenant,
     userId: input.userId,
+    ...(input.stay ? { stay: input.stay } : {}),
     email: input.email,
     clientId: client_id,
     clientName: name,
@@ -774,7 +795,7 @@ export async function resolveAccessToken(token: string): Promise<{ ok: true; gra
   if (!t || t.kind !== "access" || !t.grantId) return { ok: false, message: "invalid access token" };
   if (expired(t.expiresAt)) return { ok: false, message: "the access token has expired — refresh it" };
   const grant = await grants.get(t.tenant, t.grantId);
-  if (!grant || grant.revokedAt) return { ok: false, message: "this app's connection was revoked" };
+  if (!grant || !(await grantLive(grant))) return { ok: false, message: "this app's connection was revoked" };
   if (!grant.lastUsedAt || Date.now() - Date.parse(grant.lastUsedAt) > 10 * 60 * 1000) {
     await grants.update(grant.tenant, grant.id, (cur) => (cur && !cur.revokedAt ? { ...cur, lastUsedAt: new Date().toISOString() } : null)).catch(() => undefined);
   }

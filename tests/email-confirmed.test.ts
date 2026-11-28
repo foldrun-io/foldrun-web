@@ -206,8 +206,11 @@ test("a key minted for a person is refused when the credential that asked no lon
   // A v1 session carries the password it was minted with: a reset since, and it mints nothing.
   await assert.rejects(auth.createApiKey(p.tenant, "v1 old", p.u.email, undefined, "editor", null, { personBound: { credential: { fingerprint: "not-the-current-one", user: p.u.id } } }), stale);
   assert.ok((await auth.createApiKey(p.tenant, "v1 now", p.u.email, undefined, "editor", null, { personBound: { credential: { fingerprint: hashFingerprint(p.u.hash), user: p.u.id } } })).key);
-  assert.deepEqual(auth.sessionCredential({ id: p.u.id, hash: p.u.hash, session: { kind: "v2", id: "row" } }), { session: "row", user: p.u.id });
-  assert.deepEqual(auth.sessionCredential({ id: p.u.id, hash: p.u.hash, session: { kind: "v1" } }), { fingerprint: hashFingerprint(p.u.hash), user: p.u.id });
+  assert.deepEqual(auth.sessionCredential({ id: p.u.id, hash: p.u.hash, session: { kind: "v2", id: "row" } }), { session: "row", user: p.u.id, stay: null });
+  assert.deepEqual(auth.sessionCredential({ id: p.u.id, hash: p.u.hash, session: { kind: "v1" } }), { fingerprint: hashFingerprint(p.u.hash), user: p.u.id, stay: null });
+  // The stay the credential was read in (FOL-464): a request that began in another one writes no key.
+  assert.deepEqual(auth.sessionCredential({ id: p.u.id, hash: p.u.hash, membership: "m1", session: { kind: "v1" } }), { fingerprint: hashFingerprint(p.u.hash), user: p.u.id, stay: "m1" });
+  await assert.rejects(auth.createApiKey(p.tenant, "another stay", p.u.email, undefined, "editor", null, { personBound: { credential: { fingerprint: hashFingerprint(p.u.hash), user: p.u.id, stay: "an-earlier-stay" } } }), stale);
 });
 
 test("a mint authorized before a demotion is held to what the person may give now; a credential naming its person by id follows their address (FOL-320)", async () => {

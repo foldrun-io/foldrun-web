@@ -46,7 +46,8 @@ async function authorize(req: NextRequest, claimed: () => Promise<string | undef
     return { tenant: auth.tenant, minter: { role: auth.actor.role, workspaces: auth.actor.workspaces }, who, by: auth.actor.name };
   }
   // Identified and refused (a support view's write): say so, as it is.
-  if (auth.status === 403) throw new ApiError(auth.message, 403);
+  // Or a page showing another account than the session's (412): the same.
+  if (auth.status === 403 || auth.status === 412) throw new ApiError(auth.message, auth.status);
   if (process.env.FOLDRUN_DEV_NO_AUTH === "1" || !(await hasUsers())) {
     // Before the first signup, the setup token guards this door exactly as
     // it guards signup: without it, anyone who reached a fresh self-hosted

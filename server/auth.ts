@@ -13,7 +13,7 @@ import crypto from "node:crypto";
 import type { NextRequest } from "next/server";
 import { dataRoot } from "@/lib/paths.ts";
 import { assertSafeName } from "@/lib/store.ts";
-import { verifySession, SESSION_COOKIE, roleOfUser , allowedWorkspaces } from "./users.ts";
+import { verifySession, SESSION_COOKIE, roleOfUser, allowedWorkspaces } from "./users.ts";
 import { isRole, outranks, can, roleOf, type Role, type Action } from "@/platform/permissions.ts";
 import { supportViewRefusal } from "./view-as.ts";
 import { ACCESS_PREFIX, resolveAccessToken, resourceMatches, lowerRole, intersectWorkspaces } from "./mcp-oauth.ts";
@@ -365,6 +365,7 @@ export async function createApiKey(
         }
       }
       if (c) {
+        if (c.stay !== undefined && (person.membership ?? null) !== c.stay) throw staleCredential();
         if ("session" in c && !(await (await import("./sessions.ts")).sessionStillLive(c.session, on))) throw staleCredential();
         if ("fingerprint" in c && hashFingerprint(person.hash) !== c.fingerprint) throw staleCredential();
         if ("key" in c) {
@@ -679,12 +680,56 @@ export async function importApiKeys(): Promise<number> {
  *  confirms a provisional login revokes its keys and grants BEFORE the
  *  confirmation commits (the reset route sweeps first), so once the person
  *  reads as confirmed here, a live check is exact. */
-export type PersonCredential = { session: string; user: string } | { fingerprint: string; user: string } | { key: string } | { grant: string; user: string };
+export type PersonCredential = ({ session: string; user: string } | { fingerprint: string; user: string } | { key: string } | { grant: string; user: string }) & {
+  /** The stay in the account the credential was read in (users.ts stayOf):
+   *  null for the account they signed up into. Set by sessions and grants;
+   *  a request that began in one stay writes nothing in a later one (FOL-464). */
+  stay?: string | null;
+};
+
+/** The status of a write whose page showed another account than the
+ *  session's: a precondition that no longer holds. Its own status, so no
+ *  caller reads it as a conflict about the thing it was changing; the
+ *  dashboard reloads on it (components/account-guard.tsx). */
+export const ACCOUNT_MOVED = 412;
+
+/**
+ * One login may be in several accounts (FOL-464), and the session cookie is
+ * every tab's. A page says which account it showed when it wrote
+ * (`x-foldrun-account`, set for every dashboard write by AccountGuard, and by
+ * the consent pages; `x-foldrun-tenant` where a component already sent one):
+ * when another tab has since moved the session, the write is refused, never
+ * landed in the other account. A request that names no account (a script, a
+ * page from before this) is the session's, as it always was. The same for
+ * the person shown (`x-foldrun-as`). Returns the
+ * refusal's words, or null.
+ */
+export function accountMoved(req: { method: string; headers: Headers }, tenant: string, userId?: string): string | null {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method.toUpperCase())) return null;
+  // And the person it showed (`x-foldrun-as`, a user id): another tab may
+  // have signed in as someone else, in this same account, with other rights.
+  const as = req.headers.get("x-foldrun-as");
+  if (as !== null && userId !== undefined && as !== userId) return "this page is showing another person than the one this browser is signed in as now — reload the page";
+  const exact = req.headers.get("x-foldrun-account");
+  const older = req.headers.get("x-foldrun-tenant");
+  const shown = exact !== null ? exact : older && older !== "default" ? older : null;
+  if (shown === null || shown === tenant) return null;
+  return `this page is showing the account "${shown}", and this browser has since moved to "${tenant}" — reload the page`;
+}
+
+/** Is this key still the live key of the person it was made for? For a
+ *  write that a key authorised and that must not outlast the key: a member
+ *  removed since had theirs revoked under the people lock. */
+export async function keyStands(tenant: string, keyId: string, email: string): Promise<boolean> {
+  const k = (await keysOf(tenant)).find((x) => x.id === keyId);
+  return Boolean(k && !k.revokedAt && !keyExpired(k) && (k.createdBy ?? "").toLowerCase() === email.toLowerCase());
+}
 
 /** The credential of a signed-in person, from verifySession's answer. */
-export function sessionCredential(user: { id: string; hash: string; session?: { kind: string; id?: string } }): PersonCredential | undefined {
-  if (user.session?.kind === "v2" && user.session.id) return { session: user.session.id, user: user.id };
-  if (user.session?.kind === "v1") return { fingerprint: hashFingerprint(user.hash), user: user.id };
+export function sessionCredential(user: { id: string; hash: string; membership?: string; session?: { kind: string; id?: string } }): PersonCredential | undefined {
+  const stay = user.membership ?? null;
+  if (user.session?.kind === "v2" && user.session.id) return { session: user.session.id, user: user.id, stay };
+  if (user.session?.kind === "v1") return { fingerprint: hashFingerprint(user.hash), user: user.id, stay };
   return undefined;
 }
 
@@ -782,6 +827,7 @@ async function resolveMcpAccessToken(req: NextRequest, presented: string): Promi
   const grant = got.grant;
   if (!resourceMatches(grant.resource, publicOrigin(req))) return { tenant: null, status: 401, message: "this token was issued for another server" };
   const now = await roleOfUser(grant.tenant, grant.userId);
+  // (The stay it was approved in is checked with the grant itself: mcp-oauth.ts grantLive.)
   if (!now) return { tenant: null, status: 401, message: `${grant.email} is no longer a member of this account` };
   if (got.readOnly && inner && !["GET", "HEAD"].includes(req.method.toUpperCase())) {
     return { tenant: null, status: 403, message: "this connection is read-only — it was approved for reading" };
@@ -795,7 +841,7 @@ async function resolveMcpAccessToken(req: NextRequest, presented: string): Promi
       role: lowerRole(grant.role, now),
       workspaces: intersectWorkspaces(grant.workspaces, await allowedWorkspaces(grant.tenant, grant.userId)),
       mcp: { grant: grant.id, client: grant.clientName, readOnly: got.readOnly },
-      credential: { grant: grant.id, user: grant.userId },
+      credential: { grant: grant.id, user: grant.userId, stay: grant.stay ?? null },
     },
   };
 }
@@ -867,6 +913,12 @@ export async function resolveTenant(req: NextRequest): Promise<AuthResult> {
       };
     }
     if (session) {
+      // One login may be in several accounts (FOL-464), and the cookie is
+      // every tab's. A page that names the account it showed
+      // (x-foldrun-tenant) and is no longer in it, because another tab moved
+      // the session, must not have its write land in the other account.
+      const moved = accountMoved(req, session.tenant, session.id);
+      if (moved) return { tenant: null, status: ACCOUNT_MOVED, message: moved };
       return {
         tenant: session.tenant,
         actor: { kind: "user", id: session.id, name: session.email, role: (await roleOfUser(session.tenant, session.id)) ?? "viewer", workspaces: await allowedWorkspaces(session.tenant, session.id), credential: sessionCredential(session) },

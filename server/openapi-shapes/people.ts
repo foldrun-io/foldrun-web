@@ -212,6 +212,7 @@ export const SHAPES: Record<string, Shape> = {
           accountAvatar: nstr("the account's picture URL; null for none"),
           emailVerifiedAt: nstr(),
           mfaEnabled: bool,
+          accounts: arr(obj({ tenant: str(), role: str("owner | admin | editor | viewer"), current: { ...bool, description: "the account this session is for" } }), "every account this login is in; a session is for one of them (POST moves it)"),
         }),
         type: ["object", "null"],
         description: "null when not signed in",
@@ -219,6 +220,15 @@ export const SHAPES: Record<string, Shape> = {
       signupOpen: { ...bool, description: "there is a way in for a stranger to show: the install's first account, free sign-up, or paid sign-up in effect (GET /v1/signup says which, for the public)" },
       hasUsers: { ...bool, description: "the install has at least one account" },
     }),
+  },
+  "POST /v1/auth/session": {
+    body: {
+      oneOf: [
+        obj({ account: str("move this session to another account you are in"), as: str("the user id the page showed as signed in; 412 when the browser is someone else now") }, ["account"]),
+        obj({ invite: str("join the account this invite is for with the login you are signed in with, and move there"), as: str("the user id the page showed as signed in; 412 when the browser is someone else now") }, ["invite"]),
+      ],
+    },
+    response: obj({ ok: bool, tenant: str("the account the new session is for") }, ["ok", "tenant"]),
   },
   "GET /v1/auth/sessions": {
     response: obj({
@@ -310,6 +320,7 @@ export const SHAPES: Record<string, Shape> = {
         code: str("the XXXX-XXXX code `foldrun login` printed"),
         decision: str("approve | deny; omitted, approve. Approving a request more than five minutes old is refused with 410"),
         models: { ...bool, description: "with approve: the person's yes to model access (the limits GET shows) — the same key may also call foldrun's models; omitted or false, a platform key only. Ignored for a person who may not give it" },
+        shown: { ...obj({ role: str() }), description: "the role the consent page showed; 412 when the person's role has changed since" },
       },
       ["code"],
     ),

@@ -515,7 +515,7 @@ test("a code approved before a password reset is not exchanged after it (FOL-317
   // fingerprint and is refused at the exchange.
   const { issueCode, resolveClient } = await import("../server/mcp-oauth.ts");
   const stale = pkce();
-  const staleCode = await issueCode({ client: await resolveClient(client.client_id), redirectUri: CALLBACK, state: null, codeChallenge: stale.challenge, scope: ["mcp:read"], resource: `${ORIGIN}/v1/mcp` }, { tenant: "acme", userId: p.id, email: p.email, role: "editor", workspaces: null, readOnly: true, h: tokens.hashFingerprint(u.hash) });
+  const staleCode = await issueCode({ client: await resolveClient(client.client_id), redirectUri: CALLBACK, state: null, codeChallenge: stale.challenge, scope: ["mcp:read"], resource: `${ORIGIN}/v1/mcp` }, { tenant: "acme", userId: p.id, stay: null, email: p.email, role: "editor", workspaces: null, readOnly: true, h: tokens.hashFingerprint(u.hash) });
   const refused = await postForm({ grant_type: "authorization_code", code: staleCode, redirect_uri: CALLBACK, client_id: client.client_id, code_verifier: stale.verifier, resource: `${ORIGIN}/v1/mcp` });
   assert.equal(refused.status, 400, "the old password's approval, written late");
 
@@ -527,4 +527,56 @@ test("a code approved before a password reset is not exchanged after it (FOL-317
   assert.equal(await dropCodesOf("acme", p.id, tokens.hashFingerprint(u.hash)), 0, "a late sweep keeps the new password's code");
   const exchanged = await postForm({ grant_type: "authorization_code", code: freshCode, redirect_uri: CALLBACK, client_id: client.client_id, code_verifier: fresh.verifier, resource: `${ORIGIN}/v1/mcp` });
   assert.equal(exchanged.status, 200, await exchanged.clone().text());
+});
+
+
+test("an app is connected for one stay in an account: approved, then removed and let back in, neither the code nor a grant comes back (FOL-464)", async () => {
+  const U = await import("../server/users.ts");
+  const { issueCode, resolveClient, registerMachineClient, listGrants } = await import("../server/mcp-oauth.ts");
+  process.env.FOLDRUN_RESEND_API_KEY ??= "re_test";
+  process.env.FOLDRUN_OPEN_SIGNUP = "1";
+  const zed = await createUser("zed@elsewhere.test", PW, "zed-co", { request: "free" });
+  delete process.env.FOLDRUN_OPEN_SIGNUP;
+  await U.setEmailVerified(zed.id);
+  await U.setEmailVerified(owner.id);
+  const join = async () => U.joinAccount((await U.mintInvite("acme", "editor", { email: zed.email, workspaces: null, by: owner })).token, zed.id);
+  const first = (await join()).user;
+  assert.ok(first.membership, "a joined account's stay has an id");
+  assert.equal(await U.stayOf("acme", zed.id), first.membership);
+  assert.equal(await U.stayOf("zed-co", zed.id), null, "the account they signed up into: the stay with no id");
+
+  // Approved in the first stay, not yet exchanged; and a standing grant.
+  process.env.FOLDRUN_TRUST_PROXY = "1";
+  const reg = await postJson(register.POST, `${ORIGIN}/v1/mcp/oauth/register`, { client_name: "Claude", redirect_uris: [CALLBACK], token_endpoint_auth_method: "none", grant_types: ["authorization_code", "refresh_token"], response_types: ["code"] }, { "x-forwarded-for": "198.51.100.88", "x-real-ip": "198.51.100.88" });
+  delete process.env.FOLDRUN_TRUST_PROXY;
+  assert.equal(reg.status, 201, await reg.clone().text());
+  const client = (await reg.json()) as { client_id: string };
+  const a = pkce();
+  const code = await issueCode({ client: await resolveClient(client.client_id), redirectUri: CALLBACK, state: null, codeChallenge: a.challenge, scope: ["mcp:read"], resource: `${ORIGIN}/v1/mcp` }, { tenant: "acme", userId: zed.id, stay: first.membership!, email: zed.email, role: "editor", workspaces: null, readOnly: true, h: (await import("../server/auth-tokens.ts")).hashFingerprint(first.hash) });
+  const machine = await registerMachineClient({ tenant: "acme", userId: zed.id, stay: first.membership!, email: zed.email, origin: ORIGIN, name: "zed's job", role: "viewer", workspaces: null, readOnly: true, auth: "client_secret_post" });
+
+  assert.ok(await U.removeMember("acme", zed.id, owner.id));
+  assert.ok((await listGrants("acme", { all: true })).find((g) => g.id === machine.grant)?.revokedAt, "removal ends what they connected");
+  const second = (await join()).user;
+  assert.notEqual(second.membership, first.membership, "let back in is a new stay");
+
+  const res = await postForm({ grant_type: "authorization_code", code, redirect_uri: CALLBACK, client_id: client.client_id, code_verifier: a.verifier, resource: `${ORIGIN}/v1/mcp` });
+  assert.equal(res.status, 400, "the earlier stay's approval is not exchanged in this one");
+  assert.equal(((await res.json()) as { error: string }).error, "invalid_grant");
+
+  // A grant the removal's sweep never reached (a crash; an approval in flight) is refused at use all the same.
+  const b = pkce();
+  const late = await issueCode({ client: await resolveClient(client.client_id), redirectUri: CALLBACK, state: null, codeChallenge: b.challenge, scope: ["mcp:read"], resource: `${ORIGIN}/v1/mcp` }, { tenant: "acme", userId: zed.id, stay: second.membership!, email: zed.email, role: "editor", workspaces: null, readOnly: true, h: (await import("../server/auth-tokens.ts")).hashFingerprint(second.hash) });
+  const got = await postForm({ grant_type: "authorization_code", code: late, redirect_uri: CALLBACK, client_id: client.client_id, code_verifier: b.verifier, resource: `${ORIGIN}/v1/mcp` });
+  assert.equal(got.status, 200, await got.clone().text());
+  const access = ((await got.json()) as { access_token: string }).access_token;
+  const call = () => mcp.POST(new NextRequest(`${ORIGIN}/v1/mcp`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${access}` }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) }));
+  assert.equal((await call()).status, 200, "in the stay it was approved in, it works");
+  // Out and back in, with the grant left standing as a lost sweep would leave it.
+  const file = path.join(DATA, "users.json");
+  const stored = JSON.parse(fs.readFileSync(file, "utf8")) as { id: string; also?: unknown[] }[];
+  delete stored.find((u) => u.id === zed.id)!.also;
+  fs.writeFileSync(file, JSON.stringify(stored));
+  await join();
+  assert.equal((await call()).status, 401, "a third stay: the second one's grant is nobody's");
 });

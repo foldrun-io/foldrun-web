@@ -12,11 +12,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, refuse, requireCaller } from "@/server/api";
+import { keyStands } from "@/server/auth";
 import { publicOrigin } from "@/server/auth-flows";
-import { OAuthError, issuerOf, registerMachineClient } from "@/server/mcp-oauth";
+import { OAuthError, issuerOf, registerMachineClient, lowerRole, intersectWorkspaces } from "@/server/mcp-oauth";
 import { withinMinter } from "@/server/key-scope";
 import { can, ROLES, type Role } from "@/platform/permissions";
-import { findMember } from "@/server/users";
+import { findMember, standingOf } from "@/server/users";
 import { assertConfirmed } from "@/server/email-confirmed";
 import { idempotent } from "@/server/idempotency";
 import { jsonObject } from "@/server/body";
@@ -29,8 +30,22 @@ async function postOnce(req: NextRequest) {
     // session, or the person a key was minted for.
     const userId = actor.kind === "user" ? actor.id : (await findMember(tenant, { email: actor.name }))?.id;
     if (!userId) return refuse("a machine client is registered by a person — sign in, or use a key minted by one (`foldrun login`)", 403);
-    const person = await findMember(tenant, { id: userId });
-    if (!person) return refuse("a machine client is registered by a person of this account", 403);
+    // Their standing NOW, from one read (FOL-464): the request was let in a
+    // moment ago, and a person removed and let back in since is in another
+    // stay, perhaps with less. The grant takes this stay's id, so it takes
+    // this stay's rights: the lower of what let the request in and what they
+    // hold now.
+    const standing = await standingOf(tenant, userId);
+    if (!standing) return refuse("a machine client is registered by a person of this account", 403);
+    if (!can(standing.role, "keys:manage")) return refuse(`your role (${standing.role}) cannot register machine clients — it needs admin`, 403);
+    // And the same stay the request was let in on: removed and let back in
+    // since, even as an admin again, is not who asked.
+    const changed = () => refuse("your membership of this account changed while the request was on its way — look again and retry", 403);
+    if (actor.credential?.stay !== undefined && actor.credential.stay !== standing.stay) return changed();
+    // A key names no stay, but a removal revokes it: still live AFTER the
+    // standing was read, no removal came before that read.
+    if (actor.credential && "key" in actor.credential && !(await keyStands(tenant, actor.credential.key, standing.person.email))) return changed();
+    const person = standing.person;
     assertConfirmed(person);
     const body = (await jsonObject(req, { optional: true })) as { name?: unknown; role?: unknown; workspaces?: unknown; access?: unknown; token_auth?: unknown; jwks?: unknown; jwks_uri?: unknown };
     if (typeof body.name !== "string" || !body.name.trim()) return refuse("expected { name } — what the machine client is, as people will read it", 400);
@@ -40,9 +55,9 @@ async function postOnce(req: NextRequest) {
     if (body.access !== undefined && body.access !== "read" && body.access !== "write") return refuse("access is read or write", 400);
     const auth = (body.token_auth ?? "client_secret_basic") as string;
     if (!["client_secret_basic", "client_secret_post", "private_key_jwt"].includes(auth)) return refuse("token_auth is client_secret_basic, client_secret_post or private_key_jwt", 400);
-    const grant = withinMinter({ role: actor.role, workspaces: actor.workspaces }, { role, workspaces: body.workspaces as string[] | null | undefined });
+    const grant = withinMinter({ role: lowerRole(actor.role, standing.role), workspaces: intersectWorkspaces(actor.workspaces, standing.workspaces) }, { role, workspaces: body.workspaces as string[] | null | undefined });
     const made = await registerMachineClient({
-      tenant, userId, email: actor.name, origin: publicOrigin(req),
+      tenant, userId, stay: standing.stay, email: actor.name, origin: publicOrigin(req),
       name: body.name, role: grant.role, workspaces: grant.workspaces, readOnly: body.access !== "write",
       auth: auth as "client_secret_basic" | "client_secret_post" | "private_key_jwt",
       ...(body.jwks !== undefined ? { jwks: body.jwks } : {}), ...(body.jwks_uri !== undefined ? { jwks_uri: body.jwks_uri } : {}),

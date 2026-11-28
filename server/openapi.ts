@@ -47,11 +47,11 @@ const OPEN = [
   /^\/v1\/billing\/stripe$/, /^\/v1\/billing\/confirm$/,
   // A storefront's HMAC signature (X-Foldrun-Partner/Timestamp/Signature), never a key.
   /^\/v1\/billing\/partner\//,
-  /^\/v1\/auth\/(signup|login|forgot|reset|verify|mfa\/verify|session)$/, /^\/v1\/cli\/login(\/\{id\})?$/, /^\/v1\/oauth\/callback$/,
+  /^\/v1\/auth\/(signup|login|forgot|reset|verify|mfa\/verify)$/, /^\/v1\/cli\/login(\/\{id\})?$/, /^\/v1\/oauth\/callback$/,
   /^\/s\//,
 ];
 /** One method open on a path whose others are not. */
-const OPEN_OPS = new Set(["GET /v1/cli/authorize"]);
+const OPEN_OPS = new Set(["GET /v1/cli/authorize", "GET /v1/auth/session"]);
 export const isOpen = (p: string, method?: string) => OPEN.some((r) => r.test(p)) || (method !== undefined && OPEN_OPS.has(`${method} ${p}`));
 
 /** GET /v1/account/api (server/api-facts.ts apiFactsFor). */
@@ -710,6 +710,10 @@ const RATE_HEADERS = {
  *  routes are never in it (scripts/gen-openapi.mjs leaves them out). */
 const ROUTES = billing() === freeBilling ? ALL_ROUTES.filter((r) => !/^\/v1\/billing(\/|$)/.test(r.path)) : ALL_ROUTES;
 
+/** Routes a browser session alone may call: a key is refused, so the spec
+ *  names the cookie, not the bearer key every other route inherits. */
+const SESSION_ONLY = new Set(["POST /v1/auth/session"]);
+
 const IDEMPOTENT_ROUTES = new Set(ROUTES.flatMap((r) => (r.idempotent ?? []).map((m) => `${m} ${r.path}`)));
 
 /** Statuses a route answers by design that the general rules above do not
@@ -892,7 +896,7 @@ export function openapiDocument(origin?: string): Schema {
         ...(r.summary ? { description: r.summary } : {}),
         tags: [tagOf(r.path)],
         parameters,
-        ...(open ? { security: [] } : auth ? { security: auth.security } : {}),
+        ...(open ? { security: [] } : SESSION_ONLY.has(`${method} ${r.path}`) ? { security: [{ session: [] }] } : auth ? { security: auth.security } : {}),
         ...(deprecated ? { deprecated: true } : {}),
         ...(shape?.body && method !== "GET" ? { requestBody: { required: true, content: { "application/json": { schema: shape.body } } } } : {}),
         responses: {
@@ -934,6 +938,7 @@ export function openapiDocument(origin?: string): Schema {
     components: {
       securitySchemes: {
         bearer: { type: "http", scheme: "bearer", description: "An API key from Settings → API keys (fr_api_…; fr_gw_… for the gateway, fr_a2a_… for A2A)" },
+        session: { type: "apiKey", in: "cookie", name: "foldrun_session", description: "A signed-in browser's session cookie. The few routes that are a browser session's alone (moving the session to another account) take it and refuse a key" },
         metricsToken: { type: "http", scheme: "bearer", description: "The install's Prometheus scrape token (FOLDRUN_METRICS_TOKEN) — not an API key; only GET /v1/metrics takes it" },
       },
       parameters: {

@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     }
     // Checked again and written in one transaction under the users lock:
     // the password, the address verified, every session ended.
-    const done = await redeemReset({ u: claims.u, h: claims.h, e: claims.e }, password);
+    const done = await redeemReset({ u: claims.u, h: claims.h, e: claims.e, ...(claims.g ? { g: claims.g } : {}) }, password);
     if (!done) throw new ApiError(INVALID, 400);
     // Again, now the old password is gone: an app exchange that slipped in
     // between is caught here, and none can follow (its code carries the old
