@@ -310,7 +310,7 @@ export const SHAPES: Record<string, Shape> = {
         offered: { ...bool, description: "the signed-in person looking may let this sign-in also call foldrun's models (an admin of every workspace, on the hosted platform); false when no one is signed in" },
         capUsd: { type: ["number", "null"] },
         dailyUsd: { type: ["number", "null"], description: "the most its model calls may spend per UTC day, USD" },
-        walletUsd: { type: "number", description: "the most bought credits may pay for them over the key's life, USD; the plan pays first" },
+        walletUsd: { type: ["number", "null"], description: "the most bought credits may pay for them over the key's life, USD; null: the account's own terms; the plan pays first" },
       }),
     }, ["code", "hostname", "expiresAt", "status", "createdAt", "requestedFrom", "requestedCountry", "sameNetwork", "approveBy"]),
   },
@@ -365,7 +365,7 @@ export const SHAPES: Record<string, Shape> = {
         expiresAt: nstr("kind key: when it stops working; null for never"),
         origin: nstr("kind key: cli-login for a key `foldrun login` minted, else null"),
         modelAccess: {
-          ...obj({ capUsd: { type: ["number", "null"] }, dailyUsd: { type: ["number", "null"] }, walletUsd: { type: "number" } }),
+          ...obj({ capUsd: { type: ["number", "null"] }, dailyUsd: { type: ["number", "null"] }, walletUsd: { type: ["number", "null"] } }),
           type: ["object", "null"],
           description: "kind key: the limits within which this same key may call foldrun's models; null when it opens the platform API alone",
         },

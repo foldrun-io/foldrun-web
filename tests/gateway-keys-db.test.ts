@@ -49,7 +49,12 @@ test("a gateway key keeps its limits through the table and a rotation, and opens
   assert.equal(ok.body.capUsd, 12.35);
   assert.equal(ok.body.gatewayUrl, "https://gateway.example.test");
   assert.equal((await post({ purpose: "gateway", capUsd: 0.001 })).status, 400, "a limit that rounds to $0 is refused (Codex review)");
-  assert.equal((await post({ purpose: "gateway" })).status, 400, "a limit of its own is required");
+  // No limit of its own (28 Nov 2026): the subscription pays, then the wallet by the account's own rules.
+  const unlimited = await post({ purpose: "gateway", label: "claude code" });
+  assert.equal(unlimited.status, 200, JSON.stringify(unlimited.body));
+  assert.equal(unlimited.body.capUsd, null);
+  assert.equal(unlimited.body.dailyUsd, null);
+  assert.equal(unlimited.body.credential, undefined, "not an account key: no wallet budget of its own");
   const list = (await (await keysRoute.GET(new NextRequest("https://app.example.test/v1/keys", { headers: { authorization: `Bearer ${admin}` } }))).json()) as { keys: { id: string; gateway?: { spentUsd: number; todayUsd: number } }[]; gatewayUrl: string };
   assert.equal(list.gatewayUrl, "https://gateway.example.test");
   assert.deepEqual(list.keys.find((k) => k.id === ok.body.id)!.gateway, { capUsd: 12.35, dailyUsd: 3, spentUsd: 0, todayUsd: 0 });

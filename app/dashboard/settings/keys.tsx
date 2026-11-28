@@ -45,7 +45,7 @@ interface KeyRow {
   purpose?: "a2a" | "gateway";
   /** "gateway": a coding agent's key — its own spending limits, and what it
    *  has spent in all and today (UTC), USD. */
-  gateway?: { capUsd: number | null; dailyUsd: number | null; spentUsd?: number; todayUsd?: number; credential?: "login" | "account"; mediaToText?: boolean; walletUsd?: number; walletSpentUsd?: number; plan?: "pro" | "max"; models?: { opus?: string; sonnet?: string; haiku?: string } };
+  gateway?: { capUsd: number | null; dailyUsd: number | null; spentUsd?: number; todayUsd?: number; credential?: "login" | "account"; mediaToText?: boolean; walletUsd?: number | null; walletSpentUsd?: number; plan?: "pro" | "max"; models?: { opus?: string; sonnet?: string; haiku?: string } };
   a2a?: { workspace: string; flows: string[]; principal?: string; maxTasks: number };
 }
 
@@ -83,7 +83,7 @@ function gatewaySpend(g: NonNullable<KeyRow["gateway"]>): string {
   else parts.push($t("settings.keys.spent", { spent: usd(g.spentUsd) }));
   if (g.dailyUsd !== null) parts.push($t("settings.keys.ofToday", { v0: String(usd(g.todayUsd)), v1: String(usd(g.dailyUsd)) }));
   // An account key: the plan first, and what bought credits paid of its budget.
-  if (g.credential === "account") parts.push(g.walletUsd ? $t("settings.keys.walletSpentOfBudget", { spent: usd(g.walletSpentUsd), cap: usd(g.walletUsd) }) : $t("settings.keys.planOnly"));
+  if (g.credential === "account") parts.push(g.walletUsd === null || g.walletUsd === undefined ? $t("settings.keys.accountTerms") : g.walletUsd ? $t("settings.keys.walletSpentOfBudget", { spent: usd(g.walletSpentUsd), cap: usd(g.walletUsd) }) : $t("settings.keys.planOnly"));
   return parts.join(" · ");
 }
 
@@ -205,8 +205,8 @@ export function KeyManager({
             : kind === "gateway"
               ? onLogin
                 ? { tenant, label, expires, purpose: "gateway", credential: "login", plan, ...(requireCust ? { requireCustomer: true } : {}) }
-                : { tenant, label, expires, purpose: "gateway", ...(runsOn === "account" ? { credential: "account", walletUsd: Number(walletUsd.trim() || "0") } : {}), ...(capUsd.trim() ? { capUsd: Number(capUsd) } : {}), ...(dailyUsd.trim() ? { dailyUsd: Number(dailyUsd) } : {}), ...(requireCust ? { requireCustomer: true } : {}) }
-              : { tenant, label, role, expires, ...(narrow ? { workspaces: chosen } : {}), ...(requireCust ? { requireCustomer: true } : {}), ...(gateway && apiModels ? { modelAccess: { dailyUsd: Number(apiDaily), walletUsd: Number(apiWallet.trim() || "0") } } : {}) },
+                : { tenant, label, expires, purpose: "gateway", ...(runsOn === "account" ? { credential: "account", ...(walletUsd.trim() ? { walletUsd: Number(walletUsd) } : {}) } : {}), ...(capUsd.trim() ? { capUsd: Number(capUsd) } : {}), ...(dailyUsd.trim() ? { dailyUsd: Number(dailyUsd) } : {}), ...(requireCust ? { requireCustomer: true } : {}) }
+              : { tenant, label, role, expires, ...(narrow ? { workspaces: chosen } : {}), ...(requireCust ? { requireCustomer: true } : {}), ...(gateway && apiModels ? { modelAccess: { ...(apiDaily.trim() ? { dailyUsd: Number(apiDaily) } : {}), ...(apiWallet.trim() ? { walletUsd: Number(apiWallet) } : {}) } } : {}) },
         ),
       });
       const data = await res.json();
@@ -294,7 +294,8 @@ export function KeyManager({
   const [walletEdit, setWalletEdit] = useState<{ id: string; value: string } | null>(null);
   const saveWallet = async () => {
     if (busy || !walletEdit) return;
-    const amount = walletEdit.value.trim() === "" ? NaN : Number(walletEdit.value);
+    // Empty: no amount of its own — the account's terms (null), never $0.
+    const amount = walletEdit.value.trim() === "" ? null : Number(walletEdit.value);
     setBusy(true);
     setRowError(null);
     try {
@@ -302,7 +303,7 @@ export function KeyManager({
       const data = await res.json();
       // Saved when the platform answers with the budget it kept (rounded
       // to cents, so 1.234 is 1.23) — never compared with the draft (Codex).
-      if (res.ok && typeof data.walletUsd === "number") {
+      if (res.ok && (typeof data.walletUsd === "number" || data.walletUsd === null)) {
         setWalletEdit(null);
         router.refresh();
       } else setRowError({ id: walletEdit.id, message: data.error ?? $t("settings.keys.failedToChangeIt") });
@@ -372,7 +373,7 @@ export function KeyManager({
   };
 
   const createDisabled =
-    busy || (kind === "api" ? (narrow && chosen.length === 0) || (apiModels && !apiDaily.trim()) : kind === "gateway" ? !onLogin && !capUsd.trim() && !dailyUsd.trim() : !a2aWs || a2aChosen.length === 0);
+    busy || (kind === "api" ? (narrow && chosen.length === 0) || false : kind === "gateway" ? false : !a2aWs || a2aChosen.length === 0);
   return (
     <div>
       {confirmDialog}
@@ -789,9 +790,9 @@ export function KeyManager({
                                 </span>
                               ) : (
                                 <>
-                                  {k.gateway.walletUsd ? usd(k.gateway.walletUsd) : $t("settings.keys.walletBudgetPlanOnly", { amount: usd(0) })}
+                                  {k.gateway.walletUsd === null || k.gateway.walletUsd === undefined ? $t("settings.keys.accountTerms") : k.gateway.walletUsd ? usd(k.gateway.walletUsd) : $t("settings.keys.walletBudgetPlanOnly", { amount: usd(0) })}
                                   {!scoped && (
-                                    <button type="button" disabled={busy} onClick={() => setWalletEdit({ id: k.id, value: String(k.gateway?.walletUsd ?? 0) })} className="ms-2 text-fg-secondary underline decoration-line underline-offset-2 hover:text-fg">
+                                    <button type="button" disabled={busy} onClick={() => setWalletEdit({ id: k.id, value: k.gateway?.walletUsd === null || k.gateway?.walletUsd === undefined ? "" : String(k.gateway.walletUsd) })} className="ms-2 text-fg-secondary underline decoration-line underline-offset-2 hover:text-fg">
                                       {$t("settings.keys.changeWalletBudget")}
                                     </button>
                                   )}

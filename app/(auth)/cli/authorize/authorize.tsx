@@ -24,7 +24,7 @@ type Request = {
   approveBy?: string;
   /** One key (22 Nov 2026): whether this person may let the sign-in also
    *  call foldrun's models, and within which limits. */
-  modelAccess?: { offered: boolean; dailyUsd: number | null; walletUsd: number };
+  modelAccess?: { offered: boolean; dailyUsd: number | null; walletUsd: number | null };
 };
 
 const CLOCK: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit" };
@@ -171,7 +171,7 @@ export function CliAuthorize() {
                 <Checkbox checked={models} onCheckedChange={(checked: boolean) => setModels(checked)} />
                 {$t("auth.cli-authorize-authorize.modelAccessLabel")}
               </label>
-              <p className="mt-1.5 text-fg-muted">{$t("auth.cli-authorize-authorize.modelAccessTerms", { walletUsd: request.modelAccess.walletUsd, dailyUsd: request.modelAccess.dailyUsd ?? 0 })}</p>
+              <p className="mt-1.5 text-fg-muted">{$t("auth.cli-authorize-authorize.modelAccessTerms")}</p>
             </div>
           ) : request.modelAccess ? (
             <p className="mt-3 text-xs text-fg-muted">{$t("auth.cli-authorize-authorize.modelAccessNotOffered")}</p>

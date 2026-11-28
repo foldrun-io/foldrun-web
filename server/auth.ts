@@ -144,14 +144,17 @@ export interface ApiKeyRecord {
 export interface ModelGrantInput {
   capUsd: number | null;
   dailyUsd: number | null;
-  walletUsd: number;
+  /** Null: no wallet amount of its own — the account's pay-as-you-go rules decide (28 Nov 2026). */
+  walletUsd: number | null;
   models?: GatewayGrant["models"];
 }
 
 /** What `foldrun login` asks for when the person agrees to model access
  *  (the limits the CLI's own machine key had: $100 a day in all, at most
  *  $20 of bought credits, the plan first). */
-export const CLI_MODEL_GRANT: ModelGrantInput = { capUsd: null, dailyUsd: 100, walletUsd: 20 };
+// No limits of its own (owner, 28 Nov 2026: "no account management on coding and cli side, all should be on
+// platform side"): the plan pays, then the upgrade or the wallet as the account's own billing rules say.
+export const CLI_MODEL_GRANT: ModelGrantInput = { capUsd: null, dailyUsd: null, walletUsd: null };
 
 /** How long a `foldrun login` key lives; the CLI renews it with under
  *  CLI_RENEW_DAYS left, so a machine in use never sees it end. */
@@ -307,7 +310,7 @@ export async function createApiKey(
       capUsd: opts.models.capUsd ?? null,
       dailyUsd: opts.models.dailyUsd ?? null,
       credential: "account",
-      walletUsd: Math.max(0, opts.models.walletUsd ?? 0),
+      walletUsd: typeof opts.models.walletUsd === "number" ? Math.max(0, opts.models.walletUsd) : null,
       principal: opts.models.principal || record.id,
       ...(opts.models.models ? { models: opts.models.models } : {}),
     };
@@ -321,7 +324,7 @@ export async function createApiKey(
       capUsd: opts.gateway.capUsd ?? null,
       dailyUsd: opts.gateway.dailyUsd ?? null,
       ...(opts.gateway.credential === "login" ? { credential: "login" as const } : {}),
-      ...(opts.gateway.credential === "account" ? { credential: "account" as const, walletUsd: Math.max(0, opts.gateway.walletUsd ?? 0) } : {}),
+      ...(opts.gateway.credential === "account" ? { credential: "account" as const, walletUsd: typeof opts.gateway.walletUsd === "number" ? Math.max(0, opts.gateway.walletUsd) : null } : {}),
       ...(opts.gateway.credential === "login" && opts.gateway.plan === "max" ? { plan: "max" as const } : {}),
       ...(opts.gateway.models ? { models: opts.gateway.models } : {}),
     };
@@ -583,7 +586,7 @@ export async function rotateApiKey(
   // Either order then ends with the lowered value on every key of the chain.
   if (old.purpose === undefined && made.record.gateway) {
     const now = modelGrantOf((await keysOf(tenant)).find((k) => k.id === id) ?? {});
-    if (now && (now.walletUsd ?? 0) !== (made.record.gateway.walletUsd ?? 0)) await patchGatewayGrantDb(tenant, made.record.id, "walletUsd", now.walletUsd ?? 0, "account");
+    if (now && (now.walletUsd ?? null) !== (made.record.gateway.walletUsd ?? null)) await patchGatewayGrantDb(tenant, made.record.id, "walletUsd", now.walletUsd ?? null, "account");
     if (now && JSON.stringify(now.models ?? null) !== JSON.stringify(made.record.gateway.models ?? null)) await patchGatewayGrantDb(tenant, made.record.id, "models", now.models ?? null, "account");
   }
   const endsAt = new Date(Date.now() + graceMs);
@@ -601,7 +604,7 @@ export async function rotateApiKey(
 /** An API key's model grant as its rotation carries it on: the same limits,
  *  wallet budget and model map, and the chain's first id. */
 function rotatedModels(id: string, g: GatewayGrant): ModelGrantInput & { principal: string } {
-  return { capUsd: g.capUsd ?? null, dailyUsd: g.dailyUsd ?? null, walletUsd: g.walletUsd ?? 0, ...(g.models ? { models: g.models } : {}), principal: g.principal || id };
+  return { capUsd: g.capUsd ?? null, dailyUsd: g.dailyUsd ?? null, walletUsd: g.walletUsd ?? null, ...(g.models ? { models: g.models } : {}), principal: g.principal || id };
 }
 
 // When each key last wrote its last-used time, in this process. Once a

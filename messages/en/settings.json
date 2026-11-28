@@ -551,6 +551,7 @@
     "theMostBoughtCreditsMayPay": "The most bought credits may pay for this key's calls, USD",
     "accountKeyHelp": "Your plan pays for this key's calls while it has room. Bought credits pay for the rest, up to this budget: a model the plan does not cover, any call when there is no plan, and, past the allowance, only with extra usage on (Billing). 0 means the plan alone.",
     "walletSpentOfBudget": "credits {spent} of {cap}",
+    "accountTerms": "your plan, then your account's own terms",
     "planOnly": "plan only",
     "walletBudget": "Wallet budget",
     "changeWalletBudget": "change",

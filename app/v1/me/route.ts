@@ -3,7 +3,8 @@
 // email; a key with its label and who minted it. Both say the account and
 // the role, because those are what decide what happens next.
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { versionedJson } from "@/server/api-version";
 import { requireCaller, errorResponse, cliLoginPerson } from "@/server/api";
 import { listApiKeys } from "@/server/auth";
 import { modelGrantOf } from "@/platform/api-keys-db";
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
     // a key made by hand, an AI app's connection and support's view.
     const personId = actor.readOnly ? null : actor.kind === "user" ? actor.id : (await cliLoginPerson(tenant, actor))?.id ?? null;
     const user = personId ? await findUserById(personId) : null;
-    return NextResponse.json({
+    return versionedJson(req, {
       person: user ? { email: user.email, firstName: user.firstName ?? null, lastName: user.lastName ?? null, timezone: user.timezone ?? null } : null,
       account: tenant,
       owner: (await ownerOf(tenant))?.email ?? null,
@@ -61,7 +62,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-function modelAccessView(key: Parameters<typeof modelGrantOf>[0]): { capUsd: number | null; dailyUsd: number | null; walletUsd: number } | null {
+function modelAccessView(key: Parameters<typeof modelGrantOf>[0]): { capUsd: number | null; dailyUsd: number | null; walletUsd: number | null } | null {
   const g = key.purpose === undefined ? modelGrantOf(key) : null;
-  return g ? { capUsd: g.capUsd ?? null, dailyUsd: g.dailyUsd ?? null, walletUsd: g.walletUsd ?? 0 } : null;
+  return g ? { capUsd: g.capUsd ?? null, dailyUsd: g.dailyUsd ?? null, walletUsd: g.walletUsd ?? null } : null;
 }

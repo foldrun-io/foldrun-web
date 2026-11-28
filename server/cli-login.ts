@@ -273,7 +273,7 @@ export async function decideCliLogin(
         throw new ApiError("your role or projects changed while this sign-in was approved — approve it again", 409);
       }
     }
-    await audit("apikey.created", { actor: person.email, tenant: person.tenant, subject: record.id, detail: { label: record.label, prefix: record.prefix, role, via: "foldrun login", ...(record.gateway ? { modelAccess: { capUsd: record.gateway.capUsd, dailyUsd: record.gateway.dailyUsd, walletUsd: record.gateway.walletUsd ?? 0 } } : {}) } });
+    await audit("apikey.created", { actor: person.email, tenant: person.tenant, subject: record.id, detail: { label: record.label, prefix: record.prefix, role, via: "foldrun login", ...(record.gateway ? { modelAccess: { capUsd: record.gateway.capUsd, dailyUsd: record.gateway.dailyUsd, walletUsd: record.gateway.walletUsd ?? null } } : {}) } });
     const grant = seal({ key, tenant: person.tenant, email: person.email, role });
     if (await decideCliLoginDb(c, "approved", grant as unknown as Record<string, unknown>)) return "approved";
     // It expired between the claim and now: the key would reach no one.
@@ -303,7 +303,7 @@ export async function decideCliLogin(
     throw err;
   }
   const { key, record } = minted;
-  await audit("apikey.created", { actor: person.email, tenant: person.tenant, subject: record.id, detail: { label: record.label, prefix: record.prefix, role, via: "foldrun login", ...(record.gateway ? { modelAccess: { capUsd: record.gateway.capUsd, dailyUsd: record.gateway.dailyUsd, walletUsd: record.gateway.walletUsd ?? 0 } } : {}) } });
+  await audit("apikey.created", { actor: person.email, tenant: person.tenant, subject: record.id, detail: { label: record.label, prefix: record.prefix, role, via: "foldrun login", ...(record.gateway ? { modelAccess: { capUsd: record.gateway.capUsd, dailyUsd: record.gateway.dailyUsd, walletUsd: record.gateway.walletUsd ?? null } } : {}) } });
   const grant = seal({ key, tenant: person.tenant, email: person.email, role });
   updateRow(row.id, (r) => {
     r.status = "approved";

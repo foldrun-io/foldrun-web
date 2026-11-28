@@ -75,6 +75,31 @@ export interface VersionChange {
  */
 export const VERSION_CHANGES: VersionChange[] = [
   {
+    // A subscription pays for everything (owner, 28 Nov 2026): a key's model
+    // access carries no amounts of its own, so an account key's walletUsd may
+    // be null — the account's pay-as-you-go terms decide. Callers pinned
+    // earlier were promised a number: they get the most a wallet amount can
+    // be (100000), which is what "no amount of its own" means for them.
+    version: "2026-11-29",
+    summary: "an account key's `walletUsd` (and `modelAccess.walletUsd`) may be null — no amount of its own, the account's pay-as-you-go terms decide; callers pinned earlier get 100000, the most it can be",
+    routes: [
+      { method: "GET", path: /^\/v1\/keys$/, file: "app/v1/keys/route.ts" },
+      { method: "POST", path: /^\/v1\/keys$/, file: "app/v1/keys/route.ts" },
+      { method: "GET", path: /^\/v1\/me$/, file: "app/v1/me/route.ts" },
+      { method: "GET", path: /^\/v1\/cli\/authorize$/, file: "app/v1/cli/authorize/route.ts" },
+    ],
+    downgrade(body) {
+      const walk = (v: unknown): unknown => {
+        if (Array.isArray(v)) return v.map(walk);
+        if (!v || typeof v !== "object") return v;
+        const out: Record<string, unknown> = {};
+        for (const [k, x] of Object.entries(v as Record<string, unknown>)) out[k] = k === "walletUsd" && x === null ? 100_000 : walk(x);
+        return out;
+      };
+      return walk(body);
+    },
+  },
+  {
     // One API, Anthropic's shape (owner, 22 Nov 2026): every /v1 refusal
     // is the body /v1 answers with. Applied where every refusal is built
     // (api.ts errorResponse, by ERROR_SHAPE_HEADER), not route by route, so

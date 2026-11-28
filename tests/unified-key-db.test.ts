@@ -74,8 +74,12 @@ test("one key: issued with model access, it opens the API at its role and the ga
     assert.equal(theirs.actor.modelAccess, null, "a platform key has none");
 
     // Who may give it, and how it must be asked: refused, nothing made.
+    // No limit of its own (28 Nov 2026): the account's billing decides; nothing about money is the key's.
+    const bare = await post(admin, { modelAccess: {} });
+    assert.equal(bare.status, 200, JSON.stringify(bare.body));
+    assert.deepEqual(bare.body.modelAccess, { capUsd: null, dailyUsd: null, walletUsd: null });
+    await (await import("../server/auth.ts")).revokeApiKey(tenant, bare.body.id);
     const before = (await listApiKeys(tenant)).length;
-    assert.equal((await post(admin, { modelAccess: {} })).status, 400, "a limit of its own");
     assert.equal((await post(admin, { modelAccess: { dailyUsd: 0.001 } })).status, 400, "a limit that rounds to $0");
     assert.equal((await post(admin, { modelAccess: { dailyUsd: 5, walletUsd: -1 } })).status, 400);
     assert.equal((await post(admin, { modelAccess: { dailyUsd: 5, models: {} } })).status, 400, "nothing else in it");
@@ -212,7 +216,7 @@ test("the approval page is told the terms; only a signed-in person who may give 
   const route = (await import("../app/v1/cli/authorize/route.ts")) as { GET: (req: InstanceType<typeof NextRequest>) => Promise<Response>; POST: (req: InstanceType<typeof NextRequest>) => Promise<Response> };
   const req = await beginCliLogin("laptop");
   const open = (await (await route.GET(new NextRequest(`https://app.example.test/v1/cli/authorize?code=${req.code}`))).json()) as Json;
-  assert.deepEqual(open.modelAccess, { offered: false, capUsd: null, dailyUsd: 100, walletUsd: 20 }, "nobody signed in: the terms, not offered");
+  assert.deepEqual(open.modelAccess, { offered: false, capUsd: null, dailyUsd: null, walletUsd: null }, "nobody signed in: the terms, not offered");
 });
 
 test("one key at submission: a run started with it is queued, and the reusable key is nowhere in what was queued or stored — no row, no file", opts, async () => {

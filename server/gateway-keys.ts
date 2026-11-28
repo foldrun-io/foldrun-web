@@ -67,7 +67,7 @@ export interface GatewaySpend {
 }
 
 /** Each gateway key with what it has spent in all and today (UTC). */
-export async function withGatewaySpend<K extends { id: string; tenant: string; purpose?: string; scope?: unknown; gateway?: { capUsd: number | null; dailyUsd: number | null; credential?: "login" | "account"; walletUsd?: number; models?: GatewayModels; principal?: string } }>(keys: K[], now = new Date()): Promise<(K | (K & { gateway: GatewaySpend }))[]> {
+export async function withGatewaySpend<K extends { id: string; tenant: string; purpose?: string; scope?: unknown; gateway?: { capUsd: number | null; dailyUsd: number | null; credential?: "login" | "account"; walletUsd?: number | null; models?: GatewayModels; principal?: string } }>(keys: K[], now = new Date()): Promise<(K | (K & { gateway: GatewaySpend }))[]> {
   const day = dayOf(now);
   return Promise.all(
     keys.map(async (k) => {

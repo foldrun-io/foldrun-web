@@ -1,4 +1,5 @@
 import { walletAmount } from "@/server/gateway-keys";
+import { versionedJson } from "@/server/api-version";
 import { NextRequest, NextResponse } from "next/server";
 import { createApiKey, listApiKeys, revokeApiKey, resolveTenant, parseKeyExpiry, type Actor, type ModelGrantInput, type PersonBound } from "@/server/auth";
 import { audit } from "@/server/audit";
@@ -66,7 +67,7 @@ export async function GET(req: NextRequest) {
     // A scoped admin sees the keys it could have minted, not the account's.
     // A gateway key carries what it has spent; `gatewayUrl` is where a coding
     // agent points ANTHROPIC_BASE_URL (null where this install has none).
-    return NextResponse.json({ keys: await withGatewaySpend((await listApiKeys(tenant)).filter((k) => keyWithin(minter, k))), gatewayUrl: gatewayUrl(req) });
+    return versionedJson(req, { keys: await withGatewaySpend((await listApiKeys(tenant)).filter((k) => keyWithin(minter, k))), gatewayUrl: gatewayUrl(req) });
   } catch (err) {
     return errorResponse(err);
   }
@@ -171,7 +172,7 @@ async function postOnce(req: NextRequest) {
       detail: { label: record.label, prefix: record.prefix, role: record.role, workspaces: record.workspaces ?? null, expiresAt: record.expiresAt ?? null, ...access },
     });
     if (who && record.createdBy) sendSecurityNotice(tenant, record.createdBy, modelAccess ? "a new API key that may also call foldrun's models was created" : "a new API key was created", clientIp(req));
-    return NextResponse.json({ ok: true, key, id: record.id, prefix: record.prefix, role: record.role, workspaces: record.workspaces ?? null, expiresAt: record.expiresAt ?? null, ...access, ...(modelAccess ? { gatewayUrl: gatewayUrl(req) } : {}) });
+    return versionedJson(req, { ok: true, key, id: record.id, prefix: record.prefix, role: record.role, workspaces: record.workspaces ?? null, expiresAt: record.expiresAt ?? null, ...access, ...(modelAccess ? { gatewayUrl: gatewayUrl(req) } : {}) });
   } catch (err) {
     return errorResponse(err);
   }
@@ -261,11 +262,10 @@ const GATEWAY_MAX_USD = 100_000;
  *  review: $0.001 rounded to a $0 limit, a key refused on its first call),
  *  or null when unsaid. */
 /** An account key's wallet budget: 0 (the plan alone) up to the gateway's
- *  most; absent is 0 — bought credits are never spent by a key that was
- *  not told it may. */
-function walletBudget(v: unknown): number {
-  // Unsaid is 0; a null (a form's NaN, as JSON) is refused, never read as 0.
-  if (v === undefined) return 0;
+ *  most, or null — no amount of its own, the account's pay-as-you-go terms
+ *  decide (28 Nov 2026). Unsaid is null too; a NaN or a word is refused. */
+function walletBudget(v: unknown): number | null {
+  if (v === undefined || v === null) return null;
   const n = walletAmount(v);
   if (n === null) throw new ApiError(`walletUsd must be a number of dollars from 0 (the plan only) to ${GATEWAY_MAX_USD}`, 400);
   return n;
@@ -287,7 +287,7 @@ function modelAccessOf(v: unknown, minter: Pick<Actor, "workspaces">): ModelGran
   if (minter.workspaces !== null) throw new ApiError("model access spends the whole account's balance — only an admin of every workspace may give it", 403);
   const capUsd = usdLimit(o.capUsd, "modelAccess.capUsd");
   const dailyUsd = usdLimit(o.dailyUsd, "modelAccess.dailyUsd");
-  if (capUsd === null && dailyUsd === null) throw new ApiError("model access needs a limit of its own: { dailyUsd } per UTC day, or { capUsd } in all (or both)", 400);
+  // No limit of its own is the normal grant (28 Nov 2026): the account's billing decides.
   return { capUsd, dailyUsd, walletUsd: walletBudget(o.walletUsd) };
 }
 
@@ -348,17 +348,20 @@ async function mintGatewayKey(
   }
   const capUsd = usdLimit(body.capUsd, "capUsd");
   const dailyUsd = usdLimit(body.dailyUsd, "dailyUsd");
-  if (capUsd === null && dailyUsd === null) return refuse("a gateway key needs a limit of its own: { capUsd } in all, or { dailyUsd } per UTC day (or both)", 400);
+  // No limit of its own is the normal key (owner, 28 Nov 2026: "we are selling subscriptions, so why should
+  // coding agent and our script set limits"): the plan pays, then the wallet as the account's extra usage
+  // (its switch and cap) allows. capUsd / dailyUsd stay for whoever wants a key held tighter.
   // An account key (FOL-208): the plan pays while it has room, then bought
   // credits up to its own wallet budget — 0, the plan alone.
   const account = body.credential === "account";
+  // Unsaid: no wallet amount of its own — the account's pay-as-you-go rules (28 Nov 2026).
   const walletUsd = account ? walletBudget(body.walletUsd) : undefined;
   const m = body.models === undefined ? { models: null } : checkModels(body.models, false);
   if ("error" in m) return refuse(m.error, 400);
   const expiresAt = parseKeyExpiry(body.expires);
   // Its role is the lowest, as an A2A key's: only what keeps it in scope
   // checks (who may see and end it).
-  const kind = account ? { credential: "account" as const, walletUsd: walletUsd! } : {};
+  const kind = account ? { credential: "account" as const, walletUsd: walletUsd ?? null } : {};
   const { record, key } = await createApiKey(tenant, body.label ?? "", who, undefined, "viewer", null, { personBound: bound(req), expiresAt, ...requireCustomer, gateway: { capUsd, dailyUsd, ...kind, ...(m.models ? { models: m.models } : {}) } });
   await audit("apikey.created", {
     actor: by,
@@ -367,7 +370,7 @@ async function mintGatewayKey(
     detail: { label: record.label, prefix: record.prefix, purpose: "gateway", capUsd, dailyUsd, ...kind, expiresAt: record.expiresAt ?? null },
   });
   if (who && record.createdBy) sendSecurityNotice(tenant, record.createdBy, account ? "a new gateway key on this account's plan and credits was created" : "a new gateway key was created", clientIp(req));
-  return NextResponse.json({ ok: true, key, id: record.id, prefix: record.prefix, purpose: "gateway", capUsd, dailyUsd, ...kind, expiresAt: record.expiresAt ?? null, gatewayUrl: gatewayUrl(req) });
+  return versionedJson(req, { ok: true, key, id: record.id, prefix: record.prefix, purpose: "gateway", capUsd, dailyUsd, ...kind, expiresAt: record.expiresAt ?? null, gatewayUrl: gatewayUrl(req) });
 }
 
 export async function DELETE(req: NextRequest) {

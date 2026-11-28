@@ -47,8 +47,9 @@ async function patchOnce(req: NextRequest, ctx: { params: Promise<{ id: string }
       if (Object.keys(body).length > 1) return refuse("change walletUsd on its own", 400);
       // A gateway account key, or an API key with model access (one key).
       if (!modelGrantOf(key) || key.gateway?.credential !== "account") return refuse("only an account key (credential: account) or an API key with model access has a wallet budget", 400);
-      const n = walletAmount(body.walletUsd);
-      if (n === null) return refuse("walletUsd must be a number of dollars from 0 (the plan only) to 100000", 400);
+      // null clears the key's own amount: the account's pay-as-you-go terms decide (28 Nov 2026).
+      const n = body.walletUsd === null ? null : walletAmount(body.walletUsd);
+      if (n === null && body.walletUsd !== null) return refuse("walletUsd must be a number of dollars from 0 (the plan only) to 100000, or null for the account's own terms", 400);
       if (!(await patchGatewayGrantDb(tenant, id, "walletUsd", n, "account"))) return refuse("key not found", 404);
       // An API key's chain shares one spend (its principal): a key still in
       // its rotation grace gets the same budget, never the old one (Codex review).

@@ -17,6 +17,7 @@
 // is not managing keys, it is being yourself on another machine.
 
 import { NextRequest, NextResponse } from "next/server";
+import { versionedJson } from "@/server/api-version";
 import { roleOfUser, allowedWorkspaces } from "@/server/users";
 import { describeCliLogin, decideCliLogin, requestOrigin, mayGrantModels } from "@/server/cli-login";
 import { CLI_MODEL_GRANT, sessionCredential } from "@/server/auth";
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
     const user = await sessionUser(req).catch(() => null);
     const person = user && !(user instanceof Response) ? { role: (await roleOfUser(user.tenant, user.id)) ?? "viewer", workspaces: await allowedWorkspaces(user.tenant, user.id) } : null;
     const modelAccess = { offered: person ? mayGrantModels(person) : false, ...CLI_MODEL_GRANT };
-    return NextResponse.json({ ...row, sameNetwork: here && row.requestedFrom ? here === row.requestedFrom : null, modelAccess });
+    return versionedJson(req, { ...row, sameNetwork: here && row.requestedFrom ? here === row.requestedFrom : null, modelAccess });
   } catch (err) {
     return errorResponse(err);
   }

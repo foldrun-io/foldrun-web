@@ -17,7 +17,7 @@ import path from "node:path";
  * when a route changes in a way an existing caller would break on. Additive
  * changes — a new route, a new field — do not move it.
  */
-export const API_VERSION = "2026-11-22";
+export const API_VERSION = "2026-11-29";
 
 export const COMPONENTS = ["core", "platform", "web", "docs", "infra", "cli", "admin"] as const;
 export type Component = (typeof COMPONENTS)[number];
