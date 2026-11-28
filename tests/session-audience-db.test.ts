@@ -29,11 +29,13 @@ test("a console session is stored with its surface and its second factor; a plai
   const { createUser, mintSession, verifySession } = await import("../server/users.ts");
   const tenant = `aud${Date.now()}`;
   const user = await createUser(`op@${tenant}.test`, "a long enough password here 1", tenant, { request: "free" });
+  // The facts this test is about; a session also carries how and when it began (FOL-464).
+  const facts = (x: { kind: string; audience?: string | null; mfa?: boolean; id?: string | null } | undefined) => x && { kind: x.kind, audience: x.audience, mfa: x.mfa, id: x.id };
   const consoleToken = await mintSession(user, "test", { audience: "admin", mfa: true });
   assert.match(consoleToken.value, /^v2\./, "revocable: the facts live in the row");
-  assert.deepEqual((await verifySession(consoleToken.value))?.session, { kind: "v2", audience: "admin", mfa: true, id: consoleToken.sessionId });
+  assert.deepEqual(facts((await verifySession(consoleToken.value))?.session), { kind: "v2", audience: "admin", mfa: true, id: consoleToken.sessionId });
   const plain = await mintSession(user, "test");
-  assert.deepEqual((await verifySession(plain.value))?.session, { kind: "v2", audience: null, mfa: false, id: plain.sessionId });
+  assert.deepEqual(facts((await verifySession(plain.value))?.session), { kind: "v2", audience: null, mfa: false, id: plain.sessionId });
   const appMfa = await mintSession(user, "test", { mfa: true });
-  assert.deepEqual((await verifySession(appMfa.value))?.session, { kind: "v2", audience: null, mfa: true, id: appMfa.sessionId });
+  assert.deepEqual(facts((await verifySession(appMfa.value))?.session), { kind: "v2", audience: null, mfa: true, id: appMfa.sessionId });
 });
