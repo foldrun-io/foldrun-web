@@ -15,7 +15,6 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
 import { $t, MESSAGES, currentDir, currentLocale, expandTerms, localized, localizedList } from "@/i18n";
 import { CATALOG_FA, TERMS_FA } from "@/i18n/persian";
 import { localeForHost, offersPersian } from "@/server/locale-host";
@@ -180,7 +179,12 @@ test("Persian's sentences are in no English page's download", () => {
     "if (!ready) use(loadPersian());",
   ]);
   assert.match(provider, /locale === "fa" \? <Persian>/);
-  const files = execFileSync("git", ["ls-files", "app", "components", "i18n", "server", "proxy.ts"], { cwd: ROOT, encoding: "utf8" }).split("\n").filter((f) => /\.tsx?$/.test(f));
+  // Read from disk, not from git: the hosted check runs in a copy with no .git.
+  const files = ["app", "components", "i18n", "server"]
+    .flatMap((d) => fs.readdirSync(path.join(ROOT, d), { recursive: true, encoding: "utf8" }).map((f) => path.join(d, f).split(path.sep).join("/")))
+    .concat("proxy.ts")
+    .filter((f) => /\.tsx?$/.test(f) && !f.includes("node_modules/"));
+  assert.ok(files.length > 200 && files.includes("i18n/index.ts"));
   const bad = files.filter((f) => !allowed.has(f) && /from "@\/messages\/fa|["']@\/i18n\/persian|["']\.\/persian/.test(fs.readFileSync(path.join(ROOT, f), "utf8")));
   assert.deepEqual(bad, []);
   assert.doesNotMatch(fs.readFileSync(path.join(ROOT, "i18n/index.ts"), "utf8"), /^import .*messages\/fa/m);
