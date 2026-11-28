@@ -34,7 +34,7 @@ const NOT_IN_CLI: Record<string, string> = {
     [
       "POST /v1/auth/email", "POST /v1/auth/forgot", "POST /v1/auth/login", "POST /v1/auth/login/code", "POST /v1/auth/login/code/verify", "POST /v1/auth/logout",
       "POST /v1/auth/mfa/disable", "POST /v1/auth/mfa/enable", "POST /v1/auth/mfa/setup", "POST /v1/auth/mfa/verify",
-      "POST /v1/auth/password", "POST /v1/auth/reset", "GET /v1/auth/session",
+      "POST /v1/auth/password", "POST /v1/auth/reset", "GET /v1/auth/session", "POST /v1/auth/session",
       "GET /v1/auth/sessions", "DELETE /v1/auth/sessions", "POST /v1/auth/signup",
       "GET /v1/auth/verify", "POST /v1/auth/verify", "POST /v1/auth/verify/resend",
       "POST /v1/team/transfer",
