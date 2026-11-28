@@ -3,7 +3,7 @@
     "delivered": "تحویل شد",
     "failed": "ناموفق",
     "retrying": "در حال تلاش دوباره",
-    "skipped": "رد شد"
+    "skipped": "صرف‌نظر شد"
   },
   "evalResult": {
     "error": "خطا",
@@ -72,7 +72,7 @@
     "failed": "ناموفق",
     "pending": "در انتظار",
     "running": "در حال اجرا",
-    "skipped": "رد شد"
+    "skipped": "صرف‌نظر شد"
   },
   "switch": {
     "off": "خاموش",

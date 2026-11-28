@@ -1,11 +1,11 @@
 {
   "page": {
     "all": "همه",
-    "anIssueYouSnoozeForA": "مشکلی که برای یک روز، یا تا پنج بار رخ دادن دیگر، به تعویق می‌اندازید اینجا می‌ماند و خودش برمی‌گردد.",
+    "anIssueYouSnoozeForA": "اگر رسیدگی به مشکلی را برای یک روز یا تا پنج بار تکرار آن به تعویق بیندازید، مشکل اینجا می‌ماند و پس از آن خودکار به فهرست مشکلات باز برمی‌گردد.",
     "andMore": "و {count} مورد دیگر",
     "anythingThatFailsEndsBlockedOr": "هر چیزی که ناموفق شود، با BLOCKED تمام شود یا مشکلی پیدا کند اینجا می‌آید تا کسی آن را حل کند.",
     "at": "· در {agent}",
-    "autoALaterRunWentFine": " (خودکار: اجرای بعدی بدون مشکل بود)",
+    "autoALaterRunWentFine": " (خودکار: یکی از اجراهای بعدی بدون مشکل بود)",
     "by": "<localTime></localTime>: {action} توسط <email></email>",
     "details": "جزئیات",
     "due": "موعد <localTime></localTime>",
@@ -17,7 +17,7 @@
     "issues": "مشکل‌ها",
     "issuesSomeoneResolvedStayHereOne": "مشکل‌هایی که کسی حل کرده اینجا می‌مانند؛ هر کدام دوباره رخ دهد، دوباره باز می‌شود.",
     "itWasResolvedAndCameBack": "حل شده بود و برگشت",
-    "missedSchedule": "زمان‌بندی جامانده",
+    "missedSchedule": "اجرای زمان‌بندی‌شده‌ای که انجام نشد",
     "noIssuesYet": "هنوز مشکلی نیست",
     "noOpenIssues": "مشکل بازی نیست",
     "nothingResolvedYet": "هنوز چیزی حل نشده",
@@ -35,6 +35,6 @@
     "until": "تا <localTime></localTime>",
     "untilTime": " تا <time></time>",
     "whatToDo": "چه باید کرد:",
-    "whatWentWrongGroupedAndKept": "آنچه خراب شده، به‌صورت گروه‌بندی‌شده، و باز می‌ماند تا کسی آن را حل کند. یک اجرای خوبِ بعدی آن را نمی‌بندد."
+    "whatWentWrongGroupedAndKept": "مشکل‌ها اینجا به‌صورت گروه‌بندی‌شده نمایش داده می‌شوند. هر مشکل تا وقتی کسی آن را حل کند باز می‌ماند، حتی اگر اجرای بعدی موفق باشد."
   }
 }

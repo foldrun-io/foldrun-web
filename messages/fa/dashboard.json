@@ -13,14 +13,14 @@
     "resume": "ازسرگیری",
     "runsArePaused": "اجراها موقتاً متوقف شده‌اند",
     "runsOnThisAccountAreRefused": "تا وقتی یک کلید API از ارائه‌دهنده مدل خود اضافه نکنید، اجراهای این حساب پذیرفته نمی‌شوند.",
-    "runsWillNotStartUntilIt": "{reason}. تا وقتی حساب به حالت عادی برنگردد، اجرایی شروع نمی‌شود؛ همه‌چیز در اینجا همچنان خواندنی می‌ماند. به ایمیلی که دریافت کرده‌اید پاسخ دهید، یا به hello@foldrun.io ایمیل بزنید.",
+    "runsWillNotStartUntilIt": "{reason}. تا زمان فعال شدن دوبارهٔ حساب، اجرایی شروع نمی‌شود. همچنان می‌توانید همهٔ اطلاعات اینجا را ببینید. به ایمیلی که دریافت کرده‌اید پاسخ دهید یا به hello@foldrun.io ایمیل بزنید.",
     "thisAccountIsSuspended": "این حساب تعلیق شده است",
-    "noPlan": "بدون اشتراک",
-    "runsOnThisAccountAreRefusedNoPlan": "تا وقتی این حساب اشتراک نداشته باشد، اجراهای آن پذیرفته نمی‌شوند. استفاده از کلید مدل خودتان در این پلتفرم خاموش است.",
-    "seePlans": "مشاهده اشتراک‌ها",
+    "noPlan": "بدون پلن",
+    "runsOnThisAccountAreRefusedNoPlan": "تا وقتی این حساب پلن نداشته باشد، اجراهای آن پذیرفته نمی‌شوند. امکان استفاده از کلید مدل خودتان در این پلتفرم غیرفعال است.",
+    "seePlans": "مشاهدهٔ پلن‌ها",
     "networkNotice": "اطلاعیه شبکه",
     "networkNoticeRun": "<cmd></cmd> را در ترمینال اجرا کنید.",
-    "networkNoticeRestart": "برای گرفتن نشانی جدید، Claude Code را دوباره راه‌اندازی کنید."
+    "networkNoticeRestart": "Claude Code را دوباره راه‌اندازی کنید تا از نشانی جدید استفاده کند."
   },
   "manage": {
     "delete": "حذف"
@@ -39,7 +39,7 @@
     "noRuns": "بدون اجرا",
     "noRunsYet": "هنوز اجرایی نیست",
     "noRunsYet2": "هنوز اجرایی نیست",
-    "noWorkspaceYet": "هنوز از {@workspace.other} چیزی نیست",
+    "noWorkspaceYet": "فهرست {@workspace.other} هنوز خالی است",
     "recentRuns": "اجراهای اخیر",
     "searchWorkspace": "جست‌وجوی {@workspace.other}…",
     "setUpStepByStep": "راه‌اندازی گام‌به‌گام",
@@ -56,7 +56,7 @@
     "runStarted": "اجرا شروع شد",
     "runWith": "اجرا با…",
     "start": "شروع",
-    "startTest": "شروع تست",
+    "startTest": "شروع اجرای آزمایشی",
     "starting": "در حال شروع…",
     "taskForThisRunOptional": "وظیفه این اجرا (اختیاری)",
     "testRun": "<checkbox></checkbox>اجرای آزمایشی",

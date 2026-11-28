@@ -2,7 +2,7 @@
   "page": {
     "aWarningHasBeenSent": " · هشدار فرستاده شده است",
     "accountCap": "سقف حساب",
-    "acrossEveryWorkspaceAtTheCap": "در مجموع برای هر {@workspace.one}. با رسیدن به سقف، تا شروع بازه بعدی هیچ‌چیز شروع نمی‌شود.",
+    "acrossEveryWorkspaceAtTheCap": "این سقف برای مجموع هزینه همه {@workspace.one}‌هاست. با رسیدن به سقف، تا شروع بازه بعدی هیچ اجرای جدیدی آغاز نمی‌شود.",
     "atTheCapNewRunsAre": " · به سقف رسیده است؛ اجراهای جدید تا {turns} پذیرفته نمی‌شوند",
     "billing": "مالی",
     "billingSpendLimits": "مالی · سقف‌های هزینه",
@@ -17,7 +17,7 @@
     "unknownAccount": "حساب ناشناخته",
     "usage": "مصرف",
     "warningsAt80And95": " · هشدار در ۸۰٪ و ۹۵٪",
-    "warningsHaveNowhereToGoThe": "هشدارها جایی برای رفتن ندارند: حساب مقصدی برای notify: ندارد. <link>یکی تنظیم کنید</link>.",
+    "warningsHaveNowhereToGoThe": "هشدارها ارسال نمی‌شوند، چون در تنظیمات حساب مقصدی برای notify: تعیین نشده است. <link>مقصد هشدارها را تنظیم کنید</link>.",
     "wholeAccount": "کل حساب"
   }
 }
