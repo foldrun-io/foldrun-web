@@ -7,7 +7,7 @@
   "layout": {
     "addAKey": "افزودن کلید",
     "noModelKey": "بدون کلید مدل",
-    "nothingNewStartsInAnyTerm": "در هیچ {@workspace.one}ی اجرای جدیدی شروع نمی‌شود. <withEmails></withEmails>",
+    "nothingNewStartsInAnyTerm": "در هیچ {@workspace.one}‌ای اجرای جدیدی شروع نمی‌شود. <withEmails></withEmails>",
     "onlyAnAdminCanAddIt": "فقط ادمین می‌تواند آن را اضافه کند؛ از یک ادمین بخواهید.",
     "pausedBy": "{by} آن را موقتاً متوقف کرده است{v1}.",
     "resume": "ازسرگیری",
