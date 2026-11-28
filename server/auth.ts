@@ -364,23 +364,30 @@ export async function createApiKey(
           throw Object.assign(new Error("your role or projects changed while the request was on its way — look again and retry"), { status: 403 });
         }
       }
-      if (c) {
-        if (c.stay !== undefined && (person.membership ?? null) !== c.stay) throw staleCredential();
-        if ("session" in c && !(await (await import("./sessions.ts")).sessionStillLive(c.session, on))) throw staleCredential();
-        if ("fingerprint" in c && hashFingerprint(person.hash) !== c.fingerprint) throw staleCredential();
-        if ("key" in c) {
-          const k = (await keysOf(tenant, on)).find((x) => x.id === c.key);
-          if (!k || k.revokedAt || keyExpired(k) || (k.createdBy ?? "").toLowerCase() !== person.email.toLowerCase()) throw staleCredential();
-        }
-        if ("grant" in c && !(await (await import("./mcp-oauth.ts")).grantStands(tenant, c.grant, c.user, on))) throw staleCredential();
-      }
+      if (c && !(await credentialStands(tenant, person, c, on))) throw staleCredential();
       await write(on);
     });
   } else await write();
   return { record, key }; // full key is returned exactly once
 }
 
-const staleCredential = () => Object.assign(new Error("the sign-in or key this request came with no longer stands for this person — sign in again and retry"), { status: 409 });
+/** Does the credential a request came with still stand for this person, in
+ *  this account? Asked under the people lock, so a removal, a sign-out or a
+ *  revoked key that landed first is not outrun by a request authorized
+ *  before it. `person` is their record in the credential's own account. */
+export async function credentialStands(tenant: string, person: { email: string; hash: string; membership?: string }, c: PersonCredential, on?: Db): Promise<boolean> {
+  if (c.stay !== undefined && (person.membership ?? null) !== c.stay) return false;
+  if ("session" in c && !(await (await import("./sessions.ts")).sessionStillLive(c.session, on))) return false;
+  if ("fingerprint" in c && (hashFingerprint(person.hash) !== c.fingerprint || (c.until !== undefined && c.until <= Date.now()))) return false;
+  if ("key" in c) {
+    const k = (await keysOf(tenant, on)).find((x) => x.id === c.key);
+    if (!k || k.revokedAt || keyExpired(k) || (k.createdBy ?? "").toLowerCase() !== person.email.toLowerCase()) return false;
+  }
+  if ("grant" in c && !(await (await import("./mcp-oauth.ts")).grantStands(tenant, c.grant, c.user, on))) return false;
+  return true;
+}
+
+export const staleCredential = () => Object.assign(new Error("the sign-in or key this request came with no longer stands for this person — sign in again and retry"), { status: 409 });
 
 /** Every key record, or one account's: the table with a database, the file without. */
 async function keysOf(tenant: string, on?: Db): Promise<ApiKeyRecord[]> {
@@ -680,7 +687,7 @@ export async function importApiKeys(): Promise<number> {
  *  confirms a provisional login revokes its keys and grants BEFORE the
  *  confirmation commits (the reset route sweeps first), so once the person
  *  reads as confirmed here, a live check is exact. */
-export type PersonCredential = ({ session: string; user: string } | { fingerprint: string; user: string } | { key: string } | { grant: string; user: string }) & {
+export type PersonCredential = ({ session: string; user: string } | { fingerprint: string; user: string; /** when the signed session ends, ms */ until?: number } | { key: string } | { grant: string; user: string }) & {
   /** The stay in the account the credential was read in (users.ts stayOf):
    *  null for the account they signed up into. Set by sessions and grants;
    *  a request that began in one stay writes nothing in a later one (FOL-464). */
@@ -726,10 +733,10 @@ export async function keyStands(tenant: string, keyId: string, email: string): P
 }
 
 /** The credential of a signed-in person, from verifySession's answer. */
-export function sessionCredential(user: { id: string; hash: string; membership?: string; session?: { kind: string; id?: string } }): PersonCredential | undefined {
+export function sessionCredential(user: { id: string; hash: string; membership?: string; session?: { kind: string; id?: string; expires?: number } }): PersonCredential | undefined {
   const stay = user.membership ?? null;
   if (user.session?.kind === "v2" && user.session.id) return { session: user.session.id, user: user.id, stay };
-  if (user.session?.kind === "v1") return { fingerprint: hashFingerprint(user.hash), user: user.id, stay };
+  if (user.session?.kind === "v1") return { fingerprint: hashFingerprint(user.hash), user: user.id, stay, ...(user.session.expires ? { until: user.session.expires } : {}) };
   return undefined;
 }
 

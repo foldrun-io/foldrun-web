@@ -500,13 +500,21 @@ const LEGACY_SHAPES: Record<string, Shape> = {
           invitedBy: str("who made it"),
           createdAt: str(),
           expiresAt: str(),
-          status: str("pending | accepted | revoked | expired"),
+          status: str("pending | accepted | declined | revoked | expired"),
         }),
       },
     }),
   },
   "DELETE /v1/team/invites/{id}": {
     response: obj({ ok: bool, revoked: { ...bool, description: "false when it was already revoked or expired" }, invite: GENERIC }),
+  },
+  "POST /v1/team/invites/{id}/resend": {
+    noBody: "the invite is named in the path; its mail goes to the address it was made for",
+    response: obj({ ok: bool, id: str(), sent: bool, sendError: { type: ["string", "null"] } }),
+  },
+  "POST /v1/team/invites/{id}/link": {
+    noBody: "the invite is named in the path; a POST so that nothing caches or prefetches the link",
+    response: obj({ ok: bool, id: str(), path: str("the copy link, relative"), url: str("the copy link, whole"), expires: str() }),
   },
   "GET /v1/account/usage/compute": {
     response: obj({

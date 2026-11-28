@@ -1831,7 +1831,10 @@
     "usage": "Usage",
     "whatSNew": "What's new",
     "accounts": "Accounts",
-    "switchFailed": "Could not open that account. Try again."
+    "switchFailed": "Could not open that account. Try again.",
+    "invites": "Invites",
+    "joinAccount": "Join {account}",
+    "invitesWaiting": "{n, plural, one {# invite waiting} other {# invites waiting}}"
   },
   "verify-banner": {
     "confirmIsYoursCheckYourInbox": "Confirm <email></email> is yours — check your inbox for the link.",
@@ -1986,5 +1989,14 @@
     "runtimes": "Runtimes",
     "theLastBuildFailedARun": "the last build failed — a run using it will fail the same way",
     "waitingForTheWorkerToBuild": "waiting for the worker to build it"
+  },
+  "my-invites": {
+    "title": "Invites",
+    "invitedYou": "<email></email> invited you to <account></account> as {role}",
+    "join": "Join",
+    "decline": "Decline",
+    "declineTitle": "Decline the invite to {account}?",
+    "declineBody": "The invite stops working and the person who sent it is told. They can invite you again.",
+    "couldNot": "That did not work. Try again."
   }
 }

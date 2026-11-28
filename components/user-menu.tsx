@@ -8,7 +8,7 @@ import { $t } from "@/i18n";
 import Link from "@foldrun/ui/react/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Check, BookOpen, CircleHelp, CreditCard, Ellipsis, ExternalLink, LogOut, Monitor, Moon, Settings, Sparkles, Sun, User, BarChart3, Activity } from "lucide-react";
+import { Check, Mail, BookOpen, CircleHelp, CreditCard, Ellipsis, ExternalLink, LogOut, Monitor, Moon, Settings, Sparkles, Sun, User, BarChart3, Activity } from "lucide-react";
 import { Avatar } from "./avatar";
 import { useHosted } from "./edition";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@foldrun/ui/react/menu";
@@ -17,6 +17,7 @@ import { THEMES, type Theme } from "./theme-model";
 import { LanguageMenuItems } from "./language-switch";
 import { ROLE_LABEL } from "./value-labels";
 import { Toast } from "@foldrun/ui/react/toast";
+import { useMyInvites } from "./my-invites";
 
 /** Tabs of one browser tell each other when the session moved to another account. */
 const ACCOUNT_CHANNEL = "foldrun-account";
@@ -39,6 +40,8 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
   const [who, setWho] = useState<{ email?: string; tenant?: string; avatar?: string | null; accounts?: { tenant: string; role: string; current: boolean }[] }>({});
   const [theme, setThemeState] = useState<Theme>("system");
   const [switchFailed, setSwitchFailed] = useState(false);
+  // Invites to other accounts that wait on this person (FOL-464).
+  const [invites] = useMyInvites();
 
   useEffect(() => {
     // The cookie is every tab's, and a session is for one account (FOL-464).
@@ -120,7 +123,10 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
             aria-label={$t("components.user-menu.accountMenu")}
             className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-start transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus data-[state=open]:bg-muted"
           >
-            <Avatar name={who.email ?? name} src={who.avatar} size="sm" />
+            <span className="relative">
+              <Avatar name={who.email ?? name} src={who.avatar} size="sm" />
+              {invites.length > 0 && <span className="absolute -end-0.5 -top-0.5 size-2 rounded-full bg-blue-600 ring-2 ring-paper"><span className="sr-only">{$t("components.user-menu.invitesWaiting", { n: invites.length })}</span></span>}
+            </span>
             <span className="min-w-0 truncate text-sm text-fg">{who.email ?? name}</span>
             <Ellipsis className="ms-auto size-4 shrink-0 text-fg-muted" aria-hidden />
           </button>
@@ -129,7 +135,10 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
             aria-label={$t("components.user-menu.accountMenu")}
             className="flex items-center justify-center rounded-full outline-none ring-offset-2 ring-offset-background transition-shadow hover:ring-2 hover:ring-line-strong focus-visible:ring-2 focus-visible:ring-focus data-[state=open]:ring-2 data-[state=open]:ring-fg"
           >
-            <Avatar name={who.email ?? name} src={who.avatar} size="md" />
+            <span className="relative">
+              <Avatar name={who.email ?? name} src={who.avatar} size="md" />
+              {invites.length > 0 && <span className="absolute -end-0.5 -top-0.5 size-2 rounded-full bg-blue-600 ring-2 ring-paper"><span className="sr-only">{$t("components.user-menu.invitesWaiting", { n: invites.length })}</span></span>}
+            </span>
           </button>
         )}
       </MenuTrigger>
@@ -147,6 +156,21 @@ export function UserMenu({ wide = false }: { wide?: boolean } = {}) {
                 <span className="min-w-0 flex-1 truncate font-mono text-xs">{a.tenant}</span>
                 <span className="text-xs text-fg-muted">{ROLE_LABEL[a.role] ?? a.role}</span>
                 {a.current && <Check className="size-3.5!" aria-hidden />}
+              </MenuItem>
+            ))}
+          </>
+        )}
+        {invites.length > 0 && (
+          <>
+            <MenuSeparator />
+            <MenuLabel>{$t("components.user-menu.invites")}</MenuLabel>
+            {invites.map((inv) => (
+              <MenuItem key={inv.id} asChild>
+                <a href={inv.path}>
+                  <Mail />
+                  <span className="min-w-0 flex-1 truncate">{$t("components.user-menu.joinAccount", { account: inv.account })}</span>
+                  <span className="text-xs text-fg-muted">{ROLE_LABEL[inv.role] ?? inv.role}</span>
+                </a>
               </MenuItem>
             ))}
           </>

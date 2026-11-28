@@ -6,7 +6,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireCaller, requirePerson, errorResponse, ApiError, viaDetail } from "@/server/api";
-import { listMembers, mintInvite } from "@/server/users";
+import { listMembers, mintInvite, findMember } from "@/server/users";
+import { assertActorConfirmed } from "@/server/email-confirmed";
 import { listWorkspaces } from "@/lib/store";
 import { describeScope, scopeAllows } from "@/platform/scope";
 import { sendInviteEmail } from "@/server/email";
@@ -15,6 +16,7 @@ import { audit } from "@/server/audit";
 import { isRole, can } from "@/platform/permissions";
 import { idempotent } from "@/server/idempotency";
 import { jsonObject } from "@/server/body";
+import { countInvite, ONE_MAILBOX } from "@/server/invite-limits";
 
 export async function GET(req: NextRequest) {
   try {
@@ -57,7 +59,13 @@ async function postOnce(req: NextRequest) {
       throw new ApiError("you are scoped to some workspaces, so an invite must name which", 403);
     }
     const email = typeof body.email === "string" && body.email.trim() ? body.email.trim().toLowerCase() : null;
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new ApiError(`"${email}" is not an email address`, 400);
+    // One mailbox, exactly: a comma or a bracket would be read by the mailer
+    // as more than one, and counted by the day's limit as another.
+    if (email && !ONE_MAILBOX.test(email)) throw new ApiError(`"${email}" is not an email address`, 400);
+    // Refusals first, so one that makes nothing counts against nobody's day.
+    await assertActorConfirmed(tenant, actor);
+    if (email && (await findMember(tenant, { email }))) throw new ApiError(`${email} is already a member of this account`, 409);
+    await countInvite(tenant, actor.id, email && body.send !== false ? email : null);
     const invite = await mintInvite(tenant, role, { workspaces, email, by: { id: actor.id, email: actor.name, role: actor.role, workspaces: actor.workspaces } });
     const path = `/signup?invite=${encodeURIComponent(invite.token)}`;
     // The same origin the reset and verify mails use: FOLDRUN_PUBLIC_URL,
@@ -67,7 +75,7 @@ async function postOnce(req: NextRequest) {
     const origin = publicOrigin(req);
     let sent: { ok: true } | { ok: false; error: string } | null = null;
     if (email && body.send !== false) {
-      sent = await sendInviteEmail(tenant, email, `${origin}${path}`, { from: actor.name, role, scope: describeScope(workspaces), expires: invite.expires });
+      sent = await sendInviteEmail(tenant, email, `${origin}/signup?invite=${encodeURIComponent(invite.mailToken)}`, { from: actor.name, role, scope: describeScope(workspaces), expires: invite.expires });
     }
     if (invite.superseded.length) {
       await audit("member.invite_revoked", { actor: actor.name, tenant, subject: email, detail: { invites: invite.superseded, reason: "superseded by a newer invite to the same address", ...viaDetail(actor) } });

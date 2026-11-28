@@ -17,6 +17,7 @@ import { acceptInvite, createLinkedAccount, createUser, freeAccountNameFor, hasU
 import { signupModesNow } from "@/server/signup";
 import { refuseNonText } from "@/server/auth-input";
 import { assertSignupAllowed, trialEligible } from "@/platform/signup";
+import { tellInviter } from "@/server/invite-notices";
 import { audit } from "@/server/audit";
 import { listWorkspaces, saveWorkspace, templateFiles } from "@/lib/store";
 import { rateLimit } from "@/platform/cache";
@@ -138,16 +139,20 @@ export async function POST(req: NextRequest) {
       actor: user.email,
       tenant: user.tenant,
       subject: user.id,
-      detail: joined ? { role: joined.invite.role, workspaces: joined.invite.workspaces, inviteId: joined.invite.id, invitedBy: joined.invite.createdByEmail } : { admission: user.admission ?? null },
+      detail: joined ? { role: joined.invite.role, workspaces: joined.invite.workspaces, inviteId: joined.invite.id, invitedBy: joined.invite.createdByEmail, confirmedByLink: joined.mailed } : { admission: user.admission ?? null },
     });
     // Prove the inbox, best effort: a sign-up that cannot get mail out is
     // still a sign-up; the dashboard will offer to resend until it lands.
     // Only the owner of a NEW account gets the trial on confirming, so only
     // they are told about it — see the grant in api/auth/verify.
     const trialCredits = !joined && platform.edition() === "hosted" && trialEligible(user.admission) ? billing().trialCredits() : undefined;
-    void sendVerifyEmail(user.tenant, user.email, verifyLink(publicOrigin(req), user), { trialCredits }).then((r) => {
-      if (!r.ok) opsLog("warn", "auth.verification_mail_not_sent");
-    });
+    // Not after the mailed invite link: it already proved the address.
+    if (!joined?.mailed) {
+      void sendVerifyEmail(user.tenant, user.email, verifyLink(publicOrigin(req), user), { trialCredits }).then((r) => {
+        if (!r.ok) opsLog("warn", "auth.verification_mail_not_sent");
+      });
+    }
+    if (joined) void tellInviter(joined.invite, "accepted");
 
     // A brand-new account gets a working workspace so the first thing its
     // owner sees is the product, not an empty list with a create button.

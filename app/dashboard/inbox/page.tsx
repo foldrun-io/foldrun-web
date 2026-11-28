@@ -11,6 +11,7 @@ import { Segmented } from "@foldrun/ui/react/segmented";
 import { viewerEmail, viewerRole, viewerScope } from "@/server/users";
 import { inboxFor, type InboxItem, type InboxKind } from "@/server/inbox";
 import { InboxList } from "@/components/inbox-list";
+import { MyInvites } from "@/components/my-invites";
 
 import { requestLocale } from "@/server/locale";
 export const dynamic = "force-dynamic";
@@ -64,6 +65,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
   return (
     <Page>
       <PageHeader title={$t("inbox.page.inbox")} description={$t("inbox.page.whatIsWaitingOnYouAcross2")} />
+      <MyInvites />
       <PageTabs tabs={TABS.map((t) => ({ label: t.label, href: href(t.key, kind), badge: count(t.key), active: t.key === tab }))} className="mb-4" />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <Segmented

@@ -55,6 +55,12 @@ import {
   insertInviteDb,
   inviteByIdDb,
   invitesOfTenantDb,
+  invitesForEmailDb,
+  claimExpiredUnnoticedDb,
+  claimExpiredUnnoticedFile,
+  releaseUnnoticedDb,
+  releaseUnnoticedFile,
+  DECLINED,
   inviteStatus,
   readInvitesFile,
   revokeInvitesDb,
@@ -336,16 +342,26 @@ async function mutateUsers<T>(fn: (users: UserRecord[], invites: InviteStore, t?
     });
   }
   const run = fileQueue.then(async () => {
-    const users = expandPeople(readUsersFile() as Stored<UserRecord>[]);
+    const read = readUsersFile() as Stored<UserRecord>[];
+    const before = JSON.stringify(read, null, 2);
+    const users = expandPeople(read);
     const handed = snapshotPeople(users);
     const invites = fileInviteStore();
     const value = await fn(users, invites);
-    const stored = collapsePeople(users, handed);
+    const stored = JSON.stringify(collapsePeople(users, handed), null, 2);
     // The invites first: a crash between the two writes then leaves an
     // invite used and no member — refused, never a link that works twice.
     invites.flush();
-    fs.mkdirSync(path.dirname(usersFile()), { recursive: true });
-    fs.writeFileSync(usersFile(), JSON.stringify(stored, null, 2), { mode: 0o600 });
+    // Only when the people changed (a look under the lock writes nothing),
+    // and whole: a temp file beside it, renamed over, so a crash leaves the
+    // old list or the new one, never half of either.
+    if (stored !== before) {
+      const file = usersFile();
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      const tmp = `${file}.${process.pid}.${crypto.randomBytes(4).toString("hex")}`;
+      fs.writeFileSync(tmp, stored, { mode: 0o600 });
+      fs.renameSync(tmp, file);
+    }
     return value;
   });
   fileQueue = run.catch(() => undefined);
@@ -739,8 +755,13 @@ export function sessionCookieOptions(req: { headers: Headers; url: string }, exp
 // address, and Settings → Team. Older link forms (inv1–inv3) are refused.
 
 const INVITE_DAYS = 7;
-const INVITE_RE = /^inv4\.([0-9a-f]{32})\.(\d{1,15})\.([0-9a-f]{64})$/;
-const inviteMac = (id: string, expires: string) => sign(`invite4:${id}.${expires}`);
+// Two links name one invite (FOL-464), each with its own secret: `inv5` is
+// the one in the mail, and only it proves the address (it reached that
+// inbox); `inv4` is the one the inviter may copy and hand over another way,
+// which proves nothing about who holds it. Links from before 28 Nov 2026 are
+// all `inv4`.
+const INVITE_RE = /^inv([45])\.([0-9a-f]{32})\.(\d{1,15})\.([0-9a-f]{64})$/;
+const inviteMac = (id: string, expires: string, mailed = false) => sign(mailed ? `invite5:mail:${id}.${expires}` : `invite4:${id}.${expires}`);
 
 /** The one sentence every dead link gets — used, revoked, expired, forged,
  *  from before 29 Oct, or its maker no longer able to make it: the holder
@@ -763,15 +784,16 @@ export interface InviteOptions {
 
 /** The id and expiry a well-formed, correctly signed, unexpired link names;
  *  null for anything else. Reads nothing. */
-function parseInviteToken(token: string | undefined): { id: string; expires: number } | null {
+function parseInviteToken(token: string | undefined): { id: string; expires: number; mailed: boolean } | null {
   const m = typeof token === "string" ? INVITE_RE.exec(token) : null;
   if (!m) return null;
-  const [, id, expires, mac] = m;
+  const [, kind, id, expires, mac] = m;
   if (Number(expires) <= Date.now()) return null;
+  const mailed = kind === "5";
   const presented = Buffer.from(mac, "latin1");
-  const wanted = Buffer.from(inviteMac(id, expires), "latin1");
+  const wanted = Buffer.from(inviteMac(id, expires, mailed), "latin1");
   if (presented.length !== wanted.length || !crypto.timingSafeEqual(presented, wanted)) return null;
-  return { id, expires: Number(expires) };
+  return { id, expires: Number(expires), mailed };
 }
 
 /** Could the member who made this invite still make it? Still in the
@@ -801,7 +823,7 @@ export async function mintInvite(
   tenant: string,
   role: Role,
   opts: InviteOptions,
-): Promise<{ id: string; token: string; expires: Date; superseded: string[] }> {
+): Promise<{ id: string; token: string; mailToken: string; expires: Date; superseded: string[] }> {
   if (!isRole(role) || role === "owner") throw new Error("an invite can be viewer, editor or admin");
   const id = crypto.randomBytes(16).toString("hex");
   const expires = new Date(Date.now() + INVITE_DAYS * 24 * 60 * 60 * 1000);
@@ -813,6 +835,11 @@ export async function mintInvite(
     const confirmedMaker = users.find((u) => u.tenant === tenant && u.id === opts.by.id);
     if (!confirmedMaker) throw Object.assign(new Error("an invite is made by a person of this account"), { status: 403 });
     assertConfirmed(confirmedMaker);
+    // The one thing the inviter may be told about an address: it is already
+    // in this account. They can read the member list anyway.
+    if (email && users.some((u) => u.tenant === tenant && u.email.toLowerCase() === email)) {
+      throw Object.assign(new Error(`${email} is already a member of this account`), { status: 409 });
+    }
     let gone: InviteRow[] = [];
     if (email) {
       // Only the ones this maker could revoke by hand (DELETE
@@ -846,13 +873,174 @@ export async function mintInvite(
     });
     return gone.map((r) => r.id);
   });
-  const ms = String(expires.getTime());
-  return { id, token: `inv4.${id}.${ms}.${inviteMac(id, ms)}`, expires, superseded };
+  const row = { id, expiresAt: expires.toISOString() };
+  return { id, token: tokenOf(row), mailToken: mailTokenOf(row), expires, superseded };
+}
+
+/** A link's secret part for a row: the copy link, or with `mailed` the one
+ *  that goes in the mail. Each is made from the id and the expiry under the
+ *  install's key, so neither is stored (a database leak reveals no link) and
+ *  either can be made again for someone allowed to hold it. */
+function tokenOf(row: Pick<InviteRow, "id" | "expiresAt">, mailed = false): string {
+  const ms = String(Date.parse(row.expiresAt));
+  return `inv${mailed ? 5 : 4}.${row.id}.${ms}.${inviteMac(row.id, ms, mailed)}`;
+}
+/** What goes in the invite mail. The link that proves the address only when
+ *  the INSTALL sends the mail: through an account's own provider, that
+ *  account's admins can read what was sent, so a link found there proves
+ *  nothing about who holds the inbox, and the mail carries the copy link. */
+const mailTokenOf = (row: Pick<InviteRow, "id" | "expiresAt">) => tokenOf(row, installSendsMail());
+/** The copy link's path: for the inviter, and for the invited person's own inbox. */
+export const invitePath = (row: Pick<InviteRow, "id" | "expiresAt">) => `/signup?invite=${encodeURIComponent(tokenOf(row))}`;
+/** The mailed link's path: only ever put in a mail to the invited address. */
+export const inviteMailPath = (row: Pick<InviteRow, "id" | "expiresAt">) => `/signup?invite=${encodeURIComponent(mailTokenOf(row))}`;
+
+/** An invite waiting on a signed-in person (FOL-464): what the inbox, the
+ *  account menu and GET /v1/me/invites show. `path` is the invite page, where
+ *  Join and Decline are. */
+export interface MyInvite {
+  id: string;
+  account: string;
+  role: Role;
+  workspaces: string[] | null;
+  invitedBy: string;
+  createdAt: string;
+  expiresAt: string;
+  path: string;
+}
+
+/**
+ * The invites waiting on this person: pending, addressed to the address
+ * they hold confirmed, for an account they are not in, and still one its
+ * maker could make. Nothing for an unconfirmed address: an invite is for
+ * whoever holds the inbox, and that is not known yet.
+ */
+export async function invitesFor(userId: string): Promise<MyInvite[]> {
+  const users = await readUsers();
+  const person = users.find((u) => u.id === userId && !u.joined) ?? users.find((u) => u.id === userId);
+  // Only where the install sends its own mail: elsewhere an address may
+  // have been confirmed through one account's provider, which that account's
+  // admins can read, and such a login must not see or answer what other
+  // accounts sent to that address. (Joining asks the same, joinIn.)
+  if (!person || !person.emailVerifiedAt || !installSendsMail()) return [];
+  const email = person.email.toLowerCase();
+  const rows = databaseEnabled() ? await invitesForEmailDb(email) : readInvitesFile().filter((r) => r.email === email && inviteStatus(r) === "pending");
+  const mine = new Set(users.filter((u) => u.id === userId).map((u) => u.tenant));
+  return rows
+    .filter((r) => !mine.has(r.tenant) && isRole(r.role) && r.role !== "owner" && minterStillMay(users, r))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id))
+    .map((r) => ({ id: r.id, account: r.tenant, role: r.role as Role, workspaces: r.workspaces, invitedBy: r.createdByEmail, createdAt: r.createdAt, expiresAt: r.expiresAt, path: invitePath(r) }));
+}
+
+/**
+ * The invited person says no (FOL-464). Only the one the invite is addressed
+ * to, with that address confirmed; anything else is the dead-link sentence,
+ * so an id tried by someone else learns nothing. The invite is over for both
+ * links and the inbox at once, and reads `declined` to the account's admins.
+ */
+export async function declineInvite(inviteId: string, userId: string, from?: AnsweredFrom): Promise<InviteRow> {
+  return mutateUsers(async (users, invites, t) => {
+    await assertStillThem(users, t, userId, from);
+    const person = users.find((u) => u.id === userId && !u.joined) ?? users.find((u) => u.id === userId);
+    const row = await invites.get(inviteId);
+    if (!person || !person.emailVerifiedAt || !installSendsMail() || !row || !row.email || row.email !== person.email.toLowerCase() || inviteStatus(row) !== "pending") throw invalidInvite();
+    const [done] = await invites.revoke([row.id], person.email, DECLINED);
+    if (!done) throw invalidInvite();
+    return done;
+  });
+}
+
+/** Join by the invite's id, for a caller that holds no link (the person's
+ *  own CLI key, the inbox): an invite addressed to them only. An open link
+ *  is joined with the link, which is its one secret. */
+export async function joinById(inviteId: string, userId: string, from?: AnsweredFrom): Promise<{ user: UserRecord; invite: InviteRow }> {
+  return mutateUsers(async (users, invites, t) => {
+    await assertStillThem(users, t, userId, from);
+    const person = users.find((u) => u.id === userId && !u.joined) ?? users.find((u) => u.id === userId);
+    const row = await invites.get(inviteId);
+    // Theirs, or the one sentence a dead link gets: an id that is another
+    // person's invite must not answer with the address it was sent to.
+    if (!person || !row || !row.email || row.email !== person.email.toLowerCase() || inviteStatus(row) !== "pending") throw invalidInvite();
+    return joinIn(users, invites, t, inviteId, userId);
+  });
+}
+
+/** Where an answer to an invite came from: the account the session or key
+ *  is in, and the credential itself. */
+export interface AnsweredFrom {
+  tenant: string;
+  credential?: import("./auth.ts").PersonCredential;
+}
+
+/** Under the people lock: the one answering is still a member of the account
+ *  their sign-in or key belongs to, and that credential still stands. A
+ *  removal or a revoked key that landed while the request was on its way
+ *  is not outrun by it. */
+async function assertStillThem(users: UserRecord[], t: UsersTx | undefined, userId: string, from: AnsweredFrom | undefined): Promise<void> {
+  if (!from) return;
+  const { credentialStands, staleCredential } = await import("./auth.ts");
+  const src = users.find((u) => u.id === userId && u.tenant === from.tenant);
+  if (!src) throw staleCredential();
+  if (from.credential && !(await credentialStands(from.tenant, src, from.credential, t as never))) throw staleCredential();
+}
+
+const RANK: Record<Role, number> = { viewer: 0, editor: 1, admin: 2, owner: 3 };
+
+/**
+ * One pending invite of this account, with its links, for the member who
+ * asks to send it again or copy its link. Decided under the people lock
+ * with who they are NOW, not who the request found on its way in: still a
+ * member, address confirmed, the sign-in or key still theirs, and at the
+ * lower of the role and projects the request came with and the ones they
+ * hold at this moment. Then the fences of revoking: inside their projects,
+ * and an admin invite only for the owner. A removal or demotion that landed
+ * first is not outrun.
+ */
+export async function reachInvite(
+  tenant: string,
+  id: string,
+  who: { id: string; role: Role; workspaces: string[] | null; credential?: import("./auth.ts").PersonCredential },
+): Promise<InviteView & { path: string; mailPath: string }> {
+  const refuse = (message: string, status: number) => Object.assign(new Error(message), { status });
+  return mutateUsers(async (users, invites, t) => {
+    const { credentialStands, staleCredential } = await import("./auth.ts");
+    const { assertConfirmed } = await import("./email-confirmed.ts");
+    const me = users.find((u) => u.tenant === tenant && u.id === who.id);
+    if (!me) throw staleCredential();
+    assertConfirmed(me);
+    if (who.credential && !(await credentialStands(tenant, me, who.credential, t as never))) throw staleCredential();
+    const now = roleOfMembers(users, tenant, me.id);
+    const role = now && RANK[now] < RANK[who.role] ? now : who.role;
+    if (!now || !can(role, "team:manage")) throw refuse("your role changed while the request was on its way — look again and retry", 403);
+    const mine = ownerOfMembers(users, tenant)?.id === me.id ? null : (me.workspaces ?? null);
+    const scope = who.workspaces === null ? mine : mine === null ? who.workspaces : who.workspaces.filter((w) => mine.includes(w));
+    const row = await invites.get(id);
+    if (!row || row.tenant !== tenant || inviteStatus(row) !== "pending") throw refuse("no such pending invite", 404);
+    if (!withinScope(row.workspaces, scope)) throw refuse("that invite opens workspaces you were not given — only someone with every workspace can do this", 403);
+    if (row.role === "admin" && !can(role, "admins:manage")) throw refuse("only the owner can do this with an admin invite", 403);
+    return { ...viewOf(row), path: invitePath(row), mailPath: inviteMailPath(row) };
+  });
+}
+
+/** The invites that ran out unused, each handed out once, for the notice to
+ *  its maker (server/invite-notices.ts). */
+export async function claimExpiredInvites(limit = 50, skip: string[] = []): Promise<InviteRow[]> {
+  if (databaseEnabled()) return claimExpiredUnnoticedDb(3, limit, skip);
+  return withPeople(async () => claimExpiredUnnoticedFile(3, limit, skip));
+}
+
+/** Hand one back: its notice could not be sent, so it is not told yet. */
+export async function releaseExpiredInvite(id: string): Promise<void> {
+  if (databaseEnabled()) return releaseUnnoticedDb(id);
+  await withPeople(async () => releaseUnnoticedFile(id));
 }
 
 /** What a still-good link would grant, for the signup page — nothing is
  *  used up. Null when it would be refused. */
 export interface InvitePreview {
+  id: string;
+  /** The link is the mailed one: it reached the invited address. */
+  mailed: boolean;
   tenant: string;
   role: Role;
   workspaces: string[] | null;
@@ -865,7 +1053,7 @@ export async function peekInvite(token: string | undefined): Promise<InvitePrevi
   const row = databaseEnabled() ? await inviteByIdDb(parsed.id) : readInvitesFile().find((r) => r.id === parsed.id) ?? null;
   if (!row || inviteStatus(row) !== "pending" || !isRole(row.role) || row.role === "owner") return null;
   if (!minterStillMay(await readUsers(), row)) return null;
-  return { tenant: row.tenant, role: row.role, workspaces: row.workspaces, email: row.email };
+  return { id: row.id, mailed: parsed.mailed && row.email !== null, tenant: row.tenant, role: row.role, workspaces: row.workspaces, email: row.email };
 }
 
 /** This person as a member of this account: by id, or by address. Null
@@ -1034,7 +1222,7 @@ export async function acceptInvite(
   token: string,
   email: string,
   password: string,
-): Promise<{ user: UserRecord; invite: InviteRow }> {
+): Promise<{ user: UserRecord; invite: InviteRow; mailed: boolean }> {
   const parsed = parseInviteToken(token);
   if (!parsed) throw invalidInvite();
   const normalized = email.trim().toLowerCase();
@@ -1074,6 +1262,12 @@ export async function acceptInvite(
     user.tenant = row.tenant;
     user.role = row.role;
     if (row.workspaces) user.workspaces = row.workspaces;
+    // The mailed link proves the address (FOL-464, owner's decision 3): it
+    // reached that inbox, so the login starts confirmed and no second mail
+    // is sent. The copy link proves nothing and confirms the usual way.
+    // Only where the install sends its own mail (see mailTokenOf): a mailed
+    // link from before the sender was taken away confirms nothing either.
+    if (parsed.mailed && row.email && installSendsMail()) user.emailVerifiedAt = new Date().toISOString();
     users.push(user);
     return row;
   });
@@ -1081,7 +1275,7 @@ export async function acceptInvite(
   fs.mkdirSync(path.join(accountDir(user.tenant), "workspaces"), { recursive: true });
   ensureAccountFiles(user.tenant);
   await ensureTenantKey(user.tenant);
-  return { user, invite };
+  return { user, invite, mailed: Boolean(user.emailVerifiedAt) };
 }
 
 /** An invite as the team page and GET /v1/team/invites show it — never

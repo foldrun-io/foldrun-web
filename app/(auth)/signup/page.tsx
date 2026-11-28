@@ -132,13 +132,18 @@ export default async function SignupPage({
             </>
           }
         >
-          <JoinAccount from={me.tenant} as={me.id} invite={invite!} label={$t("auth.signup-page.joinButton", { tenant: invited.tenant })} />
+          <JoinAccount from={me.tenant} as={me.id} invite={invite!} label={$t("auth.signup-page.joinButton", { tenant: invited.tenant })} {...(invited.email ? { decline: invited.id } : {})} />
         </AuthCard>
       );
     }
     // Not signed in, and the address already has a login: the form below
     // would be refused, so the page sends them to sign in and come back.
-    if (door !== "signup" && invited.email) {
+    // Only the mailed link picks the door: it reached that inbox. The copy
+    // link is held by the inviter, and a page that picked would tell them
+    // whether any address they type has a login; it shows the same form for
+    // every address, with the way to sign in below it. "Already a member"
+    // the inviter can read in the member list anyway.
+    if (invited.email && (door === "member" || (door === "elsewhere" && invited.mailed))) {
       return (
         <AuthCard
           title={<>{door === "member" ? $rich("auth.signup-page.youAreAlreadyIn", { tenant: invited.tenant, span: () => account }) : $rich("auth.signup-page.signInToJoin", { tenant: invited.tenant, span: () => account })}</>}

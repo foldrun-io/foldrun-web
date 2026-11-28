@@ -20,6 +20,7 @@ import { errorResponse, refuse, refuseWith, sessionUser } from "@/server/api";
 import { ACCOUNT_MOVED } from "@/server/auth";
 import { refuseNonText } from "@/server/auth-input";
 import { jsonObject } from "@/server/body";
+import { tellInviter } from "@/server/invite-notices";
 import { audit } from "@/server/audit";
 import { rateLimit } from "@/platform/cache";
 import { clientIp, tooManyAttempts } from "@/server/limits";
@@ -93,6 +94,7 @@ export async function POST(req: NextRequest) {
     const moved = await moveSession(me, invite ? { invite } : { account }, req.headers.get("user-agent"));
     const { user: to, session } = moved;
     if (moved.invite) {
+      await tellInviter(moved.invite, "accepted");
       await audit("member.joined", {
         actor: me.email,
         tenant: to.tenant,

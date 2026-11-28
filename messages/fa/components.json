@@ -1831,7 +1831,10 @@
     "usage": "مصرف",
     "whatSNew": "تازه‌ها",
     "accounts": "حساب‌ها",
-    "switchFailed": "آن حساب باز نشد. دوباره تلاش کنید."
+    "switchFailed": "آن حساب باز نشد. دوباره تلاش کنید.",
+    "invites": "دعوت‌ها",
+    "joinAccount": "پیوستن به {account}",
+    "invitesWaiting": "{n, plural, one {# دعوت در انتظار} other {# دعوت در انتظار}}"
   },
   "verify-banner": {
     "confirmIsYoursCheckYourInbox": "تأیید کنید که <email></email> مال شماست؛ لینک را در صندوق ورودی ایمیلتان پیدا کنید.",
@@ -1986,5 +1989,14 @@
     "runtimes": "ران‌تایم‌ها",
     "theLastBuildFailedARun": "آخرین ساخت ناموفق بود؛ اجرایی که از آن استفاده کند به همان شکل ناموفق می‌شود",
     "waitingForTheWorkerToBuild": "در انتظار ورکر برای ساخت آن"
+  },
+  "my-invites": {
+    "title": "دعوت‌ها",
+    "invitedYou": "<email></email> شما را با نقش {role} به <account></account> دعوت کرد",
+    "join": "پیوستن",
+    "decline": "رد کردن",
+    "declineTitle": "دعوت به {account} رد شود؟",
+    "declineBody": "دعوت از کار می‌افتد و به فرستنده خبر داده می‌شود. می‌تواند دوباره دعوتتان کند.",
+    "couldNot": "انجام نشد. دوباره تلاش کنید."
   }
 }

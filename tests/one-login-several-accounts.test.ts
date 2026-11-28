@@ -8,6 +8,7 @@
 //   node --import ./tests/register.mjs --test tests/one-login-several-accounts.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -47,6 +48,16 @@ const req = (method: string, p: string, cookie: string, body?: unknown) =>
   new NextRequest(`${BASE}${p}`, { method, headers: { cookie, origin: BASE, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
 const inviteTo = async (tenant: string, by: { id: string; email: string }, email: string | null, role: "viewer" | "editor" | "admin", workspaces: string[] | null = null) =>
   (await U.mintInvite(tenant, role, { email, workspaces, by })).token;
+/** A pending invite to someone who is a member by now. Nobody can make one
+ *  (the form answers "already a member"), so it is one that was out before
+ *  they joined: a row, as the store would hold it. */
+const staleInviteTo = async (tenant: string, by: { id: string; email: string }, email: string, role: "viewer" | "editor" | "admin") => {
+  const { readInvitesFile, writeInvitesFile } = await import("@/platform/invites.ts");
+  const id = crypto.randomBytes(16).toString("hex");
+  const expiresAt = new Date(Date.now() + 86_400_000).toISOString();
+  writeInvitesFile([...readInvitesFile(), { id, tenant, role, workspaces: null, email, createdBy: by.id, createdByEmail: by.email, createdAt: new Date().toISOString(), expiresAt, usedAt: null, usedBy: null, revokedAt: null, revokedBy: null, revokeReason: null }]);
+  return decodeURIComponent(U.invitePath({ id, expiresAt }).split("invite=")[1]);
+};
 
 test("joining: the invite's role and projects, nothing from the first account", async () => {
   const token = await inviteTo("shop", bo, ana.email, "viewer", ["desk"]);
@@ -120,7 +131,8 @@ test("the join is refused, and the invite stays, for the wrong person, an unconf
     assert.equal((await U.joinAccount(forCy, cy.id)).user.role, "editor");
     await assert.rejects(U.joinAccount(forCy, cy.id), /no longer valid/, "a link works once");
 
-    const again = await inviteTo("shop", bo, ana.email, "admin");
+    await assert.rejects(inviteTo("shop", bo, ana.email, "admin"), /already a member of this account/, "the form says so, and makes nothing");
+    const again = await staleInviteTo("shop", bo, ana.email, "admin");
     await assert.rejects(U.joinAccount(again, ana.id), /already in shop/);
     assert.equal(await U.roleOfUser("shop", ana.id), "viewer", "a second invite does not raise a member");
     assert.ok(await U.peekInvite(again), "and is not used up");
@@ -314,7 +326,7 @@ test("an invite for another address, a used one, or one for an account they are 
   const token = await inviteTo("shop", bo, ned.email, "viewer");
   assert.equal((await sessionPost(home, { invite: token })).status, 200);
   assert.ok([400, 404, 409, 410].includes((await sessionPost(home, { invite: token })).status), "the link works once");
-  assert.equal((await sessionPost(home, { invite: await inviteTo("shop", bo, ned.email, "admin") })).status, 409, "already in: no second membership, no raised role");
+  assert.equal((await sessionPost(home, { invite: await staleInviteTo("shop", bo, ned.email, "admin") })).status, 409, "already in: no second membership, no raised role");
   assert.equal(await U.roleOfUser("shop", ned.id), "viewer");
   assert.equal((await whoAmI(home))!.tenant, "ned-co");
 });

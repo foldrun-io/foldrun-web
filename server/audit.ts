@@ -65,6 +65,10 @@ export type AuditAction =
   // invite to the same address, or because its maker or addressee left
   // the team or was narrowed (29 Oct 2026).
   | "member.invite_revoked"
+  | "member.invite_declined"
+  | "member.invite_expired"
+  | "member.invite_resent"
+  | "member.invite_link_copied"
   | "member.joined"
   // Keys over their whole life: minted, rotated (the new one's id is the
   // subject, the old one's in detail), revoked by a person.

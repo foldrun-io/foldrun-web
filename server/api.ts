@@ -21,6 +21,15 @@ export class ApiError extends Error {
   }
 }
 
+/** A caller resolveTenant turned away, as the error a route throws. A page
+ *  that showed another account than the session is in now (412) carries
+ *  `code: "account_moved"`, as api.md says, so a program can tell it from
+ *  any other refusal and reload. */
+function refusedCaller(auth: { message: string; status: number }): ApiError {
+  const err = new ApiError(auth.message, auth.status);
+  return auth.status === ACCOUNT_MOVED ? Object.assign(err, { code: "account_moved" }) : err;
+}
+
 /**
  * The workspace a request is about, read from its path: every workspace
  * route is /v1/workspaces/<name>/… . A caller scoped to some workspaces is
@@ -67,7 +76,7 @@ export async function requireAccountWide(req: NextRequest, action: Parameters<ty
 /** The caller and what it may see — for routes that list across workspaces. */
 export async function requireCaller(req: NextRequest): Promise<{ tenant: string; actor: Actor }> {
   const auth = await resolveTenant(req);
-  if (auth.tenant === null) throw new ApiError(auth.message, auth.status);
+  if (auth.tenant === null) throw refusedCaller(auth);
   assertScope(req, auth.actor);
   await freshen(req, auth.tenant);
   return { tenant: auth.tenant, actor: auth.actor };
@@ -87,7 +96,7 @@ export async function requireTenant(req: NextRequest): Promise<string> {
   const auth = await resolveTenant(req);
   // Compare against null explicitly — a truthiness check doesn't narrow the
   // AuthResult union, since the success variant's string could be empty.
-  if (auth.tenant === null) throw new ApiError(auth.message, auth.status);
+  if (auth.tenant === null) throw refusedCaller(auth);
   assertScope(req, auth.actor);
   await freshen(req, auth.tenant);
   return auth.tenant;
@@ -112,7 +121,7 @@ export async function requirePermission(
   action: Action,
 ): Promise<{ tenant: string; actor: Actor }> {
   const auth = await resolveTenant(req);
-  if (auth.tenant === null) throw new ApiError(auth.message, auth.status);
+  if (auth.tenant === null) throw refusedCaller(auth);
   try {
     assertScope(req, auth.actor);
   } catch (err) {

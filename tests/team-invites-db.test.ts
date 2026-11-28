@@ -70,3 +70,89 @@ test("invites in Postgres: one member per link under a race, a refused accept ro
   assert.ok(report.invitesRemoved >= 4, String(report.invitesRemoved));
   assert.equal((await orm()!.select().from(invites).where(eq(invites.tenant, tenant))).length, 0);
 });
+
+test("invites in Postgres, the invited side (FOL-464): waiting invites by address, decline, join by id under a race, the mailed link confirming, expiry told once", opts, async () => {
+  process.env.FOLDRUN_RESEND_API_KEY = "re_test";
+  const { migrate } = await import("@/platform/db.ts");
+  await migrate();
+  const { orm, invites, eq, sql } = await import("@/platform/orm.ts");
+  const { createUser, setEmailVerified, mintInvite, acceptInvite, invitesFor, declineInvite, joinById, claimExpiredInvites, listInvites, accountsOf, findUser } = await import("../server/users.ts");
+  const { deleteTenant } = await import("@/platform/tenant-delete.ts");
+  const stamp = Date.now();
+  const tenant = `ans${stamp}`;
+  const home = `home${stamp}`;
+  const owner = await createUser(`owner@${tenant}.test`, PW, tenant, { request: "free" });
+  const ana = await createUser(`Ana@${home}.test`, PW, home, { request: "free" });
+  await setEmailVerified(owner.id);
+  const by = { id: owner.id, email: owner.email };
+  const row = async (id: string) => (await orm()!.select().from(invites).where(eq(invites.id, id)))[0];
+
+  // Nothing waits on an address that is not confirmed; then it does, found whatever the case it was typed in.
+  const first = await mintInvite(tenant, "viewer", { email: `ana@${home}.test`, by });
+  assert.deepEqual(await invitesFor(ana.id), []);
+  await setEmailVerified(ana.id);
+  assert.deepEqual((await invitesFor(ana.id)).map((i) => [i.id, i.account, i.role]), [[first.id, tenant, "viewer"]]);
+
+  // Decline: not by someone else, once, and it reads "declined".
+  await assert.rejects(() => declineInvite(first.id, owner.id), /no longer valid/);
+  assert.equal((await declineInvite(first.id, ana.id)).revokeReason, "declined");
+  await assert.rejects(() => declineInvite(first.id, ana.id), /no longer valid/);
+  await assert.rejects(() => joinById(first.id, ana.id), /no longer valid/);
+  assert.equal((await listInvites(tenant, { all: true, scope: null })).find((i) => i.id === first.id)?.status, "declined");
+  assert.deepEqual(await invitesFor(ana.id), []);
+
+  // Join by id, five at once: one membership.
+  const second = await mintInvite(tenant, "editor", { email: `ana@${home}.test`, by });
+  const joins = await Promise.allSettled([1, 2, 3, 4, 5].map(() => joinById(second.id, ana.id)));
+  assert.equal(joins.filter((r) => r.status === "fulfilled").length, 1, JSON.stringify(joins.map((r) => r.status)));
+  assert.deepEqual((await accountsOf(ana.id)).map((a) => [a.tenant, a.role]), [[home, "owner"], [tenant, "editor"]]);
+  // An open link has no id door: its link is its one secret.
+  const open = await mintInvite(tenant, "viewer", { by });
+  await assert.rejects(() => joinById(open.id, ana.id), /no longer valid/);
+
+  // The mailed link confirms the address in the row it creates; the copy link does not.
+  const m = await mintInvite(tenant, "viewer", { email: `mailed@${tenant}.test`, by });
+  assert.equal((await acceptInvite(m.mailToken, `mailed@${tenant}.test`, PW)).mailed, true);
+  assert.ok((await findUser(`mailed@${tenant}.test`))?.emailVerifiedAt);
+  const c = await mintInvite(tenant, "viewer", { email: `copied@${tenant}.test`, by });
+  assert.equal((await acceptInvite(c.token, `copied@${tenant}.test`, PW)).mailed, false);
+  assert.equal((await findUser(`copied@${tenant}.test`))?.emailVerifiedAt ?? null, null);
+
+  // Ran out unused: handed out once, and not one that ended long ago.
+  const slow = await mintInvite(tenant, "viewer", { email: `slow@${tenant}.test`, by });
+  const old = await mintInvite(tenant, "viewer", { email: `old@${tenant}.test`, by });
+  await orm()!.update(invites).set({ expiresAt: sql`now() - interval '1 minute'` }).where(eq(invites.id, slow.id));
+  await orm()!.update(invites).set({ expiresAt: sql`now() - interval '30 days'` }).where(eq(invites.id, old.id));
+  const [one, two] = await Promise.all([claimExpiredInvites(), claimExpiredInvites()]);
+  assert.deepEqual([...one, ...two].filter((r) => r.tenant === tenant).map((r) => r.id), [slow.id]);
+  assert.ok((await row(slow.id)).noticedAt);
+  assert.equal((await row(old.id)).noticedAt, null);
+
+  // A session made for the operator console is no dashboard sign-in: it
+  // neither reads nor answers the person's invites.
+  const { SESSION_COOKIE, mintSession } = await import("../server/users.ts");
+  const { NextRequest } = await import("next/server");
+  const mineRoute = await import("../app/v1/me/invites/route.ts");
+  const consoleSession = await mintSession(ana, null, { audience: "console" });
+  const viaConsole = await mineRoute.GET(new NextRequest("http://localhost:3900/v1/me/invites", { headers: { cookie: `${SESSION_COOKIE}=${consoleSession.value}`, origin: "http://localhost:3900" } }));
+  assert.ok([401, 403].includes(viaConsole.status), String(viaConsole.status));
+  const dashboard = await mintSession(ana, null, {});
+  const viaDashboard = await mineRoute.GET(new NextRequest("http://localhost:3900/v1/me/invites", { headers: { cookie: `${SESSION_COOKIE}=${dashboard.value}`, origin: "http://localhost:3900" } }));
+  assert.equal(viaDashboard.status, 200);
+  // Nor copies or resends the team's invites, even as an admin of it.
+  const ownerConsole = await mintSession(owner, null, { audience: "console" });
+  const pend = await mintInvite(tenant, "viewer", { email: `pend@${tenant}.test`, by });
+  for (const verb of ["link", "resend"] as const) {
+    const route = await import(`../app/v1/team/invites/[id]/${verb}/route.ts`);
+    const post = (cookie: string) => route.POST(new NextRequest(`http://localhost:3900/v1/team/invites/${pend.id}/${verb}`, { method: "POST", headers: { cookie: `${SESSION_COOKIE}=${cookie}`, origin: "http://localhost:3900" } }), { params: Promise.resolve({ id: pend.id }) });
+    const refused = await post(ownerConsole.value);
+    assert.ok([401, 403].includes(refused.status), `${verb}: ${refused.status}`);
+  }
+  const ownerDash = await mintSession(owner, null, {});
+  const linkRoute = await import("../app/v1/team/invites/[id]/link/route.ts");
+  const ok = await linkRoute.POST(new NextRequest(`http://localhost:3900/v1/team/invites/${pend.id}/link`, { method: "POST", headers: { cookie: `${SESSION_COOKIE}=${ownerDash.value}`, origin: "http://localhost:3900" } }), { params: Promise.resolve({ id: pend.id }) });
+  assert.equal(ok.status, 200, await ok.clone().text());
+
+  await deleteTenant(tenant, { confirm: tenant, by: "test" });
+  await deleteTenant(home, { confirm: home, by: "test" });
+});

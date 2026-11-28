@@ -796,7 +796,7 @@
     "forOnly": "For <email></email> only.",
     "invitePeople": "Invite people",
     "invitedByExpires": "{describeScope} · invited by <email></email> · expires <localTime></localTime>",
-    "itWorksOnceForSevenDays": "It works once, for seven days. Shown once:",
+    "itWorksOnceForSevenDays": "It works once, for seven days:",
     "justMakeTheLink": "Just make the link",
     "makeALinkAnyoneCanUse": "Make a link anyone can use",
     "makeTheOwner": "Make {email} the owner?",
@@ -817,7 +817,7 @@
     "roleFor": "Role for {email}",
     "saveAccess": "Save access",
     "sendInvite": "Send invite",
-    "sentToTheSameLinkIn": "Sent to <email></email>. The same link, in case they need it:",
+    "sentToTheSameLinkIn": "Sent to <email></email>. A link you can hand over yourself, in case they need it:",
     "since": "since <localTime></localTime> · {part}",
     "theLinkStopsWorkingAtOnce": "The link stops working at once. You can send a new one later.",
     "theirSignInStopsWorkingImmediately": "Their sign-in stops working immediately.",
@@ -830,6 +830,10 @@
     "workspace": "{@workspace.Other}",
     "you": "you",
     "yourPassword": "your password",
-    "yourPassword2": "Your password"
+    "yourPassword2": "Your password",
+    "sendAgain": "Send again",
+    "sentAgain": "Sent again",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied"
   }
 }

@@ -425,6 +425,33 @@ export const SHAPES: Record<string, Shape> = {
     ),
     response: obj({ ok: bool, read: { ...int, description: "items you have read, in all" }, dismissed: { ...int, description: "items you have set aside, in all" } }),
   },
+  "GET /v1/me/invites": {
+    response: obj({
+      invites: arr(
+        obj({
+          id: str(),
+          account: str("the account it invites you to"),
+          role: str("viewer | editor | admin"),
+          workspaces: { type: ["array", "null"], items: str(), description: "null for every workspace" },
+          invitedBy: str("who made it"),
+          createdAt: str(),
+          expiresAt: str(),
+          path: str("the invite's page"),
+        }),
+      ),
+    }),
+  },
+  "POST /v1/me/invites/{id}": {
+    body: obj({ action: str("join | decline") }, ["action"]),
+    response: obj({
+      ok: bool,
+      joined: bool,
+      declined: bool,
+      account: str(),
+      role: str("the role you joined with"),
+      workspaces: { type: ["array", "null"], items: str(), description: "null for every workspace" },
+    }),
+  },
   "GET /v1/me/notifications": { response: MailPreferences },
   "PATCH /v1/me/notifications": {
     body: obj({

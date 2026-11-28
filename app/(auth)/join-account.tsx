@@ -12,9 +12,11 @@ import { Callout } from "@foldrun/ui/react/page";
 /** `from` and `as` are the account and the person this page showed as signed
  *  in: the server refuses the move when the browser has since become another
  *  (another tab switched account, or signed in as someone else). */
-export function JoinAccount({ invite, account, label, from, as }: { invite?: string; account?: string; label: string; from: string; as: string }) {
+export function JoinAccount({ invite, account, label, from, as, decline }: { invite?: string; account?: string; label: string; from: string; as: string; /** The invite's id: offers Decline beside Join. */ decline?: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [declined, setDeclined] = useState(false);
+  if (declined) return <Callout>{$t("auth.join-account.declined")}</Callout>;
   return (
     <div className="space-y-3">
       <Button
@@ -43,6 +45,28 @@ export function JoinAccount({ invite, account, label, from, as }: { invite?: str
       >
         {label}
       </Button>
+      {decline && (
+        <Button
+          variant="ghost"
+          className="w-full"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            setError(null);
+            const res = await fetch(`/v1/me/invites/${encodeURIComponent(decline)}`, {
+              method: "POST",
+              headers: { "content-type": "application/json", "x-foldrun-account": from, "x-foldrun-as": as },
+              body: JSON.stringify({ action: "decline" }),
+            }).catch(() => null);
+            if (res?.ok) return setDeclined(true);
+            const said = res ? ((await res.json().catch(() => ({}))) as { error?: string | { message?: string } }).error : undefined;
+            setError((typeof said === "string" ? said : said?.message) || $t("auth.join-account.couldNotJoin"));
+            setBusy(false);
+          }}
+        >
+          {$t("auth.join-account.decline")}
+        </Button>
+      )}
       {error && <Callout tone="danger">{error}</Callout>}
     </div>
   );

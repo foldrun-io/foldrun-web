@@ -796,7 +796,7 @@
     "forOnly": "فقط برای <email></email>.",
     "invitePeople": "دعوت افراد",
     "invitedByExpires": "{describeScope} · دعوت از طرف <email></email> · انقضا <localTime></localTime>",
-    "itWorksOnceForSevenDays": "یک بار و تا هفت روز کار می‌کند. فقط یک بار نمایش داده می‌شود:",
+    "itWorksOnceForSevenDays": "یک بار و تا هفت روز کار می‌کند:",
     "justMakeTheLink": "فقط لینک بساز",
     "makeALinkAnyoneCanUse": "ساخت لینکی که هر کسی بتواند استفاده کند",
     "makeTheOwner": "{email} مالک شود؟",
@@ -817,7 +817,7 @@
     "roleFor": "نقش {email}",
     "saveAccess": "ذخیره دسترسی",
     "sendInvite": "ارسال دعوت",
-    "sentToTheSameLinkIn": "برای <email></email> فرستاده شد. همان لینک، اگر لازمش شد:",
+    "sentToTheSameLinkIn": "برای <email></email> فرستاده شد. لینکی که خودتان هم می‌توانید بدهید، اگر لازم شد:",
     "since": "از <localTime></localTime> · {part}",
     "theLinkStopsWorkingAtOnce": "لینک بلافاصله از کار می‌افتد. بعداً می‌توانید لینک جدیدی بفرستید.",
     "theirSignInStopsWorkingImmediately": "ورود او بلافاصله از کار می‌افتد.",
@@ -830,6 +830,10 @@
     "workspace": "{@workspace.Other}",
     "you": "شما",
     "yourPassword": "رمز عبور شما",
-    "yourPassword2": "رمز عبور شما"
+    "yourPassword2": "رمز عبور شما",
+    "sendAgain": "ارسال دوباره",
+    "sentAgain": "دوباره فرستاده شد",
+    "copyLink": "کپی لینک",
+    "linkCopied": "لینک کپی شد"
   }
 }

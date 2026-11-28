@@ -25,7 +25,7 @@ delete process.env.FOLDRUN_REDIS_URL;
 delete process.env.FOLDRUN_TRUST_PROXY;
 
 const { createApiKey } = await import("../server/auth.ts");
-const { createUser, mintSession, SESSION_COOKIE, peekInvite, inviteDoor, listMembers } = await import("../server/users.ts");
+const { createUser, mintSession, SESSION_COOKIE, peekInvite, inviteDoor, listMembers, invitePath } = await import("../server/users.ts");
 const { installKey } = await import("@/lib/webhook.ts");
 const { saveWorkspace, templateFiles } = await import("@/lib/store.ts");
 const { readInvitesFile, writeInvitesFile } = await import("@/platform/invites.ts");
@@ -70,6 +70,16 @@ async function signup(token: string, email: string, password = PW) {
   return { status: r.status, body: (await r.json()) as { error?: string; tenant?: string } };
 }
 const status = (id: string) => readInvitesFile().find((r) => r.id === id);
+/** A second pending invite to an address that is a member by now. The form
+ *  refuses to make one (FOL-464: "already a member"), so it is one that was
+ *  out before they joined: a row like `like`, unused, under its own id. */
+function spareInvite(like: string, role: string): { id: string; token: string } {
+  const rows = readInvitesFile();
+  const src = rows.find((r) => r.id === like)!;
+  const id = crypto.randomBytes(16).toString("hex");
+  writeInvitesFile([...rows, { ...src, id, role, usedAt: null, usedBy: null }]);
+  return { id, token: decodeURIComponent(invitePath({ id, expiresAt: src.expiresAt }).split("invite=")[1]) };
+}
 const pending = (id: string) => { const r = status(id)!; return !r.usedAt && !r.revokedAt; };
 const del = (id: string, auth: { cookie?: string; key?: string } = { cookie: ownerCookie }) =>
   inviteRoute.DELETE(req("DELETE", `/v1/team/invites/${id}`, auth), { params: Promise.resolve({ id }) });
@@ -123,8 +133,11 @@ test("joined, removed, back with the same link: refused — and a second pending
   const member = (await listMembers(tenant)).find((m) => m.email === email)!;
   // A second invite to them while they are a member: it supersedes nothing
   // used, and must die with the removal.
-  const spare = await invite(ownerCookie, { email, role: "admin" });
-  assert.equal(spare.status, 200);
+  // The form says so, and makes nothing: the one thing an inviter is told about an address.
+  const again = await invite(ownerCookie, { email, role: "admin" });
+  assert.equal(again.status, 409);
+  assert.match(String(again.body.error), /already a member/);
+  const spare = spareInvite(inv.id, "admin");
   const removed = await memberRoute.DELETE(req("DELETE", `/v1/team/members/${member.id}`, { cookie: ownerCookie }), { params: Promise.resolve({ id: member.id }) });
   assert.equal(removed.status, 200, await removed.clone().text());
   assert.equal(status(spare.id)!.revokeReason, "its maker or addressee left the team");
@@ -256,7 +269,7 @@ test("removal revokes the invites to their address in the same step: none is lef
   const inv = await invite(ownerCookie, { email, role: "viewer" });
   assert.equal((await signup(inv.token, email)).status, 200);
   const member = (await listMembers(tenant)).find((m) => m.email === email)!;
-  const spare = await invite(ownerCookie, { email, role: "viewer" });
+  const spare = spareInvite(inv.id, "viewer");
   const [removed, rejoin] = await Promise.all([
     memberRoute.DELETE(req("DELETE", `/v1/team/members/${member.id}`, { cookie: ownerCookie }), { params: Promise.resolve({ id: member.id }) }),
     signup(spare.token, email),

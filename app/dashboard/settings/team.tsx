@@ -135,6 +135,28 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
     if (!(await confirm({ title: $t("settings.team.revokeTheInviteFor", { who: String(who) }), body: $t("settings.team.theLinkStopsWorkingAtOnce"), confirmLabel: $t("settings.team.revoke") }))) return;
     if (await call(`/v1/team/invites/${encodeURIComponent(inv.id)}`, "DELETE")) router.refresh();
   }
+  // What was just done to a pending invite: its mail sent again, or its link copied.
+  const [did, setDid] = useState<{ id: string; what: "sent" | "copied" } | null>(null);
+  const flash = (id: string, what: "sent" | "copied") => {
+    setDid({ id, what });
+    setTimeout(() => setDid((d) => (d?.id === id && d.what === what ? null : d)), 2500);
+  };
+  async function resendInvite(inv: PendingInvite) {
+    const data = await call(`/v1/team/invites/${encodeURIComponent(inv.id)}/resend`, "POST");
+    if (!data) return;
+    if (data.sent === true) flash(inv.id, "sent");
+    else setError((data.sendError as string | null) ?? "not sent");
+  }
+  async function copyInviteLink(inv: PendingInvite) {
+    const data = await call(`/v1/team/invites/${encodeURIComponent(inv.id)}/link`, "POST");
+    if (typeof data?.url !== "string") return;
+    try {
+      await navigator.clipboard.writeText(data.url);
+    } catch {
+      copyFallback(data.url);
+    }
+    flash(inv.id, "copied");
+  }
   const copy = async (url: string) => {
     try {
       await navigator.clipboard.writeText(url);
@@ -269,7 +291,13 @@ export function TeamManager({ members, invites = [], self, workspaces }: { membe
                 </div>
                 <Tag><Tooltip label={DESCRIBE[inv.role]}><span>{labelOf(ROLE_LABEL, inv.role)}</span></Tooltip></Tag>
                 {(inv.role !== "admin" || managesAdmins) && (
-                  <Button variant="ghost" className="hover:text-danger" onClick={() => void revokeInvite(inv)}>{$t("settings.team.revoke")}</Button>
+                  <>
+                    {inv.email && (
+                      <Button variant="ghost" onClick={() => void resendInvite(inv)}>{did?.id === inv.id && did.what === "sent" ? $t("settings.team.sentAgain") : $t("settings.team.sendAgain")}</Button>
+                    )}
+                    <Button variant="ghost" onClick={() => void copyInviteLink(inv)}>{did?.id === inv.id && did.what === "copied" ? $t("settings.team.linkCopied") : $t("settings.team.copyLink")}</Button>
+                    <Button variant="ghost" className="hover:text-danger" onClick={() => void revokeInvite(inv)}>{$t("settings.team.revoke")}</Button>
+                  </>
                 )}
               </li>
             ))}

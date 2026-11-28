@@ -67,6 +67,11 @@ export async function register() {
     const deprecations = () => void withHousekeeping("api-deprecations", () => warnDeprecatedCallers()).catch((err) => opsError("api.deprecation_warnings_failed", err));
     setTimeout(deprecations, 90_000).unref();
     setInterval(deprecations, 3_600_000).unref();
+    // Invites that ran out unused: their makers are told, once (FOL-464).
+    const { noticeExpiredInvites } = await import("@/server/invite-notices.ts");
+    const invites = () => void withHousekeeping("invite-expiry", () => noticeExpiredInvites()).catch((err) => opsError("invites.expiry_notices_failed", err));
+    setTimeout(invites, 120_000).unref();
+    setInterval(invites, 3_600_000).unref();
   }
 
   // What the hosted app runs beside itself (server/hosted-services.ts —
